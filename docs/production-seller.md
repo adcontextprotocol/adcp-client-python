@@ -62,10 +62,15 @@ The reference's `IdempotencyStore` wrapping is intentionally paired with its
 inline terminal responses. Do not put the same method-level wrapper around a
 method that returns a raw `TaskHandoff` or `WorkflowHandoff`: the wrapper runs
 before framework task issuance and therefore cannot cache the projected
-`{status: "submitted", task_id}` envelope. A durable workflow adapter must
-deduplicate task issuance in its queue/business transaction (and advertise
-idempotency only when it does so) until that projection boundary is supported
-directly by the SDK.
+`{status: "submitted", task_id}` envelope. A durable workflow adapter must not
+advertise method-level idempotency for that method unless an external durable
+request-to-task mapping can reuse the prior task id. The reference queue's
+uniqueness constraint is only on the framework-issued `task_id`, not the
+buyer's idempotency key. A web-process
+crash after enqueue commits but before the `submitted` response reaches the
+buyer can therefore cause a retried request to issue a second task and queue
+row. Fully closing that window requires SDK support for looking up or reusing
+a workflow task id by buyer idempotency key.
 
 For a mixed adapter, make the split explicit with
 `method_level_idempotency_methods`: include only methods that return terminal
@@ -98,7 +103,10 @@ artifact.
 [`workflow_queue.py`](../examples/v3_reference_seller/src/workflow_queue.py)
 is a PostgreSQL-backed adopter queue with expiring leases. The enqueue callback
 stores the framework task id before `WorkflowHandoff` returns `submitted`; a
-replacement worker reclaims an expired lease after a crash.
+replacement worker reclaims an expired lease after a crash. Handler failures
+retry with capped exponential backoff; after the configured attempt limit the
+registry task fails and the queue row moves to `dead_lettered`. Jobs without a
+matching account-scoped registry task dead-letter immediately.
 
 ```python
 queue = task_wiring.workflow_queue
@@ -198,8 +206,9 @@ missing field names. The retry horizon is projected into capabilities and must
 match the outbox value.
 
 `DurableTaskWiring.startup()` calls `create_schema()` for a convenient local
-bootstrap. Those idempotent `CREATE TABLE IF NOT EXISTS` calls are not a schema
-migration system: they do not detect or evolve a table with the wrong shape.
+bootstrap. The workflow example performs the one additive upgrade shown here,
+but these runtime DDL calls are not a general schema migration system and do
+not detect or safely evolve an arbitrarily mismatched table.
 For production, copy the SDK-owned SQL files (`decisioning_tasks.sql` and
 `task_webhook_outbox.sql`), the `PgBackend.create_schema()` DDL, and the
 reference workflow-queue DDL into reviewed, versioned migrations and apply

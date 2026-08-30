@@ -16,6 +16,7 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 
 from src.durable_tasks import DurableTaskWiring  # noqa: E402
+from src.workflow_queue import PgWorkflowQueue  # noqa: E402
 
 
 def _write_signing_key(path: Path) -> None:
@@ -82,6 +83,39 @@ def test_retry_horizon_is_validated_before_boot(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="between 86400 and 604800"):
         DurableTaskWiring.from_env(environ)
+
+
+def test_workflow_retry_backoff_is_exponential_and_capped() -> None:
+    queue = PgWorkflowQueue(
+        pool=MagicMock(),
+        registry=MagicMock(),
+        max_attempts=5,
+        retry_base_seconds=2,
+        max_retry_seconds=5,
+    )
+
+    assert queue._retry_delay(1) == 2  # noqa: SLF001
+    assert queue._retry_delay(2) == 4  # noqa: SLF001
+    assert queue._retry_delay(3) == 5  # noqa: SLF001
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"max_attempts": 0}, "max_attempts"),
+        ({"retry_base_seconds": 0}, "retry_base_seconds"),
+        (
+            {"retry_base_seconds": 2, "max_retry_seconds": 1},
+            "max_retry_seconds",
+        ),
+    ],
+)
+def test_workflow_retry_configuration_is_validated(
+    kwargs: dict[str, int],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        PgWorkflowQueue(pool=MagicMock(), registry=MagicMock(), **kwargs)
 
 
 def test_complete_bundle_builds_atomic_registry_outbox_pair(tmp_path: Path) -> None:
@@ -180,6 +214,53 @@ async def test_startup_failure_closes_every_resource() -> None:
 
     with pytest.raises(RuntimeError, match="DDL failed"):
         await wiring.startup()
+
+    sender.aclose.assert_awaited_once()
+    lock_pool.close.assert_awaited_once()
+    pool.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_startup_cancellation_closes_every_resource_and_reraises() -> None:
+    pool = MagicMock(open=AsyncMock(), close=AsyncMock())
+    lock_pool = MagicMock(open=AsyncMock(), close=AsyncMock())
+    sender_close_started = asyncio.Event()
+    release_sender_close = asyncio.Event()
+
+    async def close_sender() -> None:
+        sender_close_started.set()
+        await release_sender_close.wait()
+
+    sender = MagicMock(aclose=AsyncMock(side_effect=close_sender))
+    schema_started = asyncio.Event()
+
+    async def wait_forever() -> None:
+        schema_started.set()
+        await asyncio.Event().wait()
+
+    registry = MagicMock(create_schema=AsyncMock(side_effect=wait_forever))
+    wiring = DurableTaskWiring(
+        pool=pool,
+        lock_pool=lock_pool,
+        sender=sender,
+        outbox=MagicMock(create_schema=AsyncMock()),
+        registry=registry,
+        workflow_queue=MagicMock(create_schema=AsyncMock()),
+        idempotency_backend=MagicMock(create_schema=AsyncMock()),
+        idempotency=None,
+        retry_horizon_seconds=86400,
+        signing_algorithm="ed25519",
+    )
+
+    startup = asyncio.create_task(wiring.startup())
+    await schema_started.wait()
+    startup.cancel()
+    await sender_close_started.wait()
+    startup.cancel()
+    release_sender_close.set()
+
+    with pytest.raises(asyncio.CancelledError):
+        await startup
 
     sender.aclose.assert_awaited_once()
     lock_pool.close.assert_awaited_once()

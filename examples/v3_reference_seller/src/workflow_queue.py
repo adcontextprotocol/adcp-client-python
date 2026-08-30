@@ -26,6 +26,15 @@ logger = logging.getLogger(__name__)
 
 _SAFE_IDENTIFIER = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 DEFAULT_WORKFLOW_TABLE = "adcp_reference_workflows"
+DEFAULT_MAX_ATTEMPTS = 8
+DEFAULT_MAX_RETRY_SECONDS = 300.0
+DEFAULT_RETRY_BASE_SECONDS = 1.0
+
+_RETRY_EXHAUSTED_ERROR: dict[str, str] = {
+    "code": "INTERNAL_ERROR",
+    "message": "Workflow processing exhausted its retry budget.",
+    "recovery": "terminal",
+}
 
 
 @dataclass(frozen=True)
@@ -61,15 +70,29 @@ class PgWorkflowQueue:
         registry: TaskRegistry,
         table: str = DEFAULT_WORKFLOW_TABLE,
         lease_seconds: int = 60,
+        max_attempts: int = DEFAULT_MAX_ATTEMPTS,
+        retry_base_seconds: float = DEFAULT_RETRY_BASE_SECONDS,
+        max_retry_seconds: float = DEFAULT_MAX_RETRY_SECONDS,
     ) -> None:
         if not _SAFE_IDENTIFIER.fullmatch(table):
             raise ValueError("workflow table must be a safe lowercase PostgreSQL identifier")
         if lease_seconds < 2:
             raise ValueError("workflow lease_seconds must be at least 2")
+        if max_attempts < 1:
+            raise ValueError("workflow max_attempts must be at least 1")
+        if retry_base_seconds <= 0:
+            raise ValueError("workflow retry_base_seconds must be positive")
+        if max_retry_seconds < retry_base_seconds:
+            raise ValueError("workflow max_retry_seconds must be at least retry_base_seconds")
         self._pool = pool
         self._registry = registry
         self._table = table
+        suffix = "_state_check"
+        self._state_constraint = f"{table[: 63 - len(suffix)]}{suffix}"
         self._lease_seconds = lease_seconds
+        self._max_attempts = max_attempts
+        self._retry_base_seconds = retry_base_seconds
+        self._max_retry_seconds = max_retry_seconds
 
         self._sql_claim = (  # noqa: S608 - table is validated above
             f"WITH candidate AS ("
@@ -108,13 +131,20 @@ class PgWorkflowQueue:
                 created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
                 updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
                 completed_at     TIMESTAMPTZ,
-                CHECK (state IN ('pending', 'in_flight', 'completed')),
+                dead_lettered_at TIMESTAMPTZ,
                 CHECK (attempt_count >= 0),
                 CHECK (
                     (state = 'in_flight') =
                     (lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)
                 )
             )""",
+            f"""ALTER TABLE {self._table}
+                ADD COLUMN IF NOT EXISTS dead_lettered_at TIMESTAMPTZ""",
+            f"""ALTER TABLE {self._table}
+                DROP CONSTRAINT IF EXISTS {self._state_constraint}""",
+            f"""ALTER TABLE {self._table}
+                ADD CONSTRAINT {self._state_constraint}
+                CHECK (state IN ('pending', 'in_flight', 'completed', 'dead_lettered'))""",
             f"""CREATE INDEX IF NOT EXISTS {self._table}_work_idx
                 ON {self._table} (available_at, created_at)
                 WHERE state = 'pending'""",
@@ -123,8 +153,15 @@ class PgWorkflowQueue:
                 WHERE state = 'in_flight'""",
         ]
         async with self._pool.connection() as conn:
-            for statement in statements:
-                await conn.execute(statement)
+            async with conn.transaction():
+                # Web and worker processes may bootstrap concurrently in the
+                # reference deployment. Serialize this example-owned DDL.
+                await conn.execute(
+                    "SELECT pg_advisory_xact_lock(hashtext(%s))",
+                    (f"adcp.workflow_queue.schema:{self._table}",),
+                )
+                for statement in statements:
+                    await conn.execute(statement)
 
     async def enqueue(
         self,
@@ -207,18 +244,79 @@ class PgWorkflowQueue:
             attempt_count=int(attempts),
         )
 
+    def _retry_delay(self, attempt_count: int) -> float:
+        exponent = min(max(attempt_count - 1, 0), 30)
+        return min(
+            self._max_retry_seconds,
+            self._retry_base_seconds * (2**exponent),
+        )
+
     async def _release(self, job: WorkflowJob, exc: Exception) -> None:
         # Persist the class for operations without writing arbitrary exception
         # text (which may contain request data or credentials) into PostgreSQL.
         message = type(exc).__name__
+        retry_delay = self._retry_delay(job.attempt_count)
         async with self._pool.connection() as conn:
             await conn.execute(
                 f"UPDATE {self._table} SET state = 'pending', "  # noqa: S608
-                "available_at = now() + interval '1 second', lease_token = NULL, "
+                "available_at = now() + (%s * interval '1 second'), "
+                "lease_token = NULL, "
                 "lease_expires_at = NULL, last_error = %s, updated_at = now() "
                 "WHERE task_id = %s AND state = 'in_flight' AND lease_token = %s",
-                (message, job.task_id, job.lease_token),
+                (retry_delay, message, job.task_id, job.lease_token),
             )
+
+    async def _dead_letter(self, job: WorkflowJob, reason: str) -> None:
+        async with self._pool.connection() as conn:
+            cursor = await conn.execute(
+                f"UPDATE {self._table} SET state = 'dead_lettered', "  # noqa: S608
+                "lease_token = NULL, lease_expires_at = NULL, last_error = %s, "
+                "dead_lettered_at = now(), updated_at = now() "
+                "WHERE task_id = %s AND state = 'in_flight' AND lease_token = %s",
+                (reason, job.task_id, job.lease_token),
+            )
+        if cursor.rowcount != 1:
+            raise RuntimeError("workflow lease was lost before dead-lettering")
+
+    async def _handle_failure(self, job: WorkflowJob, exc: Exception) -> None:
+        if job.attempt_count < self._max_attempts:
+            await self._release(job, exc)
+            logger.warning(
+                "Workflow job %s failed on attempt %d with %s; released for retry",
+                job.task_id,
+                job.attempt_count,
+                type(exc).__name__,
+            )
+            return
+
+        await self._registry.fail(job.task_id, dict(_RETRY_EXHAUSTED_ERROR))
+        await self._dead_letter(job, type(exc).__name__)
+        logger.error(
+            "Workflow job %s exhausted %d attempts with %s and was dead-lettered",
+            job.task_id,
+            job.attempt_count,
+            type(exc).__name__,
+        )
+
+    async def _handle_unverified_failure(self, job: WorkflowJob, exc: Exception) -> None:
+        """Bound failures before account ownership has been established."""
+        if job.attempt_count < self._max_attempts:
+            await self._release(job, exc)
+            logger.warning(
+                "Workflow task lookup failed on attempt %d with %s; released for retry",
+                job.attempt_count,
+                type(exc).__name__,
+            )
+            return
+
+        # Never call the task-id-only registry mutation methods until the
+        # account-scoped get above has positively established ownership.
+        await self._dead_letter(job, type(exc).__name__)
+        logger.error(
+            "Workflow task lookup exhausted %d attempts with %s; dead-lettered",
+            job.attempt_count,
+            type(exc).__name__,
+        )
 
     async def _acknowledge(self, job: WorkflowJob) -> None:
         async with self._pool.connection() as conn:
@@ -242,22 +340,54 @@ class PgWorkflowQueue:
                 job.task_id,
                 expected_account_id=job.account_id,
             )
-            if task is None:
-                raise ValueError("workflow job does not match an account-scoped task")
-            if task.get("state") in {"completed", "failed"}:
-                # A prior worker may have committed terminal task state and
-                # died before acknowledging this queue lease. Do not rerun the
-                # business effect; reconcile the queue row to terminal state.
-                await self._acknowledge(job)
-                return True
-            result = await handler(job)
-            await self._registry.complete(job.task_id, result)
-            await self._acknowledge(job)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            await self._release(job, exc)
-            logger.exception("Workflow job %s failed; released for retry", job.task_id)
+            await self._handle_unverified_failure(job, exc)
+            return True
+
+        if task is None:
+            # Keep this transition outside the generic failure path. If the
+            # queue write fails, a later lease retries only dead-lettering and
+            # can never mutate a task belonging to another account.
+            await self._dead_letter(job, "task_missing_or_account_mismatch")
+            logger.error(
+                "Workflow job %s has no matching account-scoped task; dead-lettered",
+                job.task_id,
+            )
+            return True
+        if task.get("state") == "failed" and task.get("error") == _RETRY_EXHAUSTED_ERROR:
+            # Registry failure and queue dead-lettering are separate commits.
+            # Finish the second transition after a crash between them without
+            # running the handler again.
+            await self._dead_letter(job, "retry_budget_exhausted")
+            return True
+        if task.get("state") in {"completed", "failed"}:
+            # A prior worker may have committed terminal task state and died
+            # before acknowledging this queue lease. Do not rerun the business
+            # effect; reconcile the queue row to terminal state.
+            await self._acknowledge(job)
+            return True
+        if job.attempt_count > self._max_attempts:
+            # A prior attempt exhausted the handler budget but could not
+            # persist terminal registry state. Retry only finalization; never
+            # execute the business handler beyond max_attempts.
+            await self._registry.fail(job.task_id, dict(_RETRY_EXHAUSTED_ERROR))
+            await self._dead_letter(job, "retry_budget_exhausted")
+            return True
+
+        try:
+            result = await handler(job)
+            await self._registry.complete(job.task_id, result)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            await self._handle_failure(job, exc)
+            return True
+
+        # A failed acknowledgement must not enter the handler retry path: the
+        # registry is already terminal, and lease recovery reconciles the row.
+        await self._acknowledge(job)
         return True
 
     async def run_worker(
@@ -302,6 +432,9 @@ class PgWorkflowQueue:
 
 
 __all__ = [
+    "DEFAULT_MAX_ATTEMPTS",
+    "DEFAULT_MAX_RETRY_SECONDS",
+    "DEFAULT_RETRY_BASE_SECONDS",
     "DEFAULT_WORKFLOW_TABLE",
     "PgWorkflowQueue",
     "WorkflowHandler",

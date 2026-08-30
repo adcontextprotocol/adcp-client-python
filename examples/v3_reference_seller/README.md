@@ -96,9 +96,16 @@ The bundled mock upstream resolves approvals quickly, so
 `create_media_buy` completes inline. When adapting the example to a human or
 long-running approval system, return `ctx.handoff_to_workflow(...)` and let a
 durable queue consumer call `registry.complete()` or `registry.fail()`; do not
-move a long polling loop into an in-process `TaskHandoff`. That queue must also
-deduplicate workflow issuance before enabling the idempotency capability; the
-reference's method wrapper is for its inline terminal-response path.
+move a long polling loop into an in-process `TaskHandoff`. Leave method-level
+idempotency unadvertised for that method unless an external durable
+request-to-task mapping can reuse the prior task id. The reference's method
+wrapper is for its inline terminal-response path.
+The reference queue deduplicates only the framework-issued `task_id`. It does
+not close the crash window between committing enqueue and returning
+`submitted`, because a buyer retry can receive a newly issued task id. That
+requires SDK support for reusing a workflow task id by buyer idempotency key.
+Worker failures use capped exponential backoff and a bounded attempt count;
+exhausted or account-mismatched jobs move to `dead_lettered` for operations.
 The queue and restart-recovery test are runnable reference infrastructure;
 adopters supply the workflow handler that talks to their approval system.
 

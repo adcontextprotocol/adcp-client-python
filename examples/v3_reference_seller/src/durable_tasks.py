@@ -7,6 +7,7 @@ material, but own separate connection pools and webhook senders.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
 import logging
@@ -187,6 +188,23 @@ class DurableTaskWiring:
             await self.workflow_queue.create_schema()
             if self.idempotency_backend is not None:
                 await self.idempotency_backend.create_schema()
+        except asyncio.CancelledError:
+            cleanup = asyncio.create_task(self.shutdown())
+            # Once startup owns resources, repeated cancellation must not
+            # strand them. Shield the cleanup task and preserve cancellation
+            # for the caller after every close has had a chance to run.
+            while not cleanup.done():
+                try:
+                    await asyncio.shield(cleanup)
+                except asyncio.CancelledError:
+                    continue
+            try:
+                cleanup.result()
+            except asyncio.CancelledError:
+                logger.exception("Durable resource cleanup was cancelled")
+            except Exception:
+                logger.exception("Durable resource cleanup failed after startup cancellation")
+            raise
         except Exception:
             try:
                 await self.shutdown()
@@ -196,7 +214,7 @@ class DurableTaskWiring:
 
     async def shutdown(self) -> None:
         """Best-effort close every resource owned by this process."""
-        first_error: Exception | None = None
+        first_error: BaseException | None = None
         closers = [self.sender.aclose]
         if self.lock_pool is not None:
             closers.append(self.lock_pool.close)
@@ -204,6 +222,10 @@ class DurableTaskWiring:
         for close in closers:
             try:
                 await close()
+            except asyncio.CancelledError as exc:
+                logger.exception("Durable task resource close was cancelled")
+                if first_error is None:
+                    first_error = exc
             except Exception as exc:
                 logger.exception("Failed to close a durable task resource")
                 if first_error is None:
