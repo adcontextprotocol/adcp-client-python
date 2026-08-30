@@ -9,9 +9,9 @@ commercial-identity layer (tenants, buyer agents, accounts).
 Required (every sales-* specialism):
 
 * :meth:`get_products` — translate ``GET /v1/products`` upstream
-* :meth:`create_media_buy` — ``POST /v1/orders``; returns
-  :class:`Submitted` task envelope; background handoff polls
-  ``/v1/tasks/{id}`` until approved
+* :meth:`create_media_buy` — ``POST /v1/orders``; the bundled mock resolves
+  approval inline. Production adapters with long-running approval return a
+  ``WorkflowHandoff`` backed by their durable queue.
 * :meth:`update_media_buy` — UNSUPPORTED (mock has no order-update
   endpoint; the framework raises ``UNSUPPORTED_FEATURE``)
 * :meth:`sync_creatives` — ``POST /v1/creatives`` per creative
@@ -66,6 +66,7 @@ import logging
 import random
 from dataclasses import replace as _dc_replace
 from datetime import datetime, timezone
+from types import MethodType
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 from urllib.parse import urlsplit
 
@@ -91,6 +92,9 @@ from adcp.decisioning.capabilities import (
     Account as CapsAccount,
 )
 from adcp.decisioning.capabilities import (
+    Adcp as CapsAdcp,
+)
+from adcp.decisioning.capabilities import (
     Features as MediaBuyFeatures,
 )
 from adcp.decisioning.capabilities import (
@@ -105,6 +109,7 @@ from adcp.decisioning.capabilities import (
 from adcp.decisioning.specialisms import SalesPlatform
 from adcp.server import current_tenant
 from adcp.server.helpers import valid_actions_for_status
+from adcp.server.idempotency import IdempotencyStore
 from adcp.server.responses import list_creatives_response
 from adcp.types import (
     BusinessEntity,
@@ -128,6 +133,7 @@ from adcp.types import (
     UpdateMediaBuyRequest,
     UpdateMediaBuySuccessResponse,
 )
+from adcp.types.capabilities import IdempotencySupported
 from adcp.types.legacy import (
     LegacyFormat,
     LegacyFormatId,
@@ -152,6 +158,13 @@ _STORYBOARD_LEGACY_FORMAT_OWNERS = {
     "https://reference.adcp.org",
     "https://your-platform.example.com",
 }
+
+_DEFAULT_IDEMPOTENCY_METHODS = (
+    "create_media_buy",
+    "update_media_buy",
+    "sync_creatives",
+    "provide_performance_feedback",
+)
 
 
 def _legacy_format_converter(context: LegacyFormatConversionContext) -> dict[str, Any] | None:
@@ -787,6 +800,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             CapsSpecialism.sales_non_guaranteed,
             CapsSpecialism.sales_guaranteed,
         ],
+        adcp=CapsAdcp.model_validate({"major_versions": [3], "idempotency": {"supported": False}}),
         # ``account.supported_billing`` is required by the spec
         # whenever ``media_buy`` is in ``supported_protocols``. The
         # reference seller invoices the operator (agency / brand
@@ -812,6 +826,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         approval_poll_interval_s: float = 1.0,
         approval_poll_max_iterations: int = 60,
         webhook_signing_alg: str | None = None,
+        webhook_retry_horizon_seconds: int = 86_400,
+        idempotency: IdempotencyStore | None = None,
+        method_level_idempotency_methods: tuple[str, ...] | None = None,
     ) -> None:
         """Construct the reference seller.
 
@@ -845,6 +862,14 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             :class:`~adcp.webhook_sender.WebhookSender` produces RFC 9421
             signatures over outbound deliveries. Default ``None`` —
             no signing advertised, sender wiring optional.
+        :param webhook_retry_horizon_seconds: Durable retry horizon advertised
+            to webhook receivers. Must match the configured task outbox.
+        :param idempotency: Optional durable idempotency store. When supplied,
+            mutating methods are wrapped and the replay window is advertised.
+        :param method_level_idempotency_methods: Methods whose inline terminal
+            responses are cached by ``idempotency``. Workflow adapters must
+            exclude methods returning handoff markers and deduplicate their
+            durable queue issuance separately.
         """
         # Override the class-level capabilities iff signing is wired.
         # ``dataclasses.replace`` preserves every other field from the
@@ -858,6 +883,20 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                     supported=True,
                     profile="adcp/webhook-signing/v1",
                     algorithms=[webhook_signing_alg],  # type: ignore[list-item]
+                    delivery_retry_horizon_seconds=webhook_retry_horizon_seconds,
+                ),
+            )
+        if idempotency is not None:
+            assert self.capabilities.adcp is not None
+            self.capabilities = _dc_replace(
+                self.capabilities,
+                adcp=self.capabilities.adcp.model_copy(
+                    update={
+                        "idempotency": IdempotencySupported(
+                            supported=True,
+                            replay_ttl_seconds=idempotency.ttl_seconds,
+                        )
+                    }
                 ),
             )
 
@@ -899,6 +938,22 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             sessionmaker,
             mock_upstream_url=mock_upstream_url,
         )
+        if idempotency is not None:
+            selected_methods = (
+                _DEFAULT_IDEMPOTENCY_METHODS
+                if method_level_idempotency_methods is None
+                else method_level_idempotency_methods
+            )
+            for method_name in selected_methods:
+                method = getattr(type(self), method_name, None)
+                if not callable(method):
+                    raise ValueError(f"Unknown method-level idempotency method: {method_name}")
+                # Bind the decorated unbound method back to this instance.
+                # Wrapping an already-bound method and assigning the plain
+                # closure would shift ``req`` into the decorator's ``self``
+                # slot, causing idempotency-key extraction to silently miss.
+                wrapped = idempotency.wrap(method)
+                setattr(self, method_name, MethodType(wrapped, self))
 
     def _client(self, ctx: RequestContext) -> UpstreamHttpClient:
         """Resolve the pooled :class:`UpstreamHttpClient` for this
@@ -1131,13 +1186,13 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
 
     async def create_media_buy(self, req: CreateMediaBuyRequest, ctx: RequestContext):
         """``POST /v1/orders`` → upstream returns ``pending_approval``
-        with an ``approval_task_id``. Hand off to a background coroutine
-        that polls ``/v1/tasks/{id}`` until approved, then returns the
-        :class:`CreateMediaBuySuccessResponse`.
+        with an ``approval_task_id``. The mock reference polls that task
+        briefly and returns :class:`CreateMediaBuySuccessResponse` inline.
 
-        Buyer experience: ``{status: 'submitted', task_id}`` immediately;
-        framework's task registry surfaces the success on
-        ``tasks/get`` polling once the upstream approves.
+        The bundled mock upstream resolves approval quickly, so this reference
+        awaits the result and returns it inline. A production adapter whose
+        approval can outlive the request should return ``WorkflowHandoff`` and
+        let its durable worker complete or fail the framework task.
 
         Measurement terms gating: this seller cannot guarantee zero
         variance on billing measurement (``max_variance_percent == 0``
@@ -1209,20 +1264,13 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 current, req, budget_amount, budget_currency, client, network_code, ctx
             )
 
-        # Slow path — hand off to background polling. The framework
-        # allocates a task_id, returns the Submitted envelope, and runs
-        # the handoff coroutine in the background. When this coroutine
-        # returns, the framework persists the success as the terminal
-        # artifact on the registry; buyers see it via ``tasks/get`` or
-        # via the push-notification webhook. When this coroutine raises
-        # :class:`AdcpError`, the framework persists ``failed`` with the
-        # wire-shaped error payload — so terminal-failure projection
-        # (rejected, timed-out polling) goes through ``raise``, not
-        # through fabricating a success response.
+        # Mock slow path — poll briefly in this request. The fixture approves
+        # within milliseconds, keeping the storyboard's create response
+        # synchronous. A production adapter must replace this block with a
+        # durable WorkflowHandoff queue when approval can outlive the request.
         bound_task_id = approval_task_id
 
-        async def _poll_until_approved(task_handoff_ctx: Any) -> CreateMediaBuySuccessResponse:
-            del task_handoff_ctx
+        async def _poll_until_approved() -> CreateMediaBuySuccessResponse:
             for _ in range(self._approval_poll_max_iterations):
                 task = await upstream_helpers.get_task(
                     client, network_code=network_code, task_id=bound_task_id
@@ -1284,14 +1332,15 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         # lets create_media_buy return the full CreateMediaBuySuccessResponse
         # with media_buy_id in the response body, which is what AdCP
         # storyboards and most buyers expect. Production adopters with slow
-        # real-world approvals swap this for the task-handoff path:
+        # real-world approvals must move the poll to a durable workflow queue:
         #
-        #     return ctx.handoff_to_task(_poll_until_approved)
+        #     return ctx.handoff_to_workflow(enqueue_approval)
         #
         # which returns a Submitted({task_id, status: 'submitted'}) envelope
-        # and runs the polling coroutine in the background while buyers
-        # poll via tasks/get.
-        return await _poll_until_approved(None)
+        # after the enqueue callback durably stores the framework task id.
+        # The external worker later calls registry.complete()/fail(); using
+        # TaskHandoff for long polling would be stranded by a web restart.
+        return await _poll_until_approved()
 
     def _reject_unworkable_terms(self, req: CreateMediaBuyRequest) -> None:
         """Reject ``create_media_buy`` requests whose ``measurement_terms``
@@ -1991,7 +2040,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                     "event_name": metric_type,
                     "event_time": event_time,
                     "value": performance_index,
-                    "dedup_key": f"{req.media_buy_id}:{metric_type}:{event_time}",
+                    "dedup_key": (f"adcp:{req.idempotency_key}:performance-feedback"),
                 }
             ],
         }

@@ -1320,6 +1320,31 @@ class TestBackendPutFailure:
         assert result["media_buy_id"] == "mb_1"  # handler ran, result returned
         assert any("cache put failed" in rec.message for rec in caplog.records)
 
+    @pytest.mark.asyncio
+    async def test_put_failure_can_fail_closed_for_production(self) -> None:
+        from adcp.decisioning import AdcpError
+
+        class BrokenBackend(MemoryBackend):
+            async def put(self, *args: Any, **kwargs: Any) -> None:
+                raise RuntimeError("simulated backend outage")
+
+        store = IdempotencyStore(
+            backend=BrokenBackend(),
+            ttl_seconds=86400,
+            raise_on_persist_error=True,
+        )
+        wrapped = store.wrap(_FakeHandler.create_media_buy)
+
+        with pytest.raises(AdcpError) as exc_info:
+            await wrapped(
+                _FakeHandler(),
+                {"idempotency_key": str(uuid.uuid4()), "b": 1},
+                ToolContext(caller_identity="principal-a"),
+            )
+
+        assert exc_info.value.code == "SERVICE_UNAVAILABLE"
+        assert exc_info.value.recovery == "transient"
+
 
 class TestWireTranslation:
     """IdempotencyConflictError raised from a wrapped handler must surface on

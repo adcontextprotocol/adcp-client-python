@@ -19,6 +19,7 @@ Boot sequence:
    * :class:`TenantScopedBuyerAgentRegistry` for the Tier 2 gate
    * :class:`DbAuditSink` for compliance trail
    * :class:`V3ReferenceSeller` (the platform impl)
+   * optional durable PostgreSQL task registry + atomic webhook outbox
 
 5. ``adcp.decisioning.serve(transport="both", asgi_middleware=[...])``
    — single binary serving MCP at ``/mcp`` and A2A at ``/`` with
@@ -56,7 +57,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from adcp.decisioning import AdcpError, InMemoryMockAdServer, serve
+from adcp.decisioning import InMemoryMockAdServer, serve
 from adcp.decisioning.context import AuthInfo
 from adcp.decisioning.registry import ApiKeyCredential
 from adcp.server import (
@@ -71,11 +72,10 @@ from adcp.server.auth import (
     enforce_authenticated_tenant,
 )
 from adcp.validation import ValidationHookConfig
-from adcp.webhook_sender import WebhookSender
-from adcp.webhook_supervisor import InMemoryWebhookDeliverySupervisor
 
 from .audit import make_sink as make_audit_sink
 from .buyer_registry import make_registry as make_buyer_registry
+from .durable_tasks import DurableTaskWiring
 from .platform import V3ReferenceSeller
 from .tenant_router import SqlSubdomainTenantRouter
 
@@ -260,21 +260,6 @@ def main() -> None:
         "mock_sales_guaranteed_key_do_not_use_in_prod",
     )
 
-    # Webhook-signing wiring (#384). Loaded from env so the PEM stays
-    # off the process command line and out of any os.environ dump that
-    # would otherwise surface a raw JWK scalar. The key is a separate
-    # ed25519/es256 keypair from the request-signing key — AdCP requires
-    # webhook-signing material be distinct so a signature from one
-    # surface cannot be replayed on the other.
-    #
-    # Generate with:
-    #   adcp-keygen --alg ed25519 --purpose webhook-signing \
-    #     --out /etc/adcp/webhook-signing.pem
-    # Then publish the printed public JWK at the seller's jwks_uri.
-    signing_pem_path = os.environ.get("ADCP_WEBHOOK_SIGNING_KEY_PATH")
-    signing_key_id = os.environ.get("ADCP_WEBHOOK_SIGNING_KEY_ID")
-    signing_alg = os.environ.get("ADCP_WEBHOOK_SIGNING_ALG", "ed25519")
-
     engine = create_async_engine(db_url, pool_size=10, max_overflow=20)
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -302,42 +287,17 @@ def main() -> None:
     # Adopters with a real production upstream replace ``mode='mock'``
     # with ``mode='live'`` in their ``AccountStore.resolve`` and declare
     # :attr:`V3ReferenceSeller.upstream_url` to their production URL.
-    # Wire the webhook supervisor iff signing material is present for
-    # explicit/manual delivery demonstrations. It is not a beta.5
-    # TaskHandoff publisher: push-configured handoffs require an external
-    # durable outbox that atomically owns terminal state and delivery.
-    webhook_supervisor: InMemoryWebhookDeliverySupervisor | None = None
-    if signing_pem_path and signing_key_id:
-        webhook_sender = WebhookSender.from_pem(
-            signing_pem_path,
-            key_id=signing_key_id,
-            alg=signing_alg,
-        )
-        webhook_supervisor = InMemoryWebhookDeliverySupervisor(sender=webhook_sender)
+    # In local development the whole durable bundle may be omitted. In
+    # production DurableTaskWiring fails fast unless PostgreSQL, encryption,
+    # signing, registry, and outbox configuration are all present. The web
+    # process commits task terminal state + outbox rows atomically; a separate
+    # ``python -m src.worker`` process owns delivery and retries.
+    task_wiring = DurableTaskWiring.from_env()
+    if task_wiring is not None:
         logger.info(
-            "Webhook signing wired: key_id=%s alg=%s pem=%s",
-            signing_key_id,
-            signing_alg,
-            signing_pem_path,
-        )
-    elif signing_pem_path or signing_key_id:
-        # Partial config is operator error — both env vars must be set
-        # together, or both omitted. Raise AdcpError (terminal) so an
-        # adopter wrapping main() in ``except AdcpError`` catches all
-        # boot misconfigs uniformly, matching the sibling validators.
-        raise AdcpError(
-            "INVALID_REQUEST",
-            message=(
-                "ADCP_WEBHOOK_SIGNING_KEY_PATH and "
-                "ADCP_WEBHOOK_SIGNING_KEY_ID must be set together — got "
-                f"path={signing_pem_path!r}, key_id={signing_key_id!r}"
-            ),
-            recovery="terminal",
-            details={
-                "missing": "webhook_signing_env_pair",
-                "ADCP_WEBHOOK_SIGNING_KEY_PATH_set": bool(signing_pem_path),
-                "ADCP_WEBHOOK_SIGNING_KEY_ID_set": bool(signing_key_id),
-            },
+            "Durable task registry and webhook outbox wired: alg=%s horizon=%ds",
+            task_wiring.signing_algorithm,
+            task_wiring.retry_horizon_seconds,
         )
 
     platform = V3ReferenceSeller(
@@ -345,7 +305,11 @@ def main() -> None:
         upstream_api_key=upstream_api_key,
         mock_upstream_url=upstream_url,
         mock_ad_server=mock_ad_server,
-        webhook_signing_alg=signing_alg if webhook_supervisor is not None else None,
+        webhook_signing_alg=(task_wiring.signing_algorithm if task_wiring else None),
+        webhook_retry_horizon_seconds=(
+            task_wiring.retry_horizon_seconds if task_wiring else 86_400
+        ),
+        idempotency=task_wiring.idempotency if task_wiring else None,
     )
 
     logger.info(
@@ -363,6 +327,7 @@ def main() -> None:
         host="0.0.0.0",
         transport="both",
         buyer_agent_registry=buyer_registry,
+        registry=task_wiring.registry if task_wiring else None,
         # Bearer auth wired so the framework extracts the
         # ``Authorization: Bearer <token>`` header, resolves the token
         # to a seeded BuyerAgent via api_key_id lookup, and threads the
@@ -397,9 +362,8 @@ def main() -> None:
             if debug_token is not None
             else None
         ),
-        # Manual/reference delivery transport only. The SDK refuses to use
-        # this supervisor for beta.5 TaskHandoff push publication.
-        webhook_supervisor=webhook_supervisor,
+        on_startup=(task_wiring.startup,) if task_wiring else (),
+        on_shutdown=((task_wiring.shutdown, engine.dispose) if task_wiring else (engine.dispose,)),
         # FastMCP's TransportSecurityMiddleware enforces DNS-rebinding
         # protection: its default ``allowed_hosts`` accepts only
         # loopback (``127.0.0.1:*``, ``localhost:*``, ``[::1]:*``), so

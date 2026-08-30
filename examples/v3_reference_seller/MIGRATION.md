@@ -139,14 +139,14 @@ template. The column on the right calls out the gotchas.
 | `Tenant` / `BuyerAgent` | local DB | **KEEP** — these are the v3 commercial-identity layer. Strict tenant isolation runs in the framework's `SubdomainTenantMiddleware`. |
 | `seller_agent_v1.py` entrypoint | `examples/v3_reference_seller/src/app.py` template | Rewrite around `serve(transport='both', ...)`. Drop your hand-rolled MCP/A2A request parsing. |
 | `get_products(req, ctx)` body | translator method calling upstream | Replace inline catalog logic with HTTP translation. Fall back to your CMS / planner / forecasting service if your upstream's products endpoint isn't enough. |
-| `create_media_buy(req, ctx)` body | translator method | Now async with `TaskHandoff` for HITL approval flows. Sync fast path returns `CreateMediaBuySuccessResponse` directly; slow path returns `ctx.handoff_to_task(fn)` and the framework projects the wire `Submitted` envelope. |
+| `create_media_buy(req, ctx)` body | translator method | The mock reference returns `CreateMediaBuySuccessResponse` inline. For HITL or long-running approval, persist work in a durable queue with `ctx.handoff_to_workflow(enqueue)`; its consumer completes or fails the framework task. |
 | `update_media_buy(req, ctx)` body | translator method (or `UNSUPPORTED_FEATURE`) | Wire to your upstream's order-update endpoint (GAM `LineItemService.performLineItemAction`, FreeWheel `updateOrder`). The reference seller raises `UNSUPPORTED_FEATURE` because the JS mock has no update endpoint. Don't ship the shim. |
 | `sync_creatives(req, ctx)` body | translator method | One upstream `POST /v1/creatives` per creative; AdCP `creative_id` passes through as `client_request_id` for upstream dedup. |
 | `get_media_buy_delivery(req, ctx)` body | translator method | The upstream's `DeliveryReport` schema may not carry order status — the reference seller double-fetches `get_order` so AdCP `MediaBuyStatus` reflects the actual state (completed / canceled / rejected don't surface as `active`). |
 | `provide_performance_feedback(req, ctx)` body | translator method | See "CAPI semantic mismatch". |
 | `list_creative_formats(req, ctx)` body | translator method | Static catalog in the reference seller. Real publishers drive this from their format registry. |
 | Hand-rolled idempotency tracking | framework `RequestContext` + `idempotency_key` | The framework persists `idempotency_key → response_hash`; replays are constant-time. |
-| Hand-rolled task lifecycle | framework `TaskRegistry` + `TaskHandoff` | Adopters call `ctx.handoff_to_task(fn)` and the framework manages submitted → working → completed/failed. Adopter coroutine can `raise AdcpError(...)` to signal terminal failure — the framework projects to wire-shape `failed`. |
+| Hand-rolled task lifecycle | framework `TaskRegistry` + handoff markers | Use `TaskHandoff` only for bounded in-process work. Use `WorkflowHandoff` plus a durable queue for HITL or long-running work; its consumer calls `registry.complete()` / `registry.fail()`. |
 
 ### Specialism declaration upgrade
 
@@ -507,9 +507,10 @@ class MyAdServerSeller(DecisioningPlatform, SalesPlatform):
             payload=...,
         )
         if order["status"] == "pending_approval":
-            # async approval path — return a Submitted envelope
-            # and poll the upstream in the background
-            return ctx.handoff_to_task(self._poll_until_approved)
+            # Durable approval path: enqueue must persist task_ctx.id and all
+            # continuation state before it returns. A separate consumer polls
+            # the upstream and calls registry.complete()/registry.fail().
+            return ctx.handoff_to_workflow(self._enqueue_approval)
         # sync fast path
         return CreateMediaBuySuccessResponse(...)
 
