@@ -259,8 +259,10 @@ async def test_startup_cancellation_closes_every_resource_and_reraises() -> None
     startup.cancel()
     release_sender_close.set()
 
-    with pytest.raises(asyncio.CancelledError):
-        await startup
+    done, pending = await asyncio.wait({startup})
+    assert done == {startup}
+    assert not pending
+    assert startup.cancelled()
 
     sender.aclose.assert_awaited_once()
     lock_pool.close.assert_awaited_once()

@@ -51,9 +51,12 @@ async def run(
             [*workers, stop_waiter],
             return_when=asyncio.FIRST_COMPLETED,
         )
-        if stop_waiter not in done:
-            for task in done:
-                await task
+        completed_workers = done.intersection(workers)
+        for task in completed_workers:
+            exc = task.exception()
+            if exc is not None:
+                raise exc
+        if completed_workers:
             raise RuntimeError("A durable worker exited unexpectedly")
         logger.info("Shutdown requested; stopping durable workers")
     finally:
