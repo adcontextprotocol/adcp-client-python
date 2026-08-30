@@ -111,6 +111,11 @@ class IdempotencyStore:
         to :func:`canonical_json_sha256`. Exposed for tests and for anyone who
         wants to experiment with alternative equivalence rules — though note
         the spec mandates RFC 8785 JCS for interop.
+    :param raise_on_persist_error: When true, translate a backend write failure
+        after handler completion to a retryable ``SERVICE_UNAVAILABLE`` error
+        instead of returning an unrecorded success. Production handlers using
+        this mode must independently deduplicate their business side effects,
+        because the handler may already have crossed that boundary.
     """
 
     def __init__(
@@ -120,6 +125,7 @@ class IdempotencyStore:
         hash_fn: Callable[[dict[str, Any]], str] = canonical_json_sha256,
         *,
         clock: Callable[[], float] = time.time,
+        raise_on_persist_error: bool = False,
     ) -> None:
         if not _MIN_TTL_SECONDS <= ttl_seconds <= _MAX_TTL_SECONDS:
             raise ValueError(
@@ -131,6 +137,7 @@ class IdempotencyStore:
         self.ttl_seconds = ttl_seconds
         self._hash_fn = hash_fn
         self._clock = clock
+        self.raise_on_persist_error = raise_on_persist_error
         self._warned_fallback_hold = False
 
     @asynccontextmanager
@@ -280,7 +287,7 @@ class IdempotencyStore:
                     # but it prevents a concurrent duplicate handler execution.
                     try:
                         await self.backend.put(scope_key, idempotency_key, entry)
-                    except Exception:
+                    except Exception as exc:
                         logger.warning(
                             "Idempotency cache put failed for scope=%s key_prefix=%s — "
                             "handler completed but a subsequent retry with this key will "
@@ -290,6 +297,22 @@ class IdempotencyStore:
                             idempotency_key[:8],
                             exc_info=True,
                         )
+                        if self.raise_on_persist_error:
+                            # Local import avoids making the server middleware
+                            # module depend on the decisioning package at import
+                            # time. The exception is translated consistently by
+                            # both MCP and A2A server boundaries.
+                            from adcp.decisioning.types import AdcpError
+
+                            raise AdcpError(
+                                "SERVICE_UNAVAILABLE",
+                                message=(
+                                    "Idempotency persistence failed after handler completion; "
+                                    "the outcome may be unknown. Retry with the same key only "
+                                    "when downstream effects are independently deduplicated."
+                                ),
+                                recovery="transient",
+                            ) from exc
                     return response
 
             execution_task = asyncio.create_task(_execute_locked())

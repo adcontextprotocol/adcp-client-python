@@ -11,7 +11,7 @@ Official Python SDK for the **Ad Context Protocol (AdCP)**. Build and connect to
 This README serves both sides of an AdCP integration. Jump to what you're doing:
 
 - **Connect as a buyer** → [Quick Start: Test Helpers](#quick-start-test-helpers) and [Quick Start: Distributed Operations](#quick-start-distributed-operations). Entry point: `from adcp import ADCPClient, AgentConfig`; start with the `client.simple.*` API.
-- **Build a seller / agent** → [Building an AdCP Agent](#building-an-adcp-agent). Entry point: `from adcp.server import ADCPHandler, serve`.
+- **Build a seller / agent** → [Building an AdCP Agent](#building-an-adcp-agent). Entry point: `from adcp.server import ADCPHandler, serve`; use the [production seller path](docs/production-seller.md) when adding tenants, durable tasks, and webhooks.
 - **Understand the type system & imports** → [Type Safety](#type-safety) (import surface, partial modules, cold-start note).
 - **Test against reference agents** → [Quick Start: Test Helpers](#quick-start-test-helpers) and [Test Helpers](#test-helpers). Entry point: `from adcp.testing import test_agent, creative_agent`.
 
@@ -354,6 +354,7 @@ forward traffic degrades gracefully rather than failing.
 - **[API Reference](https://adcontextprotocol.github.io/adcp-client-python/)** - Complete API documentation with type signatures and examples
 - **[Protocol Spec](https://github.com/adcontextprotocol/adcp)** - Ad Context Protocol specification
 - **[Handler authoring](docs/handler-authoring.md)** - Building an AdCP-compliant agent on `adcp.server`
+- **[Production seller path](docs/production-seller.md)** - Choose the server abstraction and wire durable multi-tenant tasks, idempotency, and webhook delivery
 - **[Migrating from SDK 6 to 7](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v6_to_v7.md)** - Breaking API, security, concurrency, and webhook changes
 - **[Migrating from SDK 7 to 8](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v7_to_v8.md)** - Secure webhook defaults and telemetry changes
 - **[Migrating from AdCP 3.1 to 3.2 beta](MIGRATION_ADCP_3.1_TO_3.2.md)** - Compact lifecycle adoption and old/new compatibility matrix
@@ -1033,8 +1034,10 @@ from adcp.server import ADCPHandler, IdempotencyStore, MemoryBackend, serve
 from adcp.server.responses import capabilities_response
 
 idempotency = IdempotencyStore(
-    backend=MemoryBackend(),  # PgBackend with transactional commit is a follow-up
+    backend=MemoryBackend(),  # Use PgBackend for a durable, multi-worker cache
     ttl_seconds=86400,        # 24h, spec-recommended floor
+    # In production, also set raise_on_persist_error=True and independently
+    # deduplicate the business effect using the same buyer key.
 )
 
 class MySeller(ADCPHandler):
@@ -1063,9 +1066,14 @@ serve(MySeller(), name="my-seller")
 - On cache hit with different hash: raises `IdempotencyConflictError`, which the framework surfaces as `IDEMPOTENCY_CONFLICT` on both MCP (`is_error=true` + text) and A2A (failed task with `adcp_error` DataPart)
 - On cache miss: runs your handler, then commits the response
 
-**Backends:** `MemoryBackend` ships now (tests, single-process agents). `PgBackend` is scaffolded — it raises `NotImplementedError` with a pointer to the follow-up issue. For production use across multiple workers, implement your own `IdempotencyBackend` subclass against Redis, Postgres, etc.
+**Backends:** use `MemoryBackend` for tests and single-process agents. `PgBackend` provides a durable PostgreSQL replay cache for production deployments with multiple workers; it requires a separate advisory-lock pool and the `pg` extra.
 
-**Atomicity caveat:** `MemoryBackend` commits the cache entry AFTER your handler returns, so a crash between `handler success` and `cache commit` causes the retry to re-execute. `PgBackend` (follow-up) will commit the cache row in the same transaction as your business writes. Read the module docstring at `adcp.server.idempotency` before shipping this against a production database.
+**Atomicity caveat:** both backends commit the cache entry after your handler returns. `PgBackend` is durable and coordinates concurrent workers, but its cache transaction is not atomic with unrelated business writes. Put a uniqueness constraint on the business effect using the buyer's idempotency key so a crash between the side effect and cache commit cannot duplicate the effect. Read the `PgBackend` docstring before shipping it.
+
+With `raise_on_persist_error=True`, a failed cache write becomes retryable
+`SERVICE_UNAVAILABLE`, but the handler has already completed and its outcome
+may be unknown. A retry is safe only when the downstream business effect is
+independently deduplicated using the same buyer key.
 
 **How caller identity gets populated.** The middleware scopes its cache by `(caller_identity, idempotency_key)` — same key from two buyers must hit different cache slots, and a buyer's retry must replay only against its own prior call. `caller_identity` comes from `ToolContext`, which the transport layer builds per request:
 

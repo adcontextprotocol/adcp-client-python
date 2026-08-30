@@ -22,7 +22,10 @@ salesagent), see [MIGRATION.md](MIGRATION.md).
 | Account v3 storage (bank-details column) | `src/models.py` | `Account.billing_entity` JSON column |
 | Audit trail | `src/audit.py` | `adcp.audit_sink.AuditSink` |
 | MCP + A2A on one binary | `src/app.py` | `serve(transport="both", asgi_middleware=...)` |
-| Durable HITL tasks (optional) | swap to `PgTaskRegistry` | `adcp.decisioning.pg.PgTaskRegistry` |
+| Durable task state | `src/durable_tasks.py` | `adcp.decisioning.PgTaskRegistry` |
+| Restart-safe external workflows | `src/workflow_queue.py` | `WorkflowHandoff` + leased PostgreSQL queue |
+| Atomic signed webhook delivery | `src/durable_tasks.py` + `src/worker.py` | `PgTaskWebhookOutbox` |
+| Durable request idempotency | `src/durable_tasks.py` | `adcp.server.idempotency.PgBackend` |
 | Account v3 projection on read | `src/platform.py::list_accounts` | `adcp.types.project_account_for_response` |
 
 ## Architecture
@@ -82,6 +85,29 @@ DATABASE_URL=postgresql+asyncpg://postgres@localhost/adcp \
 ```
 
 The seller binds `0.0.0.0:3001` and serves both transports.
+
+The commands above use the lightweight local path: async tasks are pollable
+but intentionally in-memory, and push-configured handoffs are rejected. For
+the production-shaped PostgreSQL registry, idempotency cache, signed atomic
+outbox, and separately supervised worker, follow the
+[production seller path](../../docs/production-seller.md#run-the-reference-deployment).
+
+The bundled mock upstream resolves approvals quickly, so
+`create_media_buy` completes inline. When adapting the example to a human or
+long-running approval system, return `ctx.handoff_to_workflow(...)` and let a
+durable queue consumer call `registry.complete()` or `registry.fail()`; do not
+move a long polling loop into an in-process `TaskHandoff`. Leave method-level
+idempotency unadvertised for that method unless an external durable
+request-to-task mapping can reuse the prior task id. The reference's method
+wrapper is for its inline terminal-response path.
+The reference queue deduplicates only the framework-issued `task_id`. It does
+not close the crash window between committing enqueue and returning
+`submitted`, because a buyer retry can receive a newly issued task id. That
+requires SDK support for reusing a workflow task id by buyer idempotency key.
+Worker failures use capped exponential backoff and a bounded attempt count;
+exhausted or account-mismatched jobs move to `dead_lettered` for operations.
+The queue and restart-recovery test are runnable reference infrastructure;
+adopters supply the workflow handler that talks to their approval system.
 
 > ⚠️ **Local-dev only.** `docker-compose.yml` uses
 > `POSTGRES_HOST_AUTH_METHOD=trust` and exposes 5432 on
@@ -167,11 +193,10 @@ resolved account with `mode="mock"` and
 guaranteed/non_guaranteed` — real GAM-shaped publishers sell both).
 
 Each method calls the upstream over HTTP and translates the response
-to AdCP wire shapes. `create_media_buy` returns a `TaskHandoff` for
-the upstream's `pending_approval` path — the buyer sees a
-`Submitted` envelope; the framework runs a background coroutine that
-polls `/v1/tasks/{id}` until the upstream auto-approves, then surfaces
-the success via `tasks/get` polling.
+to AdCP wire shapes. The bundled mock's `create_media_buy` approval path
+polls briefly and returns an inline terminal response. A real approval that
+can outlive the request belongs in an adopter-owned durable queue entered via
+`WorkflowHandoff`, with completion surfaced through `tasks/get` and webhooks.
 
 `update_media_buy` raises `UNSUPPORTED_FEATURE` because the JS mock
 has no order-update endpoint. Real adopters wire their PATCH / per-
@@ -236,13 +261,6 @@ where the framework picks it up.
   AAO publishes the brand.json registry.
 - **Brand authorization (Tier 3)** — gated on ADCP spec issue
   #3690.
-- **Postgres `TaskRegistry` / `WebhookDeliverySupervisor`** —
-  swap `InMemoryTaskRegistry` → `PgTaskRegistry` and
-  `InMemoryWebhookDeliverySupervisor` → `PgWebhookDeliverySupervisor`
-  in `src/app.py` for production durability of HITL tasks (the
-  `create_media_buy` async approval path) and webhook delivery.
-  Both classes ship in the SDK; this seller's `app.py` uses the
-  in-memory variants for fast iteration.
 - **Admin CRUD API** — separate Starlette app for tenant / agent
   CRUD. Patterns to come; for now use `seed.py` and direct SQL.
 

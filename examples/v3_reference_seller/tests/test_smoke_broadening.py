@@ -24,6 +24,7 @@ boots the real JS mock-server.
 
 from __future__ import annotations
 
+import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -728,9 +729,9 @@ async def test_create_media_buy_sync_polls_to_success_on_pending_approval(
     """When the upstream returns ``pending_approval`` + ``approval_task_id``,
     the platform sync-polls until the approval task completes and returns
     the full :class:`CreateMediaBuySuccessResponse` with ``media_buy_id``.
-    AdCP storyboards expect synchronous create — production adopters with
-    slow real-world approvals swap to ``ctx.handoff_to_task`` (see the
-    docstring in ``platform.create_media_buy``)."""
+    AdCP storyboards expect synchronous create. Production adapters with
+    slow real-world approvals persist them through ``WorkflowHandoff`` and a
+    durable queue (see ``platform.create_media_buy``)."""
     from adcp.types import CreateMediaBuyRequest, CreateMediaBuySuccessResponse
 
     respx_mock.post("/v1/orders").mock(
@@ -1568,9 +1569,12 @@ async def test_provide_performance_feedback_posts_capi_conversion(
     resp = await platform.provide_performance_feedback(req, ctx)
     assert route.called
     assert resp.success is True
-    body = respx_mock.calls.last.request.read().decode("utf-8")
-    assert "conversion_rate" in body
-    assert "0.87" in body
+    body = json.loads(respx_mock.calls.last.request.read())
+    assert body["conversions"][0]["event_name"] == "conversion_rate"
+    assert body["conversions"][0]["value"] == 0.87
+    assert body["conversions"][0]["dedup_key"] == (
+        f"adcp:{req.idempotency_key}:performance-feedback"
+    )
 
 
 @pytest.mark.asyncio
