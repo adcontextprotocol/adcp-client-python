@@ -5,6 +5,7 @@ Set ``ADCP_PG_TEST_URL`` to run this test against PostgreSQL.
 
 from __future__ import annotations
 
+import asyncio
 import os
 import secrets
 import sys
@@ -26,7 +27,7 @@ if not TEST_URL:
 _EXAMPLE = Path(__file__).resolve().parents[3] / "examples" / "v3_reference_seller"
 sys.path.insert(0, str(_EXAMPLE))
 
-from adcp.decisioning import Account, PgTaskRegistry, RequestContext  # noqa: E402
+from adcp.decisioning import Account, AdcpError, PgTaskRegistry, RequestContext  # noqa: E402
 from adcp.decisioning.dispatch import _project_workflow_handoff  # noqa: E402
 from src.workflow_queue import PgWorkflowQueue  # noqa: E402
 
@@ -103,7 +104,7 @@ async def test_workflow_handoff_recovers_expired_lease_after_worker_restart() ->
                 first_claim = await first_worker_queue.claim()
                 assert first_claim is not None
                 assert first_claim.task_id == task_id
-                assert first_claim.attempt_count == 1
+                assert first_claim.attempt_count == 0
 
             # Advance only the database lease, avoiding a wall-clock sleep.
             async with web_pool.connection() as conn:
@@ -135,7 +136,7 @@ async def test_workflow_handoff_recovers_expired_lease_after_worker_restart() ->
                 )
 
                 async def complete(job):
-                    assert job.attempt_count == 2
+                    assert job.attempt_count == 1
                     return job.payload["result"]
 
                 assert await replacement_queue.process_one(complete) is True
@@ -147,7 +148,7 @@ async def test_workflow_handoff_recovers_expired_lease_after_worker_restart() ->
 
             assert queue_record is not None
             assert queue_record["state"] == "completed"
-            assert queue_record["attempt_count"] == 2
+            assert queue_record["attempt_count"] == 1
             assert task_record is not None
             assert task_record["state"] == "completed"
             assert task_record["result"] == expected_result
@@ -302,7 +303,7 @@ async def test_missing_or_mismatched_workflow_dead_letters_without_running(
             assert handler_called is False
             assert queue_record is not None
             assert queue_record["state"] == "dead_lettered"
-            assert queue_record["attempt_count"] == 1
+            assert queue_record["attempt_count"] == 0
             assert queue_record["last_error"] == "task_missing_or_account_mismatch"
             if issue_task:
                 assert task_record is not None
@@ -453,7 +454,7 @@ async def test_create_schema_upgrades_pre_dead_letter_queue_table() -> None:
 
 
 @pytest.mark.asyncio
-async def test_registry_finalization_failure_never_reruns_exhausted_handler() -> None:
+async def test_exhausted_transient_error_survives_finalization_retry() -> None:
     suffix = secrets.token_hex(6)
     task_table = f"test_dtasks_{suffix}"
     workflow_table = f"test_workflows_{suffix}"
@@ -509,19 +510,28 @@ async def test_registry_finalization_failure_never_reruns_exhausted_handler() ->
                 payload={"upstream_order_id": "order-1"},
             )
             handler_calls = 0
+            transient_error = AdcpError(
+                "SERVICE_UNAVAILABLE",
+                message="Approval service is unavailable",
+                recovery="transient",
+                retry_after=30,
+            )
 
             async def fail_handler(_job):
                 nonlocal handler_calls
                 handler_calls += 1
-                raise RuntimeError("upstream failed")
+                raise transient_error
 
-            with pytest.raises(RuntimeError, match="registry temporarily unavailable"):
-                await queue.process_one(fail_handler)
+            assert await queue.process_one(fail_handler) is True
+            staged_record = await queue.get(task_id)
+            assert staged_record is not None
+            assert staged_record["state"] == "pending"
+            assert staged_record["finalization_action"] == "fail"
+            assert staged_record["finalization_payload"] == transient_error.to_wire()
 
             async with pool.connection() as conn:
                 await conn.execute(
-                    f"UPDATE {workflow_table} "  # noqa: S608
-                    "SET lease_expires_at = now() - interval '1 second' "
+                    f"UPDATE {workflow_table} SET available_at = now() "  # noqa: S608
                     "WHERE task_id = %s",
                     (task_id,),
                 )
@@ -539,6 +549,7 @@ async def test_registry_finalization_failure_never_reruns_exhausted_handler() ->
             assert queue_record["state"] == "dead_lettered"
             assert task_record is not None
             assert task_record["state"] == "failed"
+            assert task_record["error"] == transient_error.to_wire()
         finally:
             async with pool.connection() as conn:
                 await conn.execute(f"DROP TABLE IF EXISTS {workflow_table}")  # noqa: S608
@@ -643,14 +654,19 @@ async def test_registry_lookup_outage_never_mutates_unverified_task() -> None:
         registry = PgTaskRegistry(pool=pool, _table=task_table)
 
         class LookupOutageRegistry:
+            lookup_calls = 0
+
             async def get(self, task_id, *, expected_account_id=None):
-                raise RuntimeError("registry lookup unavailable")
+                self.lookup_calls += 1
+                if self.lookup_calls <= 2:
+                    raise RuntimeError("registry lookup unavailable")
+                return await registry.get(task_id, expected_account_id=expected_account_id)
 
             async def complete(self, task_id, result):
-                raise AssertionError("unverified task must not be completed")
+                await registry.complete(task_id, result)
 
             async def fail(self, task_id, error):
-                raise AssertionError("unverified task must not be failed")
+                await registry.fail(task_id, error)
 
         queue = PgWorkflowQueue(
             pool=pool,
@@ -695,11 +711,309 @@ async def test_registry_lookup_outage_never_mutates_unverified_task() -> None:
             )
             assert handler_called is False
             assert queue_record is not None
-            assert queue_record["state"] == "dead_lettered"
-            assert queue_record["attempt_count"] == 2
+            assert queue_record["state"] == "pending"
+            assert queue_record["attempt_count"] == 0
             assert queue_record["last_error"] == "RuntimeError"
             assert task_record is not None
             assert task_record["state"] == "submitted"
+
+            async with pool.connection() as conn:
+                await conn.execute(
+                    f"UPDATE {workflow_table} SET available_at = now() "  # noqa: S608
+                    "WHERE task_id = %s",
+                    (task_id,),
+                )
+            assert await queue.process_one(handler) is True
+            recovered_queue_record = await queue.get(task_id)
+            recovered_task_record = await registry.get(
+                task_id,
+                expected_account_id=account_id,
+            )
+            assert handler_called is True
+            assert recovered_queue_record is not None
+            assert recovered_queue_record["state"] == "completed"
+            assert recovered_queue_record["attempt_count"] == 1
+            assert recovered_task_record is not None
+            assert recovered_task_record["state"] == "completed"
+        finally:
+            async with pool.connection() as conn:
+                await conn.execute(f"DROP TABLE IF EXISTS {workflow_table}")  # noqa: S608
+                await conn.execute(f"DROP TABLE IF EXISTS {task_table}")  # noqa: S608
+
+
+@pytest.mark.asyncio
+async def test_completed_payload_is_staged_before_registry_retry() -> None:
+    suffix = secrets.token_hex(6)
+    task_table = f"test_dtasks_{suffix}"
+    workflow_table = f"test_workflows_{suffix}"
+    account_id = "tenant-a:account-a"
+    unsafe_result = {
+        "media_buy_id": "mb_staged",
+        "status": "active",
+        "account": {
+            "billing_entity": {
+                "legal_name": "Example Buyer",
+                "bank": {"account_number": "secret-bank-account"},
+            },
+            "governance_agents": [
+                {
+                    "agent_url": "https://governance.example",
+                    "authentication": {"credentials": "secret-token"},
+                }
+            ],
+        },
+    }
+    safe_result = {
+        "media_buy_id": "mb_staged",
+        "status": "active",
+        "account": {
+            "billing_entity": {"legal_name": "Example Buyer"},
+            "governance_agents": [{"agent_url": "https://governance.example"}],
+        },
+    }
+
+    async with psycopg_pool.AsyncConnectionPool(
+        TEST_URL, min_size=1, max_size=4, open=False
+    ) as pool:
+        await pool.open()
+        registry = PgTaskRegistry(pool=pool, _table=task_table)
+
+        class CompleteOnceUnavailableRegistry:
+            complete_calls = 0
+
+            async def get(self, task_id, *, expected_account_id=None):
+                return await registry.get(task_id, expected_account_id=expected_account_id)
+
+            async def complete(self, task_id, payload):
+                self.complete_calls += 1
+                if self.complete_calls == 1:
+                    raise RuntimeError("registry temporarily unavailable")
+                await registry.complete(task_id, payload)
+
+            async def fail(self, task_id, error):
+                await registry.fail(task_id, error)
+
+        flaky_registry = CompleteOnceUnavailableRegistry()
+        queue = PgWorkflowQueue(
+            pool=pool,
+            registry=flaky_registry,  # type: ignore[arg-type]
+            table=workflow_table,
+            retry_base_seconds=1,
+        )
+        await registry.create_schema()
+        await queue.create_schema()
+        try:
+            task_id = await registry.issue(account_id=account_id, task_type="create_media_buy")
+            await queue.enqueue(
+                task_id=task_id,
+                account_id=account_id,
+                workflow_type="manual_media_buy_approval",
+                payload={"upstream_order_id": "order-1"},
+            )
+            handler_calls = 0
+
+            async def handler(_job):
+                nonlocal handler_calls
+                handler_calls += 1
+                return unsafe_result
+
+            assert await queue.process_one(handler) is True
+            staged = await queue.get(task_id)
+            assert staged is not None
+            assert staged["state"] == "pending"
+            assert staged["finalization_action"] == "complete"
+            assert staged["finalization_payload"] == safe_result
+            assert unsafe_result["account"]["billing_entity"]["bank"] == {
+                "account_number": "secret-bank-account"
+            }
+
+            async with pool.connection() as conn:
+                await conn.execute(
+                    f"UPDATE {workflow_table} SET available_at = now() WHERE task_id = %s",  # noqa: S608
+                    (task_id,),
+                )
+            assert await queue.process_one(handler) is True
+            task = await registry.get(task_id, expected_account_id=account_id)
+            queue_record = await queue.get(task_id)
+            assert handler_calls == 1
+            assert flaky_registry.complete_calls == 2
+            assert task is not None and task["result"] == safe_result
+            assert queue_record is not None and queue_record["state"] == "completed"
+            assert queue_record["finalization_payload"] is None
+        finally:
+            async with pool.connection() as conn:
+                await conn.execute(f"DROP TABLE IF EXISTS {workflow_table}")  # noqa: S608
+                await conn.execute(f"DROP TABLE IF EXISTS {task_table}")  # noqa: S608
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("recovery", ["terminal", "correctable"])
+async def test_non_transient_adcp_error_round_trips_exact_wire_payload(recovery) -> None:
+    suffix = secrets.token_hex(6)
+    task_table = f"test_dtasks_{suffix}"
+    workflow_table = f"test_workflows_{suffix}"
+    account_id = "tenant-a:account-a"
+    error = AdcpError(
+        "POLICY_VIOLATION",
+        message="Approval was denied",
+        recovery=recovery,
+        field="packages[0]",
+        suggestion="Choose a different package",
+        details={"policy_id": "policy-7"},
+    )
+
+    async with psycopg_pool.AsyncConnectionPool(
+        TEST_URL, min_size=1, max_size=4, open=False
+    ) as pool:
+        await pool.open()
+        registry = PgTaskRegistry(pool=pool, _table=task_table)
+        queue = PgWorkflowQueue(pool=pool, registry=registry, table=workflow_table)
+        await registry.create_schema()
+        await queue.create_schema()
+        try:
+            task_id = await registry.issue(account_id=account_id, task_type="create_media_buy")
+            await queue.enqueue(
+                task_id=task_id,
+                account_id=account_id,
+                workflow_type="manual_media_buy_approval",
+                payload={"upstream_order_id": "order-1"},
+            )
+
+            async def handler(_job):
+                raise error
+
+            assert await queue.process_one(handler) is True
+            task = await registry.get(task_id, expected_account_id=account_id)
+            queue_record = await queue.get(task_id)
+            assert task is not None
+            assert task["state"] == "failed"
+            assert task["error"] == error.to_wire()
+            assert queue_record is not None
+            assert queue_record["state"] == "dead_lettered"
+            assert queue_record["attempt_count"] == 1
+            assert queue_record["finalization_payload"] is None
+        finally:
+            async with pool.connection() as conn:
+                await conn.execute(f"DROP TABLE IF EXISTS {workflow_table}")  # noqa: S608
+                await conn.execute(f"DROP TABLE IF EXISTS {task_table}")  # noqa: S608
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_prevents_reclaim_while_handler_is_live() -> None:
+    suffix = secrets.token_hex(6)
+    task_table = f"test_dtasks_{suffix}"
+    workflow_table = f"test_workflows_{suffix}"
+    account_id = "tenant-a:account-a"
+
+    async with psycopg_pool.AsyncConnectionPool(
+        TEST_URL, min_size=1, max_size=6, open=False
+    ) as pool:
+        await pool.open()
+        registry = PgTaskRegistry(pool=pool, _table=task_table)
+        queue = PgWorkflowQueue(pool=pool, registry=registry, table=workflow_table, lease_seconds=2)
+        contender = PgWorkflowQueue(
+            pool=pool, registry=registry, table=workflow_table, lease_seconds=2
+        )
+        await registry.create_schema()
+        await queue.create_schema()
+        try:
+            task_id = await registry.issue(account_id=account_id, task_type="create_media_buy")
+            await queue.enqueue(
+                task_id=task_id,
+                account_id=account_id,
+                workflow_type="manual_media_buy_approval",
+                payload={"upstream_order_id": "order-1"},
+            )
+            started = asyncio.Event()
+            finish = asyncio.Event()
+
+            async def handler(_job):
+                started.set()
+                await finish.wait()
+                return {"status": "active"}
+
+            processing = asyncio.create_task(queue.process_one(handler))
+            await asyncio.wait_for(started.wait(), timeout=2)
+            # Make the initial lease expire before the first heartbeat. The
+            # heartbeat must renew it before the contender's claim.
+            async with pool.connection() as conn:
+                await conn.execute(
+                    f"UPDATE {workflow_table} SET lease_expires_at = "  # noqa: S608
+                    "now() + interval '0.2 seconds' WHERE task_id = %s",
+                    (task_id,),
+                )
+            await asyncio.sleep(0.9)
+            assert await contender.claim() is None
+            finish.set()
+            assert await asyncio.wait_for(processing, timeout=2) is True
+        finally:
+            async with pool.connection() as conn:
+                await conn.execute(f"DROP TABLE IF EXISTS {workflow_table}")  # noqa: S608
+                await conn.execute(f"DROP TABLE IF EXISTS {task_table}")  # noqa: S608
+
+
+@pytest.mark.asyncio
+async def test_worker_cancellation_releases_lease_and_cancels_handler() -> None:
+    suffix = secrets.token_hex(6)
+    task_table = f"test_dtasks_{suffix}"
+    workflow_table = f"test_workflows_{suffix}"
+    account_id = "tenant-a:account-a"
+
+    async with psycopg_pool.AsyncConnectionPool(
+        TEST_URL, min_size=1, max_size=4, open=False
+    ) as pool:
+        await pool.open()
+        registry = PgTaskRegistry(pool=pool, _table=task_table)
+        queue = PgWorkflowQueue(
+            pool=pool,
+            registry=registry,
+            table=workflow_table,
+            lease_seconds=2,
+            retry_base_seconds=1,
+        )
+        await registry.create_schema()
+        await queue.create_schema()
+        try:
+            task_id = await registry.issue(account_id=account_id, task_type="create_media_buy")
+            await queue.enqueue(
+                task_id=task_id,
+                account_id=account_id,
+                workflow_type="manual_media_buy_approval",
+                payload={"upstream_order_id": "order-1"},
+            )
+            started = asyncio.Event()
+            handler_cancelled = asyncio.Event()
+
+            async def blocked_handler(_job):
+                started.set()
+                try:
+                    await asyncio.Event().wait()
+                finally:
+                    handler_cancelled.set()
+
+            processing = asyncio.create_task(queue.process_one(blocked_handler))
+            await asyncio.wait_for(started.wait(), timeout=2)
+            processing.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await processing
+            assert handler_cancelled.is_set()
+            released = await queue.get(task_id)
+            assert released is not None
+            assert released["state"] == "pending"
+            assert released["attempt_count"] == 1
+
+            async with pool.connection() as conn:
+                await conn.execute(
+                    f"UPDATE {workflow_table} SET available_at = now() WHERE task_id = %s",  # noqa: S608
+                    (task_id,),
+                )
+
+            async def replacement_handler(_job):
+                return {"status": "active"}
+
+            assert await queue.process_one(replacement_handler) is True
+            task = await registry.get(task_id, expected_account_id=account_id)
+            assert task is not None and task["state"] == "completed"
         finally:
             async with pool.connection() as conn:
                 await conn.execute(f"DROP TABLE IF EXISTS {workflow_table}")  # noqa: S608

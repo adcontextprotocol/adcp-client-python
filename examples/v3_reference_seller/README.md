@@ -25,7 +25,6 @@ salesagent), see [MIGRATION.md](MIGRATION.md).
 | Durable task state | `src/durable_tasks.py` | `adcp.decisioning.PgTaskRegistry` |
 | Restart-safe external workflows | `src/workflow_queue.py` | `WorkflowHandoff` + leased PostgreSQL queue |
 | Atomic signed webhook delivery | `src/durable_tasks.py` + `src/worker.py` | `PgTaskWebhookOutbox` |
-| Durable request idempotency | `src/durable_tasks.py` | `adcp.server.idempotency.PgBackend` |
 | Account v3 projection on read | `src/platform.py::list_accounts` | `adcp.types.project_account_for_response` |
 
 ## Architecture
@@ -88,22 +87,28 @@ The seller binds `0.0.0.0:3001` and serves both transports.
 
 The commands above use the lightweight local path: async tasks are pollable
 but intentionally in-memory, and push-configured handoffs are rejected. For
-the production-shaped PostgreSQL registry, idempotency cache, signed atomic
-outbox, and separately supervised worker, follow the
+the production-shaped PostgreSQL registry, signed atomic outbox, and
+separately supervised worker, follow the
 [production seller path](../../docs/production-seller.md#run-the-reference-deployment).
 
 The bundled mock upstream resolves approvals quickly, so
 `create_media_buy` completes inline. When adapting the example to a human or
 long-running approval system, return `ctx.handoff_to_workflow(...)` and let a
 durable queue consumer call `registry.complete()` or `registry.fail()`; do not
-move a long polling loop into an in-process `TaskHandoff`. Leave method-level
-idempotency unadvertised for that method unless an external durable
-request-to-task mapping can reuse the prior task id. The reference's method
-wrapper is for its inline terminal-response path.
+move a long polling loop into an in-process `TaskHandoff`.
+
+The reference advertises `adcp.idempotency.supported=false` and does not claim
+durable request idempotency. The capability is global, so wrapping only a few
+methods would be misleading while other mutations such as `sync_accounts`
+remain uncovered. Truthful support requires a future operation-aware
+integration across every supported mutation, including task handoffs.
+
 The reference queue deduplicates only the framework-issued `task_id`. It does
 not close the crash window between committing enqueue and returning
 `submitted`, because a buyer retry can receive a newly issued task id. That
-requires SDK support for reusing a workflow task id by buyer idempotency key.
+requires a durable request-to-task mapping that reuses the prior task id by
+buyer idempotency key. External workflow effects must independently
+deduplicate on that stored key because lease recovery may re-execute a job.
 Worker failures use capped exponential backoff and a bounded attempt count;
 exhausted or account-mismatched jobs move to `dead_lettered` for operations.
 The queue and restart-recovery test are runnable reference infrastructure;

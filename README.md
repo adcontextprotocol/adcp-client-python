@@ -354,7 +354,7 @@ forward traffic degrades gracefully rather than failing.
 - **[API Reference](https://adcontextprotocol.github.io/adcp-client-python/)** - Complete API documentation with type signatures and examples
 - **[Protocol Spec](https://github.com/adcontextprotocol/adcp)** - Ad Context Protocol specification
 - **[Handler authoring](docs/handler-authoring.md)** - Building an AdCP-compliant agent on `adcp.server`
-- **[Production seller path](docs/production-seller.md)** - Choose the server abstraction and wire durable multi-tenant tasks, idempotency, and webhook delivery
+- **[Production seller path](docs/production-seller.md)** - Choose the server abstraction and wire durable multi-tenant tasks and webhook delivery
 - **[Migrating from SDK 6 to 7](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v6_to_v7.md)** - Breaking API, security, concurrency, and webhook changes
 - **[Migrating from SDK 7 to 8](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v7_to_v8.md)** - Secure webhook defaults and telemetry changes
 - **[Migrating from AdCP 3.1 to 3.2 beta](MIGRATION_ADCP_3.1_TO_3.2.md)** - Compact lifecycle adoption and old/new compatibility matrix
@@ -1057,6 +1057,12 @@ class MySeller(ADCPHandler):
 
 serve(MySeller(), name="my-seller")
 ```
+
+The advertised capability applies globally, not just to the decorated example
+method. Declare it only after every mutating operation the seller supports is
+covered. Production integrations also need operation-aware handling for both
+inline responses and durable task handoffs; a partial set of method wrappers
+must leave `adcp.idempotency.supported` false.
 
 **What the middleware does for you:**
 
