@@ -129,30 +129,8 @@ def test_complete_bundle_builds_atomic_registry_outbox_pair(tmp_path: Path) -> N
         assert wiring.registry.task_webhook_outbox is wiring.outbox
         assert wiring.workflow_queue._registry is wiring.registry  # noqa: SLF001
         assert wiring.registry.atomic_task_webhook_outbox is True
-        assert wiring.idempotency_backend is not None
-        assert wiring.idempotency_backend._lock_pool is wiring.lock_pool  # noqa: SLF001
-        assert wiring.idempotency is not None
-        assert wiring.idempotency.raise_on_persist_error is True
         assert wiring.retry_horizon_seconds == 172800
         assert wiring.signing_algorithm == "ed25519"
-    finally:
-        asyncio.run(wiring.shutdown())
-
-
-def test_worker_bundle_omits_unused_idempotency_pool(tmp_path: Path) -> None:
-    key_path = tmp_path / "webhook-signing.pem"
-    _write_signing_key(key_path)
-
-    wiring = DurableTaskWiring.from_env(
-        _environment(key_path),
-        include_idempotency=False,
-    )
-
-    assert wiring is not None
-    try:
-        assert wiring.lock_pool is None
-        assert wiring.idempotency_backend is None
-        assert wiring.idempotency is None
     finally:
         asyncio.run(wiring.shutdown())
 
@@ -166,7 +144,6 @@ def test_complete_bundle_passes_capability_wiring_preflight(tmp_path: Path) -> N
     _write_signing_key(key_path)
     wiring = DurableTaskWiring.from_env(_environment(key_path))
     assert wiring is not None
-    assert wiring.idempotency is not None
     executor = None
     try:
         seller = V3ReferenceSeller(
@@ -175,8 +152,9 @@ def test_complete_bundle_passes_capability_wiring_preflight(tmp_path: Path) -> N
             mock_upstream_url=None,
             webhook_signing_alg=wiring.signing_algorithm,
             webhook_retry_horizon_seconds=wiring.retry_horizon_seconds,
-            idempotency=wiring.idempotency,
         )
+        assert seller.capabilities.adcp is not None
+        assert seller.capabilities.adcp.idempotency.supported is False
 
         handler, executor, registry = create_adcp_server_from_platform(
             seller,
@@ -193,21 +171,16 @@ def test_complete_bundle_passes_capability_wiring_preflight(tmp_path: Path) -> N
 @pytest.mark.asyncio
 async def test_startup_failure_closes_every_resource() -> None:
     pool = MagicMock(open=AsyncMock(), close=AsyncMock())
-    lock_pool = MagicMock(open=AsyncMock(), close=AsyncMock())
     sender = MagicMock(aclose=AsyncMock())
     registry = MagicMock(create_schema=AsyncMock(side_effect=RuntimeError("DDL failed")))
     outbox = MagicMock(create_schema=AsyncMock())
     workflow_queue = MagicMock(create_schema=AsyncMock())
-    backend = MagicMock(create_schema=AsyncMock())
     wiring = DurableTaskWiring(
         pool=pool,
-        lock_pool=lock_pool,
         sender=sender,
         outbox=outbox,
         registry=registry,
         workflow_queue=workflow_queue,
-        idempotency_backend=backend,
-        idempotency=None,
         retry_horizon_seconds=86400,
         signing_algorithm="ed25519",
     )
@@ -216,14 +189,12 @@ async def test_startup_failure_closes_every_resource() -> None:
         await wiring.startup()
 
     sender.aclose.assert_awaited_once()
-    lock_pool.close.assert_awaited_once()
     pool.close.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_startup_cancellation_closes_every_resource_and_reraises() -> None:
     pool = MagicMock(open=AsyncMock(), close=AsyncMock())
-    lock_pool = MagicMock(open=AsyncMock(), close=AsyncMock())
     sender_close_started = asyncio.Event()
     release_sender_close = asyncio.Event()
 
@@ -241,13 +212,10 @@ async def test_startup_cancellation_closes_every_resource_and_reraises() -> None
     registry = MagicMock(create_schema=AsyncMock(side_effect=wait_forever))
     wiring = DurableTaskWiring(
         pool=pool,
-        lock_pool=lock_pool,
         sender=sender,
         outbox=MagicMock(create_schema=AsyncMock()),
         registry=registry,
         workflow_queue=MagicMock(create_schema=AsyncMock()),
-        idempotency_backend=MagicMock(create_schema=AsyncMock()),
-        idempotency=None,
         retry_horizon_seconds=86400,
         signing_algorithm="ed25519",
     )
@@ -263,24 +231,19 @@ async def test_startup_cancellation_closes_every_resource_and_reraises() -> None
         await startup
 
     sender.aclose.assert_awaited_once()
-    lock_pool.close.assert_awaited_once()
     pool.close.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_shutdown_continues_after_close_failure() -> None:
     pool = MagicMock(close=AsyncMock())
-    lock_pool = MagicMock(close=AsyncMock())
     sender = MagicMock(aclose=AsyncMock(side_effect=RuntimeError("sender close failed")))
     wiring = DurableTaskWiring(
         pool=pool,
-        lock_pool=lock_pool,
         sender=sender,
         outbox=MagicMock(),
         registry=MagicMock(),
         workflow_queue=MagicMock(),
-        idempotency_backend=None,
-        idempotency=None,
         retry_horizon_seconds=86400,
         signing_algorithm="ed25519",
     )
@@ -288,5 +251,4 @@ async def test_shutdown_continues_after_close_failure() -> None:
     with pytest.raises(RuntimeError, match="sender close failed"):
         await wiring.shutdown()
 
-    lock_pool.close.assert_awaited_once()
     pool.close.assert_awaited_once()

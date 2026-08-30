@@ -66,7 +66,6 @@ import logging
 import random
 from dataclasses import replace as _dc_replace
 from datetime import datetime, timezone
-from types import MethodType
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 from urllib.parse import urlsplit
 
@@ -109,7 +108,6 @@ from adcp.decisioning.capabilities import (
 from adcp.decisioning.specialisms import SalesPlatform
 from adcp.server import current_tenant
 from adcp.server.helpers import valid_actions_for_status
-from adcp.server.idempotency import IdempotencyStore
 from adcp.server.responses import list_creatives_response
 from adcp.types import (
     BusinessEntity,
@@ -133,7 +131,6 @@ from adcp.types import (
     UpdateMediaBuyRequest,
     UpdateMediaBuySuccessResponse,
 )
-from adcp.types.capabilities import IdempotencySupported
 from adcp.types.legacy import (
     LegacyFormat,
     LegacyFormatId,
@@ -158,13 +155,6 @@ _STORYBOARD_LEGACY_FORMAT_OWNERS = {
     "https://reference.adcp.org",
     "https://your-platform.example.com",
 }
-
-_DEFAULT_IDEMPOTENCY_METHODS = (
-    "create_media_buy",
-    "update_media_buy",
-    "sync_creatives",
-    "provide_performance_feedback",
-)
 
 
 def _legacy_format_converter(context: LegacyFormatConversionContext) -> dict[str, Any] | None:
@@ -827,8 +817,6 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         approval_poll_max_iterations: int = 60,
         webhook_signing_alg: str | None = None,
         webhook_retry_horizon_seconds: int = 86_400,
-        idempotency: IdempotencyStore | None = None,
-        method_level_idempotency_methods: tuple[str, ...] | None = None,
     ) -> None:
         """Construct the reference seller.
 
@@ -864,12 +852,6 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             no signing advertised, sender wiring optional.
         :param webhook_retry_horizon_seconds: Durable retry horizon advertised
             to webhook receivers. Must match the configured task outbox.
-        :param idempotency: Optional durable idempotency store. When supplied,
-            mutating methods are wrapped and the replay window is advertised.
-        :param method_level_idempotency_methods: Methods whose inline terminal
-            responses are cached by ``idempotency``. Workflow adapters must
-            exclude methods returning handoff markers and deduplicate their
-            durable queue issuance separately.
         """
         # Override the class-level capabilities iff signing is wired.
         # ``dataclasses.replace`` preserves every other field from the
@@ -886,20 +868,6 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                     delivery_retry_horizon_seconds=webhook_retry_horizon_seconds,
                 ),
             )
-        if idempotency is not None:
-            assert self.capabilities.adcp is not None
-            self.capabilities = _dc_replace(
-                self.capabilities,
-                adcp=self.capabilities.adcp.model_copy(
-                    update={
-                        "idempotency": IdempotencySupported(
-                            supported=True,
-                            replay_ttl_seconds=idempotency.ttl_seconds,
-                        )
-                    }
-                ),
-            )
-
         self._sessionmaker = sessionmaker
         # Single auth instance shared across every upstream_for() call.
         # The framework's client cache keys on (base_url, id(auth)),
@@ -938,22 +906,6 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             sessionmaker,
             mock_upstream_url=mock_upstream_url,
         )
-        if idempotency is not None:
-            selected_methods = (
-                _DEFAULT_IDEMPOTENCY_METHODS
-                if method_level_idempotency_methods is None
-                else method_level_idempotency_methods
-            )
-            for method_name in selected_methods:
-                method = getattr(type(self), method_name, None)
-                if not callable(method):
-                    raise ValueError(f"Unknown method-level idempotency method: {method_name}")
-                # Bind the decorated unbound method back to this instance.
-                # Wrapping an already-bound method and assigning the plain
-                # closure would shift ``req`` into the decorator's ``self``
-                # slot, causing idempotency-key extraction to silently miss.
-                wrapped = idempotency.wrap(method)
-                setattr(self, method_name, MethodType(wrapped, self))
 
     def _client(self, ctx: RequestContext) -> UpstreamHttpClient:
         """Resolve the pooled :class:`UpstreamHttpClient` for this

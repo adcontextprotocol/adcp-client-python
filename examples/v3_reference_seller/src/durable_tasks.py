@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from adcp.decisioning import PgTaskRegistry, PgTaskWebhookOutbox
-from adcp.server.idempotency import IdempotencyStore, PgBackend
 from adcp.webhook_sender import WebhookSender
 
 from .workflow_queue import PgWorkflowQueue
@@ -78,13 +77,10 @@ class DurableTaskWiring:
     """One process's validated durable task/webhook resources."""
 
     pool: AsyncConnectionPool
-    lock_pool: AsyncConnectionPool | None
     sender: WebhookSender
     outbox: PgTaskWebhookOutbox
     registry: PgTaskRegistry
     workflow_queue: PgWorkflowQueue
-    idempotency_backend: PgBackend | None
-    idempotency: IdempotencyStore | None
     retry_horizon_seconds: int
     signing_algorithm: str
 
@@ -94,7 +90,6 @@ class DurableTaskWiring:
         environ: Mapping[str, str] | None = None,
         *,
         required: bool | None = None,
-        include_idempotency: bool = True,
     ) -> DurableTaskWiring | None:
         """Validate configuration and build resources without opening sockets.
 
@@ -132,18 +127,6 @@ class DurableTaskWiring:
             max_size=10,
             open=False,
         )
-        # Advisory-lock operations reserve a connection for the whole handler
-        # call, so the SDK requires a distinct pool to prevent self-deadlock.
-        lock_pool = (
-            AsyncConnectionPool(
-                values["ADCP_TASK_DATABASE_URL"],
-                min_size=1,
-                max_size=10,
-                open=False,
-            )
-            if include_idempotency
-            else None
-        )
         outbox = PgTaskWebhookOutbox(
             pool=pool,
             sender=sender,
@@ -152,27 +135,12 @@ class DurableTaskWiring:
         )
         registry = PgTaskRegistry(pool=pool, task_webhook_outbox=outbox)
         workflow_queue = PgWorkflowQueue(pool=pool, registry=registry)
-        idempotency_backend = (
-            PgBackend(pool=pool, lock_pool=lock_pool) if lock_pool is not None else None
-        )
-        idempotency = (
-            IdempotencyStore(
-                backend=idempotency_backend,
-                ttl_seconds=retry_horizon,
-                raise_on_persist_error=True,
-            )
-            if idempotency_backend is not None
-            else None
-        )
         return cls(
             pool=pool,
-            lock_pool=lock_pool,
             sender=sender,
             outbox=outbox,
             registry=registry,
             workflow_queue=workflow_queue,
-            idempotency_backend=idempotency_backend,
-            idempotency=idempotency,
             retry_horizon_seconds=retry_horizon,
             signing_algorithm=signing_algorithm,
         )
@@ -181,13 +149,9 @@ class DurableTaskWiring:
         """Open the process-local pool and idempotently create SDK tables."""
         try:
             await self.pool.open()
-            if self.lock_pool is not None:
-                await self.lock_pool.open()
             await self.registry.create_schema()
             await self.outbox.create_schema()
             await self.workflow_queue.create_schema()
-            if self.idempotency_backend is not None:
-                await self.idempotency_backend.create_schema()
         except asyncio.CancelledError:
             cleanup = asyncio.create_task(self.shutdown())
             # Once startup owns resources, repeated cancellation must not
@@ -215,10 +179,7 @@ class DurableTaskWiring:
     async def shutdown(self) -> None:
         """Best-effort close every resource owned by this process."""
         first_error: BaseException | None = None
-        closers = [self.sender.aclose]
-        if self.lock_pool is not None:
-            closers.append(self.lock_pool.close)
-        closers.append(self.pool.close)
+        closers = [self.sender.aclose, self.pool.close]
         for close in closers:
             try:
                 await close()

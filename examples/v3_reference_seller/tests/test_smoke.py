@@ -233,60 +233,6 @@ def test_platform_advertises_webhook_signing_when_alg_passed() -> None:
 
 
 @pytest.mark.asyncio
-async def test_platform_runtime_idempotency_wrapper_replays() -> None:
-    from src.platform import V3ReferenceSeller
-
-    from adcp.decisioning import RequestContext
-    from adcp.server.idempotency import IdempotencyStore, MemoryBackend, is_wrapped
-
-    class _Seller(V3ReferenceSeller):
-        calls = 0
-
-        async def create_media_buy(self, req, ctx):
-            del req, ctx
-            self.calls += 1
-            return {"status": "completed", "media_buy_id": "mb_1"}
-
-    seller = _Seller(
-        sessionmaker=lambda: None,  # type: ignore[arg-type]
-        upstream_api_key="test-key",
-        mock_upstream_url=None,
-        idempotency=IdempotencyStore(MemoryBackend(), ttl_seconds=86400),
-    )
-    assert is_wrapped(seller.create_media_buy)
-    context = RequestContext(caller_identity="buyer", tenant_id="tenant")
-    request = {"idempotency_key": "same-key", "budget": 100}
-
-    first = await seller.create_media_buy(request, context)
-    replay = await seller.create_media_buy(request, context)
-
-    assert first == {"status": "completed", "media_buy_id": "mb_1"}
-    assert replay == {
-        "status": "completed",
-        "media_buy_id": "mb_1",
-        "replayed": True,
-    }
-    assert seller.calls == 1
-
-
-def test_platform_idempotency_method_selection_is_explicit() -> None:
-    from src.platform import V3ReferenceSeller
-
-    from adcp.server.idempotency import IdempotencyStore, MemoryBackend, is_wrapped
-
-    seller = V3ReferenceSeller(
-        sessionmaker=lambda: None,  # type: ignore[arg-type]
-        upstream_api_key="test-key",
-        mock_upstream_url=None,
-        idempotency=IdempotencyStore(MemoryBackend(), ttl_seconds=86400),
-        method_level_idempotency_methods=("sync_creatives",),
-    )
-
-    assert not is_wrapped(seller.create_media_buy)
-    assert is_wrapped(seller.sync_creatives)
-
-
-@pytest.mark.asyncio
 @pytest.mark.parametrize("authenticated_tenant", ["tenant-a", None])
 async def test_bearer_context_rejects_cross_tenant_rebinding(
     monkeypatch: pytest.MonkeyPatch,

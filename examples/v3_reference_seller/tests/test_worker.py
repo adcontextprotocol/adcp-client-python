@@ -16,18 +16,72 @@ sys.path.insert(0, str(_HERE.parent))
 
 
 @pytest.mark.asyncio
-async def test_stop_event_cancels_worker_before_resource_shutdown(monkeypatch) -> None:
+async def test_stop_event_cancels_workers_before_resource_shutdown(monkeypatch) -> None:
     import src.worker as worker_module
 
-    started = asyncio.Event()
-    cancelled = asyncio.Event()
+    outbox_started = asyncio.Event()
+    workflow_started = asyncio.Event()
+    shutdown_order = []
 
     async def run_outbox() -> None:
-        started.set()
+        outbox_started.set()
         try:
             await asyncio.Event().wait()
         finally:
-            cancelled.set()
+            await asyncio.sleep(0)
+            shutdown_order.append("outbox")
+
+    async def run_workflow(_handler) -> None:
+        workflow_started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            await asyncio.sleep(0)
+            shutdown_order.append("workflow")
+
+    async def shutdown() -> None:
+        shutdown_order.append("wiring")
+
+    wiring = SimpleNamespace(
+        startup=AsyncMock(),
+        shutdown=AsyncMock(side_effect=shutdown),
+        outbox=SimpleNamespace(run_worker=run_outbox),
+        workflow_queue=SimpleNamespace(run_worker=run_workflow),
+    )
+    monkeypatch.setattr(
+        worker_module.DurableTaskWiring,
+        "from_env",
+        lambda **_kwargs: wiring,
+    )
+    stop_event = asyncio.Event()
+
+    async def request_stop() -> None:
+        await asyncio.gather(outbox_started.wait(), workflow_started.wait())
+        stop_event.set()
+
+    stopper = asyncio.create_task(request_stop())
+    await worker_module.run(
+        stop_event=stop_event,
+        workflow_handler=AsyncMock(),
+    )
+    await stopper
+
+    assert set(shutdown_order[:2]) == {"outbox", "workflow"}
+    assert shutdown_order[2] == "wiring"
+    wiring.startup.assert_awaited_once()
+    wiring.shutdown.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_unexpected_worker_exception_propagates_when_stop_requested(monkeypatch) -> None:
+    import src.worker as worker_module
+
+    failure = RuntimeError("outbox failed")
+    stop_event = asyncio.Event()
+
+    async def run_outbox() -> None:
+        stop_event.set()
+        raise failure
 
     wiring = SimpleNamespace(
         startup=AsyncMock(),
@@ -40,18 +94,11 @@ async def test_stop_event_cancels_worker_before_resource_shutdown(monkeypatch) -
         "from_env",
         lambda **_kwargs: wiring,
     )
-    stop_event = asyncio.Event()
 
-    async def request_stop() -> None:
-        await started.wait()
-        stop_event.set()
+    with pytest.raises(RuntimeError, match="outbox failed") as exc_info:
+        await worker_module.run(stop_event=stop_event)
 
-    stopper = asyncio.create_task(request_stop())
-    await worker_module.run(stop_event=stop_event)
-    await stopper
-
-    assert cancelled.is_set()
-    wiring.startup.assert_awaited_once()
+    assert exc_info.value is failure
     wiring.shutdown.assert_awaited_once()
 
 
