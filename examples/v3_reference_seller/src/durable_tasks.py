@@ -181,16 +181,16 @@ class DurableTaskWiring:
             await self.outbox.create_schema()
             if self.idempotency_backend is not None:
                 await self.idempotency_backend.create_schema()
-        except BaseException:
+        except Exception:
             try:
                 await self.shutdown()
-            except BaseException:
+            except Exception:
                 logger.exception("Durable resource cleanup failed after startup error")
             raise
 
     async def shutdown(self) -> None:
         """Best-effort close every resource owned by this process."""
-        first_error: BaseException | None = None
+        first_error: Exception | None = None
         closers = [self.sender.aclose]
         if self.lock_pool is not None:
             closers.append(self.lock_pool.close)
@@ -198,7 +198,7 @@ class DurableTaskWiring:
         for close in closers:
             try:
                 await close()
-            except BaseException as exc:
+            except Exception as exc:
                 logger.exception("Failed to close a durable task resource")
                 if first_error is None:
                     first_error = exc
