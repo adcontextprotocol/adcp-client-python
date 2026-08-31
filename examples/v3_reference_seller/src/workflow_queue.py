@@ -380,11 +380,18 @@ class PgWorkflowQueue:
             return await asyncio.shield(staging)
         except asyncio.CancelledError:
             staged_job = await staging
-            try:
-                await asyncio.shield(self._release(staged_job, "CancelledError"))
-            except WorkflowLeaseLostError:
-                pass
+            await self._release_despite_cancellation(staged_job)
             raise
+
+    async def _release_despite_cancellation(self, job: WorkflowJob) -> None:
+        """Best-effort lease release after cancellation has already begun."""
+        try:
+            await asyncio.shield(self._release(job, "CancelledError"))
+        except WorkflowLeaseLostError:
+            logger.debug(
+                "Workflow task %s lease was already lost during cancellation cleanup",
+                job.task_id,
+            )
 
     async def _run_handler(self, job: WorkflowJob, handler: WorkflowHandler) -> dict[str, Any]:
         handler_task: asyncio.Future[dict[str, Any]] = asyncio.ensure_future(handler(job))
@@ -406,10 +413,7 @@ class PgWorkflowQueue:
             handler_task.cancel()
             heartbeat_task.cancel()
             await asyncio.gather(handler_task, heartbeat_task, return_exceptions=True)
-            try:
-                await asyncio.shield(self._release(job, "CancelledError"))
-            except WorkflowLeaseLostError:
-                pass
+            await self._release_despite_cancellation(job)
             raise
         finally:
             heartbeat_task.cancel()
@@ -431,10 +435,7 @@ class PgWorkflowQueue:
         try:
             await self._apply_finalization(job)
         except asyncio.CancelledError:
-            try:
-                await asyncio.shield(self._release(job, "CancelledError"))
-            except WorkflowLeaseLostError:
-                pass
+            await self._release_despite_cancellation(job)
             raise
         except Exception as exc:
             await self._release(job, type(exc).__name__)
@@ -456,10 +457,7 @@ class PgWorkflowQueue:
                 expected_account_id=job.account_id,
             )
         except asyncio.CancelledError:
-            try:
-                await asyncio.shield(self._release(job, "CancelledError"))
-            except WorkflowLeaseLostError:
-                pass
+            await self._release_despite_cancellation(job)
             raise
         except Exception as exc:
             # Registry availability is not a business-handler failure. Retry

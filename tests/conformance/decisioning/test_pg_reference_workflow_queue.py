@@ -27,9 +27,10 @@ if not TEST_URL:
 _EXAMPLE = Path(__file__).resolve().parents[3] / "examples" / "v3_reference_seller"
 sys.path.insert(0, str(_EXAMPLE))
 
+from src.workflow_queue import PgWorkflowQueue  # noqa: E402
+
 from adcp.decisioning import Account, AdcpError, PgTaskRegistry, RequestContext  # noqa: E402
 from adcp.decisioning.dispatch import _project_workflow_handoff  # noqa: E402
-from src.workflow_queue import PgWorkflowQueue  # noqa: E402
 
 
 class _Request(BaseModel):
@@ -995,7 +996,7 @@ async def test_worker_cancellation_releases_lease_and_cancels_handler() -> None:
             await asyncio.wait_for(started.wait(), timeout=2)
             processing.cancel()
             with pytest.raises(asyncio.CancelledError):
-                await processing
+                _ = await processing
             assert handler_cancelled.is_set()
             released = await queue.get(task_id)
             assert released is not None

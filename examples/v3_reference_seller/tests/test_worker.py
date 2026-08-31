@@ -64,7 +64,7 @@ async def test_stop_event_cancels_workers_before_resource_shutdown(monkeypatch) 
         stop_event=stop_event,
         workflow_handler=AsyncMock(),
     )
-    await stopper
+    assert await stopper is None
 
     assert set(shutdown_order[:2]) == {"outbox", "workflow"}
     assert shutdown_order[2] == "wiring"
