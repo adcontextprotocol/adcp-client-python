@@ -16,24 +16,37 @@ sys.path.insert(0, str(_HERE.parent))
 
 
 @pytest.mark.asyncio
-async def test_stop_event_cancels_worker_before_resource_shutdown(monkeypatch) -> None:
+async def test_stop_event_cancels_workers_before_resource_shutdown(monkeypatch) -> None:
     import src.worker as worker_module
 
-    started = asyncio.Event()
-    cancelled = asyncio.Event()
+    outbox_started = asyncio.Event()
+    workflow_started = asyncio.Event()
+    shutdown_order = []
 
     async def run_outbox() -> None:
-        started.set()
+        outbox_started.set()
         try:
             await asyncio.Event().wait()
         finally:
-            cancelled.set()
+            await asyncio.sleep(0)
+            shutdown_order.append("outbox")
+
+    async def run_workflow(_handler) -> None:
+        workflow_started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            await asyncio.sleep(0)
+            shutdown_order.append("workflow")
+
+    async def shutdown() -> None:
+        shutdown_order.append("wiring")
 
     wiring = SimpleNamespace(
         startup=AsyncMock(),
-        shutdown=AsyncMock(),
+        shutdown=AsyncMock(side_effect=shutdown),
         outbox=SimpleNamespace(run_worker=run_outbox),
-        workflow_queue=SimpleNamespace(),
+        workflow_queue=SimpleNamespace(run_worker=run_workflow),
     )
     monkeypatch.setattr(
         worker_module.DurableTaskWiring,
@@ -43,14 +56,18 @@ async def test_stop_event_cancels_worker_before_resource_shutdown(monkeypatch) -
     stop_event = asyncio.Event()
 
     async def request_stop() -> None:
-        await started.wait()
+        await asyncio.gather(outbox_started.wait(), workflow_started.wait())
         stop_event.set()
 
     stopper = asyncio.create_task(request_stop())
-    await worker_module.run(stop_event=stop_event)
+    await worker_module.run(
+        stop_event=stop_event,
+        workflow_handler=AsyncMock(),
+    )
+    assert await stopper is None
 
-    assert stopper.done()
-    assert cancelled.is_set()
+    assert set(shutdown_order[:2]) == {"outbox", "workflow"}
+    assert shutdown_order[2] == "wiring"
     wiring.startup.assert_awaited_once()
     wiring.shutdown.assert_awaited_once()
 
@@ -60,10 +77,11 @@ async def test_worker_failure_wins_when_shutdown_is_also_ready(monkeypatch) -> N
     import src.worker as worker_module
 
     stop_event = asyncio.Event()
+    failure = RuntimeError("outbox failed")
 
     async def fail_outbox() -> None:
         stop_event.set()
-        raise RuntimeError("outbox failed")
+        raise failure
 
     wiring = SimpleNamespace(
         startup=AsyncMock(),
@@ -84,9 +102,10 @@ async def test_worker_failure_wins_when_shutdown_is_also_ready(monkeypatch) -> N
 
     monkeypatch.setattr(worker_module.asyncio, "wait", wait_for_all)
 
-    with pytest.raises(RuntimeError, match="outbox failed"):
+    with pytest.raises(RuntimeError, match="outbox failed") as exc_info:
         await worker_module.run(stop_event=stop_event)
 
+    assert exc_info.value is failure
     wiring.shutdown.assert_awaited_once()
 
 

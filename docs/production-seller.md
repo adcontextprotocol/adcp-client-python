@@ -25,12 +25,12 @@ and webhook delivery so adopters can replace one boundary at a time.
 buyer request
     │
     ▼
-auth → tenant router → buyer registry → idempotency lock
+auth → tenant router → buyer registry
     │
     ▼
 DecisioningPlatform method → upstream ad server
     │
-    ├─ terminal result ───────────────► return inline and cache result
+    ├─ terminal result ───────────────► return inline
     │
     └─ TaskHandoff / WorkflowHandoff ─► persist submitted task
                                              │
@@ -58,31 +58,29 @@ not make arbitrary in-process work durable. The reference includes a leased
 PostgreSQL queue and restart-recovery test; adopters still provide the
 business-specific approval handler.
 
-The reference's `IdempotencyStore` wrapping is intentionally paired with its
-inline terminal responses. Do not put the same method-level wrapper around a
-method that returns a raw `TaskHandoff` or `WorkflowHandoff`: the wrapper runs
-before framework task issuance and therefore cannot cache the projected
-`{status: "submitted", task_id}` envelope. A durable workflow adapter must not
-advertise method-level idempotency for that method unless an external durable
-request-to-task mapping can reuse the prior task id. The reference queue's
-uniqueness constraint is only on the framework-issued `task_id`, not the
-buyer's idempotency key. A web-process
-crash after enqueue commits but before the `submitted` response reaches the
-buyer can therefore cause a retried request to issue a second task and queue
-row. Fully closing that window requires SDK support for looking up or reusing
-a workflow task id by buyer idempotency key.
+The reference intentionally advertises `adcp.idempotency.supported=false` and
+does not install request-idempotency middleware. That capability is global:
+wrapping only selected methods would overstate support while mutations such as
+`sync_accounts` remain uncovered. A production implementation needs a future
+operation-aware integration that covers every supported mutating operation,
+including both inline results and task handoffs, before it can truthfully
+advertise request idempotency.
 
-For a mixed adapter, make the split explicit with
-`method_level_idempotency_methods`: include only methods that return terminal
-responses from the method-level cache, and implement the workflow method's
-deduplication in the durable queue. The default reference includes
-`create_media_buy` because its mock path is inline.
+Workflow business effects still require independent idempotency. The reference
+queue's uniqueness constraint is only on the framework-issued `task_id`, not
+the buyer's idempotency key. A web-process crash after enqueue commits but
+before the `submitted` response reaches the buyer can therefore cause a
+retried request to issue a second task and queue row. Closing that window
+requires a durable request-to-task mapping that can look up or reuse the prior
+task id by buyer idempotency key. The workflow worker must also deduplicate
+every external write using the stored buyer key because a crash can occur
+after the write but before the handler outcome is staged.
 
 ## Task transitions
 
 | Handler outcome | Work owner | Persistence owner | What the buyer does next |
 |---|---|---|---|
-| Return a result | Request handler | Idempotency backend caches the terminal response | Consume the inline result |
+| Return a result | Request handler | The reference does not cache request results | Consume the inline result |
 | Raise `AdcpError` | Request handler | Framework projects the structured error; no task is created | Follow its recovery guidance |
 | `ctx.handoff_to_task(fn)` | SDK runs `fn` in the web process | `PgTaskRegistry` records submitted, progress, and terminal state | Poll `tasks/get` or await a webhook |
 | `ctx.handoff_to_workflow(enqueue)` | The adopter's queue/worker/HITL system | The enqueue callback stores the task id; that system later calls `registry.complete()` or `registry.fail()` | Poll `tasks/get` or await a webhook |
@@ -137,13 +135,16 @@ await run_with_signals(workflow_handler=handle_approval)
 ```
 
 The queue completes the original `PgTaskRegistry` record only after the
-handler returns. A crash after an external side effect but before queue
-acknowledgement causes deliberate re-execution after lease expiry, so the
-business effect must be independently idempotent. The PostgreSQL conformance
+handler returns. A crash after an external side effect but before the handler
+outcome is staged causes deliberate re-execution after lease expiry, so the
+business effect must be independently idempotent. Once staging commits, a
+replacement retries only registry publication. The PostgreSQL conformance
 test kills the first logical worker after claim, creates fresh queue/registry
 objects, and verifies that the replacement completes the same task id.
 Queue payloads are ordinary JSONB: store only minimal continuation state and
-never copy push-notification credentials or other secrets into them.
+never copy push-notification credentials or other secrets into them. Scrubbed
+terminal results are staged there until registry finalization succeeds, then
+the queue clears that staged payload.
 
 ## Run the reference deployment
 
@@ -210,10 +211,10 @@ bootstrap. The workflow example performs the one additive upgrade shown here,
 but these runtime DDL calls are not a general schema migration system and do
 not detect or safely evolve an arbitrarily mismatched table.
 For production, copy the SDK-owned SQL files (`decisioning_tasks.sql` and
-`task_webhook_outbox.sql`), the `PgBackend.create_schema()` DDL, and the
-reference workflow-queue DDL into reviewed, versioned migrations and apply
-them before either process starts. Runtime bootstrap can remain a safety net,
-but migrations own schema evolution and rollback.
+`task_webhook_outbox.sql`) and the reference workflow-queue DDL into reviewed,
+versioned migrations and apply them before either process starts. Runtime
+bootstrap can remain a safety net, but migrations own schema evolution and
+rollback.
 
 The worker installs `SIGTERM` and `SIGINT` handlers, cancels its polling loops,
 awaits their cleanup, and then closes the sender and PostgreSQL pools. This is
@@ -231,11 +232,10 @@ the shutdown path used by ordinary container and process supervisors.
 - Route human or long-running approval work through `WorkflowHandoff` and a
   durable queue; reserve `TaskHandoff` for bounded work that may safely fail on
   web-process restart.
-- Put a uniqueness constraint on business effects keyed by the buyer's
-  idempotency key. The SDK cache cannot make a separate upstream transaction
-  atomic.
-- Schedule `PgBackend.delete_expired()` (or equivalent SQL/pg_cron cleanup) so
-  expired idempotency rows do not accumulate.
+- Make every external workflow effect independently idempotent using the
+  stored buyer key; queue lease recovery deliberately permits re-execution.
+- Keep request idempotency unadvertised until an operation-aware integration
+  covers every supported mutation and durable task handoff.
 - Apply URL challenge and SSRF validation before accepting durable callback
   destinations.
 - Run the in-process tests and the media-buy seller storyboard before deploy.

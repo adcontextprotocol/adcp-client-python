@@ -27,7 +27,7 @@ async def run(
     workflow_handler: WorkflowHandler | None = None,
 ) -> None:
     """Run durable workers until a shutdown signal sets ``stop_event``."""
-    wiring = DurableTaskWiring.from_env(required=True, include_idempotency=False)
+    wiring = DurableTaskWiring.from_env(required=True)
     assert wiring is not None  # required=True makes None impossible
     await wiring.startup()
     stop = stop_event or asyncio.Event()
@@ -53,9 +53,7 @@ async def run(
         )
         completed_workers = done.intersection(workers)
         for task in completed_workers:
-            exc = task.exception()
-            if exc is not None:
-                raise exc
+            task.result()
         if completed_workers:
             raise RuntimeError("A durable worker exited unexpectedly")
         logger.info("Shutdown requested; stopping durable workers")

@@ -309,7 +309,6 @@ def main() -> None:
         webhook_retry_horizon_seconds=(
             task_wiring.retry_horizon_seconds if task_wiring else 86_400
         ),
-        idempotency=task_wiring.idempotency if task_wiring else None,
     )
 
     logger.info(
