@@ -9,13 +9,6 @@
       "format": "uri",
       "description": "Webhook endpoint URL for reporting notifications"
     },
-    "operation_id": {
-      "type": "string",
-      "description": "Buyer-supplied correlation identifier for scheduled reporting webhooks. The seller MUST echo this value verbatim into every McpWebhookPayload operation_id field for this registration and MUST NOT derive or fabricate it from media_buy_id or the callback URL. Buyers SHOULD generate a stable unique value for each reporting registration.",
-      "minLength": 1,
-      "maxLength": 255,
-      "pattern": "^[A-Za-z0-9_.:-]{1,255}$"
-    },
     "token": {
       "type": "string",
       "description": "Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.",
@@ -67,7 +60,6 @@
   },
   "required": [
     "url",
-    "operation_id",
     "authentication",
     "reporting_frequency"
   ],

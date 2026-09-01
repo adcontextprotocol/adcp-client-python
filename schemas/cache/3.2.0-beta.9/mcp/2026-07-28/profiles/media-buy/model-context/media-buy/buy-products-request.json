@@ -3393,9 +3393,6 @@
         "url": {
           "type": "string"
         },
-        "operation_id": {
-          "type": "string"
-        },
         "token": {
           "type": "string"
         },
@@ -3433,7 +3430,6 @@
       },
       "required": [
         "url",
-        "operation_id",
         "authentication",
         "reporting_frequency"
       ],

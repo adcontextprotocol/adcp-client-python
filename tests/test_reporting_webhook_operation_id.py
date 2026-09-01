@@ -1,4 +1,4 @@
-"""Reporting webhooks carry buyer-supplied MCP envelope correlation."""
+"""Reporting webhooks stay separate from MCP envelope correlation."""
 
 from __future__ import annotations
 
@@ -20,27 +20,19 @@ _AUTHENTICATION = {
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_reporting_webhook_requires_operation_id() -> None:
-    with pytest.raises(ValidationError, match="operation_id"):
-        ReportingWebhook(
-            url="https://buyer.example/reporting",
-            authentication=_AUTHENTICATION,
-            reporting_frequency="daily",
-        )
-
-
-def test_reporting_webhook_accepts_buyer_supplied_operation_id() -> None:
+def test_reporting_webhook_does_not_define_operation_id() -> None:
     webhook = ReportingWebhook(
         url="https://buyer.example/reporting",
-        operation_id="reporting.mb_123.v1",
         authentication=_AUTHENTICATION,
         reporting_frequency="daily",
     )
 
-    assert webhook.operation_id == "reporting.mb_123.v1"
+    assert "operation_id" not in ReportingWebhook.model_fields
+    assert "operation_id" not in webhook.model_dump()
 
 
-def test_versioned_request_schema_requires_reporting_operation_id() -> None:
+def test_beta6_versioned_request_schema_preserves_reporting_operation_id() -> None:
+    """Historical versioned types retain the beta.6 wire contract."""
     with pytest.raises(ValidationError, match="operation_id.*required property"):
         AcceptProposalRequest(
             adcp_version="3.2-beta.6",
@@ -59,7 +51,7 @@ def test_versioned_request_schema_requires_reporting_operation_id() -> None:
         )
 
 
-def test_webhook_payload_schema_documents_both_operation_id_sources() -> None:
+def test_webhook_payload_schema_documents_push_notification_operation_id_source() -> None:
     pinned_version = (_REPOSITORY_ROOT / "src/adcp/ADCP_VERSION").read_text().strip()
     schema_path = (
         _REPOSITORY_ROOT
@@ -71,5 +63,5 @@ def test_webhook_payload_schema_documents_both_operation_id_sources() -> None:
     description = schema["properties"]["operation_id"]["description"]
 
     assert "push_notification_config.operation_id" in description
-    assert "reporting_webhook.operation_id" in description
+    assert "reporting_webhook.operation_id" not in description
     assert McpWebhookPayload.model_fields["operation_id"].description == description
