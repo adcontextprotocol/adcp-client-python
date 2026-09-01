@@ -168,12 +168,14 @@ escape by agent ID.
 
 ## Scheduled reporting webhook correlation
 
-`ReportingWebhook.operation_id` is now required. Buyers must assign it when
-creating or updating a reporting registration, and sellers must echo it
-verbatim in every scheduled `McpWebhookPayload`. Existing persisted reporting
-registrations have no conforming value to migrate automatically: flag or skip
-those rows until the buyer supplies an operation ID. Do not derive one from a
-media buy ID or callback URL.
+SDK `8.0.0-beta.10` briefly required `ReportingWebhook.operation_id` through
+an SDK-local schema patch. Canonical AdCP beta.9 and beta.10 do not define that
+field, so it is no longer required or exposed as a typed reporting webhook
+field. Remove code that reads or requires it on reporting registrations.
+
+Task webhook correlation remains unchanged: buyers supply
+`push_notification_config.operation_id`, and sellers echo that value in the
+corresponding `McpWebhookPayload.operation_id`.
 
 ## Webhook activity metadata
 

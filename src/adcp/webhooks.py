@@ -153,10 +153,9 @@ def create_mcp_webhook_payload(
             :class:`AdcpAsyncResponseData`'s discriminated union.
         timestamp: When the webhook was generated. Defaults to current UTC.
         operation_id: Client-generated identifier supplied through the
-            registration's ``push_notification_config.operation_id`` or
-            ``reporting_webhook.operation_id``. Required for every task
-            webhook; publishers echo it verbatim and MUST NOT derive it from
-            the receiver URL.
+            registration's ``push_notification_config.operation_id``. Required
+            for every task webhook; publishers echo it verbatim and MUST NOT
+            derive it from the receiver URL.
         notification_id: Stable identity for one logical notification.
             Terminal task webhooks default to ``"{task_id}.terminal"`` so
             re-emissions under different delivery keys still converge.
@@ -220,7 +219,7 @@ def create_mcp_webhook_payload(
     if not operation_id:
         raise ValueError(
             "operation_id is required for AdCP task webhooks; copy the buyer-supplied "
-            "push_notification_config.operation_id or reporting_webhook.operation_id verbatim"
+            "push_notification_config.operation_id verbatim"
         )
 
     status_value = status.value if hasattr(status, "value") else str(status)
