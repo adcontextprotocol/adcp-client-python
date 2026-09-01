@@ -246,6 +246,14 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
             _ta(gen.GetAccountFinancialsRequest),
         ),
         "report_usage": ("report_usage", _ta(gen.ReportUsageRequest)),
+        "get_reporting_status": (
+            "get_reporting_status",
+            _ta(gen.GetReportingStatusRequest),
+        ),
+        "sync_reporting_receipts": (
+            "sync_reporting_receipts",
+            _ta(gen.SyncReportingReceiptsRequest),
+        ),
         # Events
         "log_event": ("log_event", _ta(gen.LogEventRequest)),
         "sync_event_sources": ("sync_event_sources", _ta(gen.SyncEventSourcesRequest)),
@@ -263,6 +271,8 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
             "sync_agent_notification_configs",
             _ta(gen.SyncAgentNotificationConfigsRequest),
         ),
+        "get_principal": ("get_principal", _ta(gen.GetPrincipalRequest)),
+        "sync_principal": ("sync_principal", _ta(gen.SyncPrincipalRequest)),
         "get_task_status": ("get_task_status", _ta(gen.GetTaskStatusRequest)),
         "list_tasks": ("list_tasks", _ta(gen.ListTasksRequest)),
         # V3 Content Standards

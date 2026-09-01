@@ -100,6 +100,9 @@ SPEC_WEBHOOK_TASK_TYPES: frozenset[str] = frozenset(
         "acquire_rights",
         "update_rights",
         "sync_agent_notification_configs",
+        "get_principal",
+        "sync_principal",
+        "sync_reporting_receipts",
     }
 )
 

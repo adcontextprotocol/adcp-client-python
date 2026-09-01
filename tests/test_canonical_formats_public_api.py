@@ -65,11 +65,11 @@ def test_canonical_formats_symbols_in_dunder_all() -> None:
     assert not missing, f"public-API exports not declared in __all__: {missing}"
 
 
-def test_canonical_format_kind_has_15_values() -> None:
+def test_canonical_format_kind_has_16_values() -> None:
     """Adding/removing a canonical kind is a wire-breaking change — pin the count."""
     from adcp.types import CanonicalFormatKind
 
-    assert len(CanonicalFormatKind) == 15
+    assert len(CanonicalFormatKind) == 16
 
 
 def test_sdk_id_reachable_via_public_package_path() -> None:
@@ -95,7 +95,7 @@ def test_sdk_id_uses_canonical_distribution_prefix() -> None:
 
 
 def test_canonical_kind_values_match_spec() -> None:
-    """The 15 wire values are the canonical-formats vocabulary; lock them in."""
+    """The 16 wire values are the canonical-formats vocabulary; lock them in."""
     from adcp.types import CanonicalFormatKind
 
     actual = {k.value for k in CanonicalFormatKind}
@@ -107,6 +107,7 @@ def test_canonical_kind_values_match_spec() -> None:
         "video_hosted",
         "video_vast",
         "audio_hosted",
+        "audio_vast",
         "audio_daast",
         "sponsored_placement",
         "native_in_feed",

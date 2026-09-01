@@ -543,6 +543,11 @@ def generate_consolidated_exports() -> str:
     # Keep the historical public SignalCatalogType name as a compatibility alias.
     if "SignalCatalogType" not in all_exports and "SignalAvailabilityType" in all_exports:
         aliases["SignalCatalogType"] = "SignalAvailabilityType"
+    # Reporting-delivery capabilities introduced a nested string RootModel named
+    # Transport alongside the existing SI endpoint Transport model. Preserve the
+    # established public Transport constructor used by decisioning adopters.
+    if "Transport" in all_exports and "Transport1" in all_exports:
+        aliases["Transport"] = "Transport1"
     # AdCP 3.1 beta 3 collapsed many single-shape response schemas from
     # RootModel union variants (FooResponse1/FooResponse2) to one concrete
     # FooResponse model. Keep the old numbered names as aliases when the
@@ -627,7 +632,8 @@ def generate_consolidated_exports() -> str:
             ]
         )
         for alias, target in aliases.items():
-            alias_lines.append(f"{alias} = {target}")
+            type_ignore = "  # type: ignore[misc,assignment]" if alias in all_exports else ""
+            alias_lines.append(f"{alias} = {target}{type_ignore}")
 
     lines.extend(alias_lines)
 

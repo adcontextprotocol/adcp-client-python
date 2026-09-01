@@ -2,7 +2,7 @@
 
 A platform claiming any of the spec ``sales-*`` slugs
 (``sales-non-guaranteed``, ``sales-guaranteed``, ``sales-broadcast-tv``,
-``sales-social``, ``sales-proposal-mode``, ``sales-catalog-driven``)
+``sales-dooh``, ``sales-social``, ``sales-proposal-mode``, ``sales-catalog-driven``)
 implements the methods on this Protocol. The slugs mirror
 ``schemas/cache/enums/specialism.json``. The unified hybrid shape
 collapses 14 method names from v1's dual-method design

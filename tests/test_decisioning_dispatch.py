@@ -289,6 +289,7 @@ def test_required_methods_per_specialism_pinned_for_sales() -> None:
         "sales-non-guaranteed",
         "sales-guaranteed",
         "sales-broadcast-tv",
+        "sales-dooh",
         "sales-social",
         "sales-proposal-mode",
     ):

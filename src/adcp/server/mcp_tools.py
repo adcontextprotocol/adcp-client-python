@@ -495,6 +495,41 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "required": ["usage"],
         },
     },
+    {
+        "name": "get_reporting_status",
+        "description": "Read authoritative reporting delivery health, obligations, and retained revisions for an account.",
+        "annotations": _RO,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "account": {"type": "object"},
+                "view": {"type": "string"},
+                "media_buy_ids": {"type": "array"},
+                "delivery_config_ids": {"type": "array"},
+                "feed_purposes": {"type": "array"},
+                "period": {"type": "object"},
+                "health": {"type": "array"},
+                "finality": {"type": "array"},
+                "reporting_revision_id": {"type": "string"},
+                "pagination": {"type": "object"},
+            },
+            "required": ["account", "view"],
+        },
+    },
+    {
+        "name": "sync_reporting_receipts",
+        "description": "Idempotently submit durable reconciliation results for reporting materializations.",
+        "annotations": _IDEMP,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "account": {"type": "object"},
+                "idempotency_key": {"type": "string"},
+                "receipts": {"type": "array"},
+            },
+            "required": ["account", "idempotency_key", "receipts"],
+        },
+    },
     # Event Operations
     {
         "name": "log_event",
@@ -595,6 +630,31 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "dry_run": {"type": "boolean"},
             },
             "required": ["idempotency_key", "notification_configs"],
+        },
+    },
+    {
+        "name": "get_principal",
+        "description": "Read the authenticated principal's seller-resolved identity and current configuration.",
+        "annotations": _RO,
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+    {
+        "name": "sync_principal",
+        "description": "Idempotently replace selected sections of the authenticated principal's configuration.",
+        "annotations": _IDEMP,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "idempotency_key": {"type": "string"},
+                "expected_configuration_version": {"type": "string"},
+                "expected_principal_kind": {"type": "string"},
+                "configuration": {"type": "object"},
+                "dry_run": {"type": "boolean"},
+            },
+            "required": ["idempotency_key", "configuration"],
         },
     },
     {
@@ -1613,8 +1673,10 @@ def _generate_pydantic_schemas(
             GetMediaBuyDeliveryRequest,
             GetMediaBuysRequest,
             GetPlanAuditLogsRequest,
+            GetPrincipalRequest,
             GetProductsRequest,
             GetPropertyListRequest,
+            GetReportingStatusRequest,
             GetRightsRequest,
             GetSignalsRequest,
             GetTaskStatusRequest,
@@ -1647,6 +1709,8 @@ def _generate_pydantic_schemas(
             SyncEventSourcesRequest,
             SyncGovernanceRequest,
             SyncPlansRequest,
+            SyncPrincipalRequest,
+            SyncReportingReceiptsRequest,
             UpdateCollectionListRequest,
             UpdateContentStandardsRequest,
             UpdateMediaBuyRequest,
@@ -1692,6 +1756,8 @@ def _generate_pydantic_schemas(
         "update_media_buy": UpdateMediaBuyRequest,
         "get_media_buy_delivery": GetMediaBuyDeliveryRequest,
         "get_media_buys": GetMediaBuysRequest,
+        "get_reporting_status": GetReportingStatusRequest,
+        "sync_reporting_receipts": SyncReportingReceiptsRequest,
         # Signals
         "get_signals": GetSignalsRequest,
         "activate_signal": ActivateSignalRequest,
@@ -1712,6 +1778,8 @@ def _generate_pydantic_schemas(
         # Protocol Discovery
         "get_adcp_capabilities": GetAdcpCapabilitiesRequest,
         "sync_agent_notification_configs": SyncAgentNotificationConfigsRequest,
+        "get_principal": GetPrincipalRequest,
+        "sync_principal": SyncPrincipalRequest,
         "get_task_status": GetTaskStatusRequest,
         "list_tasks": ListTasksRequest,
         # Compliance
@@ -1829,8 +1897,10 @@ def _generate_pydantic_output_schemas(
             GetMediaBuyDeliveryResponse,
             GetMediaBuysResponse,
             GetPlanAuditLogsResponse,
+            GetPrincipalResponse,
             GetProductsResponse,
             GetPropertyListResponse,
+            GetReportingStatusResponse,
             GetRightsResponse,
             GetSignalsResponse,
             GetTaskStatusResponse,
@@ -1863,6 +1933,8 @@ def _generate_pydantic_output_schemas(
             SyncEventSourcesResponse,
             SyncGovernanceResponse,
             SyncPlansResponse,
+            SyncPrincipalResponse,
+            SyncReportingReceiptsResponse,
             UpdateCollectionListResponse,
             UpdateContentStandardsResponse,
             UpdateMediaBuyResponse,
@@ -1909,6 +1981,8 @@ def _generate_pydantic_output_schemas(
         "update_media_buy": UpdateMediaBuyResponse,
         "get_media_buy_delivery": GetMediaBuyDeliveryResponse,
         "get_media_buys": GetMediaBuysResponse,
+        "get_reporting_status": GetReportingStatusResponse,
+        "sync_reporting_receipts": SyncReportingReceiptsResponse,
         # Signals
         "get_signals": GetSignalsResponse,
         "activate_signal": ActivateSignalResponse,
@@ -1929,6 +2003,8 @@ def _generate_pydantic_output_schemas(
         # Protocol Discovery
         "get_adcp_capabilities": GetAdcpCapabilitiesResponse,
         "sync_agent_notification_configs": SyncAgentNotificationConfigsResponse,
+        "get_principal": GetPrincipalResponse,
+        "sync_principal": SyncPrincipalResponse,
         "get_task_status": GetTaskStatusResponse,
         "list_tasks": ListTasksResponse,
         # Compliance

@@ -231,6 +231,7 @@ def test_recommended_map_covers_all_sales_specialisms() -> None:
         "sales-non-guaranteed",
         "sales-guaranteed",
         "sales-broadcast-tv",
+        "sales-dooh",
         "sales-social",
         "sales-proposal-mode",
         "sales-catalog-driven",

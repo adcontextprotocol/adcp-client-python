@@ -103,8 +103,12 @@ from adcp.types import (
     GetMediaBuyDeliveryResponse,
     GetMediaBuysRequest,
     GetMediaBuysResponse,
+    GetPrincipalRequest,
+    GetPrincipalResponse,
     GetProductsRequest,
     GetProductsResponse,
+    GetReportingStatusRequest,
+    GetReportingStatusResponse,
     GetSignalsRequest,
     GetSignalsResponse,
     ListAccountChangesRequest,
@@ -136,6 +140,10 @@ from adcp.types import (
     SyncCreativesResponse,
     SyncEventSourcesRequest,
     SyncEventSourcesResponse,
+    SyncPrincipalRequest,
+    SyncPrincipalResponse,
+    SyncReportingReceiptsRequest,
+    SyncReportingReceiptsResponse,
     UpdateMediaBuyRequest,
     UpdateMediaBuyResponse,
 )
@@ -3306,6 +3314,40 @@ class ADCPClient:
         return self.adapter._parse_response(raw_result, ReportUsageResponse)
 
     @_task_options_method
+    async def get_reporting_status(
+        self,
+        request: GetReportingStatusRequest,
+        *,
+        options: TaskOptions | None = None,
+    ) -> TaskResult[GetReportingStatusResponse]:
+        """Read the authoritative reporting delivery and reconciliation status."""
+        return cast(
+            TaskResult[GetReportingStatusResponse],
+            await self._execute_typed_task(
+                "get_reporting_status",
+                request,
+                GetReportingStatusResponse,
+            ),
+        )
+
+    @_task_options_method
+    async def sync_reporting_receipts(
+        self,
+        request: SyncReportingReceiptsRequest,
+        *,
+        options: TaskOptions | None = None,
+    ) -> TaskResult[SyncReportingReceiptsResponse]:
+        """Submit durable reporting materialization reconciliation receipts."""
+        return cast(
+            TaskResult[SyncReportingReceiptsResponse],
+            await self._execute_typed_task(
+                "sync_reporting_receipts",
+                request,
+                SyncReportingReceiptsResponse,
+            ),
+        )
+
+    @_task_options_method
     async def log_event(
         self,
         request: LogEventRequest,
@@ -3657,6 +3699,32 @@ class ADCPClient:
                 request,
                 SyncAgentNotificationConfigsResponse,
             ),
+        )
+
+    @_task_options_method
+    async def get_principal(
+        self,
+        request: GetPrincipalRequest,
+        *,
+        options: TaskOptions | None = None,
+    ) -> TaskResult[GetPrincipalResponse]:
+        """Read the authenticated principal's seller-resolved state."""
+        return cast(
+            TaskResult[GetPrincipalResponse],
+            await self._execute_typed_task("get_principal", request, GetPrincipalResponse),
+        )
+
+    @_task_options_method
+    async def sync_principal(
+        self,
+        request: SyncPrincipalRequest,
+        *,
+        options: TaskOptions | None = None,
+    ) -> TaskResult[SyncPrincipalResponse]:
+        """Declaratively replace selected authenticated-principal configuration."""
+        return cast(
+            TaskResult[SyncPrincipalResponse],
+            await self._execute_typed_task("sync_principal", request, SyncPrincipalResponse),
         )
 
     @_task_options_method
@@ -5612,6 +5680,8 @@ class ADCPClient:
             "activate_signal": ActivateSignalResponse,
             "provide_performance_feedback": ProvidePerformanceFeedbackResponse,
             "report_usage": ReportUsageResponse,
+            "get_reporting_status": GetReportingStatusResponse,
+            "sync_reporting_receipts": SyncReportingReceiptsResponse,
             "get_account_financials": GetAccountFinancialsResponse,
             "list_account_changes": ListAccountChangesResponse,
             "list_accounts": ListAccountsResponse,
@@ -5624,6 +5694,8 @@ class ADCPClient:
             # V3 Protocol Discovery
             "get_adcp_capabilities": GetAdcpCapabilitiesResponse,
             "sync_agent_notification_configs": SyncAgentNotificationConfigsResponse,
+            "get_principal": GetPrincipalResponse,
+            "sync_principal": SyncPrincipalResponse,
             # V3 Content Standards
             "create_content_standards": CreateContentStandardsResponse,
             "get_content_standards": GetContentStandardsResponse,

@@ -1,18 +1,165 @@
 # Generated-types delta
 
+## Files added
+
+- `core/agent_notification_config_state.py` — AgentNotificationConfigState, Authentication
+- `core/agent_reporting_destination.py` — AcceptedFormat, AgentReportingDestination, AgentReportingDestination1, AgentReportingDestination2, AgentReportingDestination3
+- `core/agent_reporting_destination_state.py` — Action, AgentReportingDestinationState, PriorDestinationRef, Setup
+- `core/collection_selection.py` — CollectionSelection, CollectionSelection1, CollectionSelection2
+- `core/delivery_provider.py` — DeliveryProvider
+- `core/delivery_recipient.py` — DeliveryRecipient
+- `core/experimental_feature_id.py` — ExperimentalFeatureId
+- `core/principal_changed_webhook.py` — PrincipalChangedWebhook, Reason
+- `core/principal_declarations.py` — AgentDeclarations, AsyncAdcpVersion, WebhookSigningAlgorithm
+- `core/principal_declarations_state.py` — Axis, Exclusion, PrincipalDeclarationsState
+- `core/principal_state.py` — DestinationRef, PrincipalState, RetiredDestination
+- `core/reporting_canonical_content_digest.py` — ReportingCanonicalContentDigest
+- `core/reporting_canonicalization_contract.py` — AdditionalItem, EmptyReport, GoldenVectors, OrderingEncoding, ReportingCanonicalizationContract, ReportingPrimaryKey
+- `core/reporting_control_total.py` — ReportingControlTotal, ReportingControlTotal1, ReportingControlTotal2
+- `core/reporting_coverage.py` — Limitation, Reason, ReportingCoverage, ReportingMediaBuyId, ReportingPackageId, Status
+- `core/reporting_dataset_share_destination.py` — Provider, Recipient, ReportingCloud, ReportingDatasetShareDestination, ReportingDatasetShareDestination1, ReportingDatasetShareDestination2
+- `core/reporting_delivery_capabilities.py` — ReportingDeliveryCapabilities
+- `core/reporting_delivery_config.py` — CoverageRequirement, ReportingDeliveryConfiguration, Scope
+- `core/reporting_delivery_config_state.py` — Action, ReportingDeliveryConfigLifecycleState, ReportingDeliveryConfigurationState, Setup
+- `core/reporting_delivery_method.py` — Format, ReportingDeliveryMethod, ReportingDeliveryMethod1, ReportingDeliveryMethod2, ReportingDeliveryMethod3, ReportingOrchestration
+- `core/reporting_delivery_offering.py` — DestinationMode, Format, Method, ProducerIdentity, Provider, ReportingDeliveryOffering, ReportingDeliveryPattern, ReportingFeedPurpose, ReportingProfile
+- `core/reporting_delivery_ready_webhook.py` — Readiness, ReportingDeliveryReadyWebhook
+- `core/reporting_file_compression.py` — ReportingFileCompression
+- `core/reporting_file_entry.py` — ReportingFileEntry
+- `core/reporting_file_manifest.py` — Format, Period, ReportingFileManifest
+- `core/reporting_materialization.py` — Method, ReportingMaterialization, Status
+- `core/reporting_obligation.py` — Period, ProductionStatus, ReconciliationStatus, ReportingObligation
+- `core/reporting_receipt.py` — RejectionCode, ReportingReceipt, Status
+- `core/reporting_reconciliation_mode.py` — ReportingReconciliationMode
+- `core/reporting_report_definition.py` — Aggregation, Calendar, Dimension, FinalityPolicies, FinalityPolicies1, FinalityPolicies2, Metric, Provider, ReportCalendarTimezoneBasis, ReportingReportDefinition, RestatementPolicy, Source
+- `core/reporting_resource.py` — Immutability, Kind, ReportingReaderCompatibilityItem, ReportingResource
+- `core/reporting_revision.py` — DataThroughPrecision, FinalityBasis, Period, ReportingRevision
+- `core/reporting_schedule.py` — ReportingSchedule, ReportingScheduleAlignment
+- `core/reporting_schedule_offering.py` — PeriodAnchorPolicy, ReportingScheduleOffering
+- `core/reporting_status_changed_webhook.py` — IssueId, ReportingStatusChangedWebhook
+- `core/reporting_status_issue.py` — Code, RecommendedAction, ReportingStatusIssue, ReportingStatusSeverity, ResponsibleParty
+- `core/reporting_verification.py` — NativeCommitEvidence, ObservedThrough, PhysicalChecksums, PhysicalChecksums1, ReportingVerification, VerificationPath
+- `core/reporting_verification_profile.py` — ReportingVerificationProfile
+- `core/reporting_verification_profile_set.py` — ReportingVerificationProfileSet, ReportingVerificationProfileSetEnum
+- `core/reporting_write_destination.py` — Provider, ReportingWriteDestination, ReportingWriteDestination1, ReportingWriteDestination2
+- `enums/delivery_recipient_cloud.py` — DeliveryRecipientCloud
+- `enums/dooh_motion_type.py` — DoohMotionType
+- `enums/principal_kind.py` — PrincipalKind
+- `enums/reporting_destination_setup_state.py` — ReportingDestinationSetupState
+- `enums/reporting_finality.py` — ReportingFinality
+- `enums/reporting_health.py` — ReportingHealth
+- `formats/canonical/audio_vast.py` — CanonicalFormatVastAudio, DurationMsRangeItem
+- `media_buy/get_reporting_status_request.py` — DeliveryConfigId, GetReportingStatusRequest, Period, ReportingStatusView
+- `media_buy/get_reporting_status_response.py` — DeliveryConfigGeneration, GetReportingStatusResponse, ObligationCounts, Scope
+- `media_buy/sync_reporting_receipts_request.py` — SyncReportingReceiptsRequest
+- `media_buy/sync_reporting_receipts_response.py` — Results, Results18, Results19, SyncReportingReceiptsResponse
+- `protocol/get_principal_request.py` — GetPrincipalRequest
+- `protocol/get_principal_response.py` — GetPrincipalResponse, Result, Result6, Result7, Result9
+- `protocol/sync_principal_request.py` — Configuration, SyncPrincipalRequest
+- `protocol/sync_principal_response.py` — Action, Action29, Result, Result17, Result19, SyncPrincipalResponse
+
 ## Field changes
 
+- `a2ui/si_catalog.py`
+  - **classes added**: Action22
+  - **classes removed**: Action19
+- `account/sync_accounts_request.py`
+  - `Accounts`: `+reporting_delivery_configs`
+  - `Accounts1`: `+reporting_delivery_configs`
+- `account/sync_accounts_response.py`
+  - `Account`: `+reporting_delivery_configs`
 - `bundled/protocol/get_adcp_capabilities_response.py`
-  - **classes added**: ChangeFeed3, EventType4, EventType5, Idempotency3, IdentityUpdates3, Mode16, Mode17, Notifications5, Notifications6, Notifications7, Operation4, SupportedTarget3, Tasks10, Tasks12, Tasks13, Tasks14, Tasks15, Tasks16, Tasks17, Tasks18, Tasks19, Type9
-  - **classes removed**: ChangeFeed1, EventType2, EventType3, Idempotency1, IdentityUpdates1, Mode11, Mode12, Notifications1, Notifications2, Notifications3, Operation3, SupportedTarget1, Tasks1, Tasks2, Tasks3, Tasks4, Tasks5, Tasks6, Tasks7, Tasks8, Tasks9, Type6
-  - `Brand`: `+available_uses`, `+description`, `+generation_providers`, `+right_types`, `+rights` `-brand_id`, `-brand_kit_override`, `-countries`, `-data_subject_contestation`, `-domain`, `-industries`
-  - `Brand1`: `+brand_id`, `+brand_kit_override`, `+countries`, `+data_subject_contestation`, `+domain`, `+industries` `-available_uses`, `-description`, `-generation_providers`, `-right_types`, `-rights`
-  - `Features`: `+catalog_signals` `-bidding_policy`, `-catalog_item_availability_updates`, `-catalog_management`, `-committed_metrics_supported`, `-inline_creative_management`, `-property_list_filtering`, `-seller_optimized_budget`
-  - `Features1`: `+bidding_policy`, `+catalog_item_availability_updates`, `+catalog_management`, `+committed_metrics_supported`, `+inline_creative_management`, `+property_list_filtering`, `+seller_optimized_budget` `-catalog_signals`
-  - `Tasks`: `+modes`, `+task` `-root`
-- `core/reporting_webhook.py`
-  - `ReportingWebhook`: `-operation_id`
+  - **classes added**: Alignment, Authentication5, BudgetCappingTimezoneBasis, BuyerReason, CapabilityReportingDeliveryMethod, DestinationMode, Format5, Method, Offering, Orchestration, Pattern, PeriodAnchorPolicy, PrimaryKey, Principal, ProducerIdentity, Provider, ReaderCompatibilityItem, ReconciliationMode, RegistrationTask, ReportingDelivery, ReportingDeliveryPattern, ReportingDestinationOffering, ReportingFeedPurpose, ReportingProfile, Schedule, SupportedFinalityEnum, SupportedSection, Transport3, VerificationProfile
+  - **classes removed**: Authentication4, ReportingDeliveryMethod, TimezoneBasis
+  - `Adcp`: `+principal`
+  - `AdcpError`: `+buyer_reason`
+  - `Error`: `+buyer_reason`
+  - `Format`: `+avro`, `+csv`, `+jsonl`, `+orc`, `+parquet` `-applies_to_channels`, `-canonical_formats_only`, `-display_name`, `-experimental`, `-format_kind`, `-format_option_id`, `-format_schema`, `-format_shape`, `-locale_policy`, `-macro_resolution_capabilities`, `-params`, `-publisher_domain`, `-sample_render_url`, `-seller_preference`, `-technical_requirements_complete`, `-v1_format_ref`
+  - `FormatKind`: `+audio_vast`
+  - `MediaBuy`: `+reporting_delivery`
+  - `Specialism`: `+sales_dooh`
+  - `Transport`: `+root` `-type`, `-url`
+- `collection/get_collection_list_response.py`
+  - `Collection`: `+collection_id`, `+publisher_domain`
+- `compliance/comply_test_controller_request.py`
+  - `Params`: `+dooh_metrics`, `+plays`
+- `core/account.py`
+  - `Account`: `+reporting_delivery_configs`
+- `core/agent_notification_config.py`
+  - `AgentNotificationConfig`: `+all_authorized_accounts`, `+include_future_event_types`
+- `core/canonical_format_kind.py`
+  - `CanonicalFormatKind`: `+audio_vast`
+- `core/canonical_format_option.py`
+  - `FormatKind`: `+audio_vast`
+- `core/canonical_media_buy_action.py`
+  - **classes added**: Action4
+  - **classes removed**: Action2
+  - `Action3`: `+add_packages`, `+cancel`, `+decrease_budget`, `+extend_flight`, `+increase_budget`, `+reallocate_budget`, `+remove_packages`, `+shorten_flight`, `+update_bidding`, `+update_budget_allocation`, `+update_flight_dates`, `+update_frequency_caps`, `+update_pacing`, `+update_targeting` `-remove_creative`, `-replace_creative`, `-update_creative_assignments`
+- `core/canonical_placement.py`
+  - **classes added**: CanonicalDoohPlacementAttributes, CanonicalDoohScreenResolution, Identifier
+  - `CanonicalProductPlacement1`: `+dooh_placement_attributes`, `+identifiers`
+  - `CanonicalProductPlacement2`: `+dooh_placement_attributes`, `+identifiers`
+- `core/collection_distribution.py`
+  - `CollectionDistribution`: `+property_ids`
+- `core/delivery_metrics.py`
+  - **classes added**: DoohMetrics1
+  - **classes removed**: DoohMetrics
+- `core/error.py`
+  - **classes added**: BuyerReason
+  - `Error`: `+buyer_reason`
+- `core/format.py`
+  - **classes added**: CanonicalParameters16
+- `core/notification_config.py`
+  - `EventType`: `+reporting_delivery_ready`, `+reporting_status_changed`
+- `core/package_format_snapshot.py`
+  - **classes added**: PackageFormatSnapshot32, PackageFormatSnapshot33
+  - `PackageFormatSnapshot16`: `+applies_to_channels`, `+canonical_formats_only`, `+display_name`, `+experimental`, `+format_kind`, `+format_option_id`, `+format_schema`, `+format_shape`, `+locale_policy`, `+macro_resolution_capabilities`, `+params`, `+publisher_domain`, `+sample_render_url`, `+seller_preference`, `+technical_requirements_complete`, `+tracker_execution_contract`, `+v1_format_ref` `-execution_daast_version`, `-execution_vast_version`, `-placement_refs`, `-product_id`, `-product_snapshot_digest`, `-tracker_execution_contract_digest`
+  - `PackageFormatSnapshot17`: `-format_kind`, `-params`
+- `core/placement.py`
+  - **classes added**: Identifier, ProductDoohPlacementAttributes, ProductDoohScreenResolution
+  - `Placement`: `+dooh_placement_attributes`, `+identifiers`
+- `core/placement_definition.py`
+  - **classes added**: Identifier, PublisherDoohPlacementAttributes, PublisherDoohScreenResolution
+  - `PlacementDefinition`: `+dooh_placement_attributes`, `+identifiers`
+- `core/reporting_capabilities.py`
+  - **classes added**: ReportingDeliveryOfferingId
+  - `ReportingCapabilities`: `+reporting_delivery_offering_ids`
+- `core/targeting.py`
+  - `TargetingOverlay`: `+collection_selection`
+- `core/transformer.py`
+  - **classes added**: InputFormat16, InputFormat34
+  - **classes removed**: InputFormat32
+- `core/x_entity_types.py`
+  - `XEntityTypes`: `+reporting_definition`, `+reporting_delivery_config`, `+reporting_destination`, `+reporting_materialization`, `+reporting_obligation`, `+reporting_offering`, `+reporting_receipt`, `+reporting_resource`, `+reporting_revision`
+- `enums/collection_kind.py`
+  - `CollectionKind`: `+channel`
+- `enums/distribution_identifier_type.py`
+  - `DistributionIdentifierType`: `+platform_channel_id`
+- `enums/error_code.py`
+  - `ErrorCode`: `+CREATIVE_MISSING_CLICK_URL`, `+CREATIVE_SIZE_MISMATCH`, `+CREATIVE_VALIDATION_FAILED_GENERIC`
+- `enums/notification_type.py`
+  - `NotificationType`: `+principal_changed`, `+reporting_delivery_ready`, `+reporting_status_changed`
+- `enums/specialism.py`
+  - `AdcpSpecialism`: `+sales_dooh`
+- `enums/task_type.py`
+  - `TaskType`: `+get_principal`, `+sync_principal`, `+sync_reporting_receipts`
+- `governance/sync_plans_response.py`
+  - **classes added**: Status44
+  - **classes removed**: Status40
+- `media_buy/get_media_buy_delivery_response.py`
+  - `BySpotItem`: `+creative_id`
+- `media_buy/get_products_request.py`
+  - **classes added**: Action9
+  - **classes removed**: Action7
+- `media_buy/product_refinement.py`
+  - **classes added**: Action11
+  - **classes removed**: Action9
 - `protocol/get_adcp_capabilities_response.py`
-  - **classes added**: ChangeFeed1, EventType3, Idempotency1, IdentityUpdates1, Notifications1, Notifications2, Notifications3, SupportedTarget1, Tasks1, Tasks2, Tasks3, Tasks4, Tasks5, Tasks6, Tasks7, Tasks8, Tasks9, Type6
-  - **classes removed**: ChangeFeed3, EventType5, Idempotency3, IdentityUpdates3, Notifications5, Notifications6, Notifications7, SupportedTarget3, Tasks10, Tasks12, Tasks13, Tasks14, Tasks15, Tasks16, Tasks17, Tasks18, Tasks19, Type9
-  - `Tasks`: `+root` `-modes`, `-task`
+  - **classes added**: BudgetCappingTimezoneBasis, CapabilityReportingDeliveryMethod, Format, Pattern, Principal, RegistrationTask, ReportingDestinationOffering, SupportedSection, Transport1
+  - **classes removed**: ExperimentalFeature, ReportingDeliveryMethod, TimezoneBasis
+  - `Adcp`: `+principal`
+  - `MediaBuy`: `+reporting_delivery`
+  - `Transport`: `+root` `-type`, `-url`
+- `sponsored_intelligence/si_sponsored_context_receipt.py`
+  - **classes added**: Status41
+  - **classes removed**: Status37

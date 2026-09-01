@@ -65,6 +65,7 @@ V1_TRANSLATABLE: dict[CanonicalFormatKind, bool] = {
     CanonicalFormatKind.video_hosted: True,
     CanonicalFormatKind.video_vast: True,
     CanonicalFormatKind.audio_hosted: True,
+    CanonicalFormatKind.audio_vast: True,
     CanonicalFormatKind.audio_daast: True,
     CanonicalFormatKind.sponsored_placement: False,
     CanonicalFormatKind.native_in_feed: True,
