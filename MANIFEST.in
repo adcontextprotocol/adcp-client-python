@@ -10,5 +10,5 @@ recursive-include src/adcp py.typed
 recursive-include src/adcp/_schemas/2.5 *.json
 recursive-include src/adcp/_schemas/3.0 *.json
 recursive-include src/adcp/_schemas/3.1 *.json
-recursive-include src/adcp/_schemas/3.2.0-beta.9 *.json
+recursive-include src/adcp/_schemas/3.2.0-beta.10 *.json
 prune src/adcp/_schemas/3.1.0-*

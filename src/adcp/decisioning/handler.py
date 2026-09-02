@@ -486,6 +486,7 @@ SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
     "sales-non-guaranteed": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     "sales-guaranteed": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     "sales-broadcast-tv": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-dooh": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     "sales-social": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     "sales-catalog-driven": (
         _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS | _CATALOG_ADVERTISED_TOOLS
@@ -543,6 +544,7 @@ SPECIALISM_TO_PROTOCOLS: dict[str, frozenset[str]] = {
     "sales-non-guaranteed": frozenset({"media_buy"}),
     "sales-guaranteed": frozenset({"media_buy"}),
     "sales-broadcast-tv": frozenset({"media_buy"}),
+    "sales-dooh": frozenset({"media_buy"}),
     "sales-social": frozenset({"media_buy"}),
     "sales-catalog-driven": frozenset({"media_buy"}),
     "sales-proposal-mode": frozenset({"media_buy"}),

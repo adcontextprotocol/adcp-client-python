@@ -150,6 +150,7 @@ SPEC_SPECIALISM_ENUM: frozenset[str] = frozenset(
         "property-lists",
         "sales-broadcast-tv",
         "sales-catalog-driven",
+        "sales-dooh",
         "sales-guaranteed",
         "sales-non-guaranteed",
         "sales-proposal-mode",
@@ -209,6 +210,15 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
         }
     ),
     "sales-broadcast-tv": frozenset(
+        {
+            "get_products",
+            "create_media_buy",
+            "update_media_buy",
+            "sync_creatives",
+            "get_media_buy_delivery",
+        }
+    ),
+    "sales-dooh": frozenset(
         {
             "get_products",
             "create_media_buy",
@@ -429,6 +439,7 @@ RECOMMENDED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
     "sales-non-guaranteed": _SALES_RECOMMENDED,
     "sales-guaranteed": _SALES_RECOMMENDED,
     "sales-broadcast-tv": _SALES_RECOMMENDED,
+    "sales-dooh": _SALES_RECOMMENDED,
     "sales-social": _SALES_RECOMMENDED,
     "sales-proposal-mode": _SALES_RECOMMENDED,
     "sales-catalog-driven": _SALES_RECOMMENDED,

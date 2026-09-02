@@ -908,6 +908,14 @@ class A2AAdapter(ProtocolAdapter):
         """Report account usage."""
         return await self._call_a2a_tool("report_usage", params)
 
+    async def get_reporting_status(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Read reporting delivery and reconciliation status."""
+        return await self._call_a2a_tool("get_reporting_status", params)
+
+    async def sync_reporting_receipts(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Submit reporting materialization reconciliation receipts."""
+        return await self._call_a2a_tool("sync_reporting_receipts", params)
+
     async def list_tools(self) -> list[str]:
         """
         List available tools from A2A agent.
@@ -984,6 +992,14 @@ class A2AAdapter(ProtocolAdapter):
     async def sync_agent_notification_configs(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Replace caller-scoped agent notification subscribers."""
         return await self._call_a2a_tool("sync_agent_notification_configs", params)
+
+    async def get_principal(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Read the authenticated principal's seller-resolved state."""
+        return await self._call_a2a_tool("get_principal", params)
+
+    async def sync_principal(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Replace selected authenticated-principal configuration."""
+        return await self._call_a2a_tool("sync_principal", params)
 
     async def get_task_status(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get task status from the agent."""

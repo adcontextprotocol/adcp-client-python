@@ -11,6 +11,8 @@ Override these in your `ADCPHandler` subclass. Unimplemented methods return `not
 | Method | Domain | Request Type | Description |
 |---|---|---|---|
 | `get_adcp_capabilities` | protocol | GetAdcpCapabilitiesRequest | Declare supported domains/features |
+| `get_principal` | protocol | GetPrincipalRequest | Read the authenticated principal configuration |
+| `sync_principal` | protocol | SyncPrincipalRequest | Synchronize authenticated principal configuration |
 | `get_products` | media_buy | GetProductsRequest | Return ad products matching a brief |
 | `list_products` | media_buy | ListProductsRequest | List products with the compact lifecycle |
 | `request_proposals` | media_buy | RequestProposalsRequest | Request seller proposals |
@@ -24,6 +26,8 @@ Override these in your `ADCPHandler` subclass. Unimplemented methods return `not
 | `update_media_buy` | media_buy | UpdateMediaBuyRequest | Update an existing media buy |
 | `get_media_buys` | media_buy | GetMediaBuysRequest | List media buys |
 | `get_media_buy_delivery` | media_buy | GetMediaBuyDeliveryRequest | Get delivery metrics |
+| `get_reporting_status` | media_buy | GetReportingStatusRequest | Read reporting delivery and reconciliation status |
+| `sync_reporting_receipts` | media_buy | SyncReportingReceiptsRequest | Submit reporting reconciliation receipts |
 | `provide_performance_feedback` | media_buy | ProvidePerformanceFeedbackRequest | Send conversion data |
 | `sync_creatives` | media_buy | SyncCreativesRequest | Sync creative assets |
 | `list_creatives` | media_buy | ListCreativesRequest | List synced creatives |

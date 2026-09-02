@@ -19,6 +19,7 @@ from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core import notification_config as notification_config_1
 from ..core import operator_unit as operator_unit_1
+from ..core import reporting_delivery_config_state as reporting_delivery_config_state_1
 from ..enums import account_scope as account_scope_1
 from ..enums import billing_party as billing_party_1
 from ..enums import payment_terms as payment_terms_1
@@ -63,6 +64,7 @@ class Account(AdcpVersionEnvelope):
     warnings: list[str] | None = None
     sandbox: bool | None = None
     notification_configs: Annotated[list[notification_config_1.NotificationConfig], Field(max_length=16)] | None = None
+    reporting_delivery_configs: Annotated[list[reporting_delivery_config_state_1.ReportingDeliveryConfigurationState], Field(max_length=16)] | None = None
     authorization: account_authorization_1.AccountAuthorization | None = None
 
 

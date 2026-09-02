@@ -62,13 +62,13 @@ def test_rewrite_refs_preserves_macro_declaration_canonical_enum_ref():
     from scripts.generate_types import rewrite_refs
 
     schema = {
-        "$ref": ("https://adcontextprotocol.org/schemas/3.2.0-beta.9/" "enums/macro-dialect.json")
+        "$ref": ("https://adcontextprotocol.org/schemas/3.2.0-beta.10/" "enums/macro-dialect.json")
     }
 
     rewrite_refs(schema, Path("core/macro-declaration.json"))
 
     assert schema["$ref"] == (
-        "https://adcontextprotocol.org/schemas/3.2.0-beta.9/" "enums/macro-dialect.json"
+        "https://adcontextprotocol.org/schemas/3.2.0-beta.10/" "enums/macro-dialect.json"
     )
 
 

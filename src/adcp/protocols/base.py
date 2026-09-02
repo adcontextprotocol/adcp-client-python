@@ -328,6 +328,18 @@ class ProtocolAdapter(ABC):
         """Report account usage."""
         pass
 
+    async def get_reporting_status(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Read reporting delivery and reconciliation status."""
+        raise NotImplementedError(
+            "get_reporting_status is not implemented by this protocol adapter"
+        )
+
+    async def sync_reporting_receipts(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Submit reporting materialization reconciliation receipts."""
+        raise NotImplementedError(
+            "sync_reporting_receipts is not implemented by this protocol adapter"
+        )
+
     @abstractmethod
     async def list_tools(self) -> list[str]:
         """
@@ -377,6 +389,14 @@ class ProtocolAdapter(ABC):
         raise NotImplementedError(
             "sync_agent_notification_configs is not implemented by this protocol adapter"
         )
+
+    async def get_principal(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Read the authenticated principal's seller-resolved state."""
+        raise NotImplementedError("get_principal is not implemented by this protocol adapter")
+
+    async def sync_principal(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Replace selected authenticated-principal configuration."""
+        raise NotImplementedError("sync_principal is not implemented by this protocol adapter")
 
     @abstractmethod
     async def get_task_status(self, params: dict[str, Any]) -> TaskResult[Any]:

@@ -57,8 +57,10 @@ from adcp.types import (
     GetMediaBuyDeliveryRequest,
     GetMediaBuysRequest,
     GetPlanAuditLogsRequest,
+    GetPrincipalRequest,
     GetProductsRequest,
     GetPropertyListRequest,
+    GetReportingStatusRequest,
     GetRightsRequest,
     GetSignalsRequest,
     GetTaskStatusRequest,
@@ -91,6 +93,8 @@ from adcp.types import (
     SyncEventSourcesRequest,
     SyncGovernanceRequest,
     SyncPlansRequest,
+    SyncPrincipalRequest,
+    SyncReportingReceiptsRequest,
     UpdateCollectionListRequest,
     UpdateContentStandardsRequest,
     UpdateMediaBuyRequest,
@@ -583,6 +587,22 @@ class ADCPHandler(ABC, Generic[TContext]):
         """
         return self._not_supported("report_usage")
 
+    async def get_reporting_status(
+        self,
+        params: GetReportingStatusRequest | dict[str, Any],
+        context: TContext | None = None,
+    ) -> Any:
+        """Read reporting delivery and reconciliation status."""
+        return self._not_supported("get_reporting_status")
+
+    async def sync_reporting_receipts(
+        self,
+        params: SyncReportingReceiptsRequest | dict[str, Any],
+        context: TContext | None = None,
+    ) -> Any:
+        """Submit reporting materialization reconciliation receipts."""
+        return self._not_supported("sync_reporting_receipts")
+
     # ========================================================================
     # Event Operations
     # ========================================================================
@@ -654,6 +674,22 @@ class ADCPHandler(ABC, Generic[TContext]):
     ) -> Any:
         """Replace caller-scoped agent notification subscribers."""
         return self._not_supported("sync_agent_notification_configs")
+
+    async def get_principal(
+        self,
+        params: GetPrincipalRequest | dict[str, Any],
+        context: TContext | None = None,
+    ) -> Any:
+        """Read the authenticated principal's seller-resolved state."""
+        return self._not_supported("get_principal")
+
+    async def sync_principal(
+        self,
+        params: SyncPrincipalRequest | dict[str, Any],
+        context: TContext | None = None,
+    ) -> Any:
+        """Replace selected authenticated-principal configuration."""
+        return self._not_supported("sync_principal")
 
     async def get_task_status(
         self,

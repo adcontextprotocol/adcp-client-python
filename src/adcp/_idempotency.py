@@ -52,6 +52,8 @@ IDEMPOTENT_TASKS: frozenset[str] = frozenset(
         "sync_catalogs",
         "sync_event_sources",
         "sync_agent_notification_configs",
+        "sync_principal",
+        "sync_reporting_receipts",
         "si_send_message",
     }
 )

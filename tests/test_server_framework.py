@@ -103,6 +103,23 @@ class TestADCPHandler:
         assert result.supported is False
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "method_name",
+        [
+            "get_principal",
+            "sync_principal",
+            "get_reporting_status",
+            "sync_reporting_receipts",
+        ],
+    )
+    async def test_default_new_tasks_return_not_supported(self, method_name):
+        handler = ADCPHandler()
+        result = await getattr(handler, method_name)({})
+        assert isinstance(result, NotImplementedResponse)
+        assert result.supported is False
+        assert method_name in result.reason
+
+    @pytest.mark.asyncio
     async def test_default_content_standards_returns_not_supported(self):
         """Test default content standards methods return not supported."""
         handler = ADCPHandler()

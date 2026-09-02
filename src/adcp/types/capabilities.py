@@ -77,7 +77,6 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
     SponsoredIntelligence,
     SupportedProtocol,
     Targeting,
-    Transport,
     TrustedMatch,
     Video,
     Voice,
@@ -167,6 +166,17 @@ if len(_media_buy_features_arms) != 1:
         f"(got {_media_buy_features_arms!r})"
     )
 Features: type = _media_buy_features_arms[0]
+
+if TYPE_CHECKING:
+    Transport = AdCPBaseModel
+else:
+    _transport_arms = _get_args(Endpoint.model_fields["transports"].annotation)
+    if len(_transport_arms) != 1:
+        raise RuntimeError(
+            "capabilities: Endpoint.transports annotation lost its concrete item type "
+            f"(got {_transport_arms!r})"
+        )
+    Transport = _transport_arms[0]
 
 if TYPE_CHECKING:
     # The generated capability class is numbered and the suffix is not stable

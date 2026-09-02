@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from adcp.types.guards import (
     is_adcp_error,
     is_adcp_success,
@@ -34,6 +36,20 @@ class TestGenericGuards:
 
         assert is_adcp_error(FakeError()) is True
         assert is_adcp_success(FakeError()) is False
+
+    @pytest.mark.parametrize(
+        ("response", "expected_error"),
+        [
+            ({"errors": [{"code": "INVALID_BUDGET", "message": "Budget too low"}]}, True),
+            ({"errors": []}, False),
+            ({"errors": None}, False),
+        ],
+    )
+    def test_top_level_mapping_errors_are_classified(
+        self, response: dict[str, object], expected_error: bool
+    ) -> None:
+        assert is_adcp_error(response) is expected_error
+        assert is_adcp_success(response) is not expected_error
 
     def test_success_without_errors(self) -> None:
         """Response without errors attribute is a success."""
@@ -87,6 +103,80 @@ class TestGenericGuards:
         )
         assert is_adcp_error(success_resp) is False
         assert is_adcp_success(success_resp) is True
+
+    def test_nested_failed_results_are_errors_for_real_models(self) -> None:
+        from adcp.types import (
+            GetPrincipalResponse,
+            SyncPrincipalResponse,
+            SyncReportingReceiptsResponse,
+        )
+
+        responses = [
+            GetPrincipalResponse.model_validate(
+                {
+                    "result": {
+                        "kind": "failed",
+                        "errors": [{"code": "UNAUTHORIZED", "message": "Unauthorized"}],
+                    }
+                }
+            ),
+            SyncPrincipalResponse.model_validate(
+                {
+                    "result": {
+                        "kind": "failed",
+                        "errors": [{"code": "CONFLICT", "message": "Version conflict"}],
+                    }
+                }
+            ),
+            SyncReportingReceiptsResponse.model_validate(
+                {
+                    "results": [
+                        {
+                            "result": "failed",
+                            "reporting_receipt_id": "receipt-failed-001",
+                            "errors": [{"code": "INVALID_REQUEST", "message": "Invalid receipt"}],
+                        }
+                    ]
+                }
+            ),
+        ]
+
+        for response in responses:
+            assert is_adcp_error(response) is True
+            assert is_adcp_success(response) is False
+
+    def test_nested_successful_results_are_not_errors_for_real_models(self) -> None:
+        from adcp.types import (
+            GetPrincipalResponse,
+            SyncPrincipalResponse,
+            SyncReportingReceiptsResponse,
+        )
+
+        receipt = {
+            "reporting_receipt_id": "receipt-success-001",
+            "reporting_obligation_id": "obligation-1",
+            "reporting_revision_id": "revision-1",
+            "reporting_materialization_id": "materialization-1",
+            "status": "accepted",
+            "verification_profile": "native_commit",
+            "observed_row_count": 0,
+            "observed_control_totals": [],
+            "observed_native_version_ref": "v1",
+            "observed_at": "2026-01-01T00:00:00Z",
+        }
+        responses = [
+            GetPrincipalResponse.model_validate({"result": {"kind": "unconfigured"}}),
+            SyncPrincipalResponse.model_validate(
+                {"result": {"kind": "validated", "action": "would_update", "dry_run": True}}
+            ),
+            SyncReportingReceiptsResponse.model_validate(
+                {"results": [{"result": "recorded", "receipt": receipt}]}
+            ),
+        ]
+
+        for response in responses:
+            assert is_adcp_error(response) is False
+            assert is_adcp_success(response) is True
 
 
 class TestTypedGuards:

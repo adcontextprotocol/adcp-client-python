@@ -545,6 +545,10 @@ async def test_all_client_methods():
     assert hasattr(client, "get_creative_delivery")
     # V3 Protocol Discovery
     assert hasattr(client, "get_adcp_capabilities")
+    assert hasattr(client, "get_principal")
+    assert hasattr(client, "sync_principal")
+    assert hasattr(client, "get_reporting_status")
+    assert hasattr(client, "sync_reporting_receipts")
     # V3 Content Standards
     assert hasattr(client, "create_content_standards")
     assert hasattr(client, "get_content_standards")
@@ -715,6 +719,39 @@ async def test_all_client_methods():
             "get_creative_delivery",
             "GetCreativeDeliveryRequest",
             {"media_buy_ids": ["mb-1"]},
+        ),
+        # V3 Principal and Reporting
+        ("get_principal", "GetPrincipalRequest", {}),
+        (
+            "sync_principal",
+            "SyncPrincipalRequest",
+            {"configuration": {"notification_configs": []}},
+        ),
+        (
+            "get_reporting_status",
+            "GetReportingStatusRequest",
+            {"account": {"account_id": "acct-1"}, "view": "summary"},
+        ),
+        (
+            "sync_reporting_receipts",
+            "SyncReportingReceiptsRequest",
+            {
+                "account": {"account_id": "acct-1"},
+                "receipts": [
+                    {
+                        "reporting_receipt_id": "receipt-request-001",
+                        "reporting_obligation_id": "obligation-1",
+                        "reporting_revision_id": "revision-1",
+                        "reporting_materialization_id": "materialization-1",
+                        "status": "accepted",
+                        "verification_profile": "native_commit",
+                        "observed_row_count": 0,
+                        "observed_control_totals": [],
+                        "observed_native_version_ref": "v1",
+                        "observed_at": "2026-01-01T00:00:00Z",
+                    }
+                ],
+            },
         ),
         # V3 Governance
         (
