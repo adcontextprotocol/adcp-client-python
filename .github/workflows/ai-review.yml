@@ -94,7 +94,7 @@ jobs:
         if: steps.workflow-mod.outputs.modified != 'true'
         # Pin the shared reviewer because this step receives the Secretariat
         # private key and Anthropic API key. Update from ladon/review/v1 deliberately.
-        uses: adcontextprotocol/actions/ladon/review@2b4b3aa89fee5c91ccfc1ba9fc93a6bea3907d44 # ladon/review/v1
+        uses: adcontextprotocol/actions/ladon/review@48c0dfef96594f74f9606d68597c0f7062a5a337 # includes reviewer/v1.0.7
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           app-id: ${{ secrets.SECRETARIAT_APP_ID }}
