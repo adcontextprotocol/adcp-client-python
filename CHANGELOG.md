@@ -1,5 +1,24 @@
 # Changelog
 
+## [8.0.0-beta.11](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.10...v8.0.0-beta.11) (2026-09-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **schema:** ReportingWebhook.operation_id is no longer required or exposed by the current generated model, matching canonical AdCP beta.9 and beta.10.
+
+### Features
+
+* **examples:** add durable seller production wiring ([2bd5193](https://github.com/adcontextprotocol/adcp-client-python/commit/2bd5193c15540ed5d2c430c593df4a2f7b1c0798))
+* **protocol:** adopt AdCP 3.2 beta.10 ([#1112](https://github.com/adcontextprotocol/adcp-client-python/issues/1112)) ([52045bc](https://github.com/adcontextprotocol/adcp-client-python/commit/52045bc7a308bba8ec68f8370cd947778ebcf94d))
+
+
+### Bug Fixes
+
+* **ci:** pin repaired Ladon reviewer ([#1113](https://github.com/adcontextprotocol/adcp-client-python/issues/1113)) ([458fd43](https://github.com/adcontextprotocol/adcp-client-python/commit/458fd43aedc5916883b2e8625205b851a940dcc6))
+* **examples:** harden durable workflow finalization ([#1109](https://github.com/adcontextprotocol/adcp-client-python/issues/1109)) ([86db240](https://github.com/adcontextprotocol/adcp-client-python/commit/86db240b55b9ad2bda4edd46cafd6f5dfa79fb47))
+* **schema:** remove obsolete reporting webhook patches ([#1111](https://github.com/adcontextprotocol/adcp-client-python/issues/1111)) ([c3e72c9](https://github.com/adcontextprotocol/adcp-client-python/commit/c3e72c9f85d84c65d553d16cddc77a4d7411e314))
+
 ## [8.0.0-beta.10](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.9...v8.0.0-beta.10) (2026-08-28)
 
 
