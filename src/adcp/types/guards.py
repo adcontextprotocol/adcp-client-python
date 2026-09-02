@@ -25,14 +25,24 @@ Generic guards work with any ADCP response union:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, TypeAlias, TypeGuard
+
+
+def _field(value: Any, name: str) -> Any:
+    """Read a discriminator from a response model or mapping."""
+    if isinstance(value, Mapping):
+        return value.get(name)
+    return getattr(value, name, None)
 
 
 def is_adcp_error(response: Any) -> bool:
     """Check if an ADCP response is an error response.
 
-    Works with any ADCP response union type. Error responses
-    have a non-empty ``errors`` field.
+    Works with any ADCP response union type. Most error responses have a
+    non-empty top-level ``errors`` field. Principal responses instead carry a
+    ``result.kind == "failed"`` discriminator, and reporting receipt batches
+    carry failures on individual ``results[].result`` values.
 
     Args:
         response: Any ADCP response object (success or error variant).
@@ -40,12 +50,18 @@ def is_adcp_error(response: Any) -> bool:
     Returns:
         True if the response contains errors.
     """
-    errors = getattr(response, "errors", None)
-    if errors is None:
-        return False
-    if isinstance(errors, list):
-        return len(errors) > 0
-    return True
+    errors = _field(response, "errors")
+    if errors is not None:
+        if not isinstance(errors, list) or errors:
+            return True
+
+    result = _field(response, "result")
+    if _field(result, "kind") == "failed":
+        return True
+    results = _field(response, "results")
+    return isinstance(results, (list, tuple)) and any(
+        _field(item, "result") == "failed" for item in results
+    )
 
 
 def is_adcp_success(response: Any) -> bool:

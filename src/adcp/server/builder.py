@@ -42,6 +42,7 @@ HANDLER_TO_DOMAIN: dict[str, str] = {
     "update_media_buy": "media_buy",
     "get_media_buys": "media_buy",
     "get_media_buy_delivery": "media_buy",
+    "get_reporting_status": "media_buy",
     "provide_performance_feedback": "media_buy",
     "list_creative_formats": "media_buy",
     "sync_creatives": "media_buy",
@@ -50,6 +51,7 @@ HANDLER_TO_DOMAIN: dict[str, str] = {
     "log_event": "media_buy",
     "sync_audiences": "media_buy",
     "sync_catalogs": "media_buy",
+    "sync_reporting_receipts": "media_buy",
     # Creative
     "build_creative": "creative",
     "preview_creative": "creative",
@@ -61,6 +63,8 @@ HANDLER_TO_DOMAIN: dict[str, str] = {
     "get_task_status": "protocol",
     "list_tasks": "protocol",
     "sync_agent_notification_configs": "protocol",
+    "get_principal": "protocol",
+    "sync_principal": "protocol",
     # Signals
     "get_signals": "signals",
     "activate_signal": "signals",
@@ -204,15 +208,18 @@ class ADCPServerBuilder:
 
         # Auto-generate capabilities if not provided
         if "get_adcp_capabilities" not in handlers:
-            domains = self._detect_domains()
-            if domains:
+            detected_domains = self._detect_domains()
+            # ``protocol`` categorizes handler metadata and registration tasks,
+            # but is not a value permitted in supported_protocols.
+            capability_domains = [domain for domain in detected_domains if domain != "protocol"]
+            if capability_domains:
                 from adcp.server.responses import capabilities_response
 
                 pinned_version = self._adcp_version
 
                 async def auto_capabilities(params: Any, context: Any = None) -> dict[str, Any]:
                     return capabilities_response(
-                        domains,
+                        capability_domains,
                         adcp_version=pinned_version,
                     )
 

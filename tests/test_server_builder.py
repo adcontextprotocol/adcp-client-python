@@ -17,6 +17,23 @@ class TestADCPServerBuilder:
     def test_list_account_changes_uses_media_buy_protocol(self) -> None:
         assert HANDLER_TO_DOMAIN["list_account_changes"] == "media_buy"
 
+    @pytest.mark.parametrize(
+        ("handler_name", "domain"),
+        [
+            ("get_principal", "protocol"),
+            ("sync_principal", "protocol"),
+            ("get_reporting_status", "media_buy"),
+            ("sync_reporting_receipts", "media_buy"),
+        ],
+    )
+    def test_new_handlers_map_to_their_capability_domain(
+        self, handler_name: str, domain: str
+    ) -> None:
+        assert HANDLER_TO_DOMAIN[handler_name] == domain
+        server = adcp_server("test-seller")
+        getattr(server, handler_name)(lambda params, context=None: {})
+        assert server._detect_domains() == [domain]
+
     def test_basic_decorator_registration(self) -> None:
         server = adcp_server("test-seller")
 
@@ -98,6 +115,31 @@ class TestADCPServerBuilder:
         assert "supported_protocols" in result
         assert "media_buy" in result["supported_protocols"]
         assert result["media_buy"]["features"]["canonical_creatives"] is True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "handler_name",
+        ["get_principal", "sync_principal", "sync_agent_notification_configs"],
+    )
+    async def test_protocol_only_server_keeps_default_capabilities_handler(
+        self, handler_name: str
+    ) -> None:
+        server = adcp_server("principal-only")
+        getattr(server, handler_name)(lambda params, context=None: {})
+
+        result = await server.build_handler().get_adcp_capabilities({})
+
+        assert result.supported is False
+
+    @pytest.mark.asyncio
+    async def test_functional_domain_is_auto_advertised_with_protocol_handler(self) -> None:
+        server = adcp_server("mixed-server")
+        server.get_principal(lambda params, context=None: {})
+        server.get_products(lambda params, context=None: products_response([]))
+
+        result = await server.build_handler().get_adcp_capabilities({})
+
+        assert result["supported_protocols"] == ["media_buy"]
 
     @pytest.mark.asyncio
     async def test_fresh_31_request_uses_framework_canonical_capability(self) -> None:

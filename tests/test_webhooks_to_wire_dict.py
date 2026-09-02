@@ -202,6 +202,7 @@ def test_create_mcp_webhook_payload_auto_derives_protocol_from_task_type() -> No
         "create_property_list": "governance",
         "activate_signal": "signals",
         "sync_creatives": "creative",
+        "sync_reporting_receipts": "media-buy",
     }
     for task_type, expected_protocol in cases.items():
         payload = create_mcp_webhook_payload(

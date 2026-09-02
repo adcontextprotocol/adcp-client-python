@@ -97,6 +97,7 @@ _TASK_TYPE_TO_PROTOCOL: dict[TaskType, AdcpProtocol] = {
     TaskType.sync_audiences: AdcpProtocol.media_buy,
     TaskType.sync_catalogs: AdcpProtocol.media_buy,
     TaskType.log_event: AdcpProtocol.media_buy,
+    TaskType.sync_reporting_receipts: AdcpProtocol.media_buy,
     TaskType.get_brand_identity: AdcpProtocol.brand,
     TaskType.get_rights: AdcpProtocol.brand,
     TaskType.acquire_rights: AdcpProtocol.brand,

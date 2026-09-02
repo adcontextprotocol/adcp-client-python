@@ -77,7 +77,7 @@ class TestKeyHelpers:
         assert _idempotency.redact("short") == "<short>"
 
     def test_is_mutating_coverage(self) -> None:
-        # Spot-check all 28 spec-required tasks
+        # Spot-check idempotency-required tasks across supported domains.
         mutating = {
             "create_media_buy",
             "update_media_buy",
@@ -85,6 +85,8 @@ class TestKeyHelpers:
             "sync_accounts",
             "si_send_message",
             "si_initiate_session",
+            "sync_principal",
+            "sync_reporting_receipts",
         }
         for t in mutating:
             assert _idempotency.is_mutating(t), t
@@ -594,6 +596,31 @@ class TestMCPAdapterIntegration:
         assert sent_name == "create_media_buy"
         assert "idempotency_key" in sent_params
         assert UUID_RE.match(sent_params["idempotency_key"])
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("task_name", ["sync_principal", "sync_reporting_receipts"])
+    async def test_new_mutating_tasks_run_strict_idempotency_preflight(
+        self, task_name: str
+    ) -> None:
+        from adcp.protocols.mcp import MCPAdapter
+
+        adapter = MCPAdapter(_cfg(Protocol.MCP))
+        adapter.request_validation_mode = "off"
+        preflight = AsyncMock()
+        adapter.idempotency_capability_check = preflight
+        session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.isError = False
+        mock_result.content = []
+        mock_result.structuredContent = {}
+        session.call_tool = AsyncMock(return_value=mock_result)
+
+        with patch.object(adapter, "_get_session", AsyncMock(return_value=session)):
+            await adapter._call_mcp_tool(task_name, {})
+
+        preflight.assert_awaited_once()
+        _, sent_params = session.call_tool.call_args[0]
+        assert "idempotency_key" in sent_params
 
     @pytest.mark.asyncio
     async def test_non_mutating_mcp_call_omits_key(self) -> None:

@@ -12,7 +12,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import BaseModel, TypeAdapter
 
-from adcp import ADCPClient, TaskOptions, TaskRecoveryMetadata
+from adcp import ADCPClient, TaskOptions, TaskRecoveryMetadata, _idempotency
 from adcp.exceptions import ADCPTimeoutError
 from adcp.protocols.base import ProtocolAdapter
 from adcp.protocols.mcp import MCPAdapter
@@ -172,6 +172,34 @@ async def test_mutation_timeout_carries_secret_safe_recovery() -> None:
     assert key not in str(error)
     assert key not in repr(error)
     assert key not in repr(error.recovery)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("task_name", ["sync_principal", "sync_reporting_receipts"])
+async def test_new_mutations_timeout_with_recovery_metadata(task_name: str) -> None:
+    client = _client()
+    key = f"0123456789abcdef-{task_name}"
+
+    async def dispatched(params: dict[str, Any]) -> TaskResult[Any]:
+        mark_task_dispatched(
+            client.adapter.task_options_client_token,
+            task_name,
+            mutating=_idempotency.is_mutating(task_name),
+            idempotency_key=params["idempotency_key"],
+        )
+        await asyncio.sleep(1)
+        return _completed()
+
+    with patch.object(client.adapter, task_name, new=dispatched):
+        with pytest.raises(ADCPTimeoutError) as caught:
+            await getattr(client, task_name)(
+                _Request(idempotency_key=key),
+                options=TaskOptions(timeout=0.01),
+            )
+
+    assert caught.value.recovery is not None
+    assert caught.value.recovery.task_name == task_name
+    assert caught.value.recovery.idempotency_key == key
 
 
 @pytest.mark.asyncio
