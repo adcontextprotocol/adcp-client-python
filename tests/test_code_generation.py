@@ -30,6 +30,30 @@ def test_rewrite_refs_localizes_canonical_schema_urls_without_corrupting_prerele
     assert schema["$ref"] == "../core/platform_extension_ref.json#/$defs/custom-shape"
 
 
+def test_rewrite_refs_preserves_domain_in_root_relative_source_refs():
+    """The first component after /schemas is a domain, not a version."""
+    from scripts.generate_types import rewrite_refs
+
+    enum_ref = {"$ref": "/schemas/enums/account-status.json"}
+    core_ref = {"$ref": "/schemas/core/brand-ref.json"}
+
+    rewrite_refs(enum_ref, Path("core/account.json"))
+    rewrite_refs(core_ref, Path("account/sync-accounts-request.json"))
+
+    assert enum_ref["$ref"] == "../enums/account_status.json"
+    assert core_ref["$ref"] == "../core/brand_ref.json"
+
+
+def test_post_generate_ref_resolution_preserves_root_relative_domain():
+    """Post-generation alias restoration resolves the same source ref shape."""
+    from scripts.post_generate_fixes import _resolve_schema_ref
+
+    assert _resolve_schema_ref(
+        Path("account/sync-accounts-response.json"),
+        "/schemas/core/brand-ref.json#/$defs/brand",
+    ) == Path("core/brand-ref.json")
+
+
 def test_rewrite_refs_preserves_external_urls_and_json_pointer_fragments():
     """Hyphen normalization applies to local files, never external identifiers."""
     from scripts.generate_types import rewrite_refs
@@ -70,6 +94,32 @@ def test_rewrite_refs_preserves_macro_declaration_canonical_enum_ref():
     assert schema["$ref"] == (
         "https://adcontextprotocol.org/schemas/3.2.0-beta.10/" "enums/macro-dialect.json"
     )
+
+
+def test_rewrite_refs_normalizes_sibling_macro_and_equivalent_local_ref(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Transitive macro refs consistently target the staged schema tree."""
+    from scripts import generate_types
+
+    monkeypatch.setattr(generate_types, "TEMP_DIR", tmp_path)
+    sibling = {"$ref": "macro-declaration.json"}
+    local_equivalent = {"$ref": "../enums/macro-dialect.json"}
+
+    generate_types.rewrite_refs(sibling, Path("core/video-template.json"))
+    generate_types.rewrite_refs(local_equivalent, Path("core/macro-declaration.json"))
+
+    assert sibling["$ref"] == (tmp_path / "core" / "macro_declaration.json").as_posix()
+    assert local_equivalent["$ref"] == (tmp_path / "enums" / "macro_dialect.json").as_posix()
+
+
+@pytest.mark.parametrize("ref", ["../../outside.json", "/outside.json"])
+def test_rewrite_refs_rejects_schema_root_escape(ref: str):
+    """A malformed local reference cannot escape the staged schema root."""
+    from scripts.generate_types import rewrite_refs
+
+    with pytest.raises(ValueError, match="schema reference escapes its root"):
+        rewrite_refs({"$ref": ref}, Path("core/model.json"))
 
 
 def test_nested_format_discriminator_drops_only_codegen_ambiguous_outer_hint():

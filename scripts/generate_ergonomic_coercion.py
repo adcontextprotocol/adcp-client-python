@@ -15,6 +15,7 @@ Coercion patterns detected:
 
 from __future__ import annotations
 
+import argparse
 import sys
 from enum import Enum
 from pathlib import Path
@@ -678,8 +679,31 @@ def generate_code() -> str:
     return "\n".join(lines)
 
 
-def main():
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--source-root",
+        type=Path,
+        default=REPO_ROOT / "src",
+        help="source root containing the adcp package to introspect",
+    )
+    parser.add_argument(
+        "--output-file",
+        type=Path,
+        default=OUTPUT_FILE,
+        help="destination for the generated ergonomic module",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None):
     """Generate _ergonomic.py from model introspection."""
+    global OUTPUT_FILE
+
+    args = _parse_args(argv)
+    source_root = args.source_root.resolve()
+    OUTPUT_FILE = args.output_file.resolve()
+    sys.path[0] = str(source_root)
     print("Generating ergonomic coercion module...")
 
     content = generate_code()
