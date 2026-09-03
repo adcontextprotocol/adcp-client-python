@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from copy import deepcopy
 from datetime import datetime
 
@@ -10,6 +11,7 @@ from adcp.reporting import (
     ExpectedReportingPeriod,
     ReportingInspectionContext,
     ReportingObservation,
+    ReportingReconciliationError,
     build_reporting_receipt,
     evaluate_reporting_ledger,
     load_reporting_ledger,
@@ -342,6 +344,96 @@ async def test_reconciles_billing_and_records_matching_receipt() -> None:
     assert result.submitted_receipts[0].status.value == "accepted"
     assert len(result.totals_by_revision) == 1
     assert result.totals_by_revision[0][0] == REVISION["reporting_revision_id"]
+
+
+@pytest.mark.asyncio
+async def test_inspection_timeout_exhausts_retry_budget() -> None:
+    attempts = 0
+
+    async def inspect(_: ReportingInspectionContext) -> ReportingObservation:
+        nonlocal attempts
+        attempts += 1
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
+
+    with pytest.raises(ReportingReconciliationError) as exc_info:
+        await reconcile_reporting(
+            _Client(),
+            GetReportingStatusRequest.model_validate(
+                {"account": {"account_id": "account-1"}, "view": "periods"}
+            ),
+            inspect,
+            expected_periods=[],
+            max_inspection_attempts=2,
+            inspection_timeout_seconds=0.01,
+            inspection_retry_backoff_seconds=0,
+        )
+
+    assert attempts == 2
+    assert exc_info.value.code == "INSPECTION_FAILED"
+    assert "timed out after 0.01 seconds" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_inspection_retries_use_exponential_backoff(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delays: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        delays.append(delay)
+
+    monkeypatch.setattr("adcp.reporting.asyncio.sleep", fake_sleep)
+
+    async def inspect(_: ReportingInspectionContext) -> ReportingObservation:
+        raise OSError("destination unavailable")
+
+    with pytest.raises(ReportingReconciliationError):
+        await reconcile_reporting(
+            _Client(),
+            GetReportingStatusRequest.model_validate(
+                {"account": {"account_id": "account-1"}, "view": "periods"}
+            ),
+            inspect,
+            expected_periods=[],
+            max_inspection_attempts=3,
+            inspection_retry_backoff_seconds=0.25,
+        )
+
+    assert delays == [0.25, 0.5]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"max_inspection_attempts": 0}, "max_inspection_attempts"),
+        ({"max_inspection_attempts": True}, "max_inspection_attempts"),
+        ({"inspection_timeout_seconds": 0}, "inspection_timeout_seconds"),
+        ({"inspection_timeout_seconds": float("inf")}, "inspection_timeout_seconds"),
+        ({"inspection_retry_backoff_seconds": -1}, "inspection_retry_backoff_seconds"),
+        (
+            {"inspection_retry_backoff_seconds": float("nan")},
+            "inspection_retry_backoff_seconds",
+        ),
+    ],
+)
+async def test_invalid_inspection_retry_configuration_fails_fast(
+    kwargs: dict[str, float | int], message: str
+) -> None:
+    async def inspect(_: ReportingInspectionContext) -> ReportingObservation:
+        raise AssertionError("inspection must not run")
+
+    with pytest.raises(ValueError, match=message):
+        await reconcile_reporting(
+            _Client(),
+            GetReportingStatusRequest.model_validate(
+                {"account": {"account_id": "account-1"}, "view": "periods"}
+            ),
+            inspect,
+            expected_periods=[],
+            **kwargs,
+        )
 
 
 def test_consumer_billing_mismatch_creates_rejected_receipt() -> None:

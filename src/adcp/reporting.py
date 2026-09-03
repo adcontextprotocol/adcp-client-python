@@ -8,10 +8,12 @@ consumer receipts all agree.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from math import isfinite
 from typing import Protocol, TypeVar
 from uuid import uuid4
 
@@ -35,17 +37,21 @@ from adcp.types.core import TaskResult
 class ReportingReconciliationClient(Protocol):
     async def get_reporting_status(
         self, request: GetReportingStatusRequest
-    ) -> TaskResult[GetReportingStatusResponse]: ...
+    ) -> TaskResult[GetReportingStatusResponse]:
+        raise NotImplementedError
 
     async def sync_reporting_receipts(
         self, request: SyncReportingReceiptsRequest
-    ) -> TaskResult[SyncReportingReceiptsResponse]: ...
+    ) -> TaskResult[SyncReportingReceiptsResponse]:
+        raise NotImplementedError
 
 
 class ReportingCheckpointStore(Protocol):
-    async def get(self, reporting_materialization_id: str) -> ReportingReceipt | None: ...
+    async def get(self, reporting_materialization_id: str) -> ReportingReceipt | None:
+        raise NotImplementedError
 
-    async def put(self, receipt: ReportingReceipt) -> None: ...
+    async def put(self, receipt: ReportingReceipt) -> None:
+        raise NotImplementedError
 
 
 class ReportingReconciliationError(RuntimeError):
@@ -689,9 +695,27 @@ async def reconcile_reporting(
     checkpoint_store: ReportingCheckpointStore | None = None,
     max_snapshot_restarts: int = 2,
     max_inspection_attempts: int = 3,
+    inspection_timeout_seconds: float = 30.0,
+    inspection_retry_backoff_seconds: float = 1.0,
     now: datetime | None = None,
 ) -> ReportingReconciliationResult:
-    """Reconcile a closed ledger, persist observations, and submit receipts."""
+    """Reconcile a closed ledger, persist observations, and submit receipts.
+
+    Each destination inspection is time-bounded. Transient failures retry with
+    exponential backoff so a hung or overloaded destination cannot block the
+    reconciliation loop indefinitely.
+    """
+
+    if (
+        not isinstance(max_inspection_attempts, int)
+        or isinstance(max_inspection_attempts, bool)
+        or max_inspection_attempts < 1
+    ):
+        raise ValueError("max_inspection_attempts must be at least 1")
+    if not isfinite(inspection_timeout_seconds) or inspection_timeout_seconds <= 0:
+        raise ValueError("inspection_timeout_seconds must be finite and greater than 0")
+    if not isfinite(inspection_retry_backoff_seconds) or inspection_retry_backoff_seconds < 0:
+        raise ValueError("inspection_retry_backoff_seconds must be finite and not negative")
 
     ledger = await load_reporting_ledger(
         client, request, max_snapshot_restarts=max_snapshot_restarts
@@ -724,23 +748,31 @@ async def reconcile_reporting(
         ):
             last_error: Exception | None = None
             observation = None
-            for _ in range(max_inspection_attempts):
+            inspection_context = ReportingInspectionContext(obligation, revision, materialization)
+            for attempt in range(max_inspection_attempts):
                 try:
-                    observation = await inspect(
-                        ReportingInspectionContext(obligation, revision, materialization)
+                    observation = await asyncio.wait_for(
+                        inspect(inspection_context), timeout=inspection_timeout_seconds
                     )
                     break
                 except Exception as error:  # destination SDKs define their own transient errors
-                    last_error = error
+                    last_error = (
+                        TimeoutError(
+                            "materialization inspection timed out after "
+                            f"{inspection_timeout_seconds:g} seconds"
+                        )
+                        if isinstance(error, TimeoutError)
+                        else error
+                    )
+                    if attempt + 1 < max_inspection_attempts:
+                        await asyncio.sleep(inspection_retry_backoff_seconds * (2**attempt))
             if observation is None:
                 raise ReportingReconciliationError(
                     "INSPECTION_FAILED",
                     "materialization inspection failed after "
                     f"{max_inspection_attempts} attempts: {last_error}",
                 )
-            receipt = build_reporting_receipt(
-                ReportingInspectionContext(obligation, revision, materialization), observation
-            )
+            receipt = build_reporting_receipt(inspection_context, observation)
             if checkpoint_store:
                 await checkpoint_store.put(receipt)
         submitted.append(receipt)
