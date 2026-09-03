@@ -139,13 +139,13 @@ check-schema-drift: ## Check if schemas are out of sync with upstream
 	@echo "Checking for schema drift..."
 	@$(PYTHON) scripts/sync_schemas.py --no-skills
 	@$(PYTHON) scripts/fix_schema_refs.py
-	@$(PYTHON) scripts/generate_types.py
-	@if git diff --exit-code src/adcp/types/_generated.py schemas/cache/; then \
+	@$(PYTHON) scripts/generate_types.py --check
+	@if git diff --exit-code schemas/cache/; then \
 		echo "✓ Schemas are up-to-date"; \
 	else \
 		echo "✗ Schemas are out of date!"; \
 		echo "Run: make regenerate-schemas"; \
-		git diff src/adcp/types/_generated.py; \
+		git diff schemas/cache/; \
 		exit 1; \
 	fi
 

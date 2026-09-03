@@ -16,6 +16,7 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import ast
 import json
 import re
@@ -732,9 +733,37 @@ def preserve_generation_date_if_unchanged(previous: str, generated: str) -> str:
     return _GENERATION_DATE_RE.sub(previous_date.group(0), generated, count=1)
 
 
-def main():
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--input-dir",
+        type=Path,
+        default=GENERATED_POC_DIR,
+        help="generated_poc tree to consolidate",
+    )
+    parser.add_argument(
+        "--output-file",
+        type=Path,
+        default=OUTPUT_FILE,
+        help="destination for the consolidated Python module",
+    )
+    parser.add_argument(
+        "--update-allowlist",
+        action="store_true",
+        help="refresh the checked-in collision allowlist instead of consolidating",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None):
     """Generate consolidated exports file."""
-    if "--update-allowlist" in sys.argv:
+    global GENERATED_POC_DIR, OUTPUT_FILE
+
+    args = _parse_args(argv)
+    GENERATED_POC_DIR = args.input_dir.resolve()
+    OUTPUT_FILE = args.output_file.resolve()
+
+    if args.update_allowlist:
         if not GENERATED_POC_DIR.exists():
             print(f"Error: {GENERATED_POC_DIR} does not exist")
             return 1
