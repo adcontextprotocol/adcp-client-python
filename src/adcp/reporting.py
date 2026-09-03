@@ -761,7 +761,7 @@ async def reconcile_reporting(
                             "materialization inspection timed out after "
                             f"{inspection_timeout_seconds:g} seconds"
                         )
-                        if isinstance(error, TimeoutError)
+                        if isinstance(error, asyncio.TimeoutError)
                         else error
                     )
                     if attempt + 1 < max_inspection_attempts:
