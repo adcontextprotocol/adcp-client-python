@@ -388,7 +388,7 @@ async def test_active_notifications_need_an_accepted_signing_algorithm(monkeypat
     def valid_url(url, *, field):
         return SimpleNamespace(effective_url=url, hostname="buyer.example")
 
-    monkeypatch.setattr("adcp.server.principal.validate_webhook_destination_url", valid_url)
+    monkeypatch.setattr("adcp.server.principal._validate_webhook_destination_url", valid_url)
 
     async def prove(identity, config):
         from adcp.server.principal import _notification_state

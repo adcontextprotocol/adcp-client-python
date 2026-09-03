@@ -36,7 +36,6 @@ from adcp.types import (
     SyncPrincipalRequest,
     SyncPrincipalResponse,
 )
-from adcp.webhooks import validate_webhook_destination_url
 
 
 @dataclass(frozen=True)
@@ -215,6 +214,13 @@ def _require_unique(values: Sequence[object], attribute: str, section: str) -> N
         seen.add(key)
 
 
+def _validate_webhook_destination_url(url: str, *, field: str) -> Any:
+    """Lazily invoke webhook validation without creating a facade import cycle."""
+    from adcp.webhooks import validate_webhook_destination_url
+
+    return validate_webhook_destination_url(url, field=field)
+
+
 def _normalize_notification_config(
     config: AgentNotificationConfig, index: int
 ) -> AgentNotificationConfig:
@@ -232,7 +238,7 @@ def _normalize_notification_config(
     try:
         # This performs registration-time HTTPS, normalized-host, and
         # reserved-range checks for active *and* inactive registrations.
-        validation = validate_webhook_destination_url(
+        validation = _validate_webhook_destination_url(
             str(config.url), field=f"notification_configs[{index}].url"
         )
     except Exception as error:
