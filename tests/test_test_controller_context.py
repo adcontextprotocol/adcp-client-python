@@ -109,12 +109,10 @@ def test_accepts_context_kwarg_rejects_positional_only_context():
     # the file still parses cleanly without introducing a sigil.
     ns: dict[str, Any] = {}
     exec(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             async def fn(self, context, /, account_id, status):
                 return {}
-            """
-        ),
+            """),
         ns,
     )
     assert _accepts_context_kwarg(ns["fn"]) is False
@@ -399,6 +397,7 @@ async def test_register_test_controller_threads_context_factory():
     # FastMCP's tool wrapper takes the function args as kwargs.
     fn = tool.fn  # type: ignore[attr-defined]
     result = await fn(
+        account={"sandbox": True},
         scenario="force_account_status",
         params={"account_id": "acc-1", "status": "suspended"},
     )
@@ -431,7 +430,7 @@ async def test_register_test_controller_list_scenarios_returns_dict():
 
     tool = mcp._tool_manager._tools["comply_test_controller"]
     fn = tool.fn  # type: ignore[attr-defined]
-    result = await fn(scenario="list_scenarios")
+    result = await fn(account={"sandbox": True}, scenario="list_scenarios")
 
     assert isinstance(result, dict), "must be a dict, not a JSON string"
     assert result["success"] is True
@@ -457,6 +456,7 @@ async def test_register_test_controller_rejects_non_toolcontext_from_factory():
 
     with pytest.raises(TypeError, match="not a ToolContext"):
         await fn(
+            account={"sandbox": True},
             scenario="force_account_status",
             params={"account_id": "acc-1", "status": "suspended"},
         )

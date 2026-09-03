@@ -101,10 +101,14 @@ INSECURE_ALLOW_ALL: _AccountResolver = _InsecureAllowAllSentinel()
 
 # Scenario names — must match the AdCP comply_test_controller schema
 SCENARIOS = [
+    "expire_account_change_cursor",
     "force_creative_status",
+    "force_creative_purge",
     "force_account_status",
     "force_media_buy_status",
     "force_create_media_buy_arm",
+    "force_get_products_arm",
+    "force_get_signals_arm",
     "force_task_completion",
     "force_session_status",
     "simulate_delivery",
@@ -115,12 +119,45 @@ SCENARIOS = [
     "seed_creative",
     "seed_plan",
     "seed_media_buy",
+    "seed_account",
+    "seed_rights_grant",
     "seed_creative_format",
+    "seed_measurement_catalog",
+    "query_upstream_traffic",
+    "query_provenance_audit_observations",
+    "force_upstream_unavailable",
+    "catalog_item_availability_probe",
+    "compact_product_lifecycle_probe",
+    "compact_direct_buy_lifecycle_probe",
 ]
 
 _MAX_TASK_ID = 128
 _MAX_MESSAGE = 2000
 _MAX_RESULT_BYTES = 256 * 1024  # 256 KB soft cap per AdCP 3.0.1
+
+# Before the dispatcher became signature-driven, these optional arguments
+# were always supplied with ``None`` when absent. Preserve that behavior for
+# existing store overrides whose signatures made the arguments positional/
+# required even though the wire fields are optional.
+_LEGACY_OPTIONAL_SCENARIO_PARAMS: dict[str, tuple[str, ...]] = {
+    "force_creative_status": ("rejection_reason",),
+    "force_media_buy_status": ("rejection_reason",),
+    "force_session_status": ("termination_reason",),
+    "force_create_media_buy_arm": ("task_id", "message"),
+    "simulate_delivery": (
+        "impressions",
+        "clicks",
+        "conversions",
+        "reported_spend",
+    ),
+    "simulate_budget_spend": ("account_id", "media_buy_id"),
+    "seed_product": ("fixture", "product_id"),
+    "seed_pricing_option": ("fixture", "product_id", "pricing_option_id"),
+    "seed_creative": ("fixture", "creative_id"),
+    "seed_plan": ("fixture", "plan_id"),
+    "seed_media_buy": ("fixture", "media_buy_id"),
+    "seed_creative_format": ("fixture", "format_id"),
+}
 
 
 class TestControllerError(Exception):
@@ -168,15 +205,48 @@ class TestControllerStore:
     Stores that don't declare ``context`` keep working unchanged.
     """
 
+    async def expire_account_change_cursor(
+        self,
+        account_id: str,
+        *,
+        account: dict[str, Any] | None = None,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Rotate an account's authorization-scope epoch.
+
+        Returns a state transition describing the previous and current
+        cursor epochs. ``account`` is the verified sandbox account assertion
+        carried by the controller request.
+        """
+        raise NotImplementedError
+
     async def force_creative_status(
         self,
         creative_id: str,
         status: str,
         rejection_reason: str | None = None,
+        reason_code: str | None = None,
+        reason_detail: str | None = None,
         *,
         context: ToolContext | None = None,
     ) -> dict[str, Any]:
         """Force a creative to a given status.
+
+        Returns:
+            {"previous_state": str, "current_state": str}
+        """
+        raise NotImplementedError
+
+    async def force_creative_purge(
+        self,
+        creative_id: str,
+        purge_kind: str | None = None,
+        reason_code: str | None = None,
+        reason_detail: str | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Soft-delete or permanently purge a sandbox creative.
 
         Returns:
             {"previous_state": str, "current_state": str}
@@ -266,6 +336,43 @@ class TestControllerStore:
         """
         raise NotImplementedError
 
+    async def force_get_products_arm(
+        self,
+        arm: str,
+        task_id: str | None = None,
+        message: str | None = None,
+        reason: str | None = None,
+        suggestions: list[str] | None = None,
+        *,
+        account: dict[str, Any] | None = None,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Shape the next ``get_products`` call into a deterministic arm.
+
+        ``submitted`` requires ``task_id``; ``rejected`` requires ``reason``
+        and may include buyer-facing ``suggestions``.
+
+        Returns:
+            {"forced": {"arm": str, ...}}
+        """
+        raise NotImplementedError
+
+    async def force_get_signals_arm(
+        self,
+        arm: str,
+        task_id: str,
+        message: str | None = None,
+        *,
+        account: dict[str, Any] | None = None,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Shape the next ``get_signals`` call into the submitted arm.
+
+        Returns:
+            {"forced": {"arm": "submitted", "task_id": str}}
+        """
+        raise NotImplementedError
+
     async def force_task_completion(
         self,
         task_id: str,
@@ -315,8 +422,21 @@ class TestControllerStore:
         media_buy_id: str,
         impressions: int | None = None,
         clicks: int | None = None,
+        plays: int | None = None,
+        dooh_metrics: dict[str, Any] | None = None,
         conversions: int | None = None,
+        delivery_date: str | None = None,
+        conversion_value: float | None = None,
+        commissionable_value: float | None = None,
         reported_spend: dict[str, Any] | None = None,
+        reach: float | None = None,
+        frequency: float | None = None,
+        reach_window: dict[str, Any] | None = None,
+        viewability: dict[str, Any] | None = None,
+        vendor_metric_values: list[dict[str, Any]] | None = None,
+        vendor_metric_values_by_package: dict[str, list[dict[str, Any]]] | None = None,
+        not_yet_measurable_vendor_metrics: list[dict[str, Any]] | None = None,
+        not_yet_measurable_vendor_metrics_by_package: dict[str, list[dict[str, Any]]] | None = None,
         *,
         context: ToolContext | None = None,
     ) -> dict[str, Any]:
@@ -413,6 +533,26 @@ class TestControllerStore:
         """
         raise NotImplementedError
 
+    async def seed_account(
+        self,
+        account_id: str,
+        fixture: dict[str, Any] | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Pre-populate an advertiser account fixture."""
+        raise NotImplementedError
+
+    async def seed_rights_grant(
+        self,
+        rights_id: str,
+        fixture: dict[str, Any] | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Pre-populate a rights-grant fixture."""
+        raise NotImplementedError
+
     async def seed_creative_format(
         self,
         fixture: dict[str, Any] | None = None,
@@ -428,6 +568,84 @@ class TestControllerStore:
         Returns:
             {"format_id": str}
         """
+        raise NotImplementedError
+
+    async def seed_measurement_catalog(
+        self,
+        vendor: dict[str, Any],
+        metrics: list[dict[str, Any]],
+        fixture: dict[str, Any] | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Seed a measurement vendor's metric catalog."""
+        raise NotImplementedError
+
+    async def query_upstream_traffic(
+        self,
+        since_timestamp: str | None = None,
+        endpoint_pattern: str | None = None,
+        limit: int | None = None,
+        attestation_mode: str | None = None,
+        identifier_value_digests: list[str] | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Return caller-scoped outbound calls recorded by the sandbox."""
+        raise NotImplementedError
+
+    async def query_provenance_audit_observations(
+        self,
+        creative_id: str,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Return sandbox audit observations recorded for a creative."""
+        raise NotImplementedError
+
+    async def force_upstream_unavailable(
+        self,
+        tool: str,
+        upstream_name: str | None = None,
+        cache_age_seconds: int | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Mark a tool's upstream dependency unavailable for the session."""
+        raise NotImplementedError
+
+    async def catalog_item_availability_probe(
+        self,
+        operation: str,
+        catalog_id: str,
+        item_id: str,
+        catalog_generation: str | None = None,
+        target_time: str | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Apply a deterministic catalog availability probe operation."""
+        raise NotImplementedError
+
+    async def compact_product_lifecycle_probe(
+        self,
+        operation: str,
+        product_id: str | None = None,
+        proposal_id: str | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Prepare compact proposal lifecycle state or expire a proposal."""
+        raise NotImplementedError
+
+    async def compact_direct_buy_lifecycle_probe(
+        self,
+        operation: str,
+        product_id: str,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Prepare deterministic compact direct-buy lifecycle state."""
         raise NotImplementedError
 
 
@@ -499,6 +717,45 @@ def _accepts_kwarg(method: Any, name: str) -> bool:
 def _accepts_context_kwarg(method: Any) -> bool:
     """True when ``method``'s signature accepts ``context=`` by keyword."""
     return _accepts_kwarg(method, "context")
+
+
+def _accepted_scenario_kwargs(method: Any, params: dict[str, Any]) -> dict[str, Any]:
+    """Return wire scenario params accepted by a store override.
+
+    Scenario payloads are additive: the protocol can introduce an optional
+    parameter before the SDK publishes a matching base-class signature.  The
+    dispatcher therefore follows the override's signature instead of keeping
+    a second, hand-maintained parameter allowlist.  Explicit parameters and
+    ``**kwargs`` are both opt-ins; transport-level ``account`` and ``context``
+    are reserved for the dispatcher's separately verified values.
+    """
+    try:
+        signature = inspect.signature(method)
+    except (TypeError, ValueError):
+        return {}
+
+    reserved = {"account", "context"}
+    parameters = signature.parameters.values()
+    if any(param.kind == inspect.Parameter.VAR_KEYWORD for param in parameters):
+        return {name: value for name, value in params.items() if name not in reserved}
+
+    allowed_kinds = {
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        inspect.Parameter.KEYWORD_ONLY,
+    }
+    accepted = {
+        param.name
+        for param in signature.parameters.values()
+        if param.kind in allowed_kinds and param.name not in reserved
+    }
+    return {name: value for name, value in params.items() if name in accepted}
+
+
+def _require_scenario_params(params: dict[str, Any], *names: str) -> None:
+    """Raise ``KeyError`` when a scenario omits one of its required params."""
+    for name in names:
+        if name not in params:
+            raise KeyError(name)
 
 
 def _extract_auth_info_from_context(context: ToolContext | None) -> AuthInfo | None:
@@ -726,11 +983,23 @@ def _invoke_account_resolver(
     return resolver(ref)
 
 
+def _canonical_validation_error(params: dict[str, Any]) -> dict[str, Any] | None:
+    """Return a controller error when the canonical request schema rejects input."""
+    from adcp.validation.schema_validator import format_issues, validate_request
+
+    validation = validate_request("comply_test_controller", params)
+    if validation.valid:
+        return None
+    return _controller_error("INVALID_PARAMS", format_issues(validation.issues))
+
+
 async def _handle_test_controller(
     store: TestControllerStore,
     params: dict[str, Any],
     context: ToolContext | None = None,
     account_resolver: _AccountResolver | None = None,
+    *,
+    validate_schema: bool = False,
 ) -> dict[str, Any]:
     """Dispatch a comply_test_controller request to the store.
 
@@ -747,11 +1016,21 @@ async def _handle_test_controller(
     observation guard). Phase 1 of the lifecycle-state-and-sandbox-
     authority proposal — see
     ``docs/proposals/lifecycle-state-and-sandbox-authority.md``.
+
+    Public MCP and A2A registrations set ``validate_schema=True`` so the
+    bundled canonical conditional schema is enforced before dispatch. The
+    default remains false for this private helper's legacy in-process test
+    callers, which exercise individual dispatch and sandbox-gate branches
+    with intentionally partial envelopes.
     """
     scenario = params.get("scenario")
     implemented = _list_scenarios(store)
 
     if scenario == "list_scenarios":
+        if validate_schema:
+            validation_error = _canonical_validation_error(params)
+            if validation_error is not None:
+                return validation_error
         # Capability probe — exempt from the sandbox gate. Returning the
         # implemented-scenarios list is a discovery surface every buyer
         # needs to call regardless of mode.
@@ -773,6 +1052,11 @@ async def _handle_test_controller(
     if gate_response is not None:
         return gate_response
 
+    if validate_schema:
+        validation_error = _canonical_validation_error(params)
+        if validation_error is not None:
+            return validation_error
+
     if scenario not in SCENARIOS:
         return _controller_error(
             "UNKNOWN_SCENARIO",
@@ -787,6 +1071,8 @@ async def _handle_test_controller(
 
     method = getattr(store, scenario)
     scenario_params = params.get("params", {})
+    if not isinstance(scenario_params, dict):
+        return _controller_error("INVALID_PARAMS", "params must be an object")
 
     extra: dict[str, Any] = {}
     if context is not None and _accepts_context_kwarg(method):
@@ -796,33 +1082,28 @@ async def _handle_test_controller(
         extra["account"] = account
 
     try:
-        if scenario == "force_creative_status":
-            result = await method(
-                creative_id=scenario_params["creative_id"],
-                status=scenario_params["status"],
-                rejection_reason=scenario_params.get("rejection_reason"),
-                **extra,
-            )
+        method_kwargs = _accepted_scenario_kwargs(method, scenario_params)
+        for name in _LEGACY_OPTIONAL_SCENARIO_PARAMS.get(str(scenario), ()):
+            if name not in method_kwargs and _accepts_kwarg(method, name):
+                method_kwargs[name] = None
+        if scenario == "expire_account_change_cursor":
+            if not isinstance(account, dict) or not isinstance(account.get("account_id"), str):
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    "account.account_id is required for expire_account_change_cursor",
+                )
+            if _accepts_kwarg(method, "account_id"):
+                method_kwargs["account_id"] = account["account_id"]
+        elif scenario == "force_creative_status":
+            _require_scenario_params(scenario_params, "creative_id", "status")
+        elif scenario == "force_creative_purge":
+            _require_scenario_params(scenario_params, "creative_id")
         elif scenario == "force_account_status":
-            result = await method(
-                account_id=scenario_params["account_id"],
-                status=scenario_params["status"],
-                **extra,
-            )
+            _require_scenario_params(scenario_params, "account_id", "status")
         elif scenario == "force_media_buy_status":
-            result = await method(
-                media_buy_id=scenario_params["media_buy_id"],
-                status=scenario_params["status"],
-                rejection_reason=scenario_params.get("rejection_reason"),
-                **extra,
-            )
+            _require_scenario_params(scenario_params, "media_buy_id", "status")
         elif scenario == "force_session_status":
-            result = await method(
-                session_id=scenario_params["session_id"],
-                status=scenario_params["status"],
-                termination_reason=scenario_params.get("termination_reason"),
-                **extra,
-            )
+            _require_scenario_params(scenario_params, "session_id", "status")
         elif scenario == "force_create_media_buy_arm":
             arm = scenario_params.get("arm") or ""
             if arm not in ("submitted", "input-required"):
@@ -857,12 +1138,95 @@ async def _handle_test_controller(
                     "INVALID_PARAMS",
                     f"message must be a string of at most {_MAX_MESSAGE} characters",
                 )
-            result = await method(
-                arm=arm,
-                task_id=task_id,
-                message=message,
-                **extra,
-            )
+            for name, value in (("arm", arm), ("task_id", task_id), ("message", message)):
+                if _accepts_kwarg(method, name):
+                    method_kwargs[name] = value
+        elif scenario == "force_get_products_arm":
+            arm = scenario_params.get("arm")
+            if arm not in ("submitted", "rejected"):
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    "arm must be 'submitted' or 'rejected'",
+                )
+            message = scenario_params.get("message")
+            if message is not None and (
+                not isinstance(message, str) or len(message) > _MAX_MESSAGE
+            ):
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    f"message must be a string of at most {_MAX_MESSAGE} characters",
+                )
+            if arm == "submitted":
+                raw_task_id = scenario_params.get("task_id")
+                task_id = raw_task_id.strip() if isinstance(raw_task_id, str) else None
+                if not task_id:
+                    return _controller_error(
+                        "INVALID_PARAMS",
+                        "task_id is required when arm is 'submitted'",
+                    )
+                if len(task_id) > _MAX_TASK_ID:
+                    return _controller_error(
+                        "INVALID_PARAMS",
+                        f"task_id must be at most {_MAX_TASK_ID} characters",
+                    )
+                if "reason" in scenario_params or "suggestions" in scenario_params:
+                    return _controller_error(
+                        "INVALID_PARAMS",
+                        "reason and suggestions are not allowed when arm is 'submitted'",
+                    )
+                if _accepts_kwarg(method, "task_id"):
+                    method_kwargs["task_id"] = task_id
+            else:
+                reason = scenario_params.get("reason")
+                if not isinstance(reason, str) or not reason or len(reason) > _MAX_MESSAGE:
+                    return _controller_error(
+                        "INVALID_PARAMS",
+                        f"reason must be a string of 1 to {_MAX_MESSAGE} characters",
+                    )
+                if "task_id" in scenario_params or "message" in scenario_params:
+                    return _controller_error(
+                        "INVALID_PARAMS",
+                        "task_id and message are not allowed when arm is 'rejected'",
+                    )
+                suggestions = scenario_params.get("suggestions")
+                if suggestions is not None and (
+                    not isinstance(suggestions, list)
+                    or not 1 <= len(suggestions) <= 20
+                    or any(
+                        not isinstance(item, str) or not item or len(item) > 1000
+                        for item in suggestions
+                    )
+                ):
+                    return _controller_error(
+                        "INVALID_PARAMS",
+                        "suggestions must contain 1 to 20 non-empty strings "
+                        "of at most 1000 characters",
+                    )
+        elif scenario == "force_get_signals_arm":
+            if scenario_params.get("arm") != "submitted":
+                return _controller_error("INVALID_PARAMS", "arm must be 'submitted'")
+            message = scenario_params.get("message")
+            if message is not None and (
+                not isinstance(message, str) or len(message) > _MAX_MESSAGE
+            ):
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    f"message must be a string of at most {_MAX_MESSAGE} characters",
+                )
+            raw_task_id = scenario_params.get("task_id")
+            task_id = raw_task_id.strip() if isinstance(raw_task_id, str) else None
+            if not task_id:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    "task_id is required when arm is 'submitted'",
+                )
+            if len(task_id) > _MAX_TASK_ID:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    f"task_id must be at most {_MAX_TASK_ID} characters",
+                )
+            if _accepts_kwarg(method, "task_id"):
+                method_kwargs["task_id"] = task_id
         elif scenario == "force_task_completion":
             raw_task_id = scenario_params.get("task_id")
             task_id = raw_task_id.strip() if isinstance(raw_task_id, str) else None
@@ -888,66 +1252,86 @@ async def _handle_test_controller(
                     "INVALID_PARAMS",
                     f"result payload exceeds {_MAX_RESULT_BYTES // 1024} KB limit",
                 )
-            result = await method(
-                task_id=task_id,
-                result=result_value,
-                **extra,
-            )
+            if _accepts_kwarg(method, "task_id"):
+                method_kwargs["task_id"] = task_id
+            if _accepts_kwarg(method, "result"):
+                method_kwargs["result"] = result_value
         elif scenario == "simulate_delivery":
-            result = await method(
-                media_buy_id=scenario_params["media_buy_id"],
-                impressions=scenario_params.get("impressions"),
-                clicks=scenario_params.get("clicks"),
-                conversions=scenario_params.get("conversions"),
-                reported_spend=scenario_params.get("reported_spend"),
-                **extra,
-            )
+            _require_scenario_params(scenario_params, "media_buy_id")
         elif scenario == "simulate_budget_spend":
-            result = await method(
-                spend_percentage=scenario_params["spend_percentage"],
-                account_id=scenario_params.get("account_id"),
-                media_buy_id=scenario_params.get("media_buy_id"),
-                **extra,
-            )
-        elif scenario == "seed_product":
-            result = await method(
-                fixture=scenario_params.get("fixture"),
-                product_id=scenario_params.get("product_id"),
-                **extra,
-            )
-        elif scenario == "seed_pricing_option":
-            result = await method(
-                fixture=scenario_params.get("fixture"),
-                product_id=scenario_params.get("product_id"),
-                pricing_option_id=scenario_params.get("pricing_option_id"),
-                **extra,
-            )
-        elif scenario == "seed_creative":
-            result = await method(
-                fixture=scenario_params.get("fixture"),
-                creative_id=scenario_params.get("creative_id"),
-                **extra,
-            )
-        elif scenario == "seed_plan":
-            result = await method(
-                fixture=scenario_params.get("fixture"),
-                plan_id=scenario_params.get("plan_id"),
-                **extra,
-            )
-        elif scenario == "seed_media_buy":
-            result = await method(
-                fixture=scenario_params.get("fixture"),
-                media_buy_id=scenario_params.get("media_buy_id"),
-                **extra,
-            )
-        elif scenario == "seed_creative_format":
-            result = await method(
-                fixture=scenario_params.get("fixture"),
-                format_id=scenario_params.get("format_id"),
-                **extra,
-            )
-        else:
+            _require_scenario_params(scenario_params, "spend_percentage")
+        elif scenario == "seed_account":
+            _require_scenario_params(scenario_params, "account_id")
+        elif scenario == "seed_rights_grant":
+            _require_scenario_params(scenario_params, "rights_id")
+        elif scenario == "seed_measurement_catalog":
+            _require_scenario_params(scenario_params, "vendor", "metrics")
+        elif scenario == "query_provenance_audit_observations":
+            _require_scenario_params(scenario_params, "creative_id")
+        elif scenario == "force_upstream_unavailable":
+            _require_scenario_params(scenario_params, "tool")
+        elif scenario == "catalog_item_availability_probe":
+            _require_scenario_params(scenario_params, "operation", "catalog_id", "item_id")
+            operation = scenario_params["operation"]
+            if operation not in {
+                "seed_inaccessible_item",
+                "query_eligibility",
+                "advance_time",
+                "recreate_catalog",
+            }:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    "Unsupported catalog_item_availability_probe operation",
+                )
+            if operation in {"query_eligibility", "advance_time", "recreate_catalog"}:
+                _require_scenario_params(scenario_params, "catalog_generation")
+            if operation == "advance_time":
+                _require_scenario_params(scenario_params, "target_time")
+        elif scenario == "compact_product_lifecycle_probe":
+            _require_scenario_params(scenario_params, "operation")
+            operation = scenario_params["operation"]
+            if operation == "prepare":
+                _require_scenario_params(scenario_params, "product_id")
+                if "proposal_id" in scenario_params:
+                    return _controller_error(
+                        "INVALID_PARAMS",
+                        "proposal_id is not allowed for the prepare operation",
+                    )
+            elif operation == "expire_proposal":
+                _require_scenario_params(scenario_params, "proposal_id")
+                forbidden = {"expires_at", "target_time", "product_id"} & scenario_params.keys()
+                if forbidden:
+                    return _controller_error(
+                        "INVALID_PARAMS",
+                        f"Fields not allowed for expire_proposal: {', '.join(sorted(forbidden))}",
+                    )
+            else:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    "operation must be 'prepare' or 'expire_proposal'",
+                )
+        elif scenario == "compact_direct_buy_lifecycle_probe":
+            _require_scenario_params(scenario_params, "operation", "product_id")
+            if scenario_params["operation"] != "prepare":
+                return _controller_error("INVALID_PARAMS", "operation must be 'prepare'")
+            forbidden = {"proposal_id", "expires_at", "target_time"} & scenario_params.keys()
+            if forbidden:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    f"Fields not allowed for prepare: {', '.join(sorted(forbidden))}",
+                )
+        elif scenario not in {
+            "seed_product",
+            "seed_pricing_option",
+            "seed_creative",
+            "seed_plan",
+            "seed_media_buy",
+            "seed_creative_format",
+            "query_upstream_traffic",
+        }:
             return _controller_error("UNKNOWN_SCENARIO", f"Unknown scenario: {scenario}")
+
+        result = await method(**method_kwargs, **extra)
     except TestControllerError as e:
         return _controller_error(e.code, str(e), current_state=e.current_state)
     except KeyError as e:
@@ -1042,6 +1426,11 @@ def register_test_controller(
 
     from adcp.server.base import ToolContext as _ToolContext
     from adcp.server.serve import RequestMetadata as _RequestMetadata
+    from adcp.validation.schema_loader import get_mcp_schema
+
+    controller_schema = get_mcp_schema("comply_test_controller", "request")
+    if controller_schema is None:
+        raise RuntimeError("bundled comply_test_controller request schema is unavailable")
 
     async def comply_test_controller(**kwargs: Any) -> dict[str, Any]:
         context: _ToolContext | None = None
@@ -1058,6 +1447,7 @@ def register_test_controller(
             kwargs,
             context=context,
             account_resolver=account_resolver,
+            validate_schema=True,
         )
 
     tool = Tool.from_function(
@@ -1066,22 +1456,10 @@ def register_test_controller(
         description="Compliance test controller. Sandbox only, not for production use.",
     )
 
-    # Override schema with the proper comply_test_controller inputSchema.
-    # Derived from SCENARIOS so it can't drift from the dispatcher.
-    tool.parameters = {
-        "type": "object",
-        "properties": {
-            "account": {"type": "object"},
-            "scenario": {
-                "type": "string",
-                # Derived from SCENARIOS so the enum never drifts from the dispatcher.
-                "enum": ["list_scenarios"] + SCENARIOS,
-            },
-            "params": {"type": "object"},
-            "context": {"type": "object"},
-        },
-        "required": ["scenario"],
-    }
+    # Advertise the same canonical, self-contained schema enforced above.
+    # Scenario-specific conditionals therefore evolve with the bundled AdCP
+    # schema instead of a second hand-maintained dispatcher contract.
+    tool.parameters = controller_schema
 
     # Override fn_metadata with a permissive model
     class _ControllerArgs(ArgModelBase):

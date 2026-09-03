@@ -399,6 +399,7 @@ class ADCPAgentExecutor(AgentExecutor):
                 params,
                 context=context,
                 account_resolver=resolver,
+                validate_schema=True,
             )
             # This skill bypasses ``create_tool_caller`` (the success-path
             # enhancer site), so apply the enhancer here too — otherwise
