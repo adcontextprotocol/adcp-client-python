@@ -193,7 +193,7 @@ adcp = [
     "_schemas/2.5/**/*.json",
     "_schemas/3.0/**/*.json",
     "_schemas/3.1/**/*.json",
-    "_schemas/3.2.0-beta.11/**/*.json",
+    "_schemas/3.2.0-rc.0/**/*.json",
     # Vendored canonical-formats reference fixtures (14 v2 products +
     # 50-entry v1 catalog) so :mod:`adcp.canonical_formats.fixtures`
     # can serve them to adopter test suites without forcing each

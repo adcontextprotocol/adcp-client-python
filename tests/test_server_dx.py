@@ -1019,6 +1019,12 @@ class TestHandleTestController:
                 None,
                 {"operation": "prepare", "product_id": "product-direct"},
             ),
+            (
+                "reporting_core_lifecycle_probe",
+                {"operation": "advance_time", "target_health": "delayed"},
+                None,
+                {"operation": "advance_time", "target_health": "delayed"},
+            ),
         ],
     )
     @pytest.mark.asyncio
@@ -1100,6 +1106,11 @@ class TestHandleTestController:
             (
                 "compact_direct_buy_lifecycle_probe",
                 {"operation": "expire_proposal", "product_id": "product-1"},
+            ),
+            ("reporting_core_lifecycle_probe", {"operation": "advance_time"}),
+            (
+                "reporting_core_lifecycle_probe",
+                {"operation": "prepare", "target_health": "delayed"},
             ),
         ],
     )
