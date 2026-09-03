@@ -1,5 +1,22 @@
 # Changelog
 
+## [8.0.0-beta.12](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.11...v8.0.0-beta.12) (2026-09-03)
+
+
+### Features
+
+* **protocol:** adopt AdCP 3.2 beta.11 ([#1114](https://github.com/adcontextprotocol/adcp-client-python/issues/1114)) ([fb7fa9f](https://github.com/adcontextprotocol/adcp-client-python/commit/fb7fa9fb9bf5de0ec1be9ffa6c0184be0d8371af))
+* **reporting:** add reliable ledger reconciliation ([#1095](https://github.com/adcontextprotocol/adcp-client-python/issues/1095)) ([6505229](https://github.com/adcontextprotocol/adcp-client-python/commit/6505229fbe9dd59c2126c33eaf72a60f29adf951))
+
+
+### Bug Fixes
+
+* **codegen:** make regeneration atomic and deterministic ([#1115](https://github.com/adcontextprotocol/adcp-client-python/issues/1115)) ([3687219](https://github.com/adcontextprotocol/adcp-client-python/commit/3687219c27c2cae1e68423e2c9e5044ddc617449))
+* **packaging:** include beta 11 schemas in sdists ([#1120](https://github.com/adcontextprotocol/adcp-client-python/issues/1120)) ([9f4044b](https://github.com/adcontextprotocol/adcp-client-python/commit/9f4044b9424489831f5e07bf899e1bce224ed9ca))
+* **packaging:** include schemas in VCS-built wheels ([#1118](https://github.com/adcontextprotocol/adcp-client-python/issues/1118)) ([5216119](https://github.com/adcontextprotocol/adcp-client-python/commit/5216119ad194549160a5f098e202e34e378ce730))
+* **types:** preserve public model composability ([#1116](https://github.com/adcontextprotocol/adcp-client-python/issues/1116)) ([2d48974](https://github.com/adcontextprotocol/adcp-client-python/commit/2d489742cd75665718b53e27515704b731da64ae))
+* **validation:** enforce canonical schema boundaries ([#1117](https://github.com/adcontextprotocol/adcp-client-python/issues/1117)) ([0e003a5](https://github.com/adcontextprotocol/adcp-client-python/commit/0e003a5f5685e7ddf9c20c319b553e680e12f463))
+
 ## [8.0.0-beta.11](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.10...v8.0.0-beta.11) (2026-09-02)
 
 
