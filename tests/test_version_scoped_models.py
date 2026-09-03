@@ -286,7 +286,7 @@ def test_mcp_tools_list_uses_pinned_31_schemas() -> None:
 
 
 def test_mcp_tools_list_uses_pinned_32_schemas() -> None:
-    tools = _tool_map("3.2-beta.10")
+    tools = _tool_map("3.2-beta.11")
     properties = tools["list_creatives"]["inputSchema"]["properties"]
 
     assert "assignment_projection" in properties
@@ -309,7 +309,7 @@ def test_mcp_tools_list_keeps_non_bundled_tools() -> None:
 def test_mcp_32_uses_compact_transport_schemas() -> None:
     import json
 
-    tools = _tool_map("3.2-beta.10")
+    tools = _tool_map("3.2-beta.11")
     encoded = json.dumps(tools["list_creatives"])
     assert len(encoded) < 300_000
 
