@@ -12,3 +12,10 @@ recursive-include src/adcp/_schemas/3.0 *.json
 recursive-include src/adcp/_schemas/3.1 *.json
 recursive-include src/adcp/_schemas/3.2.0-beta.10 *.json
 prune src/adcp/_schemas/3.1.0-*
+# A clean VCS source tree has no ignored ``src/adcp/_schemas`` directory.
+# Keep the tracked inputs needed by the build_py hook in source distributions
+# so wheels built from an sdist have the same schema set as direct VCS wheels.
+recursive-include schemas/cache/2.5 *.json
+recursive-include schemas/cache/3.0 *.json
+recursive-include schemas/cache/3.1 *.json
+recursive-include schemas/cache/3.2.0-beta.10 *.json
