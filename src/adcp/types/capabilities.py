@@ -128,9 +128,6 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
     Idempotency as IdempotencySupported,
 )
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
-    MediaBuy as CapabilitiesMediaBuy,
-)
-from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     MediaBuy as _MediaBuy,
 )
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
@@ -145,6 +142,18 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     Signals as _Signals,
 )
+from adcp.types.generated_poc.core.reporting_delivery_capabilities import (
+    ReportingDeliveryCapabilities,
+)
+
+
+class MediaBuy(_MediaBuy):
+    """Media-buy capabilities using the canonical reporting model identity."""
+
+    reporting_delivery: ReportingDeliveryCapabilities | None = None  # type: ignore[assignment]
+
+
+CapabilitiesMediaBuy = MediaBuy
 
 # ``Signals.features`` and the unsupported arm of the ``Adcp.idempotency``
 # discriminated union are inline schemas the codegen materializes under
