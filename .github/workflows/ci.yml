@@ -204,9 +204,36 @@ jobs:
       - name: Build and install wheel
         run: |
           python -m pip install --upgrade pip build
-          python scripts/bundle_schemas.py
+          test ! -e src/adcp/_schemas
           python -m build --wheel --outdir dist/
           pip install dist/*.whl
+
+      - name: Verify VCS-built wheel schemas
+        working-directory: /tmp
+        run: |
+          python - <<'PY'
+          from importlib.resources import files
+
+          from adcp import get_adcp_spec_version
+          from adcp.types import ReportingCapabilities
+          from adcp.types.versioned import make_versioned_base
+
+          spec_version = get_adcp_spec_version()
+          current_bundle = (
+              spec_version
+              if "-" in spec_version
+              else ".".join(spec_version.split(".")[:2])
+          )
+          schema_root = files("adcp") / "_schemas"
+          packaged_versions = {
+              child.name
+              for child in schema_root.iterdir()
+              if child.is_dir()
+          }
+          assert packaged_versions == {"2.5", "3.0", "3.1", current_bundle}
+          assert make_versioned_base("3.1", "ListCreativesRequest")
+          assert ReportingCapabilities.__name__ == "ReportingCapabilities"
+          PY
 
       # Proxy for real downstream import sites (salesagent, creative agents,
       # signals agents). Any ImportError here means we broke the public API
