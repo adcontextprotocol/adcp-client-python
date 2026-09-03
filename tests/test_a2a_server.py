@@ -737,7 +737,7 @@ async def test_execute_test_controller_list_scenarios():
         request=MessageSendParams(
             message=_make_datapart_msg(
                 "comply_test_controller",
-                {"scenario": "list_scenarios"},
+                {"scenario": "list_scenarios", "account": {"sandbox": True}},
             )
         )
     )
@@ -767,6 +767,7 @@ async def test_execute_test_controller_force_account_status():
             message=_make_datapart_msg(
                 "comply_test_controller",
                 {
+                    "account": {"sandbox": True},
                     "scenario": "force_account_status",
                     "params": {"account_id": "acct-1", "status": "suspended"},
                 },
@@ -800,6 +801,7 @@ async def test_execute_test_controller_error():
             message=_make_datapart_msg(
                 "comply_test_controller",
                 {
+                    "account": {"sandbox": True},
                     "scenario": "force_account_status",
                     "params": {"account_id": "nonexistent", "status": "active"},
                 },
@@ -824,6 +826,21 @@ async def test_execute_test_controller_error():
     result = data_parts[0]
     assert result["success"] is False
     assert result["error"] == "NOT_FOUND"
+
+
+async def test_execute_test_controller_rejects_noncanonical_params():
+    """A2A applies the same canonical request validation as MCP."""
+    executor = ADCPAgentExecutor(_TestHandler(), test_controller=_TestStore())
+    result = await executor._tool_callers["comply_test_controller"](
+        {
+            "account": {"sandbox": True},
+            "scenario": "simulate_budget_spend",
+            "params": {"spend_percentage": 50},
+        }
+    )
+
+    assert result["success"] is False
+    assert result["error"] == "INVALID_PARAMS"
 
 
 @pytest.mark.skipif(

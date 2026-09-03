@@ -51,6 +51,7 @@ class _Store(TestControllerStore):
 
 async def _send(client: httpx.AsyncClient, scenario_payload: dict[str, Any]) -> dict[str, Any]:
     """POST a JSON-RPC ``message/send`` for comply_test_controller."""
+    scenario_payload = {"account": {"sandbox": True}, **scenario_payload}
     body = {
         "jsonrpc": "2.0",
         "id": "1",

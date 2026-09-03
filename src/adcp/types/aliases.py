@@ -144,6 +144,30 @@ from adcp.types.generated_poc.core.missing_metric import MissingMetric
 from adcp.types.generated_poc.core.product import TrustedMatch
 from adcp.types.generated_poc.core.product_allocation import ProductAllocation
 from adcp.types.generated_poc.core.signal_coverage_forecast import SignalCoverageForecast
+from adcp.types.generated_poc.protocol.get_principal_response import (
+    Result as PrincipalUnconfiguredResult,
+)
+from adcp.types.generated_poc.protocol.get_principal_response import (
+    Result6 as PrincipalCurrentResult,
+)
+from adcp.types.generated_poc.protocol.get_principal_response import (
+    Result7 as PrincipalRecognizedResult,
+)
+from adcp.types.generated_poc.protocol.get_principal_response import (
+    Result9 as PrincipalReadFailedResult,
+)
+from adcp.types.generated_poc.protocol.sync_principal_request import (
+    Configuration as PrincipalConfiguration,
+)
+from adcp.types.generated_poc.protocol.sync_principal_response import (
+    Result as PrincipalValidatedResult,
+)
+from adcp.types.generated_poc.protocol.sync_principal_response import (
+    Result17 as PrincipalAppliedResult,
+)
+from adcp.types.generated_poc.protocol.sync_principal_response import (
+    Result19 as PrincipalSyncFailedResult,
+)
 from adcp.types.generated_poc.core.vendor_pricing_option import (
     VendorPricingOption as VendorPricingOptionUnion,
 )
@@ -915,6 +939,18 @@ ComplySimulationResponse: TypeAlias = ComplyTestControllerResponse3
 
 ComplyErrorResponse: TypeAlias = ComplyTestControllerResponse4
 """Error - operation failed."""
+
+# Principal response variants.  The generated names are traversal-order
+# suffixes, so expose stable semantic names for adopter control flow.
+PrincipalReadResult: TypeAlias = (
+    PrincipalCurrentResult
+    | PrincipalRecognizedResult
+    | PrincipalUnconfiguredResult
+    | PrincipalReadFailedResult
+)
+PrincipalSyncResult: TypeAlias = (
+    PrincipalAppliedResult | PrincipalValidatedResult | PrincipalSyncFailedResult
+)
 
 # ============================================================================
 # REQUEST TYPE ALIASES - Operation Variants
@@ -2586,6 +2622,17 @@ __all__ = [
     "ComplyStateTransitionResponse",
     "ComplySimulationResponse",
     "ComplyErrorResponse",
+    # Principal request and response aliases
+    "PrincipalConfiguration",
+    "PrincipalCurrentResult",
+    "PrincipalRecognizedResult",
+    "PrincipalUnconfiguredResult",
+    "PrincipalReadFailedResult",
+    "PrincipalAppliedResult",
+    "PrincipalValidatedResult",
+    "PrincipalSyncFailedResult",
+    "PrincipalReadResult",
+    "PrincipalSyncResult",
     # Creative format asset slot aliases (item_type='individual')
     # Forward-compat fallback arms (novel asset_type values parse as these)
     "UnknownFormatAsset",

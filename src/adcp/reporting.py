@@ -13,8 +13,9 @@ import json
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
 from math import isfinite
-from typing import Protocol, TypeVar
+from typing import TYPE_CHECKING, Protocol, TypeVar
 from uuid import uuid4
 
 from pydantic import BaseModel
@@ -24,6 +25,7 @@ from adcp.types import (
     GetReportingStatusResponse,
     ReportingCanonicalContentDigest,
     ReportingControlTotal,
+    ReportingDeliveryCapabilities,
     ReportingMaterialization,
     ReportingObligation,
     ReportingReceipt,
@@ -33,12 +35,18 @@ from adcp.types import (
 )
 from adcp.types.core import TaskResult
 
+if TYPE_CHECKING:
+    from adcp.reporting_inspection import ReportingResourceReader
 
-class ReportingReconciliationClient(Protocol):
+
+class ReportingStatusClient(Protocol):
     async def get_reporting_status(
         self, request: GetReportingStatusRequest
     ) -> TaskResult[GetReportingStatusResponse]:
         raise NotImplementedError
+
+
+class ReportingReconciliationClient(ReportingStatusClient, Protocol):
 
     async def sync_reporting_receipts(
         self, request: SyncReportingReceiptsRequest
@@ -58,6 +66,31 @@ class ReportingReconciliationError(RuntimeError):
     def __init__(self, code: str, message: str) -> None:
         super().__init__(message)
         self.code = code
+
+
+class ReportingTier(str, Enum):
+    """Feature tiers advertised by ``media_buy.reporting_delivery``."""
+
+    CORE = "core"
+    MANAGED_DELIVERY = "managed_delivery"
+    RECONCILED_BILLING = "reconciled_billing"
+
+
+def reporting_tiers(
+    capabilities: ReportingDeliveryCapabilities,
+) -> frozenset[ReportingTier]:
+    """Project reporting capability flags into their cumulative SDK tiers."""
+    tiers = {ReportingTier.CORE}
+    if capabilities.managed_delivery:
+        tiers.add(ReportingTier.MANAGED_DELIVERY)
+    if capabilities.reconciled_billing:
+        if not capabilities.managed_delivery:
+            raise ReportingReconciliationError(
+                "INVALID_REPORTING_CAPABILITIES",
+                "reconciled_billing requires managed_delivery",
+            )
+        tiers.add(ReportingTier.RECONCILED_BILLING)
+    return frozenset(tiers)
 
 
 @dataclass(frozen=True)
@@ -191,7 +224,7 @@ def _add_immutable(
 
 
 async def load_reporting_ledger(
-    client: ReportingReconciliationClient,
+    client: ReportingStatusClient,
     request: GetReportingStatusRequest,
     *,
     max_snapshot_restarts: int = 2,
@@ -686,25 +719,74 @@ def evaluate_reporting_ledger(
     )
 
 
+async def reconcile_reporting_core(
+    client: ReportingStatusClient,
+    request: GetReportingStatusRequest,
+    *,
+    expected_periods: list[ExpectedReportingPeriod],
+    max_snapshot_restarts: int = 2,
+    now: datetime | None = None,
+) -> ReportingReconciliationResult:
+    """Reconcile the Core API-delivered tier without destination handling.
+
+    A Core caller only compares obligations, revisions, coverage, finality, and
+    the reporting clock.  Destination materializations, manifests, digests,
+    and consumer receipts are deliberately rejected rather than accidentally
+    activating a higher tier.
+    """
+    ledger = await load_reporting_ledger(
+        client, request, max_snapshot_restarts=max_snapshot_restarts
+    )
+    if any(obligation.destination_ref is not None for obligation in ledger.obligations):
+        raise ReportingReconciliationError(
+            "MANAGED_DELIVERY_NOT_ENABLED",
+            "Core reconciliation received a managed-delivery obligation",
+        )
+    if ledger.materializations or ledger.receipts:
+        raise ReportingReconciliationError(
+            "MANAGED_DELIVERY_NOT_ENABLED",
+            "Core reconciliation received destination or receipt records",
+        )
+    if any(
+        _enum(obligation.reconciliation_mode) == "consumer_receipt"
+        for obligation in ledger.obligations
+    ):
+        raise ReportingReconciliationError(
+            "RECONCILED_BILLING_NOT_ENABLED",
+            "Core reconciliation received a consumer-receipt obligation",
+        )
+    return evaluate_reporting_ledger(ledger, expected_periods=expected_periods, now=now)
+
+
 async def reconcile_reporting(
     client: ReportingReconciliationClient,
     request: GetReportingStatusRequest,
-    inspect: Callable[[ReportingInspectionContext], Awaitable[ReportingObservation]],
+    inspect: Callable[[ReportingInspectionContext], Awaitable[ReportingObservation]] | None = None,
     *,
     expected_periods: list[ExpectedReportingPeriod],
+    resource_reader: ReportingResourceReader | None = None,
     checkpoint_store: ReportingCheckpointStore | None = None,
     max_snapshot_restarts: int = 2,
     max_inspection_attempts: int = 3,
     inspection_timeout_seconds: float = 30.0,
     inspection_retry_backoff_seconds: float = 1.0,
     now: datetime | None = None,
+    reporting_capabilities: ReportingDeliveryCapabilities | None = None,
 ) -> ReportingReconciliationResult:
     """Reconcile a closed ledger, persist observations, and submit receipts.
 
-    Each destination inspection is time-bounded. Transient failures retry with
-    exponential backoff so a hung or overloaded destination cannot block the
-    reconciliation loop indefinitely.
+    Pass ``resource_reader`` for the built-in manifest/file inspector, or
+    ``inspect`` as an advanced adapter for warehouses and native shares. Each
+    inspection is time-bounded. Typed transient failures retry with exponential
+    backoff; permanent integrity failures stop immediately.
     """
+
+    if inspect is not None and resource_reader is not None:
+        raise ValueError("pass inspect or resource_reader, not both")
+    if resource_reader is not None:
+        from adcp.reporting_inspection import ManifestReportingInspector
+
+        inspect = ManifestReportingInspector(resource_reader)
 
     if (
         not isinstance(max_inspection_attempts, int)
@@ -720,6 +802,40 @@ async def reconcile_reporting(
     ledger = await load_reporting_ledger(
         client, request, max_snapshot_restarts=max_snapshot_restarts
     )
+    if reporting_capabilities is not None:
+        tiers = reporting_tiers(reporting_capabilities)
+        if ReportingTier.MANAGED_DELIVERY not in tiers and any(
+            item.destination_ref is not None for item in ledger.obligations
+        ):
+            raise ReportingReconciliationError(
+                "MANAGED_DELIVERY_NOT_ENABLED",
+                "reporting obligations require the managed_delivery tier",
+            )
+        if ReportingTier.RECONCILED_BILLING not in tiers and any(
+            _enum(item.reconciliation_mode) == "consumer_receipt"
+            or _enum(item.feed_purpose) == "billing"
+            for item in ledger.obligations
+        ):
+            raise ReportingReconciliationError(
+                "RECONCILED_BILLING_NOT_ENABLED",
+                "consumer receipts and billing reporting require the reconciled_billing tier",
+            )
+        if ReportingTier.RECONCILED_BILLING not in tiers and any(
+            item.canonical_content_digest is not None for item in ledger.revisions
+        ):
+            raise ReportingReconciliationError(
+                "RECONCILED_BILLING_NOT_ENABLED",
+                "canonical-digest reporting requires the reconciled_billing tier",
+            )
+        if ReportingTier.RECONCILED_BILLING not in tiers and any(
+            item.verification
+            and _enum(item.verification.verification_profile) == "canonical_digest"
+            for item in ledger.materializations
+        ):
+            raise ReportingReconciliationError(
+                "RECONCILED_BILLING_NOT_ENABLED",
+                "canonical-digest verification requires the reconciled_billing tier",
+            )
     submitted: list[ReportingReceipt] = []
     for obligation in ledger.obligations:
         if _enum(obligation.reconciliation_mode) != "consumer_receipt":
@@ -746,6 +862,11 @@ async def reconcile_reporting(
             or checkpoint_is_recorded
             or not _receipt_targets(receipt, obligation, revision, materialization)
         ):
+            if inspect is None:
+                raise ReportingReconciliationError(
+                    "INSPECTOR_REQUIRED",
+                    "consumer-receipt reconciliation requires inspect or resource_reader",
+                )
             last_error: Exception | None = None
             observation = None
             inspection_context = ReportingInspectionContext(obligation, revision, materialization)
@@ -756,6 +877,9 @@ async def reconcile_reporting(
                     )
                     break
                 except Exception as error:  # destination SDKs define their own transient errors
+                    if getattr(error, "retryable", None) is False:
+                        code = getattr(error, "code", "INSPECTION_FAILED")
+                        raise ReportingReconciliationError(_enum(code), str(error)) from error
                     last_error = (
                         TimeoutError(
                             "materialization inspection timed out after "
@@ -815,8 +939,12 @@ __all__ = [
     "ReportingReconciliationClient",
     "ReportingReconciliationError",
     "ReportingReconciliationResult",
+    "ReportingStatusClient",
+    "ReportingTier",
     "build_reporting_receipt",
     "evaluate_reporting_ledger",
     "load_reporting_ledger",
     "reconcile_reporting",
+    "reconcile_reporting_core",
+    "reporting_tiers",
 ]

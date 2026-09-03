@@ -30,12 +30,13 @@ from adcp.server.responses import (
     update_media_buy_response,
 )
 from adcp.server.test_controller import (
-    TestControllerError as ControllerError,
-)
-from adcp.server.test_controller import (
+    SCENARIOS,
     TestControllerStore,
     _handle_test_controller,
     _list_scenarios,
+)
+from adcp.server.test_controller import (
+    TestControllerError as ControllerError,
 )
 
 _PACKAGED_ADCP_VERSION = normalize_to_release_precision(get_adcp_spec_version())
@@ -797,6 +798,70 @@ class TestListScenarios:
         assert _list_scenarios(store) == []
 
 
+def test_store_signatures_cover_documented_scenario_params():
+    """Protocol additions must update the public store contract.
+
+    The upstream schema currently records optional parameter ownership in
+    descriptions rather than a machine-readable per-scenario property map.
+    Match both spellings it uses for delivery until that metadata is exposed.
+    """
+    import inspect
+    import json
+    from pathlib import Path
+
+    from adcp import get_adcp_spec_version
+
+    schema_path = (
+        Path(__file__).parents[1]
+        / "schemas"
+        / "cache"
+        / get_adcp_spec_version()
+        / "compliance"
+        / "comply-test-controller-request.json"
+    )
+    schema = json.loads(schema_path.read_text())
+    properties = schema["properties"]["params"]["properties"]
+    terms_by_scenario = {
+        "force_creative_status": ("force_creative_status",),
+        "simulate_delivery": ("simulate_delivery", "simulated delivery"),
+    }
+
+    for scenario, terms in terms_by_scenario.items():
+        documented = {
+            name
+            for name, field_schema in properties.items()
+            if any(term in json.dumps(field_schema).lower() for term in terms)
+        }
+        accepted = set(inspect.signature(getattr(TestControllerStore, scenario)).parameters)
+        missing = documented - accepted
+        assert not missing, f"{scenario} is missing documented params: {sorted(missing)}"
+
+
+def test_controller_scenarios_match_packaged_schema():
+    """Protocol upgrades cannot silently leave the server scenario list behind."""
+    import json
+    from pathlib import Path
+
+    from adcp import get_adcp_spec_version
+
+    schema_path = (
+        Path(__file__).parents[1]
+        / "schemas"
+        / "cache"
+        / get_adcp_spec_version()
+        / "compliance"
+        / "comply-test-controller-request.json"
+    )
+    schema = json.loads(schema_path.read_text())
+    documented = {
+        condition["if"]["properties"]["scenario"]["const"]
+        for condition in schema["allOf"]
+        if "if" in condition and "scenario" in condition["if"].get("properties", {})
+    }
+
+    assert set(SCENARIOS) == documented
+
+
 class TestTestControllerError:
     @pytest.mark.asyncio
     async def test_error_is_caught(self):
@@ -865,6 +930,358 @@ class TestHandleTestController:
         )
         assert result["success"] is False
         assert result["error"] == "UNKNOWN_SCENARIO"
+
+    @pytest.mark.parametrize(
+        ("scenario", "params", "account", "expected"),
+        [
+            (
+                "expire_account_change_cursor",
+                {},
+                {"sandbox": True, "account_id": "acct-1"},
+                {"account_id": "acct-1"},
+            ),
+            (
+                "force_creative_purge",
+                {"creative_id": "cr-1", "purge_kind": "soft"},
+                None,
+                {"creative_id": "cr-1", "purge_kind": "soft"},
+            ),
+            (
+                "force_get_products_arm",
+                {"arm": "submitted", "task_id": "task-products"},
+                None,
+                {"arm": "submitted", "task_id": "task-products"},
+            ),
+            (
+                "force_get_signals_arm",
+                {"arm": "submitted", "task_id": "task-signals"},
+                None,
+                {"arm": "submitted", "task_id": "task-signals"},
+            ),
+            (
+                "seed_account",
+                {"account_id": "acct-seed", "fixture": {"status": "active"}},
+                None,
+                {"account_id": "acct-seed"},
+            ),
+            (
+                "seed_rights_grant",
+                {"rights_id": "rights-1", "fixture": {"status": "active"}},
+                None,
+                {"rights_id": "rights-1"},
+            ),
+            (
+                "seed_measurement_catalog",
+                {
+                    "vendor": {"domain": "measurement.example"},
+                    "metrics": [{"metric_id": "attention"}],
+                },
+                None,
+                {"vendor": {"domain": "measurement.example"}},
+            ),
+            (
+                "query_upstream_traffic",
+                {"endpoint_pattern": "POST *", "limit": 25},
+                None,
+                {"endpoint_pattern": "POST *", "limit": 25},
+            ),
+            (
+                "query_provenance_audit_observations",
+                {"creative_id": "cr-audit"},
+                None,
+                {"creative_id": "cr-audit"},
+            ),
+            (
+                "force_upstream_unavailable",
+                {"tool": "get_products", "upstream_name": "inventory"},
+                None,
+                {"tool": "get_products", "upstream_name": "inventory"},
+            ),
+            (
+                "catalog_item_availability_probe",
+                {
+                    "operation": "seed_inaccessible_item",
+                    "catalog_id": "catalog-1",
+                    "item_id": "item-1",
+                },
+                None,
+                {"operation": "seed_inaccessible_item", "catalog_id": "catalog-1"},
+            ),
+            (
+                "compact_product_lifecycle_probe",
+                {"operation": "prepare", "product_id": "product-1"},
+                None,
+                {"operation": "prepare", "product_id": "product-1"},
+            ),
+            (
+                "compact_direct_buy_lifecycle_probe",
+                {"operation": "prepare", "product_id": "product-direct"},
+                None,
+                {"operation": "prepare", "product_id": "product-direct"},
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_schema_scenarios_dispatch_to_store(
+        self,
+        scenario: str,
+        params: dict[str, Any],
+        account: dict[str, Any] | None,
+        expected: dict[str, Any],
+    ):
+        received: dict[str, Any] = {}
+
+        async def implementation(self, **kwargs: Any) -> dict[str, Any]:
+            received.update(kwargs)
+            return {"simulated": kwargs}
+
+        store_type = type(
+            "_SchemaScenarioStore", (TestControllerStore,), {scenario: implementation}
+        )
+        request: dict[str, Any] = {"scenario": scenario, "params": params}
+        if account is not None:
+            request["account"] = account
+
+        result = await _handle_test_controller(store_type(), request)
+
+        assert result["success"] is True
+        for name, value in params.items():
+            assert received[name] == value
+        for name, value in expected.items():
+            assert received[name] == value
+
+    @pytest.mark.asyncio
+    async def test_signature_dispatch_preserves_legacy_optional_none_arguments(self):
+        received: dict[str, Any] = {}
+
+        class LegacyStore(TestControllerStore):
+            async def simulate_delivery(
+                self,
+                media_buy_id: str,
+                impressions: int | None,
+                clicks: int | None,
+                conversions: int | None,
+                reported_spend: dict[str, Any] | None,
+            ) -> dict[str, Any]:
+                received.update(
+                    media_buy_id=media_buy_id,
+                    impressions=impressions,
+                    clicks=clicks,
+                    conversions=conversions,
+                    reported_spend=reported_spend,
+                )
+                return {}
+
+        result = await _handle_test_controller(
+            LegacyStore(),
+            {"scenario": "simulate_delivery", "params": {"media_buy_id": "mb-1"}},
+        )
+
+        assert result["success"] is True
+        assert received == {
+            "media_buy_id": "mb-1",
+            "impressions": None,
+            "clicks": None,
+            "conversions": None,
+            "reported_spend": None,
+        }
+
+    @pytest.mark.parametrize(
+        ("scenario", "params"),
+        [
+            ("expire_account_change_cursor", {}),
+            ("force_get_products_arm", {"arm": "rejected"}),
+            ("force_get_signals_arm", {"arm": "submitted"}),
+            (
+                "catalog_item_availability_probe",
+                {"operation": "query_eligibility", "catalog_id": "cat-1", "item_id": "item-1"},
+            ),
+            ("compact_product_lifecycle_probe", {"operation": "prepare"}),
+            (
+                "compact_direct_buy_lifecycle_probe",
+                {"operation": "expire_proposal", "product_id": "product-1"},
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_schema_scenario_validation_rejects_invalid_params(
+        self,
+        scenario: str,
+        params: dict[str, Any],
+    ):
+        async def implementation(self, **kwargs: Any) -> dict[str, Any]:
+            return {"simulated": kwargs}
+
+        store_type = type(
+            "_SchemaScenarioStore", (TestControllerStore,), {scenario: implementation}
+        )
+        result = await _handle_test_controller(
+            store_type(),
+            {"scenario": scenario, "params": params},
+        )
+
+        assert result["success"] is False
+        assert result["error"] == "INVALID_PARAMS"
+
+    @pytest.mark.asyncio
+    async def test_simulate_delivery_dispatches_reporting_metrics(self):
+        received: dict[str, Any] = {}
+
+        class _DeliveryStore(TestControllerStore):
+            async def simulate_delivery(
+                self,
+                media_buy_id: str,
+                **metrics: Any,
+            ) -> dict[str, Any]:
+                received.update(media_buy_id=media_buy_id, **metrics)
+                return {"simulated": received}
+
+        delivery_params = {
+            "media_buy_id": "mb-1",
+            "impressions": 10_000,
+            "clicks": 150,
+            "plays": 240,
+            "dooh_metrics": {"loop_plays": 240, "screens_used": 12},
+            "conversions": 20,
+            "delivery_date": "2026-09-03",
+            "conversion_value": 400.0,
+            "commissionable_value": 250.0,
+            "reported_spend": {"amount": 150.0, "currency": "USD"},
+            "reach": 750.0,
+            "frequency": 2.5,
+            "reach_window": {
+                "kind": "rolling",
+                "period": {"interval": 7, "unit": "days"},
+            },
+            "viewability": {
+                "measurable_impressions": 900,
+                "viewable_impressions": 600,
+            },
+            "vendor_metric_values": [
+                {
+                    "vendor": {"domain": "measurement.example"},
+                    "metric_id": "attention",
+                    "value": 12.0,
+                }
+            ],
+            "vendor_metric_values_by_package": {
+                "pkg-1": [
+                    {
+                        "vendor": {"domain": "measurement.example"},
+                        "metric_id": "attention",
+                        "value": 12.0,
+                    }
+                ]
+            },
+            "not_yet_measurable_vendor_metrics": [
+                {"vendor": {"domain": "measurement.example"}, "metric_id": "brand_lift"}
+            ],
+            "not_yet_measurable_vendor_metrics_by_package": {
+                "pkg-1": [{"vendor": {"domain": "measurement.example"}, "metric_id": "brand_lift"}]
+            },
+        }
+        result = await _handle_test_controller(
+            _DeliveryStore(),
+            {
+                "scenario": "simulate_delivery",
+                "params": delivery_params,
+            },
+        )
+
+        assert result["success"] is True
+        assert received == delivery_params
+
+    @pytest.mark.asyncio
+    async def test_dispatches_future_explicit_param(self):
+        received: dict[str, Any] = {}
+
+        class _ExtensibleDeliveryStore(TestControllerStore):
+            async def simulate_delivery(
+                self,
+                media_buy_id: str,
+                future_metric: dict[str, Any] | None = None,
+            ) -> dict[str, Any]:
+                received["future_metric"] = future_metric
+                return {"simulated": {"media_buy_id": media_buy_id}}
+
+        result = await _handle_test_controller(
+            _ExtensibleDeliveryStore(),
+            {
+                "scenario": "simulate_delivery",
+                "params": {"media_buy_id": "mb-future", "future_metric": {"value": 42}},
+            },
+        )
+
+        assert result["success"] is True
+        assert received == {"future_metric": {"value": 42}}
+
+    @pytest.mark.asyncio
+    async def test_force_creative_status_dispatches_reason_fields(self):
+        received: dict[str, Any] = {}
+
+        class _CreativeStore(TestControllerStore):
+            async def force_creative_status(
+                self,
+                creative_id: str,
+                status: str,
+                rejection_reason: str | None = None,
+                reason_code: str | None = None,
+                reason_detail: str | None = None,
+            ) -> dict[str, Any]:
+                received.update(
+                    creative_id=creative_id,
+                    status=status,
+                    rejection_reason=rejection_reason,
+                    reason_code=reason_code,
+                    reason_detail=reason_detail,
+                )
+                return {"previous_state": "pending", "current_state": status}
+
+        result = await _handle_test_controller(
+            _CreativeStore(),
+            {
+                "scenario": "force_creative_status",
+                "params": {
+                    "creative_id": "cr-1",
+                    "status": "rejected",
+                    "rejection_reason": "Policy violation",
+                    "reason_code": "policy_violation",
+                    "reason_detail": "Blocked by sandbox policy",
+                },
+            },
+        )
+
+        assert result["success"] is True
+        assert received["reason_code"] == "policy_violation"
+        assert received["reason_detail"] == "Blocked by sandbox policy"
+
+    @pytest.mark.asyncio
+    async def test_simulate_delivery_keeps_legacy_overrides_working(self):
+        class _LegacyDeliveryStore(TestControllerStore):
+            async def simulate_delivery(
+                self,
+                media_buy_id: str,
+                impressions: int | None = None,
+                clicks: int | None = None,
+                conversions: int | None = None,
+                reported_spend: dict[str, Any] | None = None,
+            ) -> dict[str, Any]:
+                return {"simulated": {"media_buy_id": media_buy_id}}
+
+        result = await _handle_test_controller(
+            _LegacyDeliveryStore(),
+            {
+                "scenario": "simulate_delivery",
+                "params": {
+                    "media_buy_id": "mb-legacy",
+                    "reach": 50.0,
+                    "future_metric": {"value": 42},
+                },
+            },
+        )
+
+        assert result["success"] is True
+        assert result["simulated"]["media_buy_id"] == "mb-legacy"
 
     @pytest.mark.asyncio
     async def test_unknown_scenario(self):
@@ -989,6 +1406,91 @@ class TestRegisterTestController:
 
         tool_names = [t.name for t in mcp._tool_manager.list_tools()]
         assert "comply_test_controller" in tool_names
+
+    def test_advertises_canonical_request_schema(self):
+        from mcp.server import MCPServer
+
+        from adcp.server.test_controller import register_test_controller
+        from adcp.validation.schema_loader import get_mcp_schema
+
+        mcp = MCPServer("test")
+        register_test_controller(mcp, MinimalStore())
+
+        tool = mcp._tool_manager._tools["comply_test_controller"]
+        assert tool.parameters == get_mcp_schema("comply_test_controller", "request")
+        assert "account" in tool.parameters["required"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "params",
+        [
+            {"spend_percentage": 50},
+            None,
+        ],
+    )
+    async def test_runtime_rejects_noncanonical_scenario_params(self, params: Any):
+        from mcp.server import MCPServer
+
+        from adcp.server.test_controller import register_test_controller
+
+        called = False
+
+        class Store(TestControllerStore):
+            async def simulate_budget_spend(
+                self,
+                spend_percentage: float,
+                account_id: str | None = None,
+                media_buy_id: str | None = None,
+            ) -> dict[str, Any]:
+                nonlocal called
+                called = True
+                return {}
+
+        mcp = MCPServer("test")
+        register_test_controller(mcp, Store())
+        fn = mcp._tool_manager._tools["comply_test_controller"].fn
+
+        result = await fn(
+            account={"sandbox": True},
+            scenario="simulate_budget_spend",
+            params=params,
+        )
+
+        assert result["success"] is False
+        assert result["error"] == "INVALID_PARAMS"
+        assert called is False
+
+    @pytest.mark.asyncio
+    async def test_runtime_rejects_invalid_conditional_types_and_enums(self):
+        from mcp.server import MCPServer
+
+        from adcp.server.test_controller import register_test_controller
+
+        called = False
+
+        class Store(TestControllerStore):
+            async def force_creative_purge(
+                self,
+                creative_id: str,
+                purge_kind: str | None = None,
+            ) -> dict[str, Any]:
+                nonlocal called
+                called = True
+                return {}
+
+        mcp = MCPServer("test")
+        register_test_controller(mcp, Store())
+        fn = mcp._tool_manager._tools["comply_test_controller"].fn
+
+        result = await fn(
+            account={"sandbox": True},
+            scenario="force_creative_purge",
+            params={"creative_id": 123, "purge_kind": "wrong"},
+        )
+
+        assert result["success"] is False
+        assert result["error"] == "INVALID_PARAMS"
+        assert called is False
 
 
 class TestServeWithTestController:

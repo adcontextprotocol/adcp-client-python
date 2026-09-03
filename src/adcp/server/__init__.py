@@ -130,6 +130,17 @@ from adcp.server.mcp_tools import (
     register_handler_tools,
     validate_discovery_set,
 )
+from adcp.server.principal import (
+    DestinationProofHook,
+    InMemoryPrincipalRecordStore,
+    NotificationProofHook,
+    PrincipalChange,
+    PrincipalChangeEmitter,
+    PrincipalIdentity,
+    PrincipalRecord,
+    PrincipalRecordStore,
+    PrincipalService,
+)
 from adcp.server.proposal import ProposalBuilder, ProposalNotSupported
 from adcp.server.responses import (
     activate_signal_response,
@@ -211,6 +222,16 @@ __all__ = [
     "GovernanceEnforcementDecision",
     "make_governance_enforcement_middleware",
     "SponsoredIntelligenceHandler",
+    # Principal state primitives
+    "DestinationProofHook",
+    "InMemoryPrincipalRecordStore",
+    "NotificationProofHook",
+    "PrincipalChange",
+    "PrincipalChangeEmitter",
+    "PrincipalIdentity",
+    "PrincipalRecord",
+    "PrincipalRecordStore",
+    "PrincipalService",
     # Proposal helpers
     "ProposalBuilder",
     "ProposalNotSupported",

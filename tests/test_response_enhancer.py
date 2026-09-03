@@ -489,7 +489,7 @@ class TestA2aTransport:
         # ``list_scenarios`` is the gate-exempt capability probe — exercises
         # the bypass closure without needing a resolved sandbox account.
         result = await executor._tool_callers["comply_test_controller"](
-            {"scenario": "list_scenarios"}
+            {"scenario": "list_scenarios", "account": {"sandbox": True}}
         )
         assert result["enhanced"] is True
         assert result["success"] is True
@@ -513,7 +513,11 @@ class TestA2aTransport:
             response_enhancer=enhancer,
         )
         result = await executor._tool_callers["comply_test_controller"](
-            {"scenario": "list_scenarios", "context": {"correlation_id": "abc"}}
+            {
+                "scenario": "list_scenarios",
+                "account": {"sandbox": True},
+                "context": {"correlation_id": "abc"},
+            }
         )
         assert result["enhanced"] is True
         assert seen == {"name": "comply_test_controller", "context_present": True}

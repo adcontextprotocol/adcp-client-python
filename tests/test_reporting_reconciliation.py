@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
+import threading
 from copy import deepcopy
 from datetime import datetime
+from urllib.parse import urljoin
 
+import httpx
 import pytest
+import rfc8785
 
 from adcp.decisioning.capabilities import MediaBuy
 from adcp.reporting import (
@@ -12,12 +18,28 @@ from adcp.reporting import (
     ReportingInspectionContext,
     ReportingObservation,
     ReportingReconciliationError,
+    ReportingTier,
     build_reporting_receipt,
     evaluate_reporting_ledger,
     load_reporting_ledger,
     reconcile_reporting,
+    reconcile_reporting_core,
+    reporting_tiers,
 )
-from adcp.types import ReportingDeliveryCapabilities
+from adcp.reporting_inspection import (
+    HttpsReportingResourceReader,
+    ManifestReportingInspector,
+    ReportingInspectionCode,
+    ReportingInspectionError,
+    _canonical_rows_bytes,
+    _decode_rows,
+)
+from adcp.types import (
+    ReportingDeliveryCapabilities,
+    ReportingMaterialization,
+    ReportingObligation,
+    ReportingRevision,
+)
 from adcp.types.core import TaskResult, TaskStatus
 from adcp.types.generated_poc.core.reporting_canonical_content_digest import (
     ReportingCanonicalContentDigest,
@@ -294,6 +316,551 @@ class _Client:
                 {"results": [{"result": "recorded", "receipt": self.recorded_receipt}]}
             ),
         )
+
+
+class _CoreClient:
+    async def get_reporting_status(
+        self, request: GetReportingStatusRequest
+    ) -> TaskResult[GetReportingStatusResponse]:
+        obligation = _obligation("obligation-core")
+        for field in (
+            "destination_ref",
+            "materialization_count",
+            "successful_materialization_count",
+            "receipt_count",
+            "accepted_receipt_count",
+            "resource_retained_until",
+        ):
+            obligation.pop(field, None)
+        obligation.update(
+            reconciliation_mode="delivery_only",
+            reconciliation_status="not_required",
+            health="complete",
+        )
+        revision = deepcopy(REVISION)
+        revision.pop("canonical_content_digest")
+        response = _response()
+        response.update(
+            periods=[obligation],
+            revisions=[revision],
+            materializations=[],
+            receipts=[],
+            pagination={"has_more": False, "total_count": 2},
+        )
+        return TaskResult(
+            status=TaskStatus.COMPLETED,
+            data=GetReportingStatusResponse.model_validate(response),
+        )
+
+
+@pytest.mark.asyncio
+async def test_core_reconciliation_needs_no_inspector_or_receipt_client() -> None:
+    result = await reconcile_reporting_core(
+        _CoreClient(),
+        GetReportingStatusRequest.model_validate(
+            {
+                "account": {"account_id": "account-1"},
+                "view": "periods",
+                "period": {"start": PERIOD["start"], "end": PERIOD["end"]},
+            }
+        ),
+        expected_periods=[
+            ExpectedReportingPeriod(
+                "billing-feed",
+                1,
+                "billing-v1",
+                "billing",
+                "billing-v1",
+                ("buy-1", "buy-2"),
+                PERIOD["start"],
+                PERIOD["end"],
+            )
+        ],
+        now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
+    )
+
+    assert result.definitive
+    assert result.obligations[0].definitive
+
+
+def test_reporting_tiers_enforce_cumulative_flags() -> None:
+    core = ReportingDeliveryCapabilities.model_construct(
+        managed_delivery=False, reconciled_billing=False
+    )
+    assert reporting_tiers(core) == frozenset({ReportingTier.CORE})
+
+    invalid = ReportingDeliveryCapabilities.model_construct(
+        managed_delivery=False, reconciled_billing=True
+    )
+    with pytest.raises(ReportingReconciliationError) as error:
+        reporting_tiers(invalid)
+    assert error.value.code == "INVALID_REPORTING_CAPABILITIES"
+
+
+class _ResourceReader:
+    def __init__(self, resources: dict[str, bytes]) -> None:
+        self.resources = resources
+        self.calls: list[str] = []
+
+    async def read(self, locator: str, *, base: str | None = None, max_bytes: int) -> bytes:
+        resolved = urljoin(base, locator) if base else locator
+        self.calls.append(resolved)
+        body = self.resources[resolved]
+        if len(body) > max_bytes:
+            raise ValueError("too large")
+        return body
+
+
+def _manifest_inspection_fixture():
+    rows = [
+        {"media_buy_id": "buy-2", "date": "2026-08-01", "impressions": 4, "spend": 5},
+        {"media_buy_id": "buy-1", "date": "2026-08-01", "impressions": 3, "spend": 7},
+    ]
+    data = b"".join(json.dumps(row, separators=(",", ":")).encode() + b"\n" for row in rows)
+    schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+            "media_buy_id": {"type": "string"},
+            "date": {"type": "string"},
+            "impressions": {"type": "integer"},
+            "spend": {"type": "number"},
+        },
+        "required": ["media_buy_id", "date", "impressions", "spend"],
+        "additionalProperties": False,
+    }
+    schema_body = json.dumps(schema, separators=(",", ":")).encode()
+    schema_digest = hashlib.sha256(schema_body).hexdigest()
+    definition = {
+        "contract_version": "1.0",
+        "media_type": "application/vnd.adcp.reporting-definition+json",
+        "report_definition_id": "billing-v1",
+        "reporting_profile": "billing-v1",
+        "grain": "media_buy_day",
+        "source": {
+            "provider": {"domain": "seller.example"},
+            "system": "test-ledger",
+            "api_version": "1",
+            "query_semantics": {},
+        },
+        "calendar": {"timezone_basis": "utc"},
+        "metrics": [
+            {"name": "impressions", "source_expression": "impressions", "aggregation": "sum"},
+            {"name": "spend", "source_expression": "spend", "aggregation": "sum"},
+        ],
+        "dimensions": ["media_buy_id", "date"],
+        "restatement_policy": {
+            "source_requery_duration": "P30D",
+            "emit_only_on_content_change": True,
+        },
+        "finality_policies": [
+            {
+                "finality_policy_id": "billing-v1-source-final",
+                "basis": "source_final",
+                "source_signal": "closed",
+            }
+        ],
+    }
+    definition_body = json.dumps(definition, separators=(",", ":")).encode()
+    canonical_contract = {
+        "contract_version": "1.0",
+        "media_type": "application/vnd.adcp.reporting-canonicalization+json",
+        "algorithm": "adcp_jcs_rows_v1",
+        "schema_sha256": schema_digest,
+        "primary_keys": ["media_buy_id", "date"],
+        "golden_vectors": {
+            "empty_report": {
+                "name": "empty",
+                "purpose": "empty_report",
+                "input_rows": [],
+                "canonical_utf8_base64": "W10=",
+                "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            },
+            "ordering_encoding": {
+                "name": "ordering",
+                "purpose": "ordering_encoding",
+                "input_rows": [
+                    {"date": "2026-08-02", "media_buy_id": "buy-2"},
+                    {"date": "2026-08-01", "media_buy_id": "buy-1"},
+                ],
+                "canonical_utf8_base64": (
+                    "W3siZGF0ZSI6IjIwMjYtMDgtMDEiLCJtZWRpYV9idXlfaWQiOiJidXktMSJ9LHsiZGF0ZSI6"
+                    "IjIwMjYtMDgtMDIiLCJtZWRpYV9idXlfaWQiOiJidXktMiJ9XQ=="
+                ),
+                "sha256": "ce716e16aef215a0ee62500e669d9a89c6de33afa190f528b195648f1a2f71c8",
+            },
+        },
+    }
+    canonical_body = json.dumps(canonical_contract, separators=(",", ":")).encode()
+    ordered = sorted(rows, key=lambda row: (row["media_buy_id"], row["date"]))
+    canonical_digest = hashlib.sha256(rfc8785.dumps(ordered)).hexdigest()
+    totals = [
+        {"name": "impressions", "value": "7", "value_type": "integer"},
+        {"name": "spend", "value": "12", "value_type": "decimal", "unit": "USD"},
+    ]
+    manifest = {
+        "manifest_version": "1.0",
+        "complete": True,
+        "reporting_revision_id": "revision-august-official",
+        "reporting_obligation_id": "obligation-billing",
+        "reporting_materialization_id": "materialization-billing",
+        "period": PERIOD,
+        "format": "jsonl",
+        "compression": "none",
+        "files": [
+            {
+                "object_ref": "data.jsonl",
+                "size_bytes": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+                "row_count": 2,
+            }
+        ],
+        "total_size_bytes": len(data),
+        "row_count": 2,
+        "control_totals": totals,
+        "created_at": "2026-09-02T00:00:00Z",
+    }
+    manifest_body = json.dumps(manifest, separators=(",", ":")).encode()
+    revision = deepcopy(REVISION)
+    revision.update(
+        row_count=2,
+        control_totals=totals,
+        schema_uri="https://contracts.example/rows.json",
+        schema_sha256=schema_digest,
+        report_definition_uri="https://contracts.example/definition.json",
+        report_definition_sha256=hashlib.sha256(definition_body).hexdigest(),
+        canonical_content_digest={
+            "algorithm": "sha256",
+            "value": canonical_digest,
+            "canonicalization_id": "rows-v1",
+            "canonicalization_uri": "https://contracts.example/canonical.json",
+            "canonicalization_sha256": hashlib.sha256(canonical_body).hexdigest(),
+        },
+    )
+    obligation = _obligation()
+    materialization = _materialization()
+    materialization.update(
+        method="file_transfer",
+        transport="https",
+        resource={
+            "resource_ref": "resource-manifest",
+            "kind": "manifest",
+            "location": "https://files.example/manifest.json",
+            "manifest_version": "1.0",
+            "manifest_sha256": hashlib.sha256(manifest_body).hexdigest(),
+            "immutability": "immutable_location",
+            "expires_at": "2026-12-01T00:00:00Z",
+        },
+        verification={
+            "verified_at": "2026-09-02T00:00:05Z",
+            "verification_path": "destination",
+            "verification_profile": "canonical_digest",
+            "row_count": 2,
+            "control_totals": totals,
+            "canonical_content_digest": revision["canonical_content_digest"],
+            "physical_checksums": [
+                {
+                    "object_ref": "data.jsonl",
+                    "algorithm": "sha256",
+                    "value": hashlib.sha256(data).hexdigest(),
+                }
+            ],
+        },
+    )
+    context = ReportingInspectionContext(
+        ReportingObligation.model_validate(obligation),
+        ReportingRevision.model_validate(revision),
+        ReportingMaterialization.model_validate(materialization),
+    )
+    resources = {
+        "https://files.example/manifest.json": manifest_body,
+        "https://files.example/data.jsonl": data,
+        "https://contracts.example/rows.json": schema_body,
+        "https://contracts.example/definition.json": definition_body,
+        "https://contracts.example/canonical.json": canonical_body,
+    }
+    return context, resources
+
+
+@pytest.mark.asyncio
+async def test_builtin_manifest_inspector_verifies_complete_resource() -> None:
+    context, resources = _manifest_inspection_fixture()
+
+    observation = await ManifestReportingInspector(_ResourceReader(resources))(context)
+
+    assert observation.row_count == 2
+    assert observation.manifest_sha256 == context.materialization.resource.manifest_sha256
+    assert observation.canonical_content_digest == context.revision.canonical_content_digest
+
+
+@pytest.mark.asyncio
+async def test_builtin_manifest_inspector_rejects_corrupt_object() -> None:
+    context, resources = _manifest_inspection_fixture()
+    data = resources["https://files.example/data.jsonl"]
+    resources["https://files.example/data.jsonl"] = b"X" + data[1:]
+
+    with pytest.raises(ReportingInspectionError) as error:
+        await ManifestReportingInspector(_ResourceReader(resources))(context)
+
+    assert error.value.code == ReportingInspectionCode.OBJECT_DIGEST_MISMATCH
+
+
+@pytest.mark.asyncio
+async def test_builtin_manifest_inspector_enforces_aggregate_decoded_byte_limit() -> None:
+    context, resources = _manifest_inspection_fixture()
+
+    with pytest.raises(ReportingInspectionError) as error:
+        await ManifestReportingInspector(_ResourceReader(resources), max_total_decoded_bytes=1)(
+            context
+        )
+
+    assert error.value.code == ReportingInspectionCode.RESOURCE_TOO_LARGE
+    assert "decoded-byte" in str(error.value)
+
+
+@pytest.mark.asyncio
+async def test_https_reporting_reader_rejects_unsafe_locators_before_fetch() -> None:
+    reader = HttpsReportingResourceReader()
+
+    with pytest.raises(ReportingInspectionError) as insecure:
+        await reader.read("http://files.example/report.json", max_bytes=100)
+    assert insecure.value.code == ReportingInspectionCode.UNSAFE_RESOURCE
+
+    with pytest.raises(ReportingInspectionError) as cross_origin:
+        await reader.read(
+            "https://attacker.example/data.jsonl",
+            base="https://files.example/manifest.json",
+            max_bytes=100,
+        )
+    assert cross_origin.value.code == ReportingInspectionCode.UNSAFE_RESOURCE
+
+
+@pytest.mark.asyncio
+async def test_https_reporting_reader_requires_trusted_credential_free_dns_origin() -> None:
+    reader = HttpsReportingResourceReader(trusted_origins=["https://files.example"])
+
+    for locator in (
+        "https://user:password@files.example/report.json",
+        "https://8.8.8.8/report.json",
+        "https://other.example/report.json",
+    ):
+        with pytest.raises(ReportingInspectionError) as error:
+            await reader.read(locator, max_bytes=100)
+        assert error.value.code == ReportingInspectionCode.UNSAFE_RESOURCE
+
+
+@pytest.mark.asyncio
+async def test_https_reporting_reader_checks_content_type_and_resolves_off_loop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    factory_threads: list[int] = []
+
+    async def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "text/plain"}, content=b"report")
+
+    def build_transport(*_: object, **__: object) -> httpx.AsyncBaseTransport:
+        factory_threads.append(threading.get_ident())
+        return httpx.MockTransport(handler)
+
+    monkeypatch.setattr(
+        "adcp.reporting_inspection.build_async_ip_pinned_transport", build_transport
+    )
+    reader = HttpsReportingResourceReader(trusted_origins=["https://files.example"])
+
+    with pytest.raises(ReportingInspectionError) as error:
+        await reader.read(
+            "https://files.example/report.json",
+            max_bytes=100,
+            expected_content_types=frozenset({"application/json"}),
+        )
+
+    assert error.value.code == ReportingInspectionCode.UNEXPECTED_CONTENT_TYPE
+    assert factory_threads[0] != threading.get_ident()
+
+
+def test_builtin_inspector_rejects_duplicate_json_keys_and_uses_jcs_key_ordering() -> None:
+    with pytest.raises(ReportingInspectionError) as duplicate:
+        _decode_rows(
+            b'{"media_buy_id":"buy-1","media_buy_id":"buy-2"}\n',
+            "jsonl",
+            "none",
+            max_decoded_bytes=1024,
+            max_rows=10,
+        )
+    assert duplicate.value.code == ReportingInspectionCode.INVALID_ROWS
+
+    assert _canonical_rows_bytes([{"id": 2}, {"id": 10}], ["id"]) == (b'[{"id":10},{"id":2}]')
+
+
+@pytest.mark.asyncio
+async def test_builtin_inspector_rejects_bad_golden_vector_and_unsafe_schema() -> None:
+    context, resources = _manifest_inspection_fixture()
+    canonical_url = "https://contracts.example/canonical.json"
+    canonical = json.loads(resources[canonical_url])
+    canonical["golden_vectors"]["ordering_encoding"]["sha256"] = "0" * 64
+    canonical_body = json.dumps(canonical, separators=(",", ":")).encode()
+    resources[canonical_url] = canonical_body
+    digest = context.revision.canonical_content_digest
+    assert digest is not None
+    updated_digest = digest.model_copy(
+        update={"canonicalization_sha256": hashlib.sha256(canonical_body).hexdigest()}
+    )
+    updated_context = ReportingInspectionContext(
+        context.obligation,
+        context.revision.model_copy(update={"canonical_content_digest": updated_digest}),
+        context.materialization.model_copy(
+            update={
+                "verification": context.materialization.verification.model_copy(
+                    update={"canonical_content_digest": updated_digest}
+                )
+            }
+        ),
+    )
+    with pytest.raises(ReportingInspectionError) as bad_vector:
+        await ManifestReportingInspector(_ResourceReader(resources))(updated_context)
+    assert bad_vector.value.code == ReportingInspectionCode.INVALID_CONTRACT
+
+    context, resources = _manifest_inspection_fixture()
+    schema_url = "https://contracts.example/rows.json"
+    schema = json.loads(resources[schema_url])
+    schema["$dynamicRef"] = "#"
+    schema_body = json.dumps(schema, separators=(",", ":")).encode()
+    resources[schema_url] = schema_body
+    unsafe_schema_context = ReportingInspectionContext(
+        context.obligation,
+        context.revision.model_copy(
+            update={"schema_sha256": hashlib.sha256(schema_body).hexdigest()}
+        ),
+        context.materialization,
+    )
+    with pytest.raises(ReportingInspectionError) as unsafe_schema:
+        await ManifestReportingInspector(_ResourceReader(resources))(unsafe_schema_context)
+    assert unsafe_schema.value.code == ReportingInspectionCode.INVALID_CONTRACT
+
+    context, resources = _manifest_inspection_fixture()
+    schema_url = "https://contracts.example/rows.json"
+    schema = json.loads(resources[schema_url])
+    schema["properties"]["media_buy_id"]["pattern"] = "^(a+)+$"
+    schema_body = json.dumps(schema, separators=(",", ":")).encode()
+    resources[schema_url] = schema_body
+    regex_schema_context = ReportingInspectionContext(
+        context.obligation,
+        context.revision.model_copy(
+            update={"schema_sha256": hashlib.sha256(schema_body).hexdigest()}
+        ),
+        context.materialization,
+    )
+    with pytest.raises(ReportingInspectionError) as regex_schema:
+        await ManifestReportingInspector(_ResourceReader(resources))(regex_schema_context)
+    assert regex_schema.value.code == ReportingInspectionCode.INVALID_CONTRACT
+
+    context, resources = _manifest_inspection_fixture()
+    schema_url = "https://contracts.example/rows.json"
+    schema = json.loads(resources[schema_url])
+    schema["$schema"] = "https://json-schema.org/draft/2019-09/schema"
+    schema_body = json.dumps(schema, separators=(",", ":")).encode()
+    resources[schema_url] = schema_body
+    dialect_mismatch_context = ReportingInspectionContext(
+        context.obligation,
+        context.revision.model_copy(
+            update={"schema_sha256": hashlib.sha256(schema_body).hexdigest()}
+        ),
+        context.materialization,
+    )
+    with pytest.raises(ReportingInspectionError) as dialect_mismatch:
+        await ManifestReportingInspector(_ResourceReader(resources))(dialect_mismatch_context)
+    assert dialect_mismatch.value.code == ReportingInspectionCode.INVALID_CONTRACT
+
+    context, resources = _manifest_inspection_fixture()
+    schema_url = "https://contracts.example/rows.json"
+    schema = json.loads(resources[schema_url])
+    schema["$defs"] = {"loop": {"$ref": "#/$defs/loop"}}
+    schema["allOf"] = [{"$ref": "#/$defs/loop"}]
+    schema_body = json.dumps(schema, separators=(",", ":")).encode()
+    resources[schema_url] = schema_body
+    cyclic_schema_context = ReportingInspectionContext(
+        context.obligation,
+        context.revision.model_copy(
+            update={"schema_sha256": hashlib.sha256(schema_body).hexdigest()}
+        ),
+        context.materialization,
+    )
+    with pytest.raises(ReportingInspectionError) as cyclic_schema:
+        await ManifestReportingInspector(_ResourceReader(resources))(cyclic_schema_context)
+    assert cyclic_schema.value.code == ReportingInspectionCode.INVALID_CONTRACT
+
+
+@pytest.mark.asyncio
+async def test_builtin_inspector_enforces_aggregate_row_limit() -> None:
+    context, resources = _manifest_inspection_fixture()
+
+    with pytest.raises(ReportingInspectionError) as limit:
+        await ManifestReportingInspector(_ResourceReader(resources), max_total_rows=1)(context)
+    assert limit.value.code == ReportingInspectionCode.RESOURCE_TOO_LARGE
+
+
+@pytest.mark.asyncio
+async def test_reconciler_requires_reconciled_tier_for_billing_and_canonical_data() -> None:
+    async def inspect(_: ReportingInspectionContext) -> ReportingObservation:
+        raise AssertionError("tier validation must run before inspection")
+
+    capabilities = ReportingDeliveryCapabilities.model_construct(
+        managed_delivery=True, reconciled_billing=False
+    )
+    with pytest.raises(ReportingReconciliationError) as error:
+        await reconcile_reporting(
+            _Client(),
+            GetReportingStatusRequest.model_validate(
+                {"account": {"account_id": "account-1"}, "view": "periods"}
+            ),
+            inspect,
+            expected_periods=[],
+            reporting_capabilities=capabilities,
+        )
+    assert error.value.code == "RECONCILED_BILLING_NOT_ENABLED"
+
+
+@pytest.mark.asyncio
+async def test_reconciler_uses_builtin_reader_and_does_not_retry_corruption() -> None:
+    context, resources = _manifest_inspection_fixture()
+    data = resources["https://files.example/data.jsonl"]
+    resources["https://files.example/data.jsonl"] = b"X" + data[1:]
+    reader = _ResourceReader(resources)
+    response = _response()
+    response.update(
+        periods=[context.obligation.model_dump(mode="json", exclude_none=True)],
+        revisions=[context.revision.model_dump(mode="json", exclude_none=True)],
+        materializations=[context.materialization.model_dump(mode="json", exclude_none=True)],
+        pagination={"has_more": False, "total_count": 3},
+    )
+
+    class Client:
+        async def get_reporting_status(self, request):
+            return TaskResult(
+                status=TaskStatus.COMPLETED,
+                data=GetReportingStatusResponse.model_validate(response),
+            )
+
+        async def sync_reporting_receipts(self, request):
+            raise AssertionError("corrupt data must not produce a receipt")
+
+    with pytest.raises(ReportingReconciliationError) as error:
+        await reconcile_reporting(
+            Client(),
+            GetReportingStatusRequest.model_validate(
+                {
+                    "account": {"account_id": "account-1"},
+                    "view": "periods",
+                    "period": {"start": PERIOD["start"], "end": PERIOD["end"]},
+                }
+            ),
+            expected_periods=[],
+            resource_reader=reader,
+            max_inspection_attempts=3,
+        )
+
+    assert error.value.code == "OBJECT_DIGEST_MISMATCH"
+    assert reader.calls.count("https://files.example/data.jsonl") == 1
 
 
 @pytest.mark.asyncio
