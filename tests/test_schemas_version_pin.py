@@ -46,6 +46,7 @@ def test_pinned_schema_bundle_is_in_distribution_manifests() -> None:
 
     assert f'"_schemas/{_BUNDLE_KEY}/**/*.json"' in pyproject
     assert f"recursive-include src/adcp/_schemas/{_BUNDLE_KEY} *.json" in manifest
+    assert f"recursive-include schemas/cache/{_BUNDLE_KEY} *.json" in manifest
 
 
 _CACHE_INDEX = _REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY / "index.json"

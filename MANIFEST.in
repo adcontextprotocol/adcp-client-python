@@ -18,4 +18,4 @@ prune src/adcp/_schemas/3.1.0-*
 recursive-include schemas/cache/2.5 *.json
 recursive-include schemas/cache/3.0 *.json
 recursive-include schemas/cache/3.1 *.json
-recursive-include schemas/cache/3.2.0-beta.10 *.json
+recursive-include schemas/cache/3.2.0-beta.11 *.json
