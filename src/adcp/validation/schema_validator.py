@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 from itertools import islice
 from typing import Any
 
+from pydantic import BaseModel
+
 from adcp._version import ADCP_MAJOR_VERSION, normalize_to_release_precision
 from adcp.validation.oneof_hints import compute_oneof_hint
 from adcp.validation.schema_loader import Direction, ResponseVariant, get_validator
@@ -339,6 +341,13 @@ def _iter_errors_bounded(validator: Any, payload: Any) -> list[Any]:
     return errors
 
 
+def _as_wire_payload(payload: Any) -> Any:
+    """Serialize a Pydantic application model exactly as SDK calls do."""
+    if isinstance(payload, BaseModel):
+        return payload.model_dump(mode="json", by_alias=True, exclude_none=True)
+    return payload
+
+
 def validate_request(
     tool_name: str,
     payload: Any,
@@ -353,6 +362,7 @@ def validate_request(
     when the buyer claims a legacy ``adcp_major_version`` so the request
     is checked against the schema the buyer actually targets.
     """
+    payload = _as_wire_payload(payload)
     validator = get_validator(tool_name, "request", version=version)
     if validator is None:
         missing = _missing_explicit_schema_outcome(tool_name, "request", version)
@@ -431,7 +441,7 @@ def validate_response(
     ``version`` semantics match :func:`validate_request` — defaults to the
     SDK pin; pass a wire version to validate against a legacy schema.
     """
-    payload = _normalize_response_for_validation(tool_name, payload)
+    payload = _normalize_response_for_validation(tool_name, _as_wire_payload(payload))
     variant: ResponseVariant = _select_response_variant(payload)
     validator = get_validator(tool_name, variant, version=version)
     used_variant: Direction = variant

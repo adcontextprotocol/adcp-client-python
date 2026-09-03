@@ -2591,16 +2591,17 @@ def create_tool_caller(
     ``INVALID_REQUEST`` AdCP error so callers see a spec-typed recovery
     classification rather than a raw stack trace.
 
-    **Schema-driven validation (issue #249).** When ``validation`` is
-    supplied, the dispatcher validates incoming requests and outgoing
-    responses against the bundled AdCP JSON schemas. Request failures
+    **Schema-driven validation (issues #249, #1102).** Public server
+    factories supply strict validation by default, so the dispatcher
+    validates incoming requests and outgoing responses against the bundled
+    canonical AdCP JSON schemas. Request failures
     raise ``ADCPTaskError(VALIDATION_ERROR)`` before the handler runs,
     so malformed payloads never hit business logic. Response failures
     either raise ``VALIDATION_ERROR`` (strict) or log a warning
-    (warn). Defaults to off on the server side — the client-side
-    hooks already catch drift for SDK-built clients, and enabling
-    server validation is a deliberate opt-in for authors who want
-    dispatcher-level enforcement.
+    (warn). Adopters can explicitly relax this with
+    ``ValidationHookConfig`` or disable it with ``validation=None``. The
+    low-level ``create_tool_caller`` seam itself retains a ``None`` default;
+    ``serve`` and the MCP/A2A server factories pass the strict default.
 
     **Pre-validation hooks (issues #614, #859).** When
     ``pre_validation_hook`` is supplied, each hook is called with

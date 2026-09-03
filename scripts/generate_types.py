@@ -8,12 +8,15 @@ generates Pydantic v2 models with discriminated union support.
 
 from __future__ import annotations
 
+import argparse
 import json
+import os
 import posixpath
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 try:
@@ -104,6 +107,50 @@ PRESERVE_CANONICAL_URL_REFS = {
 }
 
 
+def _normalize_schema_ref_target(
+    file_part: str, current_schema_rel_path: Path
+) -> tuple[str, Path] | None:
+    """Return a schema-root-relative target and reject escaping references."""
+    canonical_match = re.match(r"^https://adcontextprotocol\.org/schemas/[^/]+/(.+)$", file_part)
+    if canonical_match:
+        source_kind = "canonical"
+        raw_target = canonical_match.group(1)
+    elif file_part.startswith("/schemas/"):
+        source_kind = "root"
+        raw_target = file_part.removeprefix("/schemas/")
+    elif not file_part or "://" in file_part or file_part.startswith("//"):
+        return None
+    else:
+        source_kind = "local"
+        raw_target = (current_schema_rel_path.parent / file_part).as_posix()
+
+    normalized = posixpath.normpath(raw_target)
+    if normalized in {"", ".", ".."} or normalized.startswith("../") or posixpath.isabs(normalized):
+        raise ValueError(
+            f"schema reference escapes its root: {file_part!r} from "
+            f"{current_schema_rel_path.as_posix()!r}"
+        )
+    return source_kind, Path(normalized)
+
+
+def _underscored_schema_path(path: Path) -> Path:
+    return Path(*(part.replace("-", "_") for part in path.parts))
+
+
+def _is_macro_schema(path: Path) -> bool:
+    parts = path.parts
+    return bool(
+        len(parts) == 2
+        and (
+            (
+                parts[0] == "enums"
+                and (parts[1].startswith("macro-") or parts[1] == "universal-macro.json")
+            )
+            or (parts[0] == "core" and parts[1].startswith("macro-"))
+        )
+    )
+
+
 def rewrite_refs(obj, current_schema_rel_path: Path):
     """
     Recursively rewrite $ref paths:
@@ -119,42 +166,34 @@ def rewrite_refs(obj, current_schema_rel_path: Path):
         if "$ref" in obj:
             ref_path = obj["$ref"]
             file_part, separator, fragment = ref_path.partition("#")
+            normalized = _normalize_schema_ref_target(file_part, current_schema_rel_path)
+            suffix = separator + fragment if separator else ""
 
-            # Convert root-relative and canonical absolute schema refs to
-            # local files. This keeps generation deterministic and lets the
-            # generator reuse source models instead of inlining a duplicate
-            # model graph for every remote reference.
-            canonical_url = file_part.startswith("https://adcontextprotocol.org/schemas/")
-            preserve_canonical_url = (
-                canonical_url and current_schema_rel_path in PRESERVE_CANONICAL_URL_REFS
-            )
-            version_match = None
-            if not preserve_canonical_url:
-                version_match = re.match(
-                    r"^(?:https://adcontextprotocol\.org)?/schemas/[^/]+/(.+)$",
-                    file_part,
+            if normalized is not None:
+                source_kind, target = normalized
+                preserve_canonical = (
+                    source_kind == "canonical"
+                    and current_schema_rel_path in PRESERVE_CANONICAL_URL_REFS
                 )
-            if version_match:
-                # Extract the path after /schemas/<version>/
-                # e.g., "/schemas/3.0.0-beta.1/core/context.json" -> "core/context.json"
-                target_rel_path = version_match.group(1)
+                preserve_local = (
+                    source_kind == "local"
+                    and current_schema_rel_path in PRESERVE_CANONICAL_URL_REFS
+                )
 
-                # Compute the shortest relative path from the current schema
-                # to the target. Avoid logically equivalent root round-trips
-                # such as ``../../core/assets/image.json`` from
-                # ``core/assets/asset-union.json``: datamodel-code-generator
-                # can incorrectly rebase those in directory mode.
-                current_dir = current_schema_rel_path.parent
-                file_part = posixpath.relpath(target_rel_path, start=current_dir.as_posix())
-
-            # Only local filesystem paths are rewritten. External URLs and
-            # JSON Pointer fragments are wire identifiers, not module names.
-            if "://" not in file_part and not file_part.startswith("//"):
-                parts = file_part.split("/")
-                parts = [part.replace("-", "_") for part in parts]
-                file_part = "/".join(parts)
-
-            obj["$ref"] = file_part + (separator + fragment if separator else "")
+                # datamodel-code-generator rebases transitive macro refs
+                # against their caller. Absolute paths make the one canonical
+                # temp-tree model unambiguous in directory and inlined modes.
+                if preserve_local or (
+                    not preserve_canonical and not fragment and _is_macro_schema(target)
+                ):
+                    obj["$ref"] = (TEMP_DIR / _underscored_schema_path(target)).as_posix() + suffix
+                elif not preserve_canonical:
+                    relative = posixpath.relpath(
+                        target.as_posix(), start=current_schema_rel_path.parent.as_posix()
+                    )
+                    obj["$ref"] = relative.replace("-", "_") + suffix
+            elif file_part and "://" not in file_part and not file_part.startswith("//"):
+                obj["$ref"] = file_part.replace("-", "_") + suffix
 
         for value in obj.values():
             rewrite_refs(value, current_schema_rel_path)
@@ -293,7 +332,7 @@ def flatten_validation_oneof(schema: dict) -> dict:
     return schema
 
 
-def flatten_schemas():
+def flatten_schemas(temp_dir: Path):
     """
     Copy schemas to temp directory, preserving directory structure.
 
@@ -306,10 +345,13 @@ def flatten_schemas():
     """
     print("Preparing schemas...")
 
+    global TEMP_DIR
+    TEMP_DIR = temp_dir
+
     # Clean temp directory
-    if TEMP_DIR.exists():
-        shutil.rmtree(TEMP_DIR)
-    TEMP_DIR.mkdir()
+    if temp_dir.exists():
+        shutil.rmtree(temp_dir)
+    temp_dir.mkdir()
 
     # Recursively find all JSON schemas (including subdirectories)
     schema_files = list(SCHEMAS_DIR.rglob("*.json"))
@@ -330,7 +372,7 @@ def flatten_schemas():
         path_parts = list(rel_path.parts)
         path_parts = [part.replace("-", "_") for part in path_parts]
         output_rel_path = Path(*path_parts)
-        output_file = TEMP_DIR / output_rel_path
+        output_file = temp_dir / output_rel_path
 
         # Create parent directories
         output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -367,10 +409,10 @@ def flatten_schemas():
 
     count = len(schema_files)
     print(f"\n  Prepared {count} schema files\n")
-    return TEMP_DIR
+    return temp_dir
 
 
-def fix_forward_references():
+def fix_forward_references(output_dir: Path = OUTPUT_DIR):
     """Fix broken forward references in generated files.
 
     datamodel-code-generator sometimes generates incorrect forward references like:
@@ -382,7 +424,7 @@ def fix_forward_references():
     print("Fixing forward references...")
 
     fixes_made = 0
-    for py_file in OUTPUT_DIR.rglob("*.py"):
+    for py_file in output_dir.rglob("*.py"):
         if py_file.name == "__init__.py":
             continue
 
@@ -498,14 +540,14 @@ def _restore_unused_bundled_dirs(input_dir: Path, held_bundled_dir: Path) -> Non
     _restore_optional_temp_dir(held_bundled_dir, bundled_dir)
 
 
-def generate_types(input_dir: Path):
+def generate_types(input_dir: Path, output_dir: Path = OUTPUT_DIR):
     """Generate types using datamodel-code-generator."""
     print(f"Generating types from {input_dir}...")
 
     held_bundled_dir = _hold_unused_bundled_dirs(input_dir)
 
     try:
-        result = _run_datamodel_codegen(input_dir, OUTPUT_DIR)
+        result = _run_datamodel_codegen(input_dir, output_dir)
     finally:
         _restore_unused_bundled_dirs(input_dir, held_bundled_dir)
 
@@ -519,7 +561,7 @@ def generate_types(input_dir: Path):
     return True
 
 
-def generate_root_discovery_types(input_dir: Path) -> bool:
+def generate_root_discovery_types(input_dir: Path, output_dir: Path = OUTPUT_DIR) -> bool:
     """Generate root discovery documents outside colliding domain packages."""
     print("Generating root discovery compatibility types...")
     for schema_rel_path, output_rel_path in ROOT_DISCOVERY_SCHEMAS.items():
@@ -530,7 +572,7 @@ def generate_root_discovery_types(input_dir: Path) -> bool:
         schema = flatten_validation_oneof(schema)
         prepared.write_text(json.dumps(schema, indent=2))
 
-        result = _run_datamodel_codegen(prepared, OUTPUT_DIR / output_rel_path)
+        result = _run_datamodel_codegen(prepared, output_dir / output_rel_path)
         _print_codegen_output(result)
         if result.returncode != 0:
             print(
@@ -550,10 +592,21 @@ def normalize_timestamp(content: str) -> str:
     Timestamps look like:
     #   timestamp: 2025-11-18T03:32:03+00:00
     """
-    return re.sub(r"#\s+timestamp:.*\n", "", content)
+    content = re.sub(r"#\s+timestamp:.*\n", "", content)
+    return re.sub(r"^Generation date:.*\n", "", content, flags=re.MULTILINE)
 
 
-def restore_unchanged_files():
+def restore_unchanged_file(candidate: Path, baseline: Path) -> bool:
+    """Preserve prior bytes when a generated file changed only by timestamp."""
+    if not baseline.is_file():
+        return False
+    if normalize_timestamp(candidate.read_text()) != normalize_timestamp(baseline.read_text()):
+        return False
+    candidate.write_bytes(baseline.read_bytes())
+    return True
+
+
+def restore_unchanged_files(candidate_dir: Path, baseline_dir: Path = OUTPUT_DIR) -> None:
     """Restore files where only the timestamp changed.
 
     This prevents noisy commits where the only change is the generation timestamp.
@@ -561,57 +614,13 @@ def restore_unchanged_files():
     """
     print("Checking for timestamp-only changes...")
 
-    # Get git status to see modified files
-    result = subprocess.run(
-        ["git", "diff", "--name-only", str(OUTPUT_DIR)],
-        capture_output=True,
-        text=True,
-        cwd=REPO_ROOT,
-    )
-
-    if result.returncode != 0:
-        print("  Could not check git status (skipping restoration)")
-        return
-
-    modified_files = [f for f in result.stdout.strip().split("\n") if f]
     restored_count = 0
-
-    for rel_path in modified_files:
-        file_path = REPO_ROOT / rel_path
-        if not file_path.exists():
+    for candidate in candidate_dir.rglob("*.py"):
+        relative = candidate.relative_to(candidate_dir)
+        baseline = baseline_dir / relative
+        if not baseline.is_file():
             continue
-
-        # Get current (new) content
-        with open(file_path) as f:
-            new_content = f.read()
-
-        # Compare against the staged candidate when present so a schema bump can
-        # prove regeneration is clean before it is committed. Fall back to HEAD
-        # for ordinary unstaged development runs.
-        git_result = subprocess.run(
-            ["git", "show", f":{rel_path}"],
-            capture_output=True,
-            text=True,
-            cwd=REPO_ROOT,
-        )
-
-        if git_result.returncode != 0:
-            git_result = subprocess.run(
-                ["git", "show", f"HEAD:{rel_path}"],
-                capture_output=True,
-                text=True,
-                cwd=REPO_ROOT,
-            )
-            if git_result.returncode != 0:
-                continue
-
-        old_content = git_result.stdout
-
-        # Compare without timestamps
-        if normalize_timestamp(old_content) == normalize_timestamp(new_content):
-            # Only timestamp changed, restore the prior bytes without mutating
-            # the index or invoking a destructive worktree command.
-            file_path.write_text(old_content)
+        if restore_unchanged_file(candidate, baseline):
             restored_count += 1
 
     if restored_count > 0:
@@ -620,7 +629,7 @@ def restore_unchanged_files():
         print("  No timestamp-only changes found")
 
 
-def prune_unused_bundled_modules():
+def prune_unused_bundled_modules(output_dir: Path = OUTPUT_DIR):
     """Drop generated bundled modules no source module imports.
 
     See ``BUNDLED_KEEP`` for why the bundled tree is almost entirely dead
@@ -628,7 +637,7 @@ def prune_unused_bundled_modules():
     the content of any retained module — generation runs unchanged and this
     only deletes the unreferenced output afterwards.
     """
-    bundled_dir = OUTPUT_DIR / BUNDLED_DIR_NAME
+    bundled_dir = output_dir / BUNDLED_DIR_NAME
     if not bundled_dir.exists():
         return
 
@@ -652,13 +661,13 @@ def prune_unused_bundled_modules():
     print(f"  ✓ Removed {removed} unused bundled module(s)\n")
 
 
-def apply_post_generation_fixes():
+def apply_post_generation_fixes(output_dir: Path = OUTPUT_DIR):
     """Apply post-generation fixes using the dedicated script."""
     print("Running post-generation fixes...")
 
     post_fix_script = REPO_ROOT / "scripts" / "post_generate_fixes.py"
     result = subprocess.run(
-        [sys.executable, str(post_fix_script)],
+        [sys.executable, str(post_fix_script), "--output-dir", str(output_dir)],
         capture_output=True,
         text=True,
     )
@@ -674,112 +683,227 @@ def apply_post_generation_fixes():
     return True
 
 
-def main():
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="report generated drift without modifying the checkout",
+    )
+    return parser.parse_args(argv)
+
+
+def _copy_package_for_introspection(staging_root: Path, generated_dir: Path) -> Path:
+    """Build an isolated source tree whose imports use the staged models."""
+    staged_source = staging_root / "source"
+    staged_package = staged_source / "adcp"
+    shutil.copytree(
+        REPO_ROOT / "src" / "adcp",
+        staged_package,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "_schemas"),
+    )
+    staged_generated = staged_package / "types" / "generated_poc"
+    if staged_generated.exists():
+        shutil.rmtree(staged_generated)
+    shutil.copytree(generated_dir, staged_generated)
+
+    # The committed ergonomic module can import generated names that no longer
+    # exist. The isolated import graph uses this inert stub until a fresh module
+    # is generated from the staged models.
+    (staged_package / "types" / "_ergonomic.py").write_text(
+        '"""Temporary ergonomic stub used during type generation."""\n\n'
+        "def apply_ergonomic_coercion() -> None:\n"
+        "    pass\n"
+    )
+    return staged_source
+
+
+def _artifact_files(root: Path) -> set[Path]:
+    return {
+        path.relative_to(root)
+        for path in root.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+    }
+
+
+def _paths_equal(candidate: Path, current: Path) -> bool:
+    if candidate.is_file() and current.is_file():
+        return candidate.read_bytes() == current.read_bytes()
+    if not candidate.is_dir() or not current.is_dir():
+        return False
+    candidate_files = _artifact_files(candidate)
+    current_files = _artifact_files(current)
+    return candidate_files == current_files and all(
+        (candidate / relative).read_bytes() == (current / relative).read_bytes()
+        for relative in candidate_files
+    )
+
+
+def _changed_paths(candidate: Path, current: Path) -> list[Path]:
+    """Return file-level drift paths relative to an artifact root."""
+    if candidate.is_file() or current.is_file():
+        return [] if _paths_equal(candidate, current) else [Path(candidate.name)]
+    candidate_files = _artifact_files(candidate)
+    current_files = _artifact_files(current)
+    return sorted(
+        relative
+        for relative in candidate_files | current_files
+        if relative not in candidate_files
+        or relative not in current_files
+        or (candidate / relative).read_bytes() != (current / relative).read_bytes()
+    )
+
+
+def _install_generated_artifacts(staging_root: Path, artifacts: list[tuple[Path, Path]]) -> None:
+    """Install staged artifacts with rollback if any replacement fails."""
+    backup_root = staging_root / "backups"
+    backup_root.mkdir()
+    backups: list[tuple[Path, Path]] = []
+    installed: list[tuple[Path, Path]] = []
+    try:
+        for index, (candidate, target) in enumerate(artifacts):
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.exists():
+                backup = backup_root / f"artifact-{index}"
+                os.replace(target, backup)
+                backups.append((backup, target))
+            os.replace(candidate, target)
+            installed.append((target, candidate))
+    except BaseException:
+        for target, candidate in reversed(installed):
+            if target.exists():
+                os.replace(target, candidate)
+        for backup, target in reversed(backups):
+            if backup.exists():
+                os.replace(backup, target)
+        raise
+
+
+def main(argv: list[str] | None = None):
     """Generate types from schemas."""
+    args = _parse_args(argv)
+
     print("=" * 70)
     print("AdCP Python Type Generation")
     print("=" * 70)
     print(f"\nInput: {SCHEMAS_DIR}")
     print(f"Output: {OUTPUT_DIR}\n")
 
-    temp_schemas = None
     before_snapshot: dict = {}
     try:
-        # Snapshot the current generated tree before wiping it. The wipe-and-
-        # regen pattern means we lose the only record of "what fields existed
-        # last release" unless we capture it now. The diff produced after
-        # generation lands in SCHEMA_DELTAS.md so consumers can shrink their
-        # known-mismatch allowlists without grepping the raw diff.
         if OUTPUT_DIR.exists():
             before_snapshot = diff_generated_types.snapshot(OUTPUT_DIR)
             print(f"Captured pre-regen snapshot: {len(before_snapshot)} files\n")
 
-        # Clean output directory to prevent stale files
-        # This ensures old/renamed schema files don't persist
-        if OUTPUT_DIR.exists():
-            print("Cleaning output directory...")
-            shutil.rmtree(OUTPUT_DIR)
-            print("  ✓ Removed stale generated files\n")
+        with tempfile.TemporaryDirectory(dir=REPO_ROOT, prefix=".typegen-") as temp_root:
+            staging_root = Path(temp_root)
+            staged_output = staging_root / "generated_poc"
+            # Keep the historical basename stable: datamodel-code-generator
+            # embeds it in every package ``__init__.py`` header.
+            temp_schemas = flatten_schemas(staging_root / ".schema_temp")
 
-        # Ensure output directory exists
-        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+            if not generate_types(temp_schemas, staged_output):
+                return 1
+            if not generate_root_discovery_types(temp_schemas, staged_output):
+                return 1
 
-        # Flatten schemas
-        temp_schemas = flatten_schemas()
+            fix_forward_references(staged_output)
+            if not apply_post_generation_fixes(staged_output):
+                return 1
+            prune_unused_bundled_modules(staged_output)
+            restore_unchanged_files(staged_output)
 
-        # Generate types
-        if not generate_types(temp_schemas):
-            return 1
+            staged_source = _copy_package_for_introspection(staging_root, staged_output)
+            staged_types = staged_source / "adcp" / "types"
+            staged_consolidated = staged_types / "_generated.py"
+            staged_ergonomic = staged_types / "_ergonomic.py"
 
-        if not generate_root_discovery_types(temp_schemas):
-            return 1
-
-        # Fix forward references
-        fix_forward_references()
-
-        # Apply post-generation fixes
-        if not apply_post_generation_fixes():
-            return 1
-
-        # Drop unreferenced bundled modules before consolidation
-        prune_unused_bundled_modules()
-
-        # Consolidate exports into generated.py
-        consolidate_script = REPO_ROOT / "scripts" / "consolidate_exports.py"
-        result = subprocess.run(
-            [sys.executable, str(consolidate_script)],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            print("\n✗ Export consolidation failed:", file=sys.stderr)
-            print(result.stderr, file=sys.stderr)
-            return 1
-        if result.stdout:
-            print(result.stdout, end="")
-
-        # Restore files where only timestamp changed
-        restore_unchanged_files()
-
-        # Generate ergonomic coercion module (type coercion for better API ergonomics)
-        # Reset _ergonomic.py first — the old version may import variant classes
-        # that no longer exist after schema flattening (e.g., PackageUpdate1).
-        ergonomic_file = REPO_ROOT / "src" / "adcp" / "types" / "_ergonomic.py"
-        if ergonomic_file.exists():
-            ergonomic_file.write_text(
-                '"""Auto-generated ergonomic coercion — regenerating..."""\n'
-                "\ndef apply_ergonomic_coercion() -> None:\n"
-                "    pass\n"
-            )
-
-        ergonomic_script = REPO_ROOT / "scripts" / "generate_ergonomic_coercion.py"
-        if ergonomic_script.exists():
-            print("\nGenerating ergonomic coercion module...")
+            consolidate_script = REPO_ROOT / "scripts" / "consolidate_exports.py"
             result = subprocess.run(
-                [sys.executable, str(ergonomic_script)],
+                [
+                    sys.executable,
+                    str(consolidate_script),
+                    "--input-dir",
+                    str(staged_output),
+                    "--output-file",
+                    str(staged_consolidated),
+                ],
                 capture_output=True,
                 text=True,
             )
             if result.returncode != 0:
-                print("\n✗ Ergonomic coercion generation failed:", file=sys.stderr)
+                print("\n✗ Export consolidation failed:", file=sys.stderr)
                 print(result.stderr, file=sys.stderr)
                 return 1
             if result.stdout:
                 print(result.stdout, end="")
 
-        # Count generated files
-        py_files = list(OUTPUT_DIR.glob("*.py"))
-        print("\n✓ Successfully generated types")
-        print(f"  Output: {OUTPUT_DIR}")
-        print(f"  Files: {len(py_files)}")
+            ergonomic_script = REPO_ROOT / "scripts" / "generate_ergonomic_coercion.py"
+            if ergonomic_script.exists():
+                print("\nGenerating ergonomic coercion module...")
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(ergonomic_script),
+                        "--source-root",
+                        str(staged_source),
+                        "--output-file",
+                        str(staged_ergonomic),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    cwd=staging_root,
+                )
+                if result.returncode != 0:
+                    print("\n✗ Ergonomic coercion generation failed:", file=sys.stderr)
+                    print(result.stderr, file=sys.stderr)
+                    return 1
+                if result.stdout:
+                    print(result.stdout, end="")
 
-        after_snapshot = diff_generated_types.snapshot(OUTPUT_DIR)
-        report = diff_generated_types.format_diff(before_snapshot, after_snapshot)
-        if before_snapshot == after_snapshot and DELTAS_FILE.exists():
-            print("  No new field-shape delta; retained the existing delta report")
-        else:
-            DELTAS_FILE.write_text(report, encoding="utf-8")
-        print(f"  Delta report: {DELTAS_FILE.relative_to(REPO_ROOT)}")
+            current_types = REPO_ROOT / "src" / "adcp" / "types"
+            restore_unchanged_file(staged_consolidated, current_types / "_generated.py")
+            restore_unchanged_file(staged_ergonomic, current_types / "_ergonomic.py")
+
+            artifacts = [
+                (staged_output, OUTPUT_DIR),
+                (staged_consolidated, current_types / "_generated.py"),
+                (staged_ergonomic, current_types / "_ergonomic.py"),
+            ]
+            changed = [
+                target for candidate, target in artifacts if not _paths_equal(candidate, target)
+            ]
+
+            if args.check:
+                if changed:
+                    print("\n✗ Generated types are out of date:")
+                    for candidate, target in artifacts:
+                        if target not in changed:
+                            continue
+                        relative_target = target.relative_to(REPO_ROOT)
+                        for relative in _changed_paths(candidate, target):
+                            detail = (
+                                relative_target / relative if target.is_dir() else relative_target
+                            )
+                            print(f"  {detail}")
+                    return 1
+                print("\n✓ Generated types are up to date")
+                return 0
+
+            after_snapshot = diff_generated_types.snapshot(staged_output)
+            _install_generated_artifacts(staging_root, artifacts)
+
+            report = diff_generated_types.format_diff(before_snapshot, after_snapshot)
+            if before_snapshot == after_snapshot and DELTAS_FILE.exists():
+                print("  No new field-shape delta; retained the existing delta report")
+            else:
+                DELTAS_FILE.write_text(report, encoding="utf-8")
+            print(f"  Delta report: {DELTAS_FILE.relative_to(REPO_ROOT)}")
+
+            py_files = list(OUTPUT_DIR.rglob("*.py"))
+            print("\n✓ Successfully generated types")
+            print(f"  Output: {OUTPUT_DIR}")
+            print(f"  Files: {len(py_files)}")
 
         return 0
 
@@ -789,10 +913,6 @@ def main():
 
         traceback.print_exc()
         return 1
-    finally:
-        # Clean up temp directory
-        if temp_schemas and temp_schemas.exists():
-            shutil.rmtree(temp_schemas)
 
 
 if __name__ == "__main__":

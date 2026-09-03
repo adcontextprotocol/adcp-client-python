@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 import pytest
 
+from adcp.types import GetSignalsRequest
 from adcp.validation import (
     SchemaValidationError,
     ValidationHookConfig,
@@ -46,6 +47,21 @@ class TestValidateRequest:
         assert outcome.valid is False
         pointers = [i.pointer for i in outcome.issues]
         assert "/buying_mode" in pointers, f"expected /buying_mode in {pointers}"
+
+    def test_accepts_pydantic_model_and_validates_its_wire_serialization(self) -> None:
+        request = GetSignalsRequest(signal_spec="sports fans")
+
+        outcome = validate_request("get_signals", request)
+
+        assert outcome.valid is True
+
+    def test_pydantic_model_still_runs_canonical_cross_field_validation(self) -> None:
+        structurally_valid = GetSignalsRequest()
+
+        outcome = validate_request("get_signals", structurally_valid)
+
+        assert outcome.valid is False
+        assert any(issue.keyword == "anyOf" for issue in outcome.issues)
 
     def test_returns_skipped_for_tools_outside_adcp_catalog(self) -> None:
         outcome = validate_request("custom_seller_extension", {"anything": True})

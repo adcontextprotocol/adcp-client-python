@@ -1,0 +1,77 @@
+[
+  {
+    "id": "get_signals.valid_brief",
+    "tool": "get_signals",
+    "direction": "request",
+    "model": "GetSignalsRequest",
+    "payload": {"signal_spec": "sports fans"},
+    "canonical_valid": true,
+    "pydantic_valid": true
+  },
+  {
+    "id": "get_signals.valid_wholesale",
+    "tool": "get_signals",
+    "direction": "request",
+    "model": "GetSignalsRequest",
+    "payload": {"discovery_mode": "wholesale"},
+    "canonical_valid": true,
+    "pydantic_valid": true
+  },
+  {
+    "id": "get_signals.brief_requires_selector",
+    "tool": "get_signals",
+    "direction": "request",
+    "model": "GetSignalsRequest",
+    "payload": {},
+    "canonical_valid": false,
+    "pydantic_valid": true
+  },
+  {
+    "id": "get_signals.wholesale_forbids_selector",
+    "tool": "get_signals",
+    "direction": "request",
+    "model": "GetSignalsRequest",
+    "payload": {"discovery_mode": "wholesale", "signal_spec": "sports fans"},
+    "canonical_valid": false,
+    "pydantic_valid": true
+  },
+  {
+    "id": "get_signals.pricing_requires_feed_version",
+    "tool": "get_signals",
+    "direction": "request",
+    "model": "GetSignalsRequest",
+    "payload": {
+      "discovery_mode": "wholesale",
+      "if_pricing_version": "pricing-v1"
+    },
+    "canonical_valid": false,
+    "pydantic_valid": true
+  },
+  {
+    "id": "get_signals.signal_refs_min_items",
+    "tool": "get_signals",
+    "direction": "request",
+    "model": "GetSignalsRequest",
+    "payload": {"signal_refs": []},
+    "canonical_valid": false,
+    "pydantic_valid": false
+  },
+  {
+    "id": "get_signals.country_pattern",
+    "tool": "get_signals",
+    "direction": "request",
+    "model": "GetSignalsRequest",
+    "payload": {"signal_spec": "sports fans", "countries": ["usa"]},
+    "canonical_valid": false,
+    "pydantic_valid": false
+  },
+  {
+    "id": "get_signals.max_results_minimum",
+    "tool": "get_signals",
+    "direction": "request",
+    "model": "GetSignalsRequest",
+    "payload": {"signal_spec": "sports fans", "max_results": 0},
+    "canonical_valid": false,
+    "pydantic_valid": false
+  }
+]

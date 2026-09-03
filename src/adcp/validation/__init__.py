@@ -6,11 +6,16 @@ Two independent pieces live here:
   product.json raw-dict payloads (``legacy.py``). These complement Pydantic
   models when parsing third-party JSON that hasn't yet been coerced.
 
-* **Schema-driven validation** against the bundled AdCP JSON schemas
-  (``schema_loader``, ``schema_validator``, ``schema_errors``,
-  ``client_hooks``). Used pre-send + post-receive on the client, and
-  opt-in at the server dispatcher, to catch field-name drift before it
-  reaches a storyboard run.
+* **Schema-driven validation** against the bundled canonical AdCP JSON
+  schemas (``schema_loader``, ``schema_validator``, ``schema_errors``,
+  ``client_hooks``). Used pre-send + post-receive on the client. Public
+  server factories enforce it strictly by default; ``validation=None`` is
+  the explicit compatibility escape hatch.
+
+Generated Pydantic models are structural application types. They preserve
+common field constraints but do not promise complete parity with JSON Schema
+conditionals or protocol-specific ``x-adcp-validation`` rules. Canonical
+schema validation is therefore authoritative at wire boundaries.
 """
 
 from __future__ import annotations

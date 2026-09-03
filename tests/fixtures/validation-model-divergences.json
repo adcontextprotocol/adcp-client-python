@@ -1,0 +1,14 @@
+{
+  "get_signals.brief_requires_selector": {
+    "keyword": "else/anyOf/required",
+    "reason": "datamodel-code-generator does not emit the top-level brief-mode conditional"
+  },
+  "get_signals.wholesale_forbids_selector": {
+    "keyword": "if/then/not",
+    "reason": "datamodel-code-generator does not emit the top-level wholesale-mode conditional"
+  },
+  "get_signals.pricing_requires_feed_version": {
+    "keyword": "dependencies",
+    "reason": "datamodel-code-generator does not emit JSON Schema property dependencies"
+  }
+}

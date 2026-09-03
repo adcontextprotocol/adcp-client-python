@@ -201,12 +201,41 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Build and install wheel
+      - name: Build sdist and install its wheel
         run: |
           python -m pip install --upgrade pip build
-          python scripts/bundle_schemas.py
-          python -m build --wheel --outdir dist/
+          test ! -e src/adcp/_schemas
+          # The default build path creates the sdist first, then builds the
+          # wheel from that sdist. This covers both VCS and sdist consumers.
+          python -m build --outdir dist/
           pip install dist/*.whl
+
+      - name: Verify VCS-built wheel schemas
+        working-directory: /tmp
+        run: |
+          python - <<'PY'
+          from importlib.resources import files
+
+          from adcp import get_adcp_spec_version
+          from adcp.types import ReportingCapabilities
+          from adcp.types.versioned import make_versioned_base
+
+          spec_version = get_adcp_spec_version()
+          current_bundle = (
+              spec_version
+              if "-" in spec_version
+              else ".".join(spec_version.split(".")[:2])
+          )
+          schema_root = files("adcp") / "_schemas"
+          packaged_versions = {
+              child.name
+              for child in schema_root.iterdir()
+              if child.is_dir()
+          }
+          assert packaged_versions == {"2.5", "3.0", "3.1", current_bundle}
+          assert make_versioned_base("3.1", "ListCreativesRequest")
+          assert ReportingCapabilities.__name__ == "ReportingCapabilities"
+          PY
 
       # Proxy for real downstream import sites (salesagent, creative agents,
       # signals agents). Any ImportError here means we broke the public API

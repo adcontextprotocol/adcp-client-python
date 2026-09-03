@@ -1,6 +1,13 @@
 from __future__ import annotations
 
-"""Base model for AdCP types with spec-compliant serialization."""
+"""Base model for structural AdCP application types and wire serialization.
+
+Generated Pydantic models provide typed construction, common field
+constraints, and spec-shaped serialization. Complete protocol conformance is
+defined by the bundled canonical JSON Schemas; validate at wire boundaries
+with :mod:`adcp.validation`. In particular, code generation cannot represent
+every JSON Schema conditional or ``x-adcp-validation`` behavioral rule.
+"""
 
 import os
 from collections.abc import Callable

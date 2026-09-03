@@ -17,6 +17,7 @@ handled by datamodel-code-generator directly:
 
 from __future__ import annotations
 
+import argparse
 import ast
 import importlib.util
 import json
@@ -53,6 +54,20 @@ _PROTOCOL_ENVELOPE_IMPORT = "from ..core.protocol_envelope import ProtocolEnvelo
 _VERSION_ENVELOPE_IMPORT = "from ..core.version_envelope import AdcpVersionEnvelope\n"
 _STR_ENUM_MEMBER_ASSIGNMENT_IGNORE = "  # type: ignore[assignment]"
 _STR_ATTRIBUTE_NAMES = set(dir(str))
+
+
+def _resolve_schema_ref(schema_rel: Path, ref: str) -> Path:
+    """Resolve a schema reference without dropping root-relative domains."""
+    file_ref = ref.split("#", 1)[0]
+    canonical_url = re.match(
+        r"^https://adcontextprotocol\.org/schemas/[^/]+/(.+)$",
+        file_ref,
+    )
+    if canonical_url:
+        return Path(canonical_url.group(1))
+    if file_ref.startswith("/schemas/"):
+        return Path(file_ref.removeprefix("/schemas/"))
+    return (SCHEMA_DIR / schema_rel.parent / file_ref).resolve().relative_to(SCHEMA_DIR.resolve())
 
 
 def _sync_protocol_envelope_import(source: str) -> str:
@@ -3323,20 +3338,6 @@ def restore_response_variant_aliases() -> None:
                 return name
         return class_names[-1]
 
-    def _resolve_ref(schema_rel: Path, ref: str) -> Path:
-        file_ref = ref.split("#", 1)[0]
-        canonical_url = re.match(
-            r"^https://adcontextprotocol\.org/schemas/[^/]+/(.+)$",
-            file_ref,
-        )
-        if canonical_url:
-            return Path(canonical_url.group(1))
-        if file_ref.startswith("/schemas/"):
-            return Path("/".join(file_ref.split("/")[3:]))
-        return (
-            (SCHEMA_DIR / schema_rel.parent / file_ref).resolve().relative_to(SCHEMA_DIR.resolve())
-        )
-
     def _safe_import_alias(module_stem: str, used: set[str]) -> str:
         base = module_stem.replace("-", "_")
         alias = f"{base}_1"
@@ -3423,7 +3424,7 @@ def restore_response_variant_aliases() -> None:
                 typ = self.type_for(name, ref_schema if isinstance(ref_schema, dict) else {})
                 self.local_ref_types[ref] = typ
                 return typ
-            ref_rel = _resolve_ref(self.schema_rel, ref)
+            ref_rel = _resolve_schema_ref(self.schema_rel, ref)
             parts = list(ref_rel.parts)
             module_stem = ref_rel.stem.replace("-", "_")
             class_name = _generated_class_name(ref_rel)
@@ -5155,8 +5156,23 @@ def enforce_change_term_runtime_constraints() -> None:
             print("  media_buy/commercial_terms.py: restored change-term set invariants")
 
 
-def main():
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=OUTPUT_DIR,
+        help="generated_poc tree to modify",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None):
     """Apply all post-generation fixes."""
+    global OUTPUT_DIR
+
+    args = _parse_args(argv)
+    OUTPUT_DIR = args.output_dir.resolve()
     print("Applying post-generation fixes...")
 
     fixes = [
