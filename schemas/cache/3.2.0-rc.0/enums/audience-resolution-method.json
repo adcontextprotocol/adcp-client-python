@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Audience Resolution Method",
+  "description": "How subjects were resolved when producing a signal or population-level evidence estimate.",
+  "type": "string",
+  "enum": [
+    "deterministic_id",
+    "probabilistic_device",
+    "browser",
+    "geographic",
+    "content_signal",
+    "mixed"
+  ]
+}

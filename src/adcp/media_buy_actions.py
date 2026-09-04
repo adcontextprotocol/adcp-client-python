@@ -1222,7 +1222,10 @@ def _unique_action_index(values: Iterable[Any], *, field: str) -> dict[str, Mapp
 
 
 def _supports_change_term_id(version: str) -> bool:
-    match = re.fullmatch(r"v?(\d+)\.(\d+)(?:\.\d+)?(?:-beta\.(\d+))?", version)
+    match = re.fullmatch(
+        r"v?(\d+)\.(\d+)(?:\.\d+)?(?:(?:-beta\.(\d+))|(?:-rc\.\d+))?",
+        version,
+    )
     if match is None:
         raise MediaBuyActionError("invalid_protocol_version", "protocol_version")
     major, minor = int(match.group(1)), int(match.group(2))
@@ -1233,7 +1236,10 @@ def _supports_change_term_id(version: str) -> bool:
 
 
 def _supports_action_task(version: str) -> bool:
-    match = re.fullmatch(r"v?(\d+)\.(\d+)(?:\.\d+)?(?:-beta\.(\d+))?", version)
+    match = re.fullmatch(
+        r"v?(\d+)\.(\d+)(?:\.\d+)?(?:(?:-beta\.\d+)|(?:-rc\.\d+))?",
+        version,
+    )
     if match is None:
         raise MediaBuyActionError("invalid_protocol_version", "protocol_version")
     return (int(match.group(1)), int(match.group(2))) >= (3, 2)

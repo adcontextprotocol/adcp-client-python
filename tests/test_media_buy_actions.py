@@ -34,7 +34,7 @@ ACTION_SCHEMA = (
     Path(__file__).parent.parent
     / "schemas"
     / "cache"
-    / "3.2.0-beta.11"
+    / "3.2.0-rc.0"
     / "core"
     / "canonical-media-buy-action.json"
 )
@@ -653,7 +653,7 @@ def test_resolved_condition_allows_seller_managed_standard_async_action() -> Non
             },
         ),
         (
-            "3.2.0-beta.11",
+            "3.2.0-rc.0",
             {
                 "action": "increase_budget",
                 "mode": "seller_managed",

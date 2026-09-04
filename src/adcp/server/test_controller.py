@@ -129,6 +129,7 @@ SCENARIOS = [
     "catalog_item_availability_probe",
     "compact_product_lifecycle_probe",
     "compact_direct_buy_lifecycle_probe",
+    "reporting_core_lifecycle_probe",
 ]
 
 _MAX_TASK_ID = 128
@@ -431,6 +432,7 @@ class TestControllerStore:
         reported_spend: dict[str, Any] | None = None,
         reach: float | None = None,
         frequency: float | None = None,
+        reach_unit: str | None = None,
         reach_window: dict[str, Any] | None = None,
         viewability: dict[str, Any] | None = None,
         vendor_metric_values: list[dict[str, Any]] | None = None,
@@ -646,6 +648,16 @@ class TestControllerStore:
         context: ToolContext | None = None,
     ) -> dict[str, Any]:
         """Prepare deterministic compact direct-buy lifecycle state."""
+        raise NotImplementedError
+
+    async def reporting_core_lifecycle_probe(
+        self,
+        operation: str,
+        target_health: str | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Prepare or advance deterministic Core reporting lifecycle state."""
         raise NotImplementedError
 
 
@@ -1319,6 +1331,31 @@ async def _handle_test_controller(
                 return _controller_error(
                     "INVALID_PARAMS",
                     f"Fields not allowed for prepare: {', '.join(sorted(forbidden))}",
+                )
+        elif scenario == "reporting_core_lifecycle_probe":
+            _require_scenario_params(scenario_params, "operation")
+            operation = scenario_params["operation"]
+            if operation not in {
+                "prepare",
+                "advance_time",
+                "publish_zero_row",
+                "omit_obligation",
+            }:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    "Unsupported reporting_core_lifecycle_probe operation",
+                )
+            if operation == "advance_time":
+                _require_scenario_params(scenario_params, "target_health")
+                if scenario_params["target_health"] not in {"delayed", "action_required"}:
+                    return _controller_error(
+                        "INVALID_PARAMS",
+                        "target_health must be 'delayed' or 'action_required'",
+                    )
+            elif "target_health" in scenario_params:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    "target_health is only allowed for advance_time",
                 )
         elif scenario not in {
             "seed_product",

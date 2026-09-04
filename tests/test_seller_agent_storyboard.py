@@ -880,13 +880,11 @@ async def test_beta9_change_rights_state_projection_storyboard() -> None:
     )
 
     active_response = await seller.get_media_buys({"media_buy_ids": ["change_rights_state_buy"]})
-    validator = get_named_validator(
-        "media-buy/get-media-buys-response.json", version="3.2.0-beta.11"
-    )
+    validator = get_named_validator("media-buy/get-media-buys-response.json", version="3.2.0-rc.0")
     assert validator is not None
     assert list(validator.iter_errors(active_response)) == []
     control_validator = get_named_validator(
-        "media-buy/control-media-buy-response.json", version="3.2.0-beta.11"
+        "media-buy/control-media-buy-response.json", version="3.2.0-rc.0"
     )
     assert control_validator is not None
     active = active_response["media_buys"][0]
