@@ -31,6 +31,11 @@ jobs:
         with:
           version: 1.7.7
           shellcheck: false
+          # actionlint v1.7.x predates GitHub's `queue: max` concurrency
+          # syntax. Keep linting every other workflow field until its parser
+          # catches up.
+          flags: >-
+            -ignore ^unexpected\s+key\s+\x22queue\x22\s+for\s+\x22concurrency\x22\s+section
       - name: Audit workflows
         uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
         with:

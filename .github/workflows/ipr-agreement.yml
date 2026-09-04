@@ -20,12 +20,18 @@ on:
   pull_request_target:
     types: [opened, synchronize, reopened]
 
-concurrency:
-  group: adcp-ipr-signature-write
-  cancel-in-progress: false
+# Do not serialize this workflow with a repository-wide concurrency group.
+# GitHub keeps at most one pending run in a group and cancels older pending
+# runs, which can leave their required IPR status unpublished. The job-level
+# queue below serializes events for one PR without blocking unrelated PRs.
 
 jobs:
   check:
+    concurrency:
+      group: adcp-ipr-${{ github.event.pull_request.number || github.event.issue.number }}
+      # Retain both synchronize and signature events instead of replacing an
+      # older pending run; the order matters for the final signature status.
+      queue: max
     permissions:
       contents: read
       pull-requests: write
