@@ -1,5 +1,13 @@
 # Changelog
 
+## [8.0.0-beta.13](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.12...v8.0.0-beta.13) (2026-09-04)
+
+
+### Features
+
+* **protocol:** adopt AdCP 3.2 rc.0 ([#1123](https://github.com/adcontextprotocol/adcp-client-python/issues/1123)) ([6314f45](https://github.com/adcontextprotocol/adcp-client-python/commit/6314f459f5cdcff6231dd4fd5546d966258e70bb))
+* **sdk:** add principal, reporting, and controller support ([#1121](https://github.com/adcontextprotocol/adcp-client-python/issues/1121)) ([19c600e](https://github.com/adcontextprotocol/adcp-client-python/commit/19c600eff48c08fda20c3409848d154ca8a47eb2))
+
 ## [8.0.0-beta.12](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.11...v8.0.0-beta.12) (2026-09-03)
 
 
