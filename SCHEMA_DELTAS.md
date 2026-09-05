@@ -2,29 +2,90 @@
 
 ## Files added
 
-- `core/iana_timezone.py` — IanaTimezoneIdentifier
-- `core/product_identity.py` — ProductIdentity
-- `enums/daypart_timezone_mode.py` — DaypartTimezoneMode
+- `core/package_delivery_metric_value.py` — PackageDeliveryMetricValue, Qualifier
+- `core/reporting_adjustment.py` — AccountingPeriod, ReasonCode, ReportingAdjustment
+- `core/reporting_adjustment_receipt.py` — ReportingAdjustmentReceipt, ReportingAdjustmentRejectionCode, Status
+- `core/reporting_file_object_ref.py` — ReportingFileObjectReference
+- `core/reporting_ledger_changed_webhook.py` — ChangeKind, ReportingLedgerChangedWebhook
+- `core/reporting_native_version_ref.py` — ReportingNativeVersionReference
+- `core/reporting_reliability_statistics.py` — AdjustmentMagnitudeItem, Basis, Evidence, LatencyPercentiles, ReportingReliabilityMeasurementPeriod, ReportingReliabilityStatistics
+- `enums/reach_aggregation.py` — ReachAggregation
+- `enums/vendor_relationship.py` — VendorRelationship
 
 ## Field changes
 
+- `bundled/protocol/get_adcp_capabilities_response.py`
+  - **classes added**: AdjustmentMagnitudeItem, Basis, Evidence, LatencyPercentiles, PeriodTimezonePolicy, ReliabilityStatistic, ReportingReliabilityMeasurementPeriod
+  - `Alignment`: `+source_timezone`
+  - `ReportingDelivery`: `+ledger_notification`, `+reliability_statistics`, `+reliable_reporting_version`, `+revision_content_task`
+  - `Schedule`: `+period_timezone_policy`
 - `compliance/comply_test_controller_request.py`
-  - **classes added**: TargetHealth
-  - `Operation`: `+omit_obligation`, `+publish_zero_row`
-  - `Params`: `+reach_unit`, `+target_health`
-- `core/canonical_product.py`
-  - `CanonicalProduct`: `+identity`, `+overlay_support`
-- `core/daypart_target.py`
-  - `DaypartTarget`: `+timezone`
-- `core/product.py`
-  - `Product`: `+identity`
-- `core/targeting_overlay_requirements.py`
-  - **classes added**: DaypartRequirement, DaypartRequirement1
-- `core/targeting_overlay_support.py`
-  - **classes added**: DaypartSupport, DaypartSupport1, IanaTimezones
-- `media_buy/get_products_request.py`
-  - `Field1`: `+identity`
-- `media_buy/product_fields.py`
-  - `ProductResponseField`: `+identity`
-- `pricing_options/flat_rate_option.py`
-  - `Parameters`: `+loop_position`, `+slot_span`
+  - `Operation`: `+advance_within_retention`, `+probe_scheduler_dst`, `+publish_adjustment`, `+publish_nonempty`, `+publish_official_adjustment`, `+revoke_access`, `+suppress_readiness`
+- `core/committed_metric.py`
+  - `CommittedMetric2`: `+methodology_version`
+- `core/delivery_metric_aggregate.py`
+  - **classes added**: Field0
+  - **classes removed**: DeliveryMetricAggregate1
+- `core/forecast_vendor_metric_value.py`
+  - `ForecastVendorMetricValue`: `+measurable_play_seconds`, `+measurable_plays`
+- `core/notification_config.py`
+  - `EventType`: `+reporting_ledger_changed`
+- `core/reporting_capabilities.py`
+  - `VendorMetric`: `+vendor_relationship`
+- `core/reporting_delivery_capabilities.py`
+  - `ReportingDeliveryCapabilities`: `+ledger_notification`, `+reliability_statistics`, `+reliable_reporting_version`, `+revision_content_task`
+- `core/reporting_file_entry.py`
+  - `ReportingFileEntry`: `+native_version_ref`
+- `core/reporting_obligation.py`
+  - `ReportingObligation`: `+accepted_adjustment_receipt_count`, `+adjustment_count`, `+adjustment_receipt_count`, `+pending_adjustment_count`
+- `core/reporting_receipt.py`
+  - `ReportingReceipt`: `+supersedes_reporting_receipt_id`
+- `core/reporting_report_definition.py`
+  - **classes added**: ContractVersion
+  - `ReportCalendarTimezoneBasis`: `+schedule_timezone`
+  - `RestatementPolicy`: `+official_correction_mode`
+- `core/reporting_revision.py`
+  - `ReportingRevision`: `+revision_content_sha256`
+- `core/reporting_schedule.py`
+  - `ReportingScheduleAlignment`: `+source_timezone`
+- `core/reporting_schedule_offering.py`
+  - **classes added**: PeriodTimezonePolicy
+  - `ReportingScheduleOffering`: `+period_timezone_policy`
+- `core/reporting_status_issue.py`
+  - `Code`: `+ADJUSTMENT_RECEIPT_REJECTED`, `+ADJUSTMENT_RECEIPT_REQUIRED`, `+RECEIPT_REJECTED`, `+RECEIPT_REQUIRED`
+- `core/vendor_metric_value.py`
+  - `VendorMetricValue`: `+measurable_play_seconds`, `+measurable_plays`, `+vendor_relationship`
+- `core/x_entity_types.py`
+  - `XEntityTypes`: `+reporting_adjustment`
+- `enums/notification_type.py`
+  - `NotificationType`: `+reporting_ledger_changed`
+- `governance/sync_plans_response.py`
+  - **classes added**: Status45
+  - **classes removed**: Status44
+- `media_buy/get_media_buy_delivery_request.py`
+  - `GetMediaBuyDeliveryRequest`: `+pagination`, `+reporting_revision_id`
+- `media_buy/get_media_buy_delivery_response.py`
+  - **classes added**: ReportingRevisionBinding
+  - `AggregatedTotals`: `+reach_aggregation`
+  - `ByPackageItem`: `+metric_values`
+  - `ByPackageItem1`: `+currency`
+  - `GetMediaBuyDeliveryResponse`: `+pagination`, `+reporting_revision`, `+reporting_revision_binding`, `+reporting_rows`
+  - `MediaBuyDelivery`: `+currency`
+  - `Totals`: `-spend`
+- `media_buy/get_reporting_status_request.py`
+  - `GetReportingStatusRequest`: `+changes_after`
+- `media_buy/get_reporting_status_response.py`
+  - `GetReportingStatusResponse`: `+adjustment_receipts`, `+adjustments`, `+changes_checkpoint`
+- `media_buy/media_buy_delivery_webhook_result.py`
+  - `ByPackageItem`: `+metric_values`
+  - `MediaBuyDelivery`: `+currency`
+  - `Totals`: `-spend`
+- `media_buy/package_request.py`
+  - `CommittedMetrics2`: `+methodology_version`
+- `media_buy/sync_reporting_receipts_request.py`
+  - `SyncReportingReceiptsRequest`: `+adjustment_receipts`
+- `media_buy/sync_reporting_receipts_response.py`
+  - **classes added**: Results20, Results21
+- `sponsored_intelligence/si_sponsored_context_receipt.py`
+  - **classes added**: Status42
+  - **classes removed**: Status41

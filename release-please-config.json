@@ -5,7 +5,7 @@
       "package-name": "adcp",
       "changelog-path": "CHANGELOG.md",
       "versioning": "prerelease",
-      "prerelease-type": "beta",
+      "prerelease-type": "rc",
       "prerelease": true,
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
