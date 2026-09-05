@@ -53,38 +53,6 @@ jobs:
           advanced-security: false
           annotations: true
 
-  static-analysis:
-    name: Static analysis (Python 3.12)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: pyproject.toml
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
-      - name: Run linter
-        run: ruff check src/
-
-      - name: Run type checker
-        run: mypy src/adcp/
-
-      - name: Run adopter type-check suite
-        run: mypy --strict tests/type_checks/
-
-      - name: Enforce adopter type-check fixture contract
-        run: python scripts/check_type_ignore_contract.py
-
   test:
     name: Test Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
@@ -107,6 +75,22 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
+
+      - name: Run linter
+        if: matrix.python-version == '3.12'
+        run: ruff check src/
+
+      - name: Run type checker
+        if: matrix.python-version == '3.12'
+        run: mypy src/adcp/
+
+      - name: Run adopter type-check suite
+        if: matrix.python-version == '3.12'
+        run: mypy --strict tests/type_checks/
+
+      - name: Enforce adopter type-check fixture contract
+        if: matrix.python-version == '3.12'
+        run: python scripts/check_type_ignore_contract.py
 
       - name: Run tests
         if: matrix.python-version != '3.12'
