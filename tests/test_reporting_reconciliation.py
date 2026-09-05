@@ -151,6 +151,7 @@ def test_capability_uses_public_reporting_delivery_model() -> None:
 
 REVISION = {
     "reporting_revision_id": "revision-august-official",
+    "revision_content_sha256": "e" * 64,
     "report_definition_id": "billing-v1",
     "report_definition_uri": "https://schemas.example/reporting/billing-v1.json",
     "report_definition_sha256": "d" * 64,

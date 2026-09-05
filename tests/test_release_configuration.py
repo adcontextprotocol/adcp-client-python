@@ -1,4 +1,4 @@
-"""Release automation is the single source of truth for the SDK 8 beta line."""
+"""Release automation is the single source of truth for the SDK 8 RC line."""
 
 from __future__ import annotations
 
@@ -23,9 +23,9 @@ def test_worktree_version_matches_normalized_release_manifest() -> None:
     assert project_section.group(1) == pep440_prerelease(manifest["."])
 
 
-def test_release_please_targets_sdk_8_beta_from_breaking_commit() -> None:
+def test_release_please_targets_sdk_8_rc_from_breaking_commit() -> None:
     config = json.loads((ROOT / "release-please-config.json").read_text())
     package = config["packages"]["."]
     assert package["versioning"] == "prerelease"
-    assert package["prerelease-type"] == "beta"
+    assert package["prerelease-type"] == "rc"
     assert package["prerelease"] is True

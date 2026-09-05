@@ -635,7 +635,7 @@ class ManifestReportingInspector:
                 ReportingInspectionCode.MANIFEST_IDENTITY_MISMATCH,
                 "manifest does not match the reporting ledger records",
             )
-        refs = [entry.object_ref for entry in manifest.files]
+        refs = [entry.object_ref.root for entry in manifest.files]
         if len(refs) != len(set(refs)):
             raise ReportingInspectionError(
                 ReportingInspectionCode.DUPLICATE_OBJECT,
@@ -648,11 +648,13 @@ class ManifestReportingInspector:
             )
         verification = materialization.verification
         physical = {
-            item.object_ref: item.value.lower()
+            item.object_ref.root: item.value.lower()
             for item in (verification.physical_checksums if verification else None) or []
             if str(item.algorithm) == "sha256"
         }
-        if any(physical.get(entry.object_ref) != entry.sha256.lower() for entry in manifest.files):
+        if any(
+            physical.get(entry.object_ref.root) != entry.sha256.lower() for entry in manifest.files
+        ):
             raise ReportingInspectionError(
                 ReportingInspectionCode.MANIFEST_IDENTITY_MISMATCH,
                 "manifest checksums do not match producer verification evidence",
@@ -673,6 +675,7 @@ class ManifestReportingInspector:
         total_decoded_bytes = 0
         total_rows = 0
         for entry in manifest.files:
+            object_ref = entry.object_ref.root
             if entry.size_bytes > self._max_object_bytes:
                 raise ReportingInspectionError(
                     ReportingInspectionCode.RESOURCE_TOO_LARGE,
@@ -689,7 +692,7 @@ class ManifestReportingInspector:
                     "manifest exceeds the configured aggregate inspection limits",
                 )
             body = await self._read(
-                entry.object_ref,
+                object_ref,
                 base=resource.location,
                 max_bytes=min(self._max_object_bytes, entry.size_bytes + 1),
                 expected_content_types=_object_content_types(str(manifest.format)),
@@ -697,12 +700,12 @@ class ManifestReportingInspector:
             if len(body) != entry.size_bytes:
                 raise ReportingInspectionError(
                     ReportingInspectionCode.OBJECT_SIZE_MISMATCH,
-                    f"reporting object {entry.object_ref!r} has the wrong size",
+                    f"reporting object {object_ref!r} has the wrong size",
                 )
             if _digest(body).lower() != entry.sha256.lower():
                 raise ReportingInspectionError(
                     ReportingInspectionCode.OBJECT_DIGEST_MISMATCH,
-                    f"reporting object {entry.object_ref!r} failed checksum validation",
+                    f"reporting object {object_ref!r} failed checksum validation",
                 )
             file_rows, decoded_bytes = _decode_rows(
                 body,
@@ -720,7 +723,7 @@ class ManifestReportingInspector:
             if len(file_rows) != entry.row_count:
                 raise ReportingInspectionError(
                     ReportingInspectionCode.ROW_COUNT_MISMATCH,
-                    f"reporting object {entry.object_ref!r} has the wrong row count",
+                    f"reporting object {object_ref!r} has the wrong row count",
                 )
             rows.extend(file_rows)
 
