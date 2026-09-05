@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from adcp.types.response_dispatch import ResponseArmDispatchMixin
+
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
@@ -297,7 +299,24 @@ class Error(StrEnum):
     INTERNAL_ERROR = 'INTERNAL_ERROR'
 
 
-class ComplyTestControllerResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
+class ComplyTestControllerResponse(ResponseArmDispatchMixin, AdcpVersionEnvelope, ProtocolEnvelope):
+    """Constructible compatibility base for generated response arms."""
+
+    @classmethod
+    def _response_arm_models(cls) -> tuple[type[ComplyTestControllerResponse], ...]:
+        return (
+            ComplyTestControllerResponse1,
+            ComplyTestControllerResponse2,
+            ComplyTestControllerResponse3,
+            ComplyTestControllerResponse4,
+            ComplyTestControllerResponse5,
+            ComplyTestControllerResponse6,
+            ComplyTestControllerResponse7,
+            ComplyTestControllerResponse8,
+        )
+
+
+class ComplyTestControllerResponse1(ComplyTestControllerResponse):
     model_config = ConfigDict(
         extra='allow',
     )
@@ -312,7 +331,7 @@ class ComplyTestControllerResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class ComplyTestControllerResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
+class ComplyTestControllerResponse2(ComplyTestControllerResponse):
     model_config = ConfigDict(
         extra='allow',
     )
@@ -326,7 +345,7 @@ class ComplyTestControllerResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class ComplyTestControllerResponse3(AdcpVersionEnvelope, ProtocolEnvelope):
+class ComplyTestControllerResponse3(ComplyTestControllerResponse):
     model_config = ConfigDict(
         extra='allow',
     )
@@ -344,7 +363,7 @@ class ComplyTestControllerResponse3(AdcpVersionEnvelope, ProtocolEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class ComplyTestControllerResponse4(AdcpVersionEnvelope, ProtocolEnvelope):
+class ComplyTestControllerResponse4(ComplyTestControllerResponse):
     model_config = ConfigDict(
         extra='allow',
     )
@@ -360,7 +379,7 @@ class ComplyTestControllerResponse4(AdcpVersionEnvelope, ProtocolEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class ComplyTestControllerResponse5(AdcpVersionEnvelope, ProtocolEnvelope):
+class ComplyTestControllerResponse5(ComplyTestControllerResponse):
     model_config = ConfigDict(
         extra='allow',
     )
@@ -370,7 +389,7 @@ class ComplyTestControllerResponse5(AdcpVersionEnvelope, ProtocolEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class ComplyTestControllerResponse6(AdcpVersionEnvelope, ProtocolEnvelope):
+class ComplyTestControllerResponse6(ComplyTestControllerResponse):
     model_config = ConfigDict(
         extra='allow',
     )
@@ -386,7 +405,7 @@ class ComplyTestControllerResponse6(AdcpVersionEnvelope, ProtocolEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class ComplyTestControllerResponse7(AdcpVersionEnvelope, ProtocolEnvelope):
+class ComplyTestControllerResponse7(ComplyTestControllerResponse):
     model_config = ConfigDict(
         extra='allow',
     )
@@ -420,7 +439,7 @@ class ComplyTestControllerResponse7(AdcpVersionEnvelope, ProtocolEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class ComplyTestControllerResponse8(AdcpVersionEnvelope, ProtocolEnvelope):
+class ComplyTestControllerResponse8(ComplyTestControllerResponse):
     model_config = ConfigDict(
         extra='allow',
     )
@@ -439,15 +458,3 @@ class ComplyTestControllerResponse8(AdcpVersionEnvelope, ProtocolEnvelope):
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
-
-
-ComplyTestControllerResponse = (
-    ComplyTestControllerResponse1
-    | ComplyTestControllerResponse2
-    | ComplyTestControllerResponse3
-    | ComplyTestControllerResponse4
-    | ComplyTestControllerResponse5
-    | ComplyTestControllerResponse6
-    | ComplyTestControllerResponse7
-    | ComplyTestControllerResponse8
-)

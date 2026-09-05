@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from adcp.types.response_dispatch import ResponseArmDispatchMixin
+
 from typing import Annotated
 
 from pydantic import Field
@@ -15,7 +17,18 @@ from ..core.protocol_envelope import ProtocolEnvelope
 from ..core.version_envelope import AdcpVersionEnvelope
 
 
-class CreateContentStandardsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
+class CreateContentStandardsResponse(ResponseArmDispatchMixin, AdcpVersionEnvelope, ProtocolEnvelope):
+    """Constructible compatibility base for generated response arms."""
+
+    @classmethod
+    def _response_arm_models(cls) -> tuple[type[CreateContentStandardsResponse], ...]:
+        return (
+            CreateContentStandardsResponse1,
+            CreateContentStandardsResponse2,
+        )
+
+
+class CreateContentStandardsResponse1(CreateContentStandardsResponse):
     standards_id: Annotated[
         str, Field(description='Unique identifier for the created standards configuration')
     ]
@@ -23,7 +36,7 @@ class CreateContentStandardsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class CreateContentStandardsResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
+class CreateContentStandardsResponse2(CreateContentStandardsResponse):
     errors: list[error.Error]
     conflicting_standards_id: Annotated[
         str | None,
@@ -33,6 +46,3 @@ class CreateContentStandardsResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
-
-
-CreateContentStandardsResponse = CreateContentStandardsResponse1 | CreateContentStandardsResponse2

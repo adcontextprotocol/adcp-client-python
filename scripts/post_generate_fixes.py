@@ -52,6 +52,9 @@ SCHEMA_DIR = REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY
 
 _PROTOCOL_ENVELOPE_IMPORT = "from ..core.protocol_envelope import ProtocolEnvelope\n"
 _VERSION_ENVELOPE_IMPORT = "from ..core.version_envelope import AdcpVersionEnvelope\n"
+_RESPONSE_ARM_DISPATCH_IMPORT = (
+    "from adcp.types.response_dispatch import ResponseArmDispatchMixin\n"
+)
 _STR_ENUM_MEMBER_ASSIGNMENT_IGNORE = "  # type: ignore[assignment]"
 _STR_ATTRIBUTE_NAMES = set(dir(str))
 
@@ -1726,8 +1729,7 @@ def expose_account_reference_union_fields() -> None:
         if isinstance(node, ast.Name):
             return [node.id]
         raise RuntimeError(
-            "generated AccountReference has an unsupported union expression: "
-            f"{ast.unparse(node)}"
+            f"generated AccountReference has an unsupported union expression: {ast.unparse(node)}"
         )
 
     arm_names = union_arm_names(root_base.slice)
@@ -3461,6 +3463,298 @@ def disambiguate_comply_response_arm() -> None:
     print("  compliance response: renamed Arm -> ComplyResponseArm")
 
 
+def restore_flattened_contract_field_types() -> None:
+    """Restore constraints lost when codegen re-states ``allOf`` fields as ``Any``.
+
+    datamodel-code-generator 0.64 flattens a required field inherited through an
+    ``allOf`` and, for these two schemas, emits an untyped local override.  That
+    broadens the public model beyond the schema: signal references stop being
+    discriminated and creative representations accept arbitrary format kinds.
+    Keep the correction here so a clean regeneration retains the wire contract.
+    """
+    product_target = OUTPUT_DIR / "core" / "product_signal_targeting_option.py"
+    if product_target.exists():
+        source = product_target.read_text()
+        expected = "    signal_ref: Any"
+        replacement = """    signal_ref: Annotated[
+        signal_ref.SignalRef,
+        Field(
+            description="Canonical signal reference. Use scope 'product' for a product-local signal defined by this listing; use scope 'data_provider' with data_provider_domain for a signal defined in a data provider's published adagents.json signals[]; use scope 'signal_source' with signal_source_url for a source-native signal."
+        ),
+    ]"""
+        if expected in source:
+            vendor_import = "from . import vendor_pricing_option\n"
+            if vendor_import not in source:
+                raise RuntimeError("product_signal_targeting_option.py: missing vendor import")
+            source = source.replace(
+                vendor_import, "from . import signal_ref, vendor_pricing_option\n", 1
+            )
+            source = source.replace(expected, replacement, 1)
+            # ``Any`` was imported only for the codegen-erased field.
+            source = source.replace(
+                "from typing import Annotated, Any\n", "from typing import Annotated\n"
+            )
+            product_target.write_text(source)
+            print("  core/product_signal_targeting_option.py: restored SignalRef discriminator")
+        elif replacement in source:
+            print(
+                "  core/product_signal_targeting_option.py: SignalRef discriminator already restored"
+            )
+        else:
+            raise RuntimeError(
+                "product_signal_targeting_option.py: expected signal_ref override not found"
+            )
+    else:
+        print(
+            "  core/product_signal_targeting_option.py not found (skipping SignalRef restoration)"
+        )
+
+    representation_target = OUTPUT_DIR / "core" / "creative_representation.py"
+    if not representation_target.exists():
+        print("  core/creative_representation.py not found (skipping representation restoration)")
+        return
+
+    source = representation_target.read_text()
+    expected = "    format_kind: Any"
+    replacement = """    format_kind: Annotated[
+        CanonicalFormatKind,
+        Field(
+            description="Canonical 3.2 path. The canonical format name this manifest targets (e.g., `image`, `video_hosted`, `audio_vast`, `seller_rendered_stateful_display`, `coordinated_placements`). Selects the contract against which the seller validates the manifest's assets. Mutually exclusive with deprecated `format_id`."
+        ),
+    ]"""
+    if expected in source:
+        if "from .canonical_format_kind import CanonicalFormatKind\n" not in source:
+            anchor = "from .creative_manifest import CreativeManifest\n"
+            if anchor not in source:
+                raise RuntimeError("creative_representation.py: missing CreativeManifest import")
+            source = source.replace(
+                anchor, "from .canonical_format_kind import CanonicalFormatKind\n" + anchor, 1
+            )
+        source = source.replace(expected, replacement, 1)
+    elif replacement not in source:
+        raise RuntimeError("creative_representation.py: expected format_kind override not found")
+
+    generated_config = """class CreativeRepresentation(CreativeManifest):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+"""
+    contract_config = """class CreativeRepresentation(CreativeManifest):
+    model_config = ConfigDict(
+        extra='allow',
+        json_schema_extra={
+            'not': {
+                'anyOf': [
+                    {'required': ['format_id']},
+                    {'required': ['format_option_ref']},
+                    {'required': ['representation_selection']},
+                ]
+            }
+        },
+    )
+"""
+    if generated_config in source:
+        source = source.replace(generated_config, contract_config, 1)
+    elif "json_schema_extra=" not in source:
+        raise RuntimeError("creative_representation.py: expected model configuration not found")
+
+    if "@model_validator(mode='before')" not in source:
+        if "from pydantic import ConfigDict, Field\n" not in source:
+            raise RuntimeError("creative_representation.py: missing Pydantic import")
+        source = source.replace(
+            "from pydantic import ConfigDict, Field\n",
+            "from pydantic import ConfigDict, Field, model_validator\n",
+            1,
+        )
+        source = (
+            source.rstrip()
+            + """
+
+    @model_validator(mode='before')
+    @classmethod
+    def _reject_seller_bound_manifest_fields(cls, data: Any) -> Any:
+        \"\"\"Representations cannot carry seller-side manifest selectors.\"\"\"
+        if isinstance(data, dict):
+            forbidden = ('format_id', 'format_option_ref', 'representation_selection')
+            present = [field for field in forbidden if field in data]
+            if present:
+                raise ValueError(
+                    'creative representations must not include ' + ', '.join(present)
+                )
+        return data
+"""
+        )
+    representation_target.write_text(source)
+    print("  core/creative_representation.py: restored canonical format contract")
+
+
+def enforce_transformer_output_contract() -> None:
+    """Require a transformer to declare canonical or legacy output formats."""
+    target = OUTPUT_DIR / "core" / "transformer.py"
+    if not target.exists():
+        print("  core/transformer.py not found (skipping transformer output contract)")
+        return
+
+    source = target.read_text()
+    if "def _require_output_format_declaration" in source:
+        old_condition = (
+            "        if self.output_capability_ids is None and self.output_format_ids is None:\n"
+        )
+        new_condition = """        # Read Pydantic's stored values directly so validation itself does not
+        # emit a deprecation warning for the still-supported legacy field.
+        if (
+            self.__dict__.get('output_capability_ids') is None
+            and self.__dict__.get('output_format_ids') is None
+        ):
+"""
+        if old_condition in source:
+            target.write_text(source.replace(old_condition, new_condition, 1))
+            print("  core/transformer.py: updated output contract deprecation handling")
+            return
+        print("  core/transformer.py: output contract already enforced")
+        return
+    if "class Transformer(" not in source:
+        raise RuntimeError("transformer.py: Transformer class not found")
+    if "from pydantic import AnyUrl, ConfigDict, Field, RootModel\n" not in source:
+        raise RuntimeError("transformer.py: missing Pydantic import")
+
+    source = source.replace(
+        "from pydantic import AnyUrl, ConfigDict, Field, RootModel\n",
+        "from pydantic import AnyUrl, ConfigDict, Field, RootModel, model_validator\n",
+        1,
+    )
+    target.write_text(
+        source.rstrip()
+        + """
+
+    @model_validator(mode='after')
+    def _require_output_format_declaration(self) -> Transformer:
+        \"\"\"At least one output declaration is required by the schema.\"\"\"
+        # Read Pydantic's stored values directly so validation itself does not
+        # emit a deprecation warning for the still-supported legacy field.
+        if (
+            self.__dict__.get('output_capability_ids') is None
+            and self.__dict__.get('output_format_ids') is None
+        ):
+            raise ValueError(
+                'one of output_capability_ids or deprecated output_format_ids is required'
+            )
+        return self
+"""
+    )
+    print("  core/transformer.py: enforced output declaration requirement")
+
+
+def restore_constructible_response_bases() -> None:
+    """Keep selected public response names as constructible Pydantic models.
+
+    The generated numbered arms are still the schema-specific parsing surface and
+    remain available through the existing aliases.  A top-level union alias,
+    however, is not constructible and breaks callers that used the stable response
+    model API. Restore the former envelope base and make every generated arm a
+    subclass of it. The shared mixin dispatches ``Base.model_validate`` through
+    the arms, preserving both forms without losing task-specific wire fields.
+    """
+    response_specs = (
+        ("compliance/comply_test_controller_response.py", "ComplyTestControllerResponse"),
+        (
+            "content_standards/create_content_standards_response.py",
+            "CreateContentStandardsResponse",
+        ),
+        ("content_standards/list_content_standards_response.py", "ListContentStandardsResponse"),
+        ("account/sync_governance_response.py", "SyncGovernanceResponse"),
+        (
+            "content_standards/update_content_standards_response.py",
+            "UpdateContentStandardsResponse",
+        ),
+    )
+
+    for relative_path, base_name in response_specs:
+        target = OUTPUT_DIR / relative_path
+        if not target.exists():
+            print(f"  {relative_path} not found (skipping constructible response base)")
+            continue
+
+        source = target.read_text()
+        if _RESPONSE_ARM_DISPATCH_IMPORT not in source:
+            future_import = "from __future__ import annotations\n\n"
+            if future_import not in source:
+                raise RuntimeError(f"{relative_path}: missing future annotations import")
+            source = source.replace(
+                future_import, future_import + _RESPONSE_ARM_DISPATCH_IMPORT + "\n", 1
+            )
+        try:
+            tree = ast.parse(source)
+        except SyntaxError as exc:
+            raise RuntimeError(f"{relative_path}: invalid generated Python") from exc
+
+        arms = [
+            node
+            for node in tree.body
+            if isinstance(node, ast.ClassDef)
+            and re.fullmatch(rf"{re.escape(base_name)}\d+", node.name)
+        ]
+        if not arms:
+            print(f"  {relative_path}: response arms not generated (skipping constructible base)")
+            continue
+
+        stable_base_exists = any(
+            isinstance(node, ast.ClassDef) and node.name == base_name for node in tree.body
+        )
+        lines = source.splitlines(keepends=True)
+        for node in tree.body:
+            target_names: list[str] = []
+            if isinstance(node, ast.Assign):
+                target_names = [item.id for item in node.targets if isinstance(item, ast.Name)]
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                target_names = [node.target.id]
+            if base_name in target_names:
+                end_line = node.end_lineno or node.lineno
+                for line_number in range(node.lineno - 1, end_line):
+                    lines[line_number] = ""
+        source = "".join(lines)
+
+        arm_names = [
+            arm.name for arm in sorted(arms, key=lambda arm: int(arm.name.removeprefix(base_name)))
+        ]
+        for arm in arms:
+            arm_header = re.compile(rf"^class {re.escape(arm.name)}\([^\n]*\):$", re.MULTILINE)
+            source, replacements = arm_header.subn(
+                f"class {arm.name}({base_name}):", source, count=1
+            )
+            if replacements != 1:
+                raise RuntimeError(f"{relative_path}: unable to rewrite {arm.name} base")
+
+        first_arm = min(arms, key=lambda arm: arm.lineno)
+        arm_marker = f"class {first_arm.name}("
+        first_arm_position = source.find(arm_marker)
+        if first_arm_position < 0:
+            raise RuntimeError(f"{relative_path}: unable to locate {first_arm.name}")
+        arm_list = ",\n            ".join(arm_names)
+        compatibility_base = f"""class {base_name}(ResponseArmDispatchMixin, AdcpVersionEnvelope, ProtocolEnvelope):
+    \"\"\"Constructible compatibility base for generated response arms.\"\"\"
+
+    @classmethod
+    def _response_arm_models(cls) -> tuple[type[{base_name}], ...]:
+        return (
+            {arm_list},
+        )
+
+
+"""
+        if not stable_base_exists:
+            source = source[:first_arm_position] + compatibility_base + source[first_arm_position:]
+        else:
+            base_marker = f"class {base_name}("
+            base_position = source.find(base_marker)
+            if base_position < 0:
+                raise RuntimeError(f"{relative_path}: unable to update {base_name} base")
+            source = source[:base_position] + compatibility_base + source[first_arm_position:]
+
+        target.write_text(source.rstrip() + "\n")
+        print(f"  {relative_path}: restored constructible {base_name} base")
+
+
 def restore_response_variant_aliases() -> None:
     """Restore numbered response arms from schema data, not hand-written payloads.
 
@@ -5057,9 +5351,7 @@ def fix_audience_evidence_attestation_subject() -> None:
             break
     if subject_class is None:
         return
-    fixed_class = (
-        "class AttestationRef(AttestationReference):\n" f"    subject: {subject_class}\n\n"
-    )
+    fixed_class = f"class AttestationRef(AttestationReference):\n    subject: {subject_class}\n\n"
     fixed = source[:class_start] + fixed_class + source[next_class + 1 :]
     if fixed != source:
         target.write_text(fixed)
@@ -5449,6 +5741,9 @@ def main(argv: list[str] | None = None):
         restore_format_asset_numbered_aliases,
         restore_principal_result_aliases,
         disambiguate_comply_response_arm,
+        restore_flattened_contract_field_types,
+        enforce_transformer_output_contract,
+        restore_constructible_response_bases,
         restore_response_variant_aliases,
         fix_compliance_task_completion_response_ref,
         restore_get_products_field_compatibility_enum,

@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from adcp.types.response_dispatch import ResponseArmDispatchMixin
+
 from typing import Annotated
 
 from pydantic import Field
@@ -17,13 +19,24 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from . import content_standards
 
 
-class ListContentStandardsResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
+class ListContentStandardsResponse(ResponseArmDispatchMixin, AdcpVersionEnvelope, ProtocolEnvelope):
+    """Constructible compatibility base for generated response arms."""
+
+    @classmethod
+    def _response_arm_models(cls) -> tuple[type[ListContentStandardsResponse], ...]:
+        return (
+            ListContentStandardsResponse1,
+            ListContentStandardsResponse2,
+        )
+
+
+class ListContentStandardsResponse2(ListContentStandardsResponse):
     errors: list[error.Error]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
 
 
-class ListContentStandardsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
+class ListContentStandardsResponse1(ListContentStandardsResponse):
     standards: Annotated[
         list[content_standards.ContentStandards],
         Field(description='Array of content standards configurations matching the filter criteria'),
@@ -31,6 +44,3 @@ class ListContentStandardsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     pagination: pagination_response.PaginationResponse | None = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
-
-
-ListContentStandardsResponse = ListContentStandardsResponse1 | ListContentStandardsResponse2

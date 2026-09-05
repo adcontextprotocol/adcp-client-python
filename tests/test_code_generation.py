@@ -94,6 +94,113 @@ def test_disambiguate_comply_response_arm_renames_class_and_references(tmp_path,
     assert "class Arm(" not in source
 
 
+def test_post_generation_restores_codegen_contract_compatibility(tmp_path, monkeypatch):
+    """Known 0.64 flattening and response-union regressions stay repaired."""
+    from scripts import post_generate_fixes
+
+    core_dir = tmp_path / "core"
+    core_dir.mkdir()
+    (core_dir / "product_signal_targeting_option.py").write_text(
+        "from typing import Annotated, Any\n"
+        "from . import vendor_pricing_option\n"
+        "from .signal_listing import SignalListing\n"
+        "class ProductSignalTargetingOption(SignalListing):\n"
+        "    signal_ref: Any\n"
+    )
+    (core_dir / "creative_representation.py").write_text(
+        "from typing import Annotated, Any\n"
+        "from pydantic import ConfigDict, Field\n"
+        "from .creative_manifest import CreativeManifest\n"
+        "class CreativeRepresentation(CreativeManifest):\n"
+        "    model_config = ConfigDict(\n"
+        "        extra='allow',\n"
+        "    )\n"
+        "    format_kind: Any\n"
+    )
+    (core_dir / "transformer.py").write_text(
+        "from pydantic import AnyUrl, ConfigDict, Field, RootModel\n"
+        "class Transformer(AdCPBaseModel):\n"
+        "    pass\n"
+    )
+    response_specs = (
+        ("compliance/comply_test_controller_response.py", "ComplyTestControllerResponse"),
+        (
+            "content_standards/create_content_standards_response.py",
+            "CreateContentStandardsResponse",
+        ),
+        (
+            "content_standards/list_content_standards_response.py",
+            "ListContentStandardsResponse",
+        ),
+        ("account/sync_governance_response.py", "SyncGovernanceResponse"),
+        (
+            "content_standards/update_content_standards_response.py",
+            "UpdateContentStandardsResponse",
+        ),
+    )
+    for relative_path, response_name in response_specs:
+        target = tmp_path / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(
+            "from __future__ import annotations\n\n"
+            "class " + response_name + "1(AdcpVersionEnvelope, ProtocolEnvelope):\n    pass\n"
+            "class "
+            + response_name
+            + "2(AdcpVersionEnvelope, ProtocolEnvelope):\n    pass\n"
+            + response_name
+            + " = "
+            + response_name
+            + "1 | "
+            + response_name
+            + "2\n"
+        )
+
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", tmp_path)
+    post_generate_fixes.restore_flattened_contract_field_types()
+    post_generate_fixes.enforce_transformer_output_contract()
+    post_generate_fixes.restore_constructible_response_bases()
+    # The functions are deliberately safe when the post-fix pass runs twice.
+    post_generate_fixes.restore_flattened_contract_field_types()
+    post_generate_fixes.enforce_transformer_output_contract()
+    post_generate_fixes.restore_constructible_response_bases()
+
+    product_source = (core_dir / "product_signal_targeting_option.py").read_text()
+    assert "from . import signal_ref" in product_source
+    assert "signal_ref: Annotated[\n        signal_ref.SignalRef," in product_source
+    assert "Canonical signal reference." in product_source
+
+    representation_source = (core_dir / "creative_representation.py").read_text()
+    assert "from .canonical_format_kind import CanonicalFormatKind" in representation_source
+    assert "format_kind: Annotated[\n        CanonicalFormatKind," in representation_source
+    assert "Canonical 3.2 path." in representation_source
+    assert "'representation_selection'" in representation_source
+    assert "@model_validator(mode='before')" in representation_source
+
+    transformer_source = (core_dir / "transformer.py").read_text()
+    assert "@model_validator(mode='after')" in transformer_source
+    assert "output_capability_ids" in transformer_source
+    assert "output_format_ids" in transformer_source
+
+    for relative_path, response_name in response_specs:
+        response_source = (tmp_path / relative_path).read_text()
+        dispatch_import = "from adcp.types.response_dispatch import ResponseArmDispatchMixin"
+        assert dispatch_import in response_source
+        assert (
+            f"class {response_name}(ResponseArmDispatchMixin, "
+            "AdcpVersionEnvelope, ProtocolEnvelope):" in response_source
+        )
+        assert f"class {response_name}1({response_name}):" in response_source
+        arm_method = (
+            "def _response_arm_models(cls) -> tuple[type[" + response_name + "], ...]:\n"
+            "        return (\n"
+            "            " + response_name + "1,\n"
+            "            " + response_name + "2,\n"
+            "        )"
+        )
+        assert arm_method in response_source
+        assert f"{response_name} =" not in response_source
+
+
 def test_normalize_enum_descriptions_preserves_enum_order():
     """Description maps become the positional list expected by codegen 0.64+."""
     from scripts.generate_types import normalize_enum_descriptions
@@ -309,13 +416,13 @@ def test_rewrite_refs_preserves_macro_declaration_canonical_enum_ref():
     from scripts.generate_types import rewrite_refs
 
     schema = {
-        "$ref": ("https://adcontextprotocol.org/schemas/3.2.0-beta.10/" "enums/macro-dialect.json")
+        "$ref": ("https://adcontextprotocol.org/schemas/3.2.0-beta.10/enums/macro-dialect.json")
     }
 
     rewrite_refs(schema, Path("core/macro-declaration.json"))
 
     assert schema["$ref"] == (
-        "https://adcontextprotocol.org/schemas/3.2.0-beta.10/" "enums/macro-dialect.json"
+        "https://adcontextprotocol.org/schemas/3.2.0-beta.10/enums/macro-dialect.json"
     )
 
 
@@ -727,9 +834,7 @@ def test_post_generate_restores_combined_get_products_field_enum(tmp_path, monke
         "    pass\n"
     )
     (media_buy_dir / "product_fields.py").write_text(
-        "class ProductResponseField(StrEnum):\n"
-        "    product_id = 'product_id'\n"
-        "    name = 'name'\n"
+        "class ProductResponseField(StrEnum):\n    product_id = 'product_id'\n    name = 'name'\n"
     )
     monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
 
