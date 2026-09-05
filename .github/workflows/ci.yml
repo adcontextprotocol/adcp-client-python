@@ -19,6 +19,7 @@ jobs:
   workflow-security:
     name: Workflow security
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       security-events: write
@@ -52,9 +53,42 @@ jobs:
           advanced-security: false
           annotations: true
 
+  static-analysis:
+    name: Static analysis (Python 3.12)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run linter
+        run: ruff check src/
+
+      - name: Run type checker
+        run: mypy src/adcp/
+
+      - name: Run adopter type-check suite
+        run: mypy --strict tests/type_checks/
+
+      - name: Enforce adopter type-check fixture contract
+        run: python scripts/check_type_ignore_contract.py
+
   test:
     name: Test Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
@@ -66,35 +100,26 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
-      - name: Run linter
-        run: |
-          ruff check src/
-
-      - name: Run type checker
-        run: |
-          mypy src/adcp/
-
-      - name: Run adopter type-check suite
-        run: |
-          mypy --strict tests/type_checks/
-
-      - name: Enforce adopter type-check fixture contract
-        run: |
-          python scripts/check_type_ignore_contract.py
-
       - name: Run tests
-        run: |
-          pytest tests/ -v --cov=src/adcp --cov-report=term-missing
+        if: matrix.python-version != '3.12'
+        run: pytest tests/ -v
+
+      - name: Run tests with coverage
+        if: matrix.python-version == '3.12'
+        run: pytest tests/ -v --cov=src/adcp --cov-report=term-missing
 
   pg-conformance:
     name: Postgres conformance tests (Postgres 16)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgres:
         # CI-local ephemeral database. POSTGRES_HOST_AUTH_METHOD=trust
@@ -120,6 +145,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Install dependencies (with [pg] extra)
         run: |
@@ -141,6 +168,7 @@ jobs:
   conventional-commits:
     name: Validate conventional commit format
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.event_name == 'pull_request'
 
     steps:
@@ -197,6 +225,7 @@ jobs:
   downstream-imports:
     name: Downstream import smoke (representative consumer symbols)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v6
@@ -205,6 +234,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Build sdist and install its wheel
         run: |
@@ -321,6 +352,7 @@ jobs:
   schema-check:
     name: Validate schemas are up-to-date
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v6
@@ -329,6 +361,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Install dependencies
         run: |
@@ -426,6 +460,7 @@ jobs:
   storyboard:
     name: AdCP storyboard runner — examples/seller_agent.py (@adcp/sdk ${{ matrix.adcp-sdk-tag }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # Blocking gate: examples/seller_agent.py is the Python-owned
     # reference target for bidirectional storyboard interop. The matrix
     # runs two legs: the sticky ``adcp-3.0`` tag is a fixed, reproducible
@@ -443,6 +478,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Set up Node 22
         uses: actions/setup-node@v6
@@ -480,6 +517,7 @@ jobs:
   storyboard-required-gate:
     name: AdCP storyboard runner — examples/seller_agent.py
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: storyboard
     if: always()
     steps:
@@ -494,6 +532,7 @@ jobs:
   v3-reference-seller-tests:
     name: v3 reference seller — pytest (respx-mocked upstream)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v6
@@ -502,6 +541,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Install dependencies
         run: |
@@ -523,6 +564,7 @@ jobs:
   storyboard-v3-reference-seller:
     name: AdCP storyboard runner — v3 reference seller (translator)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       # Intentionally non-secret: gates loopback-only debug counters
       # inside this CI job.
@@ -551,6 +593,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Set up Node 22
         uses: actions/setup-node@v6
@@ -819,6 +863,7 @@ jobs:
   storyboard-multi-platform-seller:
     name: AdCP storyboard runner — examples/multi_platform_seller (PlatformRouter)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # Multi-tenant proof: one process, two tenants, one router. Each
     # tenant's storyboard runs against its own subdomain
     # (tenant-a.localhost / tenant-b.localhost). Blocking gate — both
@@ -834,6 +879,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Set up Node 22
         uses: actions/setup-node@v6
@@ -928,6 +975,7 @@ jobs:
   storyboard-sales-proposal-mode:
     name: AdCP storyboard runner — sales-proposal-mode (proposal_finalize)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # v1.5 ProposalManager finalize lifecycle proof. The mock seller
     # declares ``finalize=True`` + wires an ``InMemoryProposalStore``;
     # the framework's dispatch wiring intercepts ``refine[i].action='finalize'``
@@ -942,6 +990,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Set up Node 22
         uses: actions/setup-node@v6
