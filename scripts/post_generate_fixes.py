@@ -52,6 +52,9 @@ SCHEMA_DIR = REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY
 
 _PROTOCOL_ENVELOPE_IMPORT = "from ..core.protocol_envelope import ProtocolEnvelope\n"
 _VERSION_ENVELOPE_IMPORT = "from ..core.version_envelope import AdcpVersionEnvelope\n"
+_RESPONSE_ARM_DISPATCH_IMPORT = (
+    "from adcp.types.response_dispatch import ResponseArmDispatchMixin\n"
+)
 _STR_ENUM_MEMBER_ASSIGNMENT_IGNORE = "  # type: ignore[assignment]"
 _STR_ATTRIBUTE_NAMES = set(dir(str))
 
@@ -1726,8 +1729,7 @@ def expose_account_reference_union_fields() -> None:
         if isinstance(node, ast.Name):
             return [node.id]
         raise RuntimeError(
-            "generated AccountReference has an unsupported union expression: "
-            f"{ast.unparse(node)}"
+            f"generated AccountReference has an unsupported union expression: {ast.unparse(node)}"
         )
 
     arm_names = union_arm_names(root_base.slice)
@@ -3649,8 +3651,9 @@ def restore_constructible_response_bases() -> None:
     The generated numbered arms are still the schema-specific parsing surface and
     remain available through the existing aliases.  A top-level union alias,
     however, is not constructible and breaks callers that used the stable response
-    model API.  Restore the former envelope base and make every generated arm a
-    subclass of it, preserving both forms without weakening arm validation.
+    model API. Restore the former envelope base and make every generated arm a
+    subclass of it. The shared mixin dispatches ``Base.model_validate`` through
+    the arms, preserving both forms without losing task-specific wire fields.
     """
     response_specs = (
         ("compliance/comply_test_controller_response.py", "ComplyTestControllerResponse"),
@@ -3673,6 +3676,13 @@ def restore_constructible_response_bases() -> None:
             continue
 
         source = target.read_text()
+        if _RESPONSE_ARM_DISPATCH_IMPORT not in source:
+            future_import = "from __future__ import annotations\n\n"
+            if future_import not in source:
+                raise RuntimeError(f"{relative_path}: missing future annotations import")
+            source = source.replace(
+                future_import, future_import + _RESPONSE_ARM_DISPATCH_IMPORT + "\n", 1
+            )
         try:
             tree = ast.parse(source)
         except SyntaxError as exc:
@@ -3704,6 +3714,9 @@ def restore_constructible_response_bases() -> None:
                     lines[line_number] = ""
         source = "".join(lines)
 
+        arm_names = [
+            arm.name for arm in sorted(arms, key=lambda arm: int(arm.name.removeprefix(base_name)))
+        ]
         for arm in arms:
             arm_header = re.compile(rf"^class {re.escape(arm.name)}\([^\n]*\):$", re.MULTILINE)
             source, replacements = arm_header.subn(
@@ -3712,23 +3725,31 @@ def restore_constructible_response_bases() -> None:
             if replacements != 1:
                 raise RuntimeError(f"{relative_path}: unable to rewrite {arm.name} base")
 
-        if not stable_base_exists:
-            first_arm = min(arms, key=lambda arm: arm.lineno)
-            marker = f"class {first_arm.name}("
-            insertion_point = source.find(marker)
-            if insertion_point < 0:
-                raise RuntimeError(f"{relative_path}: unable to insert {base_name} base")
-            source = (
-                source[:insertion_point]
-                + f"""class {base_name}(AdcpVersionEnvelope, ProtocolEnvelope):
+        first_arm = min(arms, key=lambda arm: arm.lineno)
+        arm_marker = f"class {first_arm.name}("
+        first_arm_position = source.find(arm_marker)
+        if first_arm_position < 0:
+            raise RuntimeError(f"{relative_path}: unable to locate {first_arm.name}")
+        arm_list = ",\n            ".join(arm_names)
+        compatibility_base = f"""class {base_name}(ResponseArmDispatchMixin, AdcpVersionEnvelope, ProtocolEnvelope):
     \"\"\"Constructible compatibility base for generated response arms.\"\"\"
 
-    pass
+    @classmethod
+    def _response_arm_models(cls) -> tuple[type[{base_name}], ...]:
+        return (
+            {arm_list},
+        )
 
 
 """
-                + source[insertion_point:]
-            )
+        if not stable_base_exists:
+            source = source[:first_arm_position] + compatibility_base + source[first_arm_position:]
+        else:
+            base_marker = f"class {base_name}("
+            base_position = source.find(base_marker)
+            if base_position < 0:
+                raise RuntimeError(f"{relative_path}: unable to update {base_name} base")
+            source = source[:base_position] + compatibility_base + source[first_arm_position:]
 
         target.write_text(source.rstrip() + "\n")
         print(f"  {relative_path}: restored constructible {base_name} base")
@@ -5330,9 +5351,7 @@ def fix_audience_evidence_attestation_subject() -> None:
             break
     if subject_class is None:
         return
-    fixed_class = (
-        "class AttestationRef(AttestationReference):\n" f"    subject: {subject_class}\n\n"
-    )
+    fixed_class = f"class AttestationRef(AttestationReference):\n    subject: {subject_class}\n\n"
     fixed = source[:class_start] + fixed_class + source[next_class + 1 :]
     if fixed != source:
         target.write_text(fixed)

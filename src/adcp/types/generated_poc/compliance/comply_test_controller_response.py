@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from adcp.types.response_dispatch import ResponseArmDispatchMixin
+
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
@@ -297,10 +299,21 @@ class Error(StrEnum):
     INTERNAL_ERROR = 'INTERNAL_ERROR'
 
 
-class ComplyTestControllerResponse(AdcpVersionEnvelope, ProtocolEnvelope):
+class ComplyTestControllerResponse(ResponseArmDispatchMixin, AdcpVersionEnvelope, ProtocolEnvelope):
     """Constructible compatibility base for generated response arms."""
 
-    pass
+    @classmethod
+    def _response_arm_models(cls) -> tuple[type[ComplyTestControllerResponse], ...]:
+        return (
+            ComplyTestControllerResponse1,
+            ComplyTestControllerResponse2,
+            ComplyTestControllerResponse3,
+            ComplyTestControllerResponse4,
+            ComplyTestControllerResponse5,
+            ComplyTestControllerResponse6,
+            ComplyTestControllerResponse7,
+            ComplyTestControllerResponse8,
+        )
 
 
 class ComplyTestControllerResponse1(ComplyTestControllerResponse):

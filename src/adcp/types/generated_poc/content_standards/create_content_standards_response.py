@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from adcp.types.response_dispatch import ResponseArmDispatchMixin
+
 from typing import Annotated
 
 from pydantic import Field
@@ -15,10 +17,15 @@ from ..core.protocol_envelope import ProtocolEnvelope
 from ..core.version_envelope import AdcpVersionEnvelope
 
 
-class CreateContentStandardsResponse(AdcpVersionEnvelope, ProtocolEnvelope):
+class CreateContentStandardsResponse(ResponseArmDispatchMixin, AdcpVersionEnvelope, ProtocolEnvelope):
     """Constructible compatibility base for generated response arms."""
 
-    pass
+    @classmethod
+    def _response_arm_models(cls) -> tuple[type[CreateContentStandardsResponse], ...]:
+        return (
+            CreateContentStandardsResponse1,
+            CreateContentStandardsResponse2,
+        )
 
 
 class CreateContentStandardsResponse1(CreateContentStandardsResponse):

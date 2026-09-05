@@ -2,8 +2,45 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from pydantic import BaseModel, ValidationError
+
+
+def test_response_dispatch_omits_newer_pydantic_keywords_at_their_defaults() -> None:
+    from adcp.types.response_dispatch import _model_validate_json_kwargs, _model_validate_kwargs
+
+    assert _model_validate_kwargs(
+        strict=None,
+        extra=None,
+        from_attributes=None,
+        context=None,
+        by_alias=None,
+        by_name=None,
+    ) == {"strict": None, "from_attributes": None, "context": None}
+    assert _model_validate_kwargs(
+        strict=True,
+        extra="forbid",
+        from_attributes=True,
+        context={"trace_id": "trace_1"},
+        by_alias=True,
+        by_name=False,
+    ) == {
+        "strict": True,
+        "extra": "forbid",
+        "from_attributes": True,
+        "context": {"trace_id": "trace_1"},
+        "by_alias": True,
+        "by_name": False,
+    }
+    assert _model_validate_json_kwargs(
+        strict=None,
+        extra=None,
+        context=None,
+        by_alias=None,
+        by_name=None,
+    ) == {"strict": None, "context": None}
 
 
 def test_product_signal_targeting_option_keeps_discriminated_signal_ref() -> None:
@@ -130,6 +167,7 @@ def test_public_response_bases_remain_constructible_and_arms_remain_specific() -
     from adcp.types.generated_poc.content_standards.update_content_standards_response import (
         UpdateContentStandardsResponse1,
     )
+    from adcp.utils.response_parser import parse_json_or_text
 
     responses = (
         (
@@ -138,6 +176,8 @@ def test_public_response_bases_remain_constructible_and_arms_remain_specific() -
             ComplyTestControllerResponse1,
             {"success": True, "scenarios": []},
             {"success": True},
+            {"success": "invalid"},
+            {"scenarios": []},
         ),
         (
             CreateContentStandardsResponse,
@@ -145,6 +185,8 @@ def test_public_response_bases_remain_constructible_and_arms_remain_specific() -
             CreateContentStandardsResponse1,
             {"standards_id": "standards_1"},
             {},
+            {},
+            {"standards_id": "standards_1"},
         ),
         (
             ListContentStandardsResponse,
@@ -152,6 +194,8 @@ def test_public_response_bases_remain_constructible_and_arms_remain_specific() -
             ListContentStandardsResponse1,
             {"standards": []},
             {},
+            {},
+            {"standards": []},
         ),
         (
             SyncGovernanceResponse,
@@ -159,6 +203,8 @@ def test_public_response_bases_remain_constructible_and_arms_remain_specific() -
             SyncGovernanceResponse1,
             {"accounts": []},
             {},
+            {},
+            {"accounts": []},
         ),
         (
             UpdateContentStandardsResponse,
@@ -166,14 +212,39 @@ def test_public_response_bases_remain_constructible_and_arms_remain_specific() -
             UpdateContentStandardsResponse1,
             {"success": True, "standards_id": "standards_1"},
             {"success": False, "standards_id": "standards_1"},
+            {"success": False, "standards_id": "standards_1"},
+            {"standards_id": "standards_1"},
         ),
     )
 
-    for response_base, response_alias, response_arm, valid, invalid in responses:
+    for (
+        response_base,
+        response_alias,
+        response_arm,
+        valid,
+        invalid_arm,
+        invalid_base,
+        preserved_fields,
+    ) in responses:
         assert issubclass(response_base, BaseModel)
         assert isinstance(response_base(), response_base)
         assert response_alias is response_arm
         assert issubclass(response_arm, response_base)
         assert isinstance(response_alias.model_validate(valid), response_base)
+
+        direct = response_base.model_validate(valid)
+        direct_json = response_base.model_validate_json(json.dumps(valid))
+        parsed = parse_json_or_text(valid, response_base)
+        for result in (direct, direct_json, parsed):
+            assert type(result) is response_arm
+            assert all(getattr(result, name) == value for name, value in preserved_fields.items())
+
+        empty_base = response_base()
+        assert response_base.model_validate(empty_base) is empty_base
+
         with pytest.raises(ValidationError):
-            response_alias.model_validate(invalid)
+            response_alias.model_validate(invalid_arm)
+        with pytest.raises(ValidationError):
+            response_base.model_validate(invalid_base)
+        with pytest.raises(ValueError):
+            parse_json_or_text(invalid_base, response_base)

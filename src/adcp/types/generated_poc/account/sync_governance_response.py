@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from adcp.types.response_dispatch import ResponseArmDispatchMixin
+
 from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
@@ -30,10 +32,15 @@ class GovernanceAgent(AdCPBaseModel):
     url: Annotated[AnyUrl, Field(description='Governance agent endpoint URL.')]
 
 
-class SyncGovernanceResponse(AdcpVersionEnvelope, ProtocolEnvelope):
+class SyncGovernanceResponse(ResponseArmDispatchMixin, AdcpVersionEnvelope, ProtocolEnvelope):
     """Constructible compatibility base for generated response arms."""
 
-    pass
+    @classmethod
+    def _response_arm_models(cls) -> tuple[type[SyncGovernanceResponse], ...]:
+        return (
+            SyncGovernanceResponse1,
+            SyncGovernanceResponse2,
+        )
 
 
 class SyncGovernanceResponse2(SyncGovernanceResponse):

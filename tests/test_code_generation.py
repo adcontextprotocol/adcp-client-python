@@ -142,6 +142,7 @@ def test_post_generation_restores_codegen_contract_compatibility(tmp_path, monke
         target = tmp_path / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(
+            "from __future__ import annotations\n\n"
             "class " + response_name + "1(AdcpVersionEnvelope, ProtocolEnvelope):\n    pass\n"
             "class "
             + response_name
@@ -182,8 +183,21 @@ def test_post_generation_restores_codegen_contract_compatibility(tmp_path, monke
 
     for relative_path, response_name in response_specs:
         response_source = (tmp_path / relative_path).read_text()
-        assert f"class {response_name}(AdcpVersionEnvelope, ProtocolEnvelope):" in response_source
+        dispatch_import = "from adcp.types.response_dispatch import ResponseArmDispatchMixin"
+        assert dispatch_import in response_source
+        assert (
+            f"class {response_name}(ResponseArmDispatchMixin, "
+            "AdcpVersionEnvelope, ProtocolEnvelope):" in response_source
+        )
         assert f"class {response_name}1({response_name}):" in response_source
+        arm_method = (
+            "def _response_arm_models(cls) -> tuple[type[" + response_name + "], ...]:\n"
+            "        return (\n"
+            "            " + response_name + "1,\n"
+            "            " + response_name + "2,\n"
+            "        )"
+        )
+        assert arm_method in response_source
         assert f"{response_name} =" not in response_source
 
 
@@ -402,13 +416,13 @@ def test_rewrite_refs_preserves_macro_declaration_canonical_enum_ref():
     from scripts.generate_types import rewrite_refs
 
     schema = {
-        "$ref": ("https://adcontextprotocol.org/schemas/3.2.0-beta.10/" "enums/macro-dialect.json")
+        "$ref": ("https://adcontextprotocol.org/schemas/3.2.0-beta.10/enums/macro-dialect.json")
     }
 
     rewrite_refs(schema, Path("core/macro-declaration.json"))
 
     assert schema["$ref"] == (
-        "https://adcontextprotocol.org/schemas/3.2.0-beta.10/" "enums/macro-dialect.json"
+        "https://adcontextprotocol.org/schemas/3.2.0-beta.10/enums/macro-dialect.json"
     )
 
 
@@ -820,9 +834,7 @@ def test_post_generate_restores_combined_get_products_field_enum(tmp_path, monke
         "    pass\n"
     )
     (media_buy_dir / "product_fields.py").write_text(
-        "class ProductResponseField(StrEnum):\n"
-        "    product_id = 'product_id'\n"
-        "    name = 'name'\n"
+        "class ProductResponseField(StrEnum):\n    product_id = 'product_id'\n    name = 'name'\n"
     )
     monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
 
