@@ -70,6 +70,30 @@ def test_restore_principal_result_aliases_uses_kind_discriminators(tmp_path, mon
     assert "PrincipalSyncFailedResult = Result99" in sync_source
 
 
+def test_disambiguate_comply_response_arm_renames_class_and_references(tmp_path, monkeypatch):
+    """Fresh codegen output cannot add a generic public Arm collision."""
+    from scripts import post_generate_fixes
+
+    compliance_dir = tmp_path / "compliance"
+    compliance_dir.mkdir()
+    target = compliance_dir / "comply_test_controller_response.py"
+    target.write_text(
+        "from enum import Enum\n"
+        "class Arm(Enum):\n"
+        "    submitted = 'submitted'\n"
+        "class Forced:\n"
+        "    arm: Arm\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", tmp_path)
+
+    post_generate_fixes.disambiguate_comply_response_arm()
+
+    source = target.read_text()
+    assert "class ComplyResponseArm(Enum):" in source
+    assert "arm: ComplyResponseArm" in source
+    assert "class Arm(" not in source
+
+
 def test_normalize_enum_descriptions_preserves_enum_order():
     """Description maps become the positional list expected by codegen 0.64+."""
     from scripts.generate_types import normalize_enum_descriptions

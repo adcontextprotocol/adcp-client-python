@@ -3319,6 +3319,32 @@ def restore_principal_result_aliases() -> None:
         print(f"  {relative_path}: restored {len(assignments)} principal result aliases")
 
 
+def disambiguate_comply_response_arm() -> None:
+    """Give the comply response's anonymous ``Arm`` enum a stable name.
+
+    The request schema already generates an unrelated public ``Arm`` enum.
+    Codegen 0.63 also calls the response enum ``Arm``, which trips the exact
+    collision guard only after regeneration.  Rename the response-local type
+    before exports are consolidated so both the release tree and a fresh tree
+    have an unambiguous namespace.
+    """
+    target = OUTPUT_DIR / "compliance" / "comply_test_controller_response.py"
+    if not target.exists():
+        print("  comply_test_controller_response.py not found (skipping Arm rename)")
+        return
+
+    source = target.read_text()
+    if "class ComplyResponseArm(" in source:
+        print("  compliance response Arm already disambiguated")
+        return
+    if "class Arm(" not in source:
+        print("  compliance response Arm not generated (no rename needed)")
+        return
+
+    target.write_text(re.sub(r"\bArm\b", "ComplyResponseArm", source))
+    print("  compliance response: renamed Arm -> ComplyResponseArm")
+
+
 def restore_response_variant_aliases() -> None:
     """Restore numbered response arms from schema data, not hand-written payloads.
 
@@ -5305,6 +5331,7 @@ def main(argv: list[str] | None = None):
         restore_signal_catalog_type_alias,
         restore_format_asset_numbered_aliases,
         restore_principal_result_aliases,
+        disambiguate_comply_response_arm,
         restore_response_variant_aliases,
         fix_compliance_task_completion_response_ref,
         restore_get_products_field_compatibility_enum,
