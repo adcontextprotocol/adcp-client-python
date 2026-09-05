@@ -1,5 +1,18 @@
 # Changelog
 
+## [8.0.0-beta.14](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.13...v8.0.0-beta.14) (2026-09-05)
+
+
+### Features
+
+* **protocol:** adopt AdCP 3.2 rc.1 and switch SDK prerelease channel to rc ([#1128](https://github.com/adcontextprotocol/adcp-client-python/issues/1128)) ([c599ba1](https://github.com/adcontextprotocol/adcp-client-python/commit/c599ba13167fe1f723c93f16091a57e7c6dc7cc5))
+
+
+### Bug Fixes
+
+* **ci:** prevent IPR check eviction ([#1124](https://github.com/adcontextprotocol/adcp-client-python/issues/1124)) ([28801db](https://github.com/adcontextprotocol/adcp-client-python/commit/28801dbc2e739541dd40ed2431dcf5aec74f408f))
+* **server:** sanitize legacy adapter failures ([#1127](https://github.com/adcontextprotocol/adcp-client-python/issues/1127)) ([46a424e](https://github.com/adcontextprotocol/adcp-client-python/commit/46a424e81a76924d58819de027128b1ef7f28d1c))
+
 ## [8.0.0-beta.13](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.12...v8.0.0-beta.13) (2026-09-04)
 
 
