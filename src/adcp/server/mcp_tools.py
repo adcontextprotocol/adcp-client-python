@@ -2674,6 +2674,7 @@ def create_tool_caller(
         resolve_creative_dialect,
     )
     from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS, get_legacy_adapter
+    from adcp.compat.legacy.errors import legacy_adapter_task_error
     from adcp.exceptions import ADCPTaskError
     from adcp.server.helpers import inject_context
     from adcp.types import Error
@@ -2861,18 +2862,11 @@ def create_tool_caller(
             try:
                 params = legacy_adapter.adapt_request(params)
             except Exception as exc:
-                raise ADCPTaskError(
+                raise legacy_adapter_task_error(
                     operation=method_name,
-                    errors=[
-                        Error(
-                            code="INVALID_REQUEST",
-                            message=(
-                                f"Legacy adapter for {method_name!r} at "
-                                f"AdCP {wire_version} failed: "
-                                f"{type(exc).__name__}: {exc}"
-                            ),
-                        )
-                    ],
+                    wire_version=wire_version,
+                    phase="request",
+                    exception=exc,
                 ) from exc
             # Adapter output is validated against the SDK pin
             # (catches translator bugs with v3 field paths). The
@@ -3150,19 +3144,11 @@ def create_tool_caller(
                 try:
                     result = legacy_adapter.normalize_response(result)
                 except Exception as exc:
-                    raise ADCPTaskError(
+                    raise legacy_adapter_task_error(
                         operation=method_name,
-                        errors=[
-                            Error(
-                                code="INTERNAL_ERROR",
-                                message=(
-                                    f"Legacy response normalizer for "
-                                    f"{method_name!r} at AdCP "
-                                    f"{wire_version} failed: "
-                                    f"{type(exc).__name__}: {exc}"
-                                ),
-                            )
-                        ],
+                        wire_version=wire_version,
+                        phase="response",
+                        exception=exc,
                     ) from exc
         if (
             legacy_adapter is not None

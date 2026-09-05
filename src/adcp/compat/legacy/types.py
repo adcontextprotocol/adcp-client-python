@@ -43,12 +43,14 @@ class AdapterPair:
       equivalent check.
     * **No I/O.** Heavier work (resolving format references, calling
       upstream services) belongs in handlers, not adapters.
-    * **Exception mapping.** A raise inside ``adapt_request`` surfaces
-      to the buyer as :class:`adcp.exceptions.ADCPTaskError` with code
-      ``INVALID_REQUEST`` (translation = buyer-correctable, per spec).
-      A raise inside ``normalize_response`` surfaces as
-      ``INTERNAL_ERROR`` (the handler produced a valid response that
-      the adapter can't rewrite — SDK bug, not buyer bug).
+    * **Exception mapping.** An explicit
+      :class:`adcp.compat.legacy.LegacyAdapterValidationError` from
+      ``adapt_request`` surfaces its buyer-safe message as ``INVALID_REQUEST``.
+      Every other request exception uses a fixed public message while retaining
+      that code. A raise inside ``normalize_response`` similarly uses a fixed
+      public message and surfaces as ``INTERNAL_ERROR`` (the handler produced a
+      valid response that the adapter can't rewrite — SDK bug, not buyer bug).
+      Unexpected exceptions and tracebacks are written to operator logs only.
     """
 
     tool_name: str
