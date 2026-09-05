@@ -172,8 +172,8 @@ async def test_v2_5_buyer_handler_dispatched_after_translation() -> None:
 
 @pytest.mark.asyncio
 async def test_legacy_adapter_raising_surfaces_as_invalid_request() -> None:
-    """If a legacy adapter raises, the dispatcher converts to
-    ``INVALID_REQUEST`` with the adapter context. Uses a registered
+    """If a legacy adapter raises, the dispatcher converts to a sanitized
+    ``INVALID_REQUEST``. Uses a registered
     rogue adapter rather than patching the shipped v2.5 sync_creatives
     (the dataclass is frozen, so patching its bound attribute is brittle).
     """
@@ -184,7 +184,7 @@ async def test_legacy_adapter_raising_surfaces_as_invalid_request() -> None:
     )
 
     def boom(_payload: dict[str, Any]) -> dict[str, Any]:
-        raise RuntimeError("translator blew up")
+        raise RuntimeError("translator blew up at secret.internal")
 
     _reset_registry_for_tests()
     try:
@@ -200,7 +200,8 @@ async def test_legacy_adapter_raising_surfaces_as_invalid_request() -> None:
 
         err = exc_info.value.errors[0]
         assert err.code == "INVALID_REQUEST"
-        assert "translator blew up" in err.message
+        assert err.message == "The legacy AdCP request could not be translated."
+        assert "secret.internal" not in str(exc_info.value)
         assert handler.received == []
     finally:
         _reset_registry_for_tests()

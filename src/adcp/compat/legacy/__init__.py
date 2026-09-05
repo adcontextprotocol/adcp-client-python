@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from typing import Final
 
+from adcp.compat.legacy.errors import LegacyAdapterValidationError
 from adcp.compat.legacy.types import AdapterPair
 
 #: Versions handled via the legacy-adapter path. Distinct from
@@ -147,6 +148,7 @@ def _reset_registry_for_tests() -> None:
 __all__ = [
     "AdapterPair",
     "LEGACY_ADAPTER_VERSIONS",
+    "LegacyAdapterValidationError",
     "get_legacy_adapter",
     "list_legacy_adapter_tools",
     "register_adapter",
