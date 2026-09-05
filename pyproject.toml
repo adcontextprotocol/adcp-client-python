@@ -125,7 +125,7 @@ dev = [
     # Pin to exact version: codegen's variant numbering (e.g. CreateMediaBuyResponse1 vs
     # CreateMediaBuyResponse) shifts between versions, producing diff churn and breaking
     # generated-code imports that reference specific suffixes.
-    "datamodel-code-generator[http]==0.64.0",
+    "datamodel-code-generator[http]==0.63.0",
     # Runs Starlette app lifespan under httpx.ASGITransport in tests —
     # the canonical library for what httpx doesn't do natively. Used by
     # tests/test_mcp_middleware_composition.py and future integration
@@ -340,7 +340,7 @@ skips = ["B101"]  # Allow assert in code (we're not using -O optimization)
 
 [dependency-groups]
 dev = [
-    "datamodel-code-generator==0.64.0",
+    "datamodel-code-generator==0.63.0",
     "pre-commit>=4.4.0",
     "types-protobuf>=7.34.1.20260408",
     # Pinned in the dev group so ``uv run mypy`` (used by the pre-commit

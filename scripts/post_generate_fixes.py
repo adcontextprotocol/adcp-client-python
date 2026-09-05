@@ -1398,21 +1398,22 @@ def fix_allof_merge_field_override_conflicts() -> None:
 
             # datamodel-codegen expands a discriminated union intersected by
             # allOf into one merge class per union branch. When multiple
-            # bases pin the conventional ``type`` discriminator, its first
-            # base is the generated union branch and the other base is the
-            # common allOf constraint. Preserve that branch identity so the
-            # emitted discriminated union retains one class per discriminator
-            # value; this is a distinct generator artifact, not an ordering
-            # decision between a loose and narrow schema arm.
-            union_branch_base = (
-                in_module_bases[0]
+            # bases pin a discriminator (commonly ``type`` or ``mode``), its
+            # first base is the generated union branch and the other base is
+            # the common allOf constraint. Preserve that branch identity so
+            # the emitted discriminated union retains one class per
+            # discriminator value; this is a distinct generator artifact,
+            # not an ordering decision between a loose and narrow schema arm.
+            literal_conflicts = [
+                field
+                for field in conflicting_fields
                 if sum(
-                    _literal_values(annotations_by_class[base].get("type", "")) is not None
+                    _literal_values(annotations_by_class[base].get(field, "")) is not None
                     for base in in_module_bases
                 )
                 >= 2
-                else None
-            )
+            ]
+            union_branch_base = in_module_bases[0] if literal_conflicts else None
 
             # JSON Schema allOf is order-independent. Codegen's base ordering
             # is not a semantic signal, so select the arm that actually
@@ -1524,6 +1525,19 @@ def fix_allof_merge_field_override_conflicts() -> None:
                 insert_before.setdefault(first_field_line, []).extend(
                     intersection_fields[field] for field in sorted(missing_intersections)
                 )
+
+            # A merge wrapper can consist entirely of redundant field
+            # re-declarations. If collapsing the bases removes every body
+            # statement, retain a syntactically valid empty class.
+            body_has_surviving_statement = any(
+                any(
+                    line_no not in drop_lines
+                    for line_no in range(stmt.lineno, (stmt.end_lineno or stmt.lineno) + 1)
+                )
+                for stmt in cls.body
+            )
+            if not body_has_surviving_statement and not missing_intersections:
+                insert_before.setdefault(cls.body[0].lineno, []).append("    pass\n")
             file_classes += 1
 
         if not header_edits and not drop_lines:
@@ -4545,6 +4559,35 @@ def fix_list_creatives_format_reference_xor() -> None:
         return
 
     source = target.read_text()
+    if "class Creative(AdCPBaseModel):" in source and "class Creatives(" not in source:
+        if "Creatives = Creative\nCreatives1 = Creative" in source:
+            print("  creative/list_creatives_response.py: merged creative XOR already fixed")
+            return
+
+        source = source.replace(
+            "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StringConstraints",
+            "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StringConstraints, model_validator",
+            1,
+        )
+        merged_validator = """
+
+    @model_validator(mode='after')
+    def _validate_format_reference_xor(self) -> Creative:
+        if (self.format_id is None) == (self.format_kind is None):
+            raise ValueError('exactly one of format_id and format_kind is required')
+        return self
+
+
+Creatives = Creative
+Creatives1 = Creative
+"""
+        marker = "\n\nclass ListCreativesResponse(AdcpVersionEnvelope, ProtocolEnvelope):"
+        if marker not in source:
+            raise RuntimeError("ListCreativesResponse marker missing from merged creative output")
+        target.write_text(source.replace(marker, merged_validator + marker, 1))
+        print("  creative/list_creatives_response.py: restored merged creative XOR and aliases")
+        return
+
     if "_reject_canonical_format_ref" in source and "_reject_legacy_format_ref" in source:
         print("  creative/list_creatives_response.py: format reference XOR already fixed")
         return

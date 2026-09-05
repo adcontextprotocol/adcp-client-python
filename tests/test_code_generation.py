@@ -14,6 +14,114 @@ from pathlib import Path
 import pytest
 
 
+def test_normalize_enum_descriptions_preserves_enum_order():
+    """Description maps become the positional list expected by codegen 0.64+."""
+    from scripts.generate_types import normalize_enum_descriptions
+
+    schema = {
+        "enum": ["binary", "categorical", "numeric"],
+        "x-enum-descriptions": {
+            "numeric": "Continuous value",
+            "binary": "Boolean value",
+            "categorical": "Discrete value",
+        },
+    }
+
+    assert normalize_enum_descriptions(schema)["x-enum-descriptions"] == [
+        "Boolean value",
+        "Discrete value",
+        "Continuous value",
+    ]
+
+
+def test_normalize_enum_descriptions_recurses_into_embedded_schemas():
+    from scripts.generate_types import normalize_enum_descriptions
+
+    schema = {
+        "$defs": {
+            "state": {
+                "enum": ["ready", "done"],
+                "x-enum-descriptions": {"done": "Finished", "ready": "Available"},
+            }
+        }
+    }
+
+    normalize_enum_descriptions(schema)
+
+    assert schema["$defs"]["state"]["x-enum-descriptions"] == ["Available", "Finished"]
+
+
+def test_flatten_validation_oneof_accepts_branch_annotations():
+    from scripts.generate_types import flatten_validation_oneof
+
+    schema = {
+        "title": "Request",
+        "type": "object",
+        "properties": {"first": {"type": "string"}, "second": {"type": "string"}},
+        "required": ["mode"],
+        "anyOf": [
+            {
+                "title": "First mode",
+                "description": "Requires a payload.",
+                "required": ["first"],
+            },
+            {
+                "title": "Second mode",
+                "deprecated": True,
+                "required": ["second"],
+            },
+        ],
+    }
+
+    flattened = flatten_validation_oneof(schema)
+
+    assert "anyOf" not in flattened
+    assert flattened["required"] == ["mode"]
+
+
+def test_flatten_known_root_object_union_merges_branch_only_fields():
+    from scripts.generate_types import flatten_root_object_validation_union
+
+    schema = {
+        "type": "object",
+        "allOf": [{"$ref": "envelope.json"}],
+        "properties": {"context": {"type": "object"}},
+        "oneOf": [
+            {
+                "properties": {"status": {"const": "completed"}, "result": {"type": "string"}},
+                "required": ["status", "result"],
+            },
+            {
+                "properties": {"status": {"const": "failed"}, "errors": {"type": "array"}},
+                "required": ["status", "errors"],
+            },
+        ],
+    }
+
+    flattened = flatten_root_object_validation_union(
+        schema, Path("account/list-account-changes-response.json")
+    )
+
+    assert "oneOf" not in flattened
+    assert flattened["properties"]["status"] == {"enum": ["completed", "failed"]}
+    assert set(flattened["properties"]) == {"context", "status", "result", "errors"}
+    assert flattened["required"] == ["status"]
+    assert flattened["allOf"] == [{"$ref": "envelope.json"}]
+
+
+def test_flatten_root_object_union_ignores_unlisted_schema():
+    from scripts.generate_types import flatten_root_object_validation_union
+
+    schema = {
+        "type": "object",
+        "properties": {"kind": {"type": "string"}},
+        "oneOf": [{"properties": {"kind": {"const": "a"}}}],
+    }
+
+    assert flatten_root_object_validation_union(schema, Path("core/real-union.json")) is schema
+    assert "oneOf" in schema
+
+
 def test_rewrite_refs_localizes_canonical_schema_urls_without_corrupting_prerelease():
     """Canonical absolute refs become local module paths before normalization."""
     from scripts.generate_types import rewrite_refs
@@ -337,6 +445,32 @@ def test_allof_merge_leaves_named_disjoint_bases_untouched(tmp_path, monkeypatch
     assert target.read_text() == source
 
 
+def test_allof_merge_preserves_non_type_literal_discriminator_branch(tmp_path, monkeypatch):
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    target = generated_dir / "core" / "budget_allocation.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "from typing import Literal\n\n"
+        "class Fixed:\n"
+        "    mode: Literal['fixed']\n\n"
+        "class Percentage:\n"
+        "    mode: Literal['percentage']\n\n"
+        "class FixedBranch(Fixed, Percentage):\n"
+        "    mode: Literal['fixed']\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.fix_allof_merge_field_override_conflicts()
+
+    fixed = target.read_text()
+    assert "class FixedBranch(Fixed):" in fixed
+    assert "    mode: Literal['fixed']" not in fixed.split("class FixedBranch", 1)[1]
+    assert "class FixedBranch(Fixed):\n    pass\n" in fixed
+    compile(fixed, str(target), "exec")
+
+
 def test_allof_merge_fails_when_narrow_base_is_ambiguous(tmp_path, monkeypatch):
     import pytest
 
@@ -357,6 +491,37 @@ def test_allof_merge_fails_when_narrow_base_is_ambiguous(tmp_path, monkeypatch):
 
     with pytest.raises(RuntimeError, match="Cannot safely order allOf merge bases"):
         post_generate_fixes.fix_allof_merge_field_override_conflicts()
+
+
+def test_list_creatives_merged_model_restores_xor_and_legacy_aliases(tmp_path, monkeypatch):
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    target = generated_dir / "creative" / "list_creatives_response.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "from __future__ import annotations\n\n"
+        "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StringConstraints\n\n"
+        "class AdCPBaseModel:\n"
+        "    pass\n\n"
+        "class AdcpVersionEnvelope:\n"
+        "    pass\n\n"
+        "class ProtocolEnvelope:\n"
+        "    pass\n\n"
+        "class Creative(AdCPBaseModel):\n"
+        "    format_id = None\n"
+        "    format_kind = None\n\n"
+        "class ListCreativesResponse(AdcpVersionEnvelope, ProtocolEnvelope):\n"
+        "    pass\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.fix_list_creatives_format_reference_xor()
+
+    fixed = target.read_text()
+    assert "def _validate_format_reference_xor(self) -> Creative:" in fixed
+    assert "Creatives = Creative\nCreatives1 = Creative" in fixed
+    compile(fixed, str(target), "exec")
 
 
 def test_allof_merge_preserves_concrete_type_constraints_and_requiredness(tmp_path, monkeypatch):

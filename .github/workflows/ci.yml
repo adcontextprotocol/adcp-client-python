@@ -372,7 +372,6 @@ jobs:
         run: python scripts/bundle_schemas.py
 
       - name: Generate models
-        if: steps.version-check.outputs.is_prerelease != 'true'
         run: python scripts/generate_types.py
 
       - name: Validate generated code syntax
