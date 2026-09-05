@@ -7,8 +7,9 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, model_validator
 
+from .canonical_format_kind import CanonicalFormatKind
 from .creative_manifest import CreativeManifest
 
 
@@ -32,6 +33,15 @@ class Source(AdCPBaseModel):
 class CreativeRepresentation(CreativeManifest):
     model_config = ConfigDict(
         extra='allow',
+        json_schema_extra={
+            'not': {
+                'anyOf': [
+                    {'required': ['format_id']},
+                    {'required': ['format_option_ref']},
+                    {'required': ['representation_selection']},
+                ]
+            }
+        },
     )
     representation_id: Annotated[
         str,
@@ -42,4 +52,22 @@ class CreativeRepresentation(CreativeManifest):
         ),
     ]
     source: Source
-    format_kind: Any
+    format_kind: Annotated[
+        CanonicalFormatKind,
+        Field(
+            description="Canonical 3.2 path. The canonical format name this manifest targets (e.g., `image`, `video_hosted`, `audio_vast`, `seller_rendered_stateful_display`, `coordinated_placements`). Selects the contract against which the seller validates the manifest's assets. Mutually exclusive with deprecated `format_id`."
+        ),
+    ]
+
+    @model_validator(mode='before')
+    @classmethod
+    def _reject_seller_bound_manifest_fields(cls, data: Any) -> Any:
+        """Representations cannot carry seller-side manifest selectors."""
+        if isinstance(data, dict):
+            forbidden = ('format_id', 'format_option_ref', 'representation_selection')
+            present = [field for field in forbidden if field in data]
+            if present:
+                raise ValueError(
+                    'creative representations must not include ' + ', '.join(present)
+                )
+        return data

@@ -15,7 +15,13 @@ from ..core.protocol_envelope import ProtocolEnvelope
 from ..core.version_envelope import AdcpVersionEnvelope
 
 
-class UpdateContentStandardsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
+class UpdateContentStandardsResponse(AdcpVersionEnvelope, ProtocolEnvelope):
+    """Constructible compatibility base for generated response arms."""
+
+    pass
+
+
+class UpdateContentStandardsResponse1(UpdateContentStandardsResponse):
     model_config = ConfigDict(
         extra='allow',
     )
@@ -27,7 +33,7 @@ class UpdateContentStandardsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class UpdateContentStandardsResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
+class UpdateContentStandardsResponse2(UpdateContentStandardsResponse):
     model_config = ConfigDict(
         extra='allow',
     )
@@ -43,6 +49,3 @@ class UpdateContentStandardsResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
-
-
-UpdateContentStandardsResponse = UpdateContentStandardsResponse1 | UpdateContentStandardsResponse2

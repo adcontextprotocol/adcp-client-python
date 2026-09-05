@@ -15,7 +15,13 @@ from ..core.protocol_envelope import ProtocolEnvelope
 from ..core.version_envelope import AdcpVersionEnvelope
 
 
-class CreateContentStandardsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
+class CreateContentStandardsResponse(AdcpVersionEnvelope, ProtocolEnvelope):
+    """Constructible compatibility base for generated response arms."""
+
+    pass
+
+
+class CreateContentStandardsResponse1(CreateContentStandardsResponse):
     standards_id: Annotated[
         str, Field(description='Unique identifier for the created standards configuration')
     ]
@@ -23,7 +29,7 @@ class CreateContentStandardsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class CreateContentStandardsResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
+class CreateContentStandardsResponse2(CreateContentStandardsResponse):
     errors: list[error.Error]
     conflicting_standards_id: Annotated[
         str | None,
@@ -33,6 +39,3 @@ class CreateContentStandardsResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
-
-
-CreateContentStandardsResponse = CreateContentStandardsResponse1 | CreateContentStandardsResponse2

@@ -3461,6 +3461,279 @@ def disambiguate_comply_response_arm() -> None:
     print("  compliance response: renamed Arm -> ComplyResponseArm")
 
 
+def restore_flattened_contract_field_types() -> None:
+    """Restore constraints lost when codegen re-states ``allOf`` fields as ``Any``.
+
+    datamodel-code-generator 0.64 flattens a required field inherited through an
+    ``allOf`` and, for these two schemas, emits an untyped local override.  That
+    broadens the public model beyond the schema: signal references stop being
+    discriminated and creative representations accept arbitrary format kinds.
+    Keep the correction here so a clean regeneration retains the wire contract.
+    """
+    product_target = OUTPUT_DIR / "core" / "product_signal_targeting_option.py"
+    if product_target.exists():
+        source = product_target.read_text()
+        expected = "    signal_ref: Any"
+        replacement = """    signal_ref: Annotated[
+        signal_ref.SignalRef,
+        Field(
+            description="Canonical signal reference. Use scope 'product' for a product-local signal defined by this listing; use scope 'data_provider' with data_provider_domain for a signal defined in a data provider's published adagents.json signals[]; use scope 'signal_source' with signal_source_url for a source-native signal."
+        ),
+    ]"""
+        if expected in source:
+            vendor_import = "from . import vendor_pricing_option\n"
+            if vendor_import not in source:
+                raise RuntimeError("product_signal_targeting_option.py: missing vendor import")
+            source = source.replace(
+                vendor_import, "from . import signal_ref, vendor_pricing_option\n", 1
+            )
+            source = source.replace(expected, replacement, 1)
+            # ``Any`` was imported only for the codegen-erased field.
+            source = source.replace(
+                "from typing import Annotated, Any\n", "from typing import Annotated\n"
+            )
+            product_target.write_text(source)
+            print("  core/product_signal_targeting_option.py: restored SignalRef discriminator")
+        elif replacement in source:
+            print(
+                "  core/product_signal_targeting_option.py: SignalRef discriminator already restored"
+            )
+        else:
+            raise RuntimeError(
+                "product_signal_targeting_option.py: expected signal_ref override not found"
+            )
+    else:
+        print(
+            "  core/product_signal_targeting_option.py not found (skipping SignalRef restoration)"
+        )
+
+    representation_target = OUTPUT_DIR / "core" / "creative_representation.py"
+    if not representation_target.exists():
+        print("  core/creative_representation.py not found (skipping representation restoration)")
+        return
+
+    source = representation_target.read_text()
+    expected = "    format_kind: Any"
+    replacement = """    format_kind: Annotated[
+        CanonicalFormatKind,
+        Field(
+            description="Canonical 3.2 path. The canonical format name this manifest targets (e.g., `image`, `video_hosted`, `audio_vast`, `seller_rendered_stateful_display`, `coordinated_placements`). Selects the contract against which the seller validates the manifest's assets. Mutually exclusive with deprecated `format_id`."
+        ),
+    ]"""
+    if expected in source:
+        if "from .canonical_format_kind import CanonicalFormatKind\n" not in source:
+            anchor = "from .creative_manifest import CreativeManifest\n"
+            if anchor not in source:
+                raise RuntimeError("creative_representation.py: missing CreativeManifest import")
+            source = source.replace(
+                anchor, "from .canonical_format_kind import CanonicalFormatKind\n" + anchor, 1
+            )
+        source = source.replace(expected, replacement, 1)
+    elif replacement not in source:
+        raise RuntimeError("creative_representation.py: expected format_kind override not found")
+
+    generated_config = """class CreativeRepresentation(CreativeManifest):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+"""
+    contract_config = """class CreativeRepresentation(CreativeManifest):
+    model_config = ConfigDict(
+        extra='allow',
+        json_schema_extra={
+            'not': {
+                'anyOf': [
+                    {'required': ['format_id']},
+                    {'required': ['format_option_ref']},
+                    {'required': ['representation_selection']},
+                ]
+            }
+        },
+    )
+"""
+    if generated_config in source:
+        source = source.replace(generated_config, contract_config, 1)
+    elif "json_schema_extra=" not in source:
+        raise RuntimeError("creative_representation.py: expected model configuration not found")
+
+    if "@model_validator(mode='before')" not in source:
+        if "from pydantic import ConfigDict, Field\n" not in source:
+            raise RuntimeError("creative_representation.py: missing Pydantic import")
+        source = source.replace(
+            "from pydantic import ConfigDict, Field\n",
+            "from pydantic import ConfigDict, Field, model_validator\n",
+            1,
+        )
+        source = (
+            source.rstrip()
+            + """
+
+    @model_validator(mode='before')
+    @classmethod
+    def _reject_seller_bound_manifest_fields(cls, data: Any) -> Any:
+        \"\"\"Representations cannot carry seller-side manifest selectors.\"\"\"
+        if isinstance(data, dict):
+            forbidden = ('format_id', 'format_option_ref', 'representation_selection')
+            present = [field for field in forbidden if field in data]
+            if present:
+                raise ValueError(
+                    'creative representations must not include ' + ', '.join(present)
+                )
+        return data
+"""
+        )
+    representation_target.write_text(source)
+    print("  core/creative_representation.py: restored canonical format contract")
+
+
+def enforce_transformer_output_contract() -> None:
+    """Require a transformer to declare canonical or legacy output formats."""
+    target = OUTPUT_DIR / "core" / "transformer.py"
+    if not target.exists():
+        print("  core/transformer.py not found (skipping transformer output contract)")
+        return
+
+    source = target.read_text()
+    if "def _require_output_format_declaration" in source:
+        old_condition = (
+            "        if self.output_capability_ids is None and self.output_format_ids is None:\n"
+        )
+        new_condition = """        # Read Pydantic's stored values directly so validation itself does not
+        # emit a deprecation warning for the still-supported legacy field.
+        if (
+            self.__dict__.get('output_capability_ids') is None
+            and self.__dict__.get('output_format_ids') is None
+        ):
+"""
+        if old_condition in source:
+            target.write_text(source.replace(old_condition, new_condition, 1))
+            print("  core/transformer.py: updated output contract deprecation handling")
+            return
+        print("  core/transformer.py: output contract already enforced")
+        return
+    if "class Transformer(" not in source:
+        raise RuntimeError("transformer.py: Transformer class not found")
+    if "from pydantic import AnyUrl, ConfigDict, Field, RootModel\n" not in source:
+        raise RuntimeError("transformer.py: missing Pydantic import")
+
+    source = source.replace(
+        "from pydantic import AnyUrl, ConfigDict, Field, RootModel\n",
+        "from pydantic import AnyUrl, ConfigDict, Field, RootModel, model_validator\n",
+        1,
+    )
+    target.write_text(
+        source.rstrip()
+        + """
+
+    @model_validator(mode='after')
+    def _require_output_format_declaration(self) -> Transformer:
+        \"\"\"At least one output declaration is required by the schema.\"\"\"
+        # Read Pydantic's stored values directly so validation itself does not
+        # emit a deprecation warning for the still-supported legacy field.
+        if (
+            self.__dict__.get('output_capability_ids') is None
+            and self.__dict__.get('output_format_ids') is None
+        ):
+            raise ValueError(
+                'one of output_capability_ids or deprecated output_format_ids is required'
+            )
+        return self
+"""
+    )
+    print("  core/transformer.py: enforced output declaration requirement")
+
+
+def restore_constructible_response_bases() -> None:
+    """Keep selected public response names as constructible Pydantic models.
+
+    The generated numbered arms are still the schema-specific parsing surface and
+    remain available through the existing aliases.  A top-level union alias,
+    however, is not constructible and breaks callers that used the stable response
+    model API.  Restore the former envelope base and make every generated arm a
+    subclass of it, preserving both forms without weakening arm validation.
+    """
+    response_specs = (
+        ("compliance/comply_test_controller_response.py", "ComplyTestControllerResponse"),
+        (
+            "content_standards/create_content_standards_response.py",
+            "CreateContentStandardsResponse",
+        ),
+        ("content_standards/list_content_standards_response.py", "ListContentStandardsResponse"),
+        ("account/sync_governance_response.py", "SyncGovernanceResponse"),
+        (
+            "content_standards/update_content_standards_response.py",
+            "UpdateContentStandardsResponse",
+        ),
+    )
+
+    for relative_path, base_name in response_specs:
+        target = OUTPUT_DIR / relative_path
+        if not target.exists():
+            print(f"  {relative_path} not found (skipping constructible response base)")
+            continue
+
+        source = target.read_text()
+        try:
+            tree = ast.parse(source)
+        except SyntaxError as exc:
+            raise RuntimeError(f"{relative_path}: invalid generated Python") from exc
+
+        arms = [
+            node
+            for node in tree.body
+            if isinstance(node, ast.ClassDef)
+            and re.fullmatch(rf"{re.escape(base_name)}\d+", node.name)
+        ]
+        if not arms:
+            print(f"  {relative_path}: response arms not generated (skipping constructible base)")
+            continue
+
+        stable_base_exists = any(
+            isinstance(node, ast.ClassDef) and node.name == base_name for node in tree.body
+        )
+        lines = source.splitlines(keepends=True)
+        for node in tree.body:
+            target_names: list[str] = []
+            if isinstance(node, ast.Assign):
+                target_names = [item.id for item in node.targets if isinstance(item, ast.Name)]
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                target_names = [node.target.id]
+            if base_name in target_names:
+                end_line = node.end_lineno or node.lineno
+                for line_number in range(node.lineno - 1, end_line):
+                    lines[line_number] = ""
+        source = "".join(lines)
+
+        for arm in arms:
+            arm_header = re.compile(rf"^class {re.escape(arm.name)}\([^\n]*\):$", re.MULTILINE)
+            source, replacements = arm_header.subn(
+                f"class {arm.name}({base_name}):", source, count=1
+            )
+            if replacements != 1:
+                raise RuntimeError(f"{relative_path}: unable to rewrite {arm.name} base")
+
+        if not stable_base_exists:
+            first_arm = min(arms, key=lambda arm: arm.lineno)
+            marker = f"class {first_arm.name}("
+            insertion_point = source.find(marker)
+            if insertion_point < 0:
+                raise RuntimeError(f"{relative_path}: unable to insert {base_name} base")
+            source = (
+                source[:insertion_point]
+                + f"""class {base_name}(AdcpVersionEnvelope, ProtocolEnvelope):
+    \"\"\"Constructible compatibility base for generated response arms.\"\"\"
+
+    pass
+
+
+"""
+                + source[insertion_point:]
+            )
+
+        target.write_text(source.rstrip() + "\n")
+        print(f"  {relative_path}: restored constructible {base_name} base")
+
+
 def restore_response_variant_aliases() -> None:
     """Restore numbered response arms from schema data, not hand-written payloads.
 
@@ -5449,6 +5722,9 @@ def main(argv: list[str] | None = None):
         restore_format_asset_numbered_aliases,
         restore_principal_result_aliases,
         disambiguate_comply_response_arm,
+        restore_flattened_contract_field_types,
+        enforce_transformer_output_contract,
+        restore_constructible_response_bases,
         restore_response_variant_aliases,
         fix_compliance_task_completion_response_ref,
         restore_get_products_field_compatibility_enum,

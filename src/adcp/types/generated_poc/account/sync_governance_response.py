@@ -30,7 +30,13 @@ class GovernanceAgent(AdCPBaseModel):
     url: Annotated[AnyUrl, Field(description='Governance agent endpoint URL.')]
 
 
-class SyncGovernanceResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
+class SyncGovernanceResponse(AdcpVersionEnvelope, ProtocolEnvelope):
+    """Constructible compatibility base for generated response arms."""
+
+    pass
+
+
+class SyncGovernanceResponse2(SyncGovernanceResponse):
     model_config = ConfigDict(
         extra='allow',
     )
@@ -74,13 +80,10 @@ class Account(AdCPBaseModel):
     ] = None
 
 
-class SyncGovernanceResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
+class SyncGovernanceResponse1(SyncGovernanceResponse):
     model_config = ConfigDict(
         extra='allow',
     )
     accounts: Annotated[list[Account], Field(description='Per-account sync results')]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
-
-
-SyncGovernanceResponse = SyncGovernanceResponse1 | SyncGovernanceResponse2

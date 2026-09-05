@@ -8,7 +8,7 @@ from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
-from pydantic import AnyUrl, ConfigDict, Field, RootModel
+from pydantic import AnyUrl, ConfigDict, Field, RootModel, model_validator
 
 from ..enums import channels
 from ..formats.canonical import (
@@ -1867,3 +1867,17 @@ class Transformer(AdCPBaseModel):
             description="Optional per-transformer fan-out limits that NARROW the agent-level get_adcp_capabilities `creative.multiplicity`. Same shape as the agent-level object. When present, this transformer's authoritative; its ceilings (max_creatives_limit / max_variants_limit) MUST NOT exceed the agent ceilings, and its variant_dimensions MUST be a subset of the agent's. Omit to inherit the agent-level capability unchanged."
         ),
     ] = None
+
+    @model_validator(mode='after')
+    def _require_output_format_declaration(self) -> Transformer:
+        """At least one output declaration is required by the schema."""
+        # Read Pydantic's stored values directly so validation itself does not
+        # emit a deprecation warning for the still-supported legacy field.
+        if (
+            self.__dict__.get('output_capability_ids') is None
+            and self.__dict__.get('output_format_ids') is None
+        ):
+            raise ValueError(
+                'one of output_capability_ids or deprecated output_format_ids is required'
+            )
+        return self

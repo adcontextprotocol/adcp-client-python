@@ -5,11 +5,11 @@
 from __future__ import annotations
 
 from adcp.types._str_enum import StrEnum
-from typing import Annotated, Any
+from typing import Annotated
 
 from pydantic import ConfigDict, Field
 
-from . import vendor_pricing_option
+from . import signal_ref, vendor_pricing_option
 from .signal_listing import SignalListing
 
 
@@ -65,4 +65,9 @@ class ProductSignalTargetingOption(SignalListing):
             min_length=1,
         ),
     ] = None
-    signal_ref: Any
+    signal_ref: Annotated[
+        signal_ref.SignalRef,
+        Field(
+            description="Canonical signal reference. Use scope 'product' for a product-local signal defined by this listing; use scope 'data_provider' with data_provider_domain for a signal defined in a data provider's published adagents.json signals[]; use scope 'signal_source' with signal_source_url for a source-native signal."
+        ),
+    ]
