@@ -151,6 +151,29 @@ def _is_macro_schema(path: Path) -> bool:
     )
 
 
+def normalize_enum_descriptions(obj):
+    """Normalize OpenAPI-style enum description maps for code generation.
+
+    AdCP schemas key ``x-enum-descriptions`` by enum value. Newer
+    datamodel-code-generator releases validate that extension as a positional
+    list, so translate the map in enum order in the temporary schema tree.
+    The published schema cache remains byte-for-byte unchanged.
+    """
+    if isinstance(obj, dict):
+        descriptions = obj.get("x-enum-descriptions")
+        enum_values = obj.get("enum")
+        if isinstance(descriptions, dict) and isinstance(enum_values, list):
+            obj["x-enum-descriptions"] = [
+                str(descriptions.get(str(enum_value), "")) for enum_value in enum_values
+            ]
+        for value in obj.values():
+            normalize_enum_descriptions(value)
+    elif isinstance(obj, list):
+        for item in obj:
+            normalize_enum_descriptions(item)
+    return obj
+
+
 def rewrite_refs(obj, current_schema_rel_path: Path):
     """
     Recursively rewrite $ref paths:
@@ -303,8 +326,20 @@ def flatten_validation_oneof(schema: dict) -> dict:
     if not branches:
         return schema
 
-    # All branches must contain only 'required' (and optionally 'not')
-    if not all(set(b.keys()) <= {"required", "not"} for b in branches):
+    # Alternative annotations do not turn a required-field constraint into a
+    # distinct object shape.
+    validation_branch_keys = {
+        "$comment",
+        "deprecated",
+        "description",
+        "examples",
+        "not",
+        "required",
+        "title",
+    }
+    if not all(
+        isinstance(branch, dict) and set(branch) <= validation_branch_keys for branch in branches
+    ):
         return schema
 
     # All branches are required-only — this is a validation constraint, not a type union
@@ -332,6 +367,75 @@ def flatten_validation_oneof(schema: dict) -> dict:
     return schema
 
 
+_ROOT_OBJECT_VALIDATION_UNIONS = {
+    Path("account/list-account-changes-response.json"),
+    Path("brand/search-brands-response.json"),
+    Path("brand/verify-brand-claim-request.json"),
+    Path("core/product.json"),
+    Path("media-buy/buy-products-request.json"),
+    Path("media-buy/create-media-buy-request.json"),
+    Path("media-buy/get-reporting-status-response.json"),
+    Path("media-buy/request-proposals-request.json"),
+}
+
+
+def flatten_root_object_validation_union(schema: dict, schema_path: Path) -> dict:
+    """Keep known root object overlays as concrete, subclassable models.
+
+    These schemas put their shared object envelope at the root and use a
+    root-level ``oneOf``/``anyOf`` only for cross-field validation. codegen
+    0.63+ emits a ``RootModel`` union for that pattern, which breaks the SDK's
+    public subclassability contract. Merge branch-only fields conservatively;
+    nested unions remain untouched and runtime validators continue to enforce
+    the cross-field rules that the older generator also could not express.
+    """
+    if schema_path not in _ROOT_OBJECT_VALIDATION_UNIONS or schema.get("type") != "object":
+        return schema
+
+    branch_key = next((key for key in ("anyOf", "oneOf") if key in schema), None)
+    if branch_key is None:
+        return schema
+    branches = schema[branch_key]
+    if (
+        not isinstance(branches, list)
+        or not branches
+        or not all(isinstance(branch, dict) for branch in branches)
+    ):
+        return schema
+
+    properties = dict(schema.get("properties", {}))
+    branch_properties: dict[str, list[dict]] = {}
+    for branch in branches:
+        for name, definition in branch.get("properties", {}).items():
+            if name not in properties and isinstance(definition, dict):
+                branch_properties.setdefault(name, []).append(definition)
+
+    for name, definitions in branch_properties.items():
+        unique = {json.dumps(definition, sort_keys=True): definition for definition in definitions}
+        variants = list(unique.values())
+        if len(variants) == 1:
+            properties[name] = variants[0]
+        elif all("const" in variant for variant in variants):
+            properties[name] = {"enum": [variant["const"] for variant in variants]}
+        elif all(variant.get("type") == "object" for variant in variants):
+            properties[name] = {"type": "object", "additionalProperties": True}
+        else:
+            properties[name] = {"anyOf": variants}
+
+    schema["properties"] = properties
+    top_required = set(schema.get("required", []))
+    branch_required = [set(branch.get("required", [])) for branch in branches]
+    common_required = set.intersection(*branch_required) if branch_required else set()
+    required = sorted(top_required | common_required)
+    if required:
+        schema["required"] = required
+    else:
+        schema.pop("required", None)
+    del schema[branch_key]
+    print(f"    flattened root {branch_key} object overlay in {schema_path}")
+    return schema
+
+
 def flatten_schemas(temp_dir: Path):
     """
     Copy schemas to temp directory, preserving directory structure.
@@ -354,7 +458,11 @@ def flatten_schemas(temp_dir: Path):
     temp_dir.mkdir()
 
     # Recursively find all JSON schemas (including subdirectories)
-    schema_files = list(SCHEMAS_DIR.rglob("*.json"))
+    # The generator assigns numeric suffixes while traversing this aggregate
+    # input tree.  Path.rglob() follows filesystem insertion order, which
+    # differs between developer machines and fresh CI checkouts.  Create the
+    # temporary tree in a stable order so generated names are reproducible.
+    schema_files = sorted(SCHEMAS_DIR.rglob("*.json"))
     # Skip the top-level index.json
     schema_files = [f for f in schema_files if f.name != "index.json"]
     schema_files = [
@@ -394,12 +502,14 @@ def flatten_schemas(temp_dir: Path):
                     # generated convenience model omits this field.
                     properties.pop("formats", None)
 
-        # Rewrite $ref paths: convert absolute paths to relative, hyphens to underscores
+        # Normalize generator-specific extensions, then rewrite $ref paths.
+        schema = normalize_enum_descriptions(schema)
         schema = rewrite_refs(schema, rel_path)
         schema = stabilize_inlined_core_refs(schema, rel_path)
         schema = stabilize_nested_discriminators(schema, rel_path)
 
-        # Flatten validation-only anyOf/oneOf into single-class schemas
+        # Flatten validation-only anyOf/oneOf into single-class schemas.
+        schema = flatten_root_object_validation_union(schema, rel_path)
         schema = flatten_validation_oneof(schema)
 
         with open(output_file, "w") as f:
@@ -568,6 +678,7 @@ def generate_root_discovery_types(input_dir: Path, output_dir: Path = OUTPUT_DIR
         source = SCHEMAS_DIR / schema_rel_path
         prepared = input_dir / f"_{schema_rel_path.stem}_discovery.json"
         schema = json.loads(source.read_text())
+        schema = normalize_enum_descriptions(schema)
         schema = rewrite_refs(schema, schema_rel_path)
         schema = flatten_validation_oneof(schema)
         prepared.write_text(json.dumps(schema, indent=2))

@@ -1398,21 +1398,22 @@ def fix_allof_merge_field_override_conflicts() -> None:
 
             # datamodel-codegen expands a discriminated union intersected by
             # allOf into one merge class per union branch. When multiple
-            # bases pin the conventional ``type`` discriminator, its first
-            # base is the generated union branch and the other base is the
-            # common allOf constraint. Preserve that branch identity so the
-            # emitted discriminated union retains one class per discriminator
-            # value; this is a distinct generator artifact, not an ordering
-            # decision between a loose and narrow schema arm.
-            union_branch_base = (
-                in_module_bases[0]
+            # bases pin a discriminator (commonly ``type`` or ``mode``), its
+            # first base is the generated union branch and the other base is
+            # the common allOf constraint. Preserve that branch identity so
+            # the emitted discriminated union retains one class per
+            # discriminator value; this is a distinct generator artifact,
+            # not an ordering decision between a loose and narrow schema arm.
+            literal_conflicts = [
+                field
+                for field in conflicting_fields
                 if sum(
-                    _literal_values(annotations_by_class[base].get("type", "")) is not None
+                    _literal_values(annotations_by_class[base].get(field, "")) is not None
                     for base in in_module_bases
                 )
                 >= 2
-                else None
-            )
+            ]
+            union_branch_base = in_module_bases[0] if literal_conflicts else None
 
             # JSON Schema allOf is order-independent. Codegen's base ordering
             # is not a semantic signal, so select the arm that actually
@@ -1524,6 +1525,19 @@ def fix_allof_merge_field_override_conflicts() -> None:
                 insert_before.setdefault(first_field_line, []).extend(
                     intersection_fields[field] for field in sorted(missing_intersections)
                 )
+
+            # A merge wrapper can consist entirely of redundant field
+            # re-declarations. If collapsing the bases removes every body
+            # statement, retain a syntactically valid empty class.
+            body_has_surviving_statement = any(
+                any(
+                    line_no not in drop_lines
+                    for line_no in range(stmt.lineno, (stmt.end_lineno or stmt.lineno) + 1)
+                )
+                for stmt in cls.body
+            )
+            if not body_has_surviving_statement and not missing_intersections:
+                insert_before.setdefault(cls.body[0].lineno, []).append("    pass\n")
             file_classes += 1
 
         if not header_edits and not drop_lines:
@@ -3242,6 +3256,95 @@ def restore_format_asset_numbered_aliases() -> None:
     print(f"  core/format.py: restored Assets94 -> {repeatable_class}")
 
 
+def restore_principal_result_aliases() -> None:
+    """Expose principal result arms by discriminator instead of numeric suffix.
+
+    datamodel-code-generator numbers anonymous ``result`` variants according
+    to aggregate schema traversal order.  Those numbers are implementation
+    details and can differ across generator versions or filesystem order.
+    """
+    specs = {
+        "protocol/get_principal_response.py": {
+            "PrincipalUnconfiguredResult": "unconfigured",
+            "PrincipalCurrentResult": "current",
+            "PrincipalRecognizedResult": "recognized",
+            "PrincipalReadFailedResult": "failed",
+        },
+        "protocol/sync_principal_response.py": {
+            "PrincipalValidatedResult": "validated",
+            "PrincipalAppliedResult": "applied",
+            "PrincipalSyncFailedResult": "failed",
+        },
+    }
+
+    for relative_path, aliases in specs.items():
+        target = OUTPUT_DIR / relative_path
+        if not target.exists():
+            print(f"  {relative_path} not found (skipping principal result aliases)")
+            continue
+
+        source = target.read_text()
+        tree = ast.parse(source)
+        classes_by_kind: dict[str, str] = {}
+        for node in tree.body:
+            if not isinstance(node, ast.ClassDef):
+                continue
+            for stmt in node.body:
+                if (
+                    isinstance(stmt, ast.AnnAssign)
+                    and isinstance(stmt.target, ast.Name)
+                    and stmt.target.id == "kind"
+                ):
+                    kind = _extract_single_literal_value(stmt.annotation)
+                    if isinstance(kind, str):
+                        classes_by_kind[kind] = node.name
+                    break
+
+        missing = sorted(set(aliases.values()) - classes_by_kind.keys())
+        if missing:
+            raise RuntimeError(f"{relative_path}: principal result kinds not generated: {missing}")
+
+        assignments = [f"{alias} = {classes_by_kind[kind]}" for alias, kind in aliases.items()]
+        marker = assignments[0]
+        if marker in source:
+            print(f"  {relative_path}: principal result aliases already restored")
+            continue
+
+        target.write_text(
+            source.rstrip()
+            + "\n\n\n# Stable aliases for anonymous result arms (selected by discriminator).\n"
+            + "\n".join(assignments)
+            + "\n"
+        )
+        print(f"  {relative_path}: restored {len(assignments)} principal result aliases")
+
+
+def disambiguate_comply_response_arm() -> None:
+    """Give the comply response's anonymous ``Arm`` enum a stable name.
+
+    The request schema already generates an unrelated public ``Arm`` enum.
+    Codegen 0.63 also calls the response enum ``Arm``, which trips the exact
+    collision guard only after regeneration.  Rename the response-local type
+    before exports are consolidated so both the release tree and a fresh tree
+    have an unambiguous namespace.
+    """
+    target = OUTPUT_DIR / "compliance" / "comply_test_controller_response.py"
+    if not target.exists():
+        print("  comply_test_controller_response.py not found (skipping Arm rename)")
+        return
+
+    source = target.read_text()
+    if "class ComplyResponseArm(" in source:
+        print("  compliance response Arm already disambiguated")
+        return
+    if "class Arm(" not in source:
+        print("  compliance response Arm not generated (no rename needed)")
+        return
+
+    target.write_text(re.sub(r"\bArm\b", "ComplyResponseArm", source))
+    print("  compliance response: renamed Arm -> ComplyResponseArm")
+
+
 def restore_response_variant_aliases() -> None:
     """Restore numbered response arms from schema data, not hand-written payloads.
 
@@ -4545,6 +4648,35 @@ def fix_list_creatives_format_reference_xor() -> None:
         return
 
     source = target.read_text()
+    if "class Creative(AdCPBaseModel):" in source and "class Creatives(" not in source:
+        if "Creatives = Creative\nCreatives1 = Creative" in source:
+            print("  creative/list_creatives_response.py: merged creative XOR already fixed")
+            return
+
+        source = source.replace(
+            "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StringConstraints",
+            "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StringConstraints, model_validator",
+            1,
+        )
+        merged_validator = """
+
+    @model_validator(mode='after')
+    def _validate_format_reference_xor(self) -> Creative:
+        if (self.format_id is None) == (self.format_kind is None):
+            raise ValueError('exactly one of format_id and format_kind is required')
+        return self
+
+
+Creatives = Creative
+Creatives1 = Creative
+"""
+        marker = "\n\nclass ListCreativesResponse(AdcpVersionEnvelope, ProtocolEnvelope):"
+        if marker not in source:
+            raise RuntimeError("ListCreativesResponse marker missing from merged creative output")
+        target.write_text(source.replace(marker, merged_validator + marker, 1))
+        print("  creative/list_creatives_response.py: restored merged creative XOR and aliases")
+        return
+
     if "_reject_canonical_format_ref" in source and "_reject_legacy_format_ref" in source:
         print("  creative/list_creatives_response.py: format reference XOR already fixed")
         return
@@ -5198,6 +5330,8 @@ def main(argv: list[str] | None = None):
         restore_format_category_deprecation_shim,
         restore_signal_catalog_type_alias,
         restore_format_asset_numbered_aliases,
+        restore_principal_result_aliases,
+        disambiguate_comply_response_arm,
         restore_response_variant_aliases,
         fix_compliance_task_completion_response_ref,
         restore_get_products_field_compatibility_enum,

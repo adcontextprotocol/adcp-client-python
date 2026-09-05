@@ -419,9 +419,10 @@ def generate_code() -> str:
         lines.append(f"from adcp.types.generated_poc.{path} import {name}")
 
     # Add request type imports
-    lines.append("from adcp.types.generated_poc.media_buy.create_media_buy_request import (")
-    lines.append("    CreateMediaBuyRequest,")
-    lines.append(")")
+    if "CreateMediaBuyRequest" in all_coercions:
+        lines.append("from adcp.types.generated_poc.media_buy.create_media_buy_request import (")
+        lines.append("    CreateMediaBuyRequest,")
+        lines.append(")")
     lines.append("from adcp.types.generated_poc.media_buy.get_products_request import (")
     lines.append("    GetProductsRequest,")
     lines.append(")")

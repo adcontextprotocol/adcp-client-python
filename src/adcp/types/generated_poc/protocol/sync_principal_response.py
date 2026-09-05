@@ -94,3 +94,9 @@ class SyncPrincipalResponse(AdcpVersionEnvelope, ProtocolEnvelope):
     result: Result17 | Result | Result19
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
+
+
+# Stable aliases for anonymous result arms (selected by discriminator).
+PrincipalValidatedResult = Result
+PrincipalAppliedResult = Result17
+PrincipalSyncFailedResult = Result19
