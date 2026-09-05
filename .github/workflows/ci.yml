@@ -503,7 +503,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: storyboard
-    if: always()
+    # Run after a failed matrix so the aggregate required check fails, but
+    # do not keep superseded workflow runs alive after concurrency cancels them.
+    if: ${{ !cancelled() }}
     steps:
       - name: Require all reference seller storyboard matrix runs
         run: |
