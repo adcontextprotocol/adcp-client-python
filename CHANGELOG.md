@@ -1,5 +1,14 @@
 # Changelog
 
+## [8.0.0-beta.15](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.14...v8.0.0-beta.15) (2026-09-05)
+
+
+### Bug Fixes
+
+* **ci:** retire superseded Ladon change requests ([#1135](https://github.com/adcontextprotocol/adcp-client-python/issues/1135)) ([00096e7](https://github.com/adcontextprotocol/adcp-client-python/commit/00096e72055395cbd47f1b351a067f00ec16be95))
+* **codegen:** restore downstream model contracts ([#1134](https://github.com/adcontextprotocol/adcp-client-python/issues/1134)) ([64725d7](https://github.com/adcontextprotocol/adcp-client-python/commit/64725d7db86b52a6e62c27d5044e689295133247))
+* **codegen:** upgrade to secure generator 0.64 ([#1132](https://github.com/adcontextprotocol/adcp-client-python/issues/1132)) ([f70de79](https://github.com/adcontextprotocol/adcp-client-python/commit/f70de79a5a9b3171cb77ec46d5feab82c6b12e2b))
+
 ## [8.0.0-beta.14](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.13...v8.0.0-beta.14) (2026-09-05)
 
 
