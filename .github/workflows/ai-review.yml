@@ -16,6 +16,7 @@ on:
     paths-ignore:
       - ".github/workflows/ai-review.yml"
       - "LADON.md"
+      - "scripts/retire-superseded-ladon-reviews.cjs"
 
 jobs:
   code_review:
@@ -60,7 +61,7 @@ jobs:
           MODIFIED=""
           while IFS= read -r f; do
             case "$f" in
-              .github/workflows/ai-review.yml|LADON.md)
+              .github/workflows/ai-review.yml|LADON.md|scripts/retire-superseded-ladon-reviews.cjs)
                 MODIFIED="${MODIFIED}${f}"$'\n' ;;
             esac
           done <<< "$CHANGED"
@@ -104,3 +105,28 @@ jobs:
           skip-bot-authors: dependabot[bot],renovate[bot],github-actions[bot],aao-ipr-bot[bot]
           # Optional; defaults to the review action's pinned model.
           model: claude-opus-4-8
+
+      # GitHub keeps an earlier CHANGES_REQUESTED review blocking even after
+      # the same App approves a corrected head. Retire only Ladon's own older
+      # change requests, and only when its latest review approves this head.
+      - name: Retire superseded Ladon change requests
+        if: steps.workflow-mod.outputs.modified != 'true'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          LADON_BOT_LOGIN: ${{ steps.app-token.outputs.app-slug }}[bot]
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const { retireSupersededLadonReviews } = require(
+              `${process.env.GITHUB_WORKSPACE}/scripts/retire-superseded-ladon-reviews.cjs`
+            );
+            const dismissed = await retireSupersededLadonReviews({
+              github,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pullNumber: context.issue.number,
+              botLogin: process.env.LADON_BOT_LOGIN,
+              headSha: process.env.PR_HEAD_SHA,
+            });
+            core.info(`Dismissed ${dismissed.length} superseded Ladon review(s).`);
