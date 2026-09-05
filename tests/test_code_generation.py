@@ -131,6 +131,41 @@ def test_normalize_enum_descriptions_recurses_into_embedded_schemas():
     assert schema["$defs"]["state"]["x-enum-descriptions"] == ["Available", "Finished"]
 
 
+def test_post_generate_removes_only_unused_pydantic_field_imports():
+    from scripts.post_generate_fixes import _remove_unused_pydantic_field_import
+
+    unused = (
+        "from pydantic import ConfigDict, Field\n\n"
+        "class Example:\n"
+        "    model_config = ConfigDict(extra='forbid')\n"
+    )
+    updated, changed = _remove_unused_pydantic_field_import(unused)
+
+    assert changed
+    assert "from pydantic import ConfigDict\n" in updated
+    assert "Field" not in updated
+    assert _remove_unused_pydantic_field_import(updated) == (updated, False)
+
+    used = "from pydantic import Field\n\nvalue = Field(default=None)\n"
+    assert _remove_unused_pydantic_field_import(used) == (used, False)
+
+    standalone = (
+        "from __future__ import annotations\n\n"
+        "from adcp.types._str_enum import StrEnum\n\n"
+        "from pydantic import Field\n\n\n"
+        "class Example(StrEnum):\n"
+        "    value = 'value'\n"
+    )
+    cleaned, changed = _remove_unused_pydantic_field_import(standalone)
+    assert changed
+    assert cleaned == (
+        "from __future__ import annotations\n\n"
+        "from adcp.types._str_enum import StrEnum\n\n\n"
+        "class Example(StrEnum):\n"
+        "    value = 'value'\n"
+    )
+
+
 def test_flatten_validation_oneof_accepts_branch_annotations():
     from scripts.generate_types import flatten_validation_oneof
 

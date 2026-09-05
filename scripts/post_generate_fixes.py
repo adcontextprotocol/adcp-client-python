@@ -693,6 +693,58 @@ def fix_typed_additional_properties() -> None:
     )
 
 
+def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
+    """Remove a generated ``Field`` import when the module never references it."""
+    tree = ast.parse(source)
+    if any(
+        isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id == "Field"
+        for node in ast.walk(tree)
+    ):
+        return source, False
+
+    lines = source.splitlines(keepends=True)
+    changed = False
+    for node in reversed(list(ast.walk(tree))):
+        if not isinstance(node, ast.ImportFrom) or node.module != "pydantic":
+            continue
+        if not any(alias.name == "Field" and alias.asname is None for alias in node.names):
+            continue
+
+        remaining = [
+            alias for alias in node.names if alias.name != "Field" or alias.asname is not None
+        ]
+        start = node.lineno - 1
+        end = node.end_lineno or node.lineno
+        if remaining:
+            names = ", ".join(
+                alias.name if alias.asname is None else f"{alias.name} as {alias.asname}"
+                for alias in remaining
+            )
+            newline = "\n" if lines[end - 1].endswith("\n") else ""
+            lines[start:end] = [f"from pydantic import {names}{newline}"]
+        else:
+            if start > 0 and not lines[start - 1].strip():
+                start -= 1
+            del lines[start:end]
+        changed = True
+
+    return "".join(lines), changed
+
+
+def remove_unused_pydantic_field_imports() -> None:
+    """Remove spurious ``Field`` imports emitted for generated enum modules."""
+    modified_files = 0
+    for py_path in OUTPUT_DIR.rglob("*.py"):
+        source = py_path.read_text()
+        updated, changed = _remove_unused_pydantic_field_import(source)
+        if not changed:
+            continue
+        py_path.write_text(updated)
+        modified_files += 1
+
+    print(f"  Removed unused pydantic.Field imports from {modified_files} file(s)")
+
+
 def _find_indented_field_block(content: str, field_name: str) -> tuple[int, int] | None:
     """Return absolute offsets for a generated four-space field block."""
     cursor = 0
@@ -5430,6 +5482,7 @@ def main(argv: list[str] | None = None):
         fix_update_rights_legacy_response_defaults,
         fix_list_creatives_format_reference_xor,
         rewrite_generated_enums_to_strenum,
+        remove_unused_pydantic_field_imports,
         strip_extra_blank_lines_at_eof,
     ]
     for fix in fixes:
