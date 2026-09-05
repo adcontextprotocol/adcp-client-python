@@ -2,7 +2,7 @@
 
 Validates that:
 - AdCPBaseModel defaults to extra='ignore' (forward-compatible)
-- Generated types with additionalProperties: true override to extra='allow'
+- Generated types with open or typed additionalProperties override to extra='allow'
 - Generated types with x-adcp-open-payload: true preserve open payload fields
 - Types without additionalProperties inherit ignore from base
 - Consumer subclasses can override extra policy freely
@@ -20,11 +20,13 @@ from pydantic import ConfigDict, ValidationError
 
 from adcp._version import _read_packaged_version
 from adcp.types.base import AdCPBaseModel
+from adcp.types.generated_poc.core.media_buy_features import MediaBuyFeatures
 from adcp.types.generated_poc.governance.check_governance_request import CheckGovernanceRequest
 from adcp.validation.version import resolve_bundle_key
 from scripts.post_generate_fixes import (
     _ensure_configdict_import,
     _first_generated_class_name,
+    _inline_typed_extra_annotations,
     _open_payload_class_names,
     _set_class_extra_allow,
 )
@@ -64,7 +66,7 @@ class TestBaseModelDefault:
 
 
 class TestGeneratedTypeOverrides:
-    """Generated types with additionalProperties: true override to extra='allow'."""
+    """Generated types with additionalProperties override to extra='allow'."""
 
     def test_allow_override_stores_extra_fields(self) -> None:
         class ExtensibleType(AdCPBaseModel):
@@ -100,6 +102,14 @@ class TestGeneratedTypeOverrides:
         )
 
         assert obj.payload == payload
+
+    def test_typed_additional_properties_are_preserved_and_validated(self) -> None:
+        """Schema-valued additionalProperties retain their generated value type."""
+        features = MediaBuyFeatures(seller_extension=True)
+
+        assert features.seller_extension is True
+        with pytest.raises(ValidationError, match="bool_type"):
+            MediaBuyFeatures(seller_extension=[])
 
     def test_named_open_payload_schema_injects_extra_allow(self) -> None:
         """Named x-adcp-open-payload schemas get explicit generated model_config."""
@@ -161,6 +171,21 @@ class TestGeneratedTypeOverrides:
             "from __future__ import annotations\n\nfrom pydantic import ConfigDict\n\n" in updated
         )
         compile(updated, "<generated>", "exec")
+
+    def test_typed_extra_annotation_is_moved_into_model_class(self) -> None:
+        content = (
+            "class FeatureFlags(AdCPBaseModel):\n"
+            "    model_config = ConfigDict(extra='allow')\n\n\n"
+            "FeatureFlags.__annotations__['__pydantic_extra__'] = Dict[str, bool]\n"
+            "FeatureFlags.model_rebuild(force=True)\n"
+        )
+
+        updated, fixed = _inline_typed_extra_annotations(content)
+
+        assert fixed == 1
+        assert "    __pydantic_extra__: Dict[str, bool]\n" in updated
+        assert "FeatureFlags.__annotations__" not in updated
+        assert "FeatureFlags.model_rebuild" not in updated
 
     def test_titleless_root_fallback_skips_leading_enum(self) -> None:
         schema = {"type": "object", "x-adcp-open-payload": True}
@@ -240,7 +265,8 @@ class TestGeneratedCodeMatchesSchemas:
                 return False
             if open_payload is True:
                 return True
-            if obj.get("additionalProperties") is True:
+            additional_properties = obj.get("additionalProperties")
+            if additional_properties is True or isinstance(additional_properties, dict):
                 return True
             # Follow $ref to check composed schemas
             if "$ref" in obj:
@@ -318,6 +344,13 @@ class TestGeneratedCodeMatchesSchemas:
     def test_open_payload_true_allows_extra_even_without_additional_properties(self) -> None:
         """x-adcp-open-payload is an authoritative open-payload signal."""
         assert self._schema_allows_extra({"x-adcp-open-payload": True}, {})
+
+    def test_typed_additional_properties_allows_extra(self) -> None:
+        """A schema-valued additionalProperties keyword is an open object contract."""
+        assert self._schema_allows_extra(
+            {"additionalProperties": {"type": "boolean"}},
+            {},
+        )
 
     def test_open_payload_false_wins_over_additional_properties(self) -> None:
         """x-adcp-open-payload false prevents accidental widening of structured objects."""

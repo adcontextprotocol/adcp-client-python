@@ -48,6 +48,7 @@ from adcp.types.coercion import (
 
 from adcp.types.generated_poc.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.generated_poc.core.context import ContextObject
+from adcp.types.generated_poc.core.creative_asset import CreativeAsset
 from adcp.types.generated_poc.core.creative_assignment import CreativeAssignment
 from adcp.types.generated_poc.core.error import Error
 from adcp.types.generated_poc.core.ext import ExtensionObject
@@ -107,8 +108,7 @@ from adcp.types.generated_poc.creative.list_creatives_response import (
 from adcp.types.generated_poc.creative.list_creatives_request import AssignmentProjection
 from adcp.types.generated_poc.media_buy.get_products_request import BuyingMode
 from adcp.types.generated_poc.media_buy.get_products_response import CacheScope
-from adcp.types.generated_poc.media_buy.package_request import Creative as PackageRequestCreative
-from adcp.types.generated_poc.media_buy.package_update import Creative as PackageUpdateCreative
+from adcp.types.generated_poc.creative.list_creatives_response import Creative
 from adcp.types.generated_poc.media_buy.list_creative_formats_response import Source
 from adcp.types.generated_poc.creative.list_creative_formats_request import Type
 
@@ -217,7 +217,9 @@ def _apply_coercion() -> None:
     _patch_field_annotation(
         ListCreativesRequest,
         "assignment_projection",
-        Annotated[AssignmentProjection | None, BeforeValidator(coerce_to_enum(AssignmentProjection))],
+        Annotated[
+            AssignmentProjection | None, BeforeValidator(coerce_to_enum(AssignmentProjection))
+        ],
     )
     _patch_field_annotation(
         ListCreativesRequest,
@@ -288,7 +290,7 @@ def _apply_coercion() -> None:
     # - format_kind: CanonicalFormatKind | str | None
     # - pacing: Pacing | str | None
     # - creative_assignments: list[CreativeAssignment] (accepts subclass instances)
-    # - creatives: Sequence[PackageRequestCreative] (accepts subclass instances)
+    # - creatives: Sequence[CreativeAsset] (accepts subclass instances)
     # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
     _patch_field_annotation(
@@ -313,8 +315,8 @@ def _apply_coercion() -> None:
         PackageRequest,
         "creatives",
         Annotated[
-            Sequence[PackageRequestCreative] | None,
-            BeforeValidator(coerce_subclass_list(PackageRequestCreative)),
+            Sequence[CreativeAsset] | None,
+            BeforeValidator(coerce_subclass_list(CreativeAsset)),
         ],
     )
     _patch_field_annotation(
@@ -368,7 +370,7 @@ def _apply_coercion() -> None:
     # Apply coercion to PackageUpdate
     # - pacing: Pacing | str | None
     # - creative_assignments: list[CreativeAssignment] (accepts subclass instances)
-    # - creatives: list[PackageUpdateCreative] (accepts subclass instances)
+    # - creatives: list[CreativeAsset] (accepts subclass instances)
     # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
     _patch_field_annotation(
@@ -388,8 +390,8 @@ def _apply_coercion() -> None:
         PackageUpdate,
         "creatives",
         Annotated[
-            list[PackageUpdateCreative] | None,
-            BeforeValidator(coerce_subclass_list(PackageUpdateCreative)),
+            list[CreativeAsset] | None,
+            BeforeValidator(coerce_subclass_list(CreativeAsset)),
         ],
     )
     _patch_field_annotation(
@@ -452,6 +454,7 @@ def _apply_coercion() -> None:
     # Apply coercion to ListCreativesResponse
     # - context: ContextObject | dict | None
     # - status: TaskStatus | str | None
+    # - creatives: Sequence[Creative] (accepts subclass instances)
     # - errors: list[Error] (accepts subclass instances)
     # - ext: ExtensionObject | dict | None
     _patch_field_annotation(
@@ -463,6 +466,14 @@ def _apply_coercion() -> None:
         ListCreativesResponse,
         "status",
         Annotated[TaskStatus | None, BeforeValidator(coerce_to_enum(TaskStatus))],
+    )
+    _patch_field_annotation(
+        ListCreativesResponse,
+        "creatives",
+        Annotated[
+            Sequence[Creative],
+            BeforeValidator(coerce_subclass_list(Creative)),
+        ],
     )
     _patch_field_annotation(
         ListCreativesResponse,

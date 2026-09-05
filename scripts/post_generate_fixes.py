@@ -629,6 +629,122 @@ def _ensure_configdict_import(content: str) -> str:
     return "from pydantic import ConfigDict\n\n" + content
 
 
+_TYPED_EXTRA_ASSIGNMENT = re.compile(
+    r"^(?P<class_name>[A-Za-z_]\w*)\.__annotations__\['__pydantic_extra__'\] = "
+    r"(?P<annotation>.+?)\n(?P=class_name)\.model_rebuild\(force=True\)\n?",
+    re.MULTILINE | re.DOTALL,
+)
+
+
+def _inline_typed_extra_annotations(content: str) -> tuple[str, int]:
+    """Move generated typed-extra annotations into their Pydantic classes.
+
+    datamodel-code-generator 0.64 emits a post-class mutation of
+    ``__annotations__`` followed by ``model_rebuild(force=True)`` for typed
+    ``additionalProperties``. Pydantic does not rediscover fields added to
+    ``__annotations__`` after class creation, so the generated model allows
+    arbitrary extra values instead of validating them against the schema.
+    Declaring ``__pydantic_extra__`` in the class body activates Pydantic's
+    documented typed-extra validation path.
+    """
+    fixed = 0
+    while match := _TYPED_EXTRA_ASSIGNMENT.search(content):
+        class_name = match.group("class_name")
+        class_headers = list(
+            re.finditer(
+                rf"^class {re.escape(class_name)}\b[^\n]*:\n",
+                content[: match.start()],
+                re.MULTILINE,
+            )
+        )
+        if not class_headers:
+            raise ValueError(
+                f"Generated typed-extra assignment has no class declaration: {class_name}"
+            )
+
+        annotation_lines = match.group("annotation").splitlines()
+        declaration = f"    __pydantic_extra__: {annotation_lines[0]}\n"
+        declaration += "".join(f"    {line}\n" for line in annotation_lines[1:])
+
+        insertion_offset = class_headers[-1].end()
+        content = content[: match.start()] + content[match.end() :]
+        content = content[:insertion_offset] + declaration + content[insertion_offset:]
+        fixed += 1
+
+    return content, fixed
+
+
+def fix_typed_additional_properties() -> None:
+    """Make schema-valued ``additionalProperties`` validate at runtime."""
+    fixed = 0
+    modified_files = 0
+    for py_path in OUTPUT_DIR.rglob("*.py"):
+        content = py_path.read_text()
+        updated, file_fixed = _inline_typed_extra_annotations(content)
+        if not file_fixed:
+            continue
+        py_path.write_text(updated)
+        fixed += file_fixed
+        modified_files += 1
+
+    print(
+        f"  Inlined {fixed} typed additionalProperties annotation(s) "
+        f"across {modified_files} file(s)"
+    )
+
+
+def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
+    """Remove a generated ``Field`` import when the module never references it."""
+    tree = ast.parse(source)
+    if any(
+        isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id == "Field"
+        for node in ast.walk(tree)
+    ):
+        return source, False
+
+    lines = source.splitlines(keepends=True)
+    changed = False
+    for node in reversed(list(ast.walk(tree))):
+        if not isinstance(node, ast.ImportFrom) or node.module != "pydantic":
+            continue
+        if not any(alias.name == "Field" and alias.asname is None for alias in node.names):
+            continue
+
+        remaining = [
+            alias for alias in node.names if alias.name != "Field" or alias.asname is not None
+        ]
+        start = node.lineno - 1
+        end = node.end_lineno or node.lineno
+        if remaining:
+            names = ", ".join(
+                alias.name if alias.asname is None else f"{alias.name} as {alias.asname}"
+                for alias in remaining
+            )
+            newline = "\n" if lines[end - 1].endswith("\n") else ""
+            lines[start:end] = [f"from pydantic import {names}{newline}"]
+        else:
+            if start > 0 and not lines[start - 1].strip():
+                start -= 1
+            del lines[start:end]
+        changed = True
+
+    return "".join(lines), changed
+
+
+def remove_unused_pydantic_field_imports() -> None:
+    """Remove spurious ``Field`` imports emitted for generated enum modules."""
+    modified_files = 0
+    for py_path in OUTPUT_DIR.rglob("*.py"):
+        source = py_path.read_text()
+        updated, changed = _remove_unused_pydantic_field_import(source)
+        if not changed:
+            continue
+        py_path.write_text(updated)
+        modified_files += 1
+
+    print(f"  Removed unused pydantic.Field imports from {modified_files} file(s)")
+
+
 def _find_indented_field_block(content: str, field_name: str) -> tuple[int, int] | None:
     """Return absolute offsets for a generated four-space field block."""
     cursor = 0
@@ -5315,6 +5431,7 @@ def main(argv: list[str] | None = None):
         fix_preview_creative_request_discriminator,
         add_deprecated_field_metadata,
         apply_open_payload_config,
+        fix_typed_additional_properties,
         fix_deprecated_rootmodel_fields,
         fix_constr_type_annotations,
         unwrap_rootmodel_unions,
@@ -5365,6 +5482,7 @@ def main(argv: list[str] | None = None):
         fix_update_rights_legacy_response_defaults,
         fix_list_creatives_format_reference_xor,
         rewrite_generated_enums_to_strenum,
+        remove_unused_pydantic_field_imports,
         strip_extra_blank_lines_at_eof,
     ]
     for fix in fixes:
