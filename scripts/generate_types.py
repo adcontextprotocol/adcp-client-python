@@ -458,7 +458,11 @@ def flatten_schemas(temp_dir: Path):
     temp_dir.mkdir()
 
     # Recursively find all JSON schemas (including subdirectories)
-    schema_files = list(SCHEMAS_DIR.rglob("*.json"))
+    # The generator assigns numeric suffixes while traversing this aggregate
+    # input tree.  Path.rglob() follows filesystem insertion order, which
+    # differs between developer machines and fresh CI checkouts.  Create the
+    # temporary tree in a stable order so generated names are reproducible.
+    schema_files = sorted(SCHEMAS_DIR.rglob("*.json"))
     # Skip the top-level index.json
     schema_files = [f for f in schema_files if f.name != "index.json"]
     schema_files = [

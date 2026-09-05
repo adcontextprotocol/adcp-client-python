@@ -3256,6 +3256,69 @@ def restore_format_asset_numbered_aliases() -> None:
     print(f"  core/format.py: restored Assets94 -> {repeatable_class}")
 
 
+def restore_principal_result_aliases() -> None:
+    """Expose principal result arms by discriminator instead of numeric suffix.
+
+    datamodel-code-generator numbers anonymous ``result`` variants according
+    to aggregate schema traversal order.  Those numbers are implementation
+    details and can differ across generator versions or filesystem order.
+    """
+    specs = {
+        "protocol/get_principal_response.py": {
+            "PrincipalUnconfiguredResult": "unconfigured",
+            "PrincipalCurrentResult": "current",
+            "PrincipalRecognizedResult": "recognized",
+            "PrincipalReadFailedResult": "failed",
+        },
+        "protocol/sync_principal_response.py": {
+            "PrincipalValidatedResult": "validated",
+            "PrincipalAppliedResult": "applied",
+            "PrincipalSyncFailedResult": "failed",
+        },
+    }
+
+    for relative_path, aliases in specs.items():
+        target = OUTPUT_DIR / relative_path
+        if not target.exists():
+            print(f"  {relative_path} not found (skipping principal result aliases)")
+            continue
+
+        source = target.read_text()
+        tree = ast.parse(source)
+        classes_by_kind: dict[str, str] = {}
+        for node in tree.body:
+            if not isinstance(node, ast.ClassDef):
+                continue
+            for stmt in node.body:
+                if (
+                    isinstance(stmt, ast.AnnAssign)
+                    and isinstance(stmt.target, ast.Name)
+                    and stmt.target.id == "kind"
+                ):
+                    kind = _extract_single_literal_value(stmt.annotation)
+                    if isinstance(kind, str):
+                        classes_by_kind[kind] = node.name
+                    break
+
+        missing = sorted(set(aliases.values()) - classes_by_kind.keys())
+        if missing:
+            raise RuntimeError(f"{relative_path}: principal result kinds not generated: {missing}")
+
+        assignments = [f"{alias} = {classes_by_kind[kind]}" for alias, kind in aliases.items()]
+        marker = assignments[0]
+        if marker in source:
+            print(f"  {relative_path}: principal result aliases already restored")
+            continue
+
+        target.write_text(
+            source.rstrip()
+            + "\n\n\n# Stable aliases for anonymous result arms (selected by discriminator).\n"
+            + "\n".join(assignments)
+            + "\n"
+        )
+        print(f"  {relative_path}: restored {len(assignments)} principal result aliases")
+
+
 def restore_response_variant_aliases() -> None:
     """Restore numbered response arms from schema data, not hand-written payloads.
 
@@ -5241,6 +5304,7 @@ def main(argv: list[str] | None = None):
         restore_format_category_deprecation_shim,
         restore_signal_catalog_type_alias,
         restore_format_asset_numbered_aliases,
+        restore_principal_result_aliases,
         restore_response_variant_aliases,
         fix_compliance_task_completion_response_ref,
         restore_get_products_field_compatibility_enum,

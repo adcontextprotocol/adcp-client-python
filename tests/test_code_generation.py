@@ -14,6 +14,62 @@ from pathlib import Path
 import pytest
 
 
+def test_flatten_schemas_uses_stable_path_order(tmp_path, monkeypatch, capsys):
+    """Aggregate model suffixes must not depend on filesystem insertion order."""
+    from scripts import generate_types
+
+    schemas = tmp_path / "schemas"
+    schemas.mkdir()
+    (schemas / "zeta.json").write_text('{"type": "object"}')
+    (schemas / "alpha.json").write_text('{"type": "object"}')
+    monkeypatch.setattr(generate_types, "SCHEMAS_DIR", schemas)
+    monkeypatch.setattr(generate_types, "GENERATED_SCHEMA_EXCLUDE_FILES", frozenset())
+    monkeypatch.setattr(generate_types, "GENERATED_SCHEMA_EXCLUDE_DIRS", frozenset())
+
+    generate_types.flatten_schemas(tmp_path / "prepared")
+
+    output = capsys.readouterr().out
+    assert output.index("  alpha.json") < output.index("  zeta.json")
+
+
+def test_restore_principal_result_aliases_uses_kind_discriminators(tmp_path, monkeypatch):
+    """Principal aliases remain stable when anonymous class suffixes change."""
+    from scripts import post_generate_fixes
+
+    protocol_dir = tmp_path / "protocol"
+    protocol_dir.mkdir()
+    (protocol_dir / "get_principal_response.py").write_text(
+        "from typing import Literal\n"
+        "class Result42:\n"
+        "    kind: Literal['current'] = 'current'\n"
+        "class Result3:\n"
+        "    kind: Literal['recognized'] = 'recognized'\n"
+        "class Result:\n"
+        "    kind: Literal['unconfigured'] = 'unconfigured'\n"
+        "class Result8:\n"
+        "    kind: Literal['failed'] = 'failed'\n"
+    )
+    (protocol_dir / "sync_principal_response.py").write_text(
+        "from typing import Literal\n"
+        "class Result4:\n"
+        "    kind: Literal['validated'] = 'validated'\n"
+        "class Result12:\n"
+        "    kind: Literal['applied'] = 'applied'\n"
+        "class Result99:\n"
+        "    kind: Literal['failed'] = 'failed'\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", tmp_path)
+
+    post_generate_fixes.restore_principal_result_aliases()
+
+    get_source = (protocol_dir / "get_principal_response.py").read_text()
+    sync_source = (protocol_dir / "sync_principal_response.py").read_text()
+    assert "PrincipalCurrentResult = Result42" in get_source
+    assert "PrincipalRecognizedResult = Result3" in get_source
+    assert "PrincipalAppliedResult = Result12" in sync_source
+    assert "PrincipalSyncFailedResult = Result99" in sync_source
+
+
 def test_normalize_enum_descriptions_preserves_enum_order():
     """Description maps become the positional list expected by codegen 0.64+."""
     from scripts.generate_types import normalize_enum_descriptions
