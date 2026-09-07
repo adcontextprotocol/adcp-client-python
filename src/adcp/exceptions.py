@@ -2,9 +2,125 @@
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+import math
+from dataclasses import dataclass
+from functools import cached_property
+from typing import Any, Literal, TypedDict
 
 from adcp.task_options import TaskRecoveryMetadata
+
+# Wire values of AdCP `error.recovery`. The vocabulary is closed at the type
+# level here; unknown wire strings normalize to `None` on extraction (see
+# `_normalize_recovery`) so a receiver never has to branch on a fourth value.
+RecoveryLiteral = Literal["transient", "correctable", "terminal"]
+_RECOVERY_VALUES: frozenset[str] = frozenset(("transient", "correctable", "terminal"))
+
+
+def _access(obj: Any, name: str) -> Any:
+    """Read `name` from a pydantic model, a plain dict, or a duck-typed object.
+
+    Extraction below has to accept all three because callers routinely pass
+    parsed pydantic `Error` models, unparsed dicts (from raw JSON), or the
+    small duck-typed instances the exception hierarchy itself constructs
+    (`IdempotencyScopeError`, tests).
+    """
+    if isinstance(obj, dict):
+        return obj.get(name)
+    return getattr(obj, name, None)
+
+
+def _normalize_recovery(raw: Any) -> RecoveryLiteral | None:
+    """Return the wire `recovery` value as a plain string, or None if absent/garbage.
+
+    `Recovery` on the generated pydantic model is a `StrEnum`, so it round-trips
+    as its own value; dicts and duck-typed callers pass a plain `str`. Anything
+    outside the closed spec vocabulary normalizes to `None` — receivers should
+    treat "unknown recovery" identically to "absent recovery" per the AdCP
+    forward-compat rule for unknown wire values.
+    """
+    if raw is None:
+        return None
+    value = raw.value if hasattr(raw, "value") else raw
+    if isinstance(value, str) and value in _RECOVERY_VALUES:
+        return value  # type: ignore[return-value]
+    return None
+
+
+@dataclass(frozen=True, slots=True)
+class BuyerReasonInfo:
+    """Typed extraction of an AdCP `error.buyer_reason` object.
+
+    Both fields are buyer-safe by spec: `code` is drawn from the standard
+    `enums/error-code.json` vocabulary (or a `X_{VENDOR}_{CODE}` extension),
+    and `message` MUST NOT contain vendor identifiers, ad-server type names,
+    internal object names, internal IDs, or stack traces. See AdCP 3.2's
+    `core/error.json` schema for the normative constraints.
+    """
+
+    code: str
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
+class AdcpErrorInfo:
+    """Typed extraction of a single AdCP `error` entry.
+
+    Normalizes a pydantic `Error` model, a raw dict from JSON, or a
+    duck-typed object into consistent attribute access. Use
+    `ADCPTaskError.error_info` (or the module-level `extract_adcp_error_info`)
+    to get instances of this class instead of hand-poking each error object.
+    """
+
+    code: str | None
+    message: str | None
+    recovery: RecoveryLiteral | None
+    buyer_reason: BuyerReasonInfo | None
+    field: str | None = None
+    suggestion: str | None = None
+    retry_after: float | None = None
+    details: dict[str, Any] | None = None
+
+
+def extract_adcp_error_info(err: Any) -> AdcpErrorInfo:
+    """Normalize a single ADCP error entry into a typed `AdcpErrorInfo`.
+
+    Accepts pydantic `Error` models, plain dicts (raw JSON), and duck-typed
+    objects with the same attribute names. Missing fields become `None`;
+    an unknown `recovery` string normalizes to `None`.
+    """
+    raw_buyer_reason = _access(err, "buyer_reason")
+    buyer_reason: BuyerReasonInfo | None = None
+    if raw_buyer_reason is not None:
+        code = _access(raw_buyer_reason, "code")
+        message = _access(raw_buyer_reason, "message")
+        if isinstance(code, str) and isinstance(message, str) and code and message:
+            buyer_reason = BuyerReasonInfo(code=code, message=message)
+
+    retry_after_raw = _access(err, "retry_after")
+    retry_after: float | None = None
+    # Reject `bool` (a subclass of `int` in Python — `retry_after: true` from a
+    # non-conforming producer would otherwise become `1.0` and schedule a real
+    # retry) and any non-finite float (NaN/inf).
+    if (
+        isinstance(retry_after_raw, (int, float))
+        and not isinstance(retry_after_raw, bool)
+        and math.isfinite(retry_after_raw)
+    ):
+        retry_after = float(retry_after_raw)
+
+    details_raw = _access(err, "details")
+    details: dict[str, Any] | None = details_raw if isinstance(details_raw, dict) else None
+
+    return AdcpErrorInfo(
+        code=_access(err, "code"),
+        message=_access(err, "message"),
+        recovery=_normalize_recovery(_access(err, "recovery")),
+        buyer_reason=buyer_reason,
+        field=_access(err, "field"),
+        suggestion=_access(err, "suggestion"),
+        retry_after=retry_after,
+        details=details,
+    )
 
 
 class ADCPError(Exception):
@@ -378,7 +494,8 @@ class ADCPTaskError(ADCPError):
     """A task returned an ADCP error response.
 
     Provides structured access to the error objects from the response,
-    including error codes for programmatic handling.
+    including error codes for programmatic handling. Prefer `error_info`,
+    `first_buyer_reason`, and `is_retryable` over hand-poking raw `errors`.
     """
 
     def __init__(
@@ -396,23 +513,103 @@ class ADCPTaskError(ADCPError):
         """
         self.operation = operation
         self.errors = errors
-        self.error_codes = [e.code for e in errors if hasattr(e, "code") and e.code]
+        self.error_codes = [
+            code
+            for err in errors
+            if isinstance((code := _access(err, "code")), str) and code
+        ]
 
         message = f"{operation} failed"
         if errors:
-            first_msg = getattr(errors[0], "message", str(errors[0]))
+            first_msg = _access(errors[0], "message") or str(errors[0])
             message = f"{operation} failed: {first_msg}"
             if len(errors) > 1:
                 message += f" (+{len(errors) - 1} more)"
 
         super().__init__(message, agent_id=agent_id)
 
+    @cached_property
+    def error_info(self) -> tuple[AdcpErrorInfo, ...]:
+        """Typed extraction of every error entry, in wire order.
+
+        Use this instead of duck-typing `errors` when you need `buyer_reason`,
+        `recovery`, or any of the structured fields. Cached — the raw errors
+        list is immutable after `__init__`.
+        """
+        return tuple(extract_adcp_error_info(err) for err in self.errors)
+
+    @property
+    def buyer_reasons(self) -> tuple[BuyerReasonInfo, ...]:
+        """Every `buyer_reason` object from the response, in wire order.
+
+        `buyer_reason.message` is buyer-safe by spec — free of vendor identifiers
+        and internal IDs — so it may be rendered directly to a buyer UI.
+        """
+        return tuple(
+            info.buyer_reason for info in self.error_info if info.buyer_reason is not None
+        )
+
+    @property
+    def first_buyer_reason(self) -> BuyerReasonInfo | None:
+        """First `buyer_reason` from the response, or `None` if none present.
+
+        Common case: surface a single buyer-safe reason to the caller. AdCP 3.2
+        directs sellers to emit separate `error` entries rather than compound
+        multiple buyer-actionable classes into one, so the first entry is
+        usually the whole story.
+        """
+        reasons = self.buyer_reasons
+        return reasons[0] if reasons else None
+
+    @property
+    def wire_recoveries(self) -> tuple[RecoveryLiteral, ...]:
+        """The `recovery` classification on each error, in wire order.
+
+        Absent-or-unknown-recovery entries are skipped, so length may be less
+        than `len(errors)`. Use this to see whether the response classifies
+        itself at the wire level or falls through to the code-table default
+        in `is_retryable`.
+        """
+        return tuple(info.recovery for info in self.error_info if info.recovery is not None)
+
     @property
     def is_retryable(self) -> bool:
-        """True if any error code is transient (RATE_LIMITED, etc.)."""
-        from adcp.server.helpers import TRANSIENT_CODES
+        """True if the response can be resubmitted as-is without modification.
 
-        return bool(TRANSIENT_CODES & set(self.error_codes))
+        Every entry gets an effective recovery — wire `recovery` when present
+        (authoritative per AdCP 3.1+), else the code-table classification,
+        else `transient` (the AdCP forward-compat rule for unknown codes with
+        no wire recovery). A batch is retryable only when every entry resolves
+        to `transient`: a `terminal` entry blocks (human action required), a
+        `correctable` entry blocks (caller must fix the request first — a
+        retry as-is would re-trigger the same error).
+        """
+        from adcp.server.helpers import CORRECTABLE_CODES, TERMINAL_CODES, TRANSIENT_CODES
+
+        effective: list[RecoveryLiteral] = []
+        for info in self.error_info:
+            if info.recovery is not None:
+                effective.append(info.recovery)
+                continue
+            code = info.code
+            if code in TERMINAL_CODES:
+                effective.append("terminal")
+            elif code in CORRECTABLE_CODES:
+                effective.append("correctable")
+            elif code in TRANSIENT_CODES:
+                effective.append("transient")
+            else:
+                # Unknown / absent code with no wire recovery. Per the AdCP
+                # forward-compat rule (`core/error.json` on `error.code`),
+                # receivers MUST decode unknown codes and treat missing
+                # `recovery` as `transient` — this keeps the retry loop alive
+                # against a producer that ships a new code before the SDK
+                # learns about it.
+                effective.append("transient")
+
+        if not effective:
+            return False
+        return not any(r in ("terminal", "correctable") for r in effective)
 
 
 class IdempotencyConflictError(ADCPTaskError):
