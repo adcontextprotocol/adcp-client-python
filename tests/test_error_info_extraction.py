@@ -131,6 +131,38 @@ class TestExtractAdcpErrorInfo:
         )
         assert info.retry_after is None
 
+    def test_retry_after_negative_rejected(self) -> None:
+        # Out-of-range per `core/error.json` (`ge=1`). A negative value on a
+        # scheduler doing `sleep(retry_after)` would fire immediately, defeating
+        # backoff. Extractor drops it — caller sees `None` and applies a default.
+        info = extract_adcp_error_info(
+            {"code": "X", "message": "y", "retry_after": -5}
+        )
+        assert info.retry_after is None
+
+    def test_retry_after_over_max_rejected(self) -> None:
+        # Out-of-range per `core/error.json` (`le=3600`). A very large value
+        # would stall the retry loop for many hours; extractor drops it.
+        info = extract_adcp_error_info(
+            {"code": "X", "message": "y", "retry_after": 100_000}
+        )
+        assert info.retry_after is None
+
+    def test_retry_after_boundaries_accepted(self) -> None:
+        # Both endpoints of the spec range are valid.
+        assert (
+            extract_adcp_error_info(
+                {"code": "X", "message": "y", "retry_after": 1}
+            ).retry_after
+            == 1.0
+        )
+        assert (
+            extract_adcp_error_info(
+                {"code": "X", "message": "y", "retry_after": 3600}
+            ).retry_after
+            == 3600.0
+        )
+
     def test_retry_after_and_details_from_pydantic_model(self) -> None:
         from adcp.types._generated import Recovery
         from adcp.types.generated_poc.core.error import Error as WireError
@@ -158,7 +190,9 @@ class TestADCPTaskErrorInfoAccessors:
     def test_error_info_cached(self) -> None:
         # `cached_property` contract — same tuple identity on repeat access.
         err = ADCPTaskError("create_media_buy", [self._err(code="A")])
-        assert err.error_info is err.error_info
+        first = err.error_info
+        second = err.error_info
+        assert first is second
 
     def test_error_info_from_pydantic_models_end_to_end(self) -> None:
         # Pydantic-model plumbing through the exception accessor, not just via

@@ -100,11 +100,17 @@ def extract_adcp_error_info(err: Any) -> AdcpErrorInfo:
     retry_after: float | None = None
     # Reject `bool` (a subclass of `int` in Python — `retry_after: true` from a
     # non-conforming producer would otherwise become `1.0` and schedule a real
-    # retry) and any non-finite float (NaN/inf).
+    # retry), any non-finite float (NaN/inf), and any value outside the AdCP
+    # spec's [1, 3600] range at `core/error.json`. The generated pydantic
+    # `Error` model enforces the range; this extractor also serves raw-dict
+    # and duck-typed inputs that bypass that validation, so we enforce here
+    # too — a negative value would schedule an immediate retry, and a very
+    # large value would stall the loop for hours.
     if (
         isinstance(retry_after_raw, (int, float))
         and not isinstance(retry_after_raw, bool)
         and math.isfinite(retry_after_raw)
+        and 1 <= retry_after_raw <= 3600
     ):
         retry_after = float(retry_after_raw)
 
