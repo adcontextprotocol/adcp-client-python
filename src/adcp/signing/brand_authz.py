@@ -53,7 +53,14 @@ from adcp.signing.brand_jwks import (
     _BrandJsonSnapshot,
     _ClientFactory,
 )
-from adcp.signing.etld import host_from, registrable_domain, same_registrable_domain
+from adcp.signing.etld import (
+    BrandDomainValidationError,
+    host_from,
+    registrable_domain,
+    same_development_brand_domain,
+    same_registrable_domain,
+    validate_brand_domain,
+)
 
 #: Reason a brand-authorization check resolved the way it did. Used
 #: for verifier error attribution and adopter logging. The framework
@@ -207,10 +214,11 @@ class BrandJsonAuthorizationResolver:
         # blank / IP-literal brand domain match anything via shared
         # binding semantics downstream.
         try:
-            brand_host = host_from(brand_domain)
-        except ValueError:
-            return BrandAuthorizationResult(False, reason="brand_domain_invalid")
-        if registrable_domain(brand_host) is None:
+            brand_host = validate_brand_domain(
+                host_from(brand_domain),
+                allow_development_domains=self._allow_private,
+            )
+        except BrandDomainValidationError:
             return BrandAuthorizationResult(False, reason="brand_domain_invalid")
 
         snap = await self._snapshot()
@@ -255,7 +263,9 @@ class BrandJsonAuthorizationResolver:
         matched = listing[0]
 
         # Step 2a: eTLD+1 binding.
-        if same_registrable_domain(agent_url, brand_host):
+        if same_registrable_domain(agent_url, brand_host) or (
+            self._allow_private and same_development_brand_domain(agent_url, brand_host)
+        ):
             return BrandAuthorizationResult(
                 True,
                 reason="etld1_match",

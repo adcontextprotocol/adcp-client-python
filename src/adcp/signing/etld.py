@@ -37,6 +37,7 @@ the same normalizer the JWKS, revocation, and key-origin checks use.
 
 from __future__ import annotations
 
+import re
 from functools import lru_cache
 from urllib.parse import urlsplit
 
@@ -44,6 +45,120 @@ import idna
 import tldextract
 
 from ._idna_canonicalize import canonicalize_host
+
+_DOTTED_WIRE_DOMAIN_RE = re.compile(
+    r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
+)
+_DEVELOPMENT_SUFFIXES = ("localhost", "test", "example", "invalid")
+_DEVELOPMENT_EXACT_NAMES = frozenset({"example.com", "example.net", "example.org"})
+_SPECIAL_USE_SUFFIXES = (
+    "alt",
+    "6tisch.arpa",
+    "eap.arpa",
+    "eap-noob.arpa",
+    "home.arpa",
+    "in-addr.arpa",
+    "ip6.arpa",
+    "ipv4only.arpa",
+    "resolver.arpa",
+    "service.arpa",
+    "example",
+    "example.com",
+    "example.net",
+    "example.org",
+    "invalid",
+    "local",
+    "localhost",
+    "onion",
+    "test",
+)
+
+
+class BrandDomainValidationError(ValueError):
+    """A BrandRef/BrandKey domain is not valid for the selected runtime."""
+
+    def __init__(self, code: str, domain: str) -> None:
+        self.code = code
+        self.domain = domain
+        messages = {
+            "invalid_syntax": "brand domain must be a bare, lowercase-compatible dotted hostname",
+            "not_registrable": (
+                "brand domain must have a registrable public or private-suffix domain"
+            ),
+            "special_use_not_allowed": "IANA special-use brand domain is not allowed in production",
+        }
+        super().__init__(messages[code])
+
+
+def _has_domain_suffix(domain: str, suffix: str) -> bool:
+    return domain == suffix or domain.endswith(f".{suffix}")
+
+
+def is_development_brand_domain(domain: str) -> bool:
+    """Return whether ``domain`` is in the protocol's narrow test-name set."""
+
+    return domain in _DEVELOPMENT_EXACT_NAMES or any(
+        domain.endswith(f".{suffix}") for suffix in _DEVELOPMENT_SUFFIXES
+    )
+
+
+def _is_special_use_domain(domain: str) -> bool:
+    return any(_has_domain_suffix(domain, suffix) for suffix in _SPECIAL_USE_SUFFIXES)
+
+
+def validate_brand_domain(domain: str, *, allow_development_domains: bool = False) -> str:
+    """Validate and canonicalize a BrandRef/BrandKey domain.
+
+    Production names must have an eTLD+1 in the SDK's pinned ICANN+PRIVATE
+    Public Suffix List and must not be IANA special-use names. Development
+    callers may explicitly admit subdomains of ``.localhost``, ``.test``,
+    ``.example``, or ``.invalid`` and the reserved example.com/net/org names.
+    Bare ``localhost`` remains invalid, and ``.local`` is never admitted.
+    """
+
+    if not isinstance(domain, str) or not domain or re.search(r"[\s/:@?#]", domain):
+        raise BrandDomainValidationError("invalid_syntax", domain)
+    try:
+        canonical = canonicalize_host(domain)
+    except (ValueError, UnicodeError) as exc:
+        raise BrandDomainValidationError("invalid_syntax", domain) from exc
+    if _DOTTED_WIRE_DOMAIN_RE.fullmatch(canonical) is None:
+        raise BrandDomainValidationError("invalid_syntax", domain)
+
+    development_name = is_development_brand_domain(canonical)
+    if development_name and allow_development_domains:
+        return canonical
+    if development_name or _is_special_use_domain(canonical):
+        raise BrandDomainValidationError("special_use_not_allowed", domain)
+    if registrable_domain(canonical) is None:
+        raise BrandDomainValidationError("not_registrable", domain)
+    return canonical
+
+
+def _development_registrable_domain(domain: str) -> str | None:
+    if domain in _DEVELOPMENT_EXACT_NAMES or any(
+        domain.endswith(f".{name}") for name in _DEVELOPMENT_EXACT_NAMES
+    ):
+        for name in _DEVELOPMENT_EXACT_NAMES:
+            if _has_domain_suffix(domain, name):
+                return name
+    for suffix in _DEVELOPMENT_SUFFIXES:
+        marker = f".{suffix}"
+        if domain.endswith(marker):
+            labels = domain.split(".")
+            return ".".join(labels[-2:]) if len(labels) >= 2 else None
+    return None
+
+
+def same_development_brand_domain(a: str, b: str) -> bool:
+    """Compare two hosts within an explicitly enabled development namespace."""
+
+    try:
+        da = _development_registrable_domain(host_from(a))
+        db = _development_registrable_domain(host_from(b))
+    except ValueError:
+        return False
+    return da is not None and da == db
 
 
 @lru_cache(maxsize=1)
@@ -164,7 +279,11 @@ def same_registrable_domain(a: str, b: str) -> bool:
 
 
 __all__ = [
+    "BrandDomainValidationError",
     "host_from",
+    "is_development_brand_domain",
     "registrable_domain",
+    "same_development_brand_domain",
     "same_registrable_domain",
+    "validate_brand_domain",
 ]

@@ -537,6 +537,45 @@ async def test_authz_rejects_localhost_brand_domain() -> None:
     assert result.reason == "brand_domain_invalid"
 
 
+@pytest.mark.asyncio
+async def test_authz_development_domain_requires_explicit_private_destination_option() -> None:
+    body = _brand_json(
+        {
+            "agents": [
+                {
+                    "type": "signals",
+                    "url": "https://ads.brand.example/signals",
+                }
+            ]
+        }
+    )
+    url = "https://brand.example/.well-known/brand.json"
+    transport = _MockTransport({url: {"body": body}})
+
+    production_resolver = BrandJsonAuthorizationResolver(
+        url,
+        _client_factory=_factory(transport),
+    )
+    production_result = await production_resolver.check(
+        agent_url="https://ads.brand.example/signals",
+        brand_domain="brand.example",
+    )
+    assert production_result.authorized is False
+    assert production_result.reason == "brand_domain_invalid"
+
+    development_resolver = BrandJsonAuthorizationResolver(
+        url,
+        allow_private_destinations=True,
+        _client_factory=_factory(transport),
+    )
+    development_result = await development_resolver.check(
+        agent_url="https://ads.brand.example/signals",
+        brand_domain="brand.example",
+    )
+    assert development_result.authorized is True
+    assert development_result.reason == "etld1_match"
+
+
 # ----- fetch errors -----
 
 

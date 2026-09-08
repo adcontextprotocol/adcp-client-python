@@ -14,7 +14,15 @@ from __future__ import annotations
 
 import pytest
 
-from adcp.signing.etld import host_from, registrable_domain, same_registrable_domain
+from adcp.signing.etld import (
+    BrandDomainValidationError,
+    host_from,
+    is_development_brand_domain,
+    registrable_domain,
+    same_development_brand_domain,
+    same_registrable_domain,
+    validate_brand_domain,
+)
 
 # ----- host_from -----
 
@@ -165,3 +173,48 @@ def test_registrable_domain_reserved_tld_returns_none() -> None:
     assert registrable_domain("brand.example") is None
     assert registrable_domain("foo.test") is None
     assert registrable_domain("svc.invalid") is None
+
+
+def test_validate_brand_domain_accepts_public_and_private_psl_names() -> None:
+    assert validate_brand_domain("Ads.Brand.COM") == "ads.brand.com"
+    assert validate_brand_domain("brand.co.uk") == "brand.co.uk"
+    assert validate_brand_domain("tenant.github.io") == "tenant.github.io"
+
+
+@pytest.mark.parametrize(
+    "domain",
+    ["localhost", "unknown", "co.uk", "brand.unknown", "1.2.3.4", "https://brand.com"],
+)
+def test_validate_brand_domain_rejects_non_registrable_names(domain: str) -> None:
+    with pytest.raises(BrandDomainValidationError):
+        validate_brand_domain(domain)
+
+
+@pytest.mark.parametrize(
+    "domain",
+    [
+        "brand.localhost",
+        "brand.test",
+        "brand.example",
+        "brand.invalid",
+        "example.com",
+        "example.net",
+        "example.org",
+    ],
+)
+def test_validate_brand_domain_requires_explicit_development_option(domain: str) -> None:
+    with pytest.raises(BrandDomainValidationError, match="special-use"):
+        validate_brand_domain(domain)
+    assert validate_brand_domain(domain, allow_development_domains=True) == domain
+    assert is_development_brand_domain(domain) is True
+
+
+def test_validate_brand_domain_never_allows_mdns_local() -> None:
+    assert is_development_brand_domain("brand.local") is False
+    with pytest.raises(BrandDomainValidationError, match="special-use"):
+        validate_brand_domain("brand.local", allow_development_domains=True)
+
+
+def test_same_development_brand_domain_uses_test_namespace_boundary() -> None:
+    assert same_development_brand_domain("ads.brand.example", "brand.example") is True
+    assert same_development_brand_domain("ads.brand.example", "other.example") is False

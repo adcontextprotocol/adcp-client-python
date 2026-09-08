@@ -196,9 +196,13 @@ from adcp.signing.errors import (
     SignatureVerificationError,
 )
 from adcp.signing.etld import (
+    BrandDomainValidationError,
     host_from,
+    is_development_brand_domain,
     registrable_domain,
+    same_development_brand_domain,
     same_registrable_domain,
+    validate_brand_domain,
 )
 from adcp.signing.ip_pinned_transport import (
     AsyncIpPinnedTransport,
@@ -431,6 +435,7 @@ __all__ = [
     "build_capability_cache_key",
     "build_ip_pinned_transport",
     "build_signature_base",
+    "BrandDomainValidationError",
     "canonicalize_authority",
     "canonicalize_target_uri",
     "check_key_origin_consistency",
@@ -445,6 +450,7 @@ __all__ = [
     "format_signature_header",
     "generate_signing_keypair",
     "host_from",
+    "is_development_brand_domain",
     "install_signing_event_hook",
     "load_private_key_pem",
     "operation_needs_signing",
@@ -458,6 +464,7 @@ __all__ = [
     "validate_resolved_ip",
     "validate_uri_static",
     "same_registrable_domain",
+    "same_development_brand_domain",
     "sign_request",
     "sign_signature_base",
     "signing_profile_for_adcp_version",
@@ -465,6 +472,7 @@ __all__ = [
     "signing_operation",
     "unauthorized_response_headers",
     "validate_jwks_uri",
+    "validate_brand_domain",
     "verify_detached_jws",
     "verify_flask_request",
     "verify_from_agent_url",
