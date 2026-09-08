@@ -53,7 +53,13 @@ from adcp.signing.brand_jwks import (
     _BrandJsonSnapshot,
     _ClientFactory,
 )
-from adcp.signing.etld import host_from, registrable_domain, same_registrable_domain
+from adcp.signing.etld import (
+    BrandDomainValidationError,
+    registrable_domain,
+    same_development_brand_domain,
+    same_registrable_domain,
+    validate_brand_domain,
+)
 
 #: Reason a brand-authorization check resolved the way it did. Used
 #: for verifier error attribution and adopter logging. The framework
@@ -149,13 +155,14 @@ class BrandJsonAuthorizationResolver:
         max_redirects: int = DEFAULT_MAX_REDIRECTS,
         max_body_bytes: int = DEFAULT_MAX_BRAND_JSON_BYTES,
         allow_private_destinations: bool = False,
+        allow_development_domains: bool = False,
         timeout_seconds: float = DEFAULT_BRAND_JSON_TIMEOUT_SECONDS,
         clock: Callable[[], float] | None = None,
         _client_factory: _ClientFactory | None = None,
         _fetcher: _BrandJsonFetcher | None = None,
     ) -> None:
         self._clock = clock or time.time
-        self._allow_private = allow_private_destinations
+        self._allow_development_domains = allow_development_domains
         self._fetcher = _fetcher or _BrandJsonFetcher(
             brand_json_url,
             min_cooldown_seconds=min_cooldown_seconds,
@@ -207,10 +214,11 @@ class BrandJsonAuthorizationResolver:
         # blank / IP-literal brand domain match anything via shared
         # binding semantics downstream.
         try:
-            brand_host = host_from(brand_domain)
-        except ValueError:
-            return BrandAuthorizationResult(False, reason="brand_domain_invalid")
-        if registrable_domain(brand_host) is None:
+            brand_host = validate_brand_domain(
+                brand_domain,
+                allow_development_domains=self._allow_development_domains,
+            )
+        except BrandDomainValidationError:
             return BrandAuthorizationResult(False, reason="brand_domain_invalid")
 
         snap = await self._snapshot()
@@ -255,7 +263,9 @@ class BrandJsonAuthorizationResolver:
         matched = listing[0]
 
         # Step 2a: eTLD+1 binding.
-        if same_registrable_domain(agent_url, brand_host):
+        if same_registrable_domain(agent_url, brand_host) or (
+            self._allow_development_domains and same_development_brand_domain(agent_url, brand_host)
+        ):
             return BrandAuthorizationResult(
                 True,
                 reason="etld1_match",
@@ -323,6 +333,7 @@ def build_brand_json_resolvers(
     max_redirects: int = DEFAULT_MAX_REDIRECTS,
     max_body_bytes: int = DEFAULT_MAX_BRAND_JSON_BYTES,
     allow_private_destinations: bool = False,
+    allow_development_domains: bool = False,
     timeout_seconds: float = DEFAULT_BRAND_JSON_TIMEOUT_SECONDS,
     clock: Callable[[], float] | None = None,
 ) -> tuple[BrandJsonJwksResolver, BrandJsonAuthorizationResolver]:
@@ -371,6 +382,7 @@ def build_brand_json_resolvers(
         max_redirects=max_redirects,
         max_body_bytes=max_body_bytes,
         allow_private_destinations=allow_private_destinations,
+        allow_development_domains=allow_development_domains,
         timeout_seconds=timeout_seconds,
         clock=clock,
         _fetcher=fetcher,

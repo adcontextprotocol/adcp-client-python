@@ -148,7 +148,7 @@ async def test_authz_stale_on_error_is_bounded() -> None:
 
 
 @pytest.mark.asyncio
-async def test_authz_etld1_match_with_subdomain_brand_url() -> None:
+async def test_authz_etld1_match_with_subdomain_brand_domain() -> None:
     body = _brand_json(
         {"agents": [{"type": "signals", "id": "x", "url": "https://api.brand.com/x"}]}
     )
@@ -160,7 +160,7 @@ async def test_authz_etld1_match_with_subdomain_brand_url() -> None:
 
     assert await resolver.is_authorized(
         agent_url="https://api.brand.com/x",
-        brand_domain="https://www.brand.com/",
+        brand_domain="www.brand.com",
     )
 
 
@@ -532,6 +532,75 @@ async def test_authz_rejects_localhost_brand_domain() -> None:
     result = await resolver.check(
         agent_url="https://ads.brand.com/x",
         brand_domain="localhost",
+    )
+    assert result.authorized is False
+    assert result.reason == "brand_domain_invalid"
+
+
+@pytest.mark.asyncio
+async def test_authz_development_domain_requires_separate_explicit_options() -> None:
+    body = _brand_json(
+        {
+            "agents": [
+                {
+                    "type": "signals",
+                    "url": "https://ads.brand.example/signals",
+                }
+            ]
+        }
+    )
+    url = "https://brand.example/.well-known/brand.json"
+    transport = _MockTransport({url: {"body": body}})
+
+    production_resolver = BrandJsonAuthorizationResolver(
+        url,
+        _client_factory=_factory(transport),
+    )
+    production_result = await production_resolver.check(
+        agent_url="https://ads.brand.example/signals",
+        brand_domain="brand.example",
+    )
+    assert production_result.authorized is False
+    assert production_result.reason == "brand_domain_invalid"
+
+    private_only_resolver = BrandJsonAuthorizationResolver(
+        url,
+        allow_private_destinations=True,
+        _client_factory=_factory(transport),
+    )
+    private_only_result = await private_only_resolver.check(
+        agent_url="https://ads.brand.example/signals",
+        brand_domain="brand.example",
+    )
+    assert private_only_result.authorized is False
+    assert private_only_result.reason == "brand_domain_invalid"
+
+    development_resolver = BrandJsonAuthorizationResolver(
+        url,
+        allow_private_destinations=True,
+        allow_development_domains=True,
+        _client_factory=_factory(transport),
+    )
+    development_result = await development_resolver.check(
+        agent_url="https://ads.brand.example/signals",
+        brand_domain="brand.example",
+    )
+    assert development_result.authorized is True
+    assert development_result.reason == "etld1_match"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("brand_domain", ["https://brand.com/path", "brand.com/path", None])
+async def test_authz_rejects_non_bare_or_malformed_brand_domain(
+    brand_domain: str | None,
+) -> None:
+    resolver = BrandJsonAuthorizationResolver(
+        "https://brand.com/.well-known/brand.json",
+    )
+
+    result = await resolver.check(
+        agent_url="https://ads.brand.com/x",
+        brand_domain=brand_domain,  # type: ignore[arg-type]
     )
     assert result.authorized is False
     assert result.reason == "brand_domain_invalid"
