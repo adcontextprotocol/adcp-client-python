@@ -79,8 +79,11 @@ class Creative(AdCPBaseModel):
         ),
     ] = None
     format_kind: Annotated[
-        canonical_format_kind.CanonicalFormatKind | None,
-        Field(description='Canonical format kind delivered for this creative.'),
+        canonical_format_kind.CanonicalFormatKind | str | None,
+        Field(
+            description='Canonical format kind delivered for this creative.',
+            union_mode='left_to_right',
+        ),
     ] = None
     format_option_ref: Annotated[
         format_option_ref_1.FormatOptionReference | None,
