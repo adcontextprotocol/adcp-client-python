@@ -35,7 +35,7 @@ class CreateMediaBuyResponse1(AdcpVersionEnvelope):
     account: account_1.Account | None = None
     invoice_recipient: business_entity_1.BusinessEntity | None = None
     media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
-    confirmed_at: AwareDatetime
+    confirmed_at: AwareDatetime | None
     creative_deadline: AwareDatetime | None = None
     revision: Annotated[int, Field(ge=1)]
     currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None = None

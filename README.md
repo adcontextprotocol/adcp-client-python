@@ -1218,7 +1218,9 @@ async with ADCPClient(config) as client:
 `get_media_buys`, or the last successful `update_media_buy`, then pass it on the
 next mutating update so the seller can reject stale writes. `confirmed_at` is the
 seller commitment timestamp and should remain stable across later pause/resume or
-budget updates.
+budget updates. The key is always present on a success response, but its value is
+`None` until the seller actually commits — a buy still in `pending_creatives` has
+no commitment instant to report — so narrow it before use.
 
 ### Complete Creative Workflow
 
