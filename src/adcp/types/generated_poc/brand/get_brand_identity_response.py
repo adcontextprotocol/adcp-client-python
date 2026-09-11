@@ -12,6 +12,7 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
+from ..core.protocol_envelope import ProtocolEnvelope
 from ..enums import asset_content_type as asset_content_type_1
 from ..enums import right_use as right_use_1
 
@@ -105,7 +106,7 @@ class Rights(AdcpVersionEnvelope):
     content_restrictions: list[str] | None = None
 
 
-class GetBrandIdentityResponse1(AdcpVersionEnvelope):
+class GetBrandIdentityResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     brand_id: str
     house: House
@@ -127,7 +128,7 @@ class GetBrandIdentityResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class GetBrandIdentityResponse2(AdcpVersionEnvelope):
+class GetBrandIdentityResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: context_1.ContextObject | None = None

@@ -45,7 +45,7 @@ class Catalog(AdcpVersionEnvelope):
     warnings: list[str] | None = None
 
 
-class SyncCatalogsResponse1(AdcpVersionEnvelope):
+class SyncCatalogsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     status: Literal['completed'] | None = None
     dry_run: bool | None = None
@@ -57,7 +57,7 @@ class SyncCatalogsResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class SyncCatalogsResponse2(AdcpVersionEnvelope):
+class SyncCatalogsResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[Any], Field(min_length=1)]
     context: context_1.ContextObject | None = None

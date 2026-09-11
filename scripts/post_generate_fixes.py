@@ -3984,6 +3984,7 @@ def restore_response_variant_aliases() -> None:
             self.nested_names: set[str] = set()
             self.local_ref_types: dict[str, str] = {}
             self.root_schema: dict[str, Any] = {}
+            self.root_composes_protocol_envelope = False
             self.needs_protocol_envelope = False
             self.needs_media_buy_helpers = False
             self.needs_sequence = False
@@ -4211,16 +4212,51 @@ def restore_response_variant_aliases() -> None:
             self.nested.append("\n".join(lines))
             return class_name
 
+        def composes_protocol_envelope(self, schema: dict[str, Any]) -> bool:
+            """Return whether ``schema`` composes ``core/protocol-envelope.json``.
+
+            The check walks the document's own ``allOf`` chain, including
+            nested ``allOf`` groupings, and resolves every ``$ref`` through
+            :func:`_resolve_schema_ref` so canonical ``https://`` refs,
+            root-relative ``/schemas/`` refs and ``../core/`` relative refs all
+            land on the same target.
+            """
+
+            parts = schema.get("allOf")
+            if not isinstance(parts, list):
+                return False
+            for part in parts:
+                if not isinstance(part, dict):
+                    continue
+                ref = part.get("$ref")
+                if isinstance(ref, str):
+                    try:
+                        ref_rel = _resolve_schema_ref(self.schema_rel, ref)
+                    except ValueError:
+                        ref_rel = None
+                    if ref_rel is not None and ref_rel.as_posix() == "core/protocol-envelope.json":
+                        return True
+                if self.composes_protocol_envelope(part):
+                    return True
+            return False
+
         def emit_response_class(self, class_name: str, arm: dict[str, Any]) -> str:
             props = arm.get("properties") or {}
             required = set(arm.get("required") or [])
             is_submitted = (
                 props.get("status", {}).get("const") == "submitted" and "task_id" in props
             )
+            # A root-level ``allOf`` applies to the whole document, so every
+            # ``oneOf`` arm of a response whose root composes
+            # ``core/protocol-envelope.json`` carries the protocol envelope:
+            # success arms, error arms and submitted arms alike.
+            inherits_protocol_envelope = is_submitted or self.root_composes_protocol_envelope
             bases = (
-                "AdcpVersionEnvelope, ProtocolEnvelope" if is_submitted else "AdcpVersionEnvelope"
+                "AdcpVersionEnvelope, ProtocolEnvelope"
+                if inherits_protocol_envelope
+                else "AdcpVersionEnvelope"
             )
-            if is_submitted:
+            if inherits_protocol_envelope:
                 self.needs_protocol_envelope = True
             lines = [f"class {class_name}({bases}):"]
             if is_submitted:
@@ -4320,6 +4356,7 @@ def restore_response_variant_aliases() -> None:
 
         def render(self, schema: dict[str, Any]) -> str:
             self.root_schema = schema
+            self.root_composes_protocol_envelope = self.composes_protocol_envelope(schema)
             arms = schema.get("oneOf") or schema.get("anyOf") or []
             if not arms:
                 arms = [schema]

@@ -14,6 +14,7 @@ from ..core import error as error_1
 from ..core import event_source_health as event_source_health_1
 from ..core import event_surface as event_surface_1
 from ..core import ext as ext_1
+from ..core.protocol_envelope import ProtocolEnvelope
 from ..enums import action_source as action_source_1
 from ..enums import event_type as event_type_1
 
@@ -42,7 +43,7 @@ class EventSource(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class SyncEventSourcesResponse1(AdcpVersionEnvelope):
+class SyncEventSourcesResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     event_sources: list[EventSource]
     sandbox: bool | None = None
@@ -50,7 +51,7 @@ class SyncEventSourcesResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class SyncEventSourcesResponse2(AdcpVersionEnvelope):
+class SyncEventSourcesResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: context_1.ContextObject | None = None

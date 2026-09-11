@@ -55,7 +55,7 @@ class Audience(AdcpVersionEnvelope):
     errors: list[error_1.Error] | None = None
 
 
-class SyncAudiencesResponse1(AdcpVersionEnvelope):
+class SyncAudiencesResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     audiences: list[Audience]
     sandbox: bool | None = None
@@ -63,7 +63,7 @@ class SyncAudiencesResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class SyncAudiencesResponse2(AdcpVersionEnvelope):
+class SyncAudiencesResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: context_1.ContextObject | None = None

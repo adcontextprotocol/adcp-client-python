@@ -12,6 +12,7 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
+from ..core.protocol_envelope import ProtocolEnvelope
 from ..enums import binary_verdict as binary_verdict_1
 from ..enums import feature_check_status as feature_check_status_1
 
@@ -39,7 +40,7 @@ class Result(AdcpVersionEnvelope):
     features: list[Feature] | None = None
 
 
-class ValidateContentDeliveryResponse1(AdcpVersionEnvelope):
+class ValidateContentDeliveryResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     summary: Summary
     results: list[Result]
@@ -47,7 +48,7 @@ class ValidateContentDeliveryResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class ValidateContentDeliveryResponse2(AdcpVersionEnvelope):
+class ValidateContentDeliveryResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: list[error_1.Error]
     context: context_1.ContextObject | None = None

@@ -12,6 +12,7 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
+from ..core.protocol_envelope import ProtocolEnvelope
 from ..enums import binary_verdict as binary_verdict_1
 from ..enums import feature_check_status as feature_check_status_1
 
@@ -25,7 +26,7 @@ class Feature(AdcpVersionEnvelope):
     confidence: Annotated[float, Field(ge=0, le=1)] | None = None
 
 
-class CalibrateContentResponse1(AdcpVersionEnvelope):
+class CalibrateContentResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     verdict: binary_verdict_1.BinaryVerdict
     confidence: Annotated[float, Field(ge=0, le=1)] | None = None
@@ -35,7 +36,7 @@ class CalibrateContentResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class CalibrateContentResponse2(AdcpVersionEnvelope):
+class CalibrateContentResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: list[error_1.Error]
     context: context_1.ContextObject | None = None

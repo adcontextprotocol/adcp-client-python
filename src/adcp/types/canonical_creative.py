@@ -46,6 +46,8 @@ from adcp.types.generated_poc.core.pricing_option import PricingOption as _Legac
 from adcp.types.generated_poc.core.product import Product as _LegacyProduct
 from adcp.types.generated_poc.core.product_filters import ProductFilters as _LegacyProductFilters
 from adcp.types.generated_poc.core.product_format_declaration import SellerPreference
+from adcp.types.generated_poc.core.protocol_envelope import ProtocolEnvelope
+from adcp.types.generated_poc.core.version_envelope import AdcpVersionEnvelope
 from adcp.types.generated_poc.creative.get_creative_delivery_response import (
     Creative as _LegacyDeliveryCreative,
 )
@@ -411,6 +413,32 @@ def _serialize_canonical_model(
     )
 
 
+#: Protocol envelopes a generated wire model may compose at its schema root.
+#: A canonical clone copies the envelope *fields*, but a clone built on
+#: ``CanonicalBoundaryModel`` alone would drop the envelope *ancestry* — so
+#: ``issubclass(GetProductsResponse, ProtocolEnvelope)`` would be ``False`` even
+#: though the response carries ``status``/``replayed``/``task_id``. Re-declare
+#: the envelopes as additional bases so the canonical surface keeps the same
+#: ancestry as the generated surface it replaces.
+_ENVELOPE_BASES: tuple[type[AdCPBaseModel], ...] = (AdcpVersionEnvelope, ProtocolEnvelope)
+
+
+def _canonical_clone_bases(source: type[AdCPBaseModel]) -> tuple[type[AdCPBaseModel], ...]:
+    """Return the clone bases for ``source``: its envelopes, then the boundary.
+
+    ``CanonicalBoundaryModel`` comes last on purpose. Pydantic merges
+    ``model_config`` across bases left to right, so the right-most base wins;
+    the envelopes inherit :class:`AdCPBaseModel`'s ``extra`` policy and would
+    otherwise override the boundary's ``extra="allow"`` and start dropping
+    caller-supplied extension keys. Method resolution is unaffected — the
+    envelopes override nothing, so ``CanonicalBoundaryModel`` still supplies
+    ``model_dump``/``model_json_schema`` ahead of :class:`AdCPBaseModel`.
+    """
+
+    envelopes = tuple(envelope for envelope in _ENVELOPE_BASES if issubclass(source, envelope))
+    return (*envelopes, CanonicalBoundaryModel)
+
+
 def _canonical_clone(
     name: str,
     source: type[AdCPBaseModel],
@@ -420,7 +448,7 @@ def _canonical_clone(
 ) -> type[CanonicalBoundaryModel]:
     model = create_model(  # type: ignore[call-overload]
         name,
-        __base__=CanonicalBoundaryModel,
+        __base__=_canonical_clone_bases(source),
         __module__=__name__,
         __validators__={
             "_serialize_canonical": model_serializer(mode="wrap")(_serialize_canonical_model)

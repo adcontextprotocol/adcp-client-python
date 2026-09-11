@@ -507,17 +507,33 @@ def test_build_creative_response_includes_submitted_arm() -> None:
     """The spec now includes the task-submitted arm in build_creative responses."""
     import typing
 
-    from adcp.types import LegacyBuildCreativeResponse
+    from adcp.types import GeneratedTaskStatus, LegacyBuildCreativeResponse
 
     arms = typing.get_args(LegacyBuildCreativeResponse)
     assert len(arms) > 0, "LegacyBuildCreativeResponse should be a Union of arms"
+
+    # The root ``allOf`` composes core/protocol-envelope.json, so ``task_id``
+    # and ``status`` are present on *every* arm. Mere presence therefore does
+    # not identify the submitted arm; the pinned ``Literal`` annotation and its
+    # matching default do.
+    assert all({"task_id", "status"}.issubset(arm.model_fields) for arm in arms)
+
     submitted_arms = [
         arm
         for arm in arms
-        if hasattr(arm, "model_fields")
-        and {"task_id", "status"}.issubset(set(arm.model_fields.keys()))
+        if arm.model_fields["status"].annotation
+        == typing.Literal[GeneratedTaskStatus.submitted]  # type: ignore[valid-type]
+        and arm.model_fields["status"].default is GeneratedTaskStatus.submitted
     ]
     assert [arm.__name__ for arm in submitted_arms] == ["BuildCreativeResponse6"]
+
+    # Only the submitted arm's own schema branch makes ``task_id`` required;
+    # the inherited envelope field stays optional on the others.
+    submitted = submitted_arms[0]
+    assert submitted.model_fields["task_id"].is_required()
+    assert not any(
+        arm.model_fields["task_id"].is_required() for arm in arms if arm is not submitted
+    )
 
 
 # ---- CreativeAdServerPlatform ----

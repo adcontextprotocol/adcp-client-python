@@ -26,7 +26,7 @@ from ..enums import task_status as task_status_1
 from adcp.types.media_buy_status_helpers import MEDIA_BUY_LEGACY_STATUS_VALUES, unwrap_enum_value
 
 
-class CreateMediaBuyResponse1(AdcpVersionEnvelope):
+class CreateMediaBuyResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     status: Literal['completed'] = 'completed'
     proposal_id: Annotated[str, StringConstraints(min_length=1)] | None = None
@@ -77,7 +77,7 @@ class CreateMediaBuyResponse1(AdcpVersionEnvelope):
         return data
 
 
-class CreateMediaBuyResponse2(AdcpVersionEnvelope):
+class CreateMediaBuyResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: context_1.ContextObject | None = None

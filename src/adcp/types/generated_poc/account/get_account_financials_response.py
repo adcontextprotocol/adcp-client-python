@@ -16,6 +16,7 @@ from ..core import context as context_1
 from ..core import date_range as date_range_1
 from ..core import error as error_1
 from ..core import ext as ext_1
+from ..core.protocol_envelope import ProtocolEnvelope
 from ..enums import payment_terms as payment_terms_1
 
 
@@ -54,7 +55,7 @@ class Invoice(AdcpVersionEnvelope):
     paid_date: date | None = None
 
 
-class GetAccountFinancialsResponse1(AdcpVersionEnvelope):
+class GetAccountFinancialsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     account: account_ref_1.AccountReference
     currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')]
@@ -70,7 +71,7 @@ class GetAccountFinancialsResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class GetAccountFinancialsResponse2(AdcpVersionEnvelope):
+class GetAccountFinancialsResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: context_1.ContextObject | None = None

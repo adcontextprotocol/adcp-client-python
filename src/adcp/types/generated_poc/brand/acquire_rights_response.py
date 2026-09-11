@@ -15,6 +15,7 @@ from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core import generation_credential as generation_credential_1
 from ..core import push_notification_config as push_notification_config_1
+from ..core.protocol_envelope import ProtocolEnvelope
 
 
 class Disclosure(AdcpVersionEnvelope):
@@ -23,7 +24,7 @@ class Disclosure(AdcpVersionEnvelope):
     text: str | None = None
 
 
-class AcquireRightsResponse1(AdcpVersionEnvelope):
+class AcquireRightsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     rights_id: str
     rights_status: Literal['acquired'] = 'acquired'
@@ -39,7 +40,7 @@ class AcquireRightsResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class AcquireRightsResponse2(AdcpVersionEnvelope):
+class AcquireRightsResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     rights_id: str
     rights_status: Literal['pending_approval'] = 'pending_approval'
@@ -50,7 +51,7 @@ class AcquireRightsResponse2(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class AcquireRightsResponse3(AdcpVersionEnvelope):
+class AcquireRightsResponse3(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     rights_id: str
     rights_status: Literal['rejected'] = 'rejected'
@@ -61,7 +62,7 @@ class AcquireRightsResponse3(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class AcquireRightsResponse4(AdcpVersionEnvelope):
+class AcquireRightsResponse4(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: context_1.ContextObject | None = None

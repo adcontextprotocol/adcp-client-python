@@ -13,6 +13,7 @@ from . import rights_pricing_option as rights_pricing_option_1
 from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
+from ..core.protocol_envelope import ProtocolEnvelope
 from ..enums import right_type as right_type_1
 from ..enums import right_use as right_use_1
 
@@ -55,7 +56,7 @@ class Excluded(AdcpVersionEnvelope):
     suggestions: list[str] | None = None
 
 
-class GetRightsResponse1(AdcpVersionEnvelope):
+class GetRightsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     rights: list[Right]
     excluded: list[Excluded] | None = None
@@ -63,7 +64,7 @@ class GetRightsResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class GetRightsResponse2(AdcpVersionEnvelope):
+class GetRightsResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: context_1.ContextObject | None = None
