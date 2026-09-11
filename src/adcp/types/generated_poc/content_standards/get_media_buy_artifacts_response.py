@@ -14,6 +14,7 @@ from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core import pagination_response as pagination_response_1
+from ..core.protocol_envelope import ProtocolEnvelope
 
 
 class BrandContext(AdcpVersionEnvelope):
@@ -42,7 +43,7 @@ class CollectionInfo(AdcpVersionEnvelope):
     effective_rate: float | None = None
 
 
-class GetMediaBuyArtifactsResponse1(AdcpVersionEnvelope):
+class GetMediaBuyArtifactsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     media_buy_id: str
     artifacts: list[Artifact]
@@ -52,7 +53,7 @@ class GetMediaBuyArtifactsResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class GetMediaBuyArtifactsResponse2(AdcpVersionEnvelope):
+class GetMediaBuyArtifactsResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: list[error_1.Error]
     context: context_1.ContextObject | None = None

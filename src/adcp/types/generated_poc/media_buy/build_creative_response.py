@@ -132,7 +132,7 @@ class Estimate(AdcpVersionEnvelope):
     per_leaf: list[PerLeaf] | None = None
 
 
-class BuildCreativeResponse1(AdcpVersionEnvelope):
+class BuildCreativeResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     creative_manifest: creative_manifest_1.CreativeManifest
     build_variant_id: str | None = None
@@ -149,14 +149,14 @@ class BuildCreativeResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class BuildCreativeResponse2(AdcpVersionEnvelope):
+class BuildCreativeResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
 
 
-class BuildCreativeResponse3(AdcpVersionEnvelope):
+class BuildCreativeResponse3(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     creative_manifests: Annotated[list[creative_manifest_1.CreativeManifest], Field(min_length=1)]
     sandbox: bool | None = None
@@ -171,7 +171,7 @@ class BuildCreativeResponse3(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class BuildCreativeResponse4(AdcpVersionEnvelope):
+class BuildCreativeResponse4(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     creatives: Annotated[list[Creative], Field(min_length=1)]
     items_total: Annotated[int, Field(ge=0)] | None = None
@@ -190,7 +190,7 @@ class BuildCreativeResponse4(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class BuildCreativeResponse5(AdcpVersionEnvelope):
+class BuildCreativeResponse5(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     mode: Literal['estimate'] = 'estimate'
     estimate: Estimate

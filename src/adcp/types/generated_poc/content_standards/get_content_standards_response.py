@@ -12,15 +12,16 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
+from ..core.protocol_envelope import ProtocolEnvelope
 
 
-class GetContentStandardsResponse1(AdcpVersionEnvelope):
+class GetContentStandardsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
 
 
-class GetContentStandardsResponse2(AdcpVersionEnvelope):
+class GetContentStandardsResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: list[error_1.Error]
     context: context_1.ContextObject | None = None

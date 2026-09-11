@@ -12,9 +12,10 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
+from ..core.protocol_envelope import ProtocolEnvelope
 
 
-class ProvidePerformanceFeedbackResponse1(AdcpVersionEnvelope):
+class ProvidePerformanceFeedbackResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     success: Literal[True]
     feedback_id: Annotated[str, StringConstraints(min_length=1)] | None = None
@@ -27,7 +28,7 @@ class ProvidePerformanceFeedbackResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class ProvidePerformanceFeedbackResponse2(AdcpVersionEnvelope):
+class ProvidePerformanceFeedbackResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: context_1.ContextObject | None = None

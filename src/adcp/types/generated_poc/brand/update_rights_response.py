@@ -14,9 +14,10 @@ from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core import generation_credential as generation_credential_1
+from ..core.protocol_envelope import ProtocolEnvelope
 
 
-class UpdateRightsResponse1(AdcpVersionEnvelope):
+class UpdateRightsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     rights_id: str
     terms: rights_terms_1.RightsTerms
@@ -30,7 +31,7 @@ class UpdateRightsResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class UpdateRightsResponse2(AdcpVersionEnvelope):
+class UpdateRightsResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: context_1.ContextObject | None = None

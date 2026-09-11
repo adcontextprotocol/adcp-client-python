@@ -69,7 +69,7 @@ class Preview3(AdcpVersionEnvelope):
     renders: Annotated[list[preview_render_1.PreviewRender], Field(min_length=1)]
 
 
-class PreviewCreativeResponse1(AdcpVersionEnvelope):
+class PreviewCreativeResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     response_type: Literal['single'] = 'single'
     previews: Annotated[list[Preview], Field(min_length=1)]
@@ -80,7 +80,7 @@ class PreviewCreativeResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class PreviewCreativeResponse2(AdcpVersionEnvelope):
+class PreviewCreativeResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     response_type: Literal['batch'] = 'batch'
     results: Annotated[list[Result], Field(min_length=1)]
@@ -88,7 +88,7 @@ class PreviewCreativeResponse2(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class PreviewCreativeResponse3(AdcpVersionEnvelope):
+class PreviewCreativeResponse3(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     response_type: Literal['variant'] = 'variant'
     variant_id: str

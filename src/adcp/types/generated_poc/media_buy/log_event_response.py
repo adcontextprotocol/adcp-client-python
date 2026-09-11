@@ -12,6 +12,7 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
+from ..core.protocol_envelope import ProtocolEnvelope
 
 
 class PartialFailure(AdcpVersionEnvelope):
@@ -21,7 +22,7 @@ class PartialFailure(AdcpVersionEnvelope):
     message: str
 
 
-class LogEventResponse1(AdcpVersionEnvelope):
+class LogEventResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     events_received: Annotated[int, Field(ge=0)]
     events_processed: Annotated[int, Field(ge=0)]
@@ -33,7 +34,7 @@ class LogEventResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class LogEventResponse2(AdcpVersionEnvelope):
+class LogEventResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: context_1.ContextObject | None = None

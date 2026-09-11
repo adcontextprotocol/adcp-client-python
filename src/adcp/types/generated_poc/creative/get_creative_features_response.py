@@ -15,9 +15,10 @@ from ..core import context as context_1
 from ..core import creative_consumption as creative_consumption_1
 from ..core import error as error_1
 from ..core import ext as ext_1
+from ..core.protocol_envelope import ProtocolEnvelope
 
 
-class GetCreativeFeaturesResponse1(AdcpVersionEnvelope):
+class GetCreativeFeaturesResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     results: list[creative_feature_result_1.CreativeFeatureResult]
     detail_url: AnyUrl | None = None
@@ -30,7 +31,7 @@ class GetCreativeFeaturesResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class GetCreativeFeaturesResponse2(AdcpVersionEnvelope):
+class GetCreativeFeaturesResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: list[error_1.Error]
     context: context_1.ContextObject | None = None

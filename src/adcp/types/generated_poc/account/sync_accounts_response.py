@@ -20,6 +20,7 @@ from ..core import ext as ext_1
 from ..core import notification_config as notification_config_1
 from ..core import operator_unit as operator_unit_1
 from ..core import reporting_delivery_config_state as reporting_delivery_config_state_1
+from ..core.protocol_envelope import ProtocolEnvelope
 from ..enums import account_scope as account_scope_1
 from ..enums import billing_party as billing_party_1
 from ..enums import payment_terms as payment_terms_1
@@ -68,7 +69,7 @@ class Account(AdcpVersionEnvelope):
     authorization: account_authorization_1.AccountAuthorization | None = None
 
 
-class SyncAccountsResponse1(AdcpVersionEnvelope):
+class SyncAccountsResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     dry_run: bool | None = None
     accounts: list[Account]
@@ -76,7 +77,7 @@ class SyncAccountsResponse1(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-class SyncAccountsResponse2(AdcpVersionEnvelope):
+class SyncAccountsResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: context_1.ContextObject | None = None
