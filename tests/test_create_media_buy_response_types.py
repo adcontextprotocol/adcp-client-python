@@ -87,3 +87,92 @@ def test_handler_create_media_buy_return_type_is_union() -> None:
     # so signatures carry strings — resolve to runtime objects.
     hints = typing.get_type_hints(PlatformHandler.create_media_buy)
     assert hints["return"] == CreateMediaBuyResponse
+
+
+def test_confirmed_at_accepts_null_and_stays_required() -> None:
+    """``confirmed_at`` is required *and* nullable — both axes hold.
+
+    Regression for #1137. ``media-buy/create-media-buy-response.json`` types
+    ``confirmed_at`` as ``["string", "null"]`` and lists it in the success
+    branch's ``required``: a buy still awaiting seller commitment (e.g.
+    ``pending_creatives``) has no instant to report, so the key must be
+    present and may be null.
+    """
+    from pydantic import ValidationError
+
+    from adcp.types import CreateMediaBuySuccessResponse
+
+    field = CreateMediaBuySuccessResponse.model_fields["confirmed_at"]
+    assert field.is_required(), "confirmed_at must not gain a default"
+    assert type(None) in typing.get_args(field.annotation)
+
+    provisional = CreateMediaBuySuccessResponse(
+        media_buy_id="mb_1",
+        packages=[],
+        confirmed_at=None,
+        revision=1,
+    )
+    assert provisional.confirmed_at is None
+
+    parsed = CreateMediaBuySuccessResponse.model_validate(
+        {"media_buy_id": "mb_1", "packages": [], "confirmed_at": None, "revision": 1}
+    )
+    assert parsed.confirmed_at is None
+
+    with pytest.raises(ValidationError):
+        CreateMediaBuySuccessResponse.model_validate(
+            {"media_buy_id": "mb_1", "packages": [], "revision": 1}
+        )
+
+
+def test_confirmed_at_null_survives_serialization_when_none_is_kept() -> None:
+    """A null ``confirmed_at`` round-trips whenever ``None`` is not excluded.
+
+    ``AdCPBaseModel.model_dump`` still defaults to ``exclude_none=True``, which
+    drops the key; reconciling that blanket default with required-and-nullable
+    fields is tracked separately (#1137's second-order note) and deliberately
+    out of scope here. What this pins is that the *model* carries the null, so
+    an explicit ``exclude_none=False`` dump emits the schema-required key.
+    """
+    from adcp.types import CreateMediaBuySuccessResponse
+
+    resp = CreateMediaBuySuccessResponse(
+        media_buy_id="mb_1",
+        packages=[],
+        confirmed_at=None,
+        revision=1,
+    )
+    dumped = resp.model_dump(exclude_none=False)
+    assert "confirmed_at" in dumped
+    assert dumped["confirmed_at"] is None
+
+    assert CreateMediaBuySuccessResponse.model_validate(dumped).confirmed_at is None
+
+
+def test_confirmed_at_still_accepts_a_commitment_timestamp() -> None:
+    """Widening to ``| None`` must not loosen datetime validation."""
+    from datetime import datetime, timezone
+
+    from pydantic import ValidationError
+
+    from adcp.types import CreateMediaBuySuccessResponse
+
+    committed = CreateMediaBuySuccessResponse.model_validate(
+        {
+            "media_buy_id": "mb_1",
+            "packages": [],
+            "confirmed_at": "2026-05-27T12:00:00Z",
+            "revision": 1,
+        }
+    )
+    assert committed.confirmed_at == datetime(2026, 5, 27, 12, 0, tzinfo=timezone.utc)
+
+    with pytest.raises(ValidationError):
+        CreateMediaBuySuccessResponse.model_validate(
+            {
+                "media_buy_id": "mb_1",
+                "packages": [],
+                "confirmed_at": "not-a-timestamp",
+                "revision": 1,
+            }
+        )

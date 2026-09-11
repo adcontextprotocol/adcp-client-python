@@ -3785,6 +3785,55 @@ def restore_constructible_response_bases() -> None:
         print(f"  {relative_path}: restored constructible {base_name} base")
 
 
+def _schema_permits_null(schema: Any) -> bool:
+    """True when a JSON Schema property explicitly permits ``null``.
+
+    ``required`` and nullability are independent axes in JSON Schema: a
+    property listed in ``required`` whose ``type`` array contains ``"null"``
+    must be *present* and may be *null*. Both spellings count here — the
+    ``type: ["string", "null"]`` array form and a ``oneOf``/``anyOf`` branch
+    of ``{"type": "null"}``.
+    """
+    if not isinstance(schema, dict):
+        return False
+    schema_type = schema.get("type")
+    if isinstance(schema_type, list) and "null" in schema_type:
+        return True
+    for keyword in ("oneOf", "anyOf"):
+        variants = schema.get(keyword)
+        if isinstance(variants, list) and any(
+            isinstance(variant, dict) and variant.get("type") == "null" for variant in variants
+        ):
+            return True
+    return False
+
+
+def _top_level_union_parts(annotation: str) -> list[str]:
+    """Split a rendered annotation on its top-level ``|`` separators."""
+    parts: list[str] = []
+    current: list[str] = []
+    depth = 0
+    for char in annotation:
+        if char in "[(":
+            depth += 1
+        elif char in "])":
+            depth -= 1
+        if char == "|" and depth == 0:
+            parts.append("".join(current).strip())
+            current = []
+            continue
+        current.append(char)
+    parts.append("".join(current).strip())
+    return parts
+
+
+def _union_with_none(annotation: str) -> str:
+    """Return ``annotation`` widened with ``None``, without duplicating it."""
+    if "None" in _top_level_union_parts(annotation):
+        return annotation
+    return f"{annotation} | None"
+
+
 def restore_response_variant_aliases() -> None:
     """Restore numbered response arms from schema data, not hand-written payloads.
 
@@ -4151,9 +4200,14 @@ def restore_response_variant_aliases() -> None:
                 else:
                     typ = self.type_for(prop_name, prop_schema)
                 if prop_name in required:
+                    # Required-and-nullable: keep the field required (no
+                    # default) while letting it hold the null the schema
+                    # permits.
+                    if _schema_permits_null(prop_schema):
+                        typ = _union_with_none(typ)
                     lines.append(f"    {prop_name}: {typ}")
                 else:
-                    lines.append(f"    {prop_name}: {typ} | None = None")
+                    lines.append(f"    {prop_name}: {_union_with_none(typ)} = None")
             self.nested.append("\n".join(lines))
             return class_name
 
@@ -4221,9 +4275,14 @@ def restore_response_variant_aliases() -> None:
                     if isinstance(const, str):
                         lines.append(f"    {prop_name}: {typ} = {const!r}")
                     else:
+                        # Required-and-nullable: keep the field required (no
+                        # default) while letting it hold the null the schema
+                        # permits.
+                        if _schema_permits_null(prop_schema):
+                            typ = _union_with_none(typ)
                         lines.append(f"    {prop_name}: {typ}")
                 else:
-                    lines.append(f"    {prop_name}: {typ} | None = None")
+                    lines.append(f"    {prop_name}: {_union_with_none(typ)} = None")
             if self.base in {
                 "CreateMediaBuyResponse",
                 "UpdateMediaBuyResponse",

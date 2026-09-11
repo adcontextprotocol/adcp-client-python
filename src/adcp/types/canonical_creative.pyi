@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any, ClassVar, Literal, TypeAlias, TypeVar
 
 from adcp.types.base import AdCPBaseModel
@@ -126,12 +127,16 @@ class UpdateMediaBuyRequest(CanonicalBoundaryModel):
 class CreateMediaBuyResponse1(CanonicalBoundaryModel):
     media_buy_id: str
     packages: list[Package]
+    # Required *and* nullable: the schema lists confirmed_at in the success
+    # branch's ``required`` while typing it ``["string", "null"]``. A buy
+    # awaiting seller commitment carries the key with a null value.
+    confirmed_at: datetime | None
     def __init__(
         self,
         *,
         media_buy_id: str,
         status: Any,
-        confirmed_at: Any,
+        confirmed_at: datetime | None,
         revision: int,
         packages: list[Package],
         media_buy_status: Any = ...,
