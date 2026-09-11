@@ -46,13 +46,6 @@ from adcp.types._generated import (
     # Activation key variants
     ActivationKey1,
     ActivationKey2,
-    # Authorized agents
-    AuthorizedAgents,
-    AuthorizedAgents1,
-    AuthorizedAgents2,
-    AuthorizedAgents3,
-    AuthorizedAgents4,
-    AuthorizedAgents5,
     ConsentBasis,
     CpaPricingOption,
     CpcPricingOption,
@@ -1263,6 +1256,34 @@ Example:
     ```
 """
 
+# The six authorization variants are imported from the generated module
+# directly rather than through ``_generated``. ``_generated`` rebinds the whole
+# ``AuthorizedAgents*`` window at runtime (``AuthorizedAgents = AuthorizedAgents1``,
+# ``AuthorizedAgents1 = AuthorizedAgents2``, ...) to preserve the historical
+# variant numbering; mypy keeps the *pre-rebind* declarations, so aliasing the
+# shifted names bound each semantic alias to the runtime class it names but the
+# static type of its neighbour — an off-by-one that made every documented
+# constructor call fail ``mypy --strict``. Binding the raw variants keeps the
+# runtime object and the static type identical.
+from adcp.types.generated_poc.adagents import (
+    AuthorizedAgents1 as _AuthorizedAgentsPropertyIds,
+)
+from adcp.types.generated_poc.adagents import (
+    AuthorizedAgents2 as _AuthorizedAgentsPropertyTags,
+)
+from adcp.types.generated_poc.adagents import (
+    AuthorizedAgents3 as _AuthorizedAgentsInlineProperties,
+)
+from adcp.types.generated_poc.adagents import (
+    AuthorizedAgents4 as _AuthorizedAgentsPublisherProperties,
+)
+from adcp.types.generated_poc.adagents import (
+    AuthorizedAgents5 as _AuthorizedAgentsSignalIds,
+)
+from adcp.types.generated_poc.adagents import (
+    AuthorizedAgents6 as _AuthorizedAgentsSignalTags,
+)
+
 # ============================================================================
 # AUTHORIZED AGENTS ALIASES - Authorization Type Discriminated Unions
 # ============================================================================
@@ -1288,7 +1309,7 @@ Example:
 # These define which sales agents are authorized to sell inventory and which
 # properties they can access.
 
-AuthorizedAgentsByPropertyId = AuthorizedAgents
+AuthorizedAgentsByPropertyId = _AuthorizedAgentsPropertyIds
 """Authorized agent with specific property IDs.
 
 This variant uses authorization_type='property_ids' for agents authorized
@@ -1313,7 +1334,7 @@ Example:
     ```
 """
 
-AuthorizedAgentsByPropertyTag = AuthorizedAgents1
+AuthorizedAgentsByPropertyTag = _AuthorizedAgentsPropertyTags
 """Authorized agent with property tags.
 
 This variant uses authorization_type='property_tags' for agents authorized
@@ -1338,7 +1359,7 @@ Example:
     ```
 """
 
-AuthorizedAgentsByInlineProperties = AuthorizedAgents2
+AuthorizedAgentsByInlineProperties = _AuthorizedAgentsInlineProperties
 """Authorized agent with inline property definitions.
 
 This variant uses authorization_type='inline_properties' for agents with
@@ -1364,7 +1385,7 @@ Example:
     ```
 """
 
-AuthorizedAgentsByPublisherProperties = AuthorizedAgents3
+AuthorizedAgentsByPublisherProperties = _AuthorizedAgentsPublisherProperties
 """Authorized agent for properties from other publishers.
 
 This variant uses authorization_type='publisher_properties' for agents
@@ -1397,7 +1418,7 @@ Example:
     ```
 """
 
-AuthorizedAgentsBySignalId = AuthorizedAgents4
+AuthorizedAgentsBySignalId = _AuthorizedAgentsSignalIds
 """Authorized agent for specific signal IDs.
 
 This variant uses authorization_type='signal_ids' for agents authorized
@@ -1410,7 +1431,7 @@ Fields:
 - url: Authorized signals agent's API endpoint URL
 """
 
-AuthorizedAgentsBySignalTag = AuthorizedAgents5
+AuthorizedAgentsBySignalTag = _AuthorizedAgentsSignalTags
 """Authorized agent for signals matching tags.
 
 This variant uses authorization_type='signal_tags' for agents authorized

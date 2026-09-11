@@ -89,7 +89,6 @@ from adcp.types._generated import (
     Authentication,
     AuthenticationScheme,
     AuthorizationRequiredDetails,
-    AuthorizedAgents,
     AvailableMetric,
     AvailablePackage,
     BillingNotPermittedForAgentDetails,
@@ -941,6 +940,16 @@ from adcp.types.core import (
     TaskResult,
     WebhookMetadata,
 )
+
+# ``AuthorizedAgents`` is sourced from the generated module directly rather
+# than through ``_generated``. ``_generated`` rebinds the name at runtime
+# (``AuthorizedAgents = AuthorizedAgents1``) to preserve the historical adagents
+# variant numbering, but mypy keeps the *pre-rebind* declaration, so re-exporting
+# it from there gives adopters a runtime ``property_ids`` variant behind a static
+# type of the obsolete aggregate ``RootModel`` — documented constructor kwargs
+# get rejected. Importing the variant class by its generated name keeps the
+# runtime object and the static type identical.
+from adcp.types.generated_poc.adagents import AuthorizedAgents1 as AuthorizedAgents
 
 # Deprecated compatibility types from the root brand discovery document. The
 # document collides with the ``brand/`` task-schema package, so codegen emits
