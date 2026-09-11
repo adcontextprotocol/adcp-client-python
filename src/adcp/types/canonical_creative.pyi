@@ -46,22 +46,23 @@ class Product(CanonicalBoundaryModel):
 
 class CreativeAsset(CanonicalBoundaryModel):
     creative_id: str
-    format_kind: CanonicalFormatKind
+    format_kind: CanonicalFormatKind | str
     format_option_ref: Any
 
 class Creative(CanonicalBoundaryModel):
     creative_id: str
-    format_kind: CanonicalFormatKind
+    format_kind: CanonicalFormatKind | str
     format_option_ref: Any
 
-class CreativeManifest(CanonicalBoundaryModel): ...
+class CreativeManifest(CanonicalBoundaryModel):
+    format_kind: CanonicalFormatKind | str | None
 
 class CreativeVariant(CanonicalBoundaryModel):
     manifest: CreativeManifest | None
 
 class DeliveryCreative(CanonicalBoundaryModel):
     creative_id: str
-    format_kind: CanonicalFormatKind | None
+    format_kind: CanonicalFormatKind | str | None
     variants: list[CreativeVariant]
 
 class CreativeFilters(CanonicalBoundaryModel): ...

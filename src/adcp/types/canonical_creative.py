@@ -117,6 +117,11 @@ from adcp.types.media_buy_status_helpers import (
     unwrap_enum_value,
 )
 
+_OpenCanonicalFormatKind = Annotated[
+    CanonicalFormatKind | str,
+    Field(union_mode="left_to_right"),
+]
+
 _LEGACY_IDENTITY_KEY = re.compile(r"(^|_)(?:format_ids?|v1_format_ref)($|_)")
 _CREDENTIAL_SHAPED_KEY_SUFFIXES = (
     "credential",
@@ -518,6 +523,8 @@ class Format(CanonicalBoundaryModel):
         if self.format_kind is CanonicalFormatKind.custom:
             if not self.format_shape:
                 raise ValueError("custom formats require format_shape")
+            if self.format_schema is None:
+                raise ValueError("custom formats require format_schema")
         elif self.format_shape is not None or self.format_schema is not None:
             raise ValueError("format_shape and format_schema are only valid for custom formats")
         return self
@@ -553,16 +560,25 @@ Product = _canonical_clone(
 CreativeAsset = _canonical_clone(
     "CreativeAsset",
     _CanonicalCreativeWire,
-    overrides={"format_kind": (CanonicalFormatKind, Field())},
+    overrides={"format_kind": (_OpenCanonicalFormatKind, Field())},
 )
 
 Creative = _canonical_clone(
     "Creative",
     _CanonicalListedCreative,
-    overrides={"format_kind": (CanonicalFormatKind, Field())},
+    overrides={"format_kind": (_OpenCanonicalFormatKind, Field())},
 )
 
-_CreativeManifestBase = _canonical_clone("_CreativeManifestBase", _CanonicalCreativeManifestWire)
+_CreativeManifestBase = _canonical_clone(
+    "_CreativeManifestBase",
+    _CanonicalCreativeManifestWire,
+    overrides={
+        "format_kind": (
+            _OpenCanonicalFormatKind | None,
+            copy.deepcopy(_CanonicalCreativeManifestWire.model_fields["format_kind"]),
+        )
+    },
+)
 
 
 class CreativeManifest(_CreativeManifestBase):
@@ -604,7 +620,7 @@ DeliveryCreative = _canonical_clone(
     "DeliveryCreative",
     _LegacyDeliveryCreative,
     overrides={
-        "format_kind": (CanonicalFormatKind | None, Field(default=None)),
+        "format_kind": (_OpenCanonicalFormatKind | None, Field(default=None)),
         "variants": (list[CreativeVariant], Field()),
     },
 )

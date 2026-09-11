@@ -27,9 +27,9 @@ in-place. It is therefore listed in ALLOWED_FILES in test_import_layering.py.
 from __future__ import annotations
 
 from copy import copy
-from typing import Any, cast, get_args
+from typing import Annotated, Any, cast, get_args
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pydantic.fields import FieldInfo
 
 from adcp.types.aliases import FormatAssetUnion, GroupFormatAssetUnion, RepeatableAssetGroup
@@ -48,13 +48,23 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     PublisherDomain as BundledPublisherDomain,
 )
+from adcp.types.generated_poc.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.generated_poc.core.canonical_product import PublisherDomain
+from adcp.types.generated_poc.core.creative_manifest import CreativeManifest
 from adcp.types.generated_poc.core.format import Format
 from adcp.types.generated_poc.core.media_buy_features import MediaBuyFeatures
+from adcp.types.generated_poc.creative.get_creative_delivery_response import (
+    Creative as DeliveryCreative,
+)
 from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
     AcceptancePolicyDiscovery,
     PrimaryCountry,
 )
+
+_OpenCanonicalFormatKind = Annotated[
+    CanonicalFormatKind | str,
+    Field(union_mode="left_to_right"),
+]
 
 
 def _patch_model_field(model: type[BaseModel], field_name: str, new_annotation: Any) -> None:
@@ -103,6 +113,23 @@ def _patch_equivalent_model_field(
 
 def _apply_forward_compat() -> None:
     """Apply open-union, capability, and public-model compatibility patches."""
+    # Canonical format kinds are an open enum on consumer boundaries. Preserve
+    # values introduced by a newer protocol revision instead of rejecting the
+    # entire creative manifest. Known values still coerce to the StrEnum arm.
+    _patch_model_field(
+        CreativeManifest,
+        "format_kind",
+        _OpenCanonicalFormatKind | None,
+    )
+    CreativeManifest.model_rebuild(force=True)
+
+    _patch_model_field(
+        DeliveryCreative,
+        "format_kind",
+        _OpenCanonicalFormatKind | None,
+    )
+    DeliveryCreative.model_rebuild(force=True)
+
     _patch_model_field(Format, "assets", list[FormatAssetUnion] | None)
     Format.model_rebuild(force=True)
 

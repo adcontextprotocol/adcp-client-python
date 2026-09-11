@@ -27,6 +27,13 @@ def _ref(id_: str = "display_300x250_image") -> FormatId:
     )
 
 
+def _format_schema() -> dict[str, str]:
+    return {
+        "uri": "https://example.com/custom-format.json",
+        "digest": f"sha256:{'0' * 64}",
+    }
+
+
 # ---------------------------------------------------------------------------
 # Step 1 — explicit v1-unreachability is silent (no refs, no advisories)
 # ---------------------------------------------------------------------------
@@ -57,6 +64,7 @@ def test_custom_without_refs_is_silent() -> None:
         format_kind=CanonicalFormatKind.custom,
         params={},
         format_shape="multi_placement_takeover",
+        format_schema=_format_schema(),
     )
 
     result = project_declaration_to_v1(decl)
@@ -72,6 +80,7 @@ def test_custom_with_v1_format_ref_emits_refs() -> None:
         format_kind=CanonicalFormatKind.custom,
         params={},
         format_shape="multi_placement_takeover",
+        format_schema=_format_schema(),
         v1_format_ref=refs,
     )
 
@@ -166,6 +175,7 @@ def test_non_translatable_canonicals_are_silent_with_no_ref(kind: CanonicalForma
         format_kind=kind,
         params={},
         format_shape="test_custom" if kind is CanonicalFormatKind.custom else None,
+        format_schema=_format_schema() if kind is CanonicalFormatKind.custom else None,
     )
 
     result = project_declaration_to_v1(decl)
