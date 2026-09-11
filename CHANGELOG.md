@@ -1,5 +1,30 @@
 # Changelog
 
+## [8.0.0-beta.15](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.14...v8.0.0-beta.15) (2026-09-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* validate brand domains in signing authorization ([#1139](https://github.com/adcontextprotocol/adcp-client-python/issues/1139))
+
+### Features
+
+* **exceptions:** expose buyer_reason + recovery on ADCPTaskError ([77760fd](https://github.com/adcontextprotocol/adcp-client-python/commit/77760fd530abfdba69e8273a3d4c0e08eed79a2a))
+* **exceptions:** expose buyer_reason + recovery on ADCPTaskError ([f528713](https://github.com/adcontextprotocol/adcp-client-python/commit/f52871346420bb5ea96a56b0f70007e4b612523b))
+* validate brand domains in signing authorization ([#1139](https://github.com/adcontextprotocol/adcp-client-python/issues/1139)) ([49aaa43](https://github.com/adcontextprotocol/adcp-client-python/commit/49aaa43a84df20941bd1e96336475034748b6e3c))
+
+
+### Bug Fixes
+
+* **ci:** retire superseded Ladon change requests ([#1135](https://github.com/adcontextprotocol/adcp-client-python/issues/1135)) ([00096e7](https://github.com/adcontextprotocol/adcp-client-python/commit/00096e72055395cbd47f1b351a067f00ec16be95))
+* **codegen:** inherit root allOf ProtocolEnvelope on every response arm ([#1144](https://github.com/adcontextprotocol/adcp-client-python/issues/1144)) ([b4d2a89](https://github.com/adcontextprotocol/adcp-client-python/commit/b4d2a89b945541ca8614e0a0a0a73028949ae3d7)), closes [#1136](https://github.com/adcontextprotocol/adcp-client-python/issues/1136)
+* **codegen:** keep required nullable response fields nullable ([#1143](https://github.com/adcontextprotocol/adcp-client-python/issues/1143)) ([b57d43c](https://github.com/adcontextprotocol/adcp-client-python/commit/b57d43c00ea1a69b8b94d7e802895c5b0df2336a)), closes [#1137](https://github.com/adcontextprotocol/adcp-client-python/issues/1137)
+* **codegen:** restore downstream model contracts ([#1134](https://github.com/adcontextprotocol/adcp-client-python/issues/1134)) ([64725d7](https://github.com/adcontextprotocol/adcp-client-python/commit/64725d7db86b52a6e62c27d5044e689295133247))
+* **codegen:** upgrade to secure generator 0.64 ([#1132](https://github.com/adcontextprotocol/adcp-client-python/issues/1132)) ([f70de79](https://github.com/adcontextprotocol/adcp-client-python/commit/f70de79a5a9b3171cb77ec46d5feab82c6b12e2b))
+* **exceptions:** clamp retry_after to spec range + address review nits ([d2e3a7b](https://github.com/adcontextprotocol/adcp-client-python/commit/d2e3a7b6820ffc81608680b5a1e60e52d3ff5934))
+* **types:** bind public AuthorizedAgents symbols to raw adagents variants ([#1145](https://github.com/adcontextprotocol/adcp-client-python/issues/1145)) ([39e2741](https://github.com/adcontextprotocol/adcp-client-python/commit/39e27419a6c64d7f27bf4304a6940e1af19add97))
+* **types:** preserve open canonical format kinds ([#1142](https://github.com/adcontextprotocol/adcp-client-python/issues/1142)) ([0fe7143](https://github.com/adcontextprotocol/adcp-client-python/commit/0fe714348c1286594d40294c3163ebc84b2fde3b))
+
 ## [8.0.0-beta.14](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.13...v8.0.0-beta.14) (2026-09-05)
 
 
