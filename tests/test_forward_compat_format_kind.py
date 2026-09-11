@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 from pydantic import ValidationError
@@ -15,6 +15,7 @@ from adcp.types import (
     DeliveryCreative,
     Format,
 )
+from adcp.types.aliases import DeliveryCreative as AliasDeliveryCreative
 
 FUTURE_FORMAT_KIND = "future_canonical_format"
 
@@ -29,7 +30,7 @@ def _creative_asset(format_kind: str) -> CreativeAsset:
 
 
 def _creative(format_kind: str) -> Creative:
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     return Creative(
         creative_id="creative-1",
         name="Creative",
@@ -73,6 +74,17 @@ def test_known_format_kind_still_coerces_to_enum(factory) -> None:
 
     assert model.format_kind is CanonicalFormatKind.image
     assert model.model_dump(mode="json")["format_kind"] == "image"
+
+
+def test_delivery_creative_alias_is_open_and_keeps_its_identity() -> None:
+    assert AliasDeliveryCreative is DeliveryCreative
+
+    model = AliasDeliveryCreative(
+        creative_id="creative-1",
+        format_kind=FUTURE_FORMAT_KIND,
+        variants=[],
+    )
+    assert model.format_kind == FUTURE_FORMAT_KIND
 
 
 def _format_schema() -> dict[str, str]:

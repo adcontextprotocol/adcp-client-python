@@ -3588,6 +3588,36 @@ def restore_flattened_contract_field_types() -> None:
     print("  core/creative_representation.py: restored canonical format contract")
 
 
+def preserve_open_delivery_format_kind() -> None:
+    """Keep the public delivery-creative consumer boundary forward-compatible."""
+    target = OUTPUT_DIR / "creative" / "get_creative_delivery_response.py"
+    if not target.exists():
+        print("  creative/get_creative_delivery_response.py not found (skipping open enum)")
+        return
+
+    source = target.read_text()
+    generated = """    format_kind: Annotated[
+        canonical_format_kind.CanonicalFormatKind | None,
+        Field(description='Canonical format kind delivered for this creative.'),
+    ] = None"""
+    replacement = """    format_kind: Annotated[
+        canonical_format_kind.CanonicalFormatKind | str | None,
+        Field(
+            description='Canonical format kind delivered for this creative.',
+            union_mode='left_to_right',
+        ),
+    ] = None"""
+    if generated in source:
+        target.write_text(source.replace(generated, replacement, 1))
+        print("  creative/get_creative_delivery_response.py: opened format_kind enum")
+    elif replacement in source:
+        print("  creative/get_creative_delivery_response.py: format_kind already open")
+    else:
+        raise RuntimeError(
+            "get_creative_delivery_response.py: expected format_kind field not found"
+        )
+
+
 def enforce_transformer_output_contract() -> None:
     """Require a transformer to declare canonical or legacy output formats."""
     target = OUTPUT_DIR / "core" / "transformer.py"
@@ -5742,6 +5772,7 @@ def main(argv: list[str] | None = None):
         restore_principal_result_aliases,
         disambiguate_comply_response_arm,
         restore_flattened_contract_field_types,
+        preserve_open_delivery_format_kind,
         enforce_transformer_output_contract,
         restore_constructible_response_bases,
         restore_response_variant_aliases,

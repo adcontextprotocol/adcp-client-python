@@ -1195,6 +1195,35 @@ def test_schema_derived_response_arms_preserve_nested_validation():
         )
 
 
+def test_post_generate_preserves_open_delivery_format_kind(tmp_path, monkeypatch) -> None:
+    """The public delivery alias must stay open after clean code generation."""
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    target = generated_dir / "creative" / "get_creative_delivery_response.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "from typing import Annotated\n"
+        "from pydantic import Field\n"
+        "from ..core import canonical_format_kind\n\n"
+        "class Creative:\n"
+        "    format_kind: Annotated[\n"
+        "        canonical_format_kind.CanonicalFormatKind | None,\n"
+        "        Field(description='Canonical format kind delivered for this creative.'),\n"
+        "    ] = None\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.preserve_open_delivery_format_kind()
+    generated_source = target.read_text()
+    post_generate_fixes.preserve_open_delivery_format_kind()
+
+    assert target.read_text() == generated_source
+    assert "CanonicalFormatKind | str | None" in generated_source
+    assert "union_mode='left_to_right'" in generated_source
+    compile(generated_source, str(target), "exec")
+
+
 def test_post_generate_sync_creatives_response_arms_match_schema_creative_fields(
     tmp_path, monkeypatch
 ):

@@ -55,7 +55,8 @@ class Creative(CanonicalBoundaryModel):
     format_option_ref: Any
 
 class CreativeManifest(CanonicalBoundaryModel):
-    format_kind: CanonicalFormatKind | str | None
+    format_kind: CanonicalFormatKind | str | None = ...
+    assets: dict[str, Any]
 
 class CreativeVariant(CanonicalBoundaryModel):
     manifest: CreativeManifest | None
