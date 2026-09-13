@@ -24,6 +24,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from adcp._version import ADCP_MAJOR_VERSION, normalize_to_release_precision
+from adcp.validation._response_envelope import uses_task_status_envelope
 from adcp.validation.oneof_hints import compute_oneof_hint
 from adcp.validation.schema_loader import Direction, ResponseVariant, get_validator
 
@@ -417,17 +418,17 @@ def _select_response_variant(payload: Any) -> ResponseVariant:
 def _normalize_response_for_validation(tool_name: str, payload: Any) -> Any:
     """Apply SDK compatibility defaults before strict beta 3 validation.
 
-    Beta 3 made the protocol envelope ``status`` required on most responses.
-    Compact ``list_products`` is a synchronous outcome union and expressly does
-    not carry that task status. ``cache_scope`` is deliberately not inferred
-    here: response-only validation lacks the request account context needed to
+    Most beta 3 responses require the protocol ``status`` envelope. Compact
+    ``list_products`` and synchronous ``decline_proposals`` retain their native
+    envelopes instead. ``cache_scope`` is deliberately not inferred here:
+    response-only validation lacks the request account context needed to
     distinguish public wholesale feeds from account overlays.
     """
     if not isinstance(payload, dict):
         return payload
 
     normalized = dict(payload)
-    if tool_name != "list_products":
+    if uses_task_status_envelope(tool_name):
         normalized.setdefault("status", "completed")
     return normalized
 
