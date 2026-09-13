@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -16,6 +18,21 @@ from adcp.server.helpers import (
     resolve_account_into_context,
     valid_actions_for_status,
 )
+from adcp.validation.version import resolve_bundle_key
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_ADCP_VERSION = (_REPO_ROOT / "src" / "adcp" / "ADCP_VERSION").read_text().strip()
+_ERROR_CODE_SCHEMA_PATH = (
+    _REPO_ROOT
+    / "schemas"
+    / "cache"
+    / resolve_bundle_key(_ADCP_VERSION)
+    / "enums"
+    / "error-code.json"
+)
+_ERROR_CODE_SCHEMA = json.loads(_ERROR_CODE_SCHEMA_PATH.read_text(encoding="utf-8"))
+_SPEC_ERROR_CODES = _ERROR_CODE_SCHEMA["enum"]
+_SPEC_ERROR_METADATA = _ERROR_CODE_SCHEMA["enumMetadata"]
 
 
 class TestAdcpError:
@@ -44,9 +61,10 @@ class TestAdcpError:
         result = adcp_error("MY_CUSTOM_ERROR", "Something broke")
         assert result["errors"][0]["recovery"] == "terminal"
 
-    def test_recovery_override(self) -> None:
-        result = adcp_error("BUDGET_TOO_LOW", recovery="transient")
-        assert result["errors"][0]["recovery"] == "transient"
+    @pytest.mark.parametrize("recovery", ["transient", "correctable", "terminal"])
+    def test_recovery_override(self, recovery: str) -> None:
+        result = adcp_error("X_VENDOR_ERROR", recovery=recovery)
+        assert result["errors"][0]["recovery"] == recovery
 
     def test_field_and_suggestion(self) -> None:
         result = adcp_error(
@@ -66,10 +84,13 @@ class TestAdcpError:
         result = adcp_error("BUDGET_TOO_LOW", details={"minimum": 500, "actual": 50})
         assert result["errors"][0]["details"]["minimum"] == 500
 
-    def test_all_standard_codes_have_recovery(self) -> None:
-        for code, info in STANDARD_ERROR_CODES.items():
-            assert "recovery" in info, f"{code} missing recovery"
-            assert info["recovery"] in ("transient", "correctable", "terminal")
+    @pytest.mark.parametrize("code", _SPEC_ERROR_CODES)
+    def test_spec_code_recovery_matches_published_metadata(self, code: str) -> None:
+        result = adcp_error(code, "x")
+        assert result["errors"][0]["recovery"] == _SPEC_ERROR_METADATA[code]["recovery"]
+
+    def test_standard_codes_cover_published_vocabulary_and_sdk_extensions(self) -> None:
+        assert set(STANDARD_ERROR_CODES) == {*_SPEC_ERROR_CODES, "NOT_SUPPORTED"}
 
     def test_importable_from_server_package(self) -> None:
         from adcp.server import adcp_error as imported

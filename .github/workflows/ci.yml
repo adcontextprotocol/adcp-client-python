@@ -239,6 +239,7 @@ jobs:
           from importlib.resources import files
 
           from adcp import get_adcp_spec_version
+          from adcp.server.helpers import STANDARD_ERROR_CODES, adcp_error
           from adcp.types import ReportingCapabilities
           from adcp.types.versioned import make_versioned_base
 
@@ -255,6 +256,8 @@ jobs:
               if child.is_dir()
           }
           assert packaged_versions == {"2.5", "3.0", "3.1", current_bundle}
+          assert len(STANDARD_ERROR_CODES) == 120
+          assert adcp_error("AUTH_MISSING", "x")["errors"][0]["recovery"] == "correctable"
           assert make_versioned_base("3.1", "ListCreativesRequest")
           assert ReportingCapabilities.__name__ == "ReportingCapabilities"
           PY

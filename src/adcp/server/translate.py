@@ -180,6 +180,9 @@ def _extract_structured_fields(
             first = errors[0]
             field = getattr(first, "field", None)
             details = getattr(first, "details", None)
+            if isinstance(exc, ADCPTaskError):
+                first_info = exc.error_info[0]
+                recovery = first_info.recovery or recovery
     else:
         raise TypeError(f"Expected ADCPError or Error, got {type(exc).__name__}")
 

@@ -17,6 +17,7 @@ from mcp.types import CallToolResult, TextContent
 
 from adcp.decisioning.types import AdcpError as DecisioningAdcpError
 from adcp.exceptions import ADCPError, ADCPTaskError
+from adcp.server import adcp_error
 from adcp.server.translate import build_mcp_error_result
 from adcp.types import Error
 
@@ -268,16 +269,18 @@ async def test_specific_codes_round_trip(code: str, recovery: str):
 
 
 @pytest.mark.asyncio
-async def test_adcp_task_error_round_trips_through_register_tool():
-    """ADCPError subclasses (ADCPTaskError, IdempotencyConflictError, etc.)
-    also reach the wire as structured envelopes, not ToolError text.
-    """
+@pytest.mark.parametrize("recovery", ["transient", "correctable", "terminal"])
+async def test_adcp_task_error_preserves_recovery_override_through_register_tool(
+    recovery: str,
+):
+    """Explicit extension-code recovery survives helper, typing, and MCP projection."""
     from mcp.server import MCPServer
 
     from adcp.server.serve import _register_tool
 
     async def caller(_kwargs: dict[str, Any], *, context: Any = None) -> Any:
-        err = Error(code="IDEMPOTENCY_CONFLICT", message="payload differs")
+        raw = adcp_error("X_VENDOR_ERROR", "vendor failure", recovery=recovery)["errors"][0]
+        err = Error.model_validate(raw)
         raise ADCPTaskError("create_media_buy", [err])
 
     mcp = MCPServer("test-task-error")
@@ -292,7 +295,8 @@ async def test_adcp_task_error_round_trips_through_register_tool():
     result = await mcp.call_tool("create_media_buy", {})
     assert isinstance(result, CallToolResult)
     assert result.is_error is True
-    assert result.structured_content["adcp_error"]["code"] == "IDEMPOTENCY_CONFLICT"
+    assert result.structured_content["adcp_error"]["code"] == "X_VENDOR_ERROR"
+    assert result.structured_content["adcp_error"]["recovery"] == recovery
 
 
 class TestBuildMcpErrorResultContextEcho:
