@@ -15,7 +15,9 @@ from adcp.compat import (
     ESTABLISHED_PROPOSAL_MAX_SNAPSHOT_BYTES,
     CompatibilityContinuationError,
     CompatibleTaskResult,
+    CoordinatorBuyProductsInput,
     EstablishedProposalEvidence,
+    EstablishedProposalMutationReplayStore,
     InMemoryCompatibilityContinuationStore,
     InMemoryEstablishedProposalEvidenceStore,
     LegacyPurchaseCoordinator,
@@ -51,6 +53,19 @@ _VECTORS = (
 )
 _CASES = json.loads(_VECTORS.read_text())["cases"]
 _NOW = datetime(2098, 1, 1, tzinfo=timezone.utc)
+_LEGACY_MUTATION_LOSS = "mutation_idempotency_not_guaranteed"
+
+
+def test_coordinator_purchase_input_excludes_seller_version_evidence() -> None:
+    fields = CoordinatorBuyProductsInput.__annotations__
+
+    assert {"idempotency_key", "account", "purchases", "start_time", "end_time"} <= fields.keys()
+    assert "feed_version" not in fields
+    assert "pricing_version" not in fields
+    assert isinstance(
+        InMemoryEstablishedProposalEvidenceStore(),
+        EstablishedProposalMutationReplayStore,
+    )
 
 
 def test_compact_list_response_does_not_gain_task_status() -> None:
@@ -386,9 +401,26 @@ def test_negotiation_downshifts_past_an_unbundled_advertised_prerelease() -> Non
 
 def test_compact_contract_requires_an_advertised_route() -> None:
     client = _Client("3.2-rc.1", {})
+    coordinator = MediaBuyLifecycleCoordinator(client, _caps(["3.2-rc.1"]), [])
+
     with pytest.raises(MediaBuyLifecycleCompatibilityError) as exc:
-        MediaBuyLifecycleCoordinator(client, _caps(["3.2-rc.1"]), [])
-    assert exc.value.feature == "lifecycle_tool_not_advertised"
+        coordinator.report("list_products")
+
+    assert exc.value.feature == "catalog_purchase_route_not_advertised"
+
+
+def test_proposal_only_seller_constructs_without_a_catalog_route() -> None:
+    tools = ["request_proposals"]
+    coordinator = MediaBuyLifecycleCoordinator(
+        _Client("3.2-rc.1", {}),
+        _caps(["3.2-rc.1"], served="3.2-rc.1", tools=tools),
+        tools,
+    )
+
+    assert coordinator.report().tools_used == ()
+    assert coordinator.report("request_proposals").lifecycle is MediaBuyLifecycle.COMPACT
+    with pytest.raises(MediaBuyLifecycleCompatibilityError):
+        coordinator.report("list_products")
 
 
 @pytest.mark.parametrize(
@@ -1105,6 +1137,16 @@ async def test_established_acceptance_recovers_submitted_task_after_restart() ->
                 metadata={"task_id": "legacy-accept-task-restart"},
             )
 
+    class CommitThenRaiseAcceptanceStore(InMemoryEstablishedProposalEvidenceStore):
+        raised = False
+
+        async def complete_acceptance(self, record: Any, result: Any) -> Any:
+            completed = await super().complete_acceptance(record, result)
+            if not self.raised:
+                self.raised = True
+                raise OSError("commit acknowledgement was lost")
+            return completed
+
     losses = [
         "proposal_terms_digest_not_enforced",
         "proposal_terms_digest_unavailable",
@@ -1112,7 +1154,7 @@ async def test_established_acceptance_recovers_submitted_task_after_restart() ->
         "proposal_hold_not_verifiable",
     ]
     client = SubmittedAcceptanceClient("3.2-rc.1", _legacy_proposal_response())
-    store = InMemoryEstablishedProposalEvidenceStore()
+    store = CommitThenRaiseAcceptanceStore()
 
     def coordinator() -> MediaBuyLifecycleCoordinator:
         return MediaBuyLifecycleCoordinator(
@@ -1139,27 +1181,41 @@ async def test_established_acceptance_recovers_submitted_task_after_restart() ->
         established_fallback=_established_fallback(),
         accepted_losses=losses,
     )
-    client.task_status_results.append(
-        _completed(
-            {
-                "task_id": "legacy-accept-task-restart",
-                "task_type": "create_media_buy",
-                "protocol": "media_buy",
-                "status": "completed",
-                "created_at": "2098-01-01T00:00:00Z",
-                "updated_at": "2098-01-01T00:00:01Z",
-                "completed_at": "2098-01-01T00:00:01Z",
-                "result": {"media_buy_id": "mb-restarted", "packages": []},
-            }
-        )
+    client.task_status_results.extend(
+        [
+            TaskResult[Any](
+                status=TaskStatus.FAILED,
+                success=False,
+                error="transient status transport failure",
+            ),
+            _completed(
+                {
+                    "task_id": "legacy-accept-task-restart",
+                    "task_type": "create_media_buy",
+                    "protocol": "media_buy",
+                    "status": "completed",
+                    "created_at": "2098-01-01T00:00:00Z",
+                    "updated_at": "2098-01-01T00:00:01Z",
+                    "completed_at": "2098-01-01T00:00:01Z",
+                    "result": {"media_buy_id": "mb-restarted", "packages": []},
+                }
+            ),
+        ]
     )
 
+    interrupted = await coordinator().recover_acceptance(
+        "legacy-accept-task-restart",
+        account={"account_id": "account-acme"},
+        poll_interval=0.01,
+    )
     recovered = await coordinator().recover_acceptance(
         "legacy-accept-task-restart",
         account={"account_id": "account-acme"},
         poll_interval=0.01,
     )
 
+    assert interrupted.status is TaskStatus.SUBMITTED
+    assert store.raised
     assert initial.status is TaskStatus.SUBMITTED
     assert retry.status is TaskStatus.SUBMITTED
     assert recovered.success and recovered.data is not None
@@ -1431,6 +1487,7 @@ async def test_established_refinement_projects_supported_subset_and_replays() ->
         proposal_evidence_store=store,
         principal_id="principal-acme",
         target_binding="seller-session-acme",
+        allowed_losses=[_LEGACY_MUTATION_LOSS],
         allow_non_durable_proposal_mutations=True,
         clock=lambda: _NOW,
     )
@@ -1449,8 +1506,11 @@ async def test_established_refinement_projects_supported_subset_and_replays() ->
     assert first.data.outcome == "legacy_projected"
     assert first.data.proposals[0]["proposal_id"] == "legacy-proposal-2"
     assert replay.success
+    assert first.compatibility.losses == (_LEGACY_MUTATION_LOSS,)
     assert len(client.legacy_requests) == 2  # discovery plus one refinement
     wire = client.legacy_requests[1].model_dump(mode="json", exclude_none=True)
+    assert wire["adcp_version"] == "3.0"
+    assert wire["account"] == {"account_id": "account-acme"}
     assert wire["buying_mode"] == "refine"
     assert wire["refine"] == [
         {
@@ -1460,6 +1520,97 @@ async def test_established_refinement_projects_supported_subset_and_replays() ->
             "ask": "More video",
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_same_id_refinement_replays_before_successor_evidence_is_compared() -> None:
+    client = _Client("3.2-rc.1", _legacy_proposal_response())
+    store = InMemoryEstablishedProposalEvidenceStore()
+    coordinator = MediaBuyLifecycleCoordinator(
+        client,
+        _caps(["3.0"]),
+        ["get_products"],
+        proposal_evidence_store=store,
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+        allowed_losses=[_LEGACY_MUTATION_LOSS],
+        allow_non_durable_proposal_mutations=True,
+        clock=lambda: _NOW,
+    )
+    await coordinator.request_proposals(_proposal_request())
+    response = _legacy_proposal_response()
+    response["proposals"][0]["name"] = "Same ID, revised generation"
+    response["refinement_applied"] = [
+        {"scope": "proposal", "proposal_id": "legacy-proposal-1", "status": "applied"}
+    ]
+    client.response = response
+
+    first = await coordinator.refine_proposals(_refine_request())
+    replay = await coordinator.refine_proposals(_refine_request())
+
+    assert first.success and replay.success
+    assert replay.data is not None
+    assert replay.data.proposals[0]["name"] == "Same ID, revised generation"
+    assert replay.compatibility.warnings == ("Replayed the durable buyer-side refinement result.",)
+    assert len(client.legacy_requests) == 2
+
+
+@pytest.mark.asyncio
+async def test_established_refinement_never_redispatches_transport_ambiguity() -> None:
+    class AmbiguousRefineClient(_Client):
+        fail_mutation = False
+
+        async def get_products_legacy(self, request: Any) -> TaskResult[Any]:
+            self.legacy_requests.append(request)
+            if self.fail_mutation:
+                raise TimeoutError("seller mutation outcome was not observed")
+            return _completed(self.response)
+
+    client = AmbiguousRefineClient("3.2-rc.1", _legacy_proposal_response())
+    coordinator = MediaBuyLifecycleCoordinator(
+        client,
+        _caps(["3.0"], idempotent=True),
+        ["get_products"],
+        proposal_evidence_store=InMemoryEstablishedProposalEvidenceStore(),
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+        allowed_losses=[_LEGACY_MUTATION_LOSS],
+        allow_non_durable_proposal_mutations=True,
+        clock=lambda: _NOW,
+    )
+    await coordinator.request_proposals(_proposal_request())
+    client.fail_mutation = True
+
+    with pytest.raises(TimeoutError):
+        await coordinator.refine_proposals(_refine_request())
+    with pytest.raises(MediaBuyLifecycleCompatibilityError) as fenced:
+        await coordinator.refine_proposals(_refine_request())
+
+    assert fenced.value.feature == "proposal_mutation_ambiguous"
+    assert len(client.legacy_requests) == 2  # discovery plus one mutation
+
+
+@pytest.mark.asyncio
+async def test_established_refinement_requires_retry_guarantee_loss() -> None:
+    client = _Client("3.2-rc.1", _legacy_proposal_response())
+    coordinator = MediaBuyLifecycleCoordinator(
+        client,
+        _caps(["3.0"], idempotent=True),
+        ["get_products"],
+        proposal_evidence_store=InMemoryEstablishedProposalEvidenceStore(),
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+        allow_non_durable_proposal_mutations=True,
+        clock=lambda: _NOW,
+    )
+    await coordinator.request_proposals(_proposal_request())
+
+    with pytest.raises(MediaBuyLifecycleCompatibilityError) as refused:
+        await coordinator.refine_proposals(_refine_request())
+
+    assert refused.value.feature == "compatibility_losses"
+    assert refused.value.losses == (_LEGACY_MUTATION_LOSS,)
+    assert len(client.legacy_requests) == 1
 
 
 @pytest.mark.asyncio
@@ -1473,6 +1624,7 @@ async def test_established_refinement_rejects_unprojectable_constraints_prefligh
         proposal_evidence_store=store,
         principal_id="principal-acme",
         target_binding="seller-session-acme",
+        allowed_losses=[_LEGACY_MUTATION_LOSS],
         allow_non_durable_proposal_mutations=True,
         clock=lambda: _NOW,
     )
@@ -1501,7 +1653,11 @@ async def test_established_refinement_rejects_unprojectable_constraints_prefligh
 async def test_established_decline_reports_loss_and_never_forwards_reason() -> None:
     client = _Client("3.2-rc.1", _legacy_proposal_response())
     store = InMemoryEstablishedProposalEvidenceStore()
-    losses = ["proposal_decline_not_terminal", "proposal_decline_reason_not_forwarded"]
+    losses = [
+        "proposal_decline_not_terminal",
+        "proposal_decline_reason_not_forwarded",
+        _LEGACY_MUTATION_LOSS,
+    ]
     coordinator = MediaBuyLifecycleCoordinator(
         client,
         _caps(["3.0"]),
@@ -1527,6 +1683,8 @@ async def test_established_decline_reports_loss_and_never_forwards_reason() -> N
     assert result.data.results == ({"proposal_id": "legacy-proposal-1", "outcome": "unconfirmed"},)
     assert result.compatibility.losses == tuple(losses)
     wire = client.legacy_requests[1].model_dump(mode="json", exclude_none=True)
+    assert wire["adcp_version"] == "3.0"
+    assert wire["account"] == {"account_id": "account-acme"}
     assert wire["refine"] == [
         {"scope": "proposal", "proposal_id": "legacy-proposal-1", "action": "omit"}
     ]
@@ -1535,8 +1693,28 @@ async def test_established_decline_reports_loss_and_never_forwards_reason() -> N
 
 @pytest.mark.asyncio
 async def test_established_refinement_keeps_durable_fence_through_task_polling() -> None:
+    class CommitThenRaiseMutationStore(InMemoryEstablishedProposalEvidenceStore):
+        raised = False
+
+        async def complete_mutation(
+            self,
+            record: Any,
+            result: Any,
+            *,
+            replacements: Any = (),
+        ) -> Any:
+            completed = await super().complete_mutation(
+                record,
+                result,
+                replacements=replacements,
+            )
+            if not self.raised:
+                self.raised = True
+                raise OSError("commit acknowledgement was lost")
+            return completed
+
     client = _Client("3.2-rc.1", _legacy_proposal_response(case_index=2))
-    store = InMemoryEstablishedProposalEvidenceStore()
+    store = CommitThenRaiseMutationStore()
     coordinator = MediaBuyLifecycleCoordinator(
         client,
         _caps(["3.1"]),
@@ -1544,6 +1722,7 @@ async def test_established_refinement_keeps_durable_fence_through_task_polling()
         proposal_evidence_store=store,
         principal_id="principal-acme",
         target_binding="seller-session-acme",
+        allowed_losses=[_LEGACY_MUTATION_LOSS],
         allow_non_durable_proposal_mutations=True,
         clock=lambda: _NOW,
     )
@@ -1554,27 +1733,37 @@ async def test_established_refinement_keeps_durable_fence_through_task_polling()
     terminal["refinement_applied"] = [
         {"scope": "proposal", "proposal_id": "legacy-proposal-1", "status": "applied"}
     ]
-    client.task_status_results.append(
-        _completed(
-            {
-                "task_id": "legacy-refine-task-1",
-                "task_type": "get_products",
-                "protocol": "media_buy",
-                "status": "completed",
-                "created_at": "2098-01-01T00:00:00Z",
-                "updated_at": "2098-01-01T00:00:01Z",
-                "completed_at": "2098-01-01T00:00:01Z",
-                "result": terminal,
-            }
-        )
+    client.task_status_results.extend(
+        [
+            TaskResult[Any](
+                status=TaskStatus.FAILED,
+                success=False,
+                error="transient status transport failure",
+            ),
+            _completed(
+                {
+                    "task_id": "legacy-refine-task-1",
+                    "task_type": "get_products",
+                    "protocol": "media_buy",
+                    "status": "completed",
+                    "created_at": "2098-01-01T00:00:00Z",
+                    "updated_at": "2098-01-01T00:00:01Z",
+                    "completed_at": "2098-01-01T00:00:01Z",
+                    "result": terminal,
+                }
+            ),
+        ]
     )
 
     initial = await coordinator.refine_proposals(_refine_request())
     with pytest.raises(MediaBuyLifecycleCompatibilityError) as fenced:
         await coordinator.refine_proposals(_refine_request())
-    completed = await coordinator.wait_for_proposal_mutation(initial, poll_interval=0.01)
+    interrupted = await coordinator.wait_for_proposal_mutation(initial, poll_interval=0.01)
+    completed = await coordinator.wait_for_proposal_mutation(interrupted, poll_interval=0.01)
 
     assert initial.status is TaskStatus.SUBMITTED
+    assert interrupted.status is TaskStatus.SUBMITTED
+    assert store.raised
     assert fenced.value.feature == "proposal_mutation_in_flight"
     assert completed.success and completed.data is not None
     assert completed.data.proposals[0]["proposal_id"] == "legacy-proposal-2"
@@ -1595,6 +1784,7 @@ async def test_established_refinement_recovers_submitted_task_after_coordinator_
             proposal_evidence_store=store,
             principal_id="principal-acme",
             target_binding="seller-session-acme",
+            allowed_losses=[_LEGACY_MUTATION_LOSS],
             allow_non_durable_proposal_mutations=True,
             clock=lambda: _NOW,
         )
@@ -1633,6 +1823,7 @@ async def test_established_refinement_recovers_submitted_task_after_coordinator_
     assert recovered.success and recovered.data is not None
     assert recovered.data.proposals[0]["proposal_id"] == "legacy-proposal-restarted"
     assert recovered.compatibility.warnings == ("Recovered a durable submitted proposal mutation.",)
+    assert recovered.compatibility.losses == (_LEGACY_MUTATION_LOSS,)
     with pytest.raises(MediaBuyLifecycleCompatibilityError) as wrong_scope:
         await coordinator().recover_proposal_mutation(
             "legacy-refine-task-restart",
@@ -1654,6 +1845,7 @@ async def test_completed_refinement_tombstone_prunes_without_reopening_source() 
         proposal_evidence_store=store,
         principal_id="principal-acme",
         target_binding="seller-session-acme",
+        allowed_losses=[_LEGACY_MUTATION_LOSS],
         allow_non_durable_proposal_mutations=True,
         clock=lambda: store_now[0],
     )

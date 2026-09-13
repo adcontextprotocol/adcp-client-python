@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Generic, Literal, TypeAlias, TypeVar, cas
 
 import rfc8785
 from pydantic import BaseModel
+from typing_extensions import NotRequired, Required, TypedDict
 
 from adcp._version import normalize_to_release_precision
 from adcp.compat.proposal_evidence import (
@@ -35,6 +36,7 @@ from adcp.compat.proposal_evidence import (
     EstablishedProposalAcceptanceStore,
     EstablishedProposalEvidence,
     EstablishedProposalEvidenceStore,
+    EstablishedProposalMutationReplayStore,
     EstablishedProposalMutationStore,
     InMemoryEstablishedProposalEvidenceStore,
     ProposalAcceptanceRecord,
@@ -93,6 +95,43 @@ ProposalOutcome: TypeAlias = Literal[
 ]
 CompatibilityErrorCode: TypeAlias = Literal["UNSUPPORTED_FEATURE", "PROPOSAL_DIGEST_MISMATCH"]
 T = TypeVar("T")
+
+
+class CoordinatorBuyProductsInput(TypedDict, total=False):
+    """Buyer-owned fields for :meth:`MediaBuyLifecycleCoordinator.buy_products`.
+
+    This mirrors ``BuyProductsRequest`` except for ``feed_version`` and
+    ``pricing_version``. The coordinator always injects those values from the
+    bound catalog result, so callers cannot accidentally substitute stale or
+    forged seller evidence.
+    """
+
+    adcp_version: NotRequired[str | None]
+    adcp_major_version: NotRequired[int | None]
+    idempotency_key: Required[str]
+    account: Required[Mapping[str, Any] | BaseModel]
+    brand: NotRequired[Mapping[str, Any] | BaseModel | None]
+    advertiser_industry: NotRequired[str | None]
+    purchases: Required[Sequence[Mapping[str, Any] | BaseModel]]
+    total_budget: NotRequired[Mapping[str, Any] | BaseModel | None]
+    daily_budget_cap: NotRequired[float | None]
+    budget_cap_timezone: NotRequired[str | None]
+    budget_allocation: NotRequired[Mapping[str, Any] | BaseModel | None]
+    start_time: Required[datetime | str | Mapping[str, Any] | BaseModel]
+    end_time: Required[datetime | str]
+    pacing: NotRequired[str | None]
+    bidding: NotRequired[Mapping[str, Any] | BaseModel | None]
+    paused: NotRequired[bool | None]
+    purchase_order_ref: NotRequired[str | None]
+    agency_estimate_number: NotRequired[str | None]
+    invoice_recipient: NotRequired[Mapping[str, Any] | BaseModel | None]
+    governance_context: NotRequired[str | None]
+    push_notification_config: NotRequired[Mapping[str, Any] | BaseModel | None]
+    reporting_webhook: NotRequired[Mapping[str, Any] | BaseModel | None]
+    opportunity: NotRequired[Mapping[str, Any] | BaseModel | None]
+    context: NotRequired[Mapping[str, Any] | BaseModel | None]
+    ext: NotRequired[Mapping[str, Any] | BaseModel | None]
+
 
 _RELEASE_RE = re.compile(
     r"^(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?"
@@ -435,10 +474,15 @@ class MediaBuyLifecycleCoordinator:
             if self._mutation_idempotency_guaranteed
             else None
         )
-        # This initial report is route discovery only. The actual list call
-        # selects a complete list->buy pair so a partial compact surface cannot
-        # strand the application after discovery.
-        self.lifecycle = self._select_lifecycle("list_products", require_catalog_pair=False)
+        # ``lifecycle`` describes only the negotiated protocol family. Route
+        # selection remains operation-specific so proposal/control/read-only
+        # sellers do not need to advertise an unrelated catalog surface merely
+        # to construct a coordinator.
+        self.lifecycle = (
+            MediaBuyLifecycle.COMPACT
+            if _is_compact_release(self.negotiated_version)
+            else MediaBuyLifecycle.ESTABLISHED
+        )
 
     @classmethod
     async def negotiate(
@@ -482,10 +526,22 @@ class MediaBuyLifecycleCoordinator:
             clock=clock,
         )
 
-    def report(self) -> MediaBuyCompatibilityReport:
-        """Return the initial route report without claiming an operation was dispatched."""
+    def report(self, operation: str | None = None) -> MediaBuyCompatibilityReport:
+        """Describe a viable operation route without claiming a dispatch.
 
-        return self._report(self.lifecycle, ())
+        With no operation this reports only the negotiated protocol family.
+        Passing an operation performs the same capability preflight as the
+        corresponding coordinator method while leaving ``tools_used`` empty.
+        """
+
+        lifecycle = self.lifecycle
+        if operation is not None:
+            lifecycle = (
+                self._select_lifecycle(operation)
+                if operation in _COMPACT_TO_ESTABLISHED
+                else self._shared_tool_lifecycle(operation)
+            )
+        return self._report(lifecycle, ())
 
     async def list_products(
         self,
@@ -835,14 +891,10 @@ class MediaBuyLifecycleCoordinator:
                 )
             )
             if not polled.success or polled.data is None:
-                ambiguous = await self._mark_recovered_mutation_ambiguous(initial)
-                return replace(
-                    initial,
-                    status=TaskStatus.FAILED,
-                    data=None,
-                    raw=polled,
-                    _mutation_record=ambiguous,
-                )
+                # The seller task identity is already durably known. A
+                # transient status-read failure says nothing about the remote
+                # mutation outcome, so keep the submitted fence recoverable.
+                return replace(initial, raw=polled)
             status_payload = polled.data.model_dump(mode="json", exclude_none=True)
             task_type = _root_value(status_payload.get("task_type"))
             if task_type != expected_tool:
@@ -857,7 +909,13 @@ class MediaBuyLifecycleCoordinator:
             if seller_status == "completed":
                 terminal = status_payload.get("result")
                 if not isinstance(terminal, Mapping):
-                    raise ValueError("completed proposal mutation omitted its terminal result")
+                    await self._mark_recovered_mutation_ambiguous(initial)
+                    raise self._unsupported(
+                        "wait_for_proposal_mutation",
+                        lifecycle,
+                        "terminal_result",
+                        "Completed proposal mutation omitted its authoritative terminal result.",
+                    )
                 terminal_result = TaskResult[Any](
                     status=TaskStatus.COMPLETED,
                     data=dict(terminal),
@@ -865,62 +923,65 @@ class MediaBuyLifecycleCoordinator:
                     metadata={"task_id": initial.task_id},
                 )
                 projected: CompatibleTaskResult[Any]
-                if operation == "refine":
-                    projected = _project_refinement_task(
-                        terminal_result,
-                        lifecycle=lifecycle,
-                        proposal_ids=initial._proposal_ids,
-                        compatibility=initial.compatibility,
-                        source_version=initial._source_schema_version,
-                    )
-                else:
-                    projected = _project_decline_task(
-                        terminal_result,
-                        lifecycle=lifecycle,
-                        proposal_ids=initial._proposal_ids,
-                        compatibility=initial.compatibility,
-                        source_version=initial._source_schema_version,
-                    )
+                try:
+                    if operation == "refine":
+                        projected = _project_refinement_task(
+                            terminal_result,
+                            lifecycle=lifecycle,
+                            proposal_ids=initial._proposal_ids,
+                            compatibility=initial.compatibility,
+                            source_version=initial._source_schema_version,
+                        )
+                    else:
+                        projected = _project_decline_task(
+                            terminal_result,
+                            lifecycle=lifecycle,
+                            proposal_ids=initial._proposal_ids,
+                            compatibility=initial.compatibility,
+                            source_version=initial._source_schema_version,
+                        )
+                except (TypeError, ValueError):
+                    await self._mark_recovered_mutation_ambiguous(initial)
+                    raise
                 if initial._mutation_record is not None:
                     store = self._require_proposal_mutation_store(
                         "wait_for_proposal_mutation", lifecycle
                     )
                     replacements: tuple[EstablishedProposalEvidence, ...] = ()
-                    if operation == "refine" and projected.data is not None:
-                        refine_projected = cast(
-                            CompatibleTaskResult[CompatibleRefineProposalsResponse], projected
-                        )
-                        assert refine_projected.data is not None
-                        source = await self.proposal_evidence_store.get(
-                            initial._proposal_ids[0],
-                            principal_id=initial._mutation_record.principal_id,
-                            target_binding=initial._mutation_record.target_binding,
-                            account_identity=initial._mutation_record.account_identity,
-                            source_adcp_version=initial._mutation_record.source_adcp_version,
-                        )
-                        if source is None:
-                            raise ProposalEvidenceChangedError(
-                                "source proposal disappeared during task polling"
+                    try:
+                        if operation == "refine" and projected.data is not None:
+                            refine_projected = cast(
+                                CompatibleTaskResult[CompatibleRefineProposalsResponse], projected
                             )
-                        replacements = self._capture_mutation_replacements(
-                            refine_projected.data.proposals,
-                            source=source,
-                            observed_request=cast(JsonObject, initial._observed_request),
-                        )
-                        projected = replace(
-                            refine_projected,
-                            data=replace(refine_projected.data, evidence=replacements),
-                        )
-                    await store.complete_mutation(
+                            assert refine_projected.data is not None
+                            source = self._mutation_record_source_evidence(
+                                initial._mutation_record,
+                                observed_request=cast(JsonObject, initial._observed_request),
+                            )
+                            replacements = self._capture_mutation_replacements(
+                                refine_projected.data.proposals,
+                                source=source,
+                                observed_request=cast(JsonObject, initial._observed_request),
+                            )
+                            projected = replace(
+                                refine_projected,
+                                data=replace(refine_projected.data, evidence=replacements),
+                            )
+                    except Exception:
+                        await self._mark_recovered_mutation_ambiguous(initial)
+                        raise
+                    completed = await self._complete_known_mutation(
+                        store,
+                        initial,
                         initial._mutation_record,
                         _persistable_task_result(terminal_result),
                         replacements=replacements,
                     )
+                    return self._project_completed_mutation_record(initial, completed)
                 return replace(
                     projected,
                     _source_schema_version=initial._source_schema_version,
                     _mutation_operation=operation,
-                    _mutation_record=initial._mutation_record,
                     _proposal_ids=initial._proposal_ids,
                 )
             if seller_status in {"failed", "rejected", "canceled"}:
@@ -930,22 +991,30 @@ class MediaBuyLifecycleCoordinator:
                     error=_optional_text(status_payload.get("message"))
                     or "Proposal mutation failed.",
                 )
+                failure_record: ProposalMutationRecord | None
                 if initial._mutation_record is not None:
                     store = self._require_proposal_mutation_store(
                         "wait_for_proposal_mutation", lifecycle
                     )
-                    await store.complete_mutation(
-                        initial._mutation_record, _persistable_task_result(failure)
+                    failure_record = await self._complete_known_mutation(
+                        store, initial, initial._mutation_record, _persistable_task_result(failure)
                     )
-                return replace(initial, status=TaskStatus.FAILED, data=None, raw=failure)
+                    return self._project_completed_mutation_record(initial, failure_record)
+                else:
+                    failure_record = None
+                return replace(
+                    initial,
+                    status=TaskStatus.FAILED,
+                    data=None,
+                    raw=failure,
+                    _mutation_record=failure_record,
+                )
             if seller_status in {"input-required", "auth-required"}:
-                ambiguous = await self._mark_recovered_mutation_ambiguous(initial)
                 return replace(
                     initial,
                     status=TaskStatus.NEEDS_INPUT,
                     data=None,
                     raw=polled,
-                    _mutation_record=ambiguous,
                 )
             remaining = deadline - loop.time()
             if remaining <= 0:
@@ -999,14 +1068,23 @@ class MediaBuyLifecycleCoordinator:
                 "recovery_evidence",
                 "The durable mutation omitted its reduced wire-request evidence.",
             )
+        assert isinstance(retained, Mapping)
         operation: Literal["refine", "decline"] = (
             "refine" if record.operation is ProposalMutationKind.REFINE else "decline"
+        )
+        retained_losses = retained.get("accepted_losses")
+        losses = (
+            tuple(str(loss) for loss in retained_losses)
+            if isinstance(retained_losses, list)
+            else (
+                (*_DECLINE_LOSSES, _MUTATION_LOSS) if operation == "decline" else (_MUTATION_LOSS,)
+            )
         )
         report = self._report(
             lifecycle,
             ("get_products",),
             warnings=("Recovered a durable submitted proposal mutation.",),
-            losses=_DECLINE_LOSSES if operation == "decline" else (),
+            losses=losses,
         )
         if record.state is ProposalAcceptanceState.COMPLETED and record.result is not None:
             terminal = TaskResult[Any].model_validate(record.result)
@@ -1099,14 +1177,7 @@ class MediaBuyLifecycleCoordinator:
                 )
             )
             if not polled.success or polled.data is None:
-                ambiguous = await self._mark_recovered_acceptance_ambiguous(initial, store)
-                return replace(
-                    initial,
-                    status=TaskStatus.FAILED,
-                    data=None,
-                    raw=polled,
-                    _acceptance_record=ambiguous,
-                )
+                return replace(initial, raw=polled)
             status_payload = polled.data.model_dump(mode="json", exclude_none=True)
             task_type = _root_value(status_payload.get("task_type"))
             if task_type != "create_media_buy":
@@ -1149,17 +1220,16 @@ class MediaBuyLifecycleCoordinator:
                     success=True,
                     metadata={"task_id": initial.task_id},
                 )
-                try:
-                    completed = await store.complete_acceptance(
-                        initial._acceptance_record,
-                        _persistable_task_result(terminal_result),
-                    )
-                except BaseException:
-                    await self._mark_recovered_acceptance_ambiguous(initial, store)
-                    raise
+                completed = await self._complete_known_acceptance(
+                    store,
+                    initial,
+                    _persistable_task_result(terminal_result),
+                )
+                assert completed.result is not None
+                persisted_result = TaskResult[Any].model_validate(completed.result)
                 return replace(
                     _compatible_acceptance_result(
-                        terminal_result,
+                        persisted_result,
                         compatibility=initial.compatibility,
                     ),
                     _account=initial._account,
@@ -1173,25 +1243,28 @@ class MediaBuyLifecycleCoordinator:
                     error=_optional_text(status_payload.get("message"))
                     or "Proposal acceptance failed.",
                 )
-                completed = await store.complete_acceptance(
-                    initial._acceptance_record,
+                completed = await self._complete_known_acceptance(
+                    store,
+                    initial,
                     _persistable_task_result(failure),
                 )
+                assert completed.result is not None
+                persisted_result = TaskResult[Any].model_validate(completed.result)
                 return replace(
-                    initial,
-                    status=TaskStatus.FAILED,
-                    data=None,
-                    raw=failure,
+                    _compatible_acceptance_result(
+                        persisted_result,
+                        compatibility=initial.compatibility,
+                    ),
+                    _account=initial._account,
+                    _source_schema_version=initial._source_schema_version,
                     _acceptance_record=completed,
                 )
             if seller_status in {"input-required", "auth-required"}:
-                ambiguous = await self._mark_recovered_acceptance_ambiguous(initial, store)
                 return replace(
                     initial,
                     status=TaskStatus.NEEDS_INPUT,
                     data=None,
                     raw=polled,
-                    _acceptance_record=ambiguous,
                 )
             remaining = deadline - loop.time()
             if remaining <= 0:
@@ -1282,6 +1355,8 @@ class MediaBuyLifecycleCoordinator:
     async def refine_proposals(
         self,
         request: RefineProposalsRequest,
+        *,
+        accepted_losses: Sequence[str] | None = None,
     ) -> CompatibleTaskResult[CompatibleRefineProposalsResponse]:
         """Revise or finalize proposals through the negotiated lifecycle."""
 
@@ -1307,11 +1382,59 @@ class MediaBuyLifecycleCoordinator:
 
         store = self._require_proposal_mutation_store("refine_proposals", lifecycle)
         source_version = self._exact_source_schema_version("refine_proposals", lifecycle)
+        losses = (_MUTATION_LOSS,)
+        exact_losses = tuple(losses if accepted_losses is None else accepted_losses)
+        if set(exact_losses) != set(losses) or len(exact_losses) != len(losses):
+            raise self._unsupported(
+                "refine_proposals",
+                lifecycle,
+                "accepted_losses",
+                "accepted_losses must exactly match the established refinement losses.",
+                losses=losses,
+            )
+        refused = tuple(loss for loss in losses if loss not in self._allowed_losses)
+        if refused:
+            raise self._unsupported(
+                "refine_proposals",
+                lifecycle,
+                "compatibility_losses",
+                "No refinement was sent because required compatibility losses were not allowed.",
+                losses=refused,
+            )
         evidence = await self._mutation_evidence(
             store, proposal_ids, source_version=source_version, operation="refine_proposals"
         )
+        account = cast(JsonObject, json.loads(evidence[0].account_identity))
+        completed_replay = await self._completed_proposal_mutation_replay(
+            store,
+            evidence=evidence,
+            proposal_ids=proposal_ids,
+            idempotency_key=request.idempotency_key,
+            request_payload=payload,
+            operation=ProposalMutationKind.REFINE,
+            source_version=source_version,
+            lifecycle=lifecycle,
+        )
+        if completed_replay is not None:
+            return _project_refinement_task(
+                completed_replay,
+                lifecycle=lifecycle,
+                proposal_ids=proposal_ids,
+                compatibility=self._report(
+                    lifecycle,
+                    ("get_products",),
+                    losses=losses,
+                    warnings=("Replayed the durable buyer-side refinement result.",),
+                ),
+                source_version=source_version,
+            )
         try:
-            wire_request = _legacy_refine_request(payload, source_version=source_version)
+            wire_request = _legacy_refine_request(
+                payload,
+                account=account,
+                adcp_version=self.negotiated_version,
+                source_version=source_version,
+            )
         except ValueError as exc:
             raise self._unsupported(
                 "refine_proposals",
@@ -1323,6 +1446,7 @@ class MediaBuyLifecycleCoordinator:
             "request": payload,
             "wire_request": wire_request,
             "retained_evidence": [row.proposal for row in evidence],
+            "accepted_losses": list(exact_losses),
         }
         reservation = await self._reserve_proposal_mutation(
             store,
@@ -1332,7 +1456,7 @@ class MediaBuyLifecycleCoordinator:
             reservation_input=reservation_input,
             lifecycle=lifecycle,
         )
-        report = self._report(lifecycle, ("get_products",))
+        report = self._report(lifecycle, ("get_products",), losses=losses)
         if not reservation.created:
             replay = self._proposal_mutation_replay(
                 reservation.record,
@@ -1349,6 +1473,7 @@ class MediaBuyLifecycleCoordinator:
                 compatibility=self._report(
                     lifecycle,
                     ("get_products",),
+                    losses=losses,
                     warnings=("Replayed the durable buyer-side refinement result.",),
                 ),
                 source_version=source_version,
@@ -1372,7 +1497,7 @@ class MediaBuyLifecycleCoordinator:
                 record = await store.record_mutation_task(record, projected.task_id)
                 return replace(
                     projected,
-                    _account=json.loads(evidence[0].account_identity),
+                    _account=account,
                     _source_schema_version=source_version,
                     _observed_request=wire_request,
                     _mutation_operation="refine",
@@ -1436,7 +1561,7 @@ class MediaBuyLifecycleCoordinator:
                 _proposal_ids=proposal_ids,
             )
 
-        losses = tuple(_DECLINE_LOSSES)
+        losses = (*_DECLINE_LOSSES, _MUTATION_LOSS)
         exact_losses = tuple(losses if accepted_losses is None else accepted_losses)
         if set(exact_losses) != set(losses) or len(exact_losses) != len(losses):
             raise self._unsupported(
@@ -1460,8 +1585,14 @@ class MediaBuyLifecycleCoordinator:
         evidence = await self._mutation_evidence(
             store, proposal_ids, source_version=source_version, operation="decline_proposals"
         )
+        account = cast(JsonObject, json.loads(evidence[0].account_identity))
         try:
-            wire_request = _legacy_decline_request(payload, source_version=source_version)
+            wire_request = _legacy_decline_request(
+                payload,
+                account=account,
+                adcp_version=self.negotiated_version,
+                source_version=source_version,
+            )
         except ValueError as exc:
             raise self._unsupported(
                 "decline_proposals",
@@ -1527,7 +1658,7 @@ class MediaBuyLifecycleCoordinator:
                 record = await store.record_mutation_task(record, projected.task_id)
                 return replace(
                     projected,
-                    _account=json.loads(evidence[0].account_identity),
+                    _account=account,
                     _source_schema_version=source_version,
                     _observed_request=wire_request,
                     _mutation_operation="decline",
@@ -2209,7 +2340,7 @@ class MediaBuyLifecycleCoordinator:
     async def buy_products(
         self,
         listing: CompatibleCatalog,
-        request: Mapping[str, Any] | BaseModel,
+        request: CoordinatorBuyProductsInput | Mapping[str, Any] | BaseModel,
         *,
         accepted_losses: Sequence[str] | None = None,
     ) -> CompatiblePurchaseResult:
@@ -3069,6 +3200,38 @@ class MediaBuyLifecycleCoordinator:
             raise TypeError("acceptance result omitted its durable reservation")
         return await store.mark_acceptance_ambiguous(record)
 
+    async def _complete_known_acceptance(
+        self,
+        store: EstablishedProposalAcceptanceRecoveryStore,
+        initial: CompatibleTaskResult[Any],
+        result: JsonObject,
+    ) -> ProposalAcceptanceRecord:
+        """Complete a known task, recovering a commit-that-raised by scoped reload."""
+
+        record = initial._acceptance_record
+        if record is None:
+            raise TypeError("acceptance result omitted its durable reservation")
+        try:
+            return await store.complete_acceptance(record, result)
+        except Exception as completion_error:
+            try:
+                reloaded = await store.find_acceptance_by_task(
+                    cast(str, initial.task_id),
+                    principal_id=record.principal_id,
+                    target_binding=record.target_binding,
+                    account_identity=record.account_identity,
+                    source_adcp_version=record.source_adcp_version,
+                )
+            except Exception:
+                raise completion_error
+            if (
+                reloaded is not None
+                and reloaded.state is ProposalAcceptanceState.COMPLETED
+                and reloaded.result is not None
+            ):
+                return reloaded
+            raise
+
     async def _mutation_evidence(
         self,
         store: EstablishedProposalMutationStore,
@@ -3117,6 +3280,110 @@ class MediaBuyLifecycleCoordinator:
         )
         return await store.mark_mutation_ambiguous(record)
 
+    def _mutation_record_source_evidence(
+        self,
+        record: ProposalMutationRecord,
+        *,
+        observed_request: JsonObject,
+    ) -> EstablishedProposalEvidence:
+        source_rows = record.source_proposals
+        if not source_rows:
+            raise ProposalEvidenceChangedError(
+                "proposal mutation reservation omitted its immutable source evidence"
+            )
+        return EstablishedProposalEvidence.capture(
+            source_rows[0],
+            principal_id=record.principal_id,
+            target_binding=record.target_binding,
+            account_identity=record.account_identity,
+            source_adcp_version=record.source_adcp_version,
+            observed_request=observed_request,
+            observed_at=record.created_at,
+        )
+
+    async def _complete_known_mutation(
+        self,
+        store: EstablishedProposalMutationStore,
+        initial: CompatibleTaskResult[Any],
+        record: ProposalMutationRecord,
+        result: JsonObject,
+        *,
+        replacements: Sequence[EstablishedProposalEvidence] = (),
+    ) -> ProposalMutationRecord:
+        """Complete a known task, recovering a commit-that-raised by scoped reload."""
+
+        try:
+            return await store.complete_mutation(record, result, replacements=replacements)
+        except Exception as completion_error:
+            try:
+                reloaded = await store.find_mutation_by_task(
+                    cast(str, initial.task_id),
+                    principal_id=record.principal_id,
+                    target_binding=record.target_binding,
+                    account_identity=record.account_identity,
+                    source_adcp_version=record.source_adcp_version,
+                )
+            except Exception:
+                raise completion_error
+            if (
+                reloaded is not None
+                and reloaded.state is ProposalAcceptanceState.COMPLETED
+                and reloaded.result is not None
+            ):
+                return reloaded
+            raise
+
+    def _project_completed_mutation_record(
+        self,
+        initial: CompatibleTaskResult[Any],
+        record: ProposalMutationRecord,
+    ) -> CompatibleTaskResult[Any]:
+        """Replay the terminal CAS winner rather than a racing poll observation."""
+
+        if record.result is None or initial._mutation_operation is None:
+            raise TypeError("completed proposal mutation omitted its durable result")
+        terminal = TaskResult[Any].model_validate(record.result)
+        projected: CompatibleTaskResult[Any]
+        if initial._mutation_operation == "refine":
+            projected = _project_refinement_task(
+                terminal,
+                lifecycle=initial.compatibility.lifecycle,
+                proposal_ids=initial._proposal_ids,
+                compatibility=initial.compatibility,
+                source_version=record.source_adcp_version,
+            )
+            if projected.data is not None:
+                source = self._mutation_record_source_evidence(
+                    record,
+                    observed_request=cast(JsonObject, initial._observed_request),
+                )
+                replacements = self._capture_mutation_replacements(
+                    projected.data.proposals,
+                    source=source,
+                    observed_request=cast(JsonObject, initial._observed_request),
+                )
+                projected = replace(
+                    projected,
+                    data=replace(projected.data, evidence=replacements),
+                )
+        else:
+            projected = _project_decline_task(
+                terminal,
+                lifecycle=initial.compatibility.lifecycle,
+                proposal_ids=initial._proposal_ids,
+                compatibility=initial.compatibility,
+                source_version=record.source_adcp_version,
+            )
+        return replace(
+            projected,
+            _account=initial._account,
+            _source_schema_version=record.source_adcp_version,
+            _observed_request=initial._observed_request,
+            _mutation_operation=initial._mutation_operation,
+            _mutation_record=record,
+            _proposal_ids=initial._proposal_ids,
+        )
+
     async def _reserve_proposal_mutation(
         self,
         store: EstablishedProposalMutationStore,
@@ -3134,7 +3401,11 @@ class MediaBuyLifecycleCoordinator:
                 idempotency_key=idempotency_key,
                 request=reservation_input,
                 created_at=_aware_utc(self._clock()),
-                retry_ttl=self._idempotency_replay_ttl,
+                # Pre-3.2 proposal mutations are encoded as get_products.
+                # That read-shaped legacy task never proves mutation retry
+                # idempotency, even when the seller advertises a generic replay
+                # window, so an ambiguous dispatch must never be re-sent.
+                retry_ttl=None,
             )
         except (ProposalEvidenceChangedError, ProposalMutationConflictError) as exc:
             raise self._unsupported(
@@ -3143,6 +3414,55 @@ class MediaBuyLifecycleCoordinator:
                 "proposal_mutation_conflict",
                 "Proposal evidence changed or is fenced by another mutation.",
             ) from exc
+
+    async def _completed_proposal_mutation_replay(
+        self,
+        store: EstablishedProposalMutationStore,
+        *,
+        evidence: Sequence[EstablishedProposalEvidence],
+        proposal_ids: Sequence[str],
+        idempotency_key: str,
+        request_payload: JsonObject,
+        operation: ProposalMutationKind,
+        source_version: str,
+        lifecycle: MediaBuyLifecycle,
+    ) -> TaskResult[Any] | None:
+        """Replay a completed mutation before successor evidence affects its fingerprint."""
+
+        if not isinstance(store, EstablishedProposalMutationReplayStore):
+            return None
+        record = await store.find_completed_mutation_by_idempotency_key(
+            idempotency_key,
+            principal_id=cast(str, self._principal_id),
+            target_binding=cast(str, self._target_binding),
+            account_identity=evidence[0].account_identity,
+            source_adcp_version=source_version,
+        )
+        if record is None:
+            return None
+        retained = record.request
+        retained_request = retained.get("request") if isinstance(retained, Mapping) else None
+        if (
+            record.operation is not operation
+            or not isinstance(retained, dict)
+            or not isinstance(retained_request, Mapping)
+            or _canonical_fingerprint(dict(retained_request))
+            != _canonical_fingerprint(request_payload)
+        ):
+            raise self._unsupported(
+                f"{operation.value}_proposals",
+                lifecycle,
+                "proposal_mutation_conflict",
+                "The idempotency key is completed for a different proposal mutation.",
+            )
+        return self._proposal_mutation_replay(
+            record,
+            proposal_ids=proposal_ids,
+            idempotency_key=idempotency_key,
+            reservation_input=retained,
+            operation=f"{operation.value}_proposals",
+            lifecycle=lifecycle,
+        )
 
     def _proposal_mutation_replay(
         self,
@@ -3847,7 +4167,13 @@ def _unique_proposal_ids(value: Any, *, field: str) -> tuple[str, ...]:
     return tuple(proposal_ids)
 
 
-def _legacy_refine_request(payload: JsonObject, *, source_version: str) -> JsonObject:
+def _legacy_refine_request(
+    payload: JsonObject,
+    *,
+    account: JsonObject,
+    adcp_version: str,
+    source_version: str,
+) -> JsonObject:
     unsupported_top = set(payload) - {
         "adcp_major_version",
         "adcp_version",
@@ -3926,7 +4252,9 @@ def _legacy_refine_request(payload: JsonObject, *, source_version: str) -> JsonO
                 {"scope": "product", "product_id": product_id, "action": action_value}
             )
     wire: JsonObject = {
+        "adcp_version": adcp_version,
         "adcp_major_version": 3,
+        "account": account,
         "buying_mode": "refine",
         "refine": legacy_rows,
     }
@@ -3948,7 +4276,13 @@ def _legacy_refine_request(payload: JsonObject, *, source_version: str) -> JsonO
     return wire
 
 
-def _legacy_decline_request(payload: JsonObject, *, source_version: str) -> JsonObject:
+def _legacy_decline_request(
+    payload: JsonObject,
+    *,
+    account: JsonObject,
+    adcp_version: str,
+    source_version: str,
+) -> JsonObject:
     unsupported = set(payload) - {
         "adcp_major_version",
         "adcp_version",
@@ -3972,7 +4306,9 @@ def _legacy_decline_request(payload: JsonObject, *, source_version: str) -> Json
     if not isinstance(declines, list):
         raise ValueError("declines must be an array")
     wire: JsonObject = {
+        "adcp_version": adcp_version,
         "adcp_major_version": 3,
+        "account": account,
         "buying_mode": "refine",
         "refine": [
             {
