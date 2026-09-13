@@ -873,18 +873,36 @@ def _control_totals(
             # per-cell availability evidence already carries the nuance.
             continue
         try:
-            total = sum((_decimal(value) for value in values), Decimal(0))
+            decimals = [_decimal(value) for value in values]
         except (InvalidOperation, TypeError, ValueError):
             continue
-        if total == total.to_integral_value():
-            totals.append(
-                SourceControlTotalV1(name=metric, value=str(int(total)), value_type="integer")
-            )
-        else:
+        if any(not item.is_finite() for item in decimals):
+            # A NaN or Infinity in a source row has no honest total. Skipping
+            # the metric leaves the per-cell availability evidence to carry the
+            # nuance, rather than publishing a control total nobody can check
+            # against.
+            continue
+        total = sum(decimals, Decimal(0))
+        # The *metric* decides integer vs decimal, not this period's values.
+        # Deciding per value would flip a money total to "integer" on the days
+        # it happens to land on a whole number, and a consumer comparing
+        # totals across periods would see the type change under it.
+        scaled = any(_scale_of(item) < 0 for item in decimals)
+        if scaled:
             totals.append(
                 SourceControlTotalV1(name=metric, value=_plain(total), value_type="decimal")
             )
+        else:
+            totals.append(
+                SourceControlTotalV1(name=metric, value=str(int(total)), value_type="integer")
+            )
     return totals
+
+
+def _scale_of(value: Decimal) -> int:
+    """The decimal scale, or 0 for a value that has none."""
+    exponent = value.as_tuple().exponent
+    return exponent if isinstance(exponent, int) else 0
 
 
 def _decimal(value: Any) -> Decimal:
@@ -895,16 +913,25 @@ def _decimal(value: Any) -> Decimal:
     if isinstance(value, int):
         return Decimal(value)
     if isinstance(value, float):
-        # Through ``repr`` rather than ``Decimal(float)`` so 1.25 stays 1.25
-        # instead of becoming its full binary expansion.
-        return Decimal(repr(value))
+        # A float carries no meaningful scale -- Python renders 10.0 for what
+        # the wire said was 10 -- so an integral float contributes none. Only a
+        # genuinely fractional value does, and it goes through ``repr`` rather
+        # than ``Decimal(float)`` so 1.25 stays 1.25 instead of becoming its
+        # full binary expansion.
+        return Decimal(int(value)) if value.is_integer() else Decimal(repr(value))
     if isinstance(value, str):
         return Decimal(value)
     raise TypeError(f"{type(value).__name__} is not a reportable metric value")
 
 
 def _plain(value: Decimal) -> str:
-    text = format(value.normalize(), "f")
+    """Positional notation, with the source's declared scale preserved.
+
+    Deliberately not ``normalize()``: "4.80" and "4.8" are the same number but
+    different strings, and a money total's scale is information the source
+    chose to publish. A consumer comparing control totals compares strings.
+    """
+    text = format(value, "f")
     return text if text != "-0" else "0"
 
 

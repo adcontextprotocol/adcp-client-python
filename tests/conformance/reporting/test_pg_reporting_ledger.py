@@ -525,8 +525,14 @@ async def test_the_status_handler_projects_a_postgres_ledger(
     handler = ReportingStatusHandler(store)
 
     summary = await handler.handle({"view": "summary"}, caller=CALLER)
-    assert summary["obligation_counts"]["total"] == 1
-    assert summary["obligation_counts"]["satisfied"] == 1
+    assert summary["obligation_counts"] == {
+        "total": 1,
+        "waiting": 0,
+        "healthy": 0,
+        "delayed": 0,
+        "action_required": 0,
+        "complete": 1,
+    }
     assert summary["health"] == "complete"
 
     periods = await handler.handle({"view": "periods"}, caller=CALLER)

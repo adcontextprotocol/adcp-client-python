@@ -29,6 +29,7 @@ from typing import Any, Literal
 
 __all__ = [
     "ConsumerStatusRecord",
+    "ReportingDefinitionBinding",
     "LedgerChange",
     "LedgerRecordKind",
     "LedgerSnapshot",
@@ -85,6 +86,42 @@ def iso_duration_to_timedelta(value: str) -> timedelta:
         minutes=int(minutes or 0),
         seconds=float(seconds or 0),
     )
+
+
+@dataclass(frozen=True)
+class ReportingDefinitionBinding:
+    """The content-addressed report definition an obligation reports against.
+
+    Core's wire records are self-describing: a retained revision names the
+    exact definition and row schema it was produced under, by URI *and* digest,
+    so a consumer reading it years later can verify it is reading what it
+    thinks it is.  Without this, ``report_definition_id`` is just a string two
+    parties hope still means the same thing.
+
+    Optional on :class:`ReportingConfiguration` only so an in-process pilot can
+    get moving; a seller advertising ``reporting.core`` must supply it, because
+    :class:`~adcp.reporting.ledger.status.ReportingStatusHandler` cannot emit a
+    schema-valid ``reporting-revision`` record without it.
+    """
+
+    report_definition_uri: str
+    report_definition_sha256: str
+    schema_version: str
+    schema_uri: str
+    schema_sha256: str
+    schema_dialect: str = "https://json-schema.org/draft/2020-12/schema"
+    schema_ref_policy: str = "local_fragment_only"
+
+    def to_wire(self) -> dict[str, Any]:
+        return {
+            "report_definition_uri": self.report_definition_uri,
+            "report_definition_sha256": self.report_definition_sha256,
+            "schema_version": self.schema_version,
+            "schema_uri": self.schema_uri,
+            "schema_sha256": self.schema_sha256,
+            "schema_dialect": self.schema_dialect,
+            "schema_ref_policy": self.schema_ref_policy,
+        }
 
 
 @dataclass(frozen=True)
@@ -176,7 +213,9 @@ def derive_period(
             "full boundary; a partial first period would understate delivery"
         )
     return ReportingPeriodBoundary(
-        period_key=f"{start.strftime('%Y-%m-%dT%H:%M:%SZ')}/{schedule.period_duration}",
+        # No "/": a period key travels into the source slice request, whose
+        # identifier pattern is [A-Za-z0-9_.:-].
+        period_key=f"{start.strftime('%Y-%m-%dT%H:%M:%SZ')}_{schedule.period_duration}",
         start=start,
         end=end,
         source_timezone=zone_name,
@@ -235,6 +274,7 @@ class ReportingConfiguration:
     media_buy_ids: tuple[str, ...] = ()
     automated_recovery_window: timedelta = timedelta(hours=6)
     status_retention_days: int = 400
+    definition: ReportingDefinitionBinding | None = None
 
     @property
     def generation_key(self) -> tuple[str, int]:
@@ -266,6 +306,7 @@ class ReportingObligationRecord:
     schedule: ReportingScheduleSpec
     coverage_status: Literal["full", "partial", "none", "unknown"] = "full"
     package_ids: tuple[str, ...] = ()
+    definition: ReportingDefinitionBinding | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __post_init__(self) -> None:

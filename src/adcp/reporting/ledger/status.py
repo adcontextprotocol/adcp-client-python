@@ -32,7 +32,7 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
@@ -40,6 +40,7 @@ from adcp.reporting.ledger.health import aggregate_reporting_health, project_obl
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ReportingAdjustmentRecord,
+    ReportingConfiguration,
     ReportingHealth,
     ReportingIssue,
     ReportingObligationRecord,
@@ -167,33 +168,26 @@ class ReportingStatusHandler:
             ),
         )
         data_through = _scope_data_through(projections.values())
+        states = [projection.health for projection in projections.values()]
         counts = {
             "total": len(obligations),
-            "satisfied": sum(1 for item in projections.values() if item.satisfied),
-            "delayed": sum(1 for item in projections.values() if item.health == "delayed"),
-            "action_required": sum(
-                1 for item in projections.values() if item.health == "action_required"
-            ),
+            **{
+                state: sum(1 for item in states if item == state)
+                for state in ("waiting", "healthy", "delayed", "action_required", "complete")
+            },
         }
+        configurations = await self._store.list_configurations(
+            account_id=caller.account_id, delivery_config_ids=filters["delivery_config_ids"]
+        )
         return {
+            "status": "completed",
             "view": "summary",
             "ledger_snapshot_id": snapshot.snapshot_id,
             "ledger_as_of": _iso(snapshot.ledger_as_of),
             "account_id": caller.account_id,
-            "scope": {
-                "scope_closed": scope_closed,
-                "coverage_complete": all(
-                    obligation.coverage_status == "full" for obligation in obligations
-                ),
-                "delivery_config_generations": sorted(
-                    {
-                        f"{item.delivery_config_id}@{item.delivery_config_version}"
-                        for item in obligations
-                    }
-                ),
-                "feed_purposes": sorted({item.feed_purpose for item in obligations}),
-                "finality": sorted({item.required_finality for item in obligations}),
-            },
+            "scope": _scope_to_wire(
+                configurations, ledger_as_of=snapshot.ledger_as_of, request=request
+            ),
             "health": health,
             "coverage": _coverage_roll_up(obligations),
             "data_through": _iso(data_through) if data_through else None,
@@ -213,6 +207,18 @@ class ReportingStatusHandler:
         request: dict[str, Any],
     ) -> dict[str, Any]:
         obligations: list[dict[str, Any]] = []
+        # Revisions on this page may belong to obligations that are not, so
+        # resolve each one: a wire revision is self-describing and needs its
+        # obligation's scope, period, and definition binding.
+        owners: dict[str, ReportingObligationRecord] = {}
+        for revision in page.revisions:
+            if revision.reporting_obligation_id not in owners:
+                owner = await self._store.get_obligation(
+                    account_id=caller.account_id,
+                    reporting_obligation_id=revision.reporting_obligation_id,
+                )
+                if owner is not None:
+                    owners[revision.reporting_obligation_id] = owner
         for obligation in page.obligations:
             revisions = await self._store.list_revisions(
                 account_id=caller.account_id,
@@ -254,15 +260,31 @@ class ReportingStatusHandler:
                 )
             )
 
+        configurations = await self._store.list_configurations(
+            account_id=caller.account_id,
+            delivery_config_ids=list(request.get("delivery_config_ids") or []) or None,
+        )
         payload: dict[str, Any] = {
+            "status": "completed",
             "view": "periods",
             "ledger_snapshot_id": snapshot.snapshot_id,
             "ledger_as_of": _iso(snapshot.ledger_as_of),
             "changes_checkpoint": _encode_checkpoint(snapshot.max_sequence),
             "account_id": caller.account_id,
+            "scope": _scope_to_wire(
+                configurations, ledger_as_of=snapshot.ledger_as_of, request=request
+            ),
             "periods": obligations,
-            "revisions": [_revision_to_wire(item) for item in page.revisions],
+            "revisions": [
+                _revision_to_wire(item, owners.get(item.reporting_obligation_id))
+                for item in page.revisions
+            ],
             "adjustments": [_adjustment_to_wire(item) for item in page.adjustments],
+            # Core has no destinations and no receipts. The arrays are present
+            # and empty rather than absent, so a consumer reads "this tier does
+            # not materialize" instead of "this seller forgot a field".
+            "materializations": [],
+            "receipts": [],
             "pagination": {
                 "total_count": page.total_count,
                 "has_more": page.has_more,
@@ -305,6 +327,10 @@ class ReportingStatusHandler:
             raise LedgerConflictError(
                 "LOOKUP_UNAVAILABLE", "no such revision is available to this caller"
             )
+        owner = await self._store.get_obligation(
+            account_id=caller.account_id,
+            reporting_obligation_id=revision.reporting_obligation_id,
+        )
         adjustments = await self._store.list_adjustments(
             account_id=caller.account_id, reporting_revision_ids=[revision_id]
         )
@@ -313,12 +339,16 @@ class ReportingStatusHandler:
             filters_fingerprint=_fingerprint({"revision": revision_id}),
         )
         return {
+            "status": "completed",
             "view": "revision",
             "ledger_snapshot_id": snapshot.snapshot_id,
             "ledger_as_of": _iso(snapshot.ledger_as_of),
             "account_id": caller.account_id,
-            "revision": _revision_to_wire(revision),
+            "revision": _revision_to_wire(revision, owner),
             "adjustments": [_adjustment_to_wire(item) for item in adjustments],
+            "materializations": [],
+            "receipts": [],
+            "pagination": {"total_count": 1, "has_more": False},
         }
 
     # -- shared projection ------------------------------------------------
@@ -456,6 +486,115 @@ def _next_expected(
     return _iso(min(upcoming)) if upcoming else None
 
 
+def _scope_to_wire(
+    configurations: Sequence[ReportingConfiguration],
+    *,
+    ledger_as_of: datetime,
+    request: dict[str, Any],
+) -> dict[str, Any]:
+    """The denominator this read's health was computed over.
+
+    Stated explicitly rather than implied, because health means nothing without
+    it: "healthy" over a scope that silently excluded half the periods is worse
+    than no answer.  An empty denominator is a valid, vacuously complete closed
+    scope -- not an error and not an inaccessible-identifier signal.
+
+    Derived from the caller's **configuration generations**, not from whichever
+    obligations happened to land on a page.  Configurations *are* the
+    denominator, and deriving from them is the only way every page of one
+    cursor reports the identical scope -- a scope that shifted mid-walk would
+    make the consumer's record count meaningless.
+    """
+    requested = request.get("period") or {}
+    retention = max((item.status_retention_days for item in configurations), default=0)
+    activations = [_utc(item.activated_at) for item in configurations if item.activated_at]
+    # Retained coverage starts at the later of "as far back as we keep
+    # evidence" and "when the first configuration existed" -- claiming
+    # coverage before either would be claiming it over nothing.
+    retained_from = max(
+        [_utc(ledger_as_of) - timedelta(days=retention)]
+        + ([min(activations)] if activations else [])
+    )
+    horizon_start = _parse(requested.get("start")) or retained_from
+    horizon_end = _parse(requested.get("end")) or _utc(ledger_as_of)
+    return {
+        "period_start": _iso(horizon_start),
+        "period_end": _iso(horizon_end),
+        # No further obligation can enter a horizon that has already elapsed.
+        "scope_closed": horizon_end <= _utc(ledger_as_of),
+        # True when the caller named no media buys, so the scope is every buy
+        # it can reach rather than an enumerated subset.
+        "all_accessible_media_buys": not request.get("media_buy_ids"),
+        "delivery_config_generations": [
+            {
+                "delivery_config_id": config_id,
+                "delivery_config_version": version,
+                "feed_purpose": feed_purpose,
+            }
+            for config_id, version, feed_purpose in sorted(
+                {
+                    (item.delivery_config_id, item.delivery_config_version, item.feed_purpose)
+                    for item in configurations
+                }
+            )
+        ],
+        "feed_purposes": sorted({item.feed_purpose for item in configurations}),
+        "finality": sorted({item.required_finality for item in configurations}),
+        "ledger_retained_from": _iso(retained_from),
+        # False means health cannot prove completeness for the whole requested
+        # horizon, because part of it predates what this ledger still retains.
+        "coverage_complete": horizon_start >= retained_from,
+    }
+
+
+def _parse(value: Any) -> datetime | None:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return _utc(value)
+    return _utc(datetime.fromisoformat(str(value).replace("Z", "+00:00")))
+
+
+def _period_to_wire(obligation: ReportingObligationRecord) -> dict[str, Any]:
+    """A period is only unambiguous with its source calendar.
+
+    "Local midnight to local midnight" is 25 hours in New York on the day DST
+    ends and 24 in UTC, so a period without its timezone is two different
+    windows depending on who reads it.
+    """
+    return {
+        "start": _iso(obligation.period.start),
+        "end": _iso(obligation.period.end),
+        "source_timezone": obligation.period.source_timezone,
+    }
+
+
+def _obligation_coverage(obligation: ReportingObligationRecord) -> dict[str, Any]:
+    """One obligation's frozen coverage, evaluated at the scope-resolution boundary.
+
+    ``evaluated_at`` is ``scope_resolved_at``, not "now": the denominator froze
+    at the period boundary, and a coverage claim carrying a later evaluation
+    instant is describing a scope that did not exist when the period closed.
+    """
+    media_buy_ids = list(obligation.media_buy_ids)
+    package_ids = list(obligation.package_ids)
+    full = obligation.coverage_status == "full"
+    return {
+        "status": obligation.coverage_status,
+        "evaluated_at": _iso(obligation.scope_resolved_at),
+        "media_buy_ids": media_buy_ids,
+        "fully_covered_media_buy_ids": media_buy_ids if full else [],
+        "partially_covered_media_buy_ids": [],
+        "unsupported_media_buy_ids": [],
+        "unknown_media_buy_ids": [] if full else media_buy_ids,
+        "package_ids": package_ids,
+        "covered_package_ids": package_ids if full else [],
+        "unsupported_package_ids": [],
+        "unknown_package_ids": [] if full else package_ids,
+        "limitations": [],
+    }
+
+
 def _coverage_roll_up(obligations: Sequence[ReportingObligationRecord]) -> dict[str, Any]:
     media_buy_ids = sorted(
         {item for obligation in obligations for item in obligation.media_buy_ids}
@@ -503,17 +642,17 @@ def _obligation_to_wire(
         "account_id": obligation.account_id,
         "media_buy_ids": list(obligation.media_buy_ids),
         "scope_resolved_at": _iso(obligation.scope_resolved_at),
-        "period": {
-            "start": _iso(obligation.period.start),
-            "end": _iso(obligation.period.end),
-        },
+        "period": _period_to_wire(obligation),
         "expected_at": _iso(obligation.period.expected_at),
         "schedule": {
             "period_duration": obligation.schedule.period_duration,
             "alignment": obligation.schedule.alignment,
             "delivery_sla": obligation.schedule.delivery_sla,
         },
+        "coverage": _obligation_coverage(obligation),
         "required_finality": obligation.required_finality,
+        # Core is delivery_only by definition: no destination, no receipt.
+        # managed_delivery and reconciled_billing are separately advertised.
         "reconciliation_mode": "delivery_only",
         "reconciliation_status": "not_required",
         "health": health,
@@ -530,11 +669,23 @@ def _obligation_to_wire(
     return payload
 
 
-def _revision_to_wire(revision: ReportingRevisionRecord) -> dict[str, Any]:
+def _revision_to_wire(
+    revision: ReportingRevisionRecord, obligation: ReportingObligationRecord | None = None
+) -> dict[str, Any]:
+    """Project a retained revision onto the wire.
+
+    A wire revision is self-describing: it names the exact report definition
+    and row schema it was produced under, by URI and digest, plus the scope and
+    period it covers.  Those come from its obligation, so a caller that omits
+    ``obligation`` (or a configuration with no
+    :class:`~adcp.reporting.ledger.models.ReportingDefinitionBinding`) gets a
+    record that will not validate against ``reporting-revision.json`` -- which
+    is the honest outcome, because the seller has not supplied what Core
+    requires.
+    """
     payload: dict[str, Any] = {
         "reporting_revision_id": revision.reporting_revision_id,
         "revision_content_sha256": revision.revision_content_sha256,
-        "reporting_obligation_id": revision.reporting_obligation_id,
         "account_id": revision.account_id,
         "finality": revision.finality,
         "observed_at": _iso(revision.observed_at),
@@ -546,6 +697,16 @@ def _revision_to_wire(revision: ReportingRevisionRecord) -> dict[str, Any]:
         ],
         "created_at": _iso(revision.created_at),
     }
+    if obligation is not None:
+        payload.update(
+            report_definition_id=obligation.report_definition_id,
+            reporting_profile=obligation.reporting_profile,
+            media_buy_ids=list(obligation.media_buy_ids),
+            coverage=_obligation_coverage(obligation),
+            period=_period_to_wire(obligation),
+        )
+        if obligation.definition is not None:
+            payload.update(obligation.definition.to_wire())
     optional = {
         "supersedes_reporting_revision_id": revision.supersedes_reporting_revision_id,
         "finality_basis": revision.finality_basis,
