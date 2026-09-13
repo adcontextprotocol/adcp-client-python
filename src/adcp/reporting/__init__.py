@@ -15,6 +15,9 @@ Seller side (:mod:`adcp.reporting.source`, :mod:`adcp.reporting.conformance`)
     ``canonical_json_utf8_v1``.  The conformance validators are the executable
     definition of "conforming"; run them in your own test suite.
 
+    :mod:`adcp.reporting.inline_source` is the on-ramp: wrap the delivery fetch
+    you already have and it produces conforming publications for you.
+
 Submodules are imported lazily (:pep:`562`) so ``import adcp.reporting`` stays
 cheap for buyers who never touch the producer contract.
 """
@@ -47,9 +50,12 @@ if TYPE_CHECKING:
     from adcp.reporting import canonical_json as canonical_json
     from adcp.reporting import conformance as conformance
     from adcp.reporting import fixtures as fixtures
+    from adcp.reporting import inline_source as inline_source
     from adcp.reporting import source as source
 
-_LAZY_SUBMODULES = frozenset({"canonical_json", "conformance", "fixtures", "source"})
+_LAZY_SUBMODULES = frozenset(
+    {"canonical_json", "conformance", "fixtures", "inline_source", "source"}
+)
 
 
 def __getattr__(name: str) -> Any:
