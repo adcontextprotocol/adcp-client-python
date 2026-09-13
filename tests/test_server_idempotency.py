@@ -1430,7 +1430,7 @@ class TestWireTranslation:
         adcp_error = data_parts[0].get("adcp_error")
         assert adcp_error is not None
         assert adcp_error["code"] == "IDEMPOTENCY_CONFLICT"
-        assert adcp_error["recovery"] == "terminal"
+        assert adcp_error["recovery"] == "correctable"
 
 
 def _make_context_shim() -> Any:

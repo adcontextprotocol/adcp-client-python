@@ -14,88 +14,135 @@ and context passthrough so developers focus on business logic.
 from __future__ import annotations
 
 import inspect
+import json
 import logging
 import warnings
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
+from importlib.resources import files
+from pathlib import Path
 from typing import Any, cast
 
 from adcp.server.base import AccountAwareToolContext, ToolContext
+from adcp.validation.version import resolve_bundle_key
 
 logger = logging.getLogger("adcp.server")
 
-# Common codes from the ADCP spec (enums/error-code.json) plus SDK extensions.
-# Recovery classification: transient (retry), correctable (fix request), terminal.
-STANDARD_ERROR_CODES: dict[str, dict[str, str]] = {
-    # --- Spec codes: Transient ---
-    "RATE_LIMITED": {"recovery": "transient", "message": "Too many requests"},
-    "SERVICE_UNAVAILABLE": {"recovery": "transient", "message": "Service temporarily unavailable"},
-    # --- Spec codes: Correctable ---
-    "INVALID_REQUEST": {"recovery": "correctable", "message": "Invalid request parameters"},
-    "VALIDATION_ERROR": {"recovery": "correctable", "message": "Request validation failed"},
-    "POLICY_VIOLATION": {"recovery": "correctable", "message": "Policy violation"},
-    "PRODUCT_NOT_FOUND": {"recovery": "correctable", "message": "Product not found"},
-    "PROPOSAL_NOT_FOUND": {"recovery": "correctable", "message": "Proposal not found"},
-    "PRODUCT_UNAVAILABLE": {"recovery": "correctable", "message": "Product unavailable"},
-    "PRODUCT_EXPIRED": {"recovery": "correctable", "message": "Product expired"},
-    "PROPOSAL_EXPIRED": {"recovery": "correctable", "message": "Proposal expired"},
-    "PROPOSAL_NOT_COMMITTED": {"recovery": "correctable", "message": "Proposal not committed"},
-    "BUDGET_TOO_LOW": {"recovery": "correctable", "message": "Budget below minimum"},
-    "BUDGET_EXHAUSTED": {"recovery": "correctable", "message": "Budget fully spent"},
-    "BUDGET_EXCEEDED": {"recovery": "correctable", "message": "Would exceed budget allocation"},
-    "CREATIVE_REJECTED": {"recovery": "correctable", "message": "Creative rejected"},
-    "CREATIVE_DEADLINE_EXCEEDED": {
-        "recovery": "correctable",
-        "message": "Creative deadline passed",
-    },
-    "AUDIENCE_TOO_SMALL": {"recovery": "correctable", "message": "Audience too small"},
-    "MEDIA_BUY_NOT_FOUND": {"recovery": "correctable", "message": "Media buy not found"},
-    "PACKAGE_NOT_FOUND": {"recovery": "correctable", "message": "Package not found"},
-    "SIGNAL_NOT_FOUND": {"recovery": "correctable", "message": "Signal not found"},
-    "CONFLICT": {"recovery": "correctable", "message": "Revision conflict - refetch and retry"},
-    "CONFLICTING_SELECTORS": {
-        "recovery": "correctable",
-        "message": "Format selector routes resolve to different product options",
-    },
-    "INVALID_STATE": {"recovery": "correctable", "message": "Invalid state for this operation"},
-    "NOT_CANCELLABLE": {"recovery": "correctable", "message": "Cannot cancel this media buy"},
-    "COMPLIANCE_UNSATISFIED": {"recovery": "correctable", "message": "Compliance not met"},
-    "ACCOUNT_AMBIGUOUS": {"recovery": "correctable", "message": "Account reference is ambiguous"},
-    "ACCOUNT_SETUP_REQUIRED": {"recovery": "correctable", "message": "Account setup required"},
-    "ACCOUNT_PAYMENT_REQUIRED": {"recovery": "correctable", "message": "Payment required"},
-    "IO_REQUIRED": {"recovery": "correctable", "message": "Insertion order required"},
-    "SESSION_NOT_FOUND": {"recovery": "correctable", "message": "Session not found"},
-    "SESSION_TERMINATED": {"recovery": "correctable", "message": "Session already terminated"},
-    # AUTH_REQUIRED is `correctable` per the 3.0.4 prose tightening, but only
-    # the missing-credentials sub-case is actually retry-safe. When the seller
-    # rejected presented credentials (expired / revoked / malformed signature),
-    # the buyer agent SHOULD NOT auto-retry — re-presenting a rejected
-    # credential creates SSO retry-storm patterns. The 3.1 line splits this
-    # into AUTH_MISSING (correctable) and AUTH_INVALID (terminal); on 3.0.x
-    # the operational distinction lives in `suggestion` text.
-    "AUTH_REQUIRED": {"recovery": "correctable", "message": "Authentication required"},
-    # --- Spec codes: Terminal ---
-    "ACCOUNT_NOT_FOUND": {"recovery": "terminal", "message": "Account not found"},
-    "ACCOUNT_SUSPENDED": {"recovery": "terminal", "message": "Account suspended"},
-    "AUTHORIZATION_REQUIRED": {
-        "recovery": "terminal",
-        "message": "Downstream authorization required",
-    },
-    "UNSUPPORTED_FEATURE": {"recovery": "terminal", "message": "Feature not supported"},
-    # Idempotency (AdCP #2315). Both are "terminal" from a retry-behavior
-    # standpoint — the caller MUST take a specific action (mint a fresh key or
-    # reconcile state) rather than blindly retry.
-    "IDEMPOTENCY_CONFLICT": {
-        "recovery": "terminal",
-        "message": "idempotency_key reused with a different payload",
-    },
-    "IDEMPOTENCY_EXPIRED": {
-        "recovery": "terminal",
-        "message": "Idempotency replay window has expired",
-    },
-    # --- SDK extensions (not in spec enum) ---
+# Preserve the concise defaults exposed by earlier SDK releases. Recovery
+# classifications deliberately do not live here: the published enumMetadata is
+# their single source of truth. Codes without a legacy message continue to
+# default to the code string, just as they did before entering this table.
+_DEFAULT_ERROR_MESSAGES: dict[str, str] = {
+    "RATE_LIMITED": "Too many requests",
+    "SERVICE_UNAVAILABLE": "Service temporarily unavailable",
+    "INVALID_REQUEST": "Invalid request parameters",
+    "VALIDATION_ERROR": "Request validation failed",
+    "POLICY_VIOLATION": "Policy violation",
+    "PRODUCT_NOT_FOUND": "Product not found",
+    "PROPOSAL_NOT_FOUND": "Proposal not found",
+    "PRODUCT_UNAVAILABLE": "Product unavailable",
+    "PRODUCT_EXPIRED": "Product expired",
+    "PROPOSAL_EXPIRED": "Proposal expired",
+    "PROPOSAL_NOT_COMMITTED": "Proposal not committed",
+    "BUDGET_TOO_LOW": "Budget below minimum",
+    "BUDGET_EXHAUSTED": "Budget fully spent",
+    "BUDGET_EXCEEDED": "Would exceed budget allocation",
+    "CREATIVE_REJECTED": "Creative rejected",
+    "CREATIVE_DEADLINE_EXCEEDED": "Creative deadline passed",
+    "AUDIENCE_TOO_SMALL": "Audience too small",
+    "MEDIA_BUY_NOT_FOUND": "Media buy not found",
+    "PACKAGE_NOT_FOUND": "Package not found",
+    "SIGNAL_NOT_FOUND": "Signal not found",
+    "CONFLICT": "Revision conflict - refetch and retry",
+    "CONFLICTING_SELECTORS": "Format selector routes resolve to different product options",
+    "INVALID_STATE": "Invalid state for this operation",
+    "NOT_CANCELLABLE": "Cannot cancel this media buy",
+    "COMPLIANCE_UNSATISFIED": "Compliance not met",
+    "ACCOUNT_AMBIGUOUS": "Account reference is ambiguous",
+    "ACCOUNT_SETUP_REQUIRED": "Account setup required",
+    "ACCOUNT_PAYMENT_REQUIRED": "Payment required",
+    "IO_REQUIRED": "Insertion order required",
+    "SESSION_NOT_FOUND": "Session not found",
+    "SESSION_TERMINATED": "Session already terminated",
+    "AUTH_REQUIRED": "Authentication required",
+    "ACCOUNT_NOT_FOUND": "Account not found",
+    "ACCOUNT_SUSPENDED": "Account suspended",
+    "AUTHORIZATION_REQUIRED": "Downstream authorization required",
+    "UNSUPPORTED_FEATURE": "Feature not supported",
+    "IDEMPOTENCY_CONFLICT": "idempotency_key reused with a different payload",
+    "IDEMPOTENCY_EXPIRED": "Idempotency replay window has expired",
+}
+
+_SDK_EXTENSION_CODES: dict[str, dict[str, str]] = {
     "NOT_SUPPORTED": {"recovery": "terminal", "message": "Operation not supported"},
 }
+
+_ERROR_CODE_SCHEMA = Path("enums") / "error-code.json"
+_RECOVERY_VALUES = frozenset(("transient", "correctable", "terminal"))
+
+
+def _read_error_code_schema() -> dict[str, Any]:
+    """Load the error vocabulary from the wheel bundle or a source checkout."""
+    adcp_version = (files("adcp") / "ADCP_VERSION").read_text().strip()
+    bundle_key = resolve_bundle_key(adcp_version)
+
+    try:
+        packaged = files("adcp") / "_schemas" / bundle_key / str(_ERROR_CODE_SCHEMA)
+        if packaged.is_file():
+            return cast(dict[str, Any], json.loads(packaged.read_text(encoding="utf-8")))
+    except (ModuleNotFoundError, FileNotFoundError, OSError):
+        # Editable installs may not have run bundle_schemas.py; the source
+        # checkout cache below is the supported fallback for that layout.
+        pass
+
+    here = Path(__file__).resolve()
+    for ancestor in here.parents:
+        candidate = ancestor / "schemas" / "cache" / bundle_key / _ERROR_CODE_SCHEMA
+        if candidate.is_file():
+            return cast(dict[str, Any], json.loads(candidate.read_text(encoding="utf-8")))
+        if ancestor.parent == ancestor:
+            break
+
+    raise FileNotFoundError(
+        f"error-code schema not found for ADCP_VERSION={adcp_version!r} "
+        f"(bundle_key={bundle_key!r})"
+    )
+
+
+def _build_standard_error_codes() -> dict[str, dict[str, str]]:
+    """Build recovery defaults from the pinned schema's normative metadata."""
+    schema = _read_error_code_schema()
+    if not isinstance(schema, dict):
+        raise ValueError("error-code schema must be a JSON object")
+    codes = schema.get("enum")
+    metadata = schema.get("enumMetadata")
+    if not isinstance(codes, list) or not isinstance(metadata, dict):
+        raise ValueError("error-code schema must contain enum and enumMetadata")
+
+    standard: dict[str, dict[str, str]] = {}
+    for code in codes:
+        if not isinstance(code, str):
+            raise ValueError("error-code schema enum values must be strings")
+        entry = metadata.get(code)
+        recovery = entry.get("recovery") if isinstance(entry, dict) else None
+        if recovery not in _RECOVERY_VALUES:
+            raise ValueError(f"error-code schema has invalid recovery metadata for {code!r}")
+        info = {"recovery": cast(str, recovery)}
+        if code in _DEFAULT_ERROR_MESSAGES:
+            info["message"] = _DEFAULT_ERROR_MESSAGES[code]
+        standard[code] = info
+
+    collisions = standard.keys() & _SDK_EXTENSION_CODES.keys()
+    if collisions:
+        joined = ", ".join(sorted(collisions))
+        raise ValueError(f"SDK error-code extensions collide with spec codes: {joined}")
+    standard.update(_SDK_EXTENSION_CODES)
+    return standard
+
+
+# Spec codes are sourced from the pinned immutable schema artifact. SDK-only
+# extensions are merged afterward and remain explicit above.
+STANDARD_ERROR_CODES = _build_standard_error_codes()
 
 # Typed recovery classification sets for servers building their own error hierarchies.
 TRANSIENT_CODES: frozenset[str] = frozenset(

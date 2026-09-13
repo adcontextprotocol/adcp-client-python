@@ -35,7 +35,7 @@ from google.protobuf.struct_pb2 import Value
 
 from adcp.decisioning.types import AdcpError as DecisioningAdcpError
 from adcp.exceptions import ADCPTaskError
-from adcp.server import ADCPHandler
+from adcp.server import ADCPHandler, adcp_error
 from adcp.server.a2a_server import ADCPAgentExecutor as _ADCPAgentExecutor
 from adcp.types import Error
 
@@ -330,6 +330,24 @@ async def test_adcp_task_error_still_caught_after_refactor() -> None:
     assert event.status.state == pb.TaskState.TASK_STATE_FAILED
     payload = _adcp_error_data_part(event)
     assert payload["code"] == "IDEMPOTENCY_CONFLICT"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("recovery", ["transient", "correctable", "terminal"])
+async def test_adcp_task_error_preserves_recovery_override(recovery: str) -> None:
+    """Explicit extension-code recovery survives helper, typing, and A2A projection."""
+    raw = adcp_error("X_VENDOR_ERROR", "vendor failure", recovery=recovery)["errors"][0]
+    handler = _TaskErrorRaiser([Error.model_validate(raw)])
+    executor = _executor(handler)
+    queue = EventQueue()
+
+    await executor.execute(_request_context("get_products"), queue)
+
+    event = await queue.dequeue_event()
+    assert isinstance(event, pb.Task)
+    payload = _adcp_error_data_part(event)
+    assert payload["code"] == "X_VENDOR_ERROR"
+    assert payload["recovery"] == recovery
 
 
 @pytest.mark.asyncio

@@ -535,9 +535,9 @@ def test_sync_creatives_response_scrubber_sanitizes_authorization_required_detai
     assert "private-user" not in str(scrubbed)
 
 
-def test_authorization_required_is_terminal_for_retry_policy() -> None:
-    assert STANDARD_ERROR_CODES["AUTHORIZATION_REQUIRED"]["recovery"] == "terminal"
-    assert "AUTHORIZATION_REQUIRED" in TERMINAL_CODES
+def test_authorization_required_is_correctable_for_retry_policy() -> None:
+    assert STANDARD_ERROR_CODES["AUTHORIZATION_REQUIRED"]["recovery"] == "correctable"
+    assert "AUTHORIZATION_REQUIRED" not in TERMINAL_CODES
 
 
 def test_to_wire_account_strips_billing_entity_bank() -> None:
