@@ -144,6 +144,8 @@ from adcp.types import (
     SyncPrincipalResponse,
     SyncReportingReceiptsRequest,
     SyncReportingReceiptsResponse,
+    SyncReportingStatusRequest,
+    SyncReportingStatusResponse,
     UpdateMediaBuyRequest,
     UpdateMediaBuyResponse,
 )
@@ -3350,6 +3352,28 @@ class ADCPClient:
         )
 
     @_task_options_method
+    async def sync_reporting_status(
+        self,
+        request: SyncReportingStatusRequest,
+        *,
+        options: TaskOptions | None = None,
+    ) -> TaskResult[SyncReportingStatusResponse]:
+        """Tell a seller whether expected reporting could actually be consumed.
+
+        Operational status, not measurement data and not a billing receipt:
+        ``received`` proves this consumer read the exact Core revision binding,
+        nothing more. Additive and opt-in in AdCP 3.2.0-rc.2.
+        """
+        return cast(
+            TaskResult[SyncReportingStatusResponse],
+            await self._execute_typed_task(
+                "sync_reporting_status",
+                request,
+                SyncReportingStatusResponse,
+            ),
+        )
+
+    @_task_options_method
     async def log_event(
         self,
         request: LogEventRequest,
@@ -5684,6 +5708,7 @@ class ADCPClient:
             "report_usage": ReportUsageResponse,
             "get_reporting_status": GetReportingStatusResponse,
             "sync_reporting_receipts": SyncReportingReceiptsResponse,
+            "sync_reporting_status": SyncReportingStatusResponse,
             "get_account_financials": GetAccountFinancialsResponse,
             "list_account_changes": ListAccountChangesResponse,
             "list_accounts": ListAccountsResponse,

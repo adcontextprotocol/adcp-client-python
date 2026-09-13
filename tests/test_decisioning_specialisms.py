@@ -1069,23 +1069,44 @@ def test_lists_required_methods_pinned() -> None:
 # ---- Breadth-sprint completeness pin ----
 
 
-def test_every_spec_slug_except_governance_aware_seller_is_enforced() -> None:
-    """Breadth sprint complete: every spec specialism slug except
-    ``governance-aware-seller`` has a REQUIRED_METHODS_PER_SPECIALISM
-    entry. ``governance-aware-seller`` stays unenforced by design —
-    it's a SELLER composition claim (sales-* archetype that
-    integrates with a governance agent), NOT a wire-implementor
-    claim."""
+#: Spec slugs that deliberately have no ``REQUIRED_METHODS_PER_SPECIALISM``
+#: entry, with the reason each one is exempt.
+UNENFORCED_SPEC_SLUGS = {
+    # SELLER composition claim: a sales-* archetype that integrates WITH a
+    # governance agent rather than implementing one.
+    "governance-aware-seller",
+    # Deprecated per spec; moved to universal storyboards.
+    "signed-requests",
+    # AdCP 3.2.0-rc.2 buyer-side and orchestrator claims, all `preview`
+    # status. REQUIRED_METHODS_PER_SPECIALISM gates a DecisioningPlatform —
+    # a *seller*. These describe an agent that buys: discovers inventory,
+    # negotiates terms, monitors delivery, recovers from seller failures,
+    # or coordinates across sellers. There is no seller method set to
+    # require, and inventing one would fail-fast a platform at boot for not
+    # implementing tools it is supposed to *call*.
+    "buyer-activation",
+    "buyer-discovery",
+    "buyer-monitoring",
+    "buyer-negotiation",
+    "buyer-recovery",
+    "orchestrator-multi-agent",
+}
+
+
+def test_every_seller_spec_slug_is_enforced() -> None:
+    """Every seller-implementor slug has a REQUIRED_METHODS_PER_SPECIALISM entry.
+
+    The exemptions are enumerated in :data:`UNENFORCED_SPEC_SLUGS` with a
+    reason each. A new slug that lands unenforced without being listed there
+    fails here, so "we forgot to wire it" cannot masquerade as "it is exempt".
+    """
     from adcp.decisioning.dispatch import SPEC_SPECIALISM_ENUM
 
     enforced = set(REQUIRED_METHODS_PER_SPECIALISM.keys())
-    spec = set(SPEC_SPECIALISM_ENUM)
-    # ``signed-requests`` is deprecated per spec (moved to universal
-    # storyboards); not a Protocol-implementor claim.
-    unenforced = spec - enforced
-    assert unenforced == {"governance-aware-seller", "signed-requests"}, (
-        f"Unexpected unenforced spec slugs: {unenforced}. After the "
-        "breadth sprint, only ``governance-aware-seller`` (SELLER "
-        "composition claim) and ``signed-requests`` (deprecated, "
-        "moved to universal storyboards) should be unenforced."
+    unenforced = set(SPEC_SPECIALISM_ENUM) - enforced
+    assert unenforced == UNENFORCED_SPEC_SLUGS, (
+        f"Unexpected unenforced spec slugs: {sorted(unenforced - UNENFORCED_SPEC_SLUGS)}; "
+        f"no longer unenforced: {sorted(UNENFORCED_SPEC_SLUGS - unenforced)}. "
+        "Either add a REQUIRED_METHODS_PER_SPECIALISM entry or list the slug in "
+        "UNENFORCED_SPEC_SLUGS with the reason it is exempt."
     )

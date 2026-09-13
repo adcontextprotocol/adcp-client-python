@@ -545,6 +545,23 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "required": ["account", "idempotency_key", "receipts"],
         },
     },
+    {
+        "name": "sync_reporting_status",
+        "description": (
+            "Tell a seller whether expected reporting was received, omitted, missing, "
+            "or unreadable."
+        ),
+        "annotations": _IDEMP,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "account": {"type": "object"},
+                "idempotency_key": {"type": "string"},
+                "statuses": {"type": "array"},
+            },
+            "required": ["account", "idempotency_key", "statuses"],
+        },
+    },
     # Event Operations
     {
         "name": "log_event",
@@ -1726,6 +1743,7 @@ def _generate_pydantic_schemas(
             SyncPlansRequest,
             SyncPrincipalRequest,
             SyncReportingReceiptsRequest,
+            SyncReportingStatusRequest,
             UpdateCollectionListRequest,
             UpdateContentStandardsRequest,
             UpdateMediaBuyRequest,
@@ -1773,6 +1791,7 @@ def _generate_pydantic_schemas(
         "get_media_buys": GetMediaBuysRequest,
         "get_reporting_status": GetReportingStatusRequest,
         "sync_reporting_receipts": SyncReportingReceiptsRequest,
+        "sync_reporting_status": SyncReportingStatusRequest,
         # Signals
         "get_signals": GetSignalsRequest,
         "activate_signal": ActivateSignalRequest,
@@ -1950,6 +1969,7 @@ def _generate_pydantic_output_schemas(
             SyncPlansResponse,
             SyncPrincipalResponse,
             SyncReportingReceiptsResponse,
+            SyncReportingStatusResponse,
             UpdateCollectionListResponse,
             UpdateContentStandardsResponse,
             UpdateMediaBuyResponse,
@@ -1998,6 +2018,7 @@ def _generate_pydantic_output_schemas(
         "get_media_buys": GetMediaBuysResponse,
         "get_reporting_status": GetReportingStatusResponse,
         "sync_reporting_receipts": SyncReportingReceiptsResponse,
+        "sync_reporting_status": SyncReportingStatusResponse,
         # Signals
         "get_signals": GetSignalsResponse,
         "activate_signal": ActivateSignalResponse,

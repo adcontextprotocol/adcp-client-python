@@ -334,6 +334,11 @@ class ProtocolAdapter(ABC):
             "get_reporting_status is not implemented by this protocol adapter"
         )
 
+    async def sync_reporting_status(self, params: dict[str, Any]) -> TaskResult[Any]:
+        raise NotImplementedError(
+            "sync_reporting_status is not implemented by this protocol adapter"
+        )
+
     async def sync_reporting_receipts(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Submit reporting materialization reconciliation receipts."""
         raise NotImplementedError(

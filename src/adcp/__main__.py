@@ -254,6 +254,10 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
             "sync_reporting_receipts",
             _ta(gen.SyncReportingReceiptsRequest),
         ),
+        "sync_reporting_status": (
+            "sync_reporting_status",
+            _ta(gen.SyncReportingStatusRequest),
+        ),
         # Events
         "log_event": ("log_event", _ta(gen.LogEventRequest)),
         "sync_event_sources": ("sync_event_sources", _ta(gen.SyncEventSourcesRequest)),
