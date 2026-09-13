@@ -50,6 +50,7 @@ from adcp.compat.purchase_continuation import (
     CompatibilityContinuationError,
     CompatibilityPurchaseOperation,
     LegacyPurchaseCoordinator,
+    _token_hash,
     _validate_persistable_payload,
     canonical_account_identity,
 )
@@ -389,6 +390,9 @@ class MediaBuyLifecycleCoordinator:
         self._tools = self._tools | frozenset(
             _root_value(tool) for tool in (getattr(media_buy, "lifecycle_tools", None) or ())
         )
+        self._buying_modes = frozenset(
+            _root_value(mode) for mode in (getattr(media_buy, "buying_modes", None) or ())
+        )
         self._preferred_lifecycle = preferred_lifecycle
         self._allowed_losses = frozenset(str(loss) for loss in allowed_losses)
         self._allow_non_durable_proposal_acceptance = allow_non_durable_proposal_acceptance
@@ -431,7 +435,10 @@ class MediaBuyLifecycleCoordinator:
             if self._mutation_idempotency_guaranteed
             else None
         )
-        self.lifecycle = self._select_lifecycle("list_products")
+        # This initial report is route discovery only. The actual list call
+        # selects a complete list->buy pair so a partial compact surface cannot
+        # strand the application after discovery.
+        self.lifecycle = self._select_lifecycle("list_products", require_catalog_pair=False)
 
     @classmethod
     async def negotiate(
@@ -492,6 +499,18 @@ class MediaBuyLifecycleCoordinator:
         synthesize ``feed_version`` or ``pricing_version`` values.
         """
 
+        request_payload = request.model_dump(mode="json", exclude_none=True)
+        conditional = tuple(
+            field for field in ("if_feed_version", "if_pricing_version") if field in request_payload
+        )
+        if conditional:
+            raise self._unsupported(
+                "list_products",
+                self.lifecycle,
+                "conditional_catalog_reuse",
+                "The coordinator cannot safely bind a purchase to an unchanged response; "
+                "omit " + ", ".join(conditional) + " and request a complete catalog page.",
+            )
         lifecycle = self._select_lifecycle("list_products")
         account = _json_object(request.account)
         if lifecycle is MediaBuyLifecycle.COMPACT:
@@ -568,15 +587,28 @@ class MediaBuyLifecycleCoordinator:
             legacy_result = await self.client.get_products_legacy(model)
         payload = self._completed_payload("list_products", legacy_result, lifecycle)
         self._validate_served_version("list_products", payload, lifecycle)
+        response_validation = validate_response("get_products", payload, version=source_version)
+        if not response_validation.valid or response_validation.variant == "skipped":
+            raise self._unsupported(
+                "list_products",
+                lifecycle,
+                "response_projection",
+                "Established get_products returned an invalid exact-version response: "
+                f"{format_issues(response_validation.issues)}",
+            )
         products = _products(payload, operation="list_products", coordinator=self)
-        continuation = await self._issue_legacy_continuation(
-            legacy=legacy,
-            issuance_idempotency_key=issue_key,
-            account=account,
-            source_version=source_version,
-            observed_request=wire_request,
-            observed_response=payload,
-            products=products,
+        continuation = (
+            await self._issue_legacy_continuation(
+                legacy=legacy,
+                issuance_idempotency_key=issue_key,
+                account=account,
+                source_version=source_version,
+                observed_request=wire_request,
+                observed_response=payload,
+                products=products,
+            )
+            if products
+            else None
         )
         return CompatibleCatalog(
             products=products,
@@ -2194,6 +2226,11 @@ class MediaBuyLifecycleCoordinator:
             )
         payload = _json_object(request)
         assert payload is not None
+        # Feed and pricing versions are seller-issued listing evidence. Never
+        # accept caller substitutions, including when the listing omitted an
+        # independent pricing version.
+        payload.pop("feed_version", None)
+        payload.pop("pricing_version", None)
         account = _mapping(payload.get("account"))
         if listing._account is not None and (
             not account
@@ -2385,6 +2422,8 @@ class MediaBuyLifecycleCoordinator:
             raise ValueError("continuation token must be non-empty")
         payload = _json_object(request)
         assert payload is not None
+        payload.pop("feed_version", None)
+        payload.pop("pricing_version", None)
         account = _mapping(payload.get("account"))
         if not account:
             raise self._unsupported(
@@ -2409,9 +2448,35 @@ class MediaBuyLifecycleCoordinator:
                 "purchase_selection",
                 str(exc),
             ) from exc
-        losses = list(_PURCHASE_LOSSES)
-        if not self._mutation_idempotency_guaranteed:
-            losses.append(_MUTATION_LOSS)
+        legacy = self._require_legacy("continue_legacy_purchase", lifecycle)
+        record = await legacy.store.get_continuation(
+            _token_hash(token), principal_id=cast(str, self._principal_id)
+        )
+        if record is None:
+            raise self._unsupported(
+                "continue_legacy_purchase",
+                lifecycle,
+                "purchase_continuation",
+                "No continuation exists in this authenticated principal scope.",
+            )
+        source_version = self._exact_source_schema_version("continue_legacy_purchase", lifecycle)
+        if record.source_adcp_version != source_version:
+            raise self._unsupported(
+                "continue_legacy_purchase",
+                lifecycle,
+                "served_version_changed",
+                "The continuation was issued under a different served AdCP contract; "
+                "reconstruct the coordinator with the original seller binding.",
+            )
+        loss_order = (*_PURCHASE_LOSSES, _MUTATION_LOSS)
+        losses = tuple(loss for loss in loss_order if loss in record.losses)
+        if set(losses) != set(record.losses):
+            raise self._unsupported(
+                "continue_legacy_purchase",
+                lifecycle,
+                "compatibility_losses",
+                "The continuation contains an unsupported compatibility loss set.",
+            )
         exact_losses = tuple(losses if accepted_losses is None else accepted_losses)
         if set(exact_losses) != set(losses) or len(exact_losses) != len(losses):
             raise self._unsupported(
@@ -2430,7 +2495,6 @@ class MediaBuyLifecycleCoordinator:
                 "No purchase was sent because required compatibility losses were not allowed.",
                 losses=refused,
             )
-        source_version = self._exact_source_schema_version("continue_legacy_purchase", lifecycle)
         try:
             legacy_create = _legacy_create_request(payload, self.negotiated_version, source_version)
         except ValueError as exc:
@@ -2440,9 +2504,7 @@ class MediaBuyLifecycleCoordinator:
                 "legacy_request_projection",
                 str(exc),
             ) from exc
-        result = await self._require_legacy(
-            "continue_legacy_purchase", lifecycle
-        ).continue_legacy_purchase(
+        result = await legacy.continue_legacy_purchase(
             {
                 "idempotency_key": payload["idempotency_key"],
                 "continuation_token": token,
@@ -2703,7 +2765,11 @@ class MediaBuyLifecycleCoordinator:
             expires_at=expires_at,
         )
 
-    def _select_lifecycle(self, compact_tool: str) -> MediaBuyLifecycle:
+    def _select_lifecycle(
+        self, compact_tool: str, *, require_catalog_pair: bool = True
+    ) -> MediaBuyLifecycle:
+        if require_catalog_pair and compact_tool in {"list_products", "buy_products"}:
+            return self._select_catalog_purchase_lifecycle(compact_tool)
         established_tool = _COMPACT_TO_ESTABLISHED[compact_tool]
         compact_contract = _is_compact_release(self.negotiated_version)
         if self._preferred_lifecycle == "established":
@@ -2733,6 +2799,56 @@ class MediaBuyLifecycleCoordinator:
                 f"The seller advertises neither {compact_tool} nor {established_tool}.",
             )
         return MediaBuyLifecycle.ESTABLISHED
+
+    def _select_catalog_purchase_lifecycle(self, operation: str) -> MediaBuyLifecycle:
+        compact_contract = _is_compact_release(self.negotiated_version)
+        _, release_minor = _release_minor(self.negotiated_version)
+        # The 3.0 capabilities contract did not expose buying_modes. Wholesale
+        # support is therefore discovered by the call on that exact legacy
+        # contract; 3.1+ has an explicit capability and must advertise it.
+        wholesale_supported = release_minor == 0 or "wholesale" in self._buying_modes
+        compact_pair = compact_contract and {
+            "list_products",
+            "buy_products",
+        }.issubset(self._tools)
+        established_pair = (
+            not compact_contract
+            and {
+                "get_products",
+                "create_media_buy",
+            }.issubset(self._tools)
+            and wholesale_supported
+        )
+
+        if self._preferred_lifecycle == "compact":
+            if compact_pair:
+                return MediaBuyLifecycle.COMPACT
+            raise self._unsupported(
+                operation,
+                MediaBuyLifecycle.COMPACT,
+                "compact_catalog_purchase_not_advertised",
+                "A compact catalog purchase requires both list_products and buy_products.",
+            )
+        if self._preferred_lifecycle == "established":
+            if established_pair:
+                return MediaBuyLifecycle.ESTABLISHED
+            raise self._unsupported(
+                operation,
+                MediaBuyLifecycle.ESTABLISHED,
+                "established_catalog_purchase_not_advertised",
+                "An established catalog purchase requires get_products, create_media_buy, "
+                "and the wholesale buying mode.",
+            )
+        if compact_pair:
+            return MediaBuyLifecycle.COMPACT
+        if established_pair:
+            return MediaBuyLifecycle.ESTABLISHED
+        raise self._unsupported(
+            operation,
+            MediaBuyLifecycle.COMPACT if compact_contract else MediaBuyLifecycle.ESTABLISHED,
+            "catalog_purchase_route_not_advertised",
+            "The seller advertises no complete compact or established catalog-purchase route.",
+        )
 
     def _shared_tool_lifecycle(self, operation: str) -> MediaBuyLifecycle:
         lifecycle = (
@@ -2844,7 +2960,10 @@ class MediaBuyLifecycleCoordinator:
                 f"{operation} did not return a completed successful response: "
                 f"{result.error or result.message or result.status.value}",
             )
-        return cast(JsonObject, result.data.model_dump(mode="json", exclude_none=True))
+        return cast(
+            JsonObject,
+            result.data.model_dump(mode="json", exclude_none=True, exclude_unset=True),
+        )
 
     def _validate_served_version(
         self, operation: str, payload: JsonObject, lifecycle: MediaBuyLifecycle
@@ -3160,37 +3279,56 @@ NegotiatedCatalogBuyer = MediaBuyLifecycleCoordinator
 
 def _negotiate_version(capabilities: Any, client_version: str) -> str:
     client = normalize_to_release_precision(client_version)
+    client_parsed = _parse_release(client)
+    if client_parsed is None:
+        raise ValueError(f"Client AdCP pin {client!r} is not semver-shaped.")
     adcp = getattr(capabilities, "adcp", None)
+    raw_advertised = tuple(getattr(adcp, "supported_versions", None) or ())
+    advertised = [
+        normalize_to_release_precision(str(_root_value(value)))
+        for value in raw_advertised
+        if _parse_release(str(_root_value(value))) is not None
+    ]
     served = getattr(capabilities, "adcp_version", None)
     if isinstance(served, str) and served:
         normalized = normalize_to_release_precision(served)
+        served_parsed = _parse_release(normalized)
+        if served_parsed is None or served_parsed[0] != client_parsed[0]:
+            raise ValueError(
+                f"Seller served cross-major AdCP {normalized} for client pin {client}."
+            )
         if _compare_release(normalized, client) > 0:
             raise ValueError(
                 f"Seller served AdCP {normalized}, newer than client pin {client}; "
                 "the capabilities response cannot be interpreted safely."
             )
+        if advertised and normalized not in advertised:
+            raise ValueError(
+                f"Seller served AdCP {normalized}, which is absent from its supported_versions."
+            )
+        if get_bundle_adcp_version(version=normalized) is None:
+            raise ValueError(f"No bundled schema can validate served AdCP {normalized}.")
         return normalized
 
-    advertised = [
-        normalize_to_release_precision(str(_root_value(value)))
-        for value in (getattr(adcp, "supported_versions", None) or ())
-        if _parse_release(str(_root_value(value))) is not None
-    ]
-    client_major = _parse_release(client)
-    assert client_major is not None
     candidates = [
         version
         for version in advertised
-        if _release_minor(version)[0] == client_major[0] and _compare_release(version, client) <= 0
+        if _release_minor(version)[0] == client_parsed[0]
+        and _compare_release(version, client) <= 0
+        and get_bundle_adcp_version(version=version) is not None
     ]
     if candidates:
         return sorted(candidates, key=cmp_to_key(_compare_release))[-1]
-    if advertised:
+    if raw_advertised:
         raise ValueError(
-            f"Seller advertises only versions newer than or incompatible with client pin {client}."
+            f"Seller advertises no bundled version compatible with client pin {client}."
         )
     # Release-precision discovery was added after 3.0. An otherwise valid
     # v3 capabilities response with no served/supported release stays on 3.0.
+    if client_parsed[0] != 3 or get_bundle_adcp_version(version="3.0") is None:
+        raise ValueError(
+            f"No safe unversioned compatibility default exists for client pin {client}."
+        )
     return "3.0"
 
 
@@ -3244,7 +3382,7 @@ def _release_minor(value: str) -> tuple[int, int]:
 
 def _is_compact_release(value: str) -> bool:
     major, minor = _release_minor(value)
-    return major > 3 or (major == 3 and minor >= 2)
+    return major == 3 and minor >= 2
 
 
 def _root_value(value: Any) -> str:
@@ -3279,12 +3417,12 @@ def _products(
     coordinator: MediaBuyLifecycleCoordinator,
 ) -> tuple[JsonObject, ...]:
     values = payload.get("products")
-    if not isinstance(values, list) or not values:
+    if not isinstance(values, list):
         raise coordinator._unsupported(
             operation,
             coordinator._select_lifecycle(operation),
             "products",
-            "A completed catalog page must contain at least one product.",
+            "A completed catalog page must contain a products array.",
         )
     products: list[JsonObject] = []
     for value in values:

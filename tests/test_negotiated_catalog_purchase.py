@@ -29,6 +29,7 @@ from adcp.compat import (
 )
 from adcp.compat.negotiated_catalog_purchase import _negotiate_version
 from adcp.negotiation import compute_terms_digest
+from adcp.server.mcp_tools import _normalize_response_envelope
 from adcp.types import (
     ControlMediaBuyRequest,
     DeclineProposalsRequest,
@@ -39,6 +40,7 @@ from adcp.types import (
     RequestProposalsRequest,
 )
 from adcp.types.core import TaskResult, TaskStatus
+from adcp.types.legacy import LegacyGetProductsResponse
 
 _VECTORS = (
     Path(__file__).parent
@@ -49,6 +51,23 @@ _VECTORS = (
 )
 _CASES = json.loads(_VECTORS.read_text())["cases"]
 _NOW = datetime(2098, 1, 1, tzinfo=timezone.utc)
+
+
+def test_compact_list_response_does_not_gain_task_status() -> None:
+    response: dict[str, Any] = {"products": [], "feed_version": "feed-1"}
+
+    _normalize_response_envelope(
+        "list_products",
+        response,
+        {},
+        adcp_version="3.2-rc.1",
+    )
+
+    assert response == {
+        "outcome": "listed",
+        "products": [],
+        "feed_version": "feed-1",
+    }
 
 
 class _Payload(BaseModel):
@@ -148,6 +167,7 @@ def _caps(
     *,
     served: str | None = None,
     tools: list[str] | None = None,
+    buying_modes: list[str] | None = None,
     idempotent: bool = True,
 ) -> Any:
     return SimpleNamespace(
@@ -159,7 +179,12 @@ def _caps(
                 replay_ttl_seconds=86400 if idempotent else None,
             ),
         ),
-        media_buy=SimpleNamespace(lifecycle_tools=tools),
+        media_buy=SimpleNamespace(
+            lifecycle_tools=tools,
+            buying_modes=(
+                ["brief", "wholesale", "refine"] if buying_modes is None else buying_modes
+            ),
+        ),
     )
 
 
@@ -340,6 +365,25 @@ def test_negotiation_rejects_served_version_newer_than_client_pin() -> None:
         _negotiate_version(_caps(["3.2"], served="3.2"), "3.2-rc.1")
 
 
+@pytest.mark.parametrize(
+    ("versions", "served", "message"),
+    [
+        (["2.5"], "2.5", "cross-major"),
+        (["3.0"], "3.1", "absent from its supported_versions"),
+        (["3.0", "3.1-rc.12"], "3.1-rc.12", "No bundled schema"),
+    ],
+)
+def test_negotiation_rejects_unusable_served_contracts(
+    versions: list[str], served: str, message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        _negotiate_version(_caps(versions, served=served), "3.2-rc.1")
+
+
+def test_negotiation_downshifts_past_an_unbundled_advertised_prerelease() -> None:
+    assert _negotiate_version(_caps(["3.0", "3.1-rc.12"]), "3.2-rc.1") == "3.0"
+
+
 def test_compact_contract_requires_an_advertised_route() -> None:
     client = _Client("3.2-rc.1", {})
     with pytest.raises(MediaBuyLifecycleCompatibilityError) as exc:
@@ -386,7 +430,11 @@ async def test_compact_list_buy_preserves_real_versions_and_country_filter() -> 
     )
 
     listing = await coordinator.list_products(_list_request())
-    purchase = await coordinator.buy_products(listing, _purchase("compact-product"))
+    purchase_request = _purchase("compact-product")
+    purchase_request.update(
+        {"feed_version": "caller-feed-must-not-win", "pricing_version": "caller-price-must-not-win"}
+    )
+    purchase = await coordinator.buy_products(listing, purchase_request)
 
     assert listing.feed_version == "seller-feed-1"
     assert listing.compatibility.lifecycle is MediaBuyLifecycle.COMPACT
@@ -396,6 +444,160 @@ async def test_compact_list_buy_preserves_real_versions_and_country_filter() -> 
     assert sent.feed_version == "seller-feed-1"
     assert sent.pricing_version == "seller-price-1"
     assert purchase.compatibility.tools_used == ("buy_products",)
+
+
+@pytest.mark.asyncio
+async def test_compact_buy_drops_caller_pricing_when_listing_has_no_pricing_version() -> None:
+    client = _Client(
+        "3.2-rc.1",
+        {
+            "products": [{"product_id": "compact-product", "name": "Compact product"}],
+            "feed_version": "seller-feed-1",
+            "cache_scope": "account",
+        },
+    )
+    tools = ["list_products", "buy_products"]
+    coordinator = MediaBuyLifecycleCoordinator(
+        client,
+        _caps(["3.2-rc.1"], served="3.2-rc.1", tools=tools),
+        tools,
+    )
+    listing = await coordinator.list_products(_list_request())
+    purchase_request = _purchase("compact-product")
+    purchase_request["pricing_version"] = "caller-price-must-be-removed"
+
+    await coordinator.buy_products(listing, purchase_request)
+
+    assert client.buy_requests[0].pricing_version is None
+
+
+@pytest.mark.asyncio
+async def test_catalog_route_rejects_a_partial_compact_pair_before_listing() -> None:
+    client = _Client("3.2-rc.1", {})
+    tools = ["list_products", "get_products", "create_media_buy"]
+    coordinator = MediaBuyLifecycleCoordinator(
+        client,
+        _caps(["3.2-rc.1"], served="3.2-rc.1", tools=tools),
+        tools,
+    )
+
+    with pytest.raises(MediaBuyLifecycleCompatibilityError) as exc:
+        await coordinator.list_products(_list_request())
+
+    assert exc.value.feature == "catalog_purchase_route_not_advertised"
+    assert not client.list_requests
+    assert not client.legacy_requests
+
+
+@pytest.mark.asyncio
+async def test_established_catalog_requires_tools_and_wholesale_mode_before_dispatch() -> None:
+    request = _list_request()
+    for tools, modes in [([], ["wholesale"]), (["get_products", "create_media_buy"], ["brief"])]:
+        client = _Client("3.2-rc.1", {})
+        coordinator = MediaBuyLifecycleCoordinator(
+            client,
+            _caps(["3.1"], tools=tools, buying_modes=modes),
+            tools,
+        )
+
+        with pytest.raises(MediaBuyLifecycleCompatibilityError) as exc:
+            await coordinator.list_products(request)
+
+        assert exc.value.feature == "catalog_purchase_route_not_advertised"
+        assert not client.legacy_requests
+
+
+def test_adcp_30_does_not_require_the_later_buying_modes_capability() -> None:
+    tools = ["get_products", "create_media_buy"]
+    coordinator = MediaBuyLifecycleCoordinator(
+        _Client("3.2-rc.1", {}),
+        _caps(["3.0"], tools=tools, buying_modes=[]),
+        tools,
+    )
+
+    assert coordinator._select_lifecycle("list_products") is MediaBuyLifecycle.ESTABLISHED
+
+
+@pytest.mark.asyncio
+async def test_list_rejects_conditional_cache_reuse_before_dispatch() -> None:
+    client = _Client("3.2-rc.1", {})
+    tools = ["list_products", "buy_products"]
+    coordinator = MediaBuyLifecycleCoordinator(
+        client,
+        _caps(["3.2-rc.1"], served="3.2-rc.1", tools=tools),
+        tools,
+    )
+    request = _list_request().model_copy(update={"if_feed_version": "feed-previous"})
+
+    with pytest.raises(MediaBuyLifecycleCompatibilityError) as exc:
+        await coordinator.list_products(request)
+
+    assert exc.value.feature == "conditional_catalog_reuse"
+    assert not client.list_requests
+
+
+@pytest.mark.asyncio
+async def test_empty_compact_catalog_is_a_valid_completed_listing() -> None:
+    client = _Client(
+        "3.2-rc.1", {"products": [], "feed_version": "feed-empty", "cache_scope": "account"}
+    )
+    tools = ["list_products", "buy_products"]
+    coordinator = MediaBuyLifecycleCoordinator(
+        client,
+        _caps(["3.2-rc.1"], served="3.2-rc.1", tools=tools),
+        tools,
+    )
+
+    listing = await coordinator.list_products(_list_request())
+
+    assert listing.products == ()
+    assert listing.feed_version == "feed-empty"
+
+
+@pytest.mark.asyncio
+async def test_empty_established_catalog_has_no_purchase_continuation() -> None:
+    client = _Client("3.2-rc.1", {"products": []})
+    legacy = LegacyPurchaseCoordinator(
+        store=InMemoryCompatibilityContinuationStore(),
+        executor=lambda _execution: {},
+        token_derivation_key=b"test-only-continuation-token-key-32-bytes-minimum",
+        allow_non_durable_store=True,
+        clock=lambda: _NOW,
+    )
+    tools = ["get_products", "create_media_buy"]
+    coordinator = MediaBuyLifecycleCoordinator(
+        client,
+        _caps(["3.0"], tools=tools),
+        tools,
+        legacy_purchase_coordinator=legacy,
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+        allowed_losses=["feed_version_not_atomic", "pricing_version_not_atomic"],
+        clock=lambda: _NOW,
+    )
+
+    listing = await coordinator.list_products(_list_request())
+
+    assert listing.products == ()
+    assert listing.purchase_continuation is None
+
+
+def test_completed_payload_does_not_invent_newer_response_defaults() -> None:
+    client = _Client("3.2-rc.1", {})
+    tools = ["get_products", "create_media_buy"]
+    coordinator = MediaBuyLifecycleCoordinator(client, _caps(["3.0"], tools=tools), tools)
+    wire = copy.deepcopy(_CASES[1]["legacy_response"])
+    typed = LegacyGetProductsResponse.model_validate(wire)
+
+    payload = coordinator._completed_payload(
+        "list_products",
+        TaskResult(status=TaskStatus.COMPLETED, data=typed),
+        MediaBuyLifecycle.ESTABLISHED,
+    )
+
+    assert "cache_scope" not in payload
+    assert "replayed" not in payload
+    assert "status" not in payload
 
 
 @pytest.mark.asyncio

@@ -196,6 +196,8 @@ def validate_outgoing_request(
     params: Any,
     mode: ValidationMode,
     debug_logs: list[DebugLogEntry] | None = None,
+    *,
+    version: str | None = None,
 ) -> ValidationOutcome | None:
     """Run request validation per the configured mode.
 
@@ -205,7 +207,7 @@ def validate_outgoing_request(
     """
     if mode == "off":
         return None
-    outcome = validate_request(tool_name, params)
+    outcome = validate_request(tool_name, params, version=version)
     if outcome.valid:
         return outcome
     if mode == "warn":
@@ -219,6 +221,8 @@ def validate_incoming_response(
     data: Any,
     mode: ValidationMode,
     debug_logs: list[DebugLogEntry] | None = None,
+    *,
+    version: str | None = None,
 ) -> ValidationOutcome:
     """Run response validation per the configured mode.
 
@@ -233,7 +237,7 @@ def validate_incoming_response(
     """
     if mode == "off":
         return ValidationOutcome(valid=True, issues=[], variant="skipped")
-    outcome = validate_response(tool_name, data)
+    outcome = validate_response(tool_name, data, version=version)
     if not outcome.valid and mode == "warn":
         _log_warning(debug_logs, tool_name, "response", outcome)
     return outcome

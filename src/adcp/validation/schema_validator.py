@@ -417,16 +417,18 @@ def _select_response_variant(payload: Any) -> ResponseVariant:
 def _normalize_response_for_validation(tool_name: str, payload: Any) -> Any:
     """Apply SDK compatibility defaults before strict beta 3 validation.
 
-    Beta 3 made the protocol envelope ``status`` required on every response.
-    ``cache_scope`` is deliberately not inferred here: response-only validation
-    lacks the request account context needed to distinguish public wholesale
-    feeds from account overlays.
+    Beta 3 made the protocol envelope ``status`` required on most responses.
+    Compact ``list_products`` is a synchronous outcome union and expressly does
+    not carry that task status. ``cache_scope`` is deliberately not inferred
+    here: response-only validation lacks the request account context needed to
+    distinguish public wholesale feeds from account overlays.
     """
     if not isinstance(payload, dict):
         return payload
 
     normalized = dict(payload)
-    normalized.setdefault("status", "completed")
+    if tool_name != "list_products":
+        normalized.setdefault("status", "completed")
     return normalized
 
 
