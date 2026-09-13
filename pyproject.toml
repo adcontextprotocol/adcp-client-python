@@ -187,6 +187,12 @@ adcp = [
     "ADCP_VERSION",
     "signing/pg/*.sql",
     "decisioning/pg/*.sql",
+    "reporting/ledger/*.sql",
+    # PREVIEW: vendored sync_reporting_status schemas. They are the runtime
+    # validator for the wire conditionals codegen cannot express, so the wheel
+    # must carry them. Removed with the rest of _preview/ at rc.2.
+    "reporting/_preview/schemas/**/*.json",
+    "reporting/_preview/schemas/UPSTREAM_COMMIT",
     # AdCP JSON schemas, mirrored from ``schemas/cache/`` by
     # ``scripts/bundle_schemas.py`` so the wheel ships them for
     # ``adcp.validation.schema_loader``.
@@ -219,13 +225,16 @@ target-version = ["py310", "py311", "py312"]
 # files, rolls back). The regen script already runs black on the
 # consolidated _generated.py; individual generated_poc/ files don't
 # need formatting at commit time. Mirrors the ruff extend-exclude.
-extend-exclude = "/(tasks|_generated|registry)\\.py$|/types/generated_poc/|/types/v3[012]\\.pyi$"
+extend-exclude = "/(tasks|_generated|registry)\\.py$|/types/generated_poc/|/types/v3[012]\\.pyi$|/reporting/_preview/_generated_models/"
 
 [tool.ruff]
 line-length = 100
 target-version = "py310"
 extend-exclude = [
     "src/adcp/types/_generated.py",
+    # datamodel-code-generator output; regenerate with
+    # scripts/vendor_reporting_status_preview.py rather than hand-editing.
+    "src/adcp/reporting/_preview/_generated_models/",
     "src/adcp/types/registry.py",
     "src/adcp/types/tasks.py",
     "src/adcp/types/generated_poc/",
@@ -259,6 +268,12 @@ plugins = ["adcp.types.mypy_plugin"]
 [[tool.mypy.overrides]]
 module = "tests.*"
 disable_error_code = ["import-not-found", "no-untyped-def", "var-annotated", "operator"]
+
+# Generated preview models for the unreleased sync_reporting_status schemas.
+# Same rationale as generated_poc: codegen output, replaced wholesale at rc.2.
+[[tool.mypy.overrides]]
+module = "adcp.reporting._preview._generated_models.*"
+disable_error_code = ["valid-type", "assignment", "unused-ignore"]
 
 [[tool.mypy.overrides]]
 module = "adcp.types.generated_poc.*"
