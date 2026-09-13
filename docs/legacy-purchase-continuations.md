@@ -5,6 +5,11 @@ response as `outcome: products_available`. A `legacy_create` continuation is a
 lossy bridge back to that seller's `create_media_buy`; it is not a proposal,
 seller feed fence, or reusable credential.
 
+Buyer applications that want one negotiated list-to-buy entry point across
+3.0, 3.1, and 3.2 should use the
+[media-buy lifecycle coordinator](media-buy-lifecycle-coordinator.md), which
+builds on this lower-level continuation machinery.
+
 The Python coordinator validates the SDK-local beta.5
 `CompatibilityPurchaseCoordinatorInput`, binds it to the complete discovery
 transaction, atomically claims the token, and stores the result for exact

@@ -54,7 +54,9 @@ LegacyPurchasePendingPoller: TypeAlias = Callable[
     "PendingTaskResolution | Awaitable[PendingTaskResolution]",
 ]
 
-_SOURCE_VERSION_RE = re.compile(r"^(?:2\.5|3\.[01])\.\d+$")
+_SOURCE_VERSION_RE = re.compile(
+    r"^(?:2\.5|3\.[01])\.\d+(?:-[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?)?$"
+)
 _REQUIRED_LOSSES = frozenset({"feed_version_not_atomic", "pricing_version_not_atomic"})
 _MUTATION_LOSS = "mutation_idempotency_not_guaranteed"
 _ALLOWED_LOSSES = _REQUIRED_LOSSES | {_MUTATION_LOSS}
@@ -1009,7 +1011,7 @@ class LegacyPurchaseCoordinator:
         except Exception as store_exc:
             try:
                 await asyncio.shield(self.store.mark_ambiguous(operation))
-            except Exception:
+            except Exception:  # nosec B110 - surface the original ambiguous commit
                 pass
             raise _ambiguous_error(operation) from store_exc
         assert completed.result is not None
@@ -1279,7 +1281,9 @@ def _execution_input(payload: JsonObject) -> JsonObject:
 
 def _validate_source_version(version: str) -> None:
     if not isinstance(version, str) or _SOURCE_VERSION_RE.fullmatch(version) is None:
-        raise _invalid("source_adcp_version must be an exact 2.5.x, 3.0.x, or 3.1.x release")
+        raise _invalid(
+            "source_adcp_version must be an exact 2.5.x, 3.0.x, or 3.1.x stable/prerelease bundle"
+        )
     bundled_version = get_bundle_adcp_version(version=version)
     if bundled_version != version:
         raise _invalid(

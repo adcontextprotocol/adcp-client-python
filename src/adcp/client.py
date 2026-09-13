@@ -2301,7 +2301,9 @@ class ADCPClient:
         """Return the raw AdCP 3.x product wire shape for migration tooling."""
 
         self._warn_legacy_creative_api("get_products_legacy")
-        raw_result = await self.adapter.get_products(request.model_dump(mode="json"))
+        raw_result = await self.adapter.get_products(
+            request.model_dump(mode="json", exclude_none=True)
+        )
         return self.adapter._parse_response(raw_result, LegacyGetProductsResponse)
 
     @staticmethod
