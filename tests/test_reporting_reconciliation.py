@@ -951,7 +951,7 @@ async def test_inspection_retries_use_exponential_backoff(
     async def fake_sleep(delay: float) -> None:
         delays.append(delay)
 
-    monkeypatch.setattr("adcp.reporting.asyncio.sleep", fake_sleep)
+    monkeypatch.setattr("adcp.reporting._reconcile.asyncio.sleep", fake_sleep)
 
     async def inspect(_: ReportingInspectionContext) -> ReportingObservation:
         raise OSError("destination unavailable")
