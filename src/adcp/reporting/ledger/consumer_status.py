@@ -1,23 +1,28 @@
-"""PREVIEW: ``sync_reporting_status`` ingest and the mismatch projection.
+"""``sync_reporting_status`` ingest and the consumer-mismatch projection.
 
 This closes the operational loop between what a seller says it published and
 what an authenticated buyer could actually consume.  Without it, a seller's
 ledger is a monologue: every obligation can look ``complete`` while the buyer
 has never successfully read a single revision.
 
-**Preview, and off by default.** ``sync_reporting_status`` merged to
-``adcontextprotocol/adcp`` main but is not in a cut release tag, so its wire
-types are not in this SDK's pinned bundle.  The models come from
-:mod:`adcp.reporting._preview`, which is generated from vendored schemas and
-will be deleted when rc.2 regenerates.  Turn the ingest on with::
+**Opt-in, and off by default.** ``sync_reporting_status`` is an additive
+extension in AdCP 3.2.0-rc.2; it becomes required Core only in the next
+eligible minor after 2026-10-24.  Turn the ingest on with::
 
     import adcp.reporting.ledger.consumer_status as consumer_status
-    consumer_status.CONSUMER_STATUS_PREVIEW_ENABLED = True
+    consumer_status.CONSUMER_STATUS_ENABLED = True
 
 or per-instance via ``ConsumerStatusIngest(..., enabled=True)``.  A seller that
 turns it on must advertise ``consumer_status_task``; a seller that does not
 should leave it off, because a half-implemented status loop is worse than none
 -- a buyer that can file statements nobody reads believes it has told you.
+
+Wire types come from :mod:`adcp.types`; the conditional rules that
+``datamodel-code-generator`` flattens away (``received`` requires a revision id
+and digest, ``obligation_missing`` forbids them, and so on) are enforced
+directly against the bundled ``core/reporting-consumer-status.json`` through
+:func:`adcp.validation.schema_loader.get_named_validator`, so they stay in the
+schema rather than being restated in Python and drifting.
 
 What a statement is, and is not
 -------------------------------
@@ -73,21 +78,21 @@ from adcp.reporting.ledger.models import (
 from adcp.reporting.ledger.store import LedgerConflictError, ReportingLedgerStore
 
 __all__ = [
-    "CONSUMER_STATUS_PREVIEW_ENABLED",
+    "CONSUMER_STATUS_ENABLED",
+    "ConsumerStatusDisabledError",
     "ConsumerStatusIngest",
-    "ConsumerStatusPreviewDisabledError",
     "project_consumer_mismatch",
 ]
 
 ResponsibleParty = Literal["buyer", "seller", "provider"]
 
-#: Module-level opt-in for the whole preview surface.  Off because the wire
-#: shape is not in a cut release yet; see the module docstring.
-CONSUMER_STATUS_PREVIEW_ENABLED = False
+#: Module-level opt-in for the whole consumer-status surface. Off by default:
+#: the task is an additive extension a seller must deliberately advertise.
+CONSUMER_STATUS_ENABLED = False
 
 
-class ConsumerStatusPreviewDisabledError(RuntimeError):
-    """The preview ingest was called without being enabled."""
+class ConsumerStatusDisabledError(RuntimeError):
+    """The consumer-status ingest was called without being enabled."""
 
 
 def _utc(value: datetime) -> datetime:
@@ -106,13 +111,13 @@ class ConsumerStatusIngest:
     enabled: bool | None = None
 
     def _require_enabled(self) -> None:
-        active = CONSUMER_STATUS_PREVIEW_ENABLED if self.enabled is None else self.enabled
+        active = CONSUMER_STATUS_ENABLED if self.enabled is None else self.enabled
         if not active:
-            raise ConsumerStatusPreviewDisabledError(
-                "sync_reporting_status is a preview surface built on vendored, unreleased "
-                "schemas. Set adcp.reporting.ledger.consumer_status."
-                "CONSUMER_STATUS_PREVIEW_ENABLED = True, or pass enabled=True, and advertise "
-                "consumer_status_task before accepting live statements."
+            raise ConsumerStatusDisabledError(
+                "sync_reporting_status is an additive opt-in extension. Set "
+                "adcp.reporting.ledger.consumer_status.CONSUMER_STATUS_ENABLED = True, or "
+                "pass enabled=True, and advertise consumer_status_task before accepting "
+                "live statements."
             )
 
     async def handle(
@@ -126,7 +131,6 @@ class ConsumerStatusIngest:
         statements to one stale supersession pointer.
         """
         self._require_enabled()
-        from adcp.reporting._preview import validate_consumer_status_wire
 
         statements = request.get("statuses") or []
         if not statements:
@@ -137,7 +141,7 @@ class ConsumerStatusIngest:
         results: list[dict[str, Any]] = []
         for statement in statements:
             status_id = statement.get("reporting_status_id", "")
-            problems = validate_consumer_status_wire(statement)
+            problems = _validate_consumer_status_wire(statement)
             if problems:
                 results.append(_failed(status_id, "INVALID_CONSUMER_STATUS", problems[0]))
                 continue
@@ -215,7 +219,7 @@ class ConsumerStatusIngest:
     def _to_record(
         statement: dict[str, Any], *, account_id: str, consumer_id: str
     ) -> ConsumerStatusRecord:
-        from adcp.reporting._preview import ReportingConsumerStatus
+        from adcp.types import ReportingConsumerStatus
 
         parsed = ReportingConsumerStatus.model_validate(statement)
         period = parsed.period
@@ -245,6 +249,32 @@ class ConsumerStatusIngest:
                 _utc(parsed.seller_ledger_as_of) if parsed.seller_ledger_as_of else None
             ),
         )
+
+
+def _validate_consumer_status_wire(payload: dict[str, Any]) -> list[str]:
+    """Check a statement against the bundled schema's conditional rules.
+
+    ``datamodel-code-generator`` flattens the ``allOf``/``if``/``then`` block
+    that makes ``received`` require a revision id and digest,
+    ``revision_missing`` require an obligation id and forbid a revision id, and
+    so on.  Restating those rules in Python would mean maintaining a second
+    copy that drifts, so the schema shipped with the SDK enforces them.
+
+    Returns human-readable messages, empty when the statement is valid.  A
+    bundle without the schema (an older pin) yields no messages rather than
+    failing closed: the Pydantic model has already checked the field types, and
+    refusing every statement because the SDK is pinned a version back would
+    take a seller's whole status loop offline.
+    """
+    from adcp.validation.schema_loader import get_named_validator
+
+    validator = get_named_validator("core/reporting-consumer-status.json")
+    if validator is None:
+        return []
+    return [
+        f"{'.'.join(str(part) for part in error.absolute_path) or 'statement'}: {error.message}"
+        for error in sorted(validator.iter_errors(payload), key=str)
+    ]
 
 
 def _failed(status_id: str, code: str, message: str) -> dict[str, Any]:

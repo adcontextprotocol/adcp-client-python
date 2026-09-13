@@ -49,19 +49,19 @@ Health is derived, never stored -- a pure function of obligations, revisions,
 and the snapshot clock, so it cannot go stale and two readers of one snapshot
 cannot disagree.
 
-Preview surface
----------------
+Opt-in surface
+--------------
 
-:mod:`adcp.reporting.ledger.consumer_status` implements ``sync_reporting_status``
-against vendored, unreleased schemas and is **off by default**.  See that
-module for why, and for what turning it on commits you to.
+:mod:`adcp.reporting.ledger.consumer_status` implements ``sync_reporting_status``,
+an additive opt-in extension in AdCP 3.2.0-rc.2 that is **off by default**.
+See that module for what turning it on commits you to.
 """
 
 from __future__ import annotations
 
 from adcp.reporting.ledger.consumer_status import (
+    ConsumerStatusDisabledError,
     ConsumerStatusIngest,
-    ConsumerStatusPreviewDisabledError,
     project_consumer_mismatch,
 )
 from adcp.reporting.ledger.health import (
@@ -108,8 +108,8 @@ from adcp.reporting.ledger.store import (
 )
 
 __all__ = [
+    "ConsumerStatusDisabledError",
     "ConsumerStatusIngest",
-    "ConsumerStatusPreviewDisabledError",
     "ConsumerStatusRecord",
     "InMemoryReportingLedgerStore",
     "LeasedConfiguration",

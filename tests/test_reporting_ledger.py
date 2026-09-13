@@ -13,8 +13,8 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from adcp.reporting.ledger import (
+    ConsumerStatusDisabledError,
     ConsumerStatusIngest,
-    ConsumerStatusPreviewDisabledError,
     InMemoryReportingLedgerStore,
     LedgerConflictError,
     ProducerOfferings,
@@ -714,9 +714,11 @@ def _statement(**overrides) -> dict[str, object]:
     return payload
 
 
-async def test_the_preview_ingest_is_off_by_default() -> None:
+async def test_the_ingest_is_off_by_default() -> None:
+    # sync_reporting_status is additive and opt-in: a seller that has not
+    # advertised consumer_status_task must not silently accept statements.
     store, _ = await _seeded()
-    with pytest.raises(ConsumerStatusPreviewDisabledError, match="preview surface"):
+    with pytest.raises(ConsumerStatusDisabledError, match="opt-in extension"):
         await ConsumerStatusIngest(store).handle(
             {"statuses": [_statement()]}, account_id=ACCOUNT, consumer_id="buyer_1"
         )

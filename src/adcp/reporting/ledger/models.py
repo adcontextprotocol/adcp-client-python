@@ -359,7 +359,7 @@ class ReportingAdjustmentRecord:
 
 @dataclass(frozen=True)
 class ConsumerStatusRecord:
-    """PREVIEW: one authenticated consumer statement about what it could consume.
+    """One authenticated consumer statement about what it could consume.
 
     Separately attributed, append-only, and never seller-authored evidence:
     ``received`` does not satisfy the seller's production health, and a
