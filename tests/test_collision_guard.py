@@ -18,6 +18,8 @@ from scripts.consolidate_exports import (
     KNOWN_COLLISIONS,
     _enforce_collision_allowlist,
     _scan_name_to_modules,
+    extract_exports_from_module,
+    exports_for_public_consolidation,
     load_collision_allowlist,
 )
 
@@ -231,17 +233,15 @@ def test_aggregate_modules_export_only_their_root(
     type in ``adcp.types`` and let traversal order pick which one an adopter
     gets.
     """
-    import scripts.consolidate_exports as consolidate
-
     module_path = tmp_path / relative_path
     module_path.parent.mkdir(parents=True, exist_ok=True)
     module_path.write_text(source)
-    monkeypatch.setattr(consolidate, "GENERATED_POC_DIR", tmp_path)
+    monkeypatch.setattr("scripts.consolidate_exports.GENERATED_POC_DIR", tmp_path)
 
-    exports = consolidate.exports_for_public_consolidation(module_path)
+    exports = exports_for_public_consolidation(module_path)
 
     assert exports == {root}
     assert not (exports & inlined), "inlined private copies must stay out of the namespace"
     # Sanity: without the suppression the raw extractor does see them, so this
     # test would fail loudly if the special case were dropped.
-    assert inlined <= consolidate.extract_exports_from_module(module_path)
+    assert inlined <= extract_exports_from_module(module_path)
