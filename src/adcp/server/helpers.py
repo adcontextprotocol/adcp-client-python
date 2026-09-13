@@ -91,6 +91,8 @@ def _read_error_code_schema() -> dict[str, Any]:
         if packaged.is_file():
             return cast(dict[str, Any], json.loads(packaged.read_text(encoding="utf-8")))
     except (ModuleNotFoundError, FileNotFoundError, OSError):
+        # Editable installs may not have run bundle_schemas.py; the source
+        # checkout cache below is the supported fallback for that layout.
         pass
 
     here = Path(__file__).resolve()
