@@ -92,3 +92,156 @@ def test_single_definition_name_does_not_trip_guard():
     name_to_modules = {"SoloUniqueGuardSentinel": {"core.solo"}}
     # Must not raise.
     _enforce_collision_allowlist(name_to_modules, set(KNOWN_COLLISIONS))
+
+
+# ---------------------------------------------------------------------------
+# Aggregate schemas that inline private copies of a $ref'd schema
+# ---------------------------------------------------------------------------
+#
+# ``card-asset.json`` and ``macro-declaration.json`` ``$ref`` other schemas.
+# Whether datamodel-code-generator emits an import or inlines a private copy
+# of the referenced graph depends on which module it reaches first, and that
+# traversal order shifts whenever the bundle gains or loses a schema — see the
+# codegen-instability note in CLAUDE.md.
+#
+# AdCP 3.2.0-rc.2 added new schemas (sync_reporting_status, consumer status,
+# forecast rate range) with no change at all to card-asset.json or
+# macro-declaration.json, and the reshuffled traversal made both modules start
+# inlining. That produced 12 duplicate public type names for 12 wire types that
+# already had canonical homes.
+#
+# ``exports_for_public_consolidation`` keeps those private copies out of the
+# public namespace, exactly as it already does for ``asset_union`` and
+# ``coordinated_placements``. These tests pin that behavior against a synthetic
+# inlined module, so the guard holds whether or not the pinned bundle currently
+# triggers the inlining.
+
+_INLINED_CARD_ASSET = """
+from adcp.types.base import AdCPBaseModel
+
+
+class AiTool(AdCPBaseModel):
+    name: str
+
+
+class C2pa(AdCPBaseModel):
+    manifest: str
+
+
+class EmbeddedProvenanceItem(AdCPBaseModel):
+    kind: str
+
+
+class RenderGuidance(AdCPBaseModel):
+    hint: str
+
+
+class VerificationItem(AdCPBaseModel):
+    result: str
+
+
+class Watermark(AdCPBaseModel):
+    media: str
+
+
+class Provenance(AdCPBaseModel):
+    declared_by: str
+
+
+class CardAsset(AdCPBaseModel):
+    asset_type: str
+"""
+
+_INLINED_MACRO_DECLARATION = """
+from enum import StrEnum
+
+from adcp.types.base import AdCPBaseModel
+
+
+class MacroMappingStatus(StrEnum):
+    mapped = "mapped"
+
+
+class UniversalMacro(StrEnum):
+    device_id = "DEVICE_ID"
+
+
+class MacroProcessingOperation(StrEnum):
+    resolve_value = "resolve_value"
+
+
+class MacroTranslationTarget(AdCPBaseModel):
+    token: str
+
+
+class MacroValueContext(StrEnum):
+    url = "url"
+
+
+class MacroEncoding(AdCPBaseModel):
+    kind: str
+
+
+class MacroDeclaration(AdCPBaseModel):
+    token: str
+"""
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "source", "root", "inlined"),
+    [
+        (
+            "core/assets/card_asset.py",
+            _INLINED_CARD_ASSET,
+            "CardAsset",
+            {
+                "AiTool",
+                "C2pa",
+                "EmbeddedProvenanceItem",
+                "RenderGuidance",
+                "VerificationItem",
+                "Watermark",
+                "Provenance",
+            },
+        ),
+        (
+            "core/macro_declaration.py",
+            _INLINED_MACRO_DECLARATION,
+            "MacroDeclaration",
+            {
+                "MacroEncoding",
+                "MacroMappingStatus",
+                "MacroProcessingOperation",
+                "MacroTranslationTarget",
+                "MacroValueContext",
+                "UniversalMacro",
+            },
+        ),
+    ],
+    ids=["card_asset", "macro_declaration"],
+)
+def test_aggregate_modules_export_only_their_root(
+    tmp_path, monkeypatch, relative_path, source, root, inlined
+):
+    """An inlined private copy must not reach the public namespace.
+
+    Each inlined class is a copy of a wire type whose canonical definition
+    lives in its own module (``core/provenance.py``, ``enums/universal_macro.py``
+    and friends). Exporting the copy too would put two classes for one wire
+    type in ``adcp.types`` and let traversal order pick which one an adopter
+    gets.
+    """
+    import scripts.consolidate_exports as consolidate
+
+    module_path = tmp_path / relative_path
+    module_path.parent.mkdir(parents=True, exist_ok=True)
+    module_path.write_text(source)
+    monkeypatch.setattr(consolidate, "GENERATED_POC_DIR", tmp_path)
+
+    exports = consolidate.exports_for_public_consolidation(module_path)
+
+    assert exports == {root}
+    assert not (exports & inlined), "inlined private copies must stay out of the namespace"
+    # Sanity: without the suppression the raw extractor does see them, so this
+    # test would fail loudly if the special case were dropped.
+    assert inlined <= consolidate.extract_exports_from_module(module_path)

@@ -197,6 +197,23 @@ def exports_for_public_consolidation(module_path: Path) -> set[str]:
         # This aggregate schema inlines the component canonical formats. Keep
         # those nested implementation copies private and export only its root.
         return exports & {"CanonicalFormatCoordinatedPlacements"}
+    if rel_path == Path("core/assets/card_asset.py"):
+        # card-asset.json ``$ref``s core/provenance.json. Depending on which
+        # module the generator visits first, it either emits an import or
+        # inlines the whole provenance graph here (AiTool, C2pa,
+        # EmbeddedProvenanceItem, RenderGuidance, VerificationItem,
+        # Watermark). Those inlined classes are copies of the canonical ones
+        # in core/provenance.py, so exporting them would put two classes for
+        # one wire type in the public namespace and let traversal order decide
+        # which an adopter gets. Export only the root.
+        return exports & {"CardAsset"}
+    if rel_path == Path("core/macro_declaration.py"):
+        # Same shape: macro-declaration.json ``$ref``s the macro enums and
+        # core/macro-encoding.json / core/macro-translation-target.json, and
+        # the generator inlines copies of them here when it reaches this
+        # module first. The canonical definitions live in enums/ and their
+        # own core/ modules; keep these copies private and export the root.
+        return exports & {"MacroDeclaration"}
     return exports
 
 
