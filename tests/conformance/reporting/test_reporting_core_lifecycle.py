@@ -75,7 +75,12 @@ from adcp.reporting.ledger import (  # noqa: E402
 )
 from adcp.reporting.ledger.models import first_ordinal_after  # noqa: E402
 from adcp.reporting.ledger.pg import PgReportingLedgerStore  # noqa: E402
-from adcp.types import GetReportingStatusRequest, GetReportingStatusResponse  # noqa: E402
+from adcp.types import (  # noqa: E402
+    GetReportingStatusRequest,
+    GetReportingStatusResponse,
+    SyncReportingStatusRequest,
+    SyncReportingStatusResponse,
+)
 from adcp.types.core import TaskResult  # noqa: E402
 
 ACCOUNT = "acct_lifecycle"
@@ -686,24 +691,14 @@ async def test_the_status_projection_validates_as_adcp_wire(
 async def test_the_consumer_status_loop_closes_over_the_lifecycle(
     ledger: PgReportingLedgerStore,
 ) -> None:
-    """PREVIEW: the buyer tells the seller what it could actually consume.
+    """The buyer tells the seller what it could actually consume.
 
-    Exercised here because the ingest and the mismatch projection are
-    implemented and tested, but note what is *not* asserted: the batch is not
-    round-tripped through a generated ``SyncReportingStatusRequest`` from
-    ``adcp.types``, because ``sync_reporting_status`` is not in a cut release
-    tag and those types do not exist in this SDK's pinned bundle. The models
-    used here come from the vendored preview
-    (:mod:`adcp.reporting._preview`).
-
-    **TODO(rc.2):** once the SDK repins to a bundle containing
-    ``sync-reporting-status-request.json``, delete
-    ``src/adcp/reporting/_preview/`` and rewrite this test to drive the ingest
-    through ``adcp.types.SyncReportingStatusRequest`` and assert the response
-    validates as ``adcp.types.SyncReportingStatusResponse`` -- the same
+    Driven through the generated ``SyncReportingStatusRequest`` and asserted to
+    come back as a valid ``SyncReportingStatusResponse``, the same
     generated-type round trip
     :func:`test_the_status_projection_validates_as_adcp_wire` does for
-    ``get_reporting_status``.
+    ``get_reporting_status`` -- so "the seller speaks valid AdCP here too" is
+    asserted, not assumed.
     """
     from adcp.reporting.ledger import ConsumerStatusIngest
 
@@ -748,10 +743,22 @@ async def test_the_consumer_status_loop_closes_over_the_lifecycle(
         "reporting_revision_id": revision.reporting_revision_id,
         "observed_revision_content_sha256": revision.revision_content_sha256,
     }
+    # Through the generated request model, so a batch this SDK would not
+    # accept on the wire cannot pass here either.
+    batch = SyncReportingStatusRequest.model_validate(
+        {
+            "account": {"account_id": ACCOUNT},
+            "idempotency_key": "idem_lifecycle_00000001",
+            "statuses": [statement],
+        }
+    )
     recorded = await ingest.handle(
-        {"statuses": [statement]}, account_id=ACCOUNT, consumer_id=CALLER.consumer_id
+        batch.model_dump(mode="json", exclude_none=True),
+        account_id=ACCOUNT,
+        consumer_id=CALLER.consumer_id,
     )
     assert recorded["results"][0]["result"] == "recorded"
+    assert SyncReportingStatusResponse.model_validate(recorded).status == "completed"
 
     # A matching `received` is not a mismatch: the seller and the buyer agree.
     handler = ReportingStatusHandler(ledger, consumer_status_enabled=True)
@@ -784,6 +791,7 @@ async def test_the_consumer_status_loop_closes_over_the_lifecycle(
         consumer_id=CALLER.consumer_id,
     )
     assert unreadable["results"][0]["result"] == "recorded"
+    assert SyncReportingStatusResponse.model_validate(unreadable).status == "completed"
 
     degraded = await handler.handle({"view": "periods"}, caller=CALLER)
     issue = degraded["periods"][0]["issues"][0]
