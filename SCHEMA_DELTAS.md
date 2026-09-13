@@ -1,95 +1,46 @@
 # Generated-types delta
 
-## Files added
+## Files removed
 
-- `account/sync_governance_response.py` — Account, GovernanceAgent, Status, SyncGovernanceResponse1, SyncGovernanceResponse2
-- `brand/creative_approval_response.py` — CreativeApprovalResponse1, CreativeApprovalResponse2, CreativeApprovalResponse3, CreativeApprovalResponse4
-- `compliance/comply_test_controller_response.py` — AttestationMode, ComplyResponseArm, ComplyTestControllerResponse1, ComplyTestControllerResponse2, ComplyTestControllerResponse3, ComplyTestControllerResponse4, ComplyTestControllerResponse5, ComplyTestControllerResponse6, ComplyTestControllerResponse7, ComplyTestControllerResponse8, Error, Forced, IdentifierMatchProof, Method, Purpose, RecordedCalls, RecordedCalls1, RecordedCalls2, Suggestion
-- `content_standards/create_content_standards_response.py` — CreateContentStandardsResponse1, CreateContentStandardsResponse2
-- `content_standards/list_content_standards_response.py` — ListContentStandardsResponse1, ListContentStandardsResponse2
-- `content_standards/update_content_standards_response.py` — UpdateContentStandardsResponse1, UpdateContentStandardsResponse2
+- `core/geo_metro.py` — GeoMetro
+- `core/negative_keyword.py` — NegativeKeyword
+- `core/targeting_input.py` — KeywordTarget, TargetingOverlayInput
+- `core/targeting_unknown_age_eligibility_constraint.py` — TargetingUnknownAgeEligibilityConstraint
+- `core/targeting_verified_age_basis_constraint.py` — TargetingVerifiedAgeBasisConstraint
+- `media_buy/product_purchase_input.py` — ProductPurchaseInput
 
 ## Field changes
 
-- `a2ui/si_catalog.py`
-  - **classes added**: Variant4
-  - **classes removed**: Variant2
-- `account/list_account_changes_response.py`
-  - **classes added**: Status22
-  - `ListAccountChangesResponse`: `+status`
-- `adagents.py`
-  - **classes added**: AuthorizedAgents10, AuthorizedAgents11, AuthorizedAgents12, AuthorizedAgents13, AuthorizedAgents15, AuthorizedAgents16, AuthorizedAgents17, AuthorizedAgents18, AuthorizedAgents19, AuthorizedAgents20, AuthorizedAgents22, AuthorizedAgents23, AuthorizedAgents24, AuthorizedAgents25, AuthorizedAgents26, AuthorizedAgents27, AuthorizedAgents29, AuthorizedAgents30, AuthorizedAgents31, AuthorizedAgents32, AuthorizedAgents33, AuthorizedAgents34, AuthorizedAgents36, AuthorizedAgents37, AuthorizedAgents38, AuthorizedAgents39, AuthorizedAgents40, AuthorizedAgents41, AuthorizedAgents43, AuthorizedAgents44, AuthorizedAgents45, AuthorizedAgents46, AuthorizedAgents47, AuthorizedAgents48, AuthorizedAgents8, AuthorizedAgents9
-- `brand/search_brands_response.py`
-  - **classes added**: SearchBrandsResponse
 - `bundled/protocol/get_adcp_capabilities_response.py`
-  - **classes added**: CallerEventType, Disclosure6, GeoPostalAreasAdditionalPropertyEnum
-  - **classes removed**: Disclosure2
-- `core/audience_evidence.py`
-  - **classes removed**: Subject17, Subject27
-- `core/creative_representation.py`
-  - **classes removed**: Assets, CreativeRepresentation1, CreativeRepresentation2, CreativeRepresentation3, CreativeRepresentation4, CreativeRepresentation5
-  - `CreativeRepresentation`: `+format_kind`, `+representation_id`, `+source` `-root`
-- `core/delivery_metric_aggregate.py`
-  - **classes added**: DeliveryMetricAggregate1
-- `core/format.py`
-  - **classes added**: Assets10, Assets9
-  - **classes removed**: Assets38, Assets39
-  - `Assets16`: `-requirements`
-  - `Assets18`: `+requirements`
-  - `Assets21`: `-requirements`
-  - `Assets23`: `+asset_group_id`, `+assets`, `+max_count`, `+min_count`, `+required`, `+selection_mode` `-asset_type`
-  - `Assets24`: `+root` `-asset_type`, `-item_type`, `-requirements`
-  - `Assets25`: `+asset_type`, `+requirements` `-asset_group_id`, `-assets`, `-item_type`, `-max_count`, `-min_count`, `-required`, `-selection_mode`
-  - `Assets26`: `+asset_type`, `+requirements` `-root`
-  - `Assets33`: `-requirements`
-  - `Assets35`: `+requirements`
-- `core/package_format_snapshot.py`
-  - `PackageFormatSnapshot17`: `+format_kind`, `+params`
-- `core/postal_area_support.py`
-  - **classes added**: PostalAreaSupportAdditionalPropertyEnum
-- `core/product_format_declaration.py`
-  - **classes added**: ProductFormatDeclaration1, ProductFormatDeclaration10, ProductFormatDeclaration11, ProductFormatDeclaration12, ProductFormatDeclaration13, ProductFormatDeclaration14, ProductFormatDeclaration15, ProductFormatDeclaration16, ProductFormatDeclaration2, ProductFormatDeclaration3, ProductFormatDeclaration4, ProductFormatDeclaration5, ProductFormatDeclaration6, ProductFormatDeclaration7, ProductFormatDeclaration8, ProductFormatDeclaration9
-  - `ProductFormatDeclaration`: `+root` `-applies_to_channels`, `-canonical_formats_only`, `-display_name`, `-experimental`, `-format_option_id`, `-format_schema`, `-format_shape`, `-locale_policy`, `-macro_resolution_capabilities`, `-publisher_domain`, `-sample_render_url`, `-seller_preference`, `-technical_requirements_complete`, `-tracker_execution_contract`, `-v1_format_ref`
-- `core/transformer.py`
-  - **classes removed**: InputFormat34, Transformer1, Transformer2
-  - `Transformer`: `+description`, `+input_format_ids`, `+input_formats`, `+metadata`, `+multiplicity`, `+name`, `+output_capability_ids`, `+output_format_ids`, `+params`, `+pricing_options`, `+transformer_id`, `+voice_synthesis_ref` `-root`
-- `creative/list_creatives_response.py`
-  - **classes added**: Creative
-  - **classes removed**: AssignedPackage1, Assignments1, Creatives, Creatives1
-- `creative/preview_creative_request.py`
-  - **classes added**: Input10
-  - **classes removed**: Input12
-- `creative/sync_creatives_request.py`
-  - **classes removed**: Assets, Creative61, Creative62, Creative63, Input
-  - `Creative`: `+localization`, `+revision_id` `-root`
-- `governance/check_governance_request.py`
-  - **classes added**: Subject8, Subject9
-- `governance/sync_plans_response.py`
-  - **classes added**: Status50
-  - **classes removed**: Status45
-- `media_buy/decline_proposals_response.py`
-  - **classes added**: Results4, Results5
-- `media_buy/get_reporting_status_response.py`
-  - **classes added**: Status
-  - `GetReportingStatusResponse`: `+status`
-- `media_buy/package_request.py`
-  - **classes removed**: Assets, Creative, Creative41, Creative42, Input
-- `media_buy/package_update.py`
-  - **classes removed**: Assets, Creative, Creative51, Creative52, Input
-- `media_buy/refine_proposals_response.py`
-  - **classes added**: Results11, Results16, Results17, Results18
-  - **classes removed**: Results13, Results6, Results7
-  - `Results12`: `+outcome`, `+proposal`, `+proposals`, `+reason`, `+reason_code`, `+source_proposal_id`, `+suggestions`, `+targeting_resolution`, `+unsatisfied_constraints`, `+unsatisfied_product_changes` `-root`
-  - `Results14`: `+root` `-outcome`, `-proposal`, `-proposals`, `-reason`, `-reason_code`, `-source_proposal_id`, `-suggestions`, `-targeting_resolution`, `-unsatisfied_constraints`, `-unsatisfied_product_changes`
-  - `Results8`: `+root` `-outcome`, `-proposal`, `-proposals`, `-reason`, `-reason_code`, `-source_proposal_id`, `-suggestions`, `-targeting_resolution`, `-unsatisfied_constraints`, `-unsatisfied_product_changes`
-- `media_buy/sync_reporting_receipts_response.py`
-  - **classes added**: Results22, Results23
-  - **classes removed**: Results18, Results19
-  - `Results20`: `+receipt` `-adjustment_receipt`
-  - `Results21`: `+receipt` `-adjustment_receipt`
+  - **classes added**: Disclosure3, EmbeddedProvenanceItem2, VerifyAgent4, Watermark2
+  - **classes removed**: Disclosure7, EmbeddedProvenanceItem6, VerifyAgent6, Watermark6
+- `core/assets/asset_union.py`
+  - **classes removed**: ImageAssetModel, UrlAssetModel, VideoAssetModel
+- `core/assets/card_asset.py`
+  - **classes removed**: AiTool, C2pa, DeclaredBy, Disclosure, EmbeddedProvenanceItem, HumanOversight, Jurisdiction, PlatformExtensionRef, Provenance, RenderGuidance, Result, Role, VerificationItem, VerifyAgent, VerifyAgent4, Watermark
+- `core/assets/daast_asset.py`
+  - **classes added**: Location13, MacroDeclaration12
+  - **classes removed**: Location14, MacroDeclaration13
+- `core/assets/display_tag_asset.py`
+  - **classes added**: MacroDeclaration15
+  - **classes removed**: MacroDeclaration17
+- `core/assets/vast_asset.py`
+  - **classes added**: Location26, MacroDeclaration20
+  - **classes removed**: Location27, MacroDeclaration21
+- `core/macro_declaration.py`
+  - **classes removed**: Kind, MacroDialect, MacroEncoding, MacroMappingStatus, MacroProcessingOperation, MacroResolver, MacroTranslationTarget, MacroValueContext, UniversalMacro
+- `core/provenance.py`
+  - **classes added**: VerifyAgent18
+  - **classes removed**: VerifyAgent20
+- `core/targeting.py`
+  - **classes added**: GeoMetro, NegativeKeyword
+  - **classes removed**: AudienceExclude, AudienceInclude, AxeExcludeSegment, AxeIncludeSegment, Browser, BrowserExclude, CollectionListExclude, DaypartTargets, Demographics, DevicePlatform, DevicePlatformExclude, DeviceType, DeviceTypeExclude, GeoCountries, GeoCountriesExclude, GeoMetrosExclude, GeoPlaces, GeoPlacesExclude, GeoPostalAreas, GeoPostalAreasExclude, GeoRegions, GeoRegionsExclude, PlacementSelection, PropertyListExclude, StoreCatchments
+- `media_buy/product_purchase.py`
+  - **classes removed**: AgencyEstimateNumber, AudienceEvidencePins, Bidding, Budget, CatalogIds, Context, DailyBudgetCap, EndTime, Ext, FormatOptionRefs, MinSpendTarget, OptimizationGoals, Pacing, PerformanceStandards, Pricing, StartTime
+- `protocol/get_principal_response.py`
+  - **classes added**: Result6, Result9
+  - **classes removed**: Result10, Result8
+  - `Result7`: `-configuration`, `-configuration_version`
 - `protocol/sync_principal_response.py`
-  - **classes added**: Action32
-  - **classes removed**: Action29
-- `sponsored_intelligence/si_sponsored_context_receipt.py`
-  - **classes added**: Status45
-  - **classes removed**: Status42
+  - **classes added**: Result17, Result19
+  - **classes removed**: Result18, Result20

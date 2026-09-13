@@ -55,11 +55,22 @@ def test_specialism_map_covers_every_protocol_family_slug() -> None:
     """Every spec slug that has a Protocol implementation in the
     framework MUST appear in the map. Meta-claims (signed-requests,
     governance-aware-seller) are documented exclusions — they compose
-    with another non-meta claim."""
+    with another non-meta claim. Buyer-side and orchestrator claims are
+    excluded too: this map answers "which tools does a *seller* advertise
+    for this claim", and a buyer agent advertises none — it calls them."""
     from adcp.decisioning.dispatch import SPEC_SPECIALISM_ENUM
 
     meta_claims = {"signed-requests", "governance-aware-seller"}
-    expected = SPEC_SPECIALISM_ENUM - meta_claims
+    # AdCP 3.2.0-rc.2 buyer/orchestrator claims (all `preview` status).
+    buyer_claims = {
+        "buyer-activation",
+        "buyer-discovery",
+        "buyer-monitoring",
+        "buyer-negotiation",
+        "buyer-recovery",
+        "orchestrator-multi-agent",
+    }
+    expected = SPEC_SPECIALISM_ENUM - meta_claims - buyer_claims
     missing = expected - set(SPECIALISM_TO_ADVERTISED_TOOLS.keys())
     assert not missing, (
         f"specialisms missing from map: {sorted(missing)}; "

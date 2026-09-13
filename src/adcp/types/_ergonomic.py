@@ -545,12 +545,17 @@ def _apply_coercion() -> None:
     ListCreativeFormatsResponse.model_rebuild(force=True)
 
     # Apply coercion to CreateMediaBuyResponse1
+    # - context: ContextObject | dict | None
     # - media_buy_status: MediaBuyStatus | str | None
     # - pacing: Pacing | str | None
     # - valid_actions: list[MediaBuyValidAction | str] | None
     # - packages: list[Package] (accepts subclass instances)
-    # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
+    _patch_field_annotation(
+        CreateMediaBuyResponse1,
+        "context",
+        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
+    )
     _patch_field_annotation(
         CreateMediaBuyResponse1,
         "media_buy_status",
@@ -579,23 +584,23 @@ def _apply_coercion() -> None:
     )
     _patch_field_annotation(
         CreateMediaBuyResponse1,
-        "context",
-        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
-    )
-    _patch_field_annotation(
-        CreateMediaBuyResponse1,
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
     CreateMediaBuyResponse1.model_rebuild(force=True)
 
     # Apply coercion to UpdateMediaBuyResponse1
+    # - context: ContextObject | dict | None
     # - media_buy_status: MediaBuyStatus | str | None
     # - pacing: Pacing | str | None
     # - affected_packages: Sequence[Package] (accepts subclass instances)
     # - valid_actions: list[MediaBuyValidAction | str] | None
-    # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
+    _patch_field_annotation(
+        UpdateMediaBuyResponse1,
+        "context",
+        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
+    )
     _patch_field_annotation(
         UpdateMediaBuyResponse1,
         "media_buy_status",
@@ -621,11 +626,6 @@ def _apply_coercion() -> None:
             list[MediaBuyValidAction] | None,
             BeforeValidator(coerce_to_enum_list(MediaBuyValidAction)),
         ],
-    )
-    _patch_field_annotation(
-        UpdateMediaBuyResponse1,
-        "context",
-        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
     )
     _patch_field_annotation(
         UpdateMediaBuyResponse1,

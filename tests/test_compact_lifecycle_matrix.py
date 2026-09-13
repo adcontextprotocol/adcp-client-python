@@ -185,13 +185,13 @@ class _NativeCompactEnvelopeHandler(ADCPHandler[Any]):
     [
         ("3.0", "legacy", LEGACY_LIFECYCLE_TASKS),
         ("3.1", "legacy", LEGACY_LIFECYCLE_TASKS),
-        ("3.2-rc.1", "legacy", LEGACY_LIFECYCLE_TASKS),
+        ("3.2-rc.2", "legacy", LEGACY_LIFECYCLE_TASKS),
         (
-            "3.2-rc.1",
+            "3.2-rc.2",
             "direct",
             LEGACY_LIFECYCLE_TASKS | {"list_products", "buy_products", "control_media_buy"},
         ),
-        ("3.2-rc.1", "proposal", LEGACY_LIFECYCLE_TASKS | PROPOSAL_TASKS),
+        ("3.2-rc.2", "proposal", LEGACY_LIFECYCLE_TASKS | PROPOSAL_TASKS),
     ],
 )
 def test_protocol_lifecycle_matrix(version: str, variant: str, expected_tasks: set[str]) -> None:
@@ -302,7 +302,7 @@ async def test_native_compact_mcp_roundtrip_preserves_response_envelopes() -> No
                     assert advertised[task_name].output_schema
                     results[task_name] = await client.call_tool(
                         task_name,
-                        {"adcp_version": "3.2-rc.1"},
+                        {"adcp_version": "3.2-rc.2"},
                     )
             task_group.cancel_scope.cancel()
 
@@ -365,15 +365,15 @@ def test_compact_response_enrichment_matches_pinned_schema(
         validate_response(
             task_name,
             with_completed_status,
-            version="3.2-rc.1",
+            version="3.2-rc.2",
         ).valid
         is uses_status
     )
 
-    _normalize_response_envelope(task_name, response, {}, adcp_version="3.2-rc.1")
+    _normalize_response_envelope(task_name, response, {}, adcp_version="3.2-rc.2")
 
     assert (response.get("status") == "completed") is uses_status
-    assert validate_response(task_name, response, version="3.2-rc.1").valid
+    assert validate_response(task_name, response, version="3.2-rc.2").valid
 
 
 @pytest.mark.parametrize(

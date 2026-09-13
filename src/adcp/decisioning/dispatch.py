@@ -138,6 +138,15 @@ SPEC_SPECIALISM_ENUM: frozenset[str] = frozenset(
     {
         "audience-sync",
         "brand-rights",
+        # AdCP 3.2.0-rc.2 adds the buyer-side and orchestrator specialisms.
+        # These describe an agent that *buys*, so they carry no entry in
+        # REQUIRED_METHODS_PER_SPECIALISM (which gates seller platforms).
+        "buyer-activation",
+        "buyer-discovery",
+        "buyer-monitoring",
+        "buyer-negotiation",
+        "buyer-recovery",
+        "orchestrator-multi-agent",
         "collection-lists",
         "content-standards",
         "creative-ad-server",

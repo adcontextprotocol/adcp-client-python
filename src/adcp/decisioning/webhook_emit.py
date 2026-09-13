@@ -103,6 +103,7 @@ SPEC_WEBHOOK_TASK_TYPES: frozenset[str] = frozenset(
         "get_principal",
         "sync_principal",
         "sync_reporting_receipts",
+        "sync_reporting_status",
     }
 )
 

@@ -1087,6 +1087,10 @@ class MCPAdapter(ProtocolAdapter):
         """Read reporting delivery and reconciliation status."""
         return await self._call_mcp_tool("get_reporting_status", params)
 
+    async def sync_reporting_status(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Record consumer reporting status."""
+        return await self._call_mcp_tool("sync_reporting_status", params)
+
     async def sync_reporting_receipts(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Submit reporting materialization reconciliation receipts."""
         return await self._call_mcp_tool("sync_reporting_receipts", params)

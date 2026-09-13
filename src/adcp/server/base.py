@@ -95,6 +95,7 @@ from adcp.types import (
     SyncPlansRequest,
     SyncPrincipalRequest,
     SyncReportingReceiptsRequest,
+    SyncReportingStatusRequest,
     UpdateCollectionListRequest,
     UpdateContentStandardsRequest,
     UpdateMediaBuyRequest,
@@ -594,6 +595,14 @@ class ADCPHandler(ABC, Generic[TContext]):
     ) -> Any:
         """Read reporting delivery and reconciliation status."""
         return self._not_supported("get_reporting_status")
+
+    async def sync_reporting_status(
+        self,
+        params: SyncReportingStatusRequest | dict[str, Any],
+        context: TContext | None = None,
+    ) -> Any:
+        """Record the authenticated consumer's operational reporting status."""
+        return self._not_supported("sync_reporting_status")
 
     async def sync_reporting_receipts(
         self,

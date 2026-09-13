@@ -52,6 +52,7 @@ HANDLER_TO_DOMAIN: dict[str, str] = {
     "sync_audiences": "media_buy",
     "sync_catalogs": "media_buy",
     "sync_reporting_receipts": "media_buy",
+    "sync_reporting_status": "media_buy",
     # Creative
     "build_creative": "creative",
     "preview_creative": "creative",
