@@ -47,6 +47,8 @@ if TYPE_CHECKING:
     from adcp.client import ADCPClient
 
 JsonObject: TypeAlias = dict[str, Any]
+JsonValue: TypeAlias = str | int | float | bool | None | list["JsonValue"] | dict[str, "JsonValue"]
+JsonMapping: TypeAlias = Mapping[str, JsonValue]
 LifecyclePreference: TypeAlias = Literal["auto", "compact", "established"]
 CompatibilityErrorCode: TypeAlias = Literal["UNSUPPORTED_FEATURE"]
 
@@ -54,37 +56,35 @@ CompatibilityErrorCode: TypeAlias = Literal["UNSUPPORTED_FEATURE"]
 class CoordinatorBuyProductsInput(TypedDict, total=False):
     """Buyer-owned fields for :meth:`MediaBuyLifecycleCoordinator.buy_products`.
 
-    This mirrors ``BuyProductsRequest`` except for ``feed_version`` and
-    ``pricing_version``. The coordinator always injects those values from the
-    bound catalog result, so callers cannot accidentally substitute stale or
-    forged seller evidence.
+    This mirrors the buyer-owned JSON fields of ``BuyProductsRequest``. The
+    coordinator owns the negotiated protocol version and injects feed/pricing
+    evidence from the bound catalog result, so none of those fields are caller
+    inputs.
     """
 
-    adcp_version: NotRequired[str | None]
-    adcp_major_version: NotRequired[int | None]
     idempotency_key: Required[str]
-    account: Required[Mapping[str, Any] | BaseModel]
-    brand: NotRequired[Mapping[str, Any] | BaseModel | None]
+    account: Required[JsonMapping]
+    brand: NotRequired[JsonMapping | None]
     advertiser_industry: NotRequired[str | None]
-    purchases: Required[Sequence[Mapping[str, Any] | BaseModel]]
-    total_budget: NotRequired[Mapping[str, Any] | BaseModel | None]
+    purchases: Required[list[JsonMapping]]
+    total_budget: NotRequired[JsonMapping | None]
     daily_budget_cap: NotRequired[float | None]
     budget_cap_timezone: NotRequired[str | None]
-    budget_allocation: NotRequired[Mapping[str, Any] | BaseModel | None]
-    start_time: Required[datetime | str | Mapping[str, Any] | BaseModel]
-    end_time: Required[datetime | str]
+    budget_allocation: NotRequired[JsonMapping | None]
+    start_time: Required[str | JsonMapping]
+    end_time: Required[str]
     pacing: NotRequired[str | None]
-    bidding: NotRequired[Mapping[str, Any] | BaseModel | None]
+    bidding: NotRequired[JsonMapping | None]
     paused: NotRequired[bool | None]
     purchase_order_ref: NotRequired[str | None]
     agency_estimate_number: NotRequired[str | None]
-    invoice_recipient: NotRequired[Mapping[str, Any] | BaseModel | None]
+    invoice_recipient: NotRequired[JsonMapping | None]
     governance_context: NotRequired[str | None]
-    push_notification_config: NotRequired[Mapping[str, Any] | BaseModel | None]
-    reporting_webhook: NotRequired[Mapping[str, Any] | BaseModel | None]
-    opportunity: NotRequired[Mapping[str, Any] | BaseModel | None]
-    context: NotRequired[Mapping[str, Any] | BaseModel | None]
-    ext: NotRequired[Mapping[str, Any] | BaseModel | None]
+    push_notification_config: NotRequired[JsonMapping | None]
+    reporting_webhook: NotRequired[JsonMapping | None]
+    opportunity: NotRequired[JsonMapping | None]
+    context: NotRequired[JsonMapping | None]
+    ext: NotRequired[JsonMapping | None]
 
 
 _RELEASE_RE = re.compile(
@@ -501,7 +501,7 @@ class MediaBuyLifecycleCoordinator:
     async def buy_products(
         self,
         listing: CompatibleCatalog,
-        request: CoordinatorBuyProductsInput | Mapping[str, Any] | BaseModel,
+        request: CoordinatorBuyProductsInput | BaseModel,
         *,
         accepted_losses: Sequence[str] | None = None,
     ) -> CompatiblePurchaseResult:
@@ -691,7 +691,7 @@ class MediaBuyLifecycleCoordinator:
     async def continue_legacy_purchase(
         self,
         continuation: LegacyCatalogContinuation | str,
-        request: Mapping[str, Any] | BaseModel,
+        request: CoordinatorBuyProductsInput | BaseModel,
         *,
         accepted_losses: Sequence[str] | None = None,
     ) -> CompatiblePurchaseResult:

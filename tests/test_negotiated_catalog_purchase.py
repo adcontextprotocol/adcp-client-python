@@ -45,8 +45,12 @@ def test_coordinator_purchase_input_excludes_seller_version_evidence() -> None:
     fields = CoordinatorBuyProductsInput.__annotations__
 
     assert {"idempotency_key", "account", "purchases", "start_time", "end_time"} <= fields.keys()
-    assert "feed_version" not in fields
-    assert "pricing_version" not in fields
+    assert {
+        "adcp_major_version",
+        "adcp_version",
+        "feed_version",
+        "pricing_version",
+    }.isdisjoint(fields)
 
 
 def test_compact_list_response_does_not_gain_task_status() -> None:
@@ -252,7 +256,8 @@ async def test_compact_list_buy_preserves_real_versions_and_country_filter() -> 
     purchase_request.update(
         {"feed_version": "caller-feed-must-not-win", "pricing_version": "caller-price-must-not-win"}
     )
-    purchase = await coordinator.buy_products(listing, purchase_request)
+    # Top-level Pydantic inputs are deeply serialized before coordinator preflight.
+    purchase = await coordinator.buy_products(listing, _Payload.model_validate(purchase_request))
 
     assert listing.feed_version == "seller-feed-1"
     assert listing.compatibility.lifecycle is MediaBuyLifecycle.COMPACT

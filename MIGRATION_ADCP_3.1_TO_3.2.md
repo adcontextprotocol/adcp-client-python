@@ -135,7 +135,7 @@ coordinator negotiates the served contract and chooses `list_products` /
 `create_media_buy` path on a 3.0 or 3.1 seller:
 
 ```python
-from adcp.compat import MediaBuyLifecycleCoordinator
+from adcp.compat import CoordinatorBuyProductsInput, MediaBuyLifecycleCoordinator
 from adcp.types import ListProductsRequest
 
 lifecycle = await MediaBuyLifecycleCoordinator.negotiate(
@@ -159,6 +159,22 @@ listing = await lifecycle.list_products(
         }
     )
 )
+purchase_request: CoordinatorBuyProductsInput = {
+    "idempotency_key": "catalog-purchase-2026-09-13-0001",
+    "account": {"account_id": "account-acme"},
+    "brand": {"domain": "acme.example"},
+    "purchases": [
+        {
+            "product_id": listing.products[0]["product_id"],
+            "pricing_option_id": listing.products[0]["pricing_options"][0][
+                "pricing_option_id"
+            ],
+            "budget": 1_000,
+        }
+    ],
+    "start_time": "2026-10-01T00:00:00Z",
+    "end_time": "2026-11-01T00:00:00Z",
+}
 purchase = await lifecycle.buy_products(listing, purchase_request)
 ```
 

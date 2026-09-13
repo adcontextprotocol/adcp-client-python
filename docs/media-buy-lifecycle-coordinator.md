@@ -68,6 +68,7 @@ protocol's 3.0 compatibility default.
 Use the 3.2 listing vocabulary at the coordinator boundary:
 
 ```python
+from adcp.compat import CoordinatorBuyProductsInput
 from adcp.types import ListProductsRequest
 
 listing = await lifecycle.list_products(
@@ -82,25 +83,23 @@ listing = await lifecycle.list_products(
     issuance_idempotency_key="catalog-read-2026-09-11-0001",
 )
 
-purchase = await lifecycle.buy_products(
-    listing,
-    {
-        "idempotency_key": "6eecf265-2445-4495-8273-3aeaa854d42c",
-        "account": {"account_id": "account-acme"},
-        "brand": {"domain": "acme.example"},
-        "purchases": [
-            {
-                "product_id": listing.products[0]["product_id"],
-                "pricing_option_id": listing.products[0]["pricing_options"][0][
-                    "pricing_option_id"
-                ],
-                "budget": 1_000,
-            }
-        ],
-        "start_time": "2026-10-01T00:00:00Z",
-        "end_time": "2026-11-01T00:00:00Z",
-    },
-)
+purchase_request: CoordinatorBuyProductsInput = {
+    "idempotency_key": "6eecf265-2445-4495-8273-3aeaa854d42c",
+    "account": {"account_id": "account-acme"},
+    "brand": {"domain": "acme.example"},
+    "purchases": [
+        {
+            "product_id": listing.products[0]["product_id"],
+            "pricing_option_id": listing.products[0]["pricing_options"][0][
+                "pricing_option_id"
+            ],
+            "budget": 1_000,
+        }
+    ],
+    "start_time": "2026-10-01T00:00:00Z",
+    "end_time": "2026-11-01T00:00:00Z",
+}
+purchase = await lifecycle.buy_products(listing, purchase_request)
 
 print(listing.compatibility.tools_used)
 print(purchase.compatibility.losses)
@@ -108,9 +107,12 @@ print(purchase.success, purchase.data)
 ```
 
 `CoordinatorBuyProductsInput` is the typed form of the second argument. It
-matches buyer-owned `BuyProductsRequest` fields but intentionally omits
-`feed_version` and `pricing_version`. Mapping and Pydantic-model inputs remain
-supported.
+matches the JSON-compatible buyer-owned `BuyProductsRequest` fields but
+intentionally omits coordinator-owned protocol, feed, and pricing versions.
+Pydantic-model inputs remain supported and are serialized before preflight.
+Arbitrary mapping implementations still work at runtime for backward
+compatibility, but annotate ordinary dictionaries with
+`CoordinatorBuyProductsInput` to get required-field and nested-shape checking.
 
 On compact routes, the coordinator removes caller-supplied feed or pricing
 versions and injects only the seller evidence retained from the listing. It

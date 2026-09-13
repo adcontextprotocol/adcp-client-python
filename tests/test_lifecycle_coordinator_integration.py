@@ -255,6 +255,36 @@ async def test_compact_route_crosses_real_client_adapter_and_server_boundary() -
     )
     assert legacy_read.success
     assert handler.calls[-1][0] == "get_products"
+    assert legacy_read.data is not None
+    legacy_payload = legacy_read.data.model_dump(mode="json", exclude_none=True)
+    returned_format = legacy_payload["products"][0]["format_ids"][0]
+    expected_format = _VECTOR_CASES[1]["legacy_response"]["products"][0]["format_ids"][0]
+    assert returned_format["id"] == expected_format["id"]
+    # Pydantic canonicalizes a URL with an empty path to the equivalent trailing-slash form.
+    assert returned_format["agent_url"].rstrip("/") == expected_format["agent_url"].rstrip("/")
+
+    legacy_create = await client.create_media_buy_legacy(
+        LegacyCreateMediaBuyRequest.model_validate(
+            {
+                "adcp_version": "3.2-rc.1",
+                "adcp_major_version": 3,
+                "idempotency_key": "compact-legacy-create-0001",
+                "account": {"account_id": "account-acme"},
+                "brand": {"domain": "acme.example"},
+                "packages": [
+                    {
+                        "product_id": legacy_payload["products"][0]["product_id"],
+                        "pricing_option_id": "fixed-cpm",
+                        "budget": 1_000,
+                    }
+                ],
+                "start_time": "2099-01-01T00:00:00Z",
+                "end_time": "2099-02-01T00:00:00Z",
+            }
+        )
+    )
+    assert legacy_create.success
+    assert handler.calls[-1][0] == "create_media_buy"
 
 
 @pytest.mark.asyncio
