@@ -743,7 +743,16 @@ class MCPAdapter(ProtocolAdapter):
             # skips in off. Runs before session setup so a drifted payload
             # doesn't even open a connection.
             try:
-                validate_outgoing_request(tool_name, params, self.request_validation_mode)
+                validate_outgoing_request(
+                    tool_name,
+                    params,
+                    self.request_validation_mode,
+                    version=(
+                        params.get("adcp_version")
+                        if isinstance(params.get("adcp_version"), str)
+                        else None
+                    ),
+                )
             except SchemaValidationError as exc:
                 return TaskResult[Any](
                     status=TaskStatus.FAILED,
@@ -892,8 +901,21 @@ class MCPAdapter(ProtocolAdapter):
             # the data unchanged; off short-circuits without invoking the
             # validator. Never raises — mirrors the existing contract where
             # response-side failures surface as TaskStatus.FAILED.
+            response_version = (
+                data_to_return.get("adcp_version")
+                if isinstance(data_to_return, dict)
+                and isinstance(data_to_return.get("adcp_version"), str)
+                else (
+                    params.get("adcp_version")
+                    if isinstance(params.get("adcp_version"), str)
+                    else None
+                )
+            )
             response_outcome = validate_incoming_response(
-                tool_name, data_to_return, self.response_validation_mode
+                tool_name,
+                data_to_return,
+                self.response_validation_mode,
+                version=response_version,
             )
             if not response_outcome.valid and self.response_validation_mode == "strict":
                 return TaskResult[Any](

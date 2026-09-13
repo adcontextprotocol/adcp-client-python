@@ -265,6 +265,32 @@ class TestClientHooks:
         assert outcome.valid is False
         assert len(logs) == 1
 
+    def test_incoming_uses_explicit_negotiated_version(self) -> None:
+        legacy_payload = {"products": []}
+
+        negotiated = validate_incoming_response(
+            "get_products", legacy_payload, "strict", version="3.0"
+        )
+        default = validate_incoming_response("get_products", legacy_payload, "strict")
+
+        assert negotiated.valid is True
+        assert default.valid is False
+
+    def test_compact_list_response_does_not_invent_task_status(self) -> None:
+        outcome = validate_incoming_response(
+            "list_products",
+            {
+                "outcome": "listed",
+                "products": [],
+                "feed_version": "feed-1",
+                "cache_scope": "public",
+            },
+            "strict",
+            version="3.2.0-rc.1",
+        )
+
+        assert outcome.valid is True
+
 
 class TestResolveValidationModes:
     def test_requests_default_to_warn(self) -> None:

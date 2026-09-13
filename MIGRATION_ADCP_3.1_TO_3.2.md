@@ -127,6 +127,73 @@ products = await client.list_products(ListProductsRequest(...))
 purchase = await client.buy_products(BuyProductsRequest(...))
 ```
 
+If the application must keep one buying workflow while sellers migrate at
+different times, use `MediaBuyLifecycleCoordinator` instead of selecting these
+native methods itself. The application supplies 3.2 request vocabulary; the
+coordinator negotiates the served contract and chooses `list_products` /
+`buy_products` on a compact seller or the established `get_products` /
+`create_media_buy` path on a 3.0 or 3.1 seller:
+
+```python
+from adcp.compat import CoordinatorBuyProductsInput, MediaBuyLifecycleCoordinator
+from adcp.types import ListProductsRequest
+
+lifecycle = await MediaBuyLifecycleCoordinator.negotiate(
+    client,
+    legacy_purchase_coordinator=legacy_purchase_coordinator,
+    principal_id=authenticated_principal_id,
+    target_binding=stable_authenticated_seller_session_id,
+    allowed_losses=[
+        "feed_version_not_atomic",
+        "pricing_version_not_atomic",
+        "mutation_idempotency_not_guaranteed",
+    ],
+)
+
+listing = await lifecycle.list_products(
+    ListProductsRequest.model_validate(
+        {
+            "idempotency_key": "catalog-read-2026-09-13-0001",
+            "account": {"account_id": "account-acme"},
+            "criteria": {"offer_filters": {"countries": ["US"]}},
+        }
+    )
+)
+purchase_request: CoordinatorBuyProductsInput = {
+    "idempotency_key": "catalog-purchase-2026-09-13-0001",
+    "account": {"account_id": "account-acme"},
+    "brand": {"domain": "acme.example"},
+    "purchases": [
+        {
+            "product_id": listing.products[0]["product_id"],
+            "pricing_option_id": listing.products[0]["pricing_options"][0][
+                "pricing_option_id"
+            ],
+            "budget": 1_000,
+        }
+    ],
+    "start_time": "2026-10-01T00:00:00Z",
+    "end_time": "2026-11-01T00:00:00Z",
+}
+purchase = await lifecycle.buy_products(listing, purchase_request)
+```
+
+The established route requires the durable continuation setup, authenticated
+scope, stable seller-session binding, and explicit loss policy documented in
+[Media-buy lifecycle coordinator](docs/media-buy-lifecycle-coordinator.md).
+The coordinator never invents feed or pricing versions, and the native client
+methods remain independently callable.
+
+This is buyer-side compatibility: a new buyer can keep one workflow against an
+older seller. Implementing only `list_products` and `buy_products` on a seller
+does **not** automatically expose `get_products` and `create_media_buy` to old
+buyers. Keep explicit legacy handlers during that migration. The opt-in
+seller-side reverse facade is tracked separately in
+[Python issue #1147](https://github.com/adcontextprotocol/adcp-client-python/issues/1147).
+Release-pinned, cross-language response certification is likewise separate and
+tracked in [AdCP issue #7439](https://github.com/adcontextprotocol/adcp/issues/7439);
+SDK routing tests do not make that broader conformance claim.
+
 The same methods are available on `ADCPMultiAgentClient`. Do not import from
 `adcp.types._generated` or `adcp.types.generated_poc`.
 

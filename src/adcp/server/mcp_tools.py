@@ -120,6 +120,15 @@ def _normalize_response_envelope(
     if is_sync_media_buy_success:
         _normalize_sync_media_buy_response(result, adcp_version=adcp_version)
 
+    if method_name == "list_products":
+        # The compact list response is a synchronous listed/unchanged union.
+        # Unlike the general task envelope, neither arm permits ``status``.
+        # A products-bearing response is unambiguously the listed arm, so keep
+        # accepting the ergonomic handler shape that predates the explicit
+        # outcome discriminator.
+        if "outcome" not in result and "products" in result:
+            result["outcome"] = "listed"
+        return
     if "status" not in result and "task_id" not in result:
         if not (is_sync_media_buy_success and not _is_adcp_31_or_newer(adcp_version)):
             result["status"] = "completed"

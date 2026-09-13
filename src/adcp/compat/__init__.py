@@ -10,6 +10,18 @@ AdCP 3.2 products-only brief projections use the stateful
 registry because redemption requires durable state and crash reconciliation.
 """
 
+from adcp.compat.negotiated_catalog_purchase import (
+    CompatibleCatalog,
+    CompatiblePurchaseResult,
+    CoordinatorBuyProductsInput,
+    LegacyCatalogContinuation,
+    MediaBuyCompatibility,
+    MediaBuyCompatibilityReport,
+    MediaBuyLifecycle,
+    MediaBuyLifecycleCompatibilityError,
+    MediaBuyLifecycleCoordinator,
+    NegotiatedCatalogBuyer,
+)
 from adcp.compat.purchase_continuation import (
     CompatibilityContinuationError,
     CompatibilityContinuationErrorCode,
@@ -32,6 +44,9 @@ from adcp.compat.purchase_continuation import (
 from adcp.compat.sqlite_continuation_store import SqliteCompatibilityContinuationStore
 
 __all__ = [
+    "CompatibleCatalog",
+    "CompatiblePurchaseResult",
+    "CoordinatorBuyProductsInput",
     "CompatibilityContinuationError",
     "CompatibilityContinuationErrorCode",
     "CompatibilityContinuationStore",
@@ -39,12 +54,19 @@ __all__ = [
     "CompatibilityPurchaseOperation",
     "InMemoryCompatibilityContinuationStore",
     "LegacyPurchaseContinuation",
+    "LegacyCatalogContinuation",
     "LegacyPurchaseCoordinator",
     "LegacyPurchaseExecution",
     "LegacyPurchaseExecutor",
     "LegacyPurchasePendingPoller",
     "LegacyPurchaseReconciler",
     "LegacyPurchaseResult",
+    "MediaBuyCompatibility",
+    "MediaBuyCompatibilityReport",
+    "MediaBuyLifecycle",
+    "MediaBuyLifecycleCompatibilityError",
+    "MediaBuyLifecycleCoordinator",
+    "NegotiatedCatalogBuyer",
     "PendingTaskResolution",
     "ReconciliationResult",
     "ReconciliationStatus",

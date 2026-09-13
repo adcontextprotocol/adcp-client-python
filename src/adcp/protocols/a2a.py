@@ -274,7 +274,8 @@ class A2AAdapter(ProtocolAdapter):
             if event_hooks:
                 client_kwargs["event_hooks"] = event_hooks
 
-            self._httpx_client = httpx.AsyncClient(**client_kwargs)
+            # ``client_kwargs`` always includes the configured timeout above.
+            self._httpx_client = httpx.AsyncClient(**client_kwargs)  # nosec B113
             logger.debug(
                 f"Created HTTP client with connection pooling for agent {self.agent_config.id}"
             )
@@ -423,7 +424,16 @@ class A2AAdapter(ProtocolAdapter):
         # surfaces as TaskStatus.FAILED so the SDK's unified failure model
         # is preserved; warn mode logs and continues; off short-circuits.
         try:
-            validate_outgoing_request(tool_name, params, self.request_validation_mode)
+            validate_outgoing_request(
+                tool_name,
+                params,
+                self.request_validation_mode,
+                version=(
+                    params.get("adcp_version")
+                    if isinstance(params.get("adcp_version"), str)
+                    else None
+                ),
+            )
         except SchemaValidationError as exc:
             return TaskResult[Any](
                 status=TaskStatus.FAILED,
@@ -541,8 +551,21 @@ class A2AAdapter(ProtocolAdapter):
                 # call in the same conversation should still target the
                 # right session.
                 if task_result.success and task_result.data is not None:
+                    response_version = (
+                        task_result.data.get("adcp_version")
+                        if isinstance(task_result.data, dict)
+                        and isinstance(task_result.data.get("adcp_version"), str)
+                        else (
+                            params.get("adcp_version")
+                            if isinstance(params.get("adcp_version"), str)
+                            else None
+                        )
+                    )
                     response_outcome = validate_incoming_response(
-                        tool_name, task_result.data, self.response_validation_mode
+                        tool_name,
+                        task_result.data,
+                        self.response_validation_mode,
+                        version=response_version,
                     )
                     if not response_outcome.valid and self.response_validation_mode == "strict":
                         task_result = TaskResult[Any](
