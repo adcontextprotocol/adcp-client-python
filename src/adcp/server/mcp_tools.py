@@ -39,6 +39,7 @@ from adcp.types import (
     unwrap_enum_value,
 )
 from adcp.types.error_narrowing import narrow_union_errors
+from adcp.validation._response_envelope import uses_task_status_envelope
 from adcp.validation.client_hooks import UnknownFieldPolicy, ValidationHookConfig
 from adcp.validation.envelope import DEFAULT_UNNEGOTIATED_ADCP_VERSION
 from adcp.validation.schema_loader import (
@@ -110,8 +111,9 @@ def _normalize_response_envelope(
 ) -> None:
     """Populate beta 3 envelope defaults before serialization/validation.
 
-    AdCP 3.1 requires ``status`` on every response and requires
-    ``cache_scope`` on products/signals cacheable reads. The SDK can safely
+    Most AdCP 3.1+ tasks require ``status`` on every response, while a small
+    set of compact synchronous responses retain their native envelope.
+    Cacheable product/signal reads require ``cache_scope``. The SDK can safely
     infer the public cache only when the request has no account. Account-scoped
     wholesale reads must be explicit so a seller doesn't accidentally label
     account-specific inventory as globally cacheable.
@@ -129,7 +131,11 @@ def _normalize_response_envelope(
         if "outcome" not in result and "products" in result:
             result["outcome"] = "listed"
         return
-    if "status" not in result and "task_id" not in result:
+    if (
+        uses_task_status_envelope(method_name)
+        and "status" not in result
+        and "task_id" not in result
+    ):
         if not (is_sync_media_buy_success and not _is_adcp_31_or_newer(adcp_version)):
             result["status"] = "completed"
     if (
