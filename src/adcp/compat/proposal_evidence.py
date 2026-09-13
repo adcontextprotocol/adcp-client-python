@@ -17,6 +17,7 @@ import rfc8785
 JsonObject: TypeAlias = dict[str, Any]
 ESTABLISHED_PROPOSAL_COMPLETION_TOMBSTONE_RETENTION = timedelta(days=7)
 ESTABLISHED_PROPOSAL_MAX_SNAPSHOT_BYTES = 256 * 1024
+ESTABLISHED_PROPOSAL_MAX_TERMINAL_RESULT_BYTES = 256 * 1024
 ESTABLISHED_PROPOSAL_MAX_PRINCIPAL_BYTES = 256
 
 
@@ -66,7 +67,11 @@ class ProposalAcceptanceRecord:
     created_at: datetime
     retry_expires_at: datetime | None = None
     seller_task_id: str | None = None
+    completed_at: datetime | None = None
+    retain_until: datetime | None = None
+    reserved_completion_bytes: int = 0
     _request_json: bytes | None = field(default=None, repr=False)
+    _source_proposal_json: bytes | None = field(default=None, repr=False)
     _result_json: bytes | None = field(default=None, repr=False)
 
     @property
@@ -118,6 +123,8 @@ class ProposalMutationRecord:
     seller_task_id: str | None = None
     completed_at: datetime | None = None
     retain_until: datetime | None = None
+    reserved_completion_bytes: int = 0
+    reserved_completion_records: int = 0
     _request_json: bytes | None = field(default=None, repr=False)
     _source_proposals_json: bytes | None = field(default=None, repr=False)
     _result_json: bytes | None = field(default=None, repr=False)
@@ -272,7 +279,7 @@ class EstablishedProposalAcceptanceStore(Protocol):
         created_at: datetime,
         retry_ttl: timedelta | None = None,
     ) -> ProposalAcceptanceReservation:
-        """Reserve proposal and idempotency-key scope in one atomic operation."""
+        """Reserve proposal, replay scope, expiry, and terminal capacity atomically."""
 
     async def complete_acceptance(
         self,
@@ -337,7 +344,7 @@ class EstablishedProposalMutationStore(Protocol):
         created_at: datetime,
         retry_ttl: timedelta | None = None,
     ) -> ProposalMutationReservation:
-        """Atomically compare evidence and reserve every proposal in the batch."""
+        """Atomically compare evidence and reserve proposals plus completion capacity."""
 
     async def complete_mutation(
         self,
@@ -374,8 +381,26 @@ class EstablishedProposalMutationStore(Protocol):
 
 
 @runtime_checkable
+class EstablishedProposalMutationReplayStore(Protocol):
+    """Optional scoped lookup for replay before mutable evidence is re-read."""
+
+    is_durable: bool
+
+    async def find_completed_mutation_by_idempotency_key(
+        self,
+        idempotency_key: str,
+        *,
+        principal_id: str,
+        target_binding: str,
+        account_identity: str,
+        source_adcp_version: str,
+    ) -> ProposalMutationRecord | None:
+        """Find only a completed mutation in its full authenticated scope."""
+
+
+@runtime_checkable
 class EstablishedProposalTombstoneStore(Protocol):
-    """Optional SDK-driven sweeper for completed proposal-mutation proofs."""
+    """Optional SDK-driven sweeper for completed proposal-operation proofs."""
 
     is_durable: bool
 
@@ -396,17 +421,25 @@ class InMemoryEstablishedProposalEvidenceStore:
         completion_tombstone_retention: timedelta = (
             ESTABLISHED_PROPOSAL_COMPLETION_TOMBSTONE_RETENTION
         ),
+        max_terminal_result_bytes: int = ESTABLISHED_PROPOSAL_MAX_TERMINAL_RESULT_BYTES,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         if isinstance(max_records, bool) or not isinstance(max_records, int) or max_records <= 0:
             raise ValueError("max_records must be a positive integer")
         if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
             raise ValueError("max_bytes must be a positive integer")
+        if (
+            isinstance(max_terminal_result_bytes, bool)
+            or not isinstance(max_terminal_result_bytes, int)
+            or max_terminal_result_bytes <= 0
+        ):
+            raise ValueError("max_terminal_result_bytes must be a positive integer")
         if completion_tombstone_retention < ESTABLISHED_PROPOSAL_COMPLETION_TOMBSTONE_RETENTION:
             raise ValueError("completion_tombstone_retention must be at least seven days")
         self._lock = asyncio.Lock()
         self._max_records = max_records
         self._max_bytes = max_bytes
+        self._max_terminal_result_bytes = max_terminal_result_bytes
         self._completion_tombstone_retention = completion_tombstone_retention
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._records: dict[tuple[str, str, str, str, str], EstablishedProposalEvidence] = {}
@@ -423,6 +456,7 @@ class InMemoryEstablishedProposalEvidenceStore:
             tuple[str, str, str, str, str], tuple[str, str, str, str, str]
         ] = {}
         self._proposal_fences: dict[tuple[str, str, str, str], tuple[str, ...]] = {}
+        self._acceptance_tombstones: dict[tuple[str, str, str, str], str] = {}
 
     @staticmethod
     def _key(
@@ -473,7 +507,9 @@ class InMemoryEstablishedProposalEvidenceStore:
     def _acceptance_size(value: ProposalAcceptanceRecord) -> int:
         return (
             len(value._request_json or b"")
+            + len(value._source_proposal_json or b"")
             + len(value._result_json or b"")
+            + value.reserved_completion_bytes
             + 256
             + sum(
                 len(part.encode("utf-8"))
@@ -496,6 +532,7 @@ class InMemoryEstablishedProposalEvidenceStore:
             len(value._request_json or b"")
             + len(value._source_proposals_json or b"")
             + len(value._result_json or b"")
+            + value.reserved_completion_bytes
             + 256
             + sum(
                 len(part.encode("utf-8"))
@@ -512,6 +549,29 @@ class InMemoryEstablishedProposalEvidenceStore:
             )
         )
 
+    @staticmethod
+    def _acceptance_tombstone_size(key: tuple[str, str, str, str], idempotency_key: str) -> int:
+        return (
+            128
+            + len(idempotency_key.encode("utf-8"))
+            + sum(len(part.encode("utf-8")) for part in key)
+        )
+
+    @staticmethod
+    def _reserved_replacement_bytes(evidence: EstablishedProposalEvidence) -> int:
+        # The serialized proposal contains its ID, but the evidence index also
+        # retains that ID separately. Reserve both maxima plus known scope data.
+        return (2 * ESTABLISHED_PROPOSAL_MAX_SNAPSHOT_BYTES) + sum(
+            len(part.encode("utf-8"))
+            for part in (
+                evidence.principal_id,
+                evidence.target_binding,
+                evidence.account_identity,
+                evidence.source_adcp_version,
+                evidence.request_fingerprint,
+            )
+        )
+
     def _ensure_capacity(
         self,
         *,
@@ -525,15 +585,40 @@ class InMemoryEstablishedProposalEvidenceStore:
         candidate_acceptances = acceptances if acceptances is not None else self._acceptances
         candidate_mutations = mutations if mutations is not None else self._mutations
         count = len(candidate_records) + len(candidate_acceptances) + len(candidate_mutations)
+        count += sum(value.reserved_completion_records for value in candidate_mutations.values())
+        count += len(self._acceptance_tombstones)
         size = (
             sum(self._evidence_size(value) for value in candidate_records.values())
             + sum(self._acceptance_size(value) for value in candidate_acceptances.values())
             + sum(self._mutation_size(value) for value in candidate_mutations.values())
+            + sum(
+                self._acceptance_tombstone_size(key, idempotency_key)
+                for key, idempotency_key in self._acceptance_tombstones.items()
+            )
         )
         if count > self._max_records or size > self._max_bytes:
             raise ProposalStoreCapacityError(
                 "proposal store capacity would be exceeded; prune or increase its bounds"
             )
+
+    def _assert_evidence_unexpired(self, evidence: EstablishedProposalEvidence) -> None:
+        """Validate temporal authorization using the store's transaction-time clock."""
+
+        expires_at = evidence.proposal.get("expires_at")
+        if expires_at is None:
+            return
+        if not isinstance(expires_at, str) or not expires_at:
+            raise ProposalEvidenceChangedError("proposal evidence has an invalid expires_at")
+        try:
+            parsed = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ProposalEvidenceChangedError(
+                "proposal evidence has an invalid expires_at"
+            ) from exc
+        if parsed.tzinfo is None:
+            raise ProposalEvidenceChangedError("proposal evidence has a naive expires_at")
+        if parsed.astimezone(timezone.utc) <= self._now():
+            raise ProposalEvidenceChangedError("proposal evidence expired before reservation")
 
     async def put(self, evidence: EstablishedProposalEvidence) -> None:
         key = self._key(
@@ -668,6 +753,7 @@ class InMemoryEstablishedProposalEvidenceStore:
                     and existing.retry_expires_at is not None
                     and existing.retry_expires_at > self._now()
                 ):
+                    self._assert_evidence_unexpired(evidence)
                     retry = ProposalAcceptanceRecord(
                         proposal_id=existing.proposal_id,
                         principal_id=existing.principal_id,
@@ -679,7 +765,9 @@ class InMemoryEstablishedProposalEvidenceStore:
                         state=ProposalAcceptanceState.IN_FLIGHT,
                         created_at=existing.created_at,
                         retry_expires_at=existing.retry_expires_at,
+                        reserved_completion_bytes=existing.reserved_completion_bytes,
                         _request_json=existing._request_json,
+                        _source_proposal_json=existing._source_proposal_json,
                     )
                     self._acceptances[proposal_key] = retry
                     return ProposalAcceptanceReservation(record=retry, created=True)
@@ -705,6 +793,7 @@ class InMemoryEstablishedProposalEvidenceStore:
                 raise ProposalMutationConflictError(
                     "proposal is already reserved by another mutation"
                 )
+            self._assert_evidence_unexpired(evidence)
             record = ProposalAcceptanceRecord(
                 proposal_id=evidence.proposal_id,
                 principal_id=evidence.principal_id,
@@ -716,7 +805,9 @@ class InMemoryEstablishedProposalEvidenceStore:
                 state=ProposalAcceptanceState.IN_FLIGHT,
                 created_at=created_at,
                 retry_expires_at=(self._now() + retry_ttl if retry_ttl is not None else None),
+                reserved_completion_bytes=self._max_terminal_result_bytes,
                 _request_json=request_json,
+                _source_proposal_json=evidence._proposal_json,
             )
             acceptances = dict(self._acceptances)
             acceptances[proposal_key] = record
@@ -746,6 +837,11 @@ class InMemoryEstablishedProposalEvidenceStore:
             current = self._acceptances.get(key)
             if current != record or current.state is not ProposalAcceptanceState.IN_FLIGHT:
                 raise RuntimeError("proposal acceptance reservation changed before completion")
+            if len(result_json) > current.reserved_completion_bytes:
+                raise ProposalStoreCapacityError(
+                    "proposal acceptance result exceeds its reserved completion capacity"
+                )
+            completed_at = self._now()
             completed = ProposalAcceptanceRecord(
                 proposal_id=current.proposal_id,
                 principal_id=current.principal_id,
@@ -758,7 +854,10 @@ class InMemoryEstablishedProposalEvidenceStore:
                 created_at=current.created_at,
                 retry_expires_at=current.retry_expires_at,
                 seller_task_id=current.seller_task_id,
+                completed_at=completed_at,
+                retain_until=completed_at + self._completion_tombstone_retention,
                 _request_json=current._request_json,
+                _source_proposal_json=current._source_proposal_json,
                 _result_json=result_json,
             )
             acceptances = dict(self._acceptances)
@@ -794,7 +893,9 @@ class InMemoryEstablishedProposalEvidenceStore:
                 created_at=current.created_at,
                 retry_expires_at=current.retry_expires_at,
                 seller_task_id=current.seller_task_id,
+                reserved_completion_bytes=current.reserved_completion_bytes,
                 _request_json=current._request_json,
+                _source_proposal_json=current._source_proposal_json,
             )
             self._acceptances[key] = ambiguous
             return ambiguous
@@ -847,7 +948,9 @@ class InMemoryEstablishedProposalEvidenceStore:
                 created_at=current.created_at,
                 retry_expires_at=current.retry_expires_at,
                 seller_task_id=seller_task_id,
+                reserved_completion_bytes=current.reserved_completion_bytes,
                 _request_json=current._request_json,
+                _source_proposal_json=current._source_proposal_json,
             )
             acceptances = dict(self._acceptances)
             acceptances[key] = bound
@@ -939,6 +1042,8 @@ class InMemoryEstablishedProposalEvidenceStore:
                     and existing.retry_expires_at is not None
                     and existing.retry_expires_at > self._now()
                 ):
+                    for row in rows:
+                        self._assert_evidence_unexpired(row)
                     retry = ProposalMutationRecord(
                         operation=existing.operation,
                         proposal_ids=existing.proposal_ids,
@@ -951,6 +1056,8 @@ class InMemoryEstablishedProposalEvidenceStore:
                         state=ProposalAcceptanceState.IN_FLIGHT,
                         created_at=existing.created_at,
                         retry_expires_at=existing.retry_expires_at,
+                        reserved_completion_bytes=existing.reserved_completion_bytes,
+                        reserved_completion_records=existing.reserved_completion_records,
                         _request_json=existing._request_json,
                         _source_proposals_json=existing._source_proposals_json,
                     )
@@ -973,6 +1080,10 @@ class InMemoryEstablishedProposalEvidenceStore:
                     raise ProposalMutationConflictError(
                         f"proposal {row.proposal_id} is already reserved by another mutation"
                     )
+                self._assert_evidence_unexpired(row)
+            reserved_completion_bytes = self._max_terminal_result_bytes + sum(
+                self._reserved_replacement_bytes(row) for row in rows
+            )
             record = ProposalMutationRecord(
                 operation=operation,
                 proposal_ids=proposal_ids,
@@ -985,6 +1096,8 @@ class InMemoryEstablishedProposalEvidenceStore:
                 state=ProposalAcceptanceState.IN_FLIGHT,
                 created_at=created_at,
                 retry_expires_at=(self._now() + retry_ttl if retry_ttl is not None else None),
+                reserved_completion_bytes=reserved_completion_bytes,
+                reserved_completion_records=len(rows),
                 _request_json=request_json,
                 _source_proposals_json=source_proposals_json,
             )
@@ -1036,6 +1149,33 @@ class InMemoryEstablishedProposalEvidenceStore:
                     record.source_adcp_version,
                 ):
                     raise ValueError("replacement proposal escaped the mutation scope")
+            records = dict(self._records)
+            for replacement in replacements:
+                records[
+                    self._key(
+                        replacement.proposal_id,
+                        replacement.principal_id,
+                        replacement.target_binding,
+                        replacement.account_identity,
+                        replacement.source_adcp_version,
+                    )
+                ] = replacement
+            added_records = max(0, len(records) - len(self._records))
+            if added_records > current.reserved_completion_records:
+                raise ProposalStoreCapacityError(
+                    "proposal mutation replacements exceed reserved record capacity"
+                )
+            current_record_bytes = sum(
+                self._evidence_size(value) for value in self._records.values()
+            )
+            replacement_record_bytes = sum(self._evidence_size(value) for value in records.values())
+            completion_bytes = len(result_json) + max(
+                0, replacement_record_bytes - current_record_bytes
+            )
+            if completion_bytes > current.reserved_completion_bytes:
+                raise ProposalStoreCapacityError(
+                    "proposal mutation result and replacements exceed reserved completion capacity"
+                )
             completed_at = self._now()
             completed = ProposalMutationRecord(
                 operation=current.operation,
@@ -1058,17 +1198,6 @@ class InMemoryEstablishedProposalEvidenceStore:
             )
             mutations = dict(self._mutations)
             mutations[key] = completed
-            records = dict(self._records)
-            for replacement in replacements:
-                records[
-                    self._key(
-                        replacement.proposal_id,
-                        replacement.principal_id,
-                        replacement.target_binding,
-                        replacement.account_identity,
-                        replacement.source_adcp_version,
-                    )
-                ] = replacement
             self._ensure_capacity(records=records, mutations=mutations)
             self._mutations[key] = completed
             self._records = records
@@ -1102,6 +1231,8 @@ class InMemoryEstablishedProposalEvidenceStore:
                 created_at=current.created_at,
                 retry_expires_at=current.retry_expires_at,
                 seller_task_id=current.seller_task_id,
+                reserved_completion_bytes=current.reserved_completion_bytes,
+                reserved_completion_records=current.reserved_completion_records,
                 _request_json=current._request_json,
                 _source_proposals_json=current._source_proposals_json,
             )
@@ -1157,6 +1288,8 @@ class InMemoryEstablishedProposalEvidenceStore:
                 created_at=current.created_at,
                 retry_expires_at=current.retry_expires_at,
                 seller_task_id=seller_task_id,
+                reserved_completion_bytes=current.reserved_completion_bytes,
+                reserved_completion_records=current.reserved_completion_records,
                 _request_json=current._request_json,
                 _source_proposals_json=current._source_proposals_json,
             )
@@ -1187,13 +1320,38 @@ class InMemoryEstablishedProposalEvidenceStore:
             key = self._mutation_task_keys.get(task_scope)
             return self._mutations.get(key) if key is not None else None
 
+    async def find_completed_mutation_by_idempotency_key(
+        self,
+        idempotency_key: str,
+        *,
+        principal_id: str,
+        target_binding: str,
+        account_identity: str,
+        source_adcp_version: str,
+    ) -> ProposalMutationRecord | None:
+        key = (
+            principal_id,
+            target_binding,
+            account_identity,
+            source_adcp_version,
+            idempotency_key,
+        )
+        async with self._lock:
+            record_key = self._mutation_keys.get(key)
+            if record_key is None:
+                return None
+            record = self._mutations.get(record_key)
+            if record is None or record.state is not ProposalAcceptanceState.COMPLETED:
+                return None
+            return record
+
     async def prune_completion_tombstones(self, limit: int = 1000) -> int:
         if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
             raise ValueError("prune limit must be a positive integer")
         async with self._lock:
             now = self._now()
             pruned = 0
-            for key, record in tuple(self._mutations.items()):
+            for key, record in tuple(self._acceptances.items()):
                 if pruned >= limit:
                     break
                 if (
@@ -1203,39 +1361,94 @@ class InMemoryEstablishedProposalEvidenceStore:
                 ):
                     continue
                 result = record.result or {}
-                source_rows = record.source_proposals
+                fence_key = self._fence_key(
+                    record.proposal_id,
+                    record.principal_id,
+                    record.target_binding,
+                    record.source_adcp_version,
+                )
+                fence = ("accept", record.idempotency_key)
                 if result.get("success") is True:
-                    for proposal_id, source in zip(record.proposal_ids, source_rows, strict=False):
-                        evidence_key = self._key(
-                            proposal_id,
-                            record.principal_id,
-                            record.target_binding,
-                            record.account_identity,
-                            record.source_adcp_version,
-                        )
-                        current = self._records.get(evidence_key)
-                        if current is not None and current.proposal == source:
-                            self._records.pop(evidence_key, None)
-                for proposal_id in record.proposal_ids:
-                    fence_key = self._fence_key(
-                        proposal_id,
+                    evidence = self._records.get(key)
+                    if (
+                        evidence is not None
+                        and evidence._proposal_json == record._source_proposal_json
+                    ):
+                        self._records.pop(key, None)
+                    # A successful acceptance consumes the proposal forever. Keep
+                    # only this compact fence after the replay result ages out.
+                    self._proposal_fences[fence_key] = fence
+                    self._acceptance_tombstones[fence_key] = record.idempotency_key
+                elif self._proposal_fences.get(fence_key) == fence:
+                    self._proposal_fences.pop(fence_key, None)
+                self._acceptance_keys.pop(
+                    (
                         record.principal_id,
                         record.target_binding,
+                        record.account_identity,
                         record.source_adcp_version,
-                    )
-                    if self._proposal_fences.get(fence_key) == (
-                        record.operation.value,
                         record.idempotency_key,
-                    ):
-                        self._proposal_fences.pop(fence_key, None)
+                    ),
+                    None,
+                )
                 if record.seller_task_id is not None:
-                    self._mutation_task_keys.pop(
+                    self._acceptance_task_keys.pop(
                         (
                             record.principal_id,
                             record.target_binding,
                             record.account_identity,
                             record.source_adcp_version,
                             record.seller_task_id,
+                        ),
+                        None,
+                    )
+                self._acceptances.pop(key, None)
+                pruned += 1
+            for key, mutation_record in tuple(self._mutations.items()):
+                if pruned >= limit:
+                    break
+                if (
+                    mutation_record.state is not ProposalAcceptanceState.COMPLETED
+                    or mutation_record.retain_until is None
+                    or mutation_record.retain_until > now
+                ):
+                    continue
+                result = mutation_record.result or {}
+                source_rows = mutation_record.source_proposals
+                if result.get("success") is True:
+                    for proposal_id, source in zip(
+                        mutation_record.proposal_ids, source_rows, strict=False
+                    ):
+                        evidence_key = self._key(
+                            proposal_id,
+                            mutation_record.principal_id,
+                            mutation_record.target_binding,
+                            mutation_record.account_identity,
+                            mutation_record.source_adcp_version,
+                        )
+                        current = self._records.get(evidence_key)
+                        if current is not None and current.proposal == source:
+                            self._records.pop(evidence_key, None)
+                for proposal_id in mutation_record.proposal_ids:
+                    fence_key = self._fence_key(
+                        proposal_id,
+                        mutation_record.principal_id,
+                        mutation_record.target_binding,
+                        mutation_record.source_adcp_version,
+                    )
+                    if self._proposal_fences.get(fence_key) == (
+                        mutation_record.operation.value,
+                        mutation_record.idempotency_key,
+                    ):
+                        self._proposal_fences.pop(fence_key, None)
+                if mutation_record.seller_task_id is not None:
+                    self._mutation_task_keys.pop(
+                        (
+                            mutation_record.principal_id,
+                            mutation_record.target_binding,
+                            mutation_record.account_identity,
+                            mutation_record.source_adcp_version,
+                            mutation_record.seller_task_id,
                         ),
                         None,
                     )
@@ -1249,11 +1462,13 @@ __all__ = [
     "ESTABLISHED_PROPOSAL_COMPLETION_TOMBSTONE_RETENTION",
     "ESTABLISHED_PROPOSAL_MAX_PRINCIPAL_BYTES",
     "ESTABLISHED_PROPOSAL_MAX_SNAPSHOT_BYTES",
+    "ESTABLISHED_PROPOSAL_MAX_TERMINAL_RESULT_BYTES",
     "EstablishedProposalAcceptanceStore",
     "EstablishedProposalAcceptanceRecoveryStore",
     "EstablishedProposalEvidence",
     "EstablishedProposalEvidenceStore",
     "EstablishedProposalMutationStore",
+    "EstablishedProposalMutationReplayStore",
     "EstablishedProposalTombstoneStore",
     "InMemoryEstablishedProposalEvidenceStore",
     "ProposalAcceptanceRecord",
