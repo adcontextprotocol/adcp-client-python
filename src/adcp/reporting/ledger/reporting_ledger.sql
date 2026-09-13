@@ -29,6 +29,10 @@ CREATE TABLE IF NOT EXISTS reporting_configurations (
     deactivated_at          TIMESTAMPTZ,
     automated_recovery_seconds DOUBLE PRECISION NOT NULL DEFAULT 21600,
     status_retention_days   INTEGER          NOT NULL DEFAULT 400,
+    -- Content-addressed report definition and row schema (URI + digest). Core
+    -- wire records are self-describing; without this a retained revision
+    -- cannot name what it was produced under.
+    definition              JSONB,
     -- Binds the whole generation so a re-put with changed content is a
     -- detectable conflict rather than a silent edit of retained evidence.
     content_sha256          TEXT COLLATE "C" NOT NULL,
@@ -66,6 +70,10 @@ CREATE TABLE IF NOT EXISTS reporting_obligations (
     media_buy_ids           JSONB            NOT NULL DEFAULT '[]'::jsonb,
     package_ids             JSONB            NOT NULL DEFAULT '[]'::jsonb,
     schedule                JSONB            NOT NULL,
+    -- Frozen with the obligation, not read from the live configuration: a
+    -- definition that changes later must not retroactively re-describe a
+    -- period that already closed.
+    definition              JSONB,
     created_at              TIMESTAMPTZ      NOT NULL
 );
 

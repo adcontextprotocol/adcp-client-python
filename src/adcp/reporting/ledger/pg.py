@@ -80,6 +80,7 @@ from adcp.reporting.ledger.models import (
     LedgerSnapshot,
     ReportingAdjustmentRecord,
     ReportingConfiguration,
+    ReportingDefinitionBinding,
     ReportingObligationRecord,
     ReportingPeriodBoundary,
     ReportingRevisionRecord,
@@ -188,8 +189,10 @@ class PgReportingLedgerStore:
                 " (delivery_config_id, delivery_config_version, account_id,"
                 "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
                 "  account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
-                "  automated_recovery_seconds, status_retention_days, content_sha256)"
-                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s, %s)"
+                "  automated_recovery_seconds, status_retention_days, definition,"
+                "  content_sha256)"
+                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s,"
+                "         %s::jsonb, %s)"
                 " ON CONFLICT (delivery_config_id, delivery_config_version) DO NOTHING",
                 (
                     configuration.delivery_config_id,
@@ -206,6 +209,7 @@ class PgReportingLedgerStore:
                     configuration.deactivated_at,
                     configuration.automated_recovery_window.total_seconds(),
                     configuration.status_retention_days,
+                    _json(payload["definition"]) if payload["definition"] else None,
                     digest,
                 ),
             )
@@ -223,7 +227,7 @@ class PgReportingLedgerStore:
                     "SELECT delivery_config_id, delivery_config_version, account_id,"  # noqa: S608  # nosec B608
                     " report_definition_id, reporting_profile, feed_purpose, required_finality,"
                     " account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
-                    " automated_recovery_seconds, status_retention_days"
+                    " automated_recovery_seconds, status_retention_days, definition"
                     " FROM reporting_configurations"
                     f" WHERE account_id = %s{clause}"  # noqa: S608 — clause is a literal
                     " ORDER BY delivery_config_id, delivery_config_version",
@@ -247,9 +251,9 @@ class PgReportingLedgerStore:
                     "  feed_purpose, period_key, period_start, period_end, source_timezone,"
                     "  expected_at, scope_resolved_at, automated_recovery_deadline_at,"
                     "  required_finality, coverage_status, media_buy_ids, package_ids,"
-                    "  schedule, created_at)"
+                    "  schedule, definition, created_at)"
                     " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
-                    "         %s::jsonb, %s::jsonb, %s::jsonb, %s)"
+                    "         %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s)"
                     " ON CONFLICT DO NOTHING"
                     " RETURNING reporting_obligation_id",
                     (
@@ -272,6 +276,11 @@ class PgReportingLedgerStore:
                         _json(sorted(obligation.media_buy_ids)),
                         _json(sorted(obligation.package_ids)),
                         _json(_schedule_payload(obligation.schedule)),
+                        (
+                            _json(_definition_payload(obligation.definition))
+                            if obligation.definition
+                            else None
+                        ),
                         obligation.created_at,
                     ),
                 )
@@ -982,7 +991,7 @@ _OBLIGATION_COLUMNS = (
     " report_definition_id, reporting_profile, feed_purpose, period_key, period_start,"
     " period_end, source_timezone, expected_at, scope_resolved_at,"
     " automated_recovery_deadline_at, required_finality, coverage_status, media_buy_ids,"
-    " package_ids, schedule, created_at"
+    " package_ids, schedule, definition, created_at"
 )
 
 _REVISION_COLUMNS = (
@@ -1022,6 +1031,16 @@ def _schedule_payload(schedule: ReportingScheduleSpec) -> dict[str, Any]:
     }
 
 
+def _definition_payload(
+    definition: ReportingDefinitionBinding | None,
+) -> dict[str, Any] | None:
+    return definition.to_wire() if definition is not None else None
+
+
+def _definition_from_payload(payload: dict[str, Any] | None) -> ReportingDefinitionBinding | None:
+    return ReportingDefinitionBinding(**payload) if payload else None
+
+
 def _schedule_from_payload(payload: dict[str, Any]) -> ReportingScheduleSpec:
     anchor = payload.get("period_anchor")
     return ReportingScheduleSpec(
@@ -1043,6 +1062,7 @@ def _configuration_payload(configuration: ReportingConfiguration) -> dict[str, A
         "account_timezone": configuration.account_timezone,
         "media_buy_ids": sorted(configuration.media_buy_ids),
         "schedule": _schedule_payload(configuration.schedule),
+        "definition": _definition_payload(configuration.definition),
     }
 
 
@@ -1062,6 +1082,7 @@ def _configuration_from_row(row: Sequence[Any]) -> ReportingConfiguration:
         deactivated_at=_utc(row[11]) if row[11] else None,
         automated_recovery_window=timedelta(seconds=float(row[12])),
         status_retention_days=row[13],
+        definition=_definition_from_payload(row[14]),
     )
 
 
@@ -1088,7 +1109,8 @@ def _obligation_from_row(row: Sequence[Any]) -> ReportingObligationRecord:
         media_buy_ids=tuple(row[16] or ()),
         package_ids=tuple(row[17] or ()),
         schedule=_schedule_from_payload(row[18]),
-        created_at=_utc(row[19]),
+        definition=_definition_from_payload(row[19]),
+        created_at=_utc(row[20]),
     )
 
 

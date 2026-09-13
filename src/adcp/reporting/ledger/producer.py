@@ -270,6 +270,7 @@ class ReportingProducer:
                     boundary.expected_at + configuration.automated_recovery_window
                 ),
                 schedule=configuration.schedule,
+                definition=configuration.definition,
                 created_at=now,
             )
             stored = await self._store.commit_obligation(obligation)
@@ -356,6 +357,7 @@ class ReportingProducer:
         configuration: ReportingConfiguration,
         obligation: ReportingObligationRecord,
         *,
+        restate: bool = False,
         turn: WorkerTurn | None = None,
         now: datetime | None = None,
     ) -> ReportingRevisionRecord | None:
@@ -363,6 +365,11 @@ class ReportingProducer:
 
         Returns the committed revision, or ``None`` when the source is not ready
         or the obligation is already satisfied.
+
+        ``restate`` asks for a *new observation* of an already-satisfied
+        snapshot obligation.  Without it a satisfied obligation is left alone,
+        because re-reading a settled period on every worker turn would burn
+        upstream quota to republish bytes nobody asked for.
         """
         turn = turn or WorkerTurn()
         now = now or self._clock()
@@ -370,17 +377,13 @@ class ReportingProducer:
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
         )
-        if any(
-            item.finality == "official"
-            or (obligation.required_finality == "snapshot" and item.readable)
-            for item in revisions
-        ):
-            # Officials are terminal; a satisfied snapshot obligation restates
-            # only when the caller asks for it explicitly.
-            if obligation.required_finality == "snapshot" or any(
-                item.finality == "official" for item in revisions
-            ):
-                return None
+        if any(item.finality == "official" for item in revisions):
+            # An official close is terminal. A later source correction is an
+            # adjustment, never another acquisition.
+            return None
+        satisfied = any(item.readable for item in revisions)
+        if satisfied and not restate:
+            return None
 
         finality = obligation.required_finality
         offering_id = self._offerings.offering_for(finality)
@@ -390,7 +393,9 @@ class ReportingProducer:
                 f"this producer declares no source offering for {finality} reporting",
             )
 
-        request = self._build_slice(configuration, obligation, offering_id, now=now)
+        request = self._build_slice(
+            configuration, obligation, offering_id, now=now, observation=len(revisions)
+        )
         cancel = asyncio.Event()
         try:
             result = await asyncio.wait_for(
@@ -558,12 +563,21 @@ class ReportingProducer:
         offering_id: str,
         *,
         now: datetime,
+        observation: int = 0,
     ) -> ReportingSourceSliceRequestV1:
         """Freeze one slice request from the obligation.
 
-        ``source_execution_key`` is derived from the obligation plus the
-        offering, so a retried acquisition of the same obligation replays the
-        same sealed publication rather than minting a second one.
+        ``source_execution_key`` is derived from the obligation, the offering,
+        and the **observation ordinal** -- the number of revisions already
+        committed for this obligation.
+
+        That last term is what makes both behaviors correct at once. A *retry*
+        of a failed acquisition commits nothing, so the ordinal is unchanged,
+        the key is unchanged, and the source replays its sealed publication
+        rather than minting a second one. A *restatement* follows a committed
+        revision, so the ordinal advances and the source is genuinely re-read
+        as a new immutable observation. The ordinal comes from durable state,
+        not from the clock, so neither behavior depends on wall time.
         """
         constituents: list[ReportingConstituent] = [
             MediaBuyConstituentV1(
@@ -582,7 +596,9 @@ class ReportingProducer:
         source_execution_key = (
             "rse-"
             + hashlib.sha256(
-                canonical_json_utf8_v1([obligation.reporting_obligation_id, offering_id])
+                canonical_json_utf8_v1(
+                    [obligation.reporting_obligation_id, offering_id, observation]
+                )
             ).hexdigest()[:40]
         )
         publication_class: ReportingPublicationClass = (
