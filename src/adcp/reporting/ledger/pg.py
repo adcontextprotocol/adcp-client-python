@@ -68,12 +68,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
+from adcp.reporting.ledger.health import issue_id_for_occurrence
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     LedgerRecordKind,
@@ -81,6 +82,7 @@ from adcp.reporting.ledger.models import (
     ReportingAdjustmentRecord,
     ReportingConfiguration,
     ReportingDefinitionBinding,
+    ReportingIssueLifecycle,
     ReportingObligationRecord,
     ReportingPeriodBoundary,
     ReportingRevisionRecord,
@@ -93,6 +95,7 @@ from adcp.reporting.ledger.store import (
     ReportingRowPage,
     decode_cursor,
     encode_cursor,
+    reject_reserved_authoritative_party,
 )
 
 if TYPE_CHECKING:
@@ -132,10 +135,22 @@ class PgReportingLedgerStore:
 
     is_durable: ClassVar[bool] = True
 
-    def __init__(self, *, pool: AsyncConnectionPool) -> None:
+    def __init__(
+        self,
+        *,
+        pool: AsyncConnectionPool,
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
         if not PG_AVAILABLE:
             raise ImportError(_INSTALL_HINT)
         self._pool = pool
+        # The snapshot observation boundary. Defaults to the *database* clock,
+        # which is what makes two readers of one snapshot agree even across
+        # application hosts with drifting clocks -- do not override it in
+        # production for that reason. Overriding is for replay, backfill, and
+        # tests that need to stand at a specific instant relative to seeded
+        # evidence rather than wherever wall-clock time happens to fall.
+        self._clock = clock
 
     async def create_schema(self) -> None:
         """Create every ledger table and index. Idempotent; safe on every boot."""
@@ -164,6 +179,7 @@ class PgReportingLedgerStore:
     # -- configurations ---------------------------------------------------
 
     async def put_configuration(self, configuration: ReportingConfiguration) -> None:
+        reject_reserved_authoritative_party(configuration)
         payload = _configuration_payload(configuration)
         digest = _fingerprint(payload)
         async with self._pool.connection() as connection:
@@ -190,9 +206,9 @@ class PgReportingLedgerStore:
                 "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
                 "  account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
                 "  automated_recovery_seconds, status_retention_days, definition,"
-                "  content_sha256)"
+                "  authoritative_party, content_sha256)"
                 " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s,"
-                "         %s::jsonb, %s)"
+                "         %s::jsonb, %s, %s)"
                 " ON CONFLICT (delivery_config_id, delivery_config_version) DO NOTHING",
                 (
                     configuration.delivery_config_id,
@@ -210,6 +226,7 @@ class PgReportingLedgerStore:
                     configuration.automated_recovery_window.total_seconds(),
                     configuration.status_retention_days,
                     _json(payload["definition"]) if payload["definition"] else None,
+                    configuration.authoritative_party,
                     digest,
                 ),
             )
@@ -227,7 +244,8 @@ class PgReportingLedgerStore:
                     "SELECT delivery_config_id, delivery_config_version, account_id,"  # noqa: S608  # nosec B608
                     " report_definition_id, reporting_profile, feed_purpose, required_finality,"
                     " account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
-                    " automated_recovery_seconds, status_retention_days, definition"
+                    " automated_recovery_seconds, status_retention_days, definition,"
+                    " authoritative_party"
                     " FROM reporting_configurations"
                     f" WHERE account_id = %s{clause}"  # noqa: S608 — clause is a literal
                     " ORDER BY delivery_config_id, delivery_config_version",
@@ -693,10 +711,10 @@ class PgReportingLedgerStore:
                     "  period_source_timezone, consumer_status, status_as_of, recorded_at,"
                     "  supersedes_reporting_status_id, reporting_obligation_id,"
                     "  reporting_revision_id, observed_revision_content_sha256, failure_code,"
-                    "  consumer_commit_ref, seller_ledger_snapshot_id, seller_ledger_as_of,"
-                    "  superseded, content_sha256)"
+                    "  mismatch_code, consumer_commit_ref, seller_ledger_snapshot_id,"
+                    "  seller_ledger_as_of, superseded, content_sha256)"
                     " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
-                    "         %s, %s, %s, %s, FALSE, %s)",
+                    "         %s, %s, %s, %s, %s, FALSE, %s)",
                     (
                         status.reporting_status_id,
                         status.account_id,
@@ -715,6 +733,7 @@ class PgReportingLedgerStore:
                         status.reporting_revision_id,
                         status.observed_revision_content_sha256,
                         status.failure_code,
+                        status.mismatch_code,
                         status.consumer_commit_ref,
                         status.seller_ledger_snapshot_id,
                         status.seller_ledger_as_of,
@@ -778,6 +797,136 @@ class PgReportingLedgerStore:
             ).fetchall()
         return tuple(_status_from_row(row) for row in rows)
 
+    # -- issue lifecycle --------------------------------------------------
+
+    async def ensure_issue_opened(
+        self,
+        *,
+        issue_key: str,
+        account_id: str,
+        consumer_id: str | None,
+        observed_at: datetime,
+    ) -> ReportingIssueLifecycle:
+        async with self._pool.connection() as connection:
+            # Serialize per account so two concurrent readers of one condition
+            # converge on one occurrence instead of both computing
+            # generation = N + 1 and racing the partial unique index.
+            await self._lock_account(connection, account_id)
+            live = await self._live_issue(connection, issue_key, account_id)
+            if live is not None:
+                return live
+            row = await (
+                await connection.execute(
+                    "SELECT COALESCE(MAX(generation), 0) FROM reporting_issue_lifecycle"
+                    " WHERE account_id = %s AND issue_key = %s",
+                    (account_id, issue_key),
+                )
+            ).fetchone()
+            generation = int(row[0] if row else 0) + 1
+            issue_id = issue_id_for_occurrence(issue_key, generation)
+            await connection.execute(
+                "INSERT INTO reporting_issue_lifecycle"
+                " (issue_key, account_id, generation, issue_id, consumer_id, opened_at,"
+                "  issue_state)"
+                " VALUES (%s, %s, %s, %s, %s, %s, 'open')",
+                (issue_key, account_id, generation, issue_id, consumer_id, _utc(observed_at)),
+            )
+            return ReportingIssueLifecycle(
+                issue_key=issue_key,
+                issue_id=issue_id,
+                account_id=account_id,
+                consumer_id=consumer_id,
+                opened_at=_utc(observed_at),
+                issue_state="open",
+                generation=generation,
+            )
+
+    async def set_issue_state(
+        self,
+        *,
+        issue_key: str,
+        account_id: str,
+        state: Literal["acknowledged", "waived"],
+        at: datetime,
+        external_ref: str | None = None,
+    ) -> ReportingIssueLifecycle:
+        if state not in {"acknowledged", "waived"}:
+            raise LedgerConflictError(
+                "ISSUE_STATE_NOT_OPERATOR_SETTABLE",
+                f"issue_state {state!r} is not settable by an operator. 'resolved' is "
+                "reachable only when the condition actually clears -- the projection "
+                "retires it -- because a seller must not retire a mismatch out of a "
+                "degraded projection while the statement that caused it is still the "
+                "consumer's current leaf",
+            )
+        async with self._pool.connection() as connection:
+            await self._lock_account(connection, account_id)
+            live = await self._live_issue(connection, issue_key, account_id)
+            if live is None:
+                raise LedgerConflictError(
+                    "ISSUE_NOT_OPEN",
+                    f"no open issue {issue_key!r} for this account; a retired issue cannot be "
+                    "reopened, and a recurrence gets a new occurrence",
+                )
+            await connection.execute(
+                "UPDATE reporting_issue_lifecycle"
+                " SET issue_state = %s,"
+                "     external_ref = COALESCE(%s, external_ref),"
+                "     retired_at = CASE WHEN %s = 'waived' THEN %s ELSE retired_at END"
+                " WHERE account_id = %s AND issue_key = %s AND generation = %s",
+                (state, external_ref, state, _utc(at), account_id, issue_key, live.generation),
+            )
+            refreshed = await self._issue_row(connection, issue_key, account_id, live.generation)
+            assert refreshed is not None
+            return refreshed
+
+    async def retire_issue(
+        self, *, issue_key: str, account_id: str, at: datetime
+    ) -> ReportingIssueLifecycle | None:
+        async with self._pool.connection() as connection:
+            await self._lock_account(connection, account_id)
+            live = await self._live_issue(connection, issue_key, account_id)
+            if live is None:
+                return None
+            await connection.execute(
+                "UPDATE reporting_issue_lifecycle"
+                " SET issue_state = 'resolved', retired_at = %s"
+                " WHERE account_id = %s AND issue_key = %s AND generation = %s",
+                (_utc(at), account_id, issue_key, live.generation),
+            )
+            return await self._issue_row(connection, issue_key, account_id, live.generation)
+
+    async def get_issue(self, *, issue_key: str, account_id: str) -> ReportingIssueLifecycle | None:
+        async with self._pool.connection() as connection:
+            return await self._live_issue(connection, issue_key, account_id)
+
+    @staticmethod
+    async def _live_issue(
+        connection: Any, issue_key: str, account_id: str
+    ) -> ReportingIssueLifecycle | None:
+        row = await (
+            await connection.execute(
+                f"SELECT {_ISSUE_COLUMNS} FROM reporting_issue_lifecycle"  # noqa: S608  # nosec B608
+                " WHERE account_id = %s AND issue_key = %s"
+                "   AND issue_state IN ('open', 'acknowledged', 'waived')",
+                (account_id, issue_key),
+            )
+        ).fetchone()
+        return _issue_from_row(row) if row else None
+
+    @staticmethod
+    async def _issue_row(
+        connection: Any, issue_key: str, account_id: str, generation: int
+    ) -> ReportingIssueLifecycle | None:
+        row = await (
+            await connection.execute(
+                f"SELECT {_ISSUE_COLUMNS} FROM reporting_issue_lifecycle"  # noqa: S608  # nosec B608
+                " WHERE account_id = %s AND issue_key = %s AND generation = %s",
+                (account_id, issue_key, generation),
+            )
+        ).fetchone()
+        return _issue_from_row(row) if row else None
+
     # -- snapshots --------------------------------------------------------
 
     async def open_snapshot(self, *, account_id: str, filters_fingerprint: str) -> LedgerSnapshot:
@@ -790,7 +939,8 @@ class PgReportingLedgerStore:
                 )
             ).fetchone()
         assert row is not None
-        max_sequence, as_of = int(row[0]), _utc(row[1])
+        max_sequence = int(row[0])
+        as_of = _utc(self._clock()) if self._clock is not None else _utc(row[1])
         return LedgerSnapshot(
             snapshot_id="rpls_"
             + _fingerprint([account_id, filters_fingerprint, max_sequence])[:32],
@@ -1012,11 +1162,30 @@ _STATUS_COLUMNS = (
     " s.delivery_config_version, s.report_definition_id, s.period_start, s.period_end,"
     " s.period_source_timezone, s.consumer_status, s.status_as_of, s.recorded_at,"
     " s.supersedes_reporting_status_id, s.reporting_obligation_id, s.reporting_revision_id,"
-    " s.observed_revision_content_sha256, s.failure_code, s.consumer_commit_ref,"
-    " s.seller_ledger_snapshot_id, s.seller_ledger_as_of, s.superseded"
+    " s.observed_revision_content_sha256, s.failure_code, s.mismatch_code,"
+    " s.consumer_commit_ref, s.seller_ledger_snapshot_id, s.seller_ledger_as_of, s.superseded"
 )
 
 _STATUS_COLUMNS_BARE = _STATUS_COLUMNS.replace("s.", "")
+
+_ISSUE_COLUMNS = (
+    "issue_key, account_id, generation, issue_id, consumer_id, opened_at, issue_state,"
+    " external_ref, retired_at"
+)
+
+
+def _issue_from_row(row: Sequence[Any]) -> ReportingIssueLifecycle:
+    return ReportingIssueLifecycle(
+        issue_key=row[0],
+        account_id=row[1],
+        generation=row[2],
+        issue_id=row[3],
+        consumer_id=row[4],
+        opened_at=_utc(row[5]),
+        issue_state=row[6],
+        external_ref=row[7],
+        retired_at=_utc(row[8]) if row[8] else None,
+    )
 
 
 def _schedule_payload(schedule: ReportingScheduleSpec) -> dict[str, Any]:
@@ -1083,6 +1252,7 @@ def _configuration_from_row(row: Sequence[Any]) -> ReportingConfiguration:
         automated_recovery_window=timedelta(seconds=float(row[12])),
         status_retention_days=row[13],
         definition=_definition_from_payload(row[14]),
+        authoritative_party=row[15],
     )
 
 
@@ -1171,10 +1341,11 @@ def _status_from_row(row: Sequence[Any]) -> ConsumerStatusRecord:
         reporting_revision_id=row[14],
         observed_revision_content_sha256=row[15],
         failure_code=row[16],
-        consumer_commit_ref=row[17],
-        seller_ledger_snapshot_id=row[18],
-        seller_ledger_as_of=_utc(row[19]) if row[19] else None,
-        superseded=row[20],
+        mismatch_code=row[17],
+        consumer_commit_ref=row[18],
+        seller_ledger_snapshot_id=row[19],
+        seller_ledger_as_of=_utc(row[20]) if row[20] else None,
+        superseded=row[21],
     )
 
 
@@ -1188,6 +1359,10 @@ def _consumer_status_payload(status: ConsumerStatusRecord) -> dict[str, Any]:
         "revision": status.reporting_revision_id,
         "digest": status.observed_revision_content_sha256,
         "failure_code": status.failure_code,
+        # In the digest so a retry that changes only the mismatch_code is an
+        # idempotency conflict rather than a silent overwrite: "the metric is
+        # missing" and "the currency is wrong" are different claims.
+        "mismatch_code": status.mismatch_code,
     }
 
 

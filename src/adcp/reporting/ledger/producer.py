@@ -39,6 +39,7 @@ from typing import Any
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger.models import (
     ReportingConfiguration,
+    ReportingDeliveryEscalation,
     ReportingObligationRecord,
     ReportingPeriodBoundary,
     ReportingRevisionRecord,
@@ -166,6 +167,7 @@ class ReportingProducer:
         offerings: ProducerOfferings,
         store: ReportingLedgerStore,
         object_reader: ReportingSourceStagedObjectReader | None = None,
+        escalation: ReportingDeliveryEscalation | None = None,
         worker_id: str = "reporting-producer",
         lease_seconds: float = 60.0,
         max_periods_per_turn: int = 64,
@@ -175,6 +177,7 @@ class ReportingProducer:
         self._offerings = offerings
         self._store = store
         self._object_reader = object_reader
+        self._escalation = escalation or ReportingDeliveryEscalation()
         self._worker_id = worker_id
         self._lease_seconds = lease_seconds
         self._max_periods_per_turn = max_periods_per_turn
@@ -183,6 +186,38 @@ class ReportingProducer:
     @property
     def store(self) -> ReportingLedgerStore:
         return self._store
+
+    @property
+    def escalation(self) -> ReportingDeliveryEscalation:
+        """The advertised escalation commitment, for the status handler.
+
+        Pass the same object to :class:`~adcp.reporting.ledger.status.ReportingStatusHandler`
+        so the projection honours exactly the window the seller published. A
+        handler with a different window than the capability block would escalate
+        on a clock no buyer can see.
+        """
+        return self._escalation
+
+    def advertised_reporting_delivery(self, *, consumer_status_task: bool) -> dict[str, Any]:
+        """The ``media_buy.reporting_delivery`` fragment this producer supports.
+
+        Merge it into the seller's ``get_adcp_capabilities`` response. Kept here
+        rather than in the status handler because what a seller *advertises* is
+        a property of the producer it actually runs -- advertising
+        ``consumer_status_task`` while the ingest is disabled is the
+        half-implemented loop this module's docstring warns about, so the caller
+        has to state it explicitly.
+        """
+        payload: dict[str, Any] = {"reliable_reporting_version": "1.0", "supported": True}
+        if consumer_status_task:
+            payload["consumer_status_task"] = True
+        payload.update(self._escalation.to_wire())
+        if "consumer_mismatch_escalation_seconds" in payload and not consumer_status_task:
+            raise ValueError(
+                "consumer_mismatch_escalation_seconds requires consumer_status_task: an "
+                "escalation commitment on a loop no buyer can post to is unpublishable"
+            )
+        return payload
 
     # -- the worker turn -------------------------------------------------
 

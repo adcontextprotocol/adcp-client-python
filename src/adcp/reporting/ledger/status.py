@@ -41,10 +41,12 @@ from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ReportingAdjustmentRecord,
     ReportingConfiguration,
+    ReportingDeliveryEscalation,
     ReportingHealth,
     ReportingIssue,
     ReportingObligationRecord,
     ReportingRevisionRecord,
+    iso_duration_to_timedelta,
 )
 from adcp.reporting.ledger.store import (
     LedgerConflictError,
@@ -94,6 +96,7 @@ class ReportingStatusHandler:
         *,
         page_size: int = _DEFAULT_PAGE_SIZE,
         consumer_status_enabled: bool = False,
+        escalation: ReportingDeliveryEscalation | None = None,
     ) -> None:
         # Deliberately no clock. ``ledger_as_of`` is the *store's* observation
         # boundary -- in Postgres, the database clock -- because that is what
@@ -102,6 +105,11 @@ class ReportingStatusHandler:
         self._store = store
         self._page_size = page_size
         self._consumer_status_enabled = consumer_status_enabled
+        # The advertised consumer_mismatch_escalation_seconds / operations_contact
+        # pair. Absent means the seller publishes no escalation commitment; it
+        # never means an unbounded one, so the projection simply does not apply
+        # an escalation boundary.
+        self._escalation = escalation
 
     async def handle(
         self, request: dict[str, Any], *, caller: ReportingStatusCaller
@@ -156,7 +164,7 @@ class ReportingStatusHandler:
         request: dict[str, Any],
         filters: dict[str, Any],
     ) -> dict[str, Any]:
-        obligations, projections, issues = await self._project_scope(
+        obligations, projections, issues, pending = await self._project_scope(
             snapshot, caller=caller, filters=filters
         )
         scope_closed = _scope_closed(obligations, ledger_as_of=snapshot.ledger_as_of)
@@ -169,13 +177,18 @@ class ReportingStatusHandler:
         )
         data_through = _scope_data_through(projections.values())
         states = [projection.health for projection in projections.values()]
-        counts = {
+        counts: dict[str, int] = {
             "total": len(obligations),
             **{
                 state: sum(1 for item in states if item == state)
                 for state in ("waiting", "healthy", "delayed", "action_required", "complete")
             },
         }
+        if self._consumer_status_enabled:
+            # Required on the summary view whenever consumer_status_task is
+            # advertised. It overlaps the health counts rather than
+            # partitioning them, and is never a health input.
+            counts["consumer_status_pending"] = pending
         configurations = await self._store.list_configurations(
             account_id=caller.account_id, delivery_config_ids=filters["delivery_config_ids"]
         )
@@ -207,6 +220,10 @@ class ReportingStatusHandler:
         request: dict[str, Any],
     ) -> dict[str, Any]:
         obligations: list[dict[str, Any]] = []
+        generations = {
+            configuration.generation_key: configuration
+            for configuration in await self._store.list_configurations(account_id=caller.account_id)
+        }
         # Revisions on this page may belong to obligations that are not, so
         # resolve each one: a wire revision is self-describing and needs its
         # obligation's scope, period, and definition binding.
@@ -235,20 +252,24 @@ class ReportingStatusHandler:
             health = projection.health
             production_status = projection.production_status
             if self._consumer_status_enabled:
-                from adcp.reporting.ledger.consumer_status import project_consumer_mismatch
-
-                mismatch = project_consumer_mismatch(
+                mismatch = await self._project_mismatch(
                     obligation=obligation,
-                    current_revision=projection.current_revision,
+                    projection=projection,
+                    revisions=revisions,
                     statuses=statuses,
-                    seller_health=health,
+                    generation=generations.get(
+                        (obligation.delivery_config_id, obligation.delivery_config_version)
+                    ),
+                    caller=caller,
+                    snapshot=snapshot,
                 )
                 if mismatch is not None:
                     # Only this caller's view degrades. One consumer's
                     # statement never changes another caller's view or the
                     # seller's advertised reliability statistics.
-                    health = "action_required"
-                    projection_issues.append(mismatch)
+                    health = mismatch.severity
+                    if mismatch.published:
+                        projection_issues.append(mismatch.issue)
             obligations.append(
                 _obligation_to_wire(
                     obligation,
@@ -359,6 +380,7 @@ class ReportingStatusHandler:
         list[ReportingObligationRecord],
         dict[str, Any],
         list[ReportingIssue],
+        int,
     ]:
         """Walk the whole snapshot for a summary.
 
@@ -383,8 +405,13 @@ class ReportingStatusHandler:
                 break
             offset += self._page_size
 
+        generations = {
+            configuration.generation_key: configuration
+            for configuration in await self._store.list_configurations(account_id=caller.account_id)
+        }
         projections: dict[str, Any] = {}
         issues: list[ReportingIssue] = []
+        pending = 0
         for obligation in obligations:
             revisions = await self._store.list_revisions(
                 account_id=caller.account_id,
@@ -398,26 +425,149 @@ class ReportingStatusHandler:
             )
             projections[obligation.reporting_obligation_id] = projection
             issues.extend(projection.issues)
-            if self._consumer_status_enabled:
-                from adcp.reporting.ledger.consumer_status import project_consumer_mismatch
+            if not self._consumer_status_enabled:
+                continue
 
-                statuses = await self._statuses_for(obligation, caller=caller)
-                mismatch = project_consumer_mismatch(
-                    obligation=obligation,
-                    current_revision=projection.current_revision,
-                    statuses=statuses,
-                    seller_health=projection.health,
-                )
-                if mismatch is not None:
-                    issues.append(mismatch)
-                    projections[obligation.reporting_obligation_id] = _degraded(projection)
-        return obligations, projections, issues
+            statuses = await self._statuses_for(obligation, caller=caller)
+            if _consumer_status_pending(obligation, statuses, ledger_as_of=snapshot.ledger_as_of):
+                pending += 1
+            mismatch = await self._project_mismatch(
+                obligation=obligation,
+                projection=projection,
+                revisions=revisions,
+                statuses=statuses,
+                generation=generations.get(
+                    (obligation.delivery_config_id, obligation.delivery_config_version)
+                ),
+                caller=caller,
+                snapshot=snapshot,
+            )
+            if mismatch is None:
+                continue
+            if mismatch.published:
+                issues.append(mismatch.issue)
+            # A waived mismatch still degrades this caller's view. Waiving
+            # records an off-protocol agreement to stop *acting*, not a finding
+            # that the reporting is fine -- otherwise a seller could
+            # unilaterally erase a buyer-attributed disagreement, which is the
+            # one outcome this separately attributed loop exists to prevent.
+            projections[obligation.reporting_obligation_id] = _degraded(
+                projection, mismatch.severity
+            )
+        return obligations, projections, issues, pending
+
+    async def _project_mismatch(
+        self,
+        *,
+        obligation: ReportingObligationRecord,
+        projection: Any,
+        revisions: Sequence[ReportingRevisionRecord],
+        statuses: Sequence[ConsumerStatusRecord],
+        generation: ReportingConfiguration | None,
+        caller: ReportingStatusCaller,
+        snapshot: Any,
+    ) -> Any:
+        """Project this caller's mismatch, keeping ``opened_at`` durable.
+
+        The lifecycle row is opened on *first observation* and read back on
+        every later one, so ``opened_at`` never advances and the escalation
+        clock cannot be reset by polling. When the condition clears, the
+        occurrence is retired here rather than by an operator, which is what
+        makes "never retire while the causing statement is still the current
+        leaf" true by construction.
+        """
+        from adcp.reporting.ledger.consumer_status import (
+            consumer_mismatch_issue_key,
+            project_consumer_mismatch,
+        )
+
+        issue_key = consumer_mismatch_issue_key(
+            account_id=caller.account_id,
+            consumer_id=caller.consumer_id,
+            delivery_config_id=obligation.delivery_config_id,
+            delivery_config_version=obligation.delivery_config_version,
+            report_definition_id=obligation.report_definition_id,
+            period_start=obligation.period.start,
+            period_end=obligation.period.end,
+        )
+        sla = (
+            iso_duration_to_timedelta(generation.schedule.delivery_sla)
+            if generation is not None
+            else timedelta(0)
+        )
+        recovery = (
+            generation.automated_recovery_window if generation is not None else timedelta(hours=6)
+        )
+        # Probe without opening: a clean projection must not mint an issue.
+        probe = project_consumer_mismatch(
+            obligation=obligation,
+            current_revision=projection.current_revision,
+            statuses=statuses,
+            seller_health=projection.health,
+            revisions=revisions,
+            ledger_as_of=snapshot.ledger_as_of,
+            delivery_sla=sla,
+            automated_recovery_window=recovery,
+            escalation=self._escalation,
+            lifecycle=await self._store.get_issue(
+                issue_key=issue_key, account_id=caller.account_id
+            ),
+        )
+        if probe is None:
+            await self._store.retire_issue(
+                issue_key=issue_key,
+                account_id=caller.account_id,
+                at=snapshot.ledger_as_of,
+            )
+            return None
+        lifecycle = await self._store.ensure_issue_opened(
+            issue_key=issue_key,
+            account_id=caller.account_id,
+            consumer_id=caller.consumer_id,
+            observed_at=snapshot.ledger_as_of,
+        )
+        # Re-project with the durable opened_at so the escalation boundary is
+        # measured from first observation, not from this poll.
+        return project_consumer_mismatch(
+            obligation=obligation,
+            current_revision=projection.current_revision,
+            statuses=statuses,
+            seller_health=projection.health,
+            revisions=revisions,
+            ledger_as_of=snapshot.ledger_as_of,
+            delivery_sla=sla,
+            automated_recovery_window=recovery,
+            escalation=self._escalation,
+            lifecycle=lifecycle,
+        )
 
 
-def _degraded(projection: Any) -> Any:
+def _consumer_status_pending(
+    obligation: ReportingObligationRecord,
+    statuses: Sequence[ConsumerStatusRecord],
+    *,
+    ledger_as_of: datetime,
+) -> bool:
+    """Whether this caller owes a status it has not filed.
+
+    The deadline is ``expected_at + automated_recovery_window_seconds``, which
+    the obligation already carries as ``automated_recovery_deadline_at``. A
+    chain with *any* unsuperseded leaf counts as current whatever that leaf
+    says; only an empty chain is pending.
+
+    Visibility only. This never changes health, another count, or
+    seller-advertised reliability statistics -- a buyer that has not integrated
+    the loop is not evidence about the seller.
+    """
+    if _utc(ledger_as_of) < _utc(obligation.automated_recovery_deadline_at):
+        return False
+    return not any(not status.superseded for status in statuses)
+
+
+def _degraded(projection: Any, severity: str = "action_required") -> Any:
     from dataclasses import replace
 
-    return replace(projection, health="action_required")
+    return replace(projection, health=severity)
 
 
 def _filters(request: dict[str, Any]) -> dict[str, Any]:
@@ -755,6 +905,7 @@ def _consumer_status_to_wire(status: ConsumerStatusRecord) -> dict[str, Any]:
         "reporting_revision_id": status.reporting_revision_id,
         "observed_revision_content_sha256": status.observed_revision_content_sha256,
         "failure_code": status.failure_code,
+        "mismatch_code": status.mismatch_code,
         "consumer_commit_ref": status.consumer_commit_ref,
         "seller_ledger_snapshot_id": status.seller_ledger_snapshot_id,
         "seller_ledger_as_of": (

@@ -203,6 +203,63 @@ CREATE UNIQUE INDEX IF NOT EXISTS reporting_consumer_statuses_one_successor
 CREATE INDEX IF NOT EXISTS reporting_consumer_statuses_chain_idx
     ON reporting_consumer_statuses (account_id, consumer_id, period_end DESC);
 
+-- AdCP 3.2.0-rc.3 additions to tables created by an earlier SDK. ADD COLUMN
+-- IF NOT EXISTS keeps create_schema() an upgrade path, not just a bootstrap:
+-- an adopter that installed the rc.2 schema gets these on the next boot
+-- without a hand-written migration, and a fresh install is unaffected.
+ALTER TABLE reporting_consumer_statuses
+    ADD COLUMN IF NOT EXISTS mismatch_code TEXT;
+
+ALTER TABLE reporting_configurations
+    ADD COLUMN IF NOT EXISTS authoritative_party TEXT NOT NULL DEFAULT 'seller';
+
+-- Durable issue lifecycle. Every other issue in this ledger has a *derived*
+-- identity, because the conditions they name are monotone for one immutable
+-- obligation: once a qualifying revision is associated, REPORT_OVERDUE cannot
+-- recur. A consumer mismatch is not monotone -- the buyer can supersede, the
+-- seller can restate, the disagreement can clear and come back -- and rc.3
+-- requires opened_at to survive every re-emission because it anchors the
+-- escalation clock. A derived timestamp would reset on each poll and an
+-- unattended mismatch would never escalate.
+--
+-- issue_key identifies the condition; issue_id identifies one occurrence of
+-- it. Retirement bumps generation, so a recurrence after resolved/waived gets
+-- a new issue_id and a new opened_at, while an unresolved condition keeps both
+-- across a severity change from delayed to action_required.
+CREATE TABLE IF NOT EXISTS reporting_issue_lifecycle (
+    issue_key    TEXT COLLATE "C" NOT NULL,
+    account_id   TEXT COLLATE "C" NOT NULL,
+    generation   INTEGER          NOT NULL,
+    issue_id     TEXT COLLATE "C" NOT NULL,
+    -- Caller-scoped issues (every consumer mismatch) carry the consumer whose
+    -- statement caused them; NULL is a seller-wide condition.
+    consumer_id  TEXT COLLATE "C",
+    opened_at    TIMESTAMPTZ      NOT NULL,
+    issue_state  TEXT             NOT NULL DEFAULT 'open',
+    -- Inert correlation text for the party's own tracker. Never dereferenced.
+    external_ref TEXT,
+    retired_at   TIMESTAMPTZ,
+    PRIMARY KEY (account_id, issue_key, generation)
+);
+
+-- At most one live occurrence per condition. 'waived' counts as live: waiving
+-- records an agreement to stop *acting*, not a finding that the reporting is
+-- fine, so the occurrence must keep blocking a new one -- otherwise the next
+-- poll would open a fresh occurrence and republish the very issue the parties
+-- agreed to stop acting on. Only 'resolved' frees the condition to recur.
+--
+-- This is also what makes
+-- ensure_issue_opened() safe under concurrent reads: two readers of the same
+-- condition collide on this index and converge on one row instead of opening
+-- two occurrences with two different opened_at values -- which would give the
+-- same disagreement two escalation clocks.
+CREATE UNIQUE INDEX IF NOT EXISTS reporting_issue_lifecycle_one_live
+    ON reporting_issue_lifecycle (account_id, issue_key)
+    WHERE issue_state IN ('open', 'acknowledged', 'waived');
+
+CREATE UNIQUE INDEX IF NOT EXISTS reporting_issue_lifecycle_issue_id
+    ON reporting_issue_lifecycle (issue_id);
+
 -- The per-account change feed. `seq` orders every immutable record across
 -- kinds so `changes_after` is exact.
 --

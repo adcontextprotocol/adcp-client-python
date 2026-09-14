@@ -44,6 +44,7 @@ __all__ = [
     "ObligationProjection",
     "aggregate_reporting_health",
     "issue_id_for",
+    "issue_id_for_occurrence",
     "project_obligation_health",
 ]
 
@@ -73,6 +74,26 @@ def issue_id_for(kind: str, *parts: object) -> str:
     consumer polling twice deduplicates on the same id both times.
     """
     digest = hashlib.sha256(canonical_json_utf8_v1([kind, *[str(part) for part in parts]])).digest()
+    return "rpti_" + base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")[:32]
+
+
+def issue_id_for_occurrence(issue_key: str, generation: int) -> str:
+    """The id for one *occurrence* of a stored, non-monotone condition.
+
+    :func:`issue_id_for` is enough for conditions that cannot recur once
+    satisfied.  A consumer mismatch can: the buyer supersedes, the seller
+    restates, the disagreement clears and comes back.  AdCP 3.2.0-rc.3 requires
+    a recurrence after retirement to get a *new* ``issue_id``, so identity has
+    to include which occurrence this is -- the generation counter held by
+    :class:`~adcp.reporting.ledger.models.ReportingIssueLifecycle`.
+
+    Folding the generation into the digest rather than appending it keeps the
+    id opaque, so nothing downstream can parse it back into "how many times
+    has this buyer complained".
+    """
+    digest = hashlib.sha256(
+        canonical_json_utf8_v1(["core-issue-occurrence-v1", issue_key, generation])
+    ).digest()
     return "rpti_" + base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")[:32]
 
 

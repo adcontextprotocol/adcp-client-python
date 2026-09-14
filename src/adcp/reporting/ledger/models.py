@@ -29,6 +29,7 @@ from typing import Any, Literal
 
 __all__ = [
     "ConsumerStatusRecord",
+    "ConsumerStatusValue",
     "ReportingDefinitionBinding",
     "LedgerChange",
     "LedgerRecordKind",
@@ -37,7 +38,11 @@ __all__ = [
     "ReportingConfiguration",
     "ReportingFinality",
     "ReportingHealth",
+    "ReportingDeliveryEscalation",
     "ReportingIssue",
+    "ReportingIssueLifecycle",
+    "ReportingIssueStateValue",
+    "ReportingMismatchCode",
     "ReportingObligationRecord",
     "ReportingPeriodBoundary",
     "ReportingProductionStatus",
@@ -51,6 +56,38 @@ ReportingFinality = Literal["snapshot", "official"]
 ReportingHealth = Literal["healthy", "waiting", "delayed", "action_required", "complete"]
 ReportingProductionStatus = Literal["not_due", "pending", "published", "failed"]
 LedgerRecordKind = Literal["obligation", "revision", "adjustment", "consumer_status"]
+
+#: The five values a consumer may state about one expected period. AdCP
+#: 3.2.0-rc.3 adds ``content_mismatch``: reporting that arrived and parsed but
+#: contradicts a fact the accepted configuration generation already fixed.
+ConsumerStatusValue = Literal[
+    "received",
+    "obligation_missing",
+    "revision_missing",
+    "unreadable",
+    "content_mismatch",
+]
+
+#: Closed reason a consumed revision contradicts the accepted generation. Each
+#: value is decidable from the obligation, the pinned report definition, and
+#: the revision alone -- never from either party's own measurement. A
+#: disagreement about *counts* is not in this set; that is a measurement
+#: dispute settled through measurement_terms and makegood_policy.
+ReportingMismatchCode = Literal[
+    "scope_media_buy_missing",
+    "coverage_short",
+    "metric_missing",
+    "schema_nonconformant",
+    "currency_mismatch",
+    "period_mismatch",
+]
+
+#: Seller-maintained issue lifecycle. Moves forward only. ``open`` is the
+#: default when omitted. Only ``open`` and ``acknowledged`` appear in
+#: ``issues[]``; retiring an issue removes it from the projection rather than
+#: publishing it in a terminal state, so a reader that treats a nonempty
+#: ``issues[]`` as degradation stays correct.
+ReportingIssueStateValue = Literal["open", "acknowledged", "resolved", "waived"]
 
 
 def _utc(value: datetime) -> datetime:
@@ -275,6 +312,12 @@ class ReportingConfiguration:
     automated_recovery_window: timedelta = timedelta(hours=6)
     status_retention_days: int = 400
     definition: ReportingDefinitionBinding | None = None
+    # AdCP 3.2.0-rc.3 reserves this for the buyer-deposited billing revision
+    # task scoped to a later minor. ``seller`` is the default and the only
+    # value any 3.2 seller accepts; ``consumer`` is carried rather than
+    # dropped so :meth:`ReportingLedgerStore.put_configuration` can reject it
+    # with UNSUPPORTED_FEATURE. The spec forbids silently coercing it.
+    authoritative_party: Literal["seller", "consumer"] = "seller"
 
     @property
     def generation_key(self) -> tuple[str, int]:
@@ -417,7 +460,7 @@ class ConsumerStatusRecord:
     period_start: datetime
     period_end: datetime
     period_source_timezone: str
-    consumer_status: Literal["received", "obligation_missing", "revision_missing", "unreadable"]
+    consumer_status: ConsumerStatusValue
     status_as_of: datetime
     recorded_at: datetime
     supersedes_reporting_status_id: str | None = None
@@ -425,6 +468,11 @@ class ConsumerStatusRecord:
     reporting_revision_id: str | None = None
     observed_revision_content_sha256: str | None = None
     failure_code: str | None = None
+    # AdCP 3.2.0-rc.3. Present exactly when consumer_status is
+    # ``content_mismatch``: the closed reason the consumed revision contradicts
+    # a fact the accepted configuration generation already fixed. Agents
+    # dispatch on this value, never on ``message`` prose.
+    mismatch_code: ReportingMismatchCode | None = None
     consumer_commit_ref: str | None = None
     seller_ledger_snapshot_id: str | None = None
     seller_ledger_as_of: datetime | None = None
@@ -473,6 +521,18 @@ class ReportingIssue:
     expected_at: datetime | None = None
     reporting_status_id: str | None = None
     message: str | None = None
+    # AdCP 3.2.0-rc.3 issue lifecycle. ``opened_at`` is when the seller first
+    # observed this logical condition and MUST NOT advance while the same
+    # ``issue_id`` is re-emitted -- it anchors the escalation clock, so a
+    # re-emission that reset it would let a seller hold an unresolved mismatch
+    # below action_required forever. Required on CONSUMER_STATUS_MISMATCH.
+    opened_at: datetime | None = None
+    issue_state: ReportingIssueStateValue | None = None
+    # Inert correlation text for the party's own tracker. Never dereferenced,
+    # resolved, or executed, and never reused across callers on a
+    # caller-scoped issue -- that would leak one tenant's blast radius to
+    # another.
+    external_ref: str | None = None
 
     def to_wire(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -492,12 +552,137 @@ class ReportingIssue:
             "expected_at": self.expected_at,
             "reporting_status_id": self.reporting_status_id,
             "message": self.message,
+            "opened_at": self.opened_at,
+            "issue_state": self.issue_state,
+            "external_ref": self.external_ref,
         }
         for key, value in optional.items():
             if value is not None:
                 payload[key] = value.isoformat() if isinstance(value, datetime) else value
         if self.media_buy_ids:
             payload["media_buy_ids"] = list(self.media_buy_ids)
+        return payload
+
+
+@dataclass(frozen=True)
+class ReportingIssueLifecycle:
+    """Durable state for one logical issue, so ``opened_at`` can stay fixed.
+
+    Issue *identity* elsewhere in this module is derived (see
+    :func:`~adcp.reporting.ledger.health.issue_id_for`) because the conditions
+    it names are monotone for one immutable obligation.  A consumer mismatch is
+    not monotone: the buyer can supersede its statement, the seller can restate,
+    and the same logical disagreement can go quiet and come back.  AdCP
+    3.2.0-rc.3 also requires ``opened_at`` to survive every re-emission,
+    because it anchors the escalation clock -- a derived timestamp would reset
+    on each poll and an unattended mismatch would never escalate.
+
+    ``issue_key`` identifies the *condition*; ``issue_id`` identifies one
+    *occurrence* of it.  Retirement bumps ``generation``, so a recurrence after
+    ``resolved`` or ``waived`` gets a new ``issue_id`` and a new ``opened_at``
+    exactly as the spec requires, while an unresolved condition keeps both
+    across a severity change from ``delayed`` to ``action_required``.
+    """
+
+    issue_key: str
+    issue_id: str
+    account_id: str
+    opened_at: datetime
+    issue_state: ReportingIssueStateValue = "open"
+    generation: int = 1
+    #: Caller-scoped issues (every consumer mismatch) carry the consumer whose
+    #: statement caused them. ``None`` is a seller-wide condition.
+    consumer_id: str | None = None
+    external_ref: str | None = None
+    retired_at: datetime | None = None
+
+    @property
+    def live(self) -> bool:
+        """Whether this occurrence still stands, publishable or not.
+
+        ``waived`` counts as live.  Waiving records an agreement to stop
+        *acting*, not a finding that the reporting is fine, so the occurrence
+        must keep blocking a new one -- otherwise the next poll would open a
+        fresh occurrence and republish the issue the parties just agreed to
+        stop acting on, and the waiver would mean nothing.
+
+        Only ``resolved`` frees the condition to recur under a new
+        ``issue_id``, and only the projection can set it (see
+        :meth:`~adcp.reporting.ledger.store.ReportingLedgerStore.retire_issue`).
+        """
+        return self.issue_state in {"open", "acknowledged", "waived"}
+
+    @property
+    def published(self) -> bool:
+        """Whether this occurrence belongs in ``issues[]``.
+
+        Only ``open`` and ``acknowledged``.  Retiring an issue removes it from
+        the projection rather than publishing it in a terminal state, so a
+        reader that treats a nonempty ``issues[]`` as degradation stays
+        correct.  The converse does not hold: a waived mismatch degrades the
+        caller's view with no published issue.
+        """
+        return self.issue_state in {"open", "acknowledged"}
+
+
+@dataclass(frozen=True)
+class ReportingDeliveryEscalation:
+    """The seller's advertised escalation commitment for consumer mismatches.
+
+    Both halves of AdCP 3.2.0-rc.3's
+    ``reporting_delivery_capabilities.consumer_mismatch_escalation_seconds`` /
+    ``operations_contact`` pair.  The schema makes the contact mandatory when
+    the window is advertised, so this class refuses the window without one:
+    committing to escalate with nowhere to escalate *to* is the failure the
+    requirement exists to prevent.
+
+    ``operations_contact`` is inert human-facing metadata.  Agents surface it
+    to an operator and MUST NOT fetch the URL, send protocol traffic to it, or
+    treat either value as a credential or a callback.
+    """
+
+    consumer_mismatch_escalation: timedelta | None = None
+    operations_contact_url: str | None = None
+    operations_contact_email: str | None = None
+
+    def __post_init__(self) -> None:
+        has_contact = bool(self.operations_contact_url or self.operations_contact_email)
+        if self.consumer_mismatch_escalation is not None and not has_contact:
+            raise ValueError(
+                "consumer_mismatch_escalation requires operations_contact_url or "
+                "operations_contact_email; the schema makes the contact mandatory so the "
+                "escalation has a destination"
+            )
+        if (
+            self.consumer_mismatch_escalation is not None
+            and self.consumer_mismatch_escalation.total_seconds() < 0
+        ):
+            raise ValueError("consumer_mismatch_escalation cannot be negative")
+        if self.operations_contact_url is not None and not self.operations_contact_url.startswith(
+            "https://"
+        ):
+            # Same hardened public-origin shape as the offering document URIs.
+            # Enforcing the scheme here keeps "never dereference" true by
+            # construction for the obvious loopback/credentialed cases.
+            raise ValueError("operations_contact_url must be an https:// URL")
+
+    def to_wire(self) -> dict[str, Any]:
+        """The fragment a seller merges into its advertised capability block."""
+        payload: dict[str, Any] = {}
+        if self.consumer_mismatch_escalation is not None:
+            payload["consumer_mismatch_escalation_seconds"] = int(
+                self.consumer_mismatch_escalation.total_seconds()
+            )
+        contact = {
+            key: value
+            for key, value in (
+                ("url", self.operations_contact_url),
+                ("email", self.operations_contact_email),
+            )
+            if value is not None
+        }
+        if contact:
+            payload["operations_contact"] = contact
         return payload
 
 

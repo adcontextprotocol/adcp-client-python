@@ -64,14 +64,18 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, cast
 
+from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger.health import issue_id_for
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
+    ConsumerStatusValue,
+    ReportingDeliveryEscalation,
     ReportingHealth,
     ReportingIssue,
+    ReportingIssueLifecycle,
     ReportingObligationRecord,
     ReportingRevisionRecord,
 )
@@ -79,9 +83,12 @@ from adcp.reporting.ledger.store import LedgerConflictError, ReportingLedgerStor
 
 __all__ = [
     "CONSUMER_STATUS_ENABLED",
+    "ConsumerMismatch",
     "ConsumerStatusDisabledError",
     "ConsumerStatusIngest",
+    "consumer_mismatch_issue_key",
     "project_consumer_mismatch",
+    "stale_received_grace_deadline",
 ]
 
 ResponsibleParty = Literal["buyer", "seller", "provider"]
@@ -144,22 +151,6 @@ class ConsumerStatusIngest:
             problems = _validate_consumer_status_wire(statement)
             if problems:
                 results.append(_failed(status_id, "INVALID_CONSUMER_STATUS", problems[0]))
-                continue
-            if statement.get("consumer_status") == "content_mismatch":
-                # rc.3 adds this status and its closed ``mismatch_code``. The
-                # bundled schema now accepts it, but this ledger has nowhere to
-                # put the code yet, so accepting the statement would silently
-                # discard the one field that makes it actionable. Reject it
-                # visibly until the storage and projection land.
-                results.append(
-                    _failed(
-                        status_id,
-                        "UNSUPPORTED_FEATURE",
-                        "content_mismatch is accepted by the AdCP 3.2.0-rc.3 schema but this "
-                        "seller ledger does not yet record its mismatch_code; file "
-                        "revision_missing or unreadable, or upgrade the SDK",
-                    )
-                )
                 continue
             try:
                 record = self._to_record(statement, account_id=account_id, consumer_id=consumer_id)
@@ -251,9 +242,6 @@ class ConsumerStatusIngest:
             period_start=_utc(period.start),
             period_end=_utc(period.end),
             period_source_timezone=period.source_timezone,
-            # ``content_mismatch`` is rejected above, so the remaining four values
-            # are exactly the record's Literal. Narrowing here keeps that
-            # invariant checked rather than asserted.
             consumer_status=_narrow_recorded_status(parsed.consumer_status.value),
             status_as_of=_utc(parsed.status_as_of),
             recorded_at=datetime.now(timezone.utc),
@@ -262,6 +250,7 @@ class ConsumerStatusIngest:
             reporting_revision_id=parsed.reporting_revision_id,
             observed_revision_content_sha256=parsed.observed_revision_content_sha256,
             failure_code=parsed.failure_code.value if parsed.failure_code else None,
+            mismatch_code=parsed.mismatch_code.value if parsed.mismatch_code else None,
             consumer_commit_ref=parsed.consumer_commit_ref,
             seller_ledger_snapshot_id=parsed.seller_ledger_snapshot_id,
             seller_ledger_as_of=(
@@ -270,19 +259,22 @@ class ConsumerStatusIngest:
         )
 
 
-RecordedConsumerStatus = Literal["received", "obligation_missing", "revision_missing", "unreadable"]
+def _narrow_recorded_status(value: str) -> ConsumerStatusValue:
+    """Narrow a schema ``consumer_status`` to the values this ledger records.
 
-
-def _narrow_recorded_status(value: str) -> RecordedConsumerStatus:
-    """Narrow a schema consumer_status to the four this ledger can record.
-
-    The bundled AdCP 3.2.0-rc.3 schema has five values; ``content_mismatch`` is
-    rejected at ingest because there is nowhere to store its ``mismatch_code``.
-    Raising rather than silently coercing means a future schema value cannot
-    reach storage as a plausible-looking wrong status.
+    All five rc.3 values are recordable. Raising on anything else rather than
+    coercing means a *future* schema value cannot reach storage disguised as a
+    plausible-looking wrong status -- the failure mode that would make a
+    buyer's statement say something it never said.
     """
-    if value in {"received", "obligation_missing", "revision_missing", "unreadable"}:
-        return cast(RecordedConsumerStatus, value)
+    if value in {
+        "received",
+        "obligation_missing",
+        "revision_missing",
+        "unreadable",
+        "content_mismatch",
+    }:
+        return cast(ConsumerStatusValue, value)
     raise ValueError(f"consumer_status {value!r} is not recordable by this ledger")
 
 
@@ -326,28 +318,137 @@ def _to_wire(record: ConsumerStatusRecord) -> dict[str, Any]:
     return _consumer_status_to_wire(record)
 
 
+@dataclass(frozen=True)
+class ConsumerMismatch:
+    """A consumer mismatch, with the severity it degrades the caller's view to.
+
+    Severity is carried alongside the issue rather than read back off it so the
+    caller cannot accidentally project ``delayed`` health from an
+    ``action_required`` issue, or the reverse.
+    """
+
+    issue: ReportingIssue
+    severity: Literal["delayed", "action_required"]
+    #: ``False`` once a seller has waived the statement. The view still
+    #: degrades -- waiving is an agreement to stop *acting*, not a finding that
+    #: the reporting is fine -- but a waived issue is not published in
+    #: ``issues[]``.
+    published: bool = True
+
+
+def consumer_mismatch_issue_key(
+    *,
+    account_id: str,
+    consumer_id: str,
+    delivery_config_id: str,
+    delivery_config_version: int,
+    report_definition_id: str,
+    period_start: datetime,
+    period_end: datetime,
+) -> str:
+    """Identity of the *condition*, not of the statement that evidences it.
+
+    Keyed on the logical status chain, deliberately not on
+    ``reporting_status_id``. A buyer that supersedes one conflicting statement
+    with another conflicting statement has not resolved anything, and rc.3
+    anchors the escalation clock to the issue's ``opened_at``. Keying on the
+    statement id would mint a fresh issue -- and a fresh clock -- on every
+    re-file, letting an unresolved disagreement dodge escalation forever.
+
+    Also deliberately not keyed on the obligation id: a chain that began as
+    ``obligation_missing`` attaches to the repaired obligation later, and the
+    spec requires that chain never be lost, forked, or reset.
+    """
+    payload = canonical_json_utf8_v1(
+        [
+            "core-consumer-status-mismatch-v1",
+            account_id,
+            consumer_id,
+            delivery_config_id,
+            delivery_config_version,
+            report_definition_id,
+            _utc(period_start).isoformat(),
+            _utc(period_end).isoformat(),
+        ]
+    )
+    return "rpik_" + hashlib.sha256(payload).hexdigest()[:40]
+
+
+def stale_received_grace_deadline(
+    *,
+    received_revision_id: str,
+    revisions: Sequence[ReportingRevisionRecord],
+    delivery_sla: timedelta,
+    automated_recovery_window: timedelta,
+) -> datetime | None:
+    """When a stale ``received`` stops being excusable.
+
+    The anchor is the ``created_at`` of the **first** revision that superseded
+    the one the consumer named, plus the configuration generation's
+    ``delivery_sla`` as exact elapsed UTC time. Anchoring to the first
+    supersession rather than the newest one is what stops the window from
+    becoming a hiding place: otherwise a seller could hold a genuinely
+    unresolved mismatch below ``action_required`` by restating on a timer.
+
+    When ``delivery_sla`` resolves to zero in any of its legal spellings, the
+    seller uses ``automated_recovery_window`` instead, so a zero-SLA feed still
+    yields a bounded re-read window rather than an instant escalation.
+
+    Returns ``None`` when nothing superseded the named revision -- there is no
+    staleness to forgive.
+    """
+    superseder = next(
+        (
+            revision
+            for revision in revisions
+            if revision.supersedes_reporting_revision_id == received_revision_id
+        ),
+        None,
+    )
+    if superseder is None:
+        return None
+    window = delivery_sla if delivery_sla > timedelta(0) else automated_recovery_window
+    return _utc(superseder.created_at) + window
+
+
 def project_consumer_mismatch(
     *,
     obligation: ReportingObligationRecord,
     current_revision: ReportingRevisionRecord | None,
     statuses: Sequence[ConsumerStatusRecord],
     seller_health: ReportingHealth,
-) -> ReportingIssue | None:
+    revisions: Sequence[ReportingRevisionRecord] = (),
+    ledger_as_of: datetime | None = None,
+    delivery_sla: timedelta = timedelta(0),
+    automated_recovery_window: timedelta = timedelta(hours=6),
+    escalation: ReportingDeliveryEscalation | None = None,
+    lifecycle: ReportingIssueLifecycle | None = None,
+) -> ConsumerMismatch | None:
     """Compare the seller's projection with this caller's current statement.
 
-    Returns an issue only when they genuinely conflict:
+    Returns a mismatch only when they genuinely conflict. Five conflict kinds,
+    four of them immediate:
 
-    * any negative current status (``obligation_missing``, ``revision_missing``,
-      ``unreadable``) against an otherwise ``healthy`` / ``complete`` seller
-      projection; or
-    * ``received`` naming a revision that is **no longer the current required
-      revision** after a seller restatement -- the buyer consumed real content,
-      but the seller has since superseded it, so the buyer is working from data
-      it does not know is stale.
+    * ``obligation_missing``, ``revision_missing``, ``unreadable``, and
+      ``content_mismatch`` against an otherwise ``healthy``/``complete`` seller
+      projection are ``action_required`` at once; and
+    * ``received`` naming a revision the seller has since superseded is
+      ``delayed`` until its grace deadline, then ``action_required``.
 
-    Missing consumer status stays *unknown*.  It never excuses seller reporting
-    and never by itself degrades seller health: a buyer that has not integrated
-    the loop is not evidence of anything.
+    The carve-out exists because that buyer consumed exactly what the seller
+    required at the time and has not yet had a bounded chance to re-read.
+    Paging a human the instant a seller restates a provisional revision would
+    train buyers to ignore the signal.
+
+    An advertised ``consumer_mismatch_escalation`` boundary takes precedence
+    when the two windows overlap: past ``opened_at`` plus that window the issue
+    is ``action_required`` with a ``contact_*`` action regardless of the grace
+    deadline. ``wait_for_retry`` must not survive that boundary -- an
+    unattended mismatch is an escalation, not a retry.
+
+    Missing consumer status stays *unknown*. It never excuses seller reporting
+    and never by itself degrades seller health; silence is surfaced only
+    through ``obligation_counts.consumer_status_pending``.
     """
     current = next((item for item in statuses if not item.superseded), None)
     if current is None:
@@ -357,34 +458,81 @@ def project_consumer_mismatch(
         # second issue for the same condition would double-count it.
         return None
 
-    if current.consumer_status != "received":
-        return _mismatch_issue(
-            obligation,
-            current,
-            responsible_party=_responsible_for(current),
-            message=(
-                f"the authenticated consumer reports {current.consumer_status} for this "
-                "period while the seller projects healthy reporting"
-            ),
-        )
+    boundary = _utc(ledger_as_of) if ledger_as_of is not None else None
+    severity: Literal["delayed", "action_required"] = "action_required"
+    grace_deadline: datetime | None = None
 
-    if (
-        current_revision is not None
-        and current.reporting_revision_id is not None
-        and current.reporting_revision_id != current_revision.reporting_revision_id
-    ):
-        return _mismatch_issue(
-            obligation,
-            current,
-            responsible_party="buyer",
-            message=(
-                "the authenticated consumer received revision "
-                f"{current.reporting_revision_id} but the current required revision is "
-                f"{current_revision.reporting_revision_id}; the consumer is working from a "
-                "superseded restatement"
-            ),
+    if current.consumer_status == "received":
+        if current.reporting_revision_id is None:
+            return None
+        if (
+            current_revision is not None
+            and current.reporting_revision_id == current_revision.reporting_revision_id
+        ):
+            return None
+        grace_deadline = stale_received_grace_deadline(
+            received_revision_id=current.reporting_revision_id,
+            revisions=revisions,
+            delivery_sla=delivery_sla,
+            automated_recovery_window=automated_recovery_window,
         )
-    return None
+        if grace_deadline is None:
+            if current_revision is None:
+                # Nothing superseded the named revision and the seller has no
+                # current required revision either. There is no restatement to
+                # re-read, so there is nothing to forgive and nothing to page
+                # about.
+                return None
+        elif boundary is not None and boundary < grace_deadline:
+            severity = "delayed"
+        responsible: ResponsibleParty = "buyer"
+        message = (
+            "the authenticated consumer received revision "
+            f"{current.reporting_revision_id} but the current required revision is "
+            f"{current_revision.reporting_revision_id if current_revision else 'unknown'}; "
+            "the consumer is working from a superseded restatement"
+        )
+    else:
+        responsible = _responsible_for(current)
+        message = _negative_message(current)
+
+    opened_at = _utc(lifecycle.opened_at) if lifecycle is not None else boundary
+    escalated = False
+    window = escalation.consumer_mismatch_escalation if escalation is not None else None
+    if window is not None and opened_at is not None and boundary is not None:
+        # Precedence: the escalation boundary wins when it overlaps the grace
+        # window. Measured from the issue's opened_at, never from this poll, so
+        # re-emission cannot reset it.
+        if boundary >= opened_at + window:
+            severity = "action_required"
+            escalated = True
+
+    issue = _mismatch_issue(
+        obligation,
+        current,
+        responsible_party=responsible,
+        message=message,
+        severity=severity,
+        escalated=escalated,
+        lifecycle=lifecycle,
+        opened_at=opened_at,
+    )
+    published = lifecycle is None or lifecycle.published
+    return ConsumerMismatch(issue=issue, severity=severity, published=published)
+
+
+def _negative_message(status: ConsumerStatusRecord) -> str:
+    if status.consumer_status == "content_mismatch":
+        return (
+            "the authenticated consumer read revision "
+            f"{status.reporting_revision_id} and reports {status.mismatch_code}: the content "
+            "contradicts a fact this configuration generation already fixed. This is a "
+            "contract-fact disagreement, not a dispute about counts"
+        )
+    return (
+        f"the authenticated consumer reports {status.consumer_status} for this period "
+        "while the seller projects healthy reporting"
+    )
 
 
 def _responsible_for(status: ConsumerStatusRecord) -> ResponsibleParty:
@@ -401,7 +549,21 @@ def _responsible_for(status: ConsumerStatusRecord) -> ResponsibleParty:
         return "buyer"
     if status.consumer_status == "unreadable" and status.failure_code == "transport_failed":
         return "provider"
+    if status.consumer_status == "content_mismatch":
+        # Every mismatch_code names a promise the seller's own revision failed
+        # to keep against the generation both sides accepted -- a missing
+        # frozen media buy, short coverage, an absent promised metric, a
+        # non-conformant row schema, the wrong unit, rows outside the period.
+        # None of them is something the buyer can repair on its side.
+        return "seller"
     return "seller"
+
+
+_CONTACT_FOR: dict[ResponsibleParty, str] = {
+    "buyer": "contact_buyer",
+    "seller": "contact_seller",
+    "provider": "contact_provider",
+}
 
 
 def _mismatch_issue(
@@ -410,17 +572,33 @@ def _mismatch_issue(
     *,
     responsible_party: ResponsibleParty,
     message: str,
+    severity: Literal["delayed", "action_required"],
+    escalated: bool,
+    lifecycle: ReportingIssueLifecycle | None,
+    opened_at: datetime | None,
 ) -> ReportingIssue:
+    if escalated:
+        recommended = _CONTACT_FOR[responsible_party]
+    elif severity == "delayed":
+        recommended = "wait_for_retry"
+    elif responsible_party == "buyer":
+        recommended = "repair_access"
+    else:
+        recommended = _CONTACT_FOR[responsible_party]
     return ReportingIssue(
-        issue_id=issue_id_for(
-            "core-consumer-status-mismatch-v1",
-            obligation.reporting_obligation_id,
-            status.reporting_status_id,
+        issue_id=(
+            lifecycle.issue_id
+            if lifecycle is not None
+            else issue_id_for(
+                "core-consumer-status-mismatch-v1",
+                obligation.reporting_obligation_id,
+                status.reporting_status_id,
+            )
         ),
         code="CONSUMER_STATUS_MISMATCH",
-        severity="action_required",
+        severity=severity,
         responsible_party=responsible_party,
-        recommended_action=("repair_access" if responsible_party == "buyer" else "contact_seller"),
+        recommended_action=recommended,
         reporting_obligation_id=obligation.reporting_obligation_id,
         delivery_config_id=obligation.delivery_config_id,
         delivery_config_version=obligation.delivery_config_version,
@@ -431,6 +609,9 @@ def _mismatch_issue(
         expected_at=obligation.period.expected_at,
         reporting_status_id=status.reporting_status_id,
         message=message,
+        opened_at=opened_at,
+        issue_state=lifecycle.issue_state if lifecycle is not None else None,
+        external_ref=lifecycle.external_ref if lifecycle is not None else None,
     )
 
 

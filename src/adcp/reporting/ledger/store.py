@@ -38,15 +38,17 @@ import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
+from adcp.reporting.ledger.health import issue_id_for_occurrence
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     LedgerRecordKind,
     LedgerSnapshot,
     ReportingAdjustmentRecord,
     ReportingConfiguration,
+    ReportingIssueLifecycle,
     ReportingObligationRecord,
     ReportingRevisionRecord,
 )
@@ -60,6 +62,7 @@ __all__ = [
     "ReportingRowPage",
     "decode_cursor",
     "encode_cursor",
+    "reject_reserved_authoritative_party",
 ]
 
 
@@ -274,6 +277,78 @@ class ReportingLedgerStore(Protocol):
         reporting_obligation_ids: Sequence[str] | None = None,
     ) -> tuple[ConsumerStatusRecord, ...]: ...
 
+    # -- issue lifecycle -------------------------------------------------
+
+    async def ensure_issue_opened(
+        self,
+        *,
+        issue_key: str,
+        account_id: str,
+        consumer_id: str | None,
+        observed_at: datetime,
+    ) -> ReportingIssueLifecycle:
+        """Return this condition's live occurrence, opening one if needed.
+
+        Idempotent: the second caller gets the first caller's ``opened_at``.
+        That is the whole point -- AdCP 3.2.0-rc.3 anchors the escalation clock
+        to ``opened_at``, so a re-emission that advanced it would let an
+        unattended mismatch stay below ``action_required`` indefinitely.
+
+        This is the one write the read path performs. ``get_reporting_status``
+        is where a consumer mismatch is *first observed*, and a stable
+        first-observation timestamp cannot be derived from immutable evidence
+        alone. Implementations must make it safe under concurrent reads; two
+        readers of one condition must converge on one row rather than open two
+        occurrences.
+
+        A condition retired as ``resolved`` or ``waived`` opens a *new*
+        occurrence with the next ``generation``, a new ``issue_id``, and a new
+        ``opened_at``, which is exactly the spec's "a recurrence after
+        retirement receives a new issue_id".
+        """
+        ...
+
+    async def set_issue_state(
+        self,
+        *,
+        issue_key: str,
+        account_id: str,
+        state: Literal["acknowledged", "waived"],
+        at: datetime,
+        external_ref: str | None = None,
+    ) -> ReportingIssueLifecycle:
+        """Move a live occurrence forward, or attach an ``external_ref``.
+
+        Deliberately cannot set ``resolved``. The spec forbids retiring a
+        ``CONSUMER_STATUS_MISMATCH`` out of a degraded projection while the
+        statement that caused it is still the consumer's current leaf, so
+        resolution is not an operator action -- it is what the projection does
+        when the condition actually clears (see :meth:`retire_issue`).
+        Otherwise a seller could unilaterally erase a buyer-attributed
+        disagreement, which is the one outcome this separately attributed loop
+        exists to prevent.
+
+        ``waived`` *is* an operator action: it records an off-protocol
+        agreement to stop acting. It removes the issue from ``issues[]`` and
+        still leaves the caller's view degraded.
+        """
+        ...
+
+    async def retire_issue(
+        self, *, issue_key: str, account_id: str, at: datetime
+    ) -> ReportingIssueLifecycle | None:
+        """Mark this condition's live occurrence ``resolved``.
+
+        Called by the projection when the condition no longer holds. Returns
+        ``None`` when there was nothing live to retire, so a repeated
+        projection is convergent rather than an error.
+        """
+        ...
+
+    async def get_issue(self, *, issue_key: str, account_id: str) -> ReportingIssueLifecycle | None:
+        """The live occurrence of this condition, or ``None``."""
+        ...
+
     # -- snapshots and pagination ----------------------------------------
 
     async def open_snapshot(self, *, account_id: str, filters_fingerprint: str) -> LedgerSnapshot:
@@ -351,6 +426,11 @@ def _consumer_status_identity(status: ConsumerStatusRecord) -> str:
             "revision": status.reporting_revision_id,
             "digest": status.observed_revision_content_sha256,
             "failure_code": status.failure_code,
+            # In the digest so a retry that changes only the mismatch_code is
+            # an idempotency conflict rather than a silent overwrite: "the
+            # metric is missing" and "the currency is wrong" are different
+            # claims and must not share one immutable identity.
+            "mismatch_code": status.mismatch_code,
         }
     )
 
@@ -378,6 +458,10 @@ class InMemoryReportingLedgerStore:
         self._changes: list[tuple[int, str, LedgerRecordKind, str, datetime]] = []
         self._sequence = 0
         self._leases: dict[tuple[str, int], tuple[str, datetime]] = {}
+        # Live occurrence per (account, issue_key), plus the retired generation
+        # high-water mark so a recurrence never reuses an id.
+        self._issues: dict[tuple[str, str], ReportingIssueLifecycle] = {}
+        self._issue_generations: dict[tuple[str, str], int] = {}
 
     async def create_schema(self) -> None:
         return None
@@ -391,6 +475,7 @@ class InMemoryReportingLedgerStore:
     # -- configurations --------------------------------------------------
 
     async def put_configuration(self, configuration: ReportingConfiguration) -> None:
+        reject_reserved_authoritative_party(configuration)
         async with self._lock:
             key = configuration.generation_key
             existing = self._configurations.get(key)
@@ -704,6 +789,90 @@ class InMemoryReportingLedgerStore:
                 return True
         return False
 
+    # -- issue lifecycle -------------------------------------------------
+
+    async def ensure_issue_opened(
+        self,
+        *,
+        issue_key: str,
+        account_id: str,
+        consumer_id: str | None,
+        observed_at: datetime,
+    ) -> ReportingIssueLifecycle:
+        async with self._lock:
+            key = (account_id, issue_key)
+            live = self._issues.get(key)
+            if live is not None and live.live:
+                return live
+            generation = self._issue_generations.get(key, 0) + 1
+            self._issue_generations[key] = generation
+            record = ReportingIssueLifecycle(
+                issue_key=issue_key,
+                issue_id=issue_id_for_occurrence(issue_key, generation),
+                account_id=account_id,
+                consumer_id=consumer_id,
+                opened_at=_utc(observed_at),
+                issue_state="open",
+                generation=generation,
+            )
+            self._issues[key] = record
+            return record
+
+    async def set_issue_state(
+        self,
+        *,
+        issue_key: str,
+        account_id: str,
+        state: Literal["acknowledged", "waived"],
+        at: datetime,
+        external_ref: str | None = None,
+    ) -> ReportingIssueLifecycle:
+        async with self._lock:
+            if state not in {"acknowledged", "waived"}:
+                raise LedgerConflictError(
+                    "ISSUE_STATE_NOT_OPERATOR_SETTABLE",
+                    f"issue_state {state!r} is not settable by an operator. 'resolved' is "
+                    "reachable only when the condition actually clears -- the projection "
+                    "retires it -- because a seller must not retire a mismatch out of a "
+                    "degraded projection while the statement that caused it is still the "
+                    "consumer's current leaf",
+                )
+            key = (account_id, issue_key)
+            live = self._issues.get(key)
+            if live is None or not live.live:
+                raise LedgerConflictError(
+                    "ISSUE_NOT_OPEN",
+                    f"no open issue {issue_key!r} for this account; a retired issue cannot be "
+                    "reopened, and a recurrence gets a new occurrence",
+                )
+            if live.issue_state == "acknowledged" and state == "acknowledged":
+                updated = replace(live, external_ref=external_ref or live.external_ref)
+            else:
+                updated = replace(
+                    live,
+                    issue_state=state,
+                    external_ref=external_ref or live.external_ref,
+                    retired_at=_utc(at) if state == "waived" else None,
+                )
+            self._issues[key] = updated
+            return updated
+
+    async def retire_issue(
+        self, *, issue_key: str, account_id: str, at: datetime
+    ) -> ReportingIssueLifecycle | None:
+        async with self._lock:
+            key = (account_id, issue_key)
+            live = self._issues.get(key)
+            if live is None or not live.live:
+                return None
+            retired = replace(live, issue_state="resolved", retired_at=_utc(at))
+            self._issues[key] = retired
+            return retired
+
+    async def get_issue(self, *, issue_key: str, account_id: str) -> ReportingIssueLifecycle | None:
+        async with self._lock:
+            return self._issues.get((account_id, issue_key))
+
     # -- snapshots -------------------------------------------------------
 
     async def open_snapshot(self, *, account_id: str, filters_fingerprint: str) -> LedgerSnapshot:
@@ -838,6 +1007,30 @@ class InMemoryReportingLedgerStore:
                 del self._leases[key]
 
 
+def reject_reserved_authoritative_party(configuration: ReportingConfiguration) -> None:
+    """Refuse ``authoritative_party: consumer`` before the generation is stored.
+
+    AdCP 3.2.0-rc.3 reserves the value for a buyer-deposited billing revision
+    task scoped to a later minor. No released minor defines that task, so a
+    3.2 seller must reject it with ``UNSUPPORTED_FEATURE`` *before* the
+    generation becomes ready and before any obligation exists -- and must not
+    silently coerce it to ``seller``.
+
+    Coercing would be the dangerous option: the buyer asked to be the
+    authoritative counter for a billing feed and would get a seller-authoritative
+    one, with every obligation, revision, and receipt in this ledger quietly
+    attributed the wrong way round.
+    """
+    if configuration.authoritative_party == "consumer":
+        raise LedgerConflictError(
+            "UNSUPPORTED_FEATURE",
+            "authoritative_party 'consumer' is reserved for the buyer-deposited billing "
+            "revision task, which no released AdCP minor defines. This seller produces "
+            "every revision; omit the field or set it to 'seller'. See "
+            "https://github.com/adcontextprotocol/adcp/issues/7440",
+        )
+
+
 def _config_payload(configuration: ReportingConfiguration) -> dict[str, Any]:
     schedule = configuration.schedule
     return {
@@ -847,6 +1040,7 @@ def _config_payload(configuration: ReportingConfiguration) -> dict[str, Any]:
         "feed_purpose": configuration.feed_purpose,
         "required_finality": configuration.required_finality,
         "account_timezone": configuration.account_timezone,
+        "authoritative_party": configuration.authoritative_party,
         "media_buy_ids": sorted(configuration.media_buy_ids),
         "schedule": {
             "period_duration": schedule.period_duration,
