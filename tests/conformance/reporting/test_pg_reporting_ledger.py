@@ -935,3 +935,100 @@ async def test_a_recurrence_after_retirement_gets_a_new_generation_over_postgres
     assert recurrence.generation == first.generation + 1
     assert recurrence.issue_id != first.issue_id
     assert recurrence.opened_at != first.opened_at
+
+
+async def test_an_exact_retry_survives_a_restatement_over_postgres(
+    store: PgReportingLedgerStore,
+) -> None:
+    """The retry short-circuit, against the real digest column.
+
+    The in-memory store compares an in-process identity map; Postgres compares
+    ``content_sha256`` in the row. Only this exercises the SQL path that a
+    deployment actually runs.
+    """
+    account = f"acct_{secrets.token_hex(4)}"
+    configuration = _configuration(
+        account_id=account,
+        delivery_config_id=f"cfg_{secrets.token_hex(4)}",
+        required_finality="snapshot",
+    )
+    await store.put_configuration(configuration)
+    obligation = await store.commit_obligation(_obligation(configuration))
+    first, rows = _revision(
+        obligation, revision_id=f"rpr_{secrets.token_hex(4)}", finality="snapshot"
+    )
+    await store.commit_revision(first, rows)
+
+    ingest = ConsumerStatusIngest(store, enabled=True)
+    statement = {
+        "statuses": [
+            {
+                "reporting_status_id": f"status_{secrets.token_hex(8)}",
+                "delivery_config_id": configuration.delivery_config_id,
+                "delivery_config_version": configuration.delivery_config_version,
+                "report_definition_id": configuration.report_definition_id,
+                "period": {
+                    "start": obligation.period.start.isoformat().replace("+00:00", "Z"),
+                    "end": obligation.period.end.isoformat().replace("+00:00", "Z"),
+                    "source_timezone": "UTC",
+                },
+                "consumer_status": "content_mismatch",
+                "status_as_of": obligation.period.expected_at.isoformat().replace("+00:00", "Z"),
+                "reporting_obligation_id": obligation.reporting_obligation_id,
+                "reporting_revision_id": first.reporting_revision_id,
+                "observed_revision_content_sha256": first.revision_content_sha256,
+                "mismatch_code": "coverage_short",
+            }
+        ]
+    }
+    accepted = await ingest.handle(statement, account_id=account, consumer_id="buyer_pg")
+    assert accepted["results"][0]["result"] == "recorded", accepted
+
+    second, second_rows = _revision(
+        obligation,
+        revision_id=f"rpr_{secrets.token_hex(4)}",
+        finality="snapshot",
+        supersedes_reporting_revision_id=first.reporting_revision_id,
+    )
+    await store.commit_revision(second, second_rows)
+
+    retry = await ingest.handle(statement, account_id=account, consumer_id="buyer_pg")
+    assert retry["results"][0]["result"] == "unchanged", retry
+    assert retry["results"][0]["consumer_status"]["mismatch_code"] == "coverage_short"
+
+
+async def test_retire_issue_leaves_a_waiver_alone_over_postgres(
+    store: PgReportingLedgerStore,
+) -> None:
+    account = f"acct_{secrets.token_hex(4)}"
+    key = f"rpik_{secrets.token_hex(8)}"
+    await store.ensure_issue_opened(
+        issue_key=key,
+        account_id=account,
+        consumer_id="buyer_pg",
+        observed_at=datetime(2026, 9, 1, 3, tzinfo=timezone.utc),
+    )
+    waived = await store.set_issue_state(
+        issue_key=key,
+        account_id=account,
+        state="waived",
+        at=datetime(2026, 9, 1, 4, tzinfo=timezone.utc),
+    )
+    assert (
+        await store.retire_issue(
+            issue_key=key, account_id=account, at=datetime(2026, 9, 1, 5, tzinfo=timezone.utc)
+        )
+        is None
+    )
+    # Still waived, and still carrying the instant it was waived.
+    async with store._pool.connection() as connection:  # noqa: SLF001
+        row = await (
+            await connection.execute(
+                "SELECT issue_state, retired_at FROM reporting_issue_lifecycle"
+                " WHERE account_id = %s AND issue_key = %s",
+                (account, key),
+            )
+        ).fetchone()
+    assert row is not None
+    assert row[0] == "waived"
+    assert row[1] == waived.retired_at

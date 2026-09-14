@@ -96,6 +96,7 @@ from adcp.reporting.ledger.store import (
     check_issue_state_transition,
     decode_cursor,
     encode_cursor,
+    issue_is_retirable,
     reject_reserved_authoritative_party,
 )
 
@@ -650,23 +651,9 @@ class PgReportingLedgerStore:
     ) -> tuple[ConsumerStatusRecord, bool]:
         digest = _fingerprint(_consumer_status_payload(status))
         async with self._pool.connection() as connection:
-            existing = await (
-                await connection.execute(
-                    "SELECT content_sha256 FROM reporting_consumer_statuses"
-                    " WHERE reporting_status_id = %s AND account_id = %s AND consumer_id = %s",
-                    (status.reporting_status_id, status.account_id, status.consumer_id),
-                )
-            ).fetchone()
-            if existing is not None:
-                if existing[0] != digest:
-                    raise LedgerConflictError(
-                        "STATUS_IDENTITY_CONFLICT",
-                        f"reporting_status_id {status.reporting_status_id} was already "
-                        "recorded with different content",
-                    )
-                stored = await self._get_consumer_status(connection, status)
-                assert stored is not None
-                return stored, False
+            replay = await self._replay(connection, status, digest)
+            if replay is not None:
+                return replay, False
 
             await self._lock_account(connection, status.account_id)
             leaf = await (
@@ -761,6 +748,36 @@ class PgReportingLedgerStore:
             )
         ).fetchone()
         return _status_from_row(row) if row else None
+
+    async def resolve_consumer_status_replay(
+        self, status: ConsumerStatusRecord
+    ) -> ConsumerStatusRecord | None:
+        async with self._pool.connection() as connection:
+            return await self._replay(
+                connection, status, _fingerprint(_consumer_status_payload(status))
+            )
+
+    async def _replay(
+        self, connection: Any, status: ConsumerStatusRecord, digest: str
+    ) -> ConsumerStatusRecord | None:
+        existing = await (
+            await connection.execute(
+                "SELECT content_sha256 FROM reporting_consumer_statuses"
+                " WHERE reporting_status_id = %s AND account_id = %s AND consumer_id = %s",
+                (status.reporting_status_id, status.account_id, status.consumer_id),
+            )
+        ).fetchone()
+        if existing is None:
+            return None
+        if existing[0] != digest:
+            raise LedgerConflictError(
+                "STATUS_IDENTITY_CONFLICT",
+                f"reporting_status_id {status.reporting_status_id} was already "
+                "recorded with different content",
+            )
+        stored = await self._get_consumer_status(connection, status)
+        assert stored is not None
+        return stored
 
     async def list_consumer_statuses(
         self,
@@ -888,8 +905,13 @@ class PgReportingLedgerStore:
         async with self._pool.connection() as connection:
             await self._lock_account(connection, account_id)
             live = await self._live_issue(connection, issue_key, account_id)
-            if live is None:
+            if live is None or not issue_is_retirable(live.issue_state):
+                # Convergent, and a waived issue is left alone: it is already
+                # retired from the projection by agreement, and overwriting
+                # that readable act with `resolved` is an edge the forward-only
+                # lifecycle forbids.
                 return None
+            check_issue_state_transition(live.issue_state, "resolved")
             await connection.execute(
                 "UPDATE reporting_issue_lifecycle"
                 " SET issue_state = 'resolved', retired_at = %s"

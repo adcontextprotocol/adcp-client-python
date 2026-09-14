@@ -184,6 +184,19 @@ class ConsumerStatusIngest:
                 continue
             seen_chains.add(record.chain_key)
             try:
+                # Answer "exact retry?" before validating anything, because
+                # some of that validation is time-dependent. "content_mismatch
+                # must name the revision the seller currently requires" has an
+                # answer that changes when the seller restates, so a retry of a
+                # statement this ledger already accepted would otherwise be
+                # rejected for a reason that did not apply when it was first
+                # recorded. The spec's result_mapping requires `unchanged`, and
+                # a buyer retrying after a transport failure has no way to tell
+                # a genuine rejection from that.
+                replay = await self.store.resolve_consumer_status_replay(record)
+                if replay is not None:
+                    results.append({"result": "unchanged", "consumer_status": _to_wire(replay)})
+                    continue
                 await self._validate_against_configuration(record)
                 stored, recorded = await self.store.record_consumer_status(record)
             except LedgerConflictError as error:

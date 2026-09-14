@@ -119,6 +119,7 @@ from adcp.reporting.ledger.store import (
     ReportingLedgerStore,
     ReportingRowPage,
     check_issue_state_transition,
+    issue_is_retirable,
     reject_reserved_authoritative_party,
 )
 
@@ -168,6 +169,7 @@ __all__ = [
     "current_required_revision",
     "iso_duration_to_timedelta",
     "issue_id_for",
+    "issue_is_retirable",
     "issue_id_for_occurrence",
     "project_consumer_mismatch",
     "project_obligation_health",

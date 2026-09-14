@@ -63,6 +63,7 @@ __all__ = [
     "decode_cursor",
     "check_issue_state_transition",
     "encode_cursor",
+    "issue_is_retirable",
     "reject_reserved_authoritative_party",
 ]
 
@@ -270,6 +271,28 @@ class ReportingLedgerStore(Protocol):
         """
         ...
 
+    async def resolve_consumer_status_replay(
+        self, status: ConsumerStatusRecord
+    ) -> ConsumerStatusRecord | None:
+        """Return the stored row when this exact statement was already recorded.
+
+        Exists so the ingest can answer "is this an exact retry?" *before* it
+        validates anything time-dependent. ``record_consumer_status`` already
+        makes that check, but it runs last, and some validation the ingest does
+        first -- notably "``content_mismatch`` must name the revision the seller
+        currently requires" -- has an answer that changes as the seller
+        publishes. An exact retry sent after a restatement would then be
+        rejected for a reason that did not apply when it was first accepted,
+        and the spec's ``result_mapping`` requires ``unchanged``.
+
+        Returns ``None`` when the id is unknown, so the caller proceeds to
+        validate and record. Raises :class:`LedgerConflictError` with
+        ``STATUS_IDENTITY_CONFLICT`` when the id exists with different content:
+        reuse with changed content is still a conflict, and answering
+        ``unchanged`` there would let a buyer rewrite a recorded statement.
+        """
+        ...
+
     async def list_consumer_statuses(
         self,
         *,
@@ -457,6 +480,17 @@ _ISSUE_STATE_SUCCESSORS: dict[str, frozenset[str]] = {
     "resolved": frozenset(),
     "waived": frozenset(),
 }
+
+
+def issue_is_retirable(current: str) -> bool:
+    """Whether the projection may move this state to ``resolved``.
+
+    ``waived`` is not retirable: it is already out of the projection by
+    agreement, and overwriting that readable act with ``resolved`` is an edge
+    the forward-only lifecycle forbids. Both stores consult this rather than
+    each remembering the rule.
+    """
+    return "resolved" in _ISSUE_STATE_SUCCESSORS.get(current, frozenset())
 
 
 def check_issue_state_transition(current: str, requested: str) -> None:
@@ -748,19 +782,31 @@ class InMemoryReportingLedgerStore:
 
     # -- consumer status -------------------------------------------------
 
+    async def resolve_consumer_status_replay(
+        self, status: ConsumerStatusRecord
+    ) -> ConsumerStatusRecord | None:
+        async with self._lock:
+            return self._replay(status)
+
+    def _replay(self, status: ConsumerStatusRecord) -> ConsumerStatusRecord | None:
+        existing = self._statuses.get(status.reporting_status_id)
+        if existing is None:
+            return None
+        if self._status_identity[status.reporting_status_id] != _consumer_status_identity(status):
+            raise LedgerConflictError(
+                "STATUS_IDENTITY_CONFLICT",
+                f"reporting_status_id {status.reporting_status_id} was already "
+                "recorded with different content",
+            )
+        return existing
+
     async def record_consumer_status(
         self, status: ConsumerStatusRecord
     ) -> tuple[ConsumerStatusRecord, bool]:
         async with self._lock:
             identity = _consumer_status_identity(status)
-            existing = self._statuses.get(status.reporting_status_id)
+            existing = self._replay(status)
             if existing is not None:
-                if self._status_identity[status.reporting_status_id] != identity:
-                    raise LedgerConflictError(
-                        "STATUS_IDENTITY_CONFLICT",
-                        f"reporting_status_id {status.reporting_status_id} was already "
-                        "recorded with different content",
-                    )
                 return existing, False
             leaf = self._current_status_leaf(status.chain_key)
             if status.supersedes_reporting_status_id:
@@ -906,8 +952,14 @@ class InMemoryReportingLedgerStore:
         async with self._lock:
             key = (account_id, issue_key)
             live = self._issues.get(key)
-            if live is None or not live.live:
+            if live is None or not live.live or not issue_is_retirable(live.issue_state):
+                # Convergent: nothing live, or already waived. A waived issue
+                # is retired from the projection by agreement, and overwriting
+                # that readable act with `resolved` is an edge the forward-only
+                # lifecycle forbids -- enforced here rather than left to each
+                # caller to remember.
                 return None
+            check_issue_state_transition(live.issue_state, "resolved")
             retired = replace(live, issue_state="resolved", retired_at=_utc(at))
             self._issues[key] = retired
             return retired

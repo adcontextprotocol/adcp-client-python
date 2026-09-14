@@ -529,19 +529,16 @@ class ReportingStatusHandler:
             # resetting the escalation clock on a disagreement that never went
             # away. The spec carries opened_at unchanged and retires a
             # CONSUMER_STATUS_MISMATCH only per consumer_mismatch_lifecycle.
-            existing = await self._store.get_issue(
-                issue_key=issue_key, account_id=caller.account_id
+            # `retire_issue` is convergent and leaves a waived occurrence
+            # alone -- a waived issue is already out of the projection by
+            # agreement, and overwriting that readable act with `resolved` is
+            # an edge the forward-only lifecycle forbids. Both stores enforce
+            # that, so this caller does not restate the rule.
+            await self._store.retire_issue(
+                issue_key=issue_key,
+                account_id=caller.account_id,
+                at=snapshot.ledger_as_of,
             )
-            if existing is not None and existing.issue_state != "waived":
-                # A waived issue is already retired from the projection by
-                # agreement. Moving it to `resolved` would overwrite that
-                # readable act with a different one, and the forward-only
-                # lifecycle forbids the edge anyway.
-                await self._store.retire_issue(
-                    issue_key=issue_key,
-                    account_id=caller.account_id,
-                    at=snapshot.ledger_as_of,
-                )
             return None
         if probe is None:
             # The condition stands but the seller is already degraded for its

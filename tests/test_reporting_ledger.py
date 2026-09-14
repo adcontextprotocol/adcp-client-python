@@ -1843,3 +1843,124 @@ def test_an_escalation_commitment_without_the_loop_is_unpublishable() -> None:
             automated_recovery_window=timedelta(hours=6),
             status_retention_days=400,
         )
+
+
+async def test_an_exact_retry_survives_a_restatement_that_invalidates_it() -> None:
+    """The reviewer's reproduction, as a regression test.
+
+    Resolving named ids at ingest introduced a time-dependent check:
+    ``content_mismatch`` must name the revision the seller *currently*
+    requires. It ran before the existing-digest check, so a buyer's exact retry
+    sent after the seller restated was rejected with
+    ``REVISION_NOT_CURRENTLY_REQUIRED`` -- a reason that did not apply when the
+    statement was first accepted. The spec's ``result_mapping`` requires
+    ``unchanged``, and a buyer retrying after a transport failure has no way to
+    tell a genuine rejection from that.
+    """
+    store = InMemoryReportingLedgerStore(clock=lambda: _utc_at(2026, 9, 30))
+    configuration = _configuration(required_finality="snapshot")
+    await store.put_configuration(configuration)
+    obligation = await store.commit_obligation(_obligation(configuration))
+    first = await store.commit_revision(
+        *_revision(obligation, reporting_revision_id="rpr_snap_1", finality="snapshot")
+    )
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
+    statement = {
+        "statuses": [
+            _rc3_statement(
+                consumer_status="content_mismatch",
+                reporting_obligation_id=obligation.reporting_obligation_id,
+                reporting_revision_id=first.reporting_revision_id,
+                observed_revision_content_sha256=first.revision_content_sha256,
+                mismatch_code="metric_missing",
+            )
+        ]
+    }
+    accepted = await ingest.handle(statement, account_id=ACCOUNT, consumer_id="buyer_1")
+    assert accepted["results"][0]["result"] == "recorded", accepted
+
+    # The seller restates, so the disputed revision is no longer required.
+    await store.commit_revision(
+        *_revision(
+            obligation,
+            reporting_revision_id="rpr_snap_2",
+            finality="snapshot",
+            supersedes_reporting_revision_id=first.reporting_revision_id,
+        )
+    )
+    # A *new* statement against the superseded revision is still refused...
+    fresh = await ingest.handle(
+        {
+            "statuses": [
+                _rc3_statement(
+                    reporting_status_id="status_rc3_retry_000002",
+                    consumer_status="content_mismatch",
+                    reporting_obligation_id=obligation.reporting_obligation_id,
+                    reporting_revision_id=first.reporting_revision_id,
+                    observed_revision_content_sha256=first.revision_content_sha256,
+                    mismatch_code="metric_missing",
+                )
+            ]
+        },
+        account_id=ACCOUNT,
+        consumer_id="buyer_1",
+    )
+    assert fresh["results"][0]["errors"][0]["code"] == "REVISION_NOT_CURRENTLY_REQUIRED"
+
+    # ...but the exact retry replays.
+    retry = await ingest.handle(statement, account_id=ACCOUNT, consumer_id="buyer_1")
+    assert retry["results"][0]["result"] == "unchanged", retry
+    assert retry["results"][0]["consumer_status"]["mismatch_code"] == "metric_missing"
+
+
+async def test_reusing_a_status_id_with_changed_content_is_still_a_conflict() -> None:
+    # The replay short-circuit must not become a way to rewrite a recorded
+    # statement: answering `unchanged` on a digest mismatch would let a buyer
+    # silently change what it claimed under an immutable identity.
+    store, obligation = await _seeded()
+    revision = await store.commit_revision(*_revision(obligation))
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
+
+    def payload(code: str) -> dict[str, Any]:
+        return {
+            "statuses": [
+                _rc3_statement(
+                    consumer_status="content_mismatch",
+                    reporting_obligation_id=obligation.reporting_obligation_id,
+                    reporting_revision_id=revision.reporting_revision_id,
+                    observed_revision_content_sha256=revision.revision_content_sha256,
+                    mismatch_code=code,
+                )
+            ]
+        }
+
+    assert (await ingest.handle(payload("metric_missing"), account_id=ACCOUNT, consumer_id="b"))[
+        "results"
+    ][0]["result"] == "recorded"
+    changed = await ingest.handle(payload("currency_mismatch"), account_id=ACCOUNT, consumer_id="b")
+    assert changed["results"][0]["errors"][0]["code"] == "STATUS_IDENTITY_CONFLICT"
+
+
+async def test_retire_issue_refuses_to_overwrite_a_waiver() -> None:
+    # The non-blocking finding: retire_issue bypassed the transition check, so
+    # only the projection's own guard stopped waived -> resolved. The rule now
+    # lives in the store, where both callers get it.
+    store, _obligation, issue_key = await _open_mismatch_issue()
+    await store.set_issue_state(
+        issue_key=issue_key, account_id=ACCOUNT, state="waived", at=_utc_at(2026, 9, 30)
+    )
+    assert (
+        await store.retire_issue(issue_key=issue_key, account_id=ACCOUNT, at=_utc_at(2026, 9, 30))
+        is None
+    )
+    async with store._lock:
+        assert store._issues[(ACCOUNT, issue_key)].issue_state == "waived"
+
+    # An open occurrence still retires, and repeating it is convergent.
+    store2, _o2, key2 = await _open_mismatch_issue()
+    assert (
+        await store2.retire_issue(issue_key=key2, account_id=ACCOUNT, at=_utc_at(2026, 9, 30))
+    ) is not None
+    assert (
+        await store2.retire_issue(issue_key=key2, account_id=ACCOUNT, at=_utc_at(2026, 9, 30))
+    ) is None
