@@ -870,3 +870,155 @@ def test_a_naive_timestamp_is_refused_rather_than_guessed() -> None:
             now=datetime(2026, 9, 1, 5, 0),
             automated_recovery_window=RECOVERY,
         )
+
+
+# -- checkpoints are read, not only written ----------------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_plan_without_a_ledger_read_supersedes_from_the_checkpoint() -> None:
+    # A buyer that plans from checkpoints alone (no periods view this cycle)
+    # must still name the current leaf. Without the read, every such statement
+    # was rejected with STATUS_SUPERSEDES_REQUIRED -- surfaced rather than
+    # silently wrong, but a whole planning mode that never worked.
+    from adcp.reporting import (
+        ConsumerStatusCheckpoint,
+        InMemoryConsumerStatusCheckpoints,
+        consumer_status_chain_key,
+        resolve_checkpointed_leaves,
+    )
+
+    first = plan_consumer_statuses(
+        [_obligation(revision_count=0)],
+        now=EXPECTED_AT + RECOVERY,
+        automated_recovery_window=RECOVERY,
+    )[0]
+
+    checkpoints = InMemoryConsumerStatusCheckpoints()
+    await checkpoints.put(
+        consumer_status_chain_key(first),
+        ConsumerStatusCheckpoint(reporting_status_id=first.reporting_status_id),
+    )
+
+    leaves = await resolve_checkpointed_leaves(
+        checkpoints, obligations=[_obligation(revision_count=0)]
+    )
+    changed = plan_consumer_statuses(
+        [_obligation()],
+        now=EXPECTED_AT + RECOVERY + timedelta(hours=1),
+        automated_recovery_window=RECOVERY,
+        readings={"rpo_1": _reading()},
+        definition=DEFINITION,
+        revisions={"rpr_1": _revision()},
+        checkpointed_leaves=leaves,
+    )
+    assert changed[0].consumer_status == "received"
+    assert changed[0].supersedes_reporting_status_id == first.reporting_status_id
+
+
+@pytest.mark.asyncio
+async def test_a_lost_response_retry_reproduces_the_original_statement() -> None:
+    # The response was lost, so the buyer does not know the statement landed.
+    # Re-planning must reproduce it byte for byte -- same id *and* same
+    # supersedes -- or the seller's replay fingerprint sees a different
+    # statement and answers with an identity conflict instead of `unchanged`.
+    from adcp.reporting import (
+        ConsumerStatusCheckpoint,
+        InMemoryConsumerStatusCheckpoints,
+        consumer_status_chain_key,
+        resolve_checkpointed_leaves,
+    )
+
+    # first_consumable_at is what makes the retry reproducible: without it
+    # status_as_of falls back to planning time, and a re-plan an hour later is
+    # genuinely a different statement rather than a retry of the same one.
+    reading = _reading(first_consumable_at=EXPECTED_AT + timedelta(minutes=3))
+    revision = _revision()
+    posted = plan_consumer_statuses(
+        [_obligation()],
+        now=EXPECTED_AT + RECOVERY,
+        automated_recovery_window=RECOVERY,
+        readings={"rpo_1": reading},
+        definition=DEFINITION,
+        revisions={"rpr_1": revision},
+        checkpointed_leaves={
+            consumer_status_chain_key(
+                plan_consumer_statuses(
+                    [_obligation(revision_count=0)],
+                    now=EXPECTED_AT + RECOVERY,
+                    automated_recovery_window=RECOVERY,
+                )[0]
+            ): ConsumerStatusCheckpoint(reporting_status_id="status_prior_leaf_0001")
+        },
+    )[0]
+    assert posted.supersedes_reporting_status_id == "status_prior_leaf_0001"
+
+    checkpoints = InMemoryConsumerStatusCheckpoints()
+    await checkpoints.put(
+        consumer_status_chain_key(posted),
+        ConsumerStatusCheckpoint(
+            reporting_status_id=posted.reporting_status_id,
+            supersedes_reporting_status_id=posted.supersedes_reporting_status_id,
+        ),
+    )
+    leaves = await resolve_checkpointed_leaves(checkpoints, obligations=[_obligation()])
+
+    retry = plan_consumer_statuses(
+        [_obligation()],
+        now=EXPECTED_AT + RECOVERY + timedelta(hours=3),
+        automated_recovery_window=RECOVERY,
+        readings={"rpo_1": reading},
+        definition=DEFINITION,
+        revisions={"rpr_1": revision},
+        checkpointed_leaves=leaves,
+    )[0]
+    assert retry.reporting_status_id == posted.reporting_status_id
+    # The critical bit: it must NOT supersede itself, and must not have lost
+    # the supersedes it originally carried.
+    assert retry.supersedes_reporting_status_id == "status_prior_leaf_0001"
+    assert retry.to_wire() == posted.to_wire()
+
+
+@pytest.mark.asyncio
+async def test_a_ledger_read_wins_over_a_stale_checkpoint() -> None:
+    # The seller is authoritative. A checkpoint that has fallen behind must not
+    # make the buyer supersede a statement the seller no longer considers the
+    # leaf.
+    from adcp.reporting import ConsumerStatusCheckpoint, consumer_status_chain_key
+
+    stale = plan_consumer_statuses(
+        [_obligation(revision_count=0)],
+        now=EXPECTED_AT + RECOVERY,
+        automated_recovery_window=RECOVERY,
+    )[0]
+    real_leaf = ReportingConsumerStatus.model_validate(
+        {
+            "reporting_status_id": "status_real_leaf_000001",
+            "delivery_config_id": "daily",
+            "delivery_config_version": 1,
+            "report_definition_id": "daily_v1",
+            "period": {
+                "start": PERIOD_START.isoformat().replace("+00:00", "Z"),
+                "end": PERIOD_END.isoformat().replace("+00:00", "Z"),
+                "source_timezone": "UTC",
+            },
+            "consumer_status": "revision_missing",
+            "reporting_obligation_id": "rpo_1",
+            "status_as_of": EXPECTED_AT.isoformat().replace("+00:00", "Z"),
+        }
+    )
+    plan = plan_consumer_statuses(
+        [_obligation()],
+        now=EXPECTED_AT + RECOVERY,
+        automated_recovery_window=RECOVERY,
+        readings={"rpo_1": _reading()},
+        definition=DEFINITION,
+        revisions={"rpr_1": _revision()},
+        current_statuses=[real_leaf],
+        checkpointed_leaves={
+            consumer_status_chain_key(stale): ConsumerStatusCheckpoint(
+                reporting_status_id="status_stale_checkpoint_1"
+            )
+        },
+    )
+    assert plan[0].supersedes_reporting_status_id == "status_real_leaf_000001"

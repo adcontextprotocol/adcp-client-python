@@ -22,6 +22,7 @@ from pydantic import BaseModel
 
 from adcp.reporting._consumer import (
     ConsumerLoopView,
+    ConsumerStatusCheckpoint,
     ConsumerStatusCheckpointStore,
     ConsumerStatusIntent,
     ConsumerStatusPlanError,
@@ -37,6 +38,7 @@ from adcp.reporting._consumer import (
     load_consumer_loop_view,
     plan_consumer_statuses,
     post_consumer_statuses,
+    resolve_checkpointed_leaves,
 )
 from adcp.types import (
     GetReportingStatusRequest,
@@ -1051,6 +1053,7 @@ async def reconcile_reporting(
 
 __all__ = [
     "ConsumerLoopView",
+    "ConsumerStatusCheckpoint",
     "ConsumerStatusCheckpointStore",
     "ConsumerStatusIntent",
     "ConsumerStatusPlanError",
@@ -1066,6 +1069,7 @@ __all__ = [
     "load_consumer_loop_view",
     "plan_consumer_statuses",
     "post_consumer_statuses",
+    "resolve_checkpointed_leaves",
     "ExpectedReportingPeriod",
     "ObligationReconciliation",
     "ReportingCheckpointStore",

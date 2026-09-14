@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any
 
 from adcp.reporting._reconcile import (
     ConsumerLoopView,
+    ConsumerStatusCheckpoint,
     ConsumerStatusCheckpointStore,
     ConsumerStatusIntent,
     ConsumerStatusPlanError,
@@ -64,6 +65,7 @@ from adcp.reporting._reconcile import (
     reconcile_reporting,
     reconcile_reporting_core,
     reporting_tiers,
+    resolve_checkpointed_leaves,
 )
 
 if TYPE_CHECKING:
@@ -107,6 +109,7 @@ __all__ = [
     "evaluate_reporting_ledger",
     "load_reporting_ledger",
     "ConsumerLoopView",
+    "ConsumerStatusCheckpoint",
     "ConsumerStatusCheckpointStore",
     "ConsumerStatusIntent",
     "ConsumerStatusPlanError",
@@ -122,6 +125,7 @@ __all__ = [
     "load_consumer_loop_view",
     "plan_consumer_statuses",
     "post_consumer_statuses",
+    "resolve_checkpointed_leaves",
     "reconcile_reporting",
     "reconcile_reporting_core",
     "reporting_tiers",

@@ -1318,9 +1318,12 @@ async def test_the_buyer_posts_obligation_missing_for_a_period_the_seller_omitte
 
     # And the checkpoint remembers the leaf, keyed by the logical chain rather
     # than by the obligation the seller has not created yet.
-    assert await checkpoints.get(consumer_status_chain_key(plan[0])) == (
-        plan[0].reporting_status_id
-    )
+    checkpoint = await checkpoints.get(consumer_status_chain_key(plan[0]))
+    assert checkpoint is not None
+    assert checkpoint.reporting_status_id == plan[0].reporting_status_id
+    # No prior leaf on a first post, and that must be recorded as None rather
+    # than omitted: a retry reads it back to reproduce the statement exactly.
+    assert checkpoint.supersedes_reporting_status_id is None
 
 
 async def test_an_identical_second_pass_posts_nothing(

@@ -49,6 +49,7 @@ from adcp.types import (
 
 __all__ = [
     "ConsumerLoopView",
+    "ConsumerStatusCheckpoint",
     "ConsumerStatusCheckpointStore",
     "ConsumerStatusPlanError",
     "ConsumerStatusPostError",
@@ -63,6 +64,7 @@ __all__ = [
     "load_consumer_loop_view",
     "plan_consumer_statuses",
     "post_consumer_statuses",
+    "resolve_checkpointed_leaves",
 ]
 
 #: The closed rc.3 reason set, in precedence order.  ``schema_nonconformant``
@@ -443,6 +445,7 @@ def plan_consumer_statuses(
     revisions: Mapping[str, ReportingRevision] | None = None,
     obligation_revisions: Mapping[str, Sequence[ReportingRevision]] | None = None,
     current_statuses: Sequence[Any] = (),
+    checkpointed_leaves: Mapping[str, ConsumerStatusCheckpoint] | None = None,
     status_id_prefix: str = "rpcs",
 ) -> list[ConsumerStatusIntent]:
     """Decide what the buyer owes the seller right now.
@@ -486,6 +489,7 @@ def plan_consumer_statuses(
     revisions = revisions or {}
     obligation_revisions = obligation_revisions or {}
     leaves = _index_current_leaves(current_statuses)
+    checkpointed = checkpointed_leaves or {}
     boundary = _utc(now)
     plan: list[ConsumerStatusIntent] = []
 
@@ -516,6 +520,7 @@ def plan_consumer_statuses(
                 status_as_of=max(boundary, expected_at),
                 due_at=due_at,
                 leaves=leaves,
+                checkpointed=checkpointed,
                 prefix=status_id_prefix,
             )
         )
@@ -585,6 +590,7 @@ def plan_consumer_statuses(
                 status_as_of=status_as_of,
                 due_at=due_at,
                 leaves=leaves,
+                checkpointed=checkpointed,
                 prefix=status_id_prefix,
                 obligation_id=obligation_id,
                 revision_id=revision_id,
@@ -608,6 +614,7 @@ def _intend(
     status_as_of: datetime,
     due_at: datetime,
     leaves: Mapping[tuple[Any, ...], Any],
+    checkpointed: Mapping[str, ConsumerStatusCheckpoint],
     prefix: str,
     obligation_id: str | None = None,
     revision_id: str | None = None,
@@ -651,8 +658,28 @@ def _intend(
             # previous statement was made would otherwise go backwards.
             status_as_of = max(status_as_of, _utc(leaf_as_of))
 
+    status_id = _status_id(prefix, chain, content, status_as_of)
+    if leaf is not None:
+        supersedes = getattr(leaf, "reporting_status_id", None)
+    else:
+        # No ledger read this pass. Fall back to what this buyer last posted,
+        # so a plan built from checkpoints alone still names a leaf.
+        checkpoint = checkpointed.get(_chain_key_of(chain))
+        if checkpoint is None:
+            supersedes = None
+        elif checkpoint.reporting_status_id == status_id:
+            # Same id means the same claim: this is a retry of the statement we
+            # already posted, most likely after a lost response. Reuse the
+            # supersedes we sent then -- the seller's replay fingerprint covers
+            # it, so changing it would make this a *different* statement and
+            # earn an identity conflict instead of the `unchanged` a retry is
+            # owed. Notably it must NOT become the id itself.
+            supersedes = checkpoint.supersedes_reporting_status_id
+        else:
+            supersedes = checkpoint.reporting_status_id
+
     return ConsumerStatusIntent(
-        reporting_status_id=_status_id(prefix, chain, content, status_as_of),
+        reporting_status_id=status_id,
         consumer_status=status,
         delivery_config_id=delivery_config_id,
         delivery_config_version=delivery_config_version,
@@ -662,9 +689,7 @@ def _intend(
         period_source_timezone=source_timezone,
         status_as_of=status_as_of,
         due_at=_utc(due_at),
-        supersedes_reporting_status_id=(
-            getattr(leaf, "reporting_status_id", None) if leaf is not None else None
-        ),
+        supersedes_reporting_status_id=supersedes,
         reporting_obligation_id=obligation_id,
         reporting_revision_id=revision_id,
         observed_revision_content_sha256=digest,
@@ -859,39 +884,60 @@ class ConsumerStatusPostError(RuntimeError):
     """One or more statements in a posting pass were rejected."""
 
 
+@dataclass(frozen=True)
+class ConsumerStatusCheckpoint:
+    """The statement a buyer last posted for one logical chain.
+
+    Carries what it superseded as well as its own id, because that is what a
+    lost-response retry needs. The seller's replay fingerprint covers
+    ``supersedes_reporting_status_id``, so re-posting the same claim with a
+    *different* supersedes is a different statement and earns an identity
+    conflict rather than the ``unchanged`` a retry is owed.
+    """
+
+    reporting_status_id: str
+    supersedes_reporting_status_id: str | None = None
+
+
 class ConsumerStatusCheckpointStore(Protocol):
     """Where a buyer remembers the leaf it last posted per logical chain.
 
-    Exists so a buyer does not have to re-read the seller's whole periods view
-    to know what it already said. The seller remains authoritative -- this is a
-    cache of the buyer's own last word, keyed by the same logical chain the
+    A cache of the buyer's own last word, keyed by the same logical chain the
     seller uses: account, configuration generation, report definition, period.
+
+    The seller stays authoritative: when a caller supplies ``current_statuses``
+    from a fresh ledger read, that wins outright. The checkpoint is what lets a
+    buyer plan *without* re-reading the whole periods view every cycle, and in
+    particular what makes a retry after a lost response replay as ``unchanged``
+    rather than being rejected for not naming the current leaf.
     """
 
-    async def get(self, chain: str) -> str | None:
-        """The ``reporting_status_id`` this buyer last posted for ``chain``."""
+    async def get(self, chain: str) -> ConsumerStatusCheckpoint | None:
+        """The statement this buyer last posted for ``chain``."""
         ...
 
-    async def put(self, chain: str, reporting_status_id: str) -> None:
-        """Record the leaf just accepted for ``chain``."""
+    async def put(self, chain: str, checkpoint: ConsumerStatusCheckpoint) -> None:
+        """Record the statement just accepted for ``chain``."""
         ...
 
 
 class InMemoryConsumerStatusCheckpoints:
     """Process-local checkpoints. Correct, and not durable.
 
-    A real buyer persists these: losing them means re-deriving intents from the
-    seller's view, which works but re-reads more than it needs to.
+    A real buyer persists these. Losing them is recoverable -- the next plan
+    that passes ``current_statuses`` from a ledger read re-establishes the leaf
+    -- but a buyer that loses them *and* plans without a ledger read will have
+    its next statement rejected for not superseding the current leaf.
     """
 
     def __init__(self) -> None:
-        self._leaves: dict[str, str] = {}
+        self._leaves: dict[str, ConsumerStatusCheckpoint] = {}
 
-    async def get(self, chain: str) -> str | None:
+    async def get(self, chain: str) -> ConsumerStatusCheckpoint | None:
         return self._leaves.get(chain)
 
-    async def put(self, chain: str, reporting_status_id: str) -> None:
-        self._leaves[chain] = reporting_status_id
+    async def put(self, chain: str, checkpoint: ConsumerStatusCheckpoint) -> None:
+        self._leaves[chain] = checkpoint
 
 
 def consumer_status_chain_key(intent: ConsumerStatusIntent) -> str:
@@ -902,15 +948,24 @@ def consumer_status_chain_key(intent: ConsumerStatusIntent) -> str:
     obligation id, because a chain that began as ``obligation_missing``
     attaches to the repaired obligation later and must not fork.
     """
-    payload = "|".join(
-        [
+    return _chain_key_of(
+        (
             intent.delivery_config_id,
-            str(intent.delivery_config_version),
+            intent.delivery_config_version,
             intent.report_definition_id,
             _iso(intent.period_start),
             _iso(intent.period_end),
-        ]
+        )
     )
+
+
+def _chain_key_of(chain: tuple[Any, ...]) -> str:
+    """The checkpoint key for a chain tuple.
+
+    Shared by the planner and the poster on purpose: a key written by one that
+    the other could not read would make every checkpoint a silent miss.
+    """
+    payload = "|".join(str(part) for part in chain)
     return "rpcc_" + hashlib.sha256(payload.encode()).hexdigest()[:40]
 
 
@@ -973,7 +1028,13 @@ async def post_consumer_statuses(
                 )
                 continue
             if checkpoints is not None:
-                await checkpoints.put(consumer_status_chain_key(intent), intent.reporting_status_id)
+                await checkpoints.put(
+                    consumer_status_chain_key(intent),
+                    ConsumerStatusCheckpoint(
+                        reporting_status_id=intent.reporting_status_id,
+                        supersedes_reporting_status_id=intent.supersedes_reporting_status_id,
+                    ),
+                )
 
     return ConsumerStatusPostResult(
         recorded=tuple(recorded), unchanged=tuple(unchanged), failed=tuple(failed)
@@ -1034,3 +1095,49 @@ def _match_result(
         if isinstance(nested, str):
             return by_id.get(nested)
     return None
+
+
+async def resolve_checkpointed_leaves(
+    checkpoints: ConsumerStatusCheckpointStore,
+    *,
+    obligations: Sequence[ReportingObligation] = (),
+    missing_expected_periods: Sequence[Any] = (),
+) -> dict[str, ConsumerStatusCheckpoint]:
+    """Read the checkpoints a plan over these periods could need.
+
+    The planner is synchronous and the store is not, so the reads happen here
+    and the result is handed in. Chain keys are derivable before planning --
+    they depend only on the configuration generation, report definition, and
+    period -- so this does not need to know what the plan will decide.
+    """
+    keys: set[str] = set()
+    for obligation in obligations:
+        keys.add(
+            _chain_key_of(
+                (
+                    obligation.delivery_config_id,
+                    obligation.delivery_config_version,
+                    obligation.report_definition_id,
+                    _iso(_utc(obligation.period.start)),
+                    _iso(_utc(obligation.period.end)),
+                )
+            )
+        )
+    for period in missing_expected_periods:
+        keys.add(
+            _chain_key_of(
+                (
+                    period.delivery_config_id,
+                    period.delivery_config_version,
+                    period.report_definition_id,
+                    _iso(_parse(period.period_start)),
+                    _iso(_parse(period.period_end)),
+                )
+            )
+        )
+    resolved: dict[str, ConsumerStatusCheckpoint] = {}
+    for key in keys:
+        checkpoint = await checkpoints.get(key)
+        if checkpoint is not None:
+            resolved[key] = checkpoint
+    return resolved
