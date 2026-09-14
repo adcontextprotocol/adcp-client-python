@@ -1269,7 +1269,13 @@ async def _plan_and_post(
         obligation_revisions=obligation_revisions,
         current_statuses=current_statuses,
     )
-    result = await post_consumer_statuses(client, plan, account_id=ACCOUNT, checkpoints=checkpoints)
+    result = await post_consumer_statuses(
+        client,
+        plan,
+        account_id=ACCOUNT,
+        consumer_id=CALLER.consumer_id,
+        checkpoints=checkpoints,
+    )
     return plan, result
 
 
@@ -1318,7 +1324,9 @@ async def test_the_buyer_posts_obligation_missing_for_a_period_the_seller_omitte
 
     # And the checkpoint remembers the leaf, keyed by the logical chain rather
     # than by the obligation the seller has not created yet.
-    checkpoint = await checkpoints.get(consumer_status_chain_key(plan[0]))
+    checkpoint = await checkpoints.get(
+        consumer_status_chain_key(plan[0], account_id=ACCOUNT, consumer_id=CALLER.consumer_id)
+    )
     assert checkpoint is not None
     assert checkpoint.reporting_status_id == plan[0].reporting_status_id
     # No prior leaf on a first post, and that must be recorded as None rather

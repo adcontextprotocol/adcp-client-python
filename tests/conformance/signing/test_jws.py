@@ -323,9 +323,7 @@ def test_reject_non_dict_payload() -> None:
     jwk, key = _ed25519_jwk_and_key()
     header = {"alg": "EdDSA", "kid": jwk["kid"], "typ": EXPECTED_TYP}
     # JSON array payload — spec requires an object.
-    token = _sign_compact(
-        header, b'[{"not":"an object"}]', jws_alg="EdDSA", private_key=key
-    )
+    token = _sign_compact(header, b'[{"not":"an object"}]', jws_alg="EdDSA", private_key=key)
 
     with pytest.raises(JwsMalformedError, match="not a JSON object"):
         verify_jws_document(token, jwks_resolver=_resolver_for(jwk), expected_typ=EXPECTED_TYP)

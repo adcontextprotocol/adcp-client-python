@@ -51,6 +51,7 @@ def executor():
 def _make_handler(platform: DecisioningPlatform, executor: ThreadPoolExecutor) -> PlatformHandler:
     return PlatformHandler(platform, executor=executor, registry=InMemoryTaskRegistry())
 
+
 _SECRET = b"test-secret-key"
 
 

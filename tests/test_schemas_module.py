@@ -38,13 +38,16 @@ def test_load_schema_error_message_is_actionable() -> None:
     assert "adcp-agents.json" in msg
 
 
-@pytest.mark.parametrize("traversal", [
-    "../../schemas/cache/adagents.json",
-    "../validation/__init__.py",
-    "/etc/passwd",
-    "a\\b.json",
-    "..json",
-])
+@pytest.mark.parametrize(
+    "traversal",
+    [
+        "../../schemas/cache/adagents.json",
+        "../validation/__init__.py",
+        "/etc/passwd",
+        "a\\b.json",
+        "..json",
+    ],
+)
 def test_load_schema_rejects_path_traversal(traversal: str) -> None:
     with pytest.raises(FileNotFoundError, match="invalid"):
         load_schema(traversal)

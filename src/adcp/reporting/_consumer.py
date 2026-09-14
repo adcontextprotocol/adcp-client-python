@@ -446,6 +446,8 @@ def plan_consumer_statuses(
     obligation_revisions: Mapping[str, Sequence[ReportingRevision]] | None = None,
     current_statuses: Sequence[Any] = (),
     checkpointed_leaves: Mapping[str, ConsumerStatusCheckpoint] | None = None,
+    account_id: str | None = None,
+    consumer_id: str | None = None,
     status_id_prefix: str = "rpcs",
 ) -> list[ConsumerStatusIntent]:
     """Decide what the buyer owes the seller right now.
@@ -490,6 +492,14 @@ def plan_consumer_statuses(
     obligation_revisions = obligation_revisions or {}
     leaves = _index_current_leaves(current_statuses)
     checkpointed = checkpointed_leaves or {}
+    if checkpointed and account_id is None:
+        # Without the account the derived key cannot match the one the poster
+        # wrote, so every lookup would miss silently and every statement would
+        # go out with no supersedes. Refuse rather than quietly degrade.
+        raise ConsumerStatusPlanError(
+            "checkpointed_leaves requires account_id: the chain key is account-scoped, and "
+            "a mismatched key misses silently rather than failing"
+        )
     boundary = _utc(now)
     plan: list[ConsumerStatusIntent] = []
 
@@ -521,6 +531,8 @@ def plan_consumer_statuses(
                 due_at=due_at,
                 leaves=leaves,
                 checkpointed=checkpointed,
+                account_id=account_id,
+                consumer_id=consumer_id,
                 prefix=status_id_prefix,
             )
         )
@@ -591,6 +603,8 @@ def plan_consumer_statuses(
                 due_at=due_at,
                 leaves=leaves,
                 checkpointed=checkpointed,
+                account_id=account_id,
+                consumer_id=consumer_id,
                 prefix=status_id_prefix,
                 obligation_id=obligation_id,
                 revision_id=revision_id,
@@ -615,6 +629,8 @@ def _intend(
     due_at: datetime,
     leaves: Mapping[tuple[Any, ...], Any],
     checkpointed: Mapping[str, ConsumerStatusCheckpoint],
+    account_id: str | None,
+    consumer_id: str | None,
     prefix: str,
     obligation_id: str | None = None,
     revision_id: str | None = None,
@@ -664,7 +680,11 @@ def _intend(
     else:
         # No ledger read this pass. Fall back to what this buyer last posted,
         # so a plan built from checkpoints alone still names a leaf.
-        checkpoint = checkpointed.get(_chain_key_of(chain))
+        checkpoint = (
+            checkpointed.get(_chain_key_of(account_id, consumer_id, chain))
+            if account_id is not None
+            else None
+        )
         if checkpoint is None:
             supersedes = None
         elif checkpoint.reporting_status_id == status_id:
@@ -940,32 +960,54 @@ class InMemoryConsumerStatusCheckpoints:
         self._leaves[chain] = checkpoint
 
 
-def consumer_status_chain_key(intent: ConsumerStatusIntent) -> str:
+def consumer_status_chain_key(
+    intent: ConsumerStatusIntent,
+    *,
+    account_id: str,
+    consumer_id: str | None = None,
+) -> str:
     """The logical chain an intent belongs to, as a checkpoint key.
 
-    Keyed exactly as the seller keys it -- configuration generation, report
-    definition, and the half-open period -- and deliberately *not* on the
-    obligation id, because a chain that began as ``obligation_missing``
-    attaches to the repaired obligation later and must not fork.
+    Keyed exactly as the seller keys it: authenticated consumer, account,
+    configuration generation, report definition, and the half-open period.
+
+    ``account_id`` is required rather than optional because the spec's chain
+    identity is account-scoped, and a checkpoint store shared across sellers
+    -- or across accounts on one seller -- would otherwise let two chains with
+    the same ``delivery_config_id`` overwrite each other's leaves. The buyer
+    would then supersede the wrong statement, or none.
+
+    ``consumer_id`` is accepted for a buyer that posts as more than one
+    authenticated consumer. A single-identity buyer can leave it out; the key
+    stays stable either way as long as the same value is used for reads and
+    writes.
+
+    Deliberately *not* keyed on the obligation id: a chain that began as
+    ``obligation_missing`` attaches to the repaired obligation later and must
+    not fork.
     """
     return _chain_key_of(
+        account_id,
+        consumer_id,
         (
             intent.delivery_config_id,
             intent.delivery_config_version,
             intent.report_definition_id,
             _iso(intent.period_start),
             _iso(intent.period_end),
-        )
+        ),
     )
 
 
-def _chain_key_of(chain: tuple[Any, ...]) -> str:
-    """The checkpoint key for a chain tuple.
+def _chain_key_of(account_id: str, consumer_id: str | None, chain: tuple[Any, ...]) -> str:
+    """The checkpoint key for one account-scoped chain.
 
-    Shared by the planner and the poster on purpose: a key written by one that
-    the other could not read would make every checkpoint a silent miss.
+    Shared by the planner and the poster on purpose. A key written by one that
+    the other could not reproduce would make every checkpoint a silent miss --
+    and a silent miss now means a statement posted with no ``supersedes``,
+    which the seller rejects.
     """
-    payload = "|".join(str(part) for part in chain)
+    payload = "|".join([account_id, consumer_id or "", *(str(part) for part in chain)])
     return "rpcc_" + hashlib.sha256(payload.encode()).hexdigest()[:40]
 
 
@@ -974,6 +1016,7 @@ async def post_consumer_statuses(
     plan: Sequence[ConsumerStatusIntent],
     *,
     account_id: str,
+    consumer_id: str | None = None,
     checkpoints: ConsumerStatusCheckpointStore | None = None,
     idempotency_key_prefix: str = "rpcs_batch",
 ) -> ConsumerStatusPostResult:
@@ -1029,7 +1072,9 @@ async def post_consumer_statuses(
                 continue
             if checkpoints is not None:
                 await checkpoints.put(
-                    consumer_status_chain_key(intent),
+                    consumer_status_chain_key(
+                        intent, account_id=account_id, consumer_id=consumer_id
+                    ),
                     ConsumerStatusCheckpoint(
                         reporting_status_id=intent.reporting_status_id,
                         supersedes_reporting_status_id=intent.supersedes_reporting_status_id,
@@ -1041,12 +1086,32 @@ async def post_consumer_statuses(
     )
 
 
+def _batch_chain(intent: ConsumerStatusIntent) -> str:
+    """Chain identity *within one batch*, where account and consumer are fixed.
+
+    Batching only needs to tell this request's chains apart, and every
+    statement in a ``sync_reporting_status`` call shares the authenticated
+    caller and account by construction. Kept separate from the checkpoint key
+    so that key can stay account-scoped without threading identity through the
+    splitter.
+    """
+    return "|".join(
+        [
+            intent.delivery_config_id,
+            str(intent.delivery_config_version),
+            intent.report_definition_id,
+            _iso(intent.period_start),
+            _iso(intent.period_end),
+        ]
+    )
+
+
 def _batches(plan: Sequence[ConsumerStatusIntent]) -> list[list[ConsumerStatusIntent]]:
     """Split a plan so no batch repeats a chain and none exceeds the cap."""
     batches: list[list[ConsumerStatusIntent]] = []
     seen: list[set[str]] = []
     for intent in plan:
-        chain = consumer_status_chain_key(intent)
+        chain = _batch_chain(intent)
         for index, used in enumerate(seen):
             if chain not in used and len(batches[index]) < _MAX_BATCH:
                 batches[index].append(intent)
@@ -1100,6 +1165,8 @@ def _match_result(
 async def resolve_checkpointed_leaves(
     checkpoints: ConsumerStatusCheckpointStore,
     *,
+    account_id: str,
+    consumer_id: str | None = None,
     obligations: Sequence[ReportingObligation] = (),
     missing_expected_periods: Sequence[Any] = (),
 ) -> dict[str, ConsumerStatusCheckpoint]:
@@ -1114,25 +1181,29 @@ async def resolve_checkpointed_leaves(
     for obligation in obligations:
         keys.add(
             _chain_key_of(
+                account_id,
+                consumer_id,
                 (
                     obligation.delivery_config_id,
                     obligation.delivery_config_version,
                     obligation.report_definition_id,
                     _iso(_utc(obligation.period.start)),
                     _iso(_utc(obligation.period.end)),
-                )
+                ),
             )
         )
     for period in missing_expected_periods:
         keys.add(
             _chain_key_of(
+                account_id,
+                consumer_id,
                 (
                     period.delivery_config_id,
                     period.delivery_config_version,
                     period.report_definition_id,
                     _iso(_parse(period.period_start)),
                     _iso(_parse(period.period_end)),
-                )
+                ),
             )
         )
     resolved: dict[str, ConsumerStatusCheckpoint] = {}

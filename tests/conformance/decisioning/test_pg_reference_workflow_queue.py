@@ -408,8 +408,7 @@ async def test_create_schema_upgrades_pre_dead_letter_queue_table() -> None:
         queue = PgWorkflowQueue(pool=pool, registry=registry, table=workflow_table)
         await registry.create_schema()
         async with pool.connection() as conn:
-            await conn.execute(
-                f"""CREATE TABLE {workflow_table} (  -- noqa: S608
+            await conn.execute(f"""CREATE TABLE {workflow_table} (  -- noqa: S608
                     task_id          TEXT COLLATE "C" PRIMARY KEY,
                     account_id       TEXT COLLATE "C" NOT NULL,
                     workflow_type    TEXT NOT NULL,
@@ -429,8 +428,7 @@ async def test_create_schema_upgrades_pre_dead_letter_queue_table() -> None:
                         (state = 'in_flight') =
                         (lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)
                     )
-                )"""
-            )
+                )""")
         try:
             await queue.create_schema()
             task_id = f"task_missing_{suffix}"

@@ -3,6 +3,7 @@
 Verifies that both SyncTokenValidator and AsyncTokenValidator implementations
 are accepted by mypy --strict without type: ignore.
 """
+
 from __future__ import annotations
 
 from adcp.server.auth import BearerTokenAuth, Principal

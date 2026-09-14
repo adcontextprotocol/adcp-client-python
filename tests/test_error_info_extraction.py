@@ -120,46 +120,34 @@ class TestExtractAdcpErrorInfo:
         # `bool` is an `int` subclass in Python — without an explicit guard a
         # `retry_after: true` payload from a non-conforming producer would
         # extract as `1.0` and schedule a real retry.
-        info = extract_adcp_error_info(
-            {"code": "X", "message": "y", "retry_after": True}
-        )
+        info = extract_adcp_error_info({"code": "X", "message": "y", "retry_after": True})
         assert info.retry_after is None
 
     def test_retry_after_infinity_rejected(self) -> None:
-        info = extract_adcp_error_info(
-            {"code": "X", "message": "y", "retry_after": float("inf")}
-        )
+        info = extract_adcp_error_info({"code": "X", "message": "y", "retry_after": float("inf")})
         assert info.retry_after is None
 
     def test_retry_after_negative_rejected(self) -> None:
         # Out-of-range per `core/error.json` (`ge=1`). A negative value on a
         # scheduler doing `sleep(retry_after)` would fire immediately, defeating
         # backoff. Extractor drops it — caller sees `None` and applies a default.
-        info = extract_adcp_error_info(
-            {"code": "X", "message": "y", "retry_after": -5}
-        )
+        info = extract_adcp_error_info({"code": "X", "message": "y", "retry_after": -5})
         assert info.retry_after is None
 
     def test_retry_after_over_max_rejected(self) -> None:
         # Out-of-range per `core/error.json` (`le=3600`). A very large value
         # would stall the retry loop for many hours; extractor drops it.
-        info = extract_adcp_error_info(
-            {"code": "X", "message": "y", "retry_after": 100_000}
-        )
+        info = extract_adcp_error_info({"code": "X", "message": "y", "retry_after": 100_000})
         assert info.retry_after is None
 
     def test_retry_after_boundaries_accepted(self) -> None:
         # Both endpoints of the spec range are valid.
         assert (
-            extract_adcp_error_info(
-                {"code": "X", "message": "y", "retry_after": 1}
-            ).retry_after
+            extract_adcp_error_info({"code": "X", "message": "y", "retry_after": 1}).retry_after
             == 1.0
         )
         assert (
-            extract_adcp_error_info(
-                {"code": "X", "message": "y", "retry_after": 3600}
-            ).retry_after
+            extract_adcp_error_info({"code": "X", "message": "y", "retry_after": 3600}).retry_after
             == 3600.0
         )
 

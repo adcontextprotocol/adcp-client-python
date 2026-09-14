@@ -406,10 +406,10 @@ async def test_unregister_during_recheck_no_zombie_health_entry() -> None:
     recheck_task = asyncio.create_task(do_recheck())
     await recheck_started.wait()  # recheck is now suspended inside the validator
 
-    registry.unregister("acme")   # race: remove while validator is awaited
+    registry.unregister("acme")  # race: remove while validator is awaited
 
     allow_recheck.set()
-    await recheck_task            # recheck completes without raising
+    await recheck_task  # recheck completes without raising
 
     # No zombie: tenant is fully gone.
     assert registry.health("acme") is None
@@ -497,8 +497,9 @@ async def test_resolve_fast_path_for_eager_tenant() -> None:
     """resolve() with an eager tenant does not invoke any factory."""
     platform = _mock_platform()
     registry = TenantRegistry(validator=None)
-    await registry.register("acme", agent_url="https://acme.example.com", platform=platform,
-                             await_first_validation=True)
+    await registry.register(
+        "acme", agent_url="https://acme.example.com", platform=platform, await_first_validation=True
+    )
 
     result = await registry.resolve("acme.example.com")
     assert result is not None
@@ -659,8 +660,9 @@ async def test_lazy_unregister_during_resolve_no_zombie() -> None:
         return _mock_platform(tid)
 
     registry = TenantRegistry(validator=None)
-    await registry.register_lazy("acme", agent_url="https://acme.example.com",
-                                  factory=blocking_factory)
+    await registry.register_lazy(
+        "acme", agent_url="https://acme.example.com", factory=blocking_factory
+    )
 
     resolve_task = asyncio.create_task(registry.resolve("acme.example.com"))
     await factory_started.wait()
@@ -772,8 +774,7 @@ async def test_resolve_factory_failure_does_not_retry_on_subsequent_calls() -> N
         raise RuntimeError("factory exploded")
 
     registry = TenantRegistry()
-    await registry.register_lazy("acme", agent_url="https://acme.example.com",
-                                  factory=bad_factory)
+    await registry.register_lazy("acme", agent_url="https://acme.example.com", factory=bad_factory)
 
     # First resolve: factory invoked, sets disabled.
     result1 = await registry.resolve("acme.example.com")
@@ -790,6 +791,7 @@ async def test_resolve_factory_failure_does_not_retry_on_subsequent_calls() -> N
 @pytest.mark.asyncio
 async def test_unregister_lazy_tenant_removes_factory() -> None:
     """Unregistering a lazy tenant removes the factory; resolve() returns None."""
+
     async def factory(tid: str) -> Any:
         return _mock_platform(tid)
 
@@ -826,7 +828,9 @@ async def test_resolve_by_id_eager_healthy() -> None:
     registry = TenantRegistry(validator=None)
     platform = _mock_platform()
     await registry.register(
-        "acme", agent_url="https://acme.example.com", platform=platform,
+        "acme",
+        agent_url="https://acme.example.com",
+        platform=platform,
         await_first_validation=True,
     )
 
@@ -846,8 +850,12 @@ async def test_resolve_by_id_unknown_returns_none() -> None:
 async def test_resolve_by_id_unregistered_returns_none() -> None:
     """resolve_by_id returns None after unregister."""
     registry = TenantRegistry(validator=None)
-    await registry.register("acme", agent_url="https://acme.example.com",
-                            platform=_mock_platform(), await_first_validation=True)
+    await registry.register(
+        "acme",
+        agent_url="https://acme.example.com",
+        platform=_mock_platform(),
+        await_first_validation=True,
+    )
     registry.unregister("acme")
     assert await registry.resolve_by_id("acme") is None
 
@@ -881,12 +889,12 @@ async def test_resolve_by_id_lazy_triggers_factory() -> None:
 @pytest.mark.asyncio
 async def test_resolve_by_id_lazy_factory_failure_disables() -> None:
     """resolve_by_id sets health=disabled when factory raises."""
+
     async def bad_factory(tid: str) -> Any:
         raise RuntimeError("boom")
 
     registry = TenantRegistry()
-    await registry.register_lazy("acme", agent_url="https://acme.example.com",
-                                  factory=bad_factory)
+    await registry.register_lazy("acme", agent_url="https://acme.example.com", factory=bad_factory)
 
     result = await registry.resolve_by_id("acme")
     assert result is None
@@ -906,8 +914,7 @@ async def test_resolve_by_id_concurrent_serialises() -> None:
         return platform
 
     registry = TenantRegistry(validator=None)
-    await registry.register_lazy("acme", agent_url="https://acme.example.com",
-                                  factory=slow_factory)
+    await registry.register_lazy("acme", agent_url="https://acme.example.com", factory=slow_factory)
 
     results = await asyncio.gather(
         registry.resolve_by_id("acme"),
@@ -950,8 +957,10 @@ async def test_as_platform_healthy_tenant_dispatches_method() -> None:
 
     registry = TenantRegistry(validator=None)
     await registry.register(
-        "acme", agent_url="https://acme.example.com",
-        platform=inner_platform, await_first_validation=True,
+        "acme",
+        agent_url="https://acme.example.com",
+        platform=inner_platform,
+        await_first_validation=True,
     )
 
     adapter = registry.as_platform(accounts=_minimal_account_store())
@@ -972,7 +981,8 @@ async def test_as_platform_pending_tenant_raises_service_unavailable() -> None:
     inner_platform = MagicMock()
     registry = TenantRegistry(validator=None)
     await registry.register(
-        "acme", agent_url="https://acme.example.com",
+        "acme",
+        agent_url="https://acme.example.com",
         platform=inner_platform,
         # await_first_validation=False → health stays 'pending'
     )
@@ -994,8 +1004,10 @@ async def test_as_platform_disabled_tenant_raises_service_unavailable() -> None:
 
     registry = TenantRegistry(validator=lambda tid, url: False)
     await registry.register(
-        "acme", agent_url="https://acme.example.com",
-        platform=MagicMock(), await_first_validation=True,
+        "acme",
+        agent_url="https://acme.example.com",
+        platform=MagicMock(),
+        await_first_validation=True,
     )
     assert registry.health("acme") == "disabled"
 
@@ -1026,8 +1038,10 @@ async def test_as_platform_unverified_tenant_serves_by_default() -> None:
 
     registry = TenantRegistry(validator=flaky_validator)
     await registry.register(
-        "acme", agent_url="https://acme.example.com",
-        platform=inner_platform, await_first_validation=True,
+        "acme",
+        agent_url="https://acme.example.com",
+        platform=inner_platform,
+        await_first_validation=True,
     )
     assert registry.health("acme") == "healthy"
     await registry.recheck("acme")  # second validator call → False → unverified
@@ -1057,8 +1071,10 @@ async def test_as_platform_custom_serve_states_fail_closed() -> None:
     inner_platform = MagicMock()
     registry = TenantRegistry(validator=flaky_validator)
     await registry.register(
-        "acme", agent_url="https://acme.example.com",
-        platform=inner_platform, await_first_validation=True,
+        "acme",
+        agent_url="https://acme.example.com",
+        platform=inner_platform,
+        await_first_validation=True,
     )
     await registry.recheck("acme")
     assert registry.health("acme") == "unverified"
@@ -1129,8 +1145,7 @@ async def test_as_platform_lazy_tenant_dispatches_on_first_request() -> None:
         return inner_platform
 
     registry = TenantRegistry(validator=None)
-    await registry.register_lazy("acme", agent_url="https://acme.example.com",
-                                  factory=factory)
+    await registry.register_lazy("acme", agent_url="https://acme.example.com", factory=factory)
 
     adapter = registry.as_platform(accounts=_minimal_account_store())
     ctx = RequestContext()
@@ -1155,8 +1170,10 @@ async def test_as_platform_synthesized_method_dispatches() -> None:
 
     registry = TenantRegistry(validator=None)
     await registry.register(
-        "acme", agent_url="https://acme.example.com",
-        platform=inner_platform, await_first_validation=True,
+        "acme",
+        agent_url="https://acme.example.com",
+        platform=inner_platform,
+        await_first_validation=True,
     )
 
     adapter = registry.as_platform(accounts=_minimal_account_store())

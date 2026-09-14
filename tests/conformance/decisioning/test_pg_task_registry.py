@@ -72,8 +72,7 @@ async def registry() -> AsyncIterator[PostgresTaskRegistry]:
 
 @pytest.mark.asyncio
 async def test_issue_returns_unique_task_ids(registry: PostgresTaskRegistry) -> None:
-    ids = [await registry.issue(account_id="acct1", task_type="create_media_buy")
-           for _ in range(5)]
+    ids = [await registry.issue(account_id="acct1", task_type="create_media_buy") for _ in range(5)]
     assert len(set(ids)) == 5
 
 
@@ -232,8 +231,7 @@ async def test_get_unknown_task_returns_none(registry: PostgresTaskRegistry) -> 
 @pytest.mark.asyncio
 async def test_concurrent_issue_yields_unique_ids(registry: PostgresTaskRegistry) -> None:
     ids = await asyncio.gather(
-        *[registry.issue(account_id="acct1", task_type="create_media_buy")
-          for _ in range(20)]
+        *[registry.issue(account_id="acct1", task_type="create_media_buy") for _ in range(20)]
     )
     assert len(set(ids)) == 20
 

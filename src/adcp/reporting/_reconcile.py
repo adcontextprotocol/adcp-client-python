@@ -876,6 +876,7 @@ async def reconcile_reporting_core(
                 for obligation in ledger.obligations
             },
             current_statuses=ledger.consumer_statuses,
+            account_id=ledger.account_id,
         )
     return result
 

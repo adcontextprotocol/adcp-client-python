@@ -896,12 +896,12 @@ async def test_a_plan_without_a_ledger_read_supersedes_from_the_checkpoint() -> 
 
     checkpoints = InMemoryConsumerStatusCheckpoints()
     await checkpoints.put(
-        consumer_status_chain_key(first),
+        consumer_status_chain_key(first, account_id="acct_1"),
         ConsumerStatusCheckpoint(reporting_status_id=first.reporting_status_id),
     )
 
     leaves = await resolve_checkpointed_leaves(
-        checkpoints, obligations=[_obligation(revision_count=0)]
+        checkpoints, account_id="acct_1", obligations=[_obligation(revision_count=0)]
     )
     changed = plan_consumer_statuses(
         [_obligation()],
@@ -911,6 +911,7 @@ async def test_a_plan_without_a_ledger_read_supersedes_from_the_checkpoint() -> 
         definition=DEFINITION,
         revisions={"rpr_1": _revision()},
         checkpointed_leaves=leaves,
+        account_id="acct_1",
     )
     assert changed[0].consumer_status == "received"
     assert changed[0].supersedes_reporting_status_id == first.reporting_status_id
@@ -941,13 +942,15 @@ async def test_a_lost_response_retry_reproduces_the_original_statement() -> None
         readings={"rpo_1": reading},
         definition=DEFINITION,
         revisions={"rpr_1": revision},
+        account_id="acct_1",
         checkpointed_leaves={
             consumer_status_chain_key(
                 plan_consumer_statuses(
                     [_obligation(revision_count=0)],
                     now=EXPECTED_AT + RECOVERY,
                     automated_recovery_window=RECOVERY,
-                )[0]
+                )[0],
+                account_id="acct_1",
             ): ConsumerStatusCheckpoint(reporting_status_id="status_prior_leaf_0001")
         },
     )[0]
@@ -955,13 +958,15 @@ async def test_a_lost_response_retry_reproduces_the_original_statement() -> None
 
     checkpoints = InMemoryConsumerStatusCheckpoints()
     await checkpoints.put(
-        consumer_status_chain_key(posted),
+        consumer_status_chain_key(posted, account_id="acct_1"),
         ConsumerStatusCheckpoint(
             reporting_status_id=posted.reporting_status_id,
             supersedes_reporting_status_id=posted.supersedes_reporting_status_id,
         ),
     )
-    leaves = await resolve_checkpointed_leaves(checkpoints, obligations=[_obligation()])
+    leaves = await resolve_checkpointed_leaves(
+        checkpoints, account_id="acct_1", obligations=[_obligation()]
+    )
 
     retry = plan_consumer_statuses(
         [_obligation()],
@@ -971,6 +976,7 @@ async def test_a_lost_response_retry_reproduces_the_original_statement() -> None
         definition=DEFINITION,
         revisions={"rpr_1": revision},
         checkpointed_leaves=leaves,
+        account_id="acct_1",
     )[0]
     assert retry.reporting_status_id == posted.reporting_status_id
     # The critical bit: it must NOT supersede itself, and must not have lost
@@ -1015,10 +1021,114 @@ async def test_a_ledger_read_wins_over_a_stale_checkpoint() -> None:
         definition=DEFINITION,
         revisions={"rpr_1": _revision()},
         current_statuses=[real_leaf],
+        account_id="acct_1",
         checkpointed_leaves={
-            consumer_status_chain_key(stale): ConsumerStatusCheckpoint(
+            consumer_status_chain_key(stale, account_id="acct_1"): ConsumerStatusCheckpoint(
                 reporting_status_id="status_stale_checkpoint_1"
             )
         },
     )
     assert plan[0].supersedes_reporting_status_id == "status_real_leaf_000001"
+
+
+@pytest.mark.asyncio
+async def test_two_accounts_sharing_a_config_id_do_not_share_a_checkpoint() -> None:
+    # The spec's chain identity is account-scoped. A checkpoint store shared
+    # across sellers -- or across accounts on one seller -- would otherwise let
+    # two chains with the same delivery_config_id overwrite each other's
+    # leaves, and the buyer would supersede the wrong statement or none.
+    from adcp.reporting import consumer_status_chain_key
+
+    intent = plan_consumer_statuses(
+        [_obligation(revision_count=0)],
+        now=EXPECTED_AT + RECOVERY,
+        automated_recovery_window=RECOVERY,
+    )[0]
+    first = consumer_status_chain_key(intent, account_id="acct_1")
+    second = consumer_status_chain_key(intent, account_id="acct_2")
+    assert first != second
+
+    # The consumer scope separates identities within one account too.
+    assert consumer_status_chain_key(
+        intent, account_id="acct_1", consumer_id="buyer_a"
+    ) != consumer_status_chain_key(intent, account_id="acct_1", consumer_id="buyer_b")
+
+
+@pytest.mark.asyncio
+async def test_a_checkpoint_written_by_the_poster_is_readable_by_the_planner() -> None:
+    # The two derive the key independently. If they ever disagreed, every
+    # lookup would miss *silently* and every statement would go out with no
+    # supersedes -- which the seller rejects. Pin that they agree.
+    from adcp.reporting import (
+        InMemoryConsumerStatusCheckpoints,
+        post_consumer_statuses,
+        resolve_checkpointed_leaves,
+    )
+
+    intent = plan_consumer_statuses(
+        [_obligation(revision_count=0)],
+        now=EXPECTED_AT + RECOVERY,
+        automated_recovery_window=RECOVERY,
+    )[0]
+
+    class _AcceptingClient:
+        async def sync_reporting_status(self, request: Any) -> Any:
+            from types import SimpleNamespace
+
+            payload = request.model_dump(mode="json", exclude_none=True)
+            return SimpleNamespace(
+                success=True,
+                error=None,
+                data={
+                    "status": "completed",
+                    "results": [
+                        {"result": "recorded", "consumer_status": statement}
+                        for statement in payload["statuses"]
+                    ],
+                },
+            )
+
+    checkpoints = InMemoryConsumerStatusCheckpoints()
+    result = await post_consumer_statuses(
+        _AcceptingClient(),
+        [intent],
+        account_id="acct_1",
+        consumer_id="buyer_a",
+        checkpoints=checkpoints,
+    )
+    assert result.ok and len(result.recorded) == 1
+
+    leaves = await resolve_checkpointed_leaves(
+        checkpoints,
+        account_id="acct_1",
+        consumer_id="buyer_a",
+        obligations=[_obligation(revision_count=0)],
+    )
+    assert len(leaves) == 1
+    assert next(iter(leaves.values())).reporting_status_id == intent.reporting_status_id
+
+    # A different account reads nothing, which is the isolation being asserted.
+    assert (
+        await resolve_checkpointed_leaves(
+            checkpoints,
+            account_id="acct_2",
+            consumer_id="buyer_a",
+            obligations=[_obligation(revision_count=0)],
+        )
+        == {}
+    )
+
+
+@pytest.mark.asyncio
+async def test_checkpoints_without_an_account_id_fail_loudly() -> None:
+    # A mismatched key misses silently, so refuse rather than quietly degrade
+    # to "no supersedes" on every statement.
+    from adcp.reporting import ConsumerStatusCheckpoint
+
+    with pytest.raises(ConsumerStatusPlanError, match="requires account_id"):
+        plan_consumer_statuses(
+            [_obligation(revision_count=0)],
+            now=EXPECTED_AT + RECOVERY,
+            automated_recovery_window=RECOVERY,
+            checkpointed_leaves={"rpcc_whatever": ConsumerStatusCheckpoint("status_x_0000001")},
+        )
