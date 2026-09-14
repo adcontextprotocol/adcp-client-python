@@ -1154,7 +1154,7 @@ def _extract_media_buy_id(result: Any) -> str | None:
     return str(value)
 
 
-def _to_store_dict(value: Any) -> Any:
+def _to_store_dict(value: Any, *, patch: bool = False) -> Any:
     """Normalize a Pydantic model OR plain dict to a JSON-compatible
     dict for the :class:`MediaBuyStore` adopter contract.
 
@@ -1167,11 +1167,35 @@ def _to_store_dict(value: Any) -> Any:
     ``mode='json'`` serializes ``AnyUrl`` to ``str`` and ``datetime``
     to ISO-8601 ``str`` so the dict matches what would go over the wire
     — adopters serializing to JSON for persistence don't have to
-    re-normalize. ``exclude_none=False`` preserves explicit nulls (the
-    merge contract treats ``None`` as "clear this field"; dropping them
-    would silently change semantics).
+    re-normalize.
+
+    ``patch`` selects between the two shapes, and the distinction is not
+    cosmetic:
+
+    * ``patch=True`` (a caller-supplied mutation input) uses
+      ``exclude_unset=True``. Explicit nulls survive, because the merge
+      contract below treats ``None`` as "clear this field" — but fields the
+      caller never mentioned are *dropped*. Dumping them as ``None`` handed
+      the adopter store a patch asserting "clear every targeting dimension,
+      remove the aggregate frequency cap, drop every package budget", none of
+      which the caller asked for. Per ``core/targeting-input.json``, omission
+      leaves a stored dimension unchanged on update and only ``null`` clears
+      it; the two states are different commands and ``exclude_unset`` is what
+      keeps them apart.
+    * ``patch=False`` (a platform *response*) keeps every field, including
+      unset ones. A response is a whole-state snapshot rather than a patch, so
+      a platform that relied on a model default must still see that default
+      land in the store.
     """
     if hasattr(value, "model_dump"):
+        if patch:
+            # ``exclude_none=False`` is not redundant. ``AdCPBaseModel.model_dump``
+            # defaults ``exclude_none=True`` when the caller omits it, so
+            # ``exclude_unset=True`` alone would still drop every explicit null
+            # and turn a clear back into "leave unchanged".
+            return value.model_dump(
+                mode="json", exclude_unset=True, exclude_none=False, by_alias=False
+            )
         return value.model_dump(mode="json", exclude_none=False, by_alias=False)
     return value
 
@@ -2553,7 +2577,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                     await prior_on_complete(create_result)
                 await captured_store.persist_from_create(
                     captured_account_id,
-                    _to_store_dict(params),
+                    _to_store_dict(params, patch=True),
                     _to_store_dict(create_result),
                 )
 
@@ -2612,7 +2636,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 await captured_store.merge_from_update(
                     captured_account_id,
                     captured_media_buy_id,
-                    _to_store_dict(params),
+                    _to_store_dict(params, patch=True),
                 )
 
             on_complete = _merge_overlay_hook

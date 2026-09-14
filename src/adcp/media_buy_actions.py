@@ -17,6 +17,7 @@ import re
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
+from functools import lru_cache
 from typing import Any, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel, ValidationError, model_validator
@@ -53,6 +54,14 @@ _CONTROL_ACTIONS = frozenset(
         "update_pacing",
         "update_bidding",
         "update_frequency_caps",
+        # AdCP 3.2.0-rc.3. A structured-only action: it is absent from the
+        # deprecated flat `media_buy_valid_action` enum and lives in
+        # `core/media-buy-available-action-id.json` instead, so an SDK that
+        # only reads the flat enum rejects a valid rc.3 mutation as
+        # `invalid_action`. Distinct from `update_frequency_caps`, which is
+        # per-package targeting-overlay capping -- this one replaces or clears
+        # the MediaBuy-level cap whose counter is shared across packages.
+        "update_media_buy_frequency_cap",
         "update_catalog_assignments",
         "update_keywords",
         "update_optimization_goals",
@@ -76,6 +85,10 @@ _REFINEMENT_ACTIONS = frozenset(
         "update_pacing",
         "update_bidding",
         "update_frequency_caps",
+        # rc.3 also lets a proposal refinement remove the aggregate cap
+        # (`proposal_refinement.remove_media_buy_frequency_cap`), so the
+        # action routes to refinement as well as to control.
+        "update_media_buy_frequency_cap",
         "add_packages",
         "remove_packages",
     }
@@ -104,6 +117,12 @@ _LEGACY_ROLLUPS: dict[str, frozenset[str]] = {
     ),
     "sync_creatives": _CREATIVE_ACTIONS,
 }
+# `update_media_buy_frequency_cap` is deliberately absent from every rollup
+# above -- the comment belongs to the table, not to `sync_creatives`. The
+# aggregate cap is a media-buy-level field with one shared counter, so a seller
+# advertising the coarse legacy `update_packages`, or per-package
+# `update_frequency_caps`, has not thereby advertised it. Rolling it up would
+# let a buyer infer a capability the seller never claimed.
 
 _CONSTRAINT_ACTIONS: dict[str, frozenset[str]] = {
     "budget": frozenset(
@@ -119,6 +138,51 @@ _CONSTRAINT_ACTIONS: dict[str, frozenset[str]] = {
     "package_count": frozenset({"add_packages", "remove_packages"}),
     "effective_timing": frozenset({"pause", "resume", "cancel"}),
 }
+
+
+@lru_cache(maxsize=16)
+def action_update_fields(version: str | None = None) -> Mapping[str, tuple[str, ...]]:
+    """Which ``update_media_buy`` request fields each action covers.
+
+    AdCP 3.2.0-rc.3 splits this normative map across **two** ``enumMetadata``
+    blocks and requires SDKs to merge them: the deprecated flat
+    ``enums/media-buy-valid-action.json`` plus
+    ``core/media-buy-available-action-id.json``, which carries the
+    structured-only actions that were introduced after the flat surface was
+    deprecated. Reading only the first silently omits
+    ``update_media_buy_frequency_cap`` and its ``frequency_cap`` field, so a
+    dispatcher built on it would route a valid rc.3 mutation nowhere.
+
+    Read from the bundled schemas rather than transcribed, because the spec
+    names this block -- not the task-reference table -- as the thing SDKs
+    dispatch on. A hand-copied table is a second source of truth that drifts on
+    the next release.
+
+    ``version`` selects the bundle, so a client pinned to an older release
+    dispatches on that release's map rather than on the SDK's default. Cached
+    per version, because each is a pure function of an immutable bundle.
+
+    Returns an empty mapping when the bundle predates the fields, so an older
+    pin degrades rather than raising.
+    """
+    merged: dict[str, tuple[str, ...]] = {}
+    for name in ("enums/media-buy-valid-action.json", "core/media-buy-available-action-id.json"):
+        block = _schema_enum_metadata(name, version=version)
+        for action, metadata in block.items():
+            if action.startswith("$") or not isinstance(metadata, Mapping):
+                continue
+            fields = metadata.get("update_fields")
+            if isinstance(fields, Sequence) and not isinstance(fields, str):
+                merged[action] = tuple(str(item) for item in fields)
+    return merged
+
+
+def _schema_enum_metadata(relative_path: str, *, version: str | None = None) -> Mapping[str, Any]:
+    from adcp.validation.schema_loader import get_named_schema_document
+
+    document = get_named_schema_document(relative_path, version=version)
+    block = (document or {}).get("enumMetadata")
+    return block if isinstance(block, Mapping) else {}
 
 
 class ActionKnowledge(StrEnum):
@@ -325,13 +389,21 @@ class ActionDispatchClient(Protocol):
         raise NotImplementedError
 
 
-def route_media_buy_action(action: str) -> ActionTask | None:
+def route_media_buy_action(action: str, *, version: str | None = None) -> ActionTask | None:
     """Return the canonical compact task for an in-envelope action.
 
     Flight and package-addition changes require proposal refinement; creative
     lifecycle changes use ``sync_creatives``; the remaining accepted controls
-    use ``control_media_buy``.  Unknown future actions fail closed with
-    ``None`` so callers do not guess a route.
+    use ``control_media_buy``.
+
+    A structured-only action the tables above have not been taught still routes
+    when the bundle's merged ``enumMetadata`` says it mutates
+    ``update_media_buy`` fields. The spec adds these additively and tells SDKs
+    to dispatch on that block, so consulting it keeps a newer bundle working
+    instead of failing closed on a name the tables predate -- which is the bug
+    ``update_media_buy_frequency_cap`` exposed. Anything the bundle does not
+    describe either still fails closed with ``None`` so callers do not guess a
+    route.
     """
 
     if action in _CONTROL_ACTIONS:
@@ -340,6 +412,8 @@ def route_media_buy_action(action: str) -> ActionTask | None:
         return ActionTask.refine_proposals
     if action in _CREATIVE_ACTIONS:
         return ActionTask.sync_creatives
+    if action_update_fields(version).get(action):
+        return ActionTask.control_media_buy
     return None
 
 
@@ -1442,6 +1516,7 @@ __all__ = [
     "MediaBuyActionError",
     "MediaBuyActionProjection",
     "ProjectedMediaBuyAction",
+    "action_update_fields",
     "assess_media_buy_action",
     "assess_update_media_buy_actions",
     "dispatch_media_buy_action",
