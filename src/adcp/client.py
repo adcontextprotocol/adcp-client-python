@@ -2006,6 +2006,20 @@ class ADCPClient:
         """Execute and parse one typed AdCP task with activity events."""
         operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
+        if isinstance(request, ControlMediaBuyRequest):
+            # These control fields use null to clear an existing value. Restore
+            # only explicit clears after normal serialization; optional None
+            # defaults elsewhere still mean omission, not a mutation. Keep this
+            # on the shared client path so MCP and A2A preserve the same intent.
+            for field in ("daily_budget_cap", "budget_cap_timezone"):
+                if field in request.model_fields_set and getattr(request, field) is None:
+                    params[field] = None
+            for package, payload in zip(request.packages or [], params.get("packages", [])):
+                if (
+                    "daily_budget_cap" in package.model_fields_set
+                    and package.daily_budget_cap is None
+                ):
+                    payload["daily_budget_cap"] = None
         self._emit_activity(
             Activity(
                 type=ActivityType.PROTOCOL_REQUEST,

@@ -2428,7 +2428,7 @@ def _ensure_sequence_import(content: str) -> str:
     return "from collections.abc import Sequence\n\n" + content
 
 
-# Matches the four request-type 'canceled: Literal[True] = True' emissions.
+# Matches request-type 'canceled: Literal[True] = True' emissions.
 # datamodel-codegen emits '= True' directly from "const": true boolean
 # schema properties — it is NOT produced by inject_literal_discriminator_defaults()
 # (which already skips bool-valued Literals). Each match rewrites only the
@@ -2438,7 +2438,7 @@ def _ensure_sequence_import(content: str) -> str:
 _CANCELED_FIELD_RE = re.compile(
     r"(    canceled: Annotated\[\n        )"
     r"Literal\[True\]"
-    r"(,\n        Field\(\n            description='Cancel[^']*'\n        \),\n    \])"
+    r"(,\n        Field\(\n            description=[^\n]*\n        \),\n    \])"
     r" = True"
 )
 
@@ -2465,12 +2465,17 @@ def fix_canceled_literal_defaults() -> None:
 
     Root cause: ``datamodel-codegen`` emits ``= True`` from the schema's
     ``"const": true`` boolean property. This function corrects that misfire for
-    the four request-type emissions listed below.
+    the established update and compact control request types listed below.
+    Match the field shape, not the description's wording: compact cancellation
+    describes exercising an accepted right rather than starting with "Cancel".
     """
     targets = [
         OUTPUT_DIR / "media_buy/update_media_buy_request.py",
         OUTPUT_DIR / "media_buy/package_update.py",
+        OUTPUT_DIR / "media_buy/control_media_buy_request.py",
+        OUTPUT_DIR / "media_buy/package_control.py",
         OUTPUT_DIR / "bundled/media_buy/update_media_buy_request.py",
+        OUTPUT_DIR / "bundled/media_buy/control_media_buy_request.py",
     ]
 
     total_fixed = 0

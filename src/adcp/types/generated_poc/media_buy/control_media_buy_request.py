@@ -56,11 +56,11 @@ class ControlMediaBuyRequest(AdCPBaseModel):
     ] = None
     paused: bool | None = None
     canceled: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description='Exercise an already-accepted unilateral cancellation right. A cancellation requiring seller agreement is requested by refining the accepted proposal.'
         ),
-    ] = True
+    ] = None
     cancellation_reason: Annotated[str | None, Field(max_length=500, min_length=1)] = None
     total_budget: TotalBudget | None = None
     daily_budget_cap: Annotated[
