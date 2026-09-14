@@ -43,7 +43,9 @@ from adcp.reporting.ledger.models import (
 __all__ = [
     "ObligationProjection",
     "aggregate_reporting_health",
+    "current_required_revision",
     "issue_id_for",
+    "issue_id_for_occurrence",
     "project_obligation_health",
 ]
 
@@ -73,6 +75,26 @@ def issue_id_for(kind: str, *parts: object) -> str:
     consumer polling twice deduplicates on the same id both times.
     """
     digest = hashlib.sha256(canonical_json_utf8_v1([kind, *[str(part) for part in parts]])).digest()
+    return "rpti_" + base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")[:32]
+
+
+def issue_id_for_occurrence(issue_key: str, generation: int) -> str:
+    """The id for one *occurrence* of a stored, non-monotone condition.
+
+    :func:`issue_id_for` is enough for conditions that cannot recur once
+    satisfied.  A consumer mismatch can: the buyer supersedes, the seller
+    restates, the disagreement clears and comes back.  AdCP 3.2.0-rc.3 requires
+    a recurrence after retirement to get a *new* ``issue_id``, so identity has
+    to include which occurrence this is -- the generation counter held by
+    :class:`~adcp.reporting.ledger.models.ReportingIssueLifecycle`.
+
+    Folding the generation into the digest rather than appending it keeps the
+    id opaque, so nothing downstream can parse it back into "how many times
+    has this buyer complained".
+    """
+    digest = hashlib.sha256(
+        canonical_json_utf8_v1(["core-issue-occurrence-v1", issue_key, generation])
+    ).digest()
     return "rpti_" + base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")[:32]
 
 
@@ -149,6 +171,30 @@ def project_obligation_health(
         satisfied=False,
         current_revision=None,
     )
+
+
+def current_required_revision(
+    obligation: ReportingObligationRecord,
+    revisions: Sequence[ReportingRevisionRecord],
+) -> ReportingRevisionRecord | None:
+    """The revision the seller currently requires for this obligation.
+
+    Shared by the health projection and the ``sync_reporting_status`` ingest on
+    purpose. If the two computed "current" differently, a buyer could file a
+    ``content_mismatch`` the ingest accepts and the projection then treats as
+    naming a superseded revision -- a statement permanently stuck disputing
+    bytes nobody stands behind.
+
+    Applies the obligation's ``required_finality`` first, then takes the
+    unsuperseded leaf: an official revision is terminal so it wins outright,
+    and among snapshots the current one is whichever no other supersedes.
+    """
+    qualifying = [
+        revision
+        for revision in revisions
+        if obligation.required_finality == "snapshot" or revision.finality == "official"
+    ]
+    return _current_revision(qualifying)
 
 
 def _current_revision(
