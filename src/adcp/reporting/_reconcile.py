@@ -22,13 +22,21 @@ from pydantic import BaseModel
 
 from adcp.reporting._consumer import (
     ConsumerLoopView,
+    ConsumerStatusCheckpointStore,
     ConsumerStatusIntent,
+    ConsumerStatusPlanError,
+    ConsumerStatusPostError,
+    ConsumerStatusPostResult,
+    InMemoryConsumerStatusCheckpoints,
     ReportingContentReading,
+    ReportingFailureCode,
     ReportingOperationsContactView,
     ReportingPinnedDefinition,
     classify_content_mismatch,
+    consumer_status_chain_key,
     load_consumer_loop_view,
     plan_consumer_statuses,
+    post_consumer_statuses,
 )
 from adcp.types import (
     GetReportingStatusRequest,
@@ -114,6 +122,18 @@ class ExpectedReportingPeriod:
     media_buy_ids: tuple[str, ...]
     period_start: str
     period_end: str
+    #: Required to *state* a period the seller omitted: the consumer-status
+    #: ``period`` object requires it, and a buyer filing
+    #: ``obligation_missing`` has no seller obligation to read it off. Defaults
+    #: to UTC because that is what an omitted schedule alignment resolves to;
+    #: a configuration with a civil-time alignment must set it explicitly or
+    #: the statement describes a different period than the one expected.
+    source_timezone: str = "UTC"
+    #: The buyer's independently derived ``expected_at``. Needed because
+    #: ``obligation_missing`` is only valid at or after it, and the posting
+    #: deadline is measured from it -- neither is knowable from the seller's
+    #: ledger, which is precisely the point when the period is absent from it.
+    expected_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -143,6 +163,12 @@ class ReportingLedger:
     revisions: list[ReportingRevision]
     materializations: list[ReportingMaterialization]
     receipts: list[ReportingReceipt]
+    #: This caller's own consumer-status history, when the seller advertises
+    #: the loop. Needed to compare a planned statement against the current
+    #: leaf: without it a buyer cannot tell "nothing changed, do not re-file"
+    #: from "new claim, must supersede", and re-filing the same claim under a
+    #: new id churns the chain for no reason.
+    consumer_statuses: list[Any] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -279,6 +305,7 @@ async def load_reporting_ledger(
             revisions: dict[str, ReportingRevision] = {}
             materializations: dict[str, ReportingMaterialization] = {}
             receipts: dict[str, ReportingReceipt] = {}
+            consumer_statuses: dict[str, Any] = {}
             cursor: str | None = None
             seen_cursors: set[str] = set()
             snapshot_id: str | None = None
@@ -347,6 +374,13 @@ async def load_reporting_ledger(
                     )
                 for receipt in response.receipts or []:
                     _add_immutable(receipts, receipt.reporting_receipt_id, receipt, "receipt")
+                for status in getattr(response, "consumer_statuses", None) or []:
+                    _add_immutable(
+                        consumer_statuses,
+                        status.reporting_status_id,
+                        status,
+                        "consumer status",
+                    )
 
                 if not pagination.has_more:
                     break
@@ -357,7 +391,13 @@ async def load_reporting_ledger(
                     )
                 seen_cursors.add(cursor)
 
-            count = len(obligations) + len(revisions) + len(materializations) + len(receipts)
+            count = (
+                len(obligations)
+                + len(revisions)
+                + len(materializations)
+                + len(receipts)
+                + len(consumer_statuses)
+            )
             if total_count is not None and total_count != count:
                 raise ReportingReconciliationError(
                     "LEDGER_COUNT_MISMATCH",
@@ -376,6 +416,7 @@ async def load_reporting_ledger(
                 list(revisions.values()),
                 list(materializations.values()),
                 list(receipts.values()),
+                list(consumer_statuses.values()),
             )
         except ReportingReconciliationError as error:
             if error.code != "SNAPSHOT_CHANGED" or restart == max_snapshot_restarts:
@@ -816,9 +857,23 @@ async def reconcile_reporting_core(
             ledger.obligations,
             now=now or ledger.ledger_as_of,
             automated_recovery_window=automated_recovery_window,
+            # The periods the *buyer's* denominator expects and the seller's
+            # ledger omitted. Dropping these was the whole reason
+            # ``obligation_missing`` could never be emitted -- and it is the
+            # one status the seller cannot derive for itself.
+            missing_expected_periods=result.missing_expected_periods,
             readings=readings,
             definition=pinned_definition,
             revisions={item.reporting_revision_id: item for item in ledger.revisions},
+            obligation_revisions={
+                obligation.reporting_obligation_id: [
+                    revision
+                    for revision in ledger.revisions
+                    if _revision_matches_obligation(revision, obligation)
+                ]
+                for obligation in ledger.obligations
+            },
+            current_statuses=ledger.consumer_statuses,
         )
     return result
 
@@ -996,13 +1051,21 @@ async def reconcile_reporting(
 
 __all__ = [
     "ConsumerLoopView",
+    "ConsumerStatusCheckpointStore",
     "ConsumerStatusIntent",
+    "ConsumerStatusPlanError",
+    "ConsumerStatusPostError",
+    "ConsumerStatusPostResult",
+    "InMemoryConsumerStatusCheckpoints",
     "ReportingContentReading",
+    "ReportingFailureCode",
     "ReportingOperationsContactView",
     "ReportingPinnedDefinition",
     "classify_content_mismatch",
+    "consumer_status_chain_key",
     "load_consumer_loop_view",
     "plan_consumer_statuses",
+    "post_consumer_statuses",
     "ExpectedReportingPeriod",
     "ObligationReconciliation",
     "ReportingCheckpointStore",

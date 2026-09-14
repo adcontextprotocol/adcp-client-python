@@ -36,6 +36,7 @@ import os
 import secrets
 from collections.abc import AsyncIterator
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -1183,3 +1184,434 @@ async def test_create_schema_upgrades_an_rc2_database_in_place(
     # And the upgraded database actually works, not just has the columns.
     await ledger.put_configuration(_configuration())
     assert (await ledger.list_configurations(account_id=ACCOUNT))[0].authoritative_party == "seller"
+
+
+# --------------------------------------------------------------------------
+# The buyer's posting loop, driven against the real seller ledger
+# --------------------------------------------------------------------------
+#
+# Planning alone is not the buyer side of the loop: a buyer that computes what
+# it owes and never posts it is exactly the silence the seller counts in
+# obligation_counts.consumer_status_pending. These drive
+# plan_consumer_statuses -> post_consumer_statuses -> ConsumerStatusIngest over
+# docker Postgres, so the seller's validation, supersession, and idempotency
+# rules judge the buyer's output rather than a hand-written expectation of it.
+
+
+class _LedgerStatusIngestClient:
+    """Adapts the seller-side ingest to the client shape the poster expects.
+
+    Deliberately thin: the point is that the *seller's* ingest accepts what the
+    buyer planned, so anything that reshapes the payload in between would
+    weaken the test.
+    """
+
+    def __init__(self, ledger: PgReportingLedgerStore, *, consumer_id: str) -> None:
+        from adcp.reporting.ledger import ConsumerStatusIngest
+
+        self._ingest = ConsumerStatusIngest(ledger, enabled=True)
+        self._consumer_id = consumer_id
+        self.batches: list[dict[str, Any]] = []
+
+    async def sync_reporting_status(self, request: Any) -> Any:
+        payload = request.model_dump(mode="json", exclude_none=True)
+        self.batches.append(payload)
+        response = await self._ingest.handle(
+            payload, account_id=ACCOUNT, consumer_id=self._consumer_id
+        )
+        # Through the generated response model, so a shape this SDK would not
+        # accept on the wire cannot pass here either.
+        parsed = SyncReportingStatusResponse.model_validate(response)
+        return SimpleNamespace(success=True, data=parsed, error=None)
+
+
+def _expected_period_for(period: Any) -> Any:
+    from adcp.reporting import ExpectedReportingPeriod
+
+    return ExpectedReportingPeriod(
+        delivery_config_id=CONFIG_ID,
+        delivery_config_version=1,
+        report_definition_id=DEFINITION_ID,
+        feed_purpose="analytics",
+        reporting_profile="paid_media_delivery",
+        media_buy_ids=("mb_lifecycle",),
+        period_start=period.start.isoformat().replace("+00:00", "Z"),
+        period_end=period.end.isoformat().replace("+00:00", "Z"),
+        source_timezone="UTC",
+        expected_at=period.expected_at.isoformat().replace("+00:00", "Z"),
+    )
+
+
+async def _plan_and_post(
+    ledger: PgReportingLedgerStore,
+    client: _LedgerStatusIngestClient,
+    *,
+    now: datetime,
+    obligations: Any = (),
+    missing: Any = (),
+    readings: Any = None,
+    revisions: Any = None,
+    obligation_revisions: Any = None,
+    current_statuses: Any = (),
+    checkpoints: Any = None,
+    definition: Any = None,
+) -> Any:
+    from adcp.reporting import plan_consumer_statuses, post_consumer_statuses
+
+    plan = plan_consumer_statuses(
+        obligations,
+        now=now,
+        automated_recovery_window=RECOVERY_WINDOW,
+        missing_expected_periods=missing,
+        readings=readings,
+        definition=definition,
+        revisions=revisions,
+        obligation_revisions=obligation_revisions,
+        current_statuses=current_statuses,
+    )
+    result = await post_consumer_statuses(client, plan, account_id=ACCOUNT, checkpoints=checkpoints)
+    return plan, result
+
+
+async def _caller_statuses(ledger: PgReportingLedgerStore) -> list[Any]:
+    """This caller's status history, as the periods view would return it."""
+    from adcp.types import ReportingConsumerStatus
+
+    handler = ReportingStatusHandler(ledger, consumer_status_enabled=True)
+    payload = await handler.handle({"view": "periods"}, caller=CALLER)
+    return [
+        ReportingConsumerStatus.model_validate(item)
+        for item in payload.get("consumer_statuses") or []
+    ]
+
+
+async def test_the_buyer_posts_obligation_missing_for_a_period_the_seller_omitted(
+    ledger: PgReportingLedgerStore,
+) -> None:
+    # The seller never obligated the period, so there is nothing in its ledger
+    # to plan from -- only the buyer's own derived denominator. This is the
+    # status the seller cannot produce for itself, and the first thing a
+    # planner that iterates only ledger.obligations silently drops.
+    from adcp.reporting import InMemoryConsumerStatusCheckpoints, consumer_status_chain_key
+
+    await ledger.put_configuration(_configuration())
+    period = _period(0)
+    client = _LedgerStatusIngestClient(ledger, consumer_id=CALLER.consumer_id)
+    checkpoints = InMemoryConsumerStatusCheckpoints()
+
+    plan, result = await _plan_and_post(
+        ledger,
+        client,
+        now=period.expected_at + RECOVERY_WINDOW,
+        missing=[_expected_period_for(period)],
+        checkpoints=checkpoints,
+    )
+    assert [intent.consumer_status for intent in plan] == ["obligation_missing"]
+    assert result.ok, result.failed
+    assert len(result.recorded) == 1
+    assert result.posted == 1
+
+    # The seller accepted it with no obligation id, which is the point.
+    stored = await ledger.list_consumer_statuses(account_id=ACCOUNT, consumer_id=CALLER.consumer_id)
+    assert [item.consumer_status for item in stored] == ["obligation_missing"]
+    assert stored[0].reporting_obligation_id is None
+
+    # And the checkpoint remembers the leaf, keyed by the logical chain rather
+    # than by the obligation the seller has not created yet.
+    assert await checkpoints.get(consumer_status_chain_key(plan[0])) == (
+        plan[0].reporting_status_id
+    )
+
+
+async def test_an_identical_second_pass_posts_nothing(
+    ledger: PgReportingLedgerStore,
+) -> None:
+    # A loop that runs on a timer must not churn the chain. With the statement
+    # content in the derived id, an unchanged claim derives the leaf's own id --
+    # so the planner drops it rather than emitting a statement that supersedes
+    # itself.
+    await ledger.put_configuration(_configuration())
+    period = _period(0)
+    client = _LedgerStatusIngestClient(ledger, consumer_id=CALLER.consumer_id)
+    boundary = period.expected_at + RECOVERY_WINDOW
+
+    first_plan, first = await _plan_and_post(
+        ledger, client, now=boundary, missing=[_expected_period_for(period)]
+    )
+    assert len(first.recorded) == 1
+
+    second_plan, second = await _plan_and_post(
+        ledger,
+        client,
+        now=boundary + timedelta(hours=1),
+        missing=[_expected_period_for(period)],
+        current_statuses=await _caller_statuses(ledger),
+    )
+    assert second_plan == []
+    assert second.posted == 0
+    assert second.ok
+    # Only the first pass hit the wire.
+    assert len(client.batches) == 1
+    del first_plan
+
+
+async def test_a_later_successful_read_supersedes_with_received(
+    ledger: PgReportingLedgerStore,
+) -> None:
+    # The repair path end to end: the buyer said the period was missing, the
+    # seller published it, and the next pass supersedes with `received` carrying
+    # the recomputed binding and a non-decreasing status_as_of.
+    source = SimulatedSource()
+    await ledger.put_configuration(_configuration())
+    period = _period(0)
+    client = _LedgerStatusIngestClient(ledger, consumer_id=CALLER.consumer_id)
+    boundary = period.expected_at + RECOVERY_WINDOW
+
+    missing_plan, _ = await _plan_and_post(
+        ledger, client, now=boundary, missing=[_expected_period_for(period)]
+    )
+    missing_leaf = missing_plan[0]
+
+    source.set(
+        period.start,
+        InlineFetchResult(
+            rows=[{"media_buy_id": "mb_lifecycle", "impressions": 4, "spend": "0.02"}],
+            data_through=period.end,
+        ),
+    )
+    await _run_worker_at(ledger, source, now=period.expected_at)
+    obligation = await ledger.find_obligation(
+        account_id=ACCOUNT,
+        delivery_config_id=CONFIG_ID,
+        delivery_config_version=1,
+        period_start=period.start,
+        period_end=period.end,
+    )
+    assert obligation is not None
+    revision = (
+        await ledger.list_revisions(
+            account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
+        )
+    )[0]
+
+    from adcp.reporting import ReportingContentReading
+
+    reading = ReportingContentReading(
+        reporting_revision_id=revision.reporting_revision_id,
+        media_buy_ids=("mb_lifecycle",),
+        package_ids=(),
+        metric_names=("impressions", "spend"),
+        observed_revision_content_sha256=revision.revision_content_sha256,
+        first_consumable_at=boundary + timedelta(minutes=5),
+    )
+    plan, result = await _plan_and_post(
+        ledger,
+        client,
+        now=boundary + timedelta(hours=2),
+        obligations=[_obligation_wire(ledger, obligation)],
+        readings={obligation.reporting_obligation_id: reading},
+        revisions={revision.reporting_revision_id: _revision_wire(revision, obligation)},
+        current_statuses=await _caller_statuses(ledger),
+    )
+    assert result.ok, result.failed
+    assert [intent.consumer_status for intent in plan] == ["received"]
+    assert plan[0].supersedes_reporting_status_id == missing_leaf.reporting_status_id
+    assert plan[0].observed_revision_content_sha256 == revision.revision_content_sha256
+    assert plan[0].status_as_of >= missing_leaf.status_as_of
+
+    stored = await ledger.list_consumer_statuses(account_id=ACCOUNT, consumer_id=CALLER.consumer_id)
+    current = [item for item in stored if not item.superseded]
+    assert [item.consumer_status for item in current] == ["received"]
+
+
+async def test_a_failed_read_posts_unreadable_with_a_failure_code(
+    ledger: PgReportingLedgerStore,
+) -> None:
+    source = SimulatedSource()
+    await ledger.put_configuration(_configuration())
+    period = _period(0)
+    source.set(
+        period.start,
+        InlineFetchResult(
+            rows=[{"media_buy_id": "mb_lifecycle", "impressions": 4, "spend": "0.02"}],
+            data_through=period.end,
+        ),
+    )
+    await _run_worker_at(ledger, source, now=period.expected_at)
+    obligation = await ledger.find_obligation(
+        account_id=ACCOUNT,
+        delivery_config_id=CONFIG_ID,
+        delivery_config_version=1,
+        period_start=period.start,
+        period_end=period.end,
+    )
+    assert obligation is not None
+    revision = (
+        await ledger.list_revisions(
+            account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
+        )
+    )[0]
+
+    from adcp.reporting import ReportingContentReading
+
+    client = _LedgerStatusIngestClient(ledger, consumer_id=CALLER.consumer_id)
+    plan, result = await _plan_and_post(
+        ledger,
+        client,
+        now=period.expected_at + RECOVERY_WINDOW,
+        obligations=[_obligation_wire(ledger, obligation)],
+        readings={
+            obligation.reporting_obligation_id: ReportingContentReading(
+                reporting_revision_id=revision.reporting_revision_id,
+                failure_code="reader_incompatible",
+            )
+        },
+        revisions={revision.reporting_revision_id: _revision_wire(revision, obligation)},
+    )
+    assert result.ok, result.failed
+    assert plan[0].consumer_status == "unreadable"
+    assert plan[0].failure_code == "reader_incompatible"
+
+    stored = await ledger.list_consumer_statuses(account_id=ACCOUNT, consumer_id=CALLER.consumer_id)
+    assert [item.failure_code for item in stored] == ["reader_incompatible"]
+
+
+async def test_a_contract_violation_posts_content_mismatch_with_its_code(
+    ledger: PgReportingLedgerStore,
+) -> None:
+    source = SimulatedSource()
+    await ledger.put_configuration(_configuration())
+    period = _period(0)
+    source.set(
+        period.start,
+        InlineFetchResult(
+            rows=[{"media_buy_id": "mb_lifecycle", "impressions": 4, "spend": "0.02"}],
+            data_through=period.end,
+        ),
+    )
+    await _run_worker_at(ledger, source, now=period.expected_at)
+    obligation = await ledger.find_obligation(
+        account_id=ACCOUNT,
+        delivery_config_id=CONFIG_ID,
+        delivery_config_version=1,
+        period_start=period.start,
+        period_end=period.end,
+    )
+    assert obligation is not None
+    revision = (
+        await ledger.list_revisions(
+            account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
+        )
+    )[0]
+
+    from adcp.reporting import ReportingContentReading, ReportingPinnedDefinition
+
+    client = _LedgerStatusIngestClient(ledger, consumer_id=CALLER.consumer_id)
+    plan, result = await _plan_and_post(
+        ledger,
+        client,
+        now=period.expected_at + RECOVERY_WINDOW,
+        obligations=[_obligation_wire(ledger, obligation)],
+        # The pinned definition promises `conversions`; the revision does not
+        # carry it, which is a contract fact -- not a count dispute.
+        definition=ReportingPinnedDefinition(metric_names=("impressions", "spend", "conversions")),
+        readings={
+            obligation.reporting_obligation_id: ReportingContentReading(
+                reporting_revision_id=revision.reporting_revision_id,
+                media_buy_ids=("mb_lifecycle",),
+                metric_names=("impressions", "spend"),
+                observed_revision_content_sha256=revision.revision_content_sha256,
+            )
+        },
+        revisions={revision.reporting_revision_id: _revision_wire(revision, obligation)},
+    )
+    assert result.ok, result.failed
+    assert plan[0].consumer_status == "content_mismatch"
+    assert plan[0].mismatch_code == "metric_missing"
+
+    stored = await ledger.list_consumer_statuses(account_id=ACCOUNT, consumer_id=CALLER.consumer_id)
+    assert [item.mismatch_code for item in stored] == ["metric_missing"]
+
+    # And the seller degrades only this caller's view over it.
+    handler = ReportingStatusHandler(ledger, consumer_status_enabled=True)
+    payload = await handler.handle({"view": "periods"}, caller=CALLER)
+    issue = next(
+        item
+        for item in payload["periods"][0]["issues"]
+        if item["code"] == "CONSUMER_STATUS_MISMATCH"
+    )
+    assert issue["severity"] == "action_required"
+
+
+async def test_a_rejected_statement_is_surfaced_not_raised(
+    ledger: PgReportingLedgerStore,
+) -> None:
+    # partial_results makes each statement independent, so one rejection must
+    # not discard the batch. A caller that wants to fail loudly asks.
+    from adcp.reporting import ConsumerStatusPostError, post_consumer_statuses
+
+    await ledger.put_configuration(_configuration())
+    period = _period(0)
+    client = _LedgerStatusIngestClient(ledger, consumer_id=CALLER.consumer_id)
+
+    plan, _ = await _plan_and_post(
+        ledger,
+        client,
+        now=period.expected_at + RECOVERY_WINDOW,
+        missing=[_expected_period_for(period)],
+    )
+    # Re-posting the same plan *without* the leaf in current_statuses makes the
+    # seller see a statement that does not supersede the existing leaf.
+    replay = await post_consumer_statuses(client, plan, account_id=ACCOUNT)
+    # The id and content are unchanged, so this is an exact retry: unchanged.
+    assert replay.posted == 1
+    assert replay.ok
+
+    # A genuinely conflicting statement does fail, and is reported.
+    from adcp.reporting import ConsumerStatusIntent
+
+    conflicting = ConsumerStatusIntent(
+        reporting_status_id="status_conflict_00000001",
+        consumer_status="obligation_missing",
+        delivery_config_id=CONFIG_ID,
+        delivery_config_version=1,
+        report_definition_id=DEFINITION_ID,
+        period_start=period.start,
+        period_end=period.end,
+        period_source_timezone="UTC",
+        status_as_of=period.expected_at + RECOVERY_WINDOW,
+        due_at=period.expected_at + RECOVERY_WINDOW,
+    )
+    outcome = await post_consumer_statuses(client, [conflicting], account_id=ACCOUNT)
+    assert not outcome.ok
+    assert outcome.failed[0][1] == "STATUS_SUPERSEDES_REQUIRED"
+    with pytest.raises(ConsumerStatusPostError):
+        outcome.raise_for_failures()
+
+
+def _obligation_wire(ledger: PgReportingLedgerStore, obligation: Any) -> Any:
+    """The seller's own obligation, as the wire model the planner consumes.
+
+    Round-tripped through ``get_reporting_status`` rather than hand-built, so
+    the planner is fed exactly what a buyer would read.
+    """
+    del ledger
+    from adcp.reporting.ledger.status import _obligation_to_wire
+    from adcp.types import ReportingObligation
+
+    payload = _obligation_to_wire(
+        obligation,
+        revisions=(),
+        health="healthy",
+        production_status="published",
+        issues=(),
+        statuses=(),
+    )
+    return ReportingObligation.model_validate(payload)
+
+
+def _revision_wire(revision: Any, obligation: Any) -> Any:
+    from adcp.reporting.ledger.status import _revision_to_wire
+    from adcp.types import ReportingRevision
+
+    return ReportingRevision.model_validate(_revision_to_wire(revision, obligation))

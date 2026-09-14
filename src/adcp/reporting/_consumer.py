@@ -34,10 +34,11 @@ protocol runs out of moves.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 from adcp.types import (
     GetReportingStatusRequest,
@@ -48,12 +49,20 @@ from adcp.types import (
 
 __all__ = [
     "ConsumerLoopView",
+    "ConsumerStatusCheckpointStore",
+    "ConsumerStatusPlanError",
+    "ConsumerStatusPostError",
+    "ConsumerStatusPostResult",
     "ConsumerStatusIntent",
     "ReportingContentReading",
+    "ReportingFailureCode",
+    "InMemoryConsumerStatusCheckpoints",
     "ReportingOperationsContactView",
     "classify_content_mismatch",
+    "consumer_status_chain_key",
     "load_consumer_loop_view",
     "plan_consumer_statuses",
+    "post_consumer_statuses",
 ]
 
 #: The closed rc.3 reason set, in precedence order.  ``schema_nonconformant``
@@ -77,8 +86,41 @@ ConsumerStatusValue = Literal[
     "content_mismatch",
 ]
 
+#: Closed typed reason a named revision was unreadable. Agents dispatch on
+#: this value, never on prose or a provider's response body.
+ReportingFailureCode = Literal[
+    "access_denied",
+    "resource_not_found",
+    "integrity_mismatch",
+    "reader_incompatible",
+    "transport_failed",
+]
+
+
+class ConsumerStatusPlanError(ValueError):
+    """The caller's inputs cannot support an honest statement.
+
+    Raised rather than guessing. Every guess this function could make is a
+    claim attributed to the buyer about the seller's behaviour, and filing the
+    wrong one is worse than refusing to file: ``revision_missing`` accuses the
+    seller of publishing nothing, ``received`` asserts bytes were consumed.
+    """
+
 
 def _utc(value: datetime) -> datetime:
+    """Normalize to UTC, refusing a naive datetime.
+
+    ``astimezone`` on a naive value silently assumes the *local* machine zone,
+    so a buyer running in a non-UTC container would stamp every statement hours
+    off and the seller's clock-skew check would reject them -- or worse, accept
+    them and record the wrong arrival evidence. Refusing is the only safe
+    reading, because there is no correct guess.
+    """
+    if value.tzinfo is None:
+        raise ValueError(
+            f"{value!r} is naive; consumer-status timestamps must carry an explicit "
+            "timezone (use datetime.now(timezone.utc), not datetime.now())"
+        )
     return value.astimezone(timezone.utc)
 
 
@@ -132,6 +174,20 @@ class ReportingContentReading:
     #: ``received`` or ``content_mismatch``: it proves which exact bytes the
     #: buyer is describing.
     observed_revision_content_sha256: str | None = None
+    #: Set when the revision was *advertised* but its content could not be
+    #: consumed at all. Turns the reading into ``unreadable`` rather than
+    #: ``received``/``content_mismatch``, which need bytes to talk about. The
+    #: two are genuinely different claims: ``unreadable`` says "I could not
+    #: read what you published", ``content_mismatch`` says "I read it and it
+    #: contradicts what we agreed".
+    failure_code: ReportingFailureCode | None = None
+    #: When the named revision first became consumable *to this consumer*.
+    #: ``status_as_of`` for a ``received`` statement, because the spec has
+    #: sellers use it as buyer-attributed arrival evidence rather than
+    #: silently substituting publication time. Planning time is not an
+    #: acceptable stand-in: it would date every statement to whenever the loop
+    #: happened to run.
+    first_consumable_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -381,35 +437,89 @@ def plan_consumer_statuses(
     *,
     now: datetime,
     automated_recovery_window: timedelta,
+    missing_expected_periods: Sequence[Any] = (),
     readings: Mapping[str, ReportingContentReading] | None = None,
     definition: ReportingPinnedDefinition | None = None,
     revisions: Mapping[str, ReportingRevision] | None = None,
-    current_status_ids: Mapping[str, str] | None = None,
+    obligation_revisions: Mapping[str, Sequence[ReportingRevision]] | None = None,
+    current_statuses: Sequence[Any] = (),
     status_id_prefix: str = "rpcs",
 ) -> list[ConsumerStatusIntent]:
     """Decide what the buyer owes the seller right now.
 
-    One intent per obligation whose deadline -- ``expected_at`` plus the
+    One intent per *expected* period whose deadline -- ``expected_at`` plus the
     seller's advertised ``automated_recovery_window_seconds`` -- has passed.
     Periods that are not due yet are skipped: filing early is not wrong, but
     filing ``revision_missing`` before the seller is late would be a false
     accusation this loop is supposed to prevent.
 
-    ``readings`` is keyed by ``reporting_obligation_id``.  An obligation with a
-    reading gets ``received`` or ``content_mismatch`` depending on
-    :func:`classify_content_mismatch`; one without gets ``revision_missing``,
-    because the buyer is past its deadline and has nothing to show.
+    "Expected" deliberately includes periods the seller's ledger omitted.
+    ``missing_expected_periods`` (what ``evaluate_reporting_ledger`` computed
+    by diffing the buyer's own denominator against the ledger) each become
+    ``obligation_missing`` -- keyed without a seller obligation id, because
+    requiring one would make the first missing report invisible again, which is
+    the exact failure this loop exists to surface.
 
-    ``current_status_ids`` maps obligation id to the buyer's existing leaf, so
-    the returned intents supersede it.  Omitting a known leaf would fail
-    atomically at the seller rather than fork the chain -- the conflict is
-    correct, but this is how a buyer avoids provoking it.
+    Status selection, in the spec's terms:
+
+    * no obligation at all -> ``obligation_missing``;
+    * obligation with no required revision -> ``revision_missing``;
+    * revision advertised but unreadable -> ``unreadable`` with the reading's
+      closed ``failure_code``;
+    * revision read -> ``received``, or ``content_mismatch`` when
+      :func:`classify_content_mismatch` finds a contradicted contract fact.
+
+    The third and fourth cases need the caller's own read result, so an
+    obligation that *has* a required revision and *no* reading raises
+    :class:`ConsumerStatusPlanError` rather than defaulting. Defaulting either
+    way makes a false claim: ``revision_missing`` accuses the seller of
+    publishing nothing it demonstrably published, and ``received`` asserts
+    bytes the buyer never looked at.
+
+    ``current_statuses`` is this caller's own status history from the same
+    ledger read. An intent whose content matches the current leaf is skipped
+    entirely -- re-filing an unchanged claim under a fresh id churns the chain
+    for nothing, and a derived id that collided with the leaf would make the
+    statement supersede *itself*.
     """
     readings = readings or {}
     revisions = revisions or {}
-    current_status_ids = current_status_ids or {}
+    obligation_revisions = obligation_revisions or {}
+    leaves = _index_current_leaves(current_statuses)
     boundary = _utc(now)
     plan: list[ConsumerStatusIntent] = []
+
+    def add(intent: ConsumerStatusIntent | None) -> None:
+        """Append unless the current leaf already says exactly this."""
+        if intent is not None:
+            plan.append(intent)
+
+    for period in missing_expected_periods:
+        expected_at = _expected_at_of(period)
+        if expected_at is None:
+            # Without the buyer's own expected_at there is no defensible
+            # deadline and no way to satisfy "obligation_missing is valid only
+            # at or after expected_at". Skip rather than invent one.
+            continue
+        due_at = expected_at + automated_recovery_window
+        if boundary < due_at:
+            continue
+        add(
+            _intend(
+                status="obligation_missing",
+                delivery_config_id=period.delivery_config_id,
+                delivery_config_version=period.delivery_config_version,
+                report_definition_id=period.report_definition_id,
+                period_start=_parse(period.period_start),
+                period_end=_parse(period.period_end),
+                source_timezone=getattr(period, "source_timezone", None) or "UTC",
+                status_as_of=max(boundary, expected_at),
+                due_at=due_at,
+                leaves=leaves,
+                prefix=status_id_prefix,
+            )
+        )
+
     for obligation in obligations:
         obligation_id = obligation.reporting_obligation_id
         due_at = _utc(obligation.expected_at) + automated_recovery_window
@@ -419,47 +529,243 @@ def plan_consumer_statuses(
         reading = readings.get(obligation_id)
         status: ConsumerStatusValue
         mismatch: MismatchCode | None = None
+        failure: ReportingFailureCode | None = None
         revision_id: str | None = None
         digest: str | None = None
-        if reading is None:
-            status = "revision_missing"
-        else:
+        status_as_of = boundary
+
+        if reading is not None and reading.failure_code is not None:
+            status = "unreadable"
+            failure = reading.failure_code
+            revision_id = reading.reporting_revision_id
+        elif reading is not None:
             revision = revisions.get(reading.reporting_revision_id)
-            mismatch = (
-                classify_content_mismatch(
-                    obligation=obligation,
-                    revision=revision,
-                    reading=reading,
-                    definition=definition,
+            if revision is None:
+                # The buyer claims to have read a revision this ledger snapshot
+                # does not contain. Filing `received` would bind the statement
+                # to a revision the seller cannot resolve, and the seller must
+                # reject it -- so say so here, where the mistake is fixable.
+                raise ConsumerStatusPlanError(
+                    f"reading names revision {reading.reporting_revision_id!r}, which is not "
+                    f"in this ledger snapshot for obligation {obligation_id!r}; re-read the "
+                    "snapshot rather than filing a status against a revision the seller "
+                    "cannot resolve"
                 )
-                if revision is not None
-                else None
+            mismatch = classify_content_mismatch(
+                obligation=obligation,
+                revision=revision,
+                reading=reading,
+                definition=definition,
             )
             status = "content_mismatch" if mismatch else "received"
             revision_id = reading.reporting_revision_id
             digest = reading.observed_revision_content_sha256
+            if status == "received":
+                # Buyer-attributed arrival evidence, not planning time.
+                status_as_of = _utc(reading.first_consumable_at or boundary)
+        elif _has_required_revision(obligation, obligation_revisions.get(obligation_id)):
+            raise ConsumerStatusPlanError(
+                f"obligation {obligation_id!r} has a required revision but no reading was "
+                "supplied; pass a ReportingContentReading (with failure_code when the read "
+                "failed) rather than letting this default to revision_missing, which would "
+                "accuse the seller of publishing nothing"
+            )
+        else:
+            status = "revision_missing"
 
-        plan.append(
-            ConsumerStatusIntent(
-                reporting_status_id=_status_id(status_id_prefix, obligation_id, status),
-                consumer_status=status,
+        add(
+            _intend(
+                status=status,
                 delivery_config_id=obligation.delivery_config_id,
                 delivery_config_version=obligation.delivery_config_version,
                 report_definition_id=obligation.report_definition_id,
                 period_start=_utc(obligation.period.start),
                 period_end=_utc(obligation.period.end),
-                period_source_timezone=_source_timezone(obligation),
-                status_as_of=boundary,
+                source_timezone=_source_timezone(obligation),
+                status_as_of=status_as_of,
                 due_at=due_at,
-                supersedes_reporting_status_id=current_status_ids.get(obligation_id)
-                or obligation.current_consumer_status_id,
-                reporting_obligation_id=obligation_id,
-                reporting_revision_id=revision_id,
-                observed_revision_content_sha256=digest,
-                mismatch_code=mismatch,
+                leaves=leaves,
+                prefix=status_id_prefix,
+                obligation_id=obligation_id,
+                revision_id=revision_id,
+                digest=digest,
+                mismatch=mismatch,
+                failure=failure,
             )
         )
     return plan
+
+
+def _intend(
+    *,
+    status: ConsumerStatusValue,
+    delivery_config_id: str,
+    delivery_config_version: int,
+    report_definition_id: str,
+    period_start: datetime,
+    period_end: datetime,
+    source_timezone: str,
+    status_as_of: datetime,
+    due_at: datetime,
+    leaves: Mapping[tuple[Any, ...], Any],
+    prefix: str,
+    obligation_id: str | None = None,
+    revision_id: str | None = None,
+    digest: str | None = None,
+    mismatch: MismatchCode | None = None,
+    failure: ReportingFailureCode | None = None,
+) -> ConsumerStatusIntent | None:
+    """Build one intent, or ``None`` when the current leaf already says this.
+
+    Skipping an unchanged claim is not an optimization. A derived id includes
+    the content, so an unchanged claim derives the *same* id as the leaf -- and
+    an intent that both reuses the leaf's id and names it in
+    ``supersedes_reporting_status_id`` supersedes itself, which no seller can
+    apply.
+    """
+    chain = (
+        delivery_config_id,
+        delivery_config_version,
+        report_definition_id,
+        _iso(period_start),
+        _iso(period_end),
+    )
+    leaf = leaves.get(chain)
+    content = (
+        status,
+        obligation_id,
+        revision_id,
+        digest,
+        mismatch,
+        failure,
+    )
+    if leaf is not None and _leaf_content(leaf) == content:
+        return None
+
+    status_as_of = _utc(status_as_of)
+    if leaf is not None:
+        leaf_as_of = getattr(leaf, "status_as_of", None)
+        if leaf_as_of is not None:
+            # "status_as_of MUST be no earlier than the superseded statement's
+            # status_as_of." A re-read that became consumable before the
+            # previous statement was made would otherwise go backwards.
+            status_as_of = max(status_as_of, _utc(leaf_as_of))
+
+    return ConsumerStatusIntent(
+        reporting_status_id=_status_id(prefix, chain, content, status_as_of),
+        consumer_status=status,
+        delivery_config_id=delivery_config_id,
+        delivery_config_version=delivery_config_version,
+        report_definition_id=report_definition_id,
+        period_start=period_start,
+        period_end=period_end,
+        period_source_timezone=source_timezone,
+        status_as_of=status_as_of,
+        due_at=_utc(due_at),
+        supersedes_reporting_status_id=(
+            getattr(leaf, "reporting_status_id", None) if leaf is not None else None
+        ),
+        reporting_obligation_id=obligation_id,
+        reporting_revision_id=revision_id,
+        observed_revision_content_sha256=digest,
+        failure_code=failure,
+        mismatch_code=mismatch,
+    )
+
+
+def _index_current_leaves(statuses: Sequence[Any]) -> dict[tuple[Any, ...], Any]:
+    """The newest statement per logical chain.
+
+    The periods view returns append-only history, so several statements can
+    share a chain. ``supersedes_reporting_status_id`` links them; whichever id
+    nothing else supersedes is the leaf.
+    """
+    by_chain: dict[tuple[Any, ...], list[Any]] = {}
+    superseded: set[str] = set()
+    for status in statuses:
+        period = status.period
+        chain = (
+            status.delivery_config_id,
+            status.delivery_config_version,
+            status.report_definition_id,
+            _iso(_coerce(period.start)),
+            _iso(_coerce(period.end)),
+        )
+        by_chain.setdefault(chain, []).append(status)
+        if getattr(status, "supersedes_reporting_status_id", None):
+            superseded.add(str(status.supersedes_reporting_status_id))
+    leaves: dict[tuple[Any, ...], Any] = {}
+    for chain, items in by_chain.items():
+        unsuperseded = [item for item in items if item.reporting_status_id not in superseded]
+        if len(unsuperseded) == 1:
+            leaves[chain] = unsuperseded[0]
+        elif unsuperseded:
+            # A forked chain is a seller bug, not something to guess through.
+            # Take the latest recorded so planning still supersedes *something*
+            # real rather than filing a rootless statement.
+            leaves[chain] = max(
+                unsuperseded,
+                key=lambda item: (
+                    _coerce(getattr(item, "recorded_at", None) or item.status_as_of),
+                    item.reporting_status_id,
+                ),
+            )
+    return leaves
+
+
+def _leaf_content(leaf: Any) -> tuple[Any, ...]:
+    return (
+        str(getattr(leaf.consumer_status, "value", leaf.consumer_status)),
+        getattr(leaf, "reporting_obligation_id", None),
+        getattr(leaf, "reporting_revision_id", None),
+        getattr(leaf, "observed_revision_content_sha256", None),
+        _enum_or_none(getattr(leaf, "mismatch_code", None)),
+        _enum_or_none(getattr(leaf, "failure_code", None)),
+    )
+
+
+def _enum_or_none(value: Any) -> Any:
+    if value is None:
+        return None
+    return str(getattr(value, "value", value))
+
+
+def _coerce(value: Any) -> datetime:
+    if isinstance(value, datetime):
+        return _utc(value)
+    return _parse(str(value))
+
+
+def _parse(value: Any) -> datetime:
+    if isinstance(value, datetime):
+        return _utc(value)
+    return _utc(datetime.fromisoformat(str(value).replace("Z", "+00:00")))
+
+
+def _expected_at_of(period: Any) -> datetime | None:
+    raw = getattr(period, "expected_at", None)
+    return _parse(raw) if raw else None
+
+
+def _has_required_revision(
+    obligation: ReportingObligation, revisions: Sequence[ReportingRevision] | None
+) -> bool:
+    """Whether the seller has published a revision meeting the required finality.
+
+    Prefers the supplied revisions, because ``required_finality`` matters: an
+    obligation needing ``official`` is not satisfied by snapshots. Falls back to
+    ``revision_count``, which the spec defines as the number of distinct
+    revision records for this obligation in the snapshot, so a caller that did
+    not pass revisions still gets the coarse answer rather than a wrong one.
+    """
+    if revisions is not None:
+        required = str(getattr(obligation.required_finality, "value", obligation.required_finality))
+        return any(
+            required == "snapshot"
+            or str(getattr(item.finality, "value", item.finality)) == "official"
+            for item in revisions
+        )
+    return bool(obligation.revision_count)
 
 
 def _source_timezone(obligation: ReportingObligation) -> str:
@@ -467,15 +773,264 @@ def _source_timezone(obligation: ReportingObligation) -> str:
     return str(getattr(period, "source_timezone", None) or "UTC")
 
 
-def _status_id(prefix: str, obligation_id: str, status: str) -> str:
-    """A deterministic, ``>= 16`` character status id.
+def _status_id(
+    prefix: str,
+    chain: tuple[Any, ...],
+    content: tuple[Any, ...],
+    status_as_of: datetime,
+) -> str:
+    """A deterministic, ``>= 16`` character status id over the whole statement.
 
-    Derived rather than random so an interrupted buyer that re-plans produces
-    the same id for the same claim and gets an idempotent replay instead of a
-    supersession conflict. Changing the claim changes the id, which is exactly
-    when a new immutable statement is required.
+    Derived rather than random so an interrupted buyer that re-plans the same
+    claim produces the same id and gets an idempotent replay instead of a
+    supersession conflict.
+
+    The digest covers the *complete* content -- chain, status, obligation and
+    revision ids, the observed digest, the mismatch/failure code, and
+    ``status_as_of``. Hashing only the chain and status (as an earlier version
+    did) collided across genuinely different statements: a second
+    ``content_mismatch`` with a different ``mismatch_code``, or a second
+    ``received`` after a restatement naming a different revision, reused the
+    first statement's id with different content. That is an idempotency
+    conflict at the seller, and when the colliding id *is* the current leaf the
+    statement supersedes itself.
     """
-    import hashlib
+    payload = "|".join(
+        [
+            prefix,
+            *(str(part) for part in chain),
+            *(str(part) for part in content),
+            _iso(status_as_of),
+        ]
+    )
+    return f"{prefix}_{hashlib.sha256(payload.encode()).hexdigest()[:40]}"
 
-    digest = hashlib.sha256(f"{prefix}|{obligation_id}|{status}".encode()).hexdigest()
-    return f"{prefix}_{digest[:40]}"
+
+# -- posting ----------------------------------------------------------------
+#
+# Planning alone is not the buyer side of the loop. A buyer that computes what
+# it owes and never posts it is exactly the silence the seller counts in
+# ``obligation_counts.consumer_status_pending``.
+
+
+#: The request schema caps a batch at 100 statements.
+_MAX_BATCH = 100
+
+
+@dataclass(frozen=True)
+class ConsumerStatusPostResult:
+    """What one posting pass actually achieved.
+
+    Failures are carried rather than raised: ``partial_results`` makes each
+    statement independent, so one stale supersession pointer must not discard
+    four good statements. A caller that wants to fail loudly checks
+    :attr:`failed`.
+    """
+
+    recorded: tuple[ConsumerStatusIntent, ...] = ()
+    unchanged: tuple[ConsumerStatusIntent, ...] = ()
+    failed: tuple[tuple[ConsumerStatusIntent, str, str], ...] = ()
+
+    @property
+    def posted(self) -> int:
+        """Statements the seller accepted, new or replayed."""
+        return len(self.recorded) + len(self.unchanged)
+
+    @property
+    def ok(self) -> bool:
+        return not self.failed
+
+    def raise_for_failures(self) -> None:
+        """Raise when any statement failed, after the successes are recorded.
+
+        For a caller that would rather crash a scheduled job than let a
+        reporting gap accumulate quietly.
+        """
+        if not self.failed:
+            return
+        detail = "; ".join(
+            f"{intent.reporting_status_id}: {code} {message}"
+            for intent, code, message in self.failed
+        )
+        raise ConsumerStatusPostError(f"{len(self.failed)} consumer status(es) failed: {detail}")
+
+
+class ConsumerStatusPostError(RuntimeError):
+    """One or more statements in a posting pass were rejected."""
+
+
+class ConsumerStatusCheckpointStore(Protocol):
+    """Where a buyer remembers the leaf it last posted per logical chain.
+
+    Exists so a buyer does not have to re-read the seller's whole periods view
+    to know what it already said. The seller remains authoritative -- this is a
+    cache of the buyer's own last word, keyed by the same logical chain the
+    seller uses: account, configuration generation, report definition, period.
+    """
+
+    async def get(self, chain: str) -> str | None:
+        """The ``reporting_status_id`` this buyer last posted for ``chain``."""
+        ...
+
+    async def put(self, chain: str, reporting_status_id: str) -> None:
+        """Record the leaf just accepted for ``chain``."""
+        ...
+
+
+class InMemoryConsumerStatusCheckpoints:
+    """Process-local checkpoints. Correct, and not durable.
+
+    A real buyer persists these: losing them means re-deriving intents from the
+    seller's view, which works but re-reads more than it needs to.
+    """
+
+    def __init__(self) -> None:
+        self._leaves: dict[str, str] = {}
+
+    async def get(self, chain: str) -> str | None:
+        return self._leaves.get(chain)
+
+    async def put(self, chain: str, reporting_status_id: str) -> None:
+        self._leaves[chain] = reporting_status_id
+
+
+def consumer_status_chain_key(intent: ConsumerStatusIntent) -> str:
+    """The logical chain an intent belongs to, as a checkpoint key.
+
+    Keyed exactly as the seller keys it -- configuration generation, report
+    definition, and the half-open period -- and deliberately *not* on the
+    obligation id, because a chain that began as ``obligation_missing``
+    attaches to the repaired obligation later and must not fork.
+    """
+    payload = "|".join(
+        [
+            intent.delivery_config_id,
+            str(intent.delivery_config_version),
+            intent.report_definition_id,
+            _iso(intent.period_start),
+            _iso(intent.period_end),
+        ]
+    )
+    return "rpcc_" + hashlib.sha256(payload.encode()).hexdigest()[:40]
+
+
+async def post_consumer_statuses(
+    client: Any,
+    plan: Sequence[ConsumerStatusIntent],
+    *,
+    account_id: str,
+    checkpoints: ConsumerStatusCheckpointStore | None = None,
+    idempotency_key_prefix: str = "rpcs_batch",
+) -> ConsumerStatusPostResult:
+    """Post a plan through ``sync_reporting_status``, batching as the schema allows.
+
+    Each batch carries at most one statement per logical chain, because the
+    spec rejects every duplicate-chain entry in a batch *without evaluating
+    their supersession order* -- so two statements for one chain in one request
+    lose both. Chains are therefore spread across batches rather than packed.
+
+    ``recorded`` and ``unchanged`` are both successes: an exact retry replaying
+    as ``unchanged`` is the idempotency contract working, not a problem to
+    report. Only ``failed`` entries are surfaced as failures, and they are
+    returned rather than raised so one bad statement does not discard the rest.
+
+    The idempotency key is derived from the batch's contents, so a retry after
+    a transport failure reuses it and the seller can replay rather than
+    re-evaluate.
+    """
+    if not plan:
+        return ConsumerStatusPostResult()
+
+    recorded: list[ConsumerStatusIntent] = []
+    unchanged: list[ConsumerStatusIntent] = []
+    failed: list[tuple[ConsumerStatusIntent, str, str]] = []
+
+    for batch in _batches(plan):
+        by_id = {intent.reporting_status_id: intent for intent in batch}
+        request = {
+            "account": {"account_id": account_id},
+            "idempotency_key": _batch_idempotency_key(idempotency_key_prefix, batch),
+            "statuses": [intent.to_wire() for intent in batch],
+        }
+        results = await _submit(client, request)
+        for entry in results:
+            intent = _match_result(entry, by_id)
+            if intent is None:
+                continue
+            outcome = str(entry.get("result"))
+            if outcome == "recorded":
+                recorded.append(intent)
+            elif outcome == "unchanged":
+                unchanged.append(intent)
+            else:
+                errors = entry.get("errors") or [{}]
+                failed.append(
+                    (
+                        intent,
+                        str(errors[0].get("code", "UNKNOWN")),
+                        str(errors[0].get("message", "")),
+                    )
+                )
+                continue
+            if checkpoints is not None:
+                await checkpoints.put(consumer_status_chain_key(intent), intent.reporting_status_id)
+
+    return ConsumerStatusPostResult(
+        recorded=tuple(recorded), unchanged=tuple(unchanged), failed=tuple(failed)
+    )
+
+
+def _batches(plan: Sequence[ConsumerStatusIntent]) -> list[list[ConsumerStatusIntent]]:
+    """Split a plan so no batch repeats a chain and none exceeds the cap."""
+    batches: list[list[ConsumerStatusIntent]] = []
+    seen: list[set[str]] = []
+    for intent in plan:
+        chain = consumer_status_chain_key(intent)
+        for index, used in enumerate(seen):
+            if chain not in used and len(batches[index]) < _MAX_BATCH:
+                batches[index].append(intent)
+                used.add(chain)
+                break
+        else:
+            batches.append([intent])
+            seen.append({chain})
+    return batches
+
+
+def _batch_idempotency_key(prefix: str, batch: Sequence[ConsumerStatusIntent]) -> str:
+    payload = "|".join(sorted(intent.reporting_status_id for intent in batch))
+    return f"{prefix}_{hashlib.sha256(payload.encode()).hexdigest()[:32]}"
+
+
+async def _submit(client: Any, request: dict[str, Any]) -> list[dict[str, Any]]:
+    """Call the task and normalize the response to a list of result mappings."""
+    from adcp.types import SyncReportingStatusRequest
+
+    result = await client.sync_reporting_status(SyncReportingStatusRequest.model_validate(request))
+    if not getattr(result, "success", False) or result.data is None:
+        raise ConsumerStatusPostError(
+            f"sync_reporting_status did not complete: {getattr(result, 'error', None)}"
+        )
+    data = result.data
+    if hasattr(data, "model_dump"):
+        data = data.model_dump(mode="json", exclude_none=True)
+    return list(data.get("results") or [])
+
+
+def _match_result(
+    entry: Mapping[str, Any], by_id: Mapping[str, ConsumerStatusIntent]
+) -> ConsumerStatusIntent | None:
+    """Find the intent a result refers to.
+
+    A ``failed`` arm echoes ``reporting_status_id`` directly; the accepted arms
+    carry the stored statement instead, so the id comes from inside it.
+    """
+    direct = entry.get("reporting_status_id")
+    if isinstance(direct, str) and direct in by_id:
+        return by_id[direct]
+    stored = entry.get("consumer_status")
+    if isinstance(stored, Mapping):
+        nested = stored.get("reporting_status_id")
+        if isinstance(nested, str):
+            return by_id.get(nested)
+    return None

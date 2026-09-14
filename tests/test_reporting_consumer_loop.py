@@ -15,13 +15,15 @@ import pytest
 
 from adcp.reporting import (
     ConsumerLoopView,
+    ConsumerStatusPlanError,
     ReportingContentReading,
     ReportingOperationsContactView,
     ReportingPinnedDefinition,
     classify_content_mismatch,
     plan_consumer_statuses,
 )
-from adcp.types import ReportingObligation, ReportingRevision
+from adcp.reporting._reconcile import ExpectedReportingPeriod
+from adcp.types import ReportingConsumerStatus, ReportingObligation, ReportingRevision
 
 PERIOD_START = datetime(2026, 9, 1, 1, 0, tzinfo=timezone.utc)
 PERIOD_END = datetime(2026, 9, 1, 2, 0, tzinfo=timezone.utc)
@@ -121,6 +123,18 @@ def _reading(**overrides: Any) -> ReportingContentReading:
     }
     defaults.update(overrides)
     return ReportingContentReading(**defaults)
+
+
+def _leaf(intent: Any) -> ReportingConsumerStatus:
+    """The stored statement a seller would return for a posted intent.
+
+    Built from the intent's own wire shape so the planner is compared against
+    what the seller actually echoes back, not against a hand-written guess at
+    it.
+    """
+    payload = dict(intent.to_wire())
+    payload["recorded_at"] = payload["status_as_of"]
+    return ReportingConsumerStatus.model_validate(payload)
 
 
 DEFINITION = ReportingPinnedDefinition(
@@ -316,12 +330,16 @@ def test_nothing_is_due_before_the_deadline() -> None:
     assert plan == []
 
 
-def test_a_period_past_its_deadline_with_no_reading_is_revision_missing() -> None:
+def test_a_period_past_its_deadline_with_no_revision_is_revision_missing() -> None:
     # rc.3 moved the duty from "before scope close" to the deadline. A
     # still-retrying buyer posts now and supersedes later rather than staying
     # silent until the campaign ends.
+    #
+    # revision_count=0 is what makes this revision_missing: the claim is "the
+    # obligation existed but no required revision was available", which is only
+    # honest when the seller has in fact published none.
     plan = plan_consumer_statuses(
-        [_obligation()],
+        [_obligation(revision_count=0)],
         now=EXPECTED_AT + RECOVERY,
         automated_recovery_window=RECOVERY,
     )
@@ -374,34 +392,133 @@ def test_a_violating_reading_becomes_content_mismatch_with_its_code() -> None:
     assert wire["observed_revision_content_sha256"] == "a" * 64
 
 
-def test_a_replanned_identical_claim_reuses_its_status_id() -> None:
+def test_a_replanned_identical_claim_derives_the_same_status_id() -> None:
     # An interrupted buyer that re-plans must get an idempotent replay, not a
-    # supersession conflict. Changing the claim changes the id, which is
-    # exactly when a new immutable statement is required.
+    # supersession conflict.
     def plan_for(**kwargs: Any) -> str:
         plan = plan_consumer_statuses(
-            [_obligation()],
+            [_obligation(revision_count=0)],
             now=EXPECTED_AT + RECOVERY,
             automated_recovery_window=RECOVERY,
             **kwargs,
         )
         return plan[0].reporting_status_id
 
-    first = plan_for()
-    assert plan_for() == first
-    changed = plan_for(
-        readings={"rpo_1": _reading()}, definition=DEFINITION, revisions={"rpr_1": _revision()}
+    assert plan_for() == plan_for()
+
+
+def test_a_changed_claim_gets_a_different_status_id() -> None:
+    # The id must cover the whole statement, not just (obligation, status).
+    # Two different `content_mismatch` claims, and two `received` statements
+    # naming different revisions, are different immutable statements: sharing
+    # an id makes the second an idempotency conflict at the seller and loses it.
+    def status_id(reading: ReportingContentReading, revision: Any) -> str:
+        plan = plan_consumer_statuses(
+            [_obligation()],
+            now=EXPECTED_AT + RECOVERY,
+            automated_recovery_window=RECOVERY,
+            readings={"rpo_1": reading},
+            definition=DEFINITION,
+            revisions={revision.reporting_revision_id: revision},
+        )
+        return plan[0].reporting_status_id
+
+    metric_missing = status_id(_reading(metric_names=("impressions",)), _revision())
+    currency = status_id(_reading(metric_units={"spend": "EUR"}), _revision())
+    assert metric_missing != currency
+
+    first = status_id(_reading(), _revision())
+    second = status_id(
+        _reading(
+            reporting_revision_id="rpr_2",
+            observed_revision_content_sha256="b" * 64,
+        ),
+        _revision(reporting_revision_id="rpr_2"),
     )
-    assert changed != first
+    assert first != second
+
+
+def test_an_unchanged_claim_is_skipped_rather_than_superseding_itself() -> None:
+    # With content in the id, re-planning an already-posted claim derives the
+    # *same* id as the current leaf. Emitting it would produce a statement that
+    # names its own id in supersedes_reporting_status_id -- which no seller can
+    # apply -- so the planner drops it.
+    reading = _reading()
+    revision = _revision()
+    plan = plan_consumer_statuses(
+        [_obligation()],
+        now=EXPECTED_AT + RECOVERY,
+        automated_recovery_window=RECOVERY,
+        readings={"rpo_1": reading},
+        definition=DEFINITION,
+        revisions={"rpr_1": revision},
+    )
+    assert len(plan) == 1
+    posted = plan[0]
+
+    leaf = _leaf(posted)
+    again = plan_consumer_statuses(
+        [_obligation(current_consumer_status_id=posted.reporting_status_id)],
+        now=EXPECTED_AT + RECOVERY + timedelta(hours=1),
+        automated_recovery_window=RECOVERY,
+        readings={"rpo_1": reading},
+        definition=DEFINITION,
+        revisions={"rpr_1": revision},
+        current_statuses=[leaf],
+    )
+    assert again == []
+
+
+def test_a_changed_claim_supersedes_the_current_leaf() -> None:
+    reading = _reading()
+    revision = _revision()
+    posted = plan_consumer_statuses(
+        [_obligation()],
+        now=EXPECTED_AT + RECOVERY,
+        automated_recovery_window=RECOVERY,
+        readings={"rpo_1": reading},
+        definition=DEFINITION,
+        revisions={"rpr_1": revision},
+    )[0]
+
+    changed = plan_consumer_statuses(
+        [_obligation()],
+        now=EXPECTED_AT + RECOVERY + timedelta(hours=1),
+        automated_recovery_window=RECOVERY,
+        readings={"rpo_1": _reading(metric_names=("impressions",))},
+        definition=DEFINITION,
+        revisions={"rpr_1": revision},
+        current_statuses=[_leaf(posted)],
+    )
+    assert len(changed) == 1
+    assert changed[0].consumer_status == "content_mismatch"
+    assert changed[0].reporting_status_id != posted.reporting_status_id
+    assert changed[0].supersedes_reporting_status_id == posted.reporting_status_id
 
 
 def test_a_plan_supersedes_the_sellers_reported_leaf() -> None:
     # Omitting a known leaf fails atomically at the seller rather than forking
     # the chain. The conflict is correct; this is how a buyer avoids provoking it.
+    existing = ReportingConsumerStatus.model_validate(
+        {
+            "reporting_status_id": "status_existing_leaf_01",
+            "delivery_config_id": "daily",
+            "delivery_config_version": 1,
+            "report_definition_id": "daily_v1",
+            "period": {
+                "start": PERIOD_START.isoformat().replace("+00:00", "Z"),
+                "end": PERIOD_END.isoformat().replace("+00:00", "Z"),
+                "source_timezone": "UTC",
+            },
+            "consumer_status": "obligation_missing",
+            "status_as_of": EXPECTED_AT.isoformat().replace("+00:00", "Z"),
+        }
+    )
     plan = plan_consumer_statuses(
-        [_obligation(current_consumer_status_id="status_existing_leaf_01")],
+        [_obligation(revision_count=0)],
         now=EXPECTED_AT + RECOVERY,
         automated_recovery_window=RECOVERY,
+        current_statuses=[existing],
     )
     assert plan[0].supersedes_reporting_status_id == "status_existing_leaf_01"
     assert plan[0].to_wire()["supersedes_reporting_status_id"] == "status_existing_leaf_01"
@@ -411,7 +528,7 @@ def test_status_ids_satisfy_the_schemas_minimum_length() -> None:
     # The schema requires 16-255 characters matching a restricted class. A
     # shorter derived id would be rejected by every seller.
     plan = plan_consumer_statuses(
-        [_obligation()],
+        [_obligation(revision_count=0)],
         now=EXPECTED_AT + RECOVERY,
         automated_recovery_window=RECOVERY,
     )
@@ -514,3 +631,242 @@ def test_a_seller_without_a_contact_yields_none() -> None:
         ReportingOperationsContactView.from_capability({"reliable_reporting_version": "1.0"})
         is None
     )
+
+
+# -- obligation_missing: the status only the buyer can derive -----------------
+
+
+def _expected_period(**overrides: Any) -> ExpectedReportingPeriod:
+    defaults: dict[str, Any] = {
+        "delivery_config_id": "daily",
+        "delivery_config_version": 1,
+        "report_definition_id": "daily_v1",
+        "feed_purpose": "analytics",
+        "reporting_profile": "paid_media_delivery",
+        "media_buy_ids": ("mb_1", "mb_2"),
+        "period_start": PERIOD_START.isoformat().replace("+00:00", "Z"),
+        "period_end": PERIOD_END.isoformat().replace("+00:00", "Z"),
+        "source_timezone": "UTC",
+        "expected_at": EXPECTED_AT.isoformat().replace("+00:00", "Z"),
+    }
+    defaults.update(overrides)
+    return ExpectedReportingPeriod(**defaults)
+
+
+def test_a_period_absent_from_the_ledger_becomes_obligation_missing() -> None:
+    # The status no seller can derive for itself, and the whole reason the
+    # buyer keeps its own denominator. Previously unreachable: the planner
+    # iterated only the seller's obligations, so a period the seller omitted
+    # produced no statement at all and the omission stayed invisible.
+    plan = plan_consumer_statuses(
+        [],
+        now=EXPECTED_AT + RECOVERY,
+        automated_recovery_window=RECOVERY,
+        missing_expected_periods=[_expected_period()],
+    )
+    assert len(plan) == 1
+    wire = plan[0].to_wire()
+    assert wire["consumer_status"] == "obligation_missing"
+    assert wire["period"]["source_timezone"] == "UTC"
+    # Keyed without a seller obligation id -- requiring one would make the
+    # first missing report invisible again. The schema forbids carrying any of
+    # these on obligation_missing, so the keys must be absent.
+    assert "reporting_obligation_id" not in wire
+    assert "reporting_revision_id" not in wire
+    assert "observed_revision_content_sha256" not in wire
+
+
+def test_obligation_missing_is_not_filed_before_expected_at() -> None:
+    # Valid only at or after the obligation's expected_at. Filing earlier
+    # accuses the seller of omitting a period that is not due.
+    assert (
+        plan_consumer_statuses(
+            [],
+            now=EXPECTED_AT - timedelta(minutes=1),
+            automated_recovery_window=RECOVERY,
+            missing_expected_periods=[_expected_period()],
+        )
+        == []
+    )
+
+
+def test_obligation_missing_status_as_of_is_at_or_after_expected_at() -> None:
+    plan = plan_consumer_statuses(
+        [],
+        now=EXPECTED_AT + RECOVERY,
+        automated_recovery_window=RECOVERY,
+        missing_expected_periods=[_expected_period()],
+    )
+    assert plan[0].status_as_of >= EXPECTED_AT
+
+
+def test_a_missing_period_without_a_derived_expected_at_is_skipped() -> None:
+    # Without the buyer's own expected_at there is no defensible deadline and
+    # no way to satisfy "valid only at or after expected_at". Skipping beats
+    # inventing one.
+    assert (
+        plan_consumer_statuses(
+            [],
+            now=EXPECTED_AT + RECOVERY,
+            automated_recovery_window=RECOVERY,
+            missing_expected_periods=[_expected_period(expected_at=None)],
+        )
+        == []
+    )
+
+
+# -- revision_missing vs unreadable ------------------------------------------
+
+
+def test_a_failed_read_is_unreadable_with_its_failure_code() -> None:
+    # unreadable was unreachable: the reading had nowhere to carry a
+    # failure_code, so a buyer that could see a revision but not read it had no
+    # way to say so and the planner filed `received` or `revision_missing`.
+    plan = plan_consumer_statuses(
+        [_obligation()],
+        now=EXPECTED_AT + RECOVERY,
+        automated_recovery_window=RECOVERY,
+        readings={
+            "rpo_1": _reading(
+                failure_code="access_denied",
+                observed_revision_content_sha256=None,
+            )
+        },
+        definition=DEFINITION,
+        revisions={"rpr_1": _revision()},
+    )
+    wire = plan[0].to_wire()
+    assert wire["consumer_status"] == "unreadable"
+    assert wire["failure_code"] == "access_denied"
+    assert wire["reporting_revision_id"] == "rpr_1"
+    # unreadable forbids the observed digest: the buyer never read the bytes.
+    assert "observed_revision_content_sha256" not in wire
+    assert "mismatch_code" not in wire
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "access_denied",
+        "resource_not_found",
+        "integrity_mismatch",
+        "reader_incompatible",
+        "transport_failed",
+    ],
+)
+def test_every_closed_failure_code_round_trips(code: str) -> None:
+    plan = plan_consumer_statuses(
+        [_obligation()],
+        now=EXPECTED_AT + RECOVERY,
+        automated_recovery_window=RECOVERY,
+        readings={"rpo_1": _reading(failure_code=code, observed_revision_content_sha256=None)},
+        revisions={"rpr_1": _revision()},
+    )
+    assert plan[0].to_wire()["failure_code"] == code
+
+
+def test_an_obligation_with_a_revision_and_no_reading_refuses_to_guess() -> None:
+    # Defaulting to revision_missing accused the seller of publishing nothing
+    # it demonstrably published. Both possible defaults are false claims
+    # attributed to the buyer, so refuse.
+    with pytest.raises(ConsumerStatusPlanError, match="no reading was supplied"):
+        plan_consumer_statuses(
+            [_obligation(revision_count=1)],
+            now=EXPECTED_AT + RECOVERY,
+            automated_recovery_window=RECOVERY,
+        )
+
+
+def test_required_finality_decides_whether_a_revision_counts() -> None:
+    # An obligation needing `official` is not satisfied by snapshots, so a
+    # snapshot-only ledger really has no required revision.
+    plan = plan_consumer_statuses(
+        [_obligation(required_finality="official")],
+        now=EXPECTED_AT + RECOVERY,
+        automated_recovery_window=RECOVERY,
+        obligation_revisions={"rpo_1": [_revision(finality="snapshot")]},
+    )
+    assert plan[0].consumer_status == "revision_missing"
+
+    with pytest.raises(ConsumerStatusPlanError):
+        plan_consumer_statuses(
+            [_obligation(required_finality="official")],
+            now=EXPECTED_AT + RECOVERY,
+            automated_recovery_window=RECOVERY,
+            obligation_revisions={"rpo_1": [_revision(finality="official")]},
+        )
+
+
+def test_a_reading_naming_an_absent_revision_fails_loudly() -> None:
+    # Filing `received` would bind the statement to a revision the seller
+    # cannot resolve, and the seller must reject it. Say so where it is
+    # fixable.
+    with pytest.raises(ConsumerStatusPlanError, match="not .*in this ledger snapshot"):
+        plan_consumer_statuses(
+            [_obligation()],
+            now=EXPECTED_AT + RECOVERY,
+            automated_recovery_window=RECOVERY,
+            readings={"rpo_1": _reading(reporting_revision_id="rpr_unknown")},
+            revisions={},
+        )
+
+
+# -- status_as_of ------------------------------------------------------------
+
+
+def test_received_status_as_of_is_when_the_revision_became_consumable() -> None:
+    # Sellers use it as buyer-attributed arrival evidence. Planning time would
+    # date every statement to whenever the loop happened to run.
+    consumable = EXPECTED_AT + timedelta(minutes=7)
+    plan = plan_consumer_statuses(
+        [_obligation()],
+        now=EXPECTED_AT + RECOVERY + timedelta(days=2),
+        automated_recovery_window=RECOVERY,
+        readings={"rpo_1": _reading(first_consumable_at=consumable)},
+        definition=DEFINITION,
+        revisions={"rpr_1": _revision()},
+    )
+    assert plan[0].status_as_of == consumable
+
+
+def test_status_as_of_never_goes_backwards_from_the_superseded_leaf() -> None:
+    # "status_as_of MUST be no earlier than the superseded statement's
+    # status_as_of." A re-read that became consumable before the previous
+    # statement was made would otherwise travel back in time.
+    late_leaf = ReportingConsumerStatus.model_validate(
+        {
+            "reporting_status_id": "status_late_leaf_000001",
+            "delivery_config_id": "daily",
+            "delivery_config_version": 1,
+            "report_definition_id": "daily_v1",
+            "period": {
+                "start": PERIOD_START.isoformat().replace("+00:00", "Z"),
+                "end": PERIOD_END.isoformat().replace("+00:00", "Z"),
+                "source_timezone": "UTC",
+            },
+            "consumer_status": "revision_missing",
+            "reporting_obligation_id": "rpo_1",
+            "status_as_of": (EXPECTED_AT + timedelta(hours=5)).isoformat().replace("+00:00", "Z"),
+        }
+    )
+    plan = plan_consumer_statuses(
+        [_obligation()],
+        now=EXPECTED_AT + RECOVERY,
+        automated_recovery_window=RECOVERY,
+        readings={"rpo_1": _reading(first_consumable_at=EXPECTED_AT + timedelta(minutes=1))},
+        definition=DEFINITION,
+        revisions={"rpr_1": _revision()},
+        current_statuses=[late_leaf],
+    )
+    assert plan[0].status_as_of == EXPECTED_AT + timedelta(hours=5)
+
+
+def test_a_naive_timestamp_is_refused_rather_than_guessed() -> None:
+    # astimezone on a naive value assumes the *local* zone, so a buyer in a
+    # non-UTC container would stamp every statement hours off.
+    with pytest.raises(ValueError, match="naive"):
+        plan_consumer_statuses(
+            [_obligation(revision_count=0)],
+            now=datetime(2026, 9, 1, 5, 0),
+            automated_recovery_window=RECOVERY,
+        )
