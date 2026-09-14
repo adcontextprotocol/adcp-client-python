@@ -61,6 +61,7 @@ __all__ = [
     "ReportingLedgerStore",
     "ReportingRowPage",
     "decode_cursor",
+    "check_issue_state_transition",
     "encode_cursor",
     "reject_reserved_authoritative_party",
 ]
@@ -416,23 +417,65 @@ def _revision_identity(revision: ReportingRevisionRecord) -> str:
 
 
 def _consumer_status_identity(status: ConsumerStatusRecord) -> str:
-    return _fingerprint(
-        {
-            "chain": list(status.chain_key),
-            "consumer_status": status.consumer_status,
-            "status_as_of": _utc(status.status_as_of).isoformat(),
-            "supersedes": status.supersedes_reporting_status_id,
-            "obligation": status.reporting_obligation_id,
-            "revision": status.reporting_revision_id,
-            "digest": status.observed_revision_content_sha256,
-            "failure_code": status.failure_code,
-            # In the digest so a retry that changes only the mismatch_code is
-            # an idempotency conflict rather than a silent overwrite: "the
-            # metric is missing" and "the currency is wrong" are different
-            # claims and must not share one immutable identity.
-            "mismatch_code": status.mismatch_code,
-        }
-    )
+    payload: dict[str, Any] = {
+        "chain": list(status.chain_key),
+        "consumer_status": status.consumer_status,
+        "status_as_of": _utc(status.status_as_of).isoformat(),
+        "supersedes": status.supersedes_reporting_status_id,
+        "obligation": status.reporting_obligation_id,
+        "revision": status.reporting_revision_id,
+        "digest": status.observed_revision_content_sha256,
+        "failure_code": status.failure_code,
+    }
+    # Conditional on purpose. ``canonical_json_utf8_v1`` encodes ``None`` as
+    # ``null``, so including the key unconditionally would change the digest of
+    # every statement that has no mismatch_code -- i.e. every row an rc.2 SDK
+    # wrote. After an in-place upgrade a buyer's exact retry would then fail
+    # with STATUS_IDENTITY_CONFLICT instead of replaying as ``unchanged``,
+    # which is the one thing an idempotent append-only surface must never do.
+    # Omitting the key when absent keeps rc.2 digests byte-identical while a
+    # code-only change is still a conflict: "the metric is missing" and "the
+    # currency is wrong" are different claims and must not share one immutable
+    # identity.
+    if status.mismatch_code is not None:
+        payload["mismatch_code"] = status.mismatch_code
+    return _fingerprint(payload)
+
+
+#: Forward-only issue lifecycle, per ``reporting-status-issue.json``
+#: ``issue_lifecycle``: state moves only through ``open``, then
+#: ``acknowledged``, then ``resolved`` or ``waived``.
+#:
+#: The reverse edges are what matter. Without ``waived -> acknowledged`` being
+#: refused, an operator could un-waive an issue and republish the same
+#: ``issue_id`` and ``opened_at`` -- resurrecting a work item both parties had
+#: agreed to stop acting on, under an identity a consumer has already filed
+#: away. A recurrence is supposed to get a *new* occurrence, not a revived one.
+_ISSUE_STATE_SUCCESSORS: dict[str, frozenset[str]] = {
+    "open": frozenset({"acknowledged", "resolved", "waived"}),
+    "acknowledged": frozenset({"resolved", "waived"}),
+    "resolved": frozenset(),
+    "waived": frozenset(),
+}
+
+
+def check_issue_state_transition(current: str, requested: str) -> None:
+    """Refuse any transition the spec's forward-only lifecycle forbids.
+
+    Raises :class:`LedgerConflictError` rather than returning a bool so neither
+    store can forget to act on the answer.
+    """
+    if requested == current:
+        # Idempotent: re-acknowledging an acknowledged issue is a no-op, which
+        # is what makes an operator retry safe.
+        return
+    if requested not in _ISSUE_STATE_SUCCESSORS.get(current, frozenset()):
+        raise LedgerConflictError(
+            "ISSUE_STATE_TRANSITION_INVALID",
+            "issue_state moves only forward through open, acknowledged, then resolved or "
+            f"waived; {current!r} -> {requested!r} is not permitted. A recurrence gets a new "
+            "occurrence rather than reviving a retired one",
+        )
 
 
 class InMemoryReportingLedgerStore:
@@ -845,15 +888,15 @@ class InMemoryReportingLedgerStore:
                     f"no open issue {issue_key!r} for this account; a retired issue cannot be "
                     "reopened, and a recurrence gets a new occurrence",
                 )
-            if live.issue_state == "acknowledged" and state == "acknowledged":
-                updated = replace(live, external_ref=external_ref or live.external_ref)
-            else:
-                updated = replace(
-                    live,
-                    issue_state=state,
-                    external_ref=external_ref or live.external_ref,
-                    retired_at=_utc(at) if state == "waived" else None,
-                )
+            check_issue_state_transition(live.issue_state, state)
+            updated = replace(
+                live,
+                issue_state=state,
+                external_ref=external_ref or live.external_ref,
+                # Set only on the way into a retired state and never cleared:
+                # a waived issue keeps the instant it was waived.
+                retired_at=_utc(at) if state == "waived" else live.retired_at,
+            )
             self._issues[key] = updated
             return updated
 
@@ -871,7 +914,11 @@ class InMemoryReportingLedgerStore:
 
     async def get_issue(self, *, issue_key: str, account_id: str) -> ReportingIssueLifecycle | None:
         async with self._lock:
-            return self._issues.get((account_id, issue_key))
+            # Live occurrences only, matching the Protocol docstring and the
+            # Postgres store. Returning a retired row here would let the
+            # projection re-emit a resolved issue's opened_at.
+            live = self._issues.get((account_id, issue_key))
+            return live if live is not None and live.live else None
 
     # -- snapshots -------------------------------------------------------
 

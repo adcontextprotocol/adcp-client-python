@@ -22,6 +22,7 @@ created schema so parallel runs cannot collide.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
 import secrets
 from collections.abc import AsyncIterator
@@ -39,8 +40,10 @@ if not TEST_URL:
         allow_module_level=True,
     )
 
+from adcp.reporting.canonical_json import canonical_json_utf8_v1  # noqa: E402
 from adcp.reporting.ledger import (  # noqa: E402
     ConsumerStatusIngest,
+    ConsumerStatusRecord,
     LedgerConflictError,
     ReportingAdjustmentRecord,
     ReportingConfiguration,
@@ -580,7 +583,8 @@ def _statement(**overrides) -> dict[str, object]:
 async def test_consumer_status_records_and_supersedes_atomically(
     store: PgReportingLedgerStore,
 ) -> None:
-    await store.put_configuration(_configuration())
+    configuration = _configuration()
+    await store.put_configuration(configuration)
     ingest = ConsumerStatusIngest(store, enabled=True)
     first = await ingest.handle(
         {"statuses": [_statement()]}, account_id=ACCOUNT, consumer_id="buyer_pg"
@@ -591,6 +595,14 @@ async def test_consumer_status_records_and_supersedes_atomically(
     )
     assert replay["results"][0]["result"] == "unchanged"
 
+    # The seller repairs the omission by committing the obligation the buyer
+    # said was missing. The chain attaches to it by the logical key -- it is
+    # never lost, forked, or reset. Committing it here is also what lets the
+    # superseding statement name a *resolvable* obligation id: an id that does
+    # not resolve for this caller and account is refused, so this step is the
+    # repair rather than test scaffolding.
+    obligation = await store.commit_obligation(_obligation(configuration))
+
     repaired = await ingest.handle(
         {
             "statuses": [
@@ -598,7 +610,7 @@ async def test_consumer_status_records_and_supersedes_atomically(
                     reporting_status_id="status_pg_000000000002",
                     supersedes_reporting_status_id="status_pg_000000000001",
                     consumer_status="revision_missing",
-                    reporting_obligation_id="rpo_pg_0",
+                    reporting_obligation_id=obligation.reporting_obligation_id,
                 )
             ]
         },
@@ -699,3 +711,227 @@ async def test_a_conflicting_statement_degrades_only_its_own_caller(
     assert theirs["periods"][0]["health"] == "complete"
     assert theirs["periods"][0]["issues"] == []
     assert theirs["consumer_statuses"] == []
+
+
+# -- review fixes, over real Postgres ---------------------------------------
+
+
+async def test_an_rc2_era_row_replays_as_unchanged_after_the_upgrade(
+    store: PgReportingLedgerStore,
+) -> None:
+    """The BLOCKING regression: an rc.2 digest must still match.
+
+    ``canonical_json_utf8_v1`` encodes ``None`` as ``null``, so carrying
+    ``mismatch_code`` in the identity payload unconditionally changed the digest
+    of every statement an rc.2 SDK wrote. After an in-place upgrade a buyer's
+    exact retry would then hit ``existing[0] != digest`` and get
+    ``STATUS_IDENTITY_CONFLICT`` instead of ``unchanged`` -- the one thing an
+    idempotent append-only surface must never do.
+
+    This inserts a row carrying the digest an rc.2 SDK computed (no
+    ``mismatch_code`` key at all, and the column NULL, exactly as the upgrade
+    leaves it) and then replays the statement through the current code.
+    """
+    account = f"acct_{secrets.token_hex(4)}"
+    configuration = _configuration(
+        account_id=account, delivery_config_id=f"cfg_{secrets.token_hex(4)}"
+    )
+    await store.put_configuration(configuration)
+    obligation = await store.commit_obligation(_obligation(configuration))
+    revision, rows = _revision(obligation, revision_id=f"rpr_{secrets.token_hex(4)}")
+    await store.commit_revision(revision, rows)
+
+    record = ConsumerStatusRecord(
+        reporting_status_id=f"status_{secrets.token_hex(8)}",
+        account_id=account,
+        consumer_id="buyer_1",
+        delivery_config_id=configuration.delivery_config_id,
+        delivery_config_version=configuration.delivery_config_version,
+        report_definition_id=configuration.report_definition_id,
+        period_start=obligation.period.start,
+        period_end=obligation.period.end,
+        period_source_timezone="UTC",
+        consumer_status="received",
+        status_as_of=obligation.period.expected_at,
+        recorded_at=obligation.period.expected_at,
+        reporting_obligation_id=obligation.reporting_obligation_id,
+        reporting_revision_id=revision.reporting_revision_id,
+        observed_revision_content_sha256=revision.revision_content_sha256,
+    )
+
+    # The digest an rc.2 SDK stored: the payload with no mismatch_code key.
+    rc2_payload = {
+        "chain": list(record.chain_key),
+        "consumer_status": record.consumer_status,
+        "status_as_of": record.status_as_of.astimezone(timezone.utc).isoformat(),
+        "supersedes": None,
+        "obligation": record.reporting_obligation_id,
+        "revision": record.reporting_revision_id,
+        "digest": record.observed_revision_content_sha256,
+        "failure_code": None,
+    }
+    rc2_digest = hashlib.sha256(canonical_json_utf8_v1(rc2_payload)).hexdigest()
+
+    async with store._pool.connection() as connection:  # noqa: SLF001
+        await connection.execute(
+            "INSERT INTO reporting_consumer_statuses"
+            " (reporting_status_id, account_id, consumer_id, delivery_config_id,"
+            "  delivery_config_version, report_definition_id, period_start, period_end,"
+            "  period_source_timezone, consumer_status, status_as_of, recorded_at,"
+            "  reporting_obligation_id, reporting_revision_id,"
+            "  observed_revision_content_sha256, mismatch_code, superseded, content_sha256)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL,"
+            "         FALSE, %s)",
+            (
+                record.reporting_status_id,
+                record.account_id,
+                record.consumer_id,
+                record.delivery_config_id,
+                record.delivery_config_version,
+                record.report_definition_id,
+                record.period_start,
+                record.period_end,
+                record.period_source_timezone,
+                record.consumer_status,
+                record.status_as_of,
+                record.recorded_at,
+                record.reporting_obligation_id,
+                record.reporting_revision_id,
+                record.observed_revision_content_sha256,
+                rc2_digest,
+            ),
+        )
+
+    # The current code must recompute the same digest and replay, not conflict.
+    stored, recorded = await store.record_consumer_status(record)
+    assert recorded is False
+    assert stored.reporting_status_id == record.reporting_status_id
+    assert stored.mismatch_code is None
+
+
+async def test_issue_lifecycle_transitions_over_postgres(
+    store: PgReportingLedgerStore,
+) -> None:
+    """The waive/acknowledge SQL, exercised against the real database.
+
+    The partial unique index, the ``COALESCE`` on ``external_ref``, and the
+    ``retired_at`` CASE only run here -- the in-memory store shares none of
+    that code.
+    """
+    account = f"acct_{secrets.token_hex(4)}"
+    key = f"rpik_{secrets.token_hex(8)}"
+
+    opened = await store.ensure_issue_opened(
+        issue_key=key,
+        account_id=account,
+        consumer_id="buyer_1",
+        observed_at=datetime(2026, 9, 1, 3, tzinfo=timezone.utc),
+    )
+    assert opened.issue_state == "open"
+    assert opened.generation == 1
+    assert opened.retired_at is None
+
+    # Idempotent: a second observation reuses the occurrence and its opened_at,
+    # which is what keeps the escalation clock from resetting on every poll.
+    again = await store.ensure_issue_opened(
+        issue_key=key,
+        account_id=account,
+        consumer_id="buyer_1",
+        observed_at=datetime(2026, 9, 1, 9, tzinfo=timezone.utc),
+    )
+    assert again.issue_id == opened.issue_id
+    assert again.opened_at == opened.opened_at
+
+    acknowledged = await store.set_issue_state(
+        issue_key=key,
+        account_id=account,
+        state="acknowledged",
+        at=datetime(2026, 9, 1, 4, tzinfo=timezone.utc),
+        external_ref="OPS-9001",
+    )
+    assert acknowledged.issue_state == "acknowledged"
+    assert acknowledged.external_ref == "OPS-9001"
+    assert acknowledged.opened_at == opened.opened_at
+    # Acknowledged is not retired, so it still appears in issues[].
+    assert acknowledged.published is True
+    assert acknowledged.retired_at is None
+
+    # COALESCE keeps an existing external_ref when the caller omits one.
+    reacknowledged = await store.set_issue_state(
+        issue_key=key,
+        account_id=account,
+        state="acknowledged",
+        at=datetime(2026, 9, 1, 5, tzinfo=timezone.utc),
+    )
+    assert reacknowledged.external_ref == "OPS-9001"
+
+    waived = await store.set_issue_state(
+        issue_key=key,
+        account_id=account,
+        state="waived",
+        at=datetime(2026, 9, 1, 6, tzinfo=timezone.utc),
+    )
+    assert waived.issue_state == "waived"
+    assert waived.retired_at == datetime(2026, 9, 1, 6, tzinfo=timezone.utc)
+    # Waived is live-for-blocking but not published: the caller's view stays
+    # degraded while the issue leaves issues[].
+    assert waived.live is True
+    assert waived.published is False
+
+    # Forward-only: un-waiving would republish the same issue_id and opened_at,
+    # resurrecting a work item both parties agreed to stop acting on.
+    with pytest.raises(LedgerConflictError) as caught:
+        await store.set_issue_state(
+            issue_key=key,
+            account_id=account,
+            state="acknowledged",
+            at=datetime(2026, 9, 1, 7, tzinfo=timezone.utc),
+        )
+    assert caught.value.code == "ISSUE_STATE_TRANSITION_INVALID"
+
+    # A waived occurrence still blocks a new one, so the waiver means something.
+    blocked = await store.ensure_issue_opened(
+        issue_key=key,
+        account_id=account,
+        consumer_id="buyer_1",
+        observed_at=datetime(2026, 9, 1, 8, tzinfo=timezone.utc),
+    )
+    assert blocked.issue_id == opened.issue_id
+    assert blocked.issue_state == "waived"
+
+
+async def test_a_recurrence_after_retirement_gets_a_new_generation_over_postgres(
+    store: PgReportingLedgerStore,
+) -> None:
+    account = f"acct_{secrets.token_hex(4)}"
+    key = f"rpik_{secrets.token_hex(8)}"
+    first = await store.ensure_issue_opened(
+        issue_key=key,
+        account_id=account,
+        consumer_id="buyer_1",
+        observed_at=datetime(2026, 9, 1, 3, tzinfo=timezone.utc),
+    )
+    retired = await store.retire_issue(
+        issue_key=key, account_id=account, at=datetime(2026, 9, 1, 4, tzinfo=timezone.utc)
+    )
+    assert retired is not None
+    assert retired.issue_state == "resolved"
+    # get_issue returns only live occurrences, matching the Protocol.
+    assert await store.get_issue(issue_key=key, account_id=account) is None
+    # Convergent: retiring twice is not an error.
+    assert (
+        await store.retire_issue(
+            issue_key=key, account_id=account, at=datetime(2026, 9, 1, 5, tzinfo=timezone.utc)
+        )
+        is None
+    )
+
+    recurrence = await store.ensure_issue_opened(
+        issue_key=key,
+        account_id=account,
+        consumer_id="buyer_1",
+        observed_at=datetime(2026, 9, 1, 6, tzinfo=timezone.utc),
+    )
+    assert recurrence.generation == first.generation + 1
+    assert recurrence.issue_id != first.issue_id
+    assert recurrence.opened_at != first.opened_at

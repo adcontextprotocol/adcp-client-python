@@ -64,12 +64,15 @@ from adcp.reporting.ledger.consumer_status import (
     ConsumerStatusDisabledError,
     ConsumerStatusIngest,
     consumer_mismatch_issue_key,
+    consumer_statement_conflicts,
+    current_consumer_statement,
     project_consumer_mismatch,
     stale_received_grace_deadline,
 )
 from adcp.reporting.ledger.health import (
     ObligationProjection,
     aggregate_reporting_health,
+    current_required_revision,
     issue_id_for,
     issue_id_for_occurrence,
     project_obligation_health,
@@ -115,6 +118,7 @@ from adcp.reporting.ledger.store import (
     LedgerPage,
     ReportingLedgerStore,
     ReportingRowPage,
+    check_issue_state_transition,
     reject_reserved_authoritative_party,
 )
 
@@ -157,7 +161,11 @@ __all__ = [
     "WorkerTurn",
     "aggregate_reporting_health",
     "derive_period",
+    "check_issue_state_transition",
     "consumer_mismatch_issue_key",
+    "consumer_statement_conflicts",
+    "current_consumer_statement",
+    "current_required_revision",
     "iso_duration_to_timedelta",
     "issue_id_for",
     "issue_id_for_occurrence",

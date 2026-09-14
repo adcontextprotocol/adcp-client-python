@@ -62,13 +62,13 @@ seller-advertised reliability statistics without corroboration.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, cast
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
-from adcp.reporting.ledger.health import issue_id_for
+from adcp.reporting.ledger.health import current_required_revision, issue_id_for
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ConsumerStatusValue,
@@ -87,6 +87,8 @@ __all__ = [
     "ConsumerStatusDisabledError",
     "ConsumerStatusIngest",
     "consumer_mismatch_issue_key",
+    "consumer_statement_conflicts",
+    "current_consumer_statement",
     "project_consumer_mismatch",
     "stale_received_grace_deadline",
 ]
@@ -116,6 +118,12 @@ class ConsumerStatusIngest:
 
     store: ReportingLedgerStore
     enabled: bool | None = None
+    #: Supplies ``recorded_at`` -- when the seller durably recorded the
+    #: statement -- and therefore the issue's ``opened_at``. Defaults to wall
+    #: clock. A deployment whose ledger boundary comes from the database should
+    #: pass the same source here, or an issue's escalation clock and the
+    #: snapshot that reads it will disagree about what time it is.
+    clock: Callable[[], datetime] | None = None
 
     def _require_enabled(self) -> None:
         active = CONSUMER_STATUS_ENABLED if self.enabled is None else self.enabled
@@ -153,7 +161,12 @@ class ConsumerStatusIngest:
                 results.append(_failed(status_id, "INVALID_CONSUMER_STATUS", problems[0]))
                 continue
             try:
-                record = self._to_record(statement, account_id=account_id, consumer_id=consumer_id)
+                record = self._to_record(
+                    statement,
+                    account_id=account_id,
+                    consumer_id=consumer_id,
+                    recorded_at=self._now(),
+                )
             except ValueError as error:
                 results.append(_failed(status_id, "INVALID_CONSUMER_STATUS", str(error)))
                 continue
@@ -176,6 +189,8 @@ class ConsumerStatusIngest:
             except LedgerConflictError as error:
                 results.append(_failed(status_id, error.code, str(error)))
                 continue
+            if recorded:
+                await self._open_issue_on_first_observation(stored)
             results.append(
                 {
                     "result": "recorded" if recorded else "unchanged",
@@ -184,13 +199,72 @@ class ConsumerStatusIngest:
             )
         return {"status": "completed", "results": results}
 
-    async def _validate_against_configuration(self, record: ConsumerStatusRecord) -> None:
-        """Check the period against the caller's accepted configuration generation.
+    async def _open_issue_on_first_observation(self, stored: ConsumerStatusRecord) -> None:
+        """Start the escalation clock when the statement arrives, not when polled.
 
-        Deliberately does *not* require an obligation to exist: the whole point
-        of ``obligation_missing`` is that it is filed when the seller's ledger
-        omitted the period.  The configuration generation is what makes the
-        period legitimate.
+        ``opened_at`` is "when the seller first observed this logical
+        condition", and the seller observes it here -- a statement landing on
+        this task *is* the observation. Deferring to the first
+        ``get_reporting_status`` would tie the escalation clock to whether
+        anyone happened to poll: a mismatch filed and never read would sit at
+        ``opened_at = None`` indefinitely and could never cross
+        ``consumer_mismatch_escalation_seconds``, which is precisely the
+        unattended case the boundary exists for.
+
+        Only opens; never retires and never changes an existing occurrence.
+        ``ensure_issue_opened`` is idempotent, so a supersession that keeps the
+        same condition open keeps the same ``opened_at``.
+        """
+        obligation: ReportingObligationRecord | None = None
+        if stored.reporting_obligation_id is not None:
+            obligation = await self.store.get_obligation(
+                account_id=stored.account_id,
+                reporting_obligation_id=stored.reporting_obligation_id,
+            )
+        revisions = (
+            await self.store.list_revisions(
+                account_id=stored.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+            )
+            if obligation is not None
+            else ()
+        )
+        current = current_required_revision(obligation, revisions) if obligation else None
+        if not consumer_statement_conflicts(
+            current=stored, current_revision=current, revisions=revisions
+        ):
+            return
+        await self.store.ensure_issue_opened(
+            issue_key=consumer_mismatch_issue_key(
+                account_id=stored.account_id,
+                consumer_id=stored.consumer_id,
+                delivery_config_id=stored.delivery_config_id,
+                delivery_config_version=stored.delivery_config_version,
+                report_definition_id=stored.report_definition_id,
+                period_start=stored.period_start,
+                period_end=stored.period_end,
+            ),
+            account_id=stored.account_id,
+            consumer_id=stored.consumer_id,
+            observed_at=stored.recorded_at,
+        )
+
+    async def _validate_against_configuration(self, record: ConsumerStatusRecord) -> None:
+        """Resolve every identifier the statement names, within caller + account.
+
+        Deliberately does *not* require an obligation to exist *when none is
+        named*: the whole point of ``obligation_missing`` is that it is filed
+        when the seller's ledger omitted the period, and the configuration
+        generation is what makes that period legitimate.
+
+        But an obligation or revision id the caller *does* supply must resolve.
+        The spec's ``batch_identity`` rule is explicit that every optional
+        obligation, revision, and superseded status MUST resolve within the
+        authenticated caller and account or fail with the same unavailable
+        result. Skipping that lets a statement name a foreign, nonexistent, or
+        long-superseded revision and still be recorded -- and then projected as
+        ``action_required`` against a seller who never published the thing
+        being disputed.
         """
         configurations = await self.store.list_configurations(
             account_id=record.account_id, delivery_config_ids=[record.delivery_config_id]
@@ -221,10 +295,92 @@ class ConsumerStatusIngest:
                 "seller_ledger_snapshot_id and seller_ledger_as_of are present together or "
                 "not at all",
             )
+        await self._resolve_named_records(record)
+
+    async def _resolve_named_records(self, record: ConsumerStatusRecord) -> None:
+        """Resolve the optional obligation and revision ids the caller supplied.
+
+        Unknown, unauthorized, cross-account, and cross-caller identifiers all
+        produce the same result, so this surface cannot be used as an oracle to
+        discover which ids exist on another tenant.
+        """
+        obligation: ReportingObligationRecord | None = None
+        if record.reporting_obligation_id is not None:
+            obligation = await self.store.get_obligation(
+                account_id=record.account_id,
+                reporting_obligation_id=record.reporting_obligation_id,
+            )
+            if obligation is None:
+                raise LedgerConflictError(
+                    "LOOKUP_UNAVAILABLE",
+                    f"reporting_obligation_id {record.reporting_obligation_id} does not "
+                    "resolve for this caller and account",
+                )
+            if (
+                obligation.delivery_config_id != record.delivery_config_id
+                or obligation.delivery_config_version != record.delivery_config_version
+                or obligation.report_definition_id != record.report_definition_id
+                or _utc(obligation.period.start) != _utc(record.period_start)
+                or _utc(obligation.period.end) != _utc(record.period_end)
+            ):
+                # The id resolves but describes a different period or
+                # generation. Recording it would attach this chain to the wrong
+                # obligation, which the immutability rule forbids.
+                raise LedgerConflictError(
+                    "OBLIGATION_IDENTITY_MISMATCH",
+                    f"reporting_obligation_id {record.reporting_obligation_id} names a "
+                    "different configuration generation, report definition, or period than "
+                    "this statement",
+                )
+
+        if record.reporting_revision_id is None:
+            return
+
+        revision = await self.store.get_revision(
+            account_id=record.account_id, reporting_revision_id=record.reporting_revision_id
+        )
+        if revision is None or (
+            obligation is not None
+            and revision.reporting_obligation_id != obligation.reporting_obligation_id
+        ):
+            raise LedgerConflictError(
+                "LOOKUP_UNAVAILABLE",
+                f"reporting_revision_id {record.reporting_revision_id} does not resolve for "
+                "this caller, account, and period",
+            )
+
+        if record.consumer_status != "content_mismatch" or obligation is None:
+            return
+
+        # ``content_mismatch`` is valid only against a revision the seller
+        # *currently requires* for the period. Against a superseded revision the
+        # dispute is already moot -- the seller has replaced the content -- and
+        # recording it would degrade the caller's own view over bytes neither
+        # party stands behind any more. The buyer's move there is to re-read and
+        # either accept or dispute the current revision.
+        revisions = await self.store.list_revisions(
+            account_id=record.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+        )
+        required = current_required_revision(obligation, revisions)
+        if required is None or required.reporting_revision_id != record.reporting_revision_id:
+            raise LedgerConflictError(
+                "REVISION_NOT_CURRENTLY_REQUIRED",
+                f"content_mismatch names revision {record.reporting_revision_id}, which is "
+                "not the revision this seller currently requires for the period; re-read the "
+                "current revision and file against that",
+            )
+
+    def _now(self) -> datetime:
+        return _utc(self.clock() if self.clock is not None else datetime.now(timezone.utc))
 
     @staticmethod
     def _to_record(
-        statement: dict[str, Any], *, account_id: str, consumer_id: str
+        statement: dict[str, Any],
+        *,
+        account_id: str,
+        consumer_id: str,
+        recorded_at: datetime,
     ) -> ConsumerStatusRecord:
         from adcp.types import ReportingConsumerStatus
 
@@ -244,7 +400,7 @@ class ConsumerStatusIngest:
             period_source_timezone=period.source_timezone,
             consumer_status=_narrow_recorded_status(parsed.consumer_status.value),
             status_as_of=_utc(parsed.status_as_of),
-            recorded_at=datetime.now(timezone.utc),
+            recorded_at=recorded_at,
             supersedes_reporting_status_id=parsed.supersedes_reporting_status_id,
             reporting_obligation_id=parsed.reporting_obligation_id,
             reporting_revision_id=parsed.reporting_revision_id,
@@ -397,18 +553,111 @@ def stale_received_grace_deadline(
     Returns ``None`` when nothing superseded the named revision -- there is no
     staleness to forgive.
     """
-    superseder = next(
-        (
-            revision
-            for revision in revisions
-            if revision.supersedes_reporting_revision_id == received_revision_id
-        ),
-        None,
-    )
+    superseder = _superseder(received_revision_id, revisions)
     if superseder is None:
         return None
     window = delivery_sla if delivery_sla > timedelta(0) else automated_recovery_window
     return _utc(superseder.created_at) + window
+
+
+def current_consumer_statement(
+    statuses: Sequence[ConsumerStatusRecord],
+) -> ConsumerStatusRecord | None:
+    """This caller's one unsuperseded leaf, or ``None`` for an empty chain."""
+    return next((item for item in statuses if not item.superseded), None)
+
+
+def consumer_statement_conflicts(
+    *,
+    current: ConsumerStatusRecord,
+    current_revision: ReportingRevisionRecord | None,
+    revisions: Sequence[ReportingRevisionRecord] = (),
+) -> bool:
+    """Whether this statement contradicts the seller's *record* of the period.
+
+    Deliberately independent of the seller's health *label*. The two questions
+    are different and conflating them is how an escalation clock gets reset:
+    health answers "should this caller's view be degraded right now", while
+    this answers "does the disagreement still stand" -- which is what decides
+    whether the issue may be retired.
+
+    The spec allows resolution two ways: the consumer supersedes with a
+    statement that agrees, or the seller's own projection changes so the two no
+    longer conflict. Both are record comparisons:
+
+    * ``obligation_missing`` -- the obligation is in front of us, so the buyer's
+      claim that the seller omitted the period is contradicted. Always conflicts.
+    * ``revision_missing`` -- conflicts only while the seller actually has a
+      current required revision. If the seller has none either, they agree.
+    * ``unreadable`` -- conflicts while the named revision is still readable in
+      the seller's record. A seller that has since marked it unreadable agrees.
+    * ``content_mismatch`` -- conflicts while the named revision is still the
+      one the seller requires, because that is the seller standing behind the
+      content the buyer disputes.
+    * ``received`` -- conflicts only once something superseded the revision the
+      buyer named.
+    """
+    status = current.consumer_status
+    if status == "obligation_missing":
+        return True
+    if status == "revision_missing":
+        return current_revision is not None
+    if status == "unreadable":
+        named = _named_revision(current, revisions)
+        return named is None or named.readable
+    if status == "content_mismatch":
+        return (
+            current_revision is not None
+            and current.reporting_revision_id == current_revision.reporting_revision_id
+        )
+    if status == "received":
+        if current.reporting_revision_id is None:
+            return False
+        if (
+            current_revision is not None
+            and current.reporting_revision_id == current_revision.reporting_revision_id
+        ):
+            return False
+        # Stale only if a restatement actually superseded it. With no
+        # supersession and no current required revision there is nothing to
+        # re-read, so nothing to forgive and nothing to page about.
+        return _superseder(current.reporting_revision_id, revisions) is not None or (
+            current_revision is not None
+        )
+    # No fallback return: every ``ConsumerStatusValue`` is handled above, so a
+    # sixth status added to the schema fails mypy with "missing return
+    # statement" rather than silently classifying itself as "no conflict".
+
+
+def _named_revision(
+    current: ConsumerStatusRecord, revisions: Sequence[ReportingRevisionRecord]
+) -> ReportingRevisionRecord | None:
+    return next(
+        (
+            revision
+            for revision in revisions
+            if revision.reporting_revision_id == current.reporting_revision_id
+        ),
+        None,
+    )
+
+
+def _superseder(
+    revision_id: str, revisions: Sequence[ReportingRevisionRecord]
+) -> ReportingRevisionRecord | None:
+    """The one revision that superseded ``revision_id``, if any.
+
+    Unique by construction: the ledger's one-successor index permits at most
+    one, which is what makes "the *first* supersession" well defined.
+    """
+    return next(
+        (
+            revision
+            for revision in revisions
+            if revision.supersedes_reporting_revision_id == revision_id
+        ),
+        None,
+    )
 
 
 def project_consumer_mismatch(
@@ -450,12 +699,20 @@ def project_consumer_mismatch(
     and never by itself degrades seller health; silence is surfaced only
     through ``obligation_counts.consumer_status_pending``.
     """
-    current = next((item for item in statuses if not item.superseded), None)
+    current = current_consumer_statement(statuses)
     if current is None:
+        return None
+    if not consumer_statement_conflicts(
+        current=current, current_revision=current_revision, revisions=revisions
+    ):
         return None
     if seller_health not in {"healthy", "complete"}:
         # The seller already knows something is wrong and has said so. Adding a
         # second issue for the same condition would double-count it.
+        #
+        # Note this is *only* a suppression of the emission. The condition is
+        # still open, so a caller must not read ``None`` here as "resolved" --
+        # see :func:`consumer_statement_conflicts`.
         return None
 
     boundary = _utc(ledger_as_of) if ledger_as_of is not None else None
@@ -463,27 +720,14 @@ def project_consumer_mismatch(
     grace_deadline: datetime | None = None
 
     if current.consumer_status == "received":
-        if current.reporting_revision_id is None:
-            return None
-        if (
-            current_revision is not None
-            and current.reporting_revision_id == current_revision.reporting_revision_id
-        ):
-            return None
+        assert current.reporting_revision_id is not None  # the conflict test proved it
         grace_deadline = stale_received_grace_deadline(
             received_revision_id=current.reporting_revision_id,
             revisions=revisions,
             delivery_sla=delivery_sla,
             automated_recovery_window=automated_recovery_window,
         )
-        if grace_deadline is None:
-            if current_revision is None:
-                # Nothing superseded the named revision and the seller has no
-                # current required revision either. There is no restatement to
-                # re-read, so there is nothing to forgive and nothing to page
-                # about.
-                return None
-        elif boundary is not None and boundary < grace_deadline:
+        if grace_deadline is not None and boundary is not None and boundary < grace_deadline:
             severity = "delayed"
         responsible: ResponsibleParty = "buyer"
         message = (

@@ -43,6 +43,7 @@ from adcp.reporting.ledger.models import (
 __all__ = [
     "ObligationProjection",
     "aggregate_reporting_health",
+    "current_required_revision",
     "issue_id_for",
     "issue_id_for_occurrence",
     "project_obligation_health",
@@ -170,6 +171,30 @@ def project_obligation_health(
         satisfied=False,
         current_revision=None,
     )
+
+
+def current_required_revision(
+    obligation: ReportingObligationRecord,
+    revisions: Sequence[ReportingRevisionRecord],
+) -> ReportingRevisionRecord | None:
+    """The revision the seller currently requires for this obligation.
+
+    Shared by the health projection and the ``sync_reporting_status`` ingest on
+    purpose. If the two computed "current" differently, a buyer could file a
+    ``content_mismatch`` the ingest accepts and the projection then treats as
+    naming a superseded revision -- a statement permanently stuck disputing
+    bytes nobody stands behind.
+
+    Applies the obligation's ``required_finality`` first, then takes the
+    unsuperseded leaf: an official revision is terminal so it wins outright,
+    and among snapshots the current one is whichever no other supersedes.
+    """
+    qualifying = [
+        revision
+        for revision in revisions
+        if obligation.required_finality == "snapshot" or revision.finality == "official"
+    ]
+    return _current_revision(qualifying)
 
 
 def _current_revision(

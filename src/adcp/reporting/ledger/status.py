@@ -478,6 +478,8 @@ class ReportingStatusHandler:
         """
         from adcp.reporting.ledger.consumer_status import (
             consumer_mismatch_issue_key,
+            consumer_statement_conflicts,
+            current_consumer_statement,
             project_consumer_mismatch,
         )
 
@@ -513,12 +515,38 @@ class ReportingStatusHandler:
                 issue_key=issue_key, account_id=caller.account_id
             ),
         )
-        if probe is None:
-            await self._store.retire_issue(
-                issue_key=issue_key,
-                account_id=caller.account_id,
-                at=snapshot.ledger_as_of,
+        current = current_consumer_statement(statuses)
+        still_conflicts = current is not None and consumer_statement_conflicts(
+            current=current,
+            current_revision=projection.current_revision,
+            revisions=revisions,
+        )
+        if not still_conflicts:
+            # Retire on the *condition* clearing, never on the probe returning
+            # None. project_consumer_mismatch also returns None when the seller
+            # is already degraded for an unrelated reason, and retiring there
+            # would mint a new issue_id and opened_at on the later repair --
+            # resetting the escalation clock on a disagreement that never went
+            # away. The spec carries opened_at unchanged and retires a
+            # CONSUMER_STATUS_MISMATCH only per consumer_mismatch_lifecycle.
+            existing = await self._store.get_issue(
+                issue_key=issue_key, account_id=caller.account_id
             )
+            if existing is not None and existing.issue_state != "waived":
+                # A waived issue is already retired from the projection by
+                # agreement. Moving it to `resolved` would overwrite that
+                # readable act with a different one, and the forward-only
+                # lifecycle forbids the edge anyway.
+                await self._store.retire_issue(
+                    issue_key=issue_key,
+                    account_id=caller.account_id,
+                    at=snapshot.ledger_as_of,
+                )
+            return None
+        if probe is None:
+            # The condition stands but the seller is already degraded for its
+            # own reasons, so this caller's view needs no second issue. Leave
+            # the occurrence open: opened_at survives to the repair.
             return None
         lifecycle = await self._store.ensure_issue_opened(
             issue_key=issue_key,

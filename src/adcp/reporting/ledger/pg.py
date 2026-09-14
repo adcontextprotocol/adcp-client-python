@@ -93,6 +93,7 @@ from adcp.reporting.ledger.store import (
     LedgerConflictError,
     LedgerPage,
     ReportingRowPage,
+    check_issue_state_transition,
     decode_cursor,
     encode_cursor,
     reject_reserved_authoritative_party,
@@ -868,6 +869,7 @@ class PgReportingLedgerStore:
                     f"no open issue {issue_key!r} for this account; a retired issue cannot be "
                     "reopened, and a recurrence gets a new occurrence",
                 )
+            check_issue_state_transition(live.issue_state, state)
             await connection.execute(
                 "UPDATE reporting_issue_lifecycle"
                 " SET issue_state = %s,"
@@ -1350,7 +1352,7 @@ def _status_from_row(row: Sequence[Any]) -> ConsumerStatusRecord:
 
 
 def _consumer_status_payload(status: ConsumerStatusRecord) -> dict[str, Any]:
-    return {
+    payload: dict[str, Any] = {
         "chain": list(status.chain_key),
         "consumer_status": status.consumer_status,
         "status_as_of": _utc(status.status_as_of).isoformat(),
@@ -1359,11 +1361,20 @@ def _consumer_status_payload(status: ConsumerStatusRecord) -> dict[str, Any]:
         "revision": status.reporting_revision_id,
         "digest": status.observed_revision_content_sha256,
         "failure_code": status.failure_code,
-        # In the digest so a retry that changes only the mismatch_code is an
-        # idempotency conflict rather than a silent overwrite: "the metric is
-        # missing" and "the currency is wrong" are different claims.
-        "mismatch_code": status.mismatch_code,
     }
+    # Conditional on purpose. ``canonical_json_utf8_v1`` encodes ``None`` as
+    # ``null``, so including the key unconditionally would change the digest of
+    # every statement that has no mismatch_code -- i.e. every row an rc.2 SDK
+    # wrote. After an in-place upgrade a buyer's exact retry would then fail
+    # with STATUS_IDENTITY_CONFLICT instead of replaying as ``unchanged``,
+    # which is the one thing an idempotent append-only surface must never do.
+    # Omitting the key when absent keeps rc.2 digests byte-identical while a
+    # code-only change is still a conflict: "the metric is missing" and "the
+    # currency is wrong" are different claims and must not share one immutable
+    # identity.
+    if status.mismatch_code is not None:
+        payload["mismatch_code"] = status.mismatch_code
+    return payload
 
 
 def _revision_payload(revision: ReportingRevisionRecord) -> dict[str, Any]:

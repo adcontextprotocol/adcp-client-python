@@ -31,7 +31,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -198,25 +198,58 @@ class ReportingProducer:
         """
         return self._escalation
 
-    def advertised_reporting_delivery(self, *, consumer_status_task: bool) -> dict[str, Any]:
-        """The ``media_buy.reporting_delivery`` fragment this producer supports.
+    def advertised_reporting_delivery(
+        self,
+        *,
+        consumer_status_task: bool,
+        offerings: Sequence[Mapping[str, Any]],
+        automated_recovery_window: timedelta,
+        status_retention_days: int,
+        extra: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """The complete ``media_buy.reporting_delivery`` block for this producer.
 
-        Merge it into the seller's ``get_adcp_capabilities`` response. Kept here
-        rather than in the status handler because what a seller *advertises* is
-        a property of the producer it actually runs -- advertising
-        ``consumer_status_task`` while the ingest is disabled is the
-        half-implemented loop this module's docstring warns about, so the caller
-        has to state it explicitly.
+        Returns a *whole* capability document, not a fragment, so the result can
+        be validated against ``core/reporting-delivery-capabilities.json``
+        before it is published. A fragment would push six required fields onto
+        the caller to remember, and an under-filled capability block is exactly
+        the kind of thing that passes review and fails a buyer's validator.
+
+        The seller supplies what only it knows -- its ``offerings``, its
+        seller-wide recovery window and retention. This method supplies the task
+        names and the Reliable Reporting declarations, because those follow from
+        the producer actually running rather than from configuration.
+
+        ``consumer_status_task`` is an explicit argument rather than inferred:
+        advertising it while the ingest is disabled is the half-implemented loop
+        this module's docstring warns about, and a buyer that can file
+        statements nobody reads believes it has told you.
         """
-        payload: dict[str, Any] = {"reliable_reporting_version": "1.0", "supported": True}
-        if consumer_status_task:
-            payload["consumer_status_task"] = True
-        payload.update(self._escalation.to_wire())
-        if "consumer_mismatch_escalation_seconds" in payload and not consumer_status_task:
+        if not consumer_status_task and self._escalation.consumer_mismatch_escalation is not None:
             raise ValueError(
                 "consumer_mismatch_escalation_seconds requires consumer_status_task: an "
                 "escalation commitment on a loop no buyer can post to is unpublishable"
             )
+        payload: dict[str, Any] = {
+            "supported": True,
+            "reliable_reporting_version": "1.0",
+            "configuration_task": "sync_accounts",
+            "status_task": "get_reporting_status",
+            # Required whenever reliable_reporting_version is 1.0, and again
+            # whenever consumer_status_task is present. Both fields are `const`
+            # *task names* in the schema, not booleans: a seller advertises
+            # which task serves the capability, so emitting `true` produces a
+            # block that fails its own capabilities schema.
+            "revision_content_task": "get_media_buy_delivery",
+            "offerings": [dict(offering) for offering in offerings],
+            "automated_recovery_window_seconds": int(automated_recovery_window.total_seconds()),
+            "status_retention_days": status_retention_days,
+        }
+        if consumer_status_task:
+            payload["consumer_status_task"] = "sync_reporting_status"
+        payload.update(self._escalation.to_wire())
+        if extra:
+            payload.update(extra)
         return payload
 
     # -- the worker turn -------------------------------------------------

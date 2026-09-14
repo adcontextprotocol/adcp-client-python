@@ -9,7 +9,7 @@ consumer's own statement degrades only its own view.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -38,6 +38,27 @@ from adcp.reporting.ledger import (
 
 ACCOUNT = "acct_1"
 CALLER = ReportingStatusCaller(account_id=ACCOUNT, consumer_id="buyer_1")
+
+_OFFERING: dict[str, Any] = {
+    "offering_id": "HOURLY_SNAPSHOT_V1",
+    "feed_purpose": "analytics",
+    "report_definition_id": "daily_delivery_v1",
+    "report_definition_uri": "https://contracts.example.test/reporting/daily-delivery-v1",
+    "report_definition_sha256": "a" * 64,
+    "reporting_profile": {
+        "id": "paid_media_delivery",
+        "version": "1.0.0",
+        "schema_uri": "https://contracts.example.test/reporting/rows-v1.json",
+        "schema_sha256": "b" * 64,
+        "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+        "schema_ref_policy": "local_fragment_only",
+        "grain": "one row per media buy per period",
+        "primary_keys": ["media_buy_id"],
+    },
+    "schedule": {"period_duration": "PT1H", "delivery_sla": "PT1H", "alignment": "utc"},
+    "supported_finality": ["snapshot"],
+    "reconciliation_mode": "delivery_only",
+}
 
 HOURLY = ReportingScheduleSpec(period_duration="PT1H", delivery_sla="PT1H", alignment="utc")
 
@@ -729,7 +750,7 @@ async def test_the_ingest_is_off_by_default() -> None:
 
 async def test_a_statement_records_and_replays_idempotently() -> None:
     store, _ = await _seeded()
-    ingest = ConsumerStatusIngest(store, enabled=True)
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
     request = {"statuses": [_statement()]}
     first = await ingest.handle(request, account_id=ACCOUNT, consumer_id="buyer_1")
     assert first["results"][0]["result"] == "recorded"
@@ -741,7 +762,7 @@ async def test_obligation_missing_needs_no_seller_obligation_id() -> None:
     # Requiring one would make the first missing report invisible again.
     store = InMemoryReportingLedgerStore(clock=lambda: datetime(2026, 9, 30, tzinfo=timezone.utc))
     await store.put_configuration(_configuration())
-    ingest = ConsumerStatusIngest(store, enabled=True)
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
     result = await ingest.handle(
         {"statuses": [_statement()]}, account_id=ACCOUNT, consumer_id="buyer_1"
     )
@@ -750,7 +771,7 @@ async def test_obligation_missing_needs_no_seller_obligation_id() -> None:
 
 async def test_the_wire_conditionals_are_enforced_from_the_schema() -> None:
     store, _ = await _seeded()
-    ingest = ConsumerStatusIngest(store, enabled=True)
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
     result = await ingest.handle(
         {"statuses": [_statement(consumer_status="received")]},
         account_id=ACCOUNT,
@@ -762,7 +783,7 @@ async def test_the_wire_conditionals_are_enforced_from_the_schema() -> None:
 
 async def test_supersession_is_atomic_and_exact() -> None:
     store, _ = await _seeded()
-    ingest = ConsumerStatusIngest(store, enabled=True)
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
     await ingest.handle({"statuses": [_statement()]}, account_id=ACCOUNT, consumer_id="buyer_1")
 
     # A second statement that does not supersede the leaf is refused.
@@ -808,7 +829,7 @@ async def test_supersession_is_atomic_and_exact() -> None:
 
 async def test_a_batch_may_not_carry_two_updates_for_one_chain() -> None:
     store, _ = await _seeded()
-    ingest = ConsumerStatusIngest(store, enabled=True)
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
     result = await ingest.handle(
         {
             "statuses": [
@@ -825,7 +846,7 @@ async def test_a_batch_may_not_carry_two_updates_for_one_chain() -> None:
 
 async def test_an_unknown_configuration_generation_is_refused() -> None:
     store, _ = await _seeded()
-    ingest = ConsumerStatusIngest(store, enabled=True)
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
     result = await ingest.handle(
         {"statuses": [_statement(delivery_config_version=99)]},
         account_id=ACCOUNT,
@@ -838,7 +859,7 @@ async def test_a_conflicting_statement_degrades_only_the_submitting_caller() -> 
     store, obligation = await _seeded()
     revision, rows = _revision(obligation)
     await store.commit_revision(revision, rows)
-    ingest = ConsumerStatusIngest(store, enabled=True)
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
     await ingest.handle(
         {"statuses": [_statement(consumer_status="obligation_missing")]},
         account_id=ACCOUNT,
@@ -874,7 +895,7 @@ async def test_received_against_a_superseded_revision_is_a_mismatch() -> None:
     )
     await store.commit_revision(second, rows2)
 
-    ingest = ConsumerStatusIngest(store, enabled=True)
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
     await ingest.handle(
         {
             "statuses": [
@@ -914,7 +935,7 @@ async def test_a_chain_filed_before_the_obligation_attaches_after_repair() -> No
     store = InMemoryReportingLedgerStore(clock=lambda: datetime(2026, 9, 30, tzinfo=timezone.utc))
     configuration = _configuration()
     await store.put_configuration(configuration)
-    ingest = ConsumerStatusIngest(store, enabled=True)
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
     await ingest.handle({"statuses": [_statement()]}, account_id=ACCOUNT, consumer_id="buyer_1")
     obligation = await store.commit_obligation(_obligation(configuration))
     attached = await store.list_consumer_statuses(
@@ -927,7 +948,7 @@ async def test_a_chain_filed_before_the_obligation_attaches_after_repair() -> No
 
 async def test_consumer_statuses_are_not_disclosed_across_callers() -> None:
     store, _ = await _seeded()
-    ingest = ConsumerStatusIngest(store, enabled=True)
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
     await ingest.handle({"statuses": [_statement()]}, account_id=ACCOUNT, consumer_id="buyer_1")
     handler = ReportingStatusHandler(store, consumer_status_enabled=True)
     theirs = await handler.handle(
@@ -993,7 +1014,7 @@ async def _received_then_restated(
                 created_at=_utc_at(2026, 9, 1, 3, 0) + timedelta(hours=index),
             )
         )
-    ingest = ConsumerStatusIngest(store, enabled=True)
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
     posted = await ingest.handle(
         {
             "statuses": [
@@ -1024,7 +1045,7 @@ async def test_content_mismatch_round_trips_with_its_closed_code() -> None:
     # which contract fact was contradicted.
     store, obligation = await _seeded()
     revision = await store.commit_revision(*_revision(obligation))
-    ingest = ConsumerStatusIngest(store, enabled=True)
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
     result = await ingest.handle(
         {
             "statuses": [
@@ -1064,7 +1085,7 @@ async def test_a_content_mismatch_retry_that_changes_only_the_code_is_a_conflict
     # overwrite the recorded one under the same immutable identity.
     store, obligation = await _seeded()
     revision = await store.commit_revision(*_revision(obligation))
-    ingest = ConsumerStatusIngest(store, enabled=True)
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
 
     def payload(code: str) -> dict[str, Any]:
         return {
@@ -1143,7 +1164,7 @@ async def test_the_issue_keeps_one_id_and_opened_at_across_the_severity_change()
             created_at=_utc_at(2026, 9, 1, 3, 0),
         )
     )
-    await ConsumerStatusIngest(store, enabled=True).handle(
+    await ConsumerStatusIngest(store, enabled=True, clock=store._clock).handle(
         {
             "statuses": [
                 _rc3_statement(
@@ -1200,7 +1221,7 @@ async def test_an_advertised_escalation_window_beats_the_grace_window() -> None:
             created_at=_utc_at(2026, 9, 1, 3, 0),
         )
     )
-    await ConsumerStatusIngest(store, enabled=True).handle(
+    await ConsumerStatusIngest(store, enabled=True, clock=store._clock).handle(
         {
             "statuses": [
                 _rc3_statement(
@@ -1259,7 +1280,7 @@ async def test_silence_is_counted_and_changes_no_health() -> None:
 async def test_any_posted_status_clears_the_pending_count() -> None:
     store, obligation = await _seeded()
     revision = await store.commit_revision(*_revision(obligation))
-    await ConsumerStatusIngest(store, enabled=True).handle(
+    await ConsumerStatusIngest(store, enabled=True, clock=store._clock).handle(
         {
             "statuses": [
                 _rc3_statement(
@@ -1294,7 +1315,7 @@ async def test_a_waived_mismatch_leaves_the_view_degraded_without_publishing_it(
     # one outcome this separately attributed loop exists to prevent.
     store, obligation = await _seeded()
     await store.commit_revision(*_revision(obligation))
-    await ConsumerStatusIngest(store, enabled=True).handle(
+    await ConsumerStatusIngest(store, enabled=True, clock=store._clock).handle(
         {"statuses": [_statement()]}, account_id=ACCOUNT, consumer_id="buyer_1"
     )
     handler = ReportingStatusHandler(store, consumer_status_enabled=True)
@@ -1329,7 +1350,7 @@ async def test_an_operator_cannot_resolve_a_live_mismatch() -> None:
     # answer mypy gives.
     store, obligation = await _seeded()
     await store.commit_revision(*_revision(obligation))
-    await ConsumerStatusIngest(store, enabled=True).handle(
+    await ConsumerStatusIngest(store, enabled=True, clock=store._clock).handle(
         {"statuses": [_statement()]}, account_id=ACCOUNT, consumer_id="buyer_1"
     )
     handler = ReportingStatusHandler(store, consumer_status_enabled=True)
@@ -1356,7 +1377,7 @@ async def test_an_operator_cannot_resolve_a_live_mismatch() -> None:
 async def test_a_recurrence_after_retirement_gets_a_new_issue_id() -> None:
     store, obligation = await _seeded()
     revision = await store.commit_revision(*_revision(obligation))
-    ingest = ConsumerStatusIngest(store, enabled=True)
+    ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
     handler = ReportingStatusHandler(store, consumer_status_enabled=True)
 
     await ingest.handle({"statuses": [_statement()]}, account_id=ACCOUNT, consumer_id="buyer_1")
@@ -1428,3 +1449,397 @@ async def test_authoritative_party_seller_is_the_accepted_default() -> None:
     await store.put_configuration(_configuration())
     stored = await store.list_configurations(account_id=ACCOUNT)
     assert [item.authoritative_party for item in stored] == ["seller"]
+
+
+# -- review fixes ------------------------------------------------------------
+
+
+def test_the_identity_digest_omits_an_absent_mismatch_code() -> None:
+    # BLOCKING regression guard. canonical_json_utf8_v1 encodes None as null,
+    # so carrying the key unconditionally would change the digest of every
+    # statement an rc.2 SDK wrote. After an in-place upgrade a buyer's exact
+    # retry would then fail with STATUS_IDENTITY_CONFLICT instead of replaying
+    # as `unchanged` -- the one thing an idempotent append-only surface must
+    # never do.
+    from adcp.reporting.ledger.models import ConsumerStatusRecord
+    from adcp.reporting.ledger.pg import _consumer_status_payload
+    from adcp.reporting.ledger.store import _consumer_status_identity
+
+    def record(**overrides):
+        base = dict(
+            reporting_status_id="status_digest_00000001",
+            account_id=ACCOUNT,
+            consumer_id="buyer_1",
+            delivery_config_id="daily_reporting",
+            delivery_config_version=1,
+            report_definition_id="daily_delivery_v1",
+            period_start=_utc_at(2026, 9, 1, 1),
+            period_end=_utc_at(2026, 9, 1, 2),
+            period_source_timezone="UTC",
+            consumer_status="received",
+            status_as_of=_utc_at(2026, 9, 1, 3),
+            recorded_at=_utc_at(2026, 9, 1, 3),
+        )
+        base.update(overrides)
+        return ConsumerStatusRecord(**base)
+
+    without = record()
+    assert "mismatch_code" not in _consumer_status_payload(without)
+
+    # ...and the key IS present once there is a code, so a code-only change is
+    # still an idempotency conflict rather than a silent overwrite.
+    with_code = record(mismatch_code="metric_missing")
+    assert _consumer_status_payload(with_code)["mismatch_code"] == "metric_missing"
+    assert _consumer_status_identity(without) != _consumer_status_identity(with_code)
+
+
+def test_issue_state_moves_only_forward() -> None:
+    # Without refusing the reverse edges an operator could un-waive an issue
+    # and republish the same issue_id and opened_at -- resurrecting a work item
+    # both parties agreed to stop acting on, under an identity the consumer has
+    # already filed away.
+    from adcp.reporting.ledger import check_issue_state_transition
+
+    for current, requested in (
+        ("open", "acknowledged"),
+        ("open", "waived"),
+        ("acknowledged", "waived"),
+        ("acknowledged", "acknowledged"),
+    ):
+        check_issue_state_transition(current, requested)
+
+    for current, requested in (
+        ("waived", "acknowledged"),
+        ("waived", "open"),
+        ("resolved", "acknowledged"),
+        ("resolved", "open"),
+        ("acknowledged", "open"),
+    ):
+        with pytest.raises(LedgerConflictError) as caught:
+            check_issue_state_transition(current, requested)
+        assert caught.value.code == "ISSUE_STATE_TRANSITION_INVALID"
+
+
+async def test_a_waived_issue_cannot_be_un_waived_through_the_store() -> None:
+    store, obligation, issue_key = await _open_mismatch_issue()
+    await store.set_issue_state(
+        issue_key=issue_key, account_id=ACCOUNT, state="waived", at=_utc_at(2026, 9, 30)
+    )
+    with pytest.raises(LedgerConflictError) as caught:
+        await store.set_issue_state(
+            issue_key=issue_key,
+            account_id=ACCOUNT,
+            state="acknowledged",
+            at=_utc_at(2026, 9, 30),
+        )
+    assert caught.value.code == "ISSUE_STATE_TRANSITION_INVALID"
+    del obligation
+
+
+async def test_get_issue_returns_only_live_occurrences() -> None:
+    # The Protocol docstring promises the live occurrence. Returning a retired
+    # row would let the projection re-emit a resolved issue's opened_at, and it
+    # made the two stores disagree.
+    store, _obligation, issue_key = await _open_mismatch_issue()
+    assert await store.get_issue(issue_key=issue_key, account_id=ACCOUNT) is not None
+    await store.retire_issue(issue_key=issue_key, account_id=ACCOUNT, at=_utc_at(2026, 9, 30))
+    assert await store.get_issue(issue_key=issue_key, account_id=ACCOUNT) is None
+
+
+async def _open_mismatch_issue():
+    """A store with one obligation, one conflicting statement, and its issue."""
+    store, obligation = await _seeded()
+    await store.commit_revision(*_revision(obligation))
+    await ConsumerStatusIngest(store, enabled=True, clock=store._clock).handle(
+        {"statuses": [_statement()]}, account_id=ACCOUNT, consumer_id="buyer_1"
+    )
+    issue_key = consumer_mismatch_issue_key(
+        account_id=ACCOUNT,
+        consumer_id="buyer_1",
+        delivery_config_id=obligation.delivery_config_id,
+        delivery_config_version=obligation.delivery_config_version,
+        report_definition_id=obligation.report_definition_id,
+        period_start=obligation.period.start,
+        period_end=obligation.period.end,
+    )
+    return store, obligation, issue_key
+
+
+async def test_opened_at_is_minted_at_ingest_not_at_the_first_poll() -> None:
+    # opened_at anchors the escalation clock. Deferring it to the first
+    # get_reporting_status would tie escalation to whether anyone polled: a
+    # mismatch filed and never read could never cross
+    # consumer_mismatch_escalation_seconds, which is exactly the unattended
+    # case the boundary exists for.
+    store, _obligation, issue_key = await _open_mismatch_issue()
+    live = await store.get_issue(issue_key=issue_key, account_id=ACCOUNT)
+    assert live is not None
+    assert live.opened_at == store._clock()
+    assert live.issue_state == "open"
+
+
+async def test_an_unrelated_seller_problem_does_not_reset_the_escalation_clock() -> None:
+    # project_consumer_mismatch returns None both when the condition cleared
+    # and when the seller is already degraded for its own reasons. Retiring on
+    # the latter would mint a new issue_id and opened_at on the later repair,
+    # resetting the clock on a disagreement that never went away.
+    store, obligation, issue_key = await _open_mismatch_issue()
+    handler = ReportingStatusHandler(store, consumer_status_enabled=True)
+    first = await handler.handle({"view": "summary"}, caller=CALLER)
+    opened = next(i for i in first["issues"] if i["code"] == "CONSUMER_STATUS_MISMATCH")
+
+    # The seller's own revision becomes unreadable: health leaves healthy for a
+    # reason that has nothing to do with the buyer's statement.
+    revision = (
+        await store.list_revisions(
+            account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
+        )
+    )[0]
+    await store.set_revision_readable(
+        account_id=ACCOUNT, reporting_revision_id=revision.reporting_revision_id, readable=False
+    )
+    degraded = await handler.handle({"view": "summary"}, caller=CALLER)
+    assert degraded["health"] == "action_required"
+    # The occurrence stayed open, so it is still there to carry opened_at.
+    assert await store.get_issue(issue_key=issue_key, account_id=ACCOUNT) is not None
+
+    # The seller repairs. The same issue comes back with the same identity.
+    await store.set_revision_readable(
+        account_id=ACCOUNT, reporting_revision_id=revision.reporting_revision_id, readable=True
+    )
+    repaired = await handler.handle({"view": "summary"}, caller=CALLER)
+    again = next(i for i in repaired["issues"] if i["code"] == "CONSUMER_STATUS_MISMATCH")
+    assert again["issue_id"] == opened["issue_id"]
+    assert again["opened_at"] == opened["opened_at"]
+
+
+async def test_a_waived_issue_is_never_moved_to_resolved_by_the_projection() -> None:
+    store, obligation, issue_key = await _open_mismatch_issue()
+    handler = ReportingStatusHandler(store, consumer_status_enabled=True)
+    await handler.handle({"view": "summary"}, caller=CALLER)
+    await store.set_issue_state(
+        issue_key=issue_key, account_id=ACCOUNT, state="waived", at=_utc_at(2026, 9, 30)
+    )
+    revision = (
+        await store.list_revisions(
+            account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
+        )
+    )[0]
+    # The buyer supersedes with an agreeing statement, so the condition clears.
+    await ConsumerStatusIngest(store, enabled=True, clock=store._clock).handle(
+        {
+            "statuses": [
+                _statement(
+                    reporting_status_id="status_2026_09_01_0100_09",
+                    supersedes_reporting_status_id="status_2026_09_01_0100_01",
+                    consumer_status="received",
+                    reporting_obligation_id=obligation.reporting_obligation_id,
+                    reporting_revision_id=revision.reporting_revision_id,
+                    observed_revision_content_sha256=revision.revision_content_sha256,
+                    status_as_of="2026-09-01T06:00:00Z",
+                )
+            ]
+        },
+        account_id=ACCOUNT,
+        consumer_id="buyer_1",
+    )
+    await handler.handle({"view": "summary"}, caller=CALLER)
+    # Waived stays waived: overwriting it with `resolved` would replace one
+    # readable act with a different one, and the forward-only lifecycle forbids
+    # the edge anyway.
+    async with store._lock:
+        stored = store._issues[(ACCOUNT, issue_key)]
+    assert stored.issue_state == "waived"
+
+
+# -- ingest identity resolution ---------------------------------------------
+
+
+async def test_a_statement_naming_an_unresolvable_obligation_is_refused() -> None:
+    # Recording it would let a buyer dispute a period against an obligation
+    # that does not exist for this caller, and have the seller project
+    # action_required against itself over it.
+    store, _obligation = await _seeded()
+    result = await ConsumerStatusIngest(store, enabled=True, clock=store._clock).handle(
+        {
+            "statuses": [
+                _statement(
+                    consumer_status="revision_missing",
+                    reporting_obligation_id="rpo_does_not_exist",
+                )
+            ]
+        },
+        account_id=ACCOUNT,
+        consumer_id="buyer_1",
+    )
+    entry = result["results"][0]
+    assert entry["result"] == "failed"
+    assert entry["errors"][0]["code"] == "LOOKUP_UNAVAILABLE"
+
+
+async def test_a_statement_naming_an_unresolvable_revision_is_refused() -> None:
+    store, obligation = await _seeded()
+    await store.commit_revision(*_revision(obligation))
+    result = await ConsumerStatusIngest(store, enabled=True, clock=store._clock).handle(
+        {
+            "statuses": [
+                _rc3_statement(
+                    reporting_obligation_id=obligation.reporting_obligation_id,
+                    reporting_revision_id="rpr_does_not_exist",
+                    observed_revision_content_sha256="f" * 64,
+                )
+            ]
+        },
+        account_id=ACCOUNT,
+        consumer_id="buyer_1",
+    )
+    entry = result["results"][0]
+    assert entry["result"] == "failed"
+    assert entry["errors"][0]["code"] == "LOOKUP_UNAVAILABLE"
+
+
+async def test_an_obligation_id_for_a_different_period_is_refused() -> None:
+    # The id resolves but describes another period. Attaching this chain to it
+    # would violate the chain-immutability rule.
+    store, obligation = await _seeded()
+    result = await ConsumerStatusIngest(store, enabled=True, clock=store._clock).handle(
+        {
+            "statuses": [
+                _statement(
+                    consumer_status="revision_missing",
+                    reporting_obligation_id=obligation.reporting_obligation_id,
+                    period={
+                        "start": "2026-09-02T01:00:00Z",
+                        "end": "2026-09-02T02:00:00Z",
+                        "source_timezone": "UTC",
+                    },
+                )
+            ]
+        },
+        account_id=ACCOUNT,
+        consumer_id="buyer_1",
+    )
+    entry = result["results"][0]
+    assert entry["result"] == "failed"
+    assert entry["errors"][0]["code"] == "OBLIGATION_IDENTITY_MISMATCH"
+
+
+async def test_content_mismatch_against_a_superseded_revision_is_refused() -> None:
+    # content_mismatch is valid only against a revision the seller *currently
+    # requires*. Against a superseded one the dispute is already moot -- the
+    # seller replaced the content -- and recording it would degrade the
+    # caller's own view over bytes neither party stands behind.
+    store = InMemoryReportingLedgerStore(clock=lambda: _utc_at(2026, 9, 30))
+    configuration = _configuration(required_finality="snapshot")
+    await store.put_configuration(configuration)
+    obligation = await store.commit_obligation(_obligation(configuration))
+    first = await store.commit_revision(
+        *_revision(obligation, reporting_revision_id="rpr_snap_1", finality="snapshot")
+    )
+    await store.commit_revision(
+        *_revision(
+            obligation,
+            reporting_revision_id="rpr_snap_2",
+            finality="snapshot",
+            supersedes_reporting_revision_id=first.reporting_revision_id,
+        )
+    )
+    result = await ConsumerStatusIngest(store, enabled=True, clock=store._clock).handle(
+        {
+            "statuses": [
+                _rc3_statement(
+                    consumer_status="content_mismatch",
+                    reporting_obligation_id=obligation.reporting_obligation_id,
+                    reporting_revision_id=first.reporting_revision_id,
+                    observed_revision_content_sha256=first.revision_content_sha256,
+                    mismatch_code="metric_missing",
+                )
+            ]
+        },
+        account_id=ACCOUNT,
+        consumer_id="buyer_1",
+    )
+    entry = result["results"][0]
+    assert entry["result"] == "failed"
+    assert entry["errors"][0]["code"] == "REVISION_NOT_CURRENTLY_REQUIRED"
+
+
+# -- the advertised capability block ----------------------------------------
+
+
+def test_the_advertised_capability_block_validates_against_the_rc3_schema() -> None:
+    # consumer_status_task and revision_content_task are `const` *task names*,
+    # not booleans, and the schema's allOf requires revision_content_task
+    # whenever consumer_status_task is present. Emitting `true` produced a
+    # block that failed its own capabilities schema.
+    from adcp.reporting.ledger import ReportingProducer
+    from adcp.reporting.source import ReportingSourceExecutor
+    from adcp.validation.schema_loader import get_named_validator
+
+    producer = ReportingProducer(
+        source=cast(ReportingSourceExecutor, object()),
+        offerings=ProducerOfferings(snapshot_offering_id="HOURLY_SNAPSHOT_V1"),
+        store=InMemoryReportingLedgerStore(),
+        escalation=ReportingDeliveryEscalation(
+            consumer_mismatch_escalation=timedelta(hours=4),
+            operations_contact_url="https://support.seller.example/reporting",
+        ),
+    )
+    block = producer.advertised_reporting_delivery(
+        consumer_status_task=True,
+        offerings=[_OFFERING],
+        automated_recovery_window=timedelta(hours=6),
+        status_retention_days=400,
+    )
+    assert block["consumer_status_task"] == "sync_reporting_status"
+    assert block["revision_content_task"] == "get_media_buy_delivery"
+    assert block["consumer_mismatch_escalation_seconds"] == 14400
+    assert block["operations_contact"] == {"url": "https://support.seller.example/reporting"}
+
+    validator = get_named_validator("core/reporting-delivery-capabilities.json")
+    assert validator is not None
+    assert [error.message for error in sorted(validator.iter_errors(block), key=str)] == []
+
+
+def test_a_seller_without_the_loop_omits_consumer_status_task() -> None:
+    from adcp.reporting.ledger import ReportingProducer
+    from adcp.reporting.source import ReportingSourceExecutor
+    from adcp.validation.schema_loader import get_named_validator
+
+    producer = ReportingProducer(
+        source=cast(ReportingSourceExecutor, object()),
+        offerings=ProducerOfferings(snapshot_offering_id="HOURLY_SNAPSHOT_V1"),
+        store=InMemoryReportingLedgerStore(),
+    )
+    block = producer.advertised_reporting_delivery(
+        consumer_status_task=False,
+        offerings=[_OFFERING],
+        automated_recovery_window=timedelta(hours=6),
+        status_retention_days=400,
+    )
+    assert "consumer_status_task" not in block
+    validator = get_named_validator("core/reporting-delivery-capabilities.json")
+    assert validator is not None
+    assert [error.message for error in sorted(validator.iter_errors(block), key=str)] == []
+
+
+def test_an_escalation_commitment_without_the_loop_is_unpublishable() -> None:
+    from adcp.reporting.ledger import ReportingProducer
+    from adcp.reporting.source import ReportingSourceExecutor
+
+    producer = ReportingProducer(
+        source=cast(ReportingSourceExecutor, object()),
+        offerings=ProducerOfferings(snapshot_offering_id="HOURLY_SNAPSHOT_V1"),
+        store=InMemoryReportingLedgerStore(),
+        escalation=ReportingDeliveryEscalation(
+            consumer_mismatch_escalation=timedelta(hours=4),
+            operations_contact_email="ops@seller.example",
+        ),
+    )
+    with pytest.raises(ValueError, match="requires consumer_status_task"):
+        producer.advertised_reporting_delivery(
+            consumer_status_task=False,
+            offerings=[_OFFERING],
+            automated_recovery_window=timedelta(hours=6),
+            status_retention_days=400,
+        )
