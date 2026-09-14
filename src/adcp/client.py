@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     import httpx
     from mcp import ClientSession
 
+from adcp._null_clear import preserve_explicit_nulls
 from adcp._version import resolve_adcp_version
 from adcp.canonical_formats import (
     CanonicalFormatLegacyResolutionError,
@@ -1775,10 +1776,19 @@ class ADCPClient:
             )
         creative["format_id"] = refs[0]
 
-    def _prepare_creative_params(self, request: BaseModel) -> dict[str, Any]:
+    def _prepare_creative_params(
+        self, request: BaseModel, *, task_name: str | None = None
+    ) -> dict[str, Any]:
         """Serialize canonical input and deterministically adapt legacy peers."""
 
         params = request.model_dump(mode="json", exclude_none=True)
+        if task_name is not None:
+            # Same three-state restoration as _execute_typed_task. Without it,
+            # create/update_media_buy would drop every targeting null-clear and
+            # the MediaBuy-level frequency_cap removal.
+            params = preserve_explicit_nulls(
+                request, params, task_name=task_name, version=self._adcp_version
+            )
         if strip_legacy_creative_identity(params) != params:
             raise ValueError(
                 "primary creative methods reject legacy format identity; use the explicit "
@@ -2006,20 +2016,16 @@ class ADCPClient:
         """Execute and parse one typed AdCP task with activity events."""
         operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
-        if isinstance(request, ControlMediaBuyRequest):
-            # These control fields use null to clear an existing value. Restore
-            # only explicit clears after normal serialization; optional None
-            # defaults elsewhere still mean omission, not a mutation. Keep this
-            # on the shared client path so MCP and A2A preserve the same intent.
-            for field in ("daily_budget_cap", "budget_cap_timezone"):
-                if field in request.model_fields_set and getattr(request, field) is None:
-                    params[field] = None
-            for package, payload in zip(request.packages or [], params.get("packages", [])):
-                if (
-                    "daily_budget_cap" in package.model_fields_set
-                    and package.daily_budget_cap is None
-                ):
-                    payload["daily_budget_cap"] = None
+        # AdCP 3.2 mutation inputs are three-state: omitted leaves the stored
+        # value alone, null clears it, a value replaces it. exclude_none
+        # collapses the first two, so restore the explicit clears the caller
+        # actually asked for -- at exactly the paths the bundled request schema
+        # marks nullable, which is what keeps a meaningless ``canceled=None``
+        # from becoming a request no seller can accept. Kept on the shared
+        # client path so MCP and A2A preserve the same intent.
+        params = preserve_explicit_nulls(
+            request, params, task_name=task_type, version=self._adcp_version
+        )
         self._emit_activity(
             Activity(
                 type=ActivityType.PROTOCOL_REQUEST,
@@ -2559,7 +2565,7 @@ class ADCPClient:
         """
         dialect = self._creative_dialect(request, legacy_projection_available=True)
         operation_id = self._task_operation_id()
-        params = self._prepare_creative_params(request)
+        params = self._prepare_creative_params(request, task_name="sync_creatives")
 
         self._emit_activity(
             Activity(
@@ -2937,7 +2943,7 @@ class ADCPClient:
         """
         dialect = self._creative_dialect(request, legacy_projection_available=True)
         operation_id = self._task_operation_id()
-        params = self._prepare_creative_params(request)
+        params = self._prepare_creative_params(request, task_name="create_media_buy")
 
         self._emit_activity(
             Activity(
@@ -3014,7 +3020,7 @@ class ADCPClient:
         """
         dialect = self._creative_dialect(request, legacy_projection_available=True)
         operation_id = self._task_operation_id()
-        params = self._prepare_creative_params(request)
+        params = self._prepare_creative_params(request, task_name="update_media_buy")
 
         self._emit_activity(
             Activity(

@@ -81,6 +81,10 @@ _TOP_LEVEL_KNOWN_MUTATION_FIELDS = {
     "cancellation_reason",
     "daily_budget_cap",
     "end_time",
+    # AdCP 3.2.0-rc.3. The MediaBuy-level cap, whose counter is shared across
+    # participating packages. Without it here the field is reported as an
+    # unknown mutation and the whole update becomes unroutable.
+    "frequency_cap",
     "invoice_recipient",
     "name",
     "new_packages",
@@ -161,6 +165,13 @@ _ACTION_CANDIDATES: dict[str, tuple[str, ...]] = {
         "update_targeting",
         "update_packages",
     ),
+    # Deliberately no coarse fallbacks. `update_media_buy_frequency_cap` is a
+    # structured-only rc.3 action for a media-buy-level field with one shared
+    # counter; a seller advertising `update_frequency_caps` (per-package
+    # targeting-overlay capping) or the legacy coarse `update_packages` has not
+    # thereby advertised it, and inferring otherwise would let a buyer attempt
+    # a mutation the seller never claimed to support.
+    "update_media_buy_frequency_cap": ("update_media_buy_frequency_cap",),
     "update_impression_goal": ("update_impression_goal", "update_packages"),
     "update_keywords": ("update_keywords", "update_targeting", "update_packages"),
     "update_name": ("update_name",),
@@ -306,6 +317,7 @@ def decompose_update_media_buy(
         ("budget_allocation", "update_budget_allocation"),
         ("pacing", "update_pacing"),
         ("bidding", "update_bidding"),
+        ("frequency_cap", "update_media_buy_frequency_cap"),
         ("reporting_webhook", "update_reporting_webhook"),
     ):
         if field_name in patch_dict:

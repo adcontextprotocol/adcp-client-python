@@ -17,6 +17,7 @@ import re
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
+from functools import lru_cache
 from typing import Any, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel, ValidationError, model_validator
@@ -53,6 +54,14 @@ _CONTROL_ACTIONS = frozenset(
         "update_pacing",
         "update_bidding",
         "update_frequency_caps",
+        # AdCP 3.2.0-rc.3. A structured-only action: it is absent from the
+        # deprecated flat `media_buy_valid_action` enum and lives in
+        # `core/media-buy-available-action-id.json` instead, so an SDK that
+        # only reads the flat enum rejects a valid rc.3 mutation as
+        # `invalid_action`. Distinct from `update_frequency_caps`, which is
+        # per-package targeting-overlay capping -- this one replaces or clears
+        # the MediaBuy-level cap whose counter is shared across packages.
+        "update_media_buy_frequency_cap",
         "update_catalog_assignments",
         "update_keywords",
         "update_optimization_goals",
@@ -76,6 +85,10 @@ _REFINEMENT_ACTIONS = frozenset(
         "update_pacing",
         "update_bidding",
         "update_frequency_caps",
+        # rc.3 also lets a proposal refinement remove the aggregate cap
+        # (`proposal_refinement.remove_media_buy_frequency_cap`), so the
+        # action routes to refinement as well as to control.
+        "update_media_buy_frequency_cap",
         "add_packages",
         "remove_packages",
     }
@@ -102,6 +115,10 @@ _LEGACY_ROLLUPS: dict[str, frozenset[str]] = {
             "remove_packages",
         }
     ),
+    # Deliberately NOT rolled up under `update_packages`: the aggregate cap is
+    # a media-buy-level field with one shared counter, so a seller advertising
+    # the coarse legacy `update_packages` has not thereby advertised it. Rolling
+    # it up would let a buyer infer a capability the seller never claimed.
     "sync_creatives": _CREATIVE_ACTIONS,
 }
 
@@ -119,6 +136,47 @@ _CONSTRAINT_ACTIONS: dict[str, frozenset[str]] = {
     "package_count": frozenset({"add_packages", "remove_packages"}),
     "effective_timing": frozenset({"pause", "resume", "cancel"}),
 }
+
+
+@lru_cache(maxsize=1)
+def action_update_fields() -> Mapping[str, tuple[str, ...]]:
+    """Which ``update_media_buy`` request fields each action covers.
+
+    AdCP 3.2.0-rc.3 splits this normative map across **two** ``enumMetadata``
+    blocks and requires SDKs to merge them: the deprecated flat
+    ``enums/media-buy-valid-action.json`` plus
+    ``core/media-buy-available-action-id.json``, which carries the
+    structured-only actions that were introduced after the flat surface was
+    deprecated. Reading only the first silently omits
+    ``update_media_buy_frequency_cap`` and its ``frequency_cap`` field, so a
+    dispatcher built on it would route a valid rc.3 mutation nowhere.
+
+    Read from the bundled schemas rather than transcribed, because the spec
+    names this block -- not the task-reference table -- as the thing SDKs
+    dispatch on. A hand-copied table is a second source of truth that drifts on
+    the next release.
+
+    Returns an empty mapping when the bundle predates the fields, so an older
+    pin degrades rather than raising.
+    """
+    merged: dict[str, tuple[str, ...]] = {}
+    for name in ("enums/media-buy-valid-action.json", "core/media-buy-available-action-id.json"):
+        block = _schema_enum_metadata(name)
+        for action, metadata in block.items():
+            if action.startswith("$") or not isinstance(metadata, Mapping):
+                continue
+            fields = metadata.get("update_fields")
+            if isinstance(fields, Sequence) and not isinstance(fields, str):
+                merged[action] = tuple(str(item) for item in fields)
+    return merged
+
+
+def _schema_enum_metadata(relative_path: str) -> Mapping[str, Any]:
+    from adcp.validation.schema_loader import get_named_schema_document
+
+    document = get_named_schema_document(relative_path)
+    block = (document or {}).get("enumMetadata")
+    return block if isinstance(block, Mapping) else {}
 
 
 class ActionKnowledge(StrEnum):
@@ -1442,6 +1500,7 @@ __all__ = [
     "MediaBuyActionError",
     "MediaBuyActionProjection",
     "ProjectedMediaBuyAction",
+    "action_update_fields",
     "assess_media_buy_action",
     "assess_update_media_buy_actions",
     "dispatch_media_buy_action",

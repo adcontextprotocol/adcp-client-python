@@ -631,6 +631,39 @@ def get_schema(
     return deepcopy(schema)
 
 
+def get_named_schema_document(
+    relative_path: str,
+    *,
+    version: str | None = None,
+) -> dict[str, Any] | None:
+    """Return a bundled non-task schema document, uncompiled.
+
+    The document counterpart to :func:`get_named_validator`. Some SDK helpers
+    need a schema's *data* rather than its validation behavior -- notably the
+    normative ``enumMetadata`` blocks the spec requires SDKs to dispatch on,
+    which carry no validation semantics at all.
+
+    ``relative_path`` is relative to the versioned schema root, e.g.
+    ``"enums/media-buy-valid-action.json"``. Path traversal is refused and a
+    missing document returns ``None``, so an older pin degrades rather than
+    raising.
+    """
+    path = Path(relative_path)
+    if path.is_absolute() or not path.parts or ".." in path.parts:
+        return None
+    state = _ensure_state(version)
+    if state is None:
+        return None
+    file = state.root.root.joinpath(*path.parts)
+    try:
+        if not file.is_file() or not file.resolve().is_relative_to(state.root.root.resolve()):
+            return None
+        document = json.loads(file.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    return deepcopy(document) if isinstance(document, dict) else None
+
+
 def get_bundle_adcp_version(*, version: str | None = None) -> str | None:
     """Return the exact AdCP release declared by a resolved schema bundle.
 
