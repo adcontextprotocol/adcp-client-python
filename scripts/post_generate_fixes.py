@@ -845,6 +845,16 @@ def fix_constr_type_annotations():
 # See: https://github.com/adcontextprotocol/adcp-client-python/issues/155
 _UNWRAP_TO_UNION: set[str] = {
     "AcceptProposalResponse",
+    # Value type, unlike the rest of this set. AdCP 3.2.0-rc.3 replaced the
+    # plain MediaBuyValidAction enum on ProductAllowedAction.action,
+    # MediaBuyAvailableAction.action, and ActionNotAllowed.attempted_action
+    # with this named anyOf of that enum plus one const. Keeping the RootModel
+    # wrapper would break every adopter that writes action="pause" or
+    # action=MediaBuyValidAction.pause -- a wrapper the schema does not ask
+    # for, since anyOf of an enum and a const is a plain union. The root
+    # field's description/title are documentation only; each use site carries
+    # its own description.
+    "MediaBuyAvailableActionId",
     "BuyProductsResponse",
     "CheckGovernanceRequest",
     "ControlMediaBuyResponse",
@@ -906,10 +916,11 @@ def unwrap_rootmodel_unions():
     With:
         TypeName = Variant1 | Variant2
 
-    Note: The types in _UNWRAP_TO_UNION are all Request/Response types whose
+    Note: the types in _UNWRAP_TO_UNION are Request/Response types whose
     root: fields had no meaningful Field(description=..., examples=[...])
-    metadata. Value-type RootModels that carry rich metadata are intentionally
-    excluded and keep the RootModel wrapper + __getattr__ proxy.
+    metadata. Value-type RootModels that carry rich metadata are otherwise
+    intentionally excluded and keep the RootModel wrapper + __getattr__ proxy;
+    MediaBuyAvailableActionId is the documented exception (see the set).
     """
     unwrapped_count = 0
 

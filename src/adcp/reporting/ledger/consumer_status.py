@@ -65,7 +65,7 @@ import hashlib
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from adcp.reporting.ledger.health import issue_id_for
 from adcp.reporting.ledger.models import (
@@ -144,6 +144,22 @@ class ConsumerStatusIngest:
             problems = _validate_consumer_status_wire(statement)
             if problems:
                 results.append(_failed(status_id, "INVALID_CONSUMER_STATUS", problems[0]))
+                continue
+            if statement.get("consumer_status") == "content_mismatch":
+                # rc.3 adds this status and its closed ``mismatch_code``. The
+                # bundled schema now accepts it, but this ledger has nowhere to
+                # put the code yet, so accepting the statement would silently
+                # discard the one field that makes it actionable. Reject it
+                # visibly until the storage and projection land.
+                results.append(
+                    _failed(
+                        status_id,
+                        "UNSUPPORTED_FEATURE",
+                        "content_mismatch is accepted by the AdCP 3.2.0-rc.3 schema but this "
+                        "seller ledger does not yet record its mismatch_code; file "
+                        "revision_missing or unreadable, or upgrade the SDK",
+                    )
+                )
                 continue
             try:
                 record = self._to_record(statement, account_id=account_id, consumer_id=consumer_id)
@@ -235,7 +251,10 @@ class ConsumerStatusIngest:
             period_start=_utc(period.start),
             period_end=_utc(period.end),
             period_source_timezone=period.source_timezone,
-            consumer_status=parsed.consumer_status.value,
+            # ``content_mismatch`` is rejected above, so the remaining four values
+            # are exactly the record's Literal. Narrowing here keeps that
+            # invariant checked rather than asserted.
+            consumer_status=_narrow_recorded_status(parsed.consumer_status.value),
             status_as_of=_utc(parsed.status_as_of),
             recorded_at=datetime.now(timezone.utc),
             supersedes_reporting_status_id=parsed.supersedes_reporting_status_id,
@@ -249,6 +268,22 @@ class ConsumerStatusIngest:
                 _utc(parsed.seller_ledger_as_of) if parsed.seller_ledger_as_of else None
             ),
         )
+
+
+RecordedConsumerStatus = Literal["received", "obligation_missing", "revision_missing", "unreadable"]
+
+
+def _narrow_recorded_status(value: str) -> RecordedConsumerStatus:
+    """Narrow a schema consumer_status to the four this ledger can record.
+
+    The bundled AdCP 3.2.0-rc.3 schema has five values; ``content_mismatch`` is
+    rejected at ingest because there is nowhere to store its ``mismatch_code``.
+    Raising rather than silently coercing means a future schema value cannot
+    reach storage as a plausible-looking wrong status.
+    """
+    if value in {"received", "obligation_missing", "revision_missing", "unreadable"}:
+        return cast(RecordedConsumerStatus, value)
+    raise ValueError(f"consumer_status {value!r} is not recordable by this ledger")
 
 
 def _validate_consumer_status_wire(payload: dict[str, Any]) -> list[str]:

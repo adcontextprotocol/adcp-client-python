@@ -15,6 +15,7 @@ from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core import media_buy_available_action as media_buy_available_action_1
+from ..core import media_buy_frequency_cap as media_buy_frequency_cap_1
 from ..core import package as package_1
 from ..core import planned_delivery as planned_delivery_1
 from ..core import warning as warning_1
@@ -41,6 +42,7 @@ class CreateMediaBuyResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None = None
     total_budget: Annotated[float, Field(ge=0)] | None = None
     daily_budget_cap: Annotated[float, Field(ge=0)] | None = None
+    frequency_cap: media_buy_frequency_cap_1.MediaBuyFrequencyCap | None = None
     budget_cap_timezone: str | None = None
     budget_allocation: Any | None = None
     pacing: pacing_1.Pacing | None = None

@@ -2175,6 +2175,27 @@ from adcp.types.generated_poc.core.reference_renderer import (
 from adcp.types.generated_poc.core.real_estate_item import (
     Unit as RealEstateUnit,
 )
+from adcp.types.generated_poc.core.reporting_consumer_status import (
+    ConsumerStatus as ReportingConsumerStatusValue,
+)
+from adcp.types.generated_poc.core.reporting_consumer_status import (
+    FailureCode as ReportingConsumerFailureCode,
+)
+from adcp.types.generated_poc.core.reporting_consumer_status import (
+    MismatchCode as ReportingConsumerMismatchCode,
+)
+from adcp.types.generated_poc.core.reporting_delivery_capabilities import (
+    OperationsContact as ReportingOperationsContact,
+)
+from adcp.types.generated_poc.core.reporting_delivery_config import (
+    AuthoritativeParty as ReportingAuthoritativeParty,
+)
+from adcp.types.generated_poc.core.reporting_status_issue import (
+    IssueState as ReportingIssueState,
+)
+from adcp.types.generated_poc.core.reporting_status_issue import (
+    RecommendedAction as ReportingIssueRecommendedAction,
+)
 from adcp.types.generated_poc.core.reporting_webhook import (
     Authentication as ReportingWebhookAuthentication,
 )
@@ -2186,6 +2207,9 @@ from adcp.types.generated_poc.core.vehicle_item import (
 )
 from adcp.types.generated_poc.core.wholesale_feed_event import (
     Signal as WholesaleFeedSignal,
+)
+from adcp.types.generated_poc.media_buy.get_reporting_status_response import (
+    ObligationCounts as ReportingObligationCounts,
 )
 from adcp.types.generated_poc.creative.get_creative_delivery_response import (
     Creative as DeliveryCreative,
@@ -2325,6 +2349,14 @@ __all__ = [
     # Authentication
     "PushNotificationAuthentication",
     "NotificationAuthentication",
+    "ReportingAuthoritativeParty",
+    "ReportingConsumerFailureCode",
+    "ReportingConsumerMismatchCode",
+    "ReportingConsumerStatusValue",
+    "ReportingIssueRecommendedAction",
+    "ReportingIssueState",
+    "ReportingObligationCounts",
+    "ReportingOperationsContact",
     "ReportingWebhookAuthentication",
     "GovernanceAuthentication",
     "CreateMediaBuyAuthentication",
