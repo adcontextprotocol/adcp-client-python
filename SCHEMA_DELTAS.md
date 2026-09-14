@@ -1,46 +1,112 @@
 # Generated-types delta
 
-## Files removed
+## Files added
 
+- `core/applicable_package_id.py` — ApplicablePackageId
+- `core/frequency_cap_constraints.py` — FrequencyCapConstraints
+- `core/frequency_cap_duration_unit.py` — FrequencyCapDurationUnit
+- `core/frequency_cap_impression_constraints.py` — AllowedValue, FrequencyCapImpressionConstraints
+- `core/frequency_cap_interval_constraints.py` — AllowedInterval, FrequencyCapIntervalConstraints
+- `core/frequency_cap_requirements.py` — FrequencyCapRequirements
 - `core/geo_metro.py` — GeoMetro
+- `core/media_buy_frequency_cap_capability.py` — MediaBuyFrequencyCapCapability
+- `core/media_buy_frequency_cap_requirement.py` — MediaBuyFrequencyCapRequirement
+- `core/media_buy_frequency_cap_support.py` — MediaBuyFrequencyCapSupport
+- `core/media_buy_support.py` — ProductMediaBuySupport
+- `core/media_buy_support_requirements.py` — ProductMediaBuySupportRequirements
 - `core/negative_keyword.py` — NegativeKeyword
 - `core/targeting_input.py` — KeywordTarget, TargetingOverlayInput
 - `core/targeting_unknown_age_eligibility_constraint.py` — TargetingUnknownAgeEligibilityConstraint
 - `core/targeting_verified_age_basis_constraint.py` — TargetingVerifiedAgeBasisConstraint
+- `enums/frequency_cap_control_mode.py` — FrequencyCapControlMode
+- `enums/frequency_cap_mutable_field.py` — FrequencyCapMutableField
+- `enums/media_buy_frequency_cap_control_mode.py` — MediaBuyFrequencyCapControlMode
 - `media_buy/product_purchase_input.py` — ProductPurchaseInput
 
 ## Field changes
 
 - `bundled/protocol/get_adcp_capabilities_response.py`
-  - **classes added**: Disclosure3, EmbeddedProvenanceItem2, VerifyAgent4, Watermark2
-  - **classes removed**: Disclosure7, EmbeddedProvenanceItem6, VerifyAgent6, Watermark6
-- `core/assets/asset_union.py`
-  - **classes removed**: ImageAssetModel, UrlAssetModel, VideoAssetModel
-- `core/assets/card_asset.py`
-  - **classes removed**: AiTool, C2pa, DeclaredBy, Disclosure, EmbeddedProvenanceItem, HumanOversight, Jurisdiction, PlatformExtensionRef, Provenance, RenderGuidance, Result, Role, VerificationItem, VerifyAgent, VerifyAgent4, Watermark
-- `core/assets/daast_asset.py`
-  - **classes added**: Location13, MacroDeclaration12
-  - **classes removed**: Location14, MacroDeclaration13
-- `core/assets/display_tag_asset.py`
-  - **classes added**: MacroDeclaration15
-  - **classes removed**: MacroDeclaration17
-- `core/assets/vast_asset.py`
-  - **classes added**: Location26, MacroDeclaration20
-  - **classes removed**: Location27, MacroDeclaration21
-- `core/macro_declaration.py`
-  - **classes removed**: Kind, MacroDialect, MacroEncoding, MacroMappingStatus, MacroProcessingOperation, MacroResolver, MacroTranslationTarget, MacroValueContext, UniversalMacro
-- `core/provenance.py`
-  - **classes added**: VerifyAgent18
-  - **classes removed**: VerifyAgent20
+  - **classes added**: AggregateFrequencyCapping, FrequencyCapConstraints, FrequencyCapIntervalConstraints, MaxImpressionsConstraints, MutableField, OperationsContact, ReachUnit, SupportedControlMode
+  - **classes removed**: SupportedPerUnit
+  - `MediaBuy`: `+aggregate_frequency_capping`
+  - `ReportingDelivery`: `+consumer_mismatch_escalation_seconds`, `+operations_contact`
+- `compliance/comply_test_controller_request.py`
+  - **classes added**: AdvanceTo
+  - `Operation`: `+restate_after_received`
+  - `Params`: `+advance_to`, `+received_reporting_revision_id`
+- `core/canonical_media_buy_action.py`
+  - `Action`: `+update_media_buy_frequency_cap`
+  - `Action3`: `+update_media_buy_frequency_cap`
+- `core/canonical_media_buy_action_fields.py`
+  - `CanonicalMediaBuyActionFields`: `+applicable_package_ids`
+- `core/canonical_product.py`
+  - `CanonicalProduct`: `+media_buy_support`
+- `core/media_buy.py`
+  - `MediaBuy`: `+frequency_cap`
+- `core/media_buy_available_action.py`
+  - `MediaBuyAvailableAction`: `+applicable_package_ids`
+- `core/product.py`
+  - `Product`: `+media_buy_support`
+- `core/proposal.py`
+  - `Proposal`: `+frequency_cap`
+- `core/reporting_consumer_status.py`
+  - **classes added**: MismatchCode
+  - `ConsumerStatus`: `+content_mismatch`
+  - `ReportingConsumerStatus`: `+mismatch_code`
+- `core/reporting_delivery_capabilities.py`
+  - **classes added**: OperationsContact
+  - `ReportingDeliveryCapabilities`: `+consumer_mismatch_escalation_seconds`, `+operations_contact`
+- `core/reporting_delivery_config.py`
+  - **classes added**: AuthoritativeParty
+  - `ReportingDeliveryConfiguration`: `+authoritative_party`
+- `core/reporting_status_issue.py`
+  - **classes added**: IssueState
+  - `ReportingStatusIssue`: `+external_ref`, `+issue_state`, `+opened_at`
 - `core/targeting.py`
-  - **classes added**: GeoMetro, NegativeKeyword
-  - **classes removed**: AudienceExclude, AudienceInclude, AxeExcludeSegment, AxeIncludeSegment, Browser, BrowserExclude, CollectionListExclude, DaypartTargets, Demographics, DevicePlatform, DevicePlatformExclude, DeviceType, DeviceTypeExclude, GeoCountries, GeoCountriesExclude, GeoMetrosExclude, GeoPlaces, GeoPlacesExclude, GeoPostalAreas, GeoPostalAreasExclude, GeoRegions, GeoRegionsExclude, PlacementSelection, PropertyListExclude, StoreCatchments
+  - **classes added**: AudienceExclude, AudienceInclude, AxeExcludeSegment, AxeIncludeSegment, Browser, BrowserExclude, CollectionListExclude, DaypartTargets, Demographics, DevicePlatform, DevicePlatformExclude, DeviceType, DeviceTypeExclude, GeoCountries, GeoCountriesExclude, GeoMetrosExclude, GeoPlaces, GeoPlacesExclude, GeoPostalAreas, GeoPostalAreasExclude, GeoRegions, GeoRegionsExclude, PlacementSelection, PropertyListExclude, StoreCatchments
+  - **classes removed**: GeoMetro, NegativeKeyword
+- `core/targeting_overlay_requirements.py`
+  - `TargetingOverlayRequirements`: `+frequency_cap_support`
+- `core/targeting_overlay_support.py`
+  - `TargetingOverlaySupport`: `+frequency_cap_support`
+- `enums/canonical_media_buy_action.py`
+  - `CanonicalMediaBuyActionName`: `+update_media_buy_frequency_cap`
+- `media_buy/buy_products_request.py`
+  - `BuyProductsRequest`: `+frequency_cap`
+- `media_buy/commercial_terms.py`
+  - `CommercialTerms`: `+frequency_cap`
+- `media_buy/control_media_buy_request.py`
+  - `ControlMediaBuyRequest`: `+frequency_cap`
+- `media_buy/create_media_buy_request.py`
+  - `CreateMediaBuyRequest`: `+frequency_cap`
+- `media_buy/create_media_buy_response.py`
+  - `CreateMediaBuyResponse1`: `+frequency_cap`
+- `media_buy/get_media_buys_response.py`
+  - `MediaBuy`: `+frequency_cap`
+- `media_buy/get_products_request.py`
+  - `Field1`: `+media_buy_support`
+  - `Fields`: `+media_buy_support`
+  - `GetProductsRequest`: `+media_buy_frequency_cap`, `+required_media_buy_support`
+- `media_buy/get_reporting_status_response.py`
+  - `ObligationCounts`: `+consumer_status_pending`
+- `media_buy/product_discovery_criteria.py`
+  - `ProductDiscoveryCriteria`: `+media_buy_frequency_cap`, `+required_media_buy_support`
+- `media_buy/product_fields.py`
+  - `ProductResponseField`: `+media_buy_support`, `+overlay_support`
 - `media_buy/product_purchase.py`
-  - **classes removed**: AgencyEstimateNumber, AudienceEvidencePins, Bidding, Budget, CatalogIds, Context, DailyBudgetCap, EndTime, Ext, FormatOptionRefs, MinSpendTarget, OptimizationGoals, Pacing, PerformanceStandards, Pricing, StartTime
-- `protocol/get_principal_response.py`
-  - **classes added**: Result6, Result9
-  - **classes removed**: Result10, Result8
-  - `Result7`: `-configuration`, `-configuration_version`
-- `protocol/sync_principal_response.py`
-  - **classes added**: Result17, Result19
-  - **classes removed**: Result18, Result20
+  - **classes added**: AgencyEstimateNumber, AudienceEvidencePins, Bidding, Budget, CatalogIds, Context, DailyBudgetCap, EndTime, Ext, FormatOptionRefs, MinSpendTarget, OptimizationGoals, Pacing, PerformanceStandards, Pricing, StartTime
+- `media_buy/proposal_refinement.py`
+  - **classes added**: ProposalRefinement9
+  - `ProposalRefinement2`: `+remove_media_buy_frequency_cap`
+  - `ProposalRefinement3`: `+remove_media_buy_frequency_cap`
+  - `ProposalRefinement4`: `+remove_media_buy_frequency_cap`
+  - `ProposalRefinement5`: `+remove_media_buy_frequency_cap`
+  - `ProposalRefinement6`: `+remove_media_buy_frequency_cap`
+  - `ProposalRefinement7`: `+remove_media_buy_frequency_cap`
+  - `ProposalRefinement8`: `+remove_media_buy_frequency_cap`
+- `media_buy/update_media_buy_request.py`
+  - `UpdateMediaBuyRequest`: `+frequency_cap`
+- `media_buy/update_media_buy_response.py`
+  - `UpdateMediaBuyResponse1`: `+frequency_cap`
+- `protocol/get_adcp_capabilities_response.py`
+  - `MediaBuy`: `+aggregate_frequency_capping`

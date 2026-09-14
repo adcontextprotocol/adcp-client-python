@@ -734,6 +734,37 @@ async def test_a_statement_records_and_replays_idempotently() -> None:
     assert second["results"][0]["result"] == "unchanged"
 
 
+async def test_content_mismatch_is_rejected_rather_than_stored_without_its_code() -> None:
+    # AdCP 3.2.0-rc.3 adds content_mismatch plus a required closed
+    # mismatch_code. The bundled schema accepts it, but this ledger has no
+    # column for the code yet, so recording the statement would drop the only
+    # field that makes it actionable -- a buyer would believe it had told the
+    # seller which contract fact was contradicted. Fail visibly instead.
+    store, obligation = await _seeded()
+    ingest = ConsumerStatusIngest(store, enabled=True)
+    result = await ingest.handle(
+        {
+            "statuses": [
+                _statement(
+                    consumer_status="content_mismatch",
+                    reporting_obligation_id=obligation.reporting_obligation_id,
+                    reporting_revision_id="rev_1",
+                    observed_revision_content_sha256="a" * 64,
+                    mismatch_code="metric_missing",
+                )
+            ]
+        },
+        account_id=ACCOUNT,
+        consumer_id="buyer_1",
+    )
+    entry = result["results"][0]
+    assert entry["result"] == "failed"
+    assert entry["errors"][0]["code"] == "UNSUPPORTED_FEATURE"
+    assert "mismatch_code" in entry["errors"][0]["message"]
+    # Nothing reached storage, so the chain stays empty for this caller.
+    assert (await store.list_consumer_statuses(account_id=ACCOUNT, consumer_id="buyer_1")) == ()
+
+
 async def test_obligation_missing_needs_no_seller_obligation_id() -> None:
     # Requiring one would make the first missing report invisible again.
     store = InMemoryReportingLedgerStore(clock=lambda: datetime(2026, 9, 30, tzinfo=timezone.utc))
