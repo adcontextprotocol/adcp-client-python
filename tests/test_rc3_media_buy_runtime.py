@@ -127,11 +127,17 @@ def test_a_meaningless_explicit_null_is_still_dropped() -> None:
     # `canceled` is Literal[True] in the schema. Restoring this null would
     # produce a request every seller must reject, so schema-awareness is not a
     # nicety -- it is what keeps the fix from breaking working callers.
-    request = _control(paused=True)
+    # Passed explicitly, so it *is* in model_fields_set -- which is exactly the
+    # case the schema check has to veto. Relying on it being unset would make
+    # this test tautological.
+    # `paused` rides along so the request still carries a real mutation --
+    # dropping `canceled` must not be what makes it valid.
+    request = _control(canceled=None, paused=True)
+    assert "canceled" in request.model_fields_set
     assert request.canceled is None
-    assert "canceled" in request.model_fields_set or request.canceled is None
     wire = _serialize(request, "control_media_buy")
     assert "canceled" not in wire
+    assert wire["paused"] is True
     assert validate_request("control_media_buy", wire).valid
 
 
@@ -276,3 +282,227 @@ def test_clearing_the_aggregate_cap_is_also_routed() -> None:
 )
 def test_both_frequency_cap_actions_route_somewhere(action: str) -> None:
     assert route_media_buy_action(action) is not None
+
+
+# -- the routes the first round of tests missed -------------------------------
+
+
+def test_a_clear_survives_under_new_packages() -> None:
+    # new_packages[] carries the same targeting-input shape as packages[], and
+    # rc.3 explicitly discusses "null combined with new_packages". A fix that
+    # only walked packages[] would silently drop these.
+    wire = _serialize(
+        _update(
+            new_packages=[
+                {
+                    "product_id": "prod-1",
+                    "pricing_option_id": "po-1",
+                    "budget": 1000,
+                    "targeting_overlay": {"geo_countries": None},
+                }
+            ]
+        ),
+        "update_media_buy",
+    )
+    assert wire["new_packages"][0]["targeting_overlay"] == {"geo_countries": None}
+
+
+def test_a_clear_survives_on_create_media_buy() -> None:
+    # On create, null *suppresses the product default* rather than clearing a
+    # stored value -- a different meaning, the same serialization hazard. This
+    # route goes through _prepare_creative_params, not _execute_typed_task.
+    from adcp.types import CreateMediaBuyRequest
+
+    request = CreateMediaBuyRequest.model_validate(
+        {
+            "idempotency_key": "rc3-create-000000001",
+            "account": {"account_id": "account-1"},
+            "brand": {"brand_id": "brand_1", "domain": "brand.example"},
+            "packages": [
+                {
+                    "product_id": "prod-1",
+                    "pricing_option_id": "po-1",
+                    "budget": 1000,
+                    "targeting_overlay": {"geo_countries": None},
+                }
+            ],
+            "start_time": "2026-10-01T00:00:00Z",
+            "end_time": "2026-10-31T00:00:00Z",
+        }
+    )
+    wire = _serialize(request, "create_media_buy")
+    assert wire["packages"][0]["targeting_overlay"] == {"geo_countries": None}
+
+
+def test_a_clear_survives_on_sync_creatives_localization() -> None:
+    # The only nullable path on sync_creatives, and it means "remove
+    # localization" rather than "leave it alone".
+    from adcp.types import SyncCreativesRequest
+
+    request = SyncCreativesRequest.model_validate(
+        {
+            "idempotency_key": "rc3-creatives-00000001",
+            "account": {"account_id": "account-1"},
+            "creatives": [
+                {
+                    "creative_id": "cr-1",
+                    "name": "Creative One",
+                    "format_kind": "third_party_tag",
+                    "status": "approved",
+                    "assets": {},
+                    "created_date": "2026-09-01T00:00:00Z",
+                    "updated_date": "2026-09-01T00:00:00Z",
+                    "localization": None,
+                }
+            ],
+        }
+    )
+    wire = _serialize(request, "sync_creatives")
+    assert wire["creatives"][0]["localization"] is None
+
+
+@pytest.mark.asyncio
+async def test_a_clear_survives_the_real_client_and_typed_seller() -> None:
+    """End to end: typed model in, explicit null out the other side.
+
+    The unit tests above call the serializer directly. This one drives the
+    actual MCP client, transport, and a typed seller handler with strict
+    request *and* response validation, because the bug being fixed lived in
+    the client's serialization step -- not in the helper.
+    """
+    import anyio
+    from mcp import ClientSession
+    from mcp.shared.memory import create_client_server_memory_streams
+
+    from adcp import ADCPClient
+    from adcp.server import ADCPHandler, create_mcp_server
+    from adcp.server.base import ToolContext
+    from adcp.validation import ValidationHookConfig
+
+    received: list[dict[str, Any]] = []
+
+    class _Seller(ADCPHandler[Any]):
+        advertised_tools = {"update_media_buy"}
+
+        async def update_media_buy(
+            self, params: dict[str, Any], context: ToolContext
+        ) -> dict[str, Any]:
+            received.append(params)
+            return {
+                "status": "completed",
+                "media_buy_id": params["media_buy_id"],
+                "revision": 2,
+            }
+
+    server = create_mcp_server(
+        _Seller(), validation=ValidationHookConfig(requests="strict", responses="strict")
+    )
+    async with create_client_server_memory_streams() as (client_streams, server_streams):
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(
+                server._lowlevel_server.run,
+                *server_streams,
+                server._lowlevel_server.create_initialization_options(),
+                True,
+            )
+            async with ClientSession(*client_streams) as session:
+                await session.initialize()
+                client = ADCPClient.from_mcp_client(
+                    session,
+                    validation=ValidationHookConfig(requests="strict", responses="strict"),
+                )
+                result = await client.update_media_buy(
+                    _update(
+                        frequency_cap=None,
+                        packages=[
+                            {
+                                "package_id": "pkg-1",
+                                "targeting_overlay": {
+                                    "geo_countries": None,
+                                    "geo_regions": ["US-NY"],
+                                },
+                            }
+                        ],
+                    )
+                )
+                assert result.success, result.error
+            task_group.cancel_scope.cancel()
+
+    assert len(received) == 1
+    params = received[0]
+    # The clear arrived...
+    assert params["frequency_cap"] is None
+    overlay = params["packages"][0]["targeting_overlay"]
+    assert overlay["geo_countries"] is None
+    # ...the replacement arrived intact...
+    assert overlay["geo_regions"] == ["US-NY"]
+    # ...and nothing the caller never mentioned came along as a null, which is
+    # what would have wiped every other dimension on the adopter's side.
+    assert set(overlay) == {"geo_countries", "geo_regions"}
+    assert "daily_budget_cap" not in params
+    assert "budget_cap_timezone" not in params
+
+
+def test_the_store_patch_shape_drops_unset_and_keeps_explicit_nulls() -> None:
+    # The blocking store-merge finding. _to_store_dict previously dumped with
+    # exclude_none=False, handing the adopter store ~36 targeting dimensions as
+    # None plus a null aggregate cap the caller never sent -- and the merge
+    # contract reads None as "clear this field".
+    from adcp.decisioning.handler import _to_store_dict
+
+    request = _update(
+        packages=[{"package_id": "pkg-1", "targeting_overlay": {"geo_countries": ["US"]}}]
+    )
+    patch = _to_store_dict(request, patch=True)
+    assert "frequency_cap" not in patch
+    overlay = patch["packages"][0]["targeting_overlay"]
+    assert overlay == {"geo_countries": ["US"]}
+    assert "daily_budget_cap" not in patch["packages"][0]
+
+    # And an explicit clear still reaches the store, because that one IS a
+    # command.
+    cleared = _to_store_dict(
+        _update(
+            frequency_cap=None,
+            packages=[{"package_id": "pkg-1", "targeting_overlay": {"geo_countries": None}}],
+        ),
+        patch=True,
+    )
+    assert cleared["frequency_cap"] is None
+    assert cleared["packages"][0]["targeting_overlay"] == {"geo_countries": None}
+
+
+def test_a_platform_response_still_keeps_unset_fields() -> None:
+    # The other half of the patch/response split: a response is a whole-state
+    # snapshot, so a platform relying on a model default must still see it
+    # land in the store.
+    from adcp.decisioning.handler import _to_store_dict
+
+    request = _update(paused=True)
+    snapshot = _to_store_dict(request)
+    assert "frequency_cap" in snapshot
+    assert snapshot["frequency_cap"] is None
+
+
+def test_a_structured_only_action_routes_off_the_bundle_metadata() -> None:
+    # The claim in the PR body, made true: routing consults the merged
+    # enumMetadata, so an additively-introduced structured-only action works
+    # without teaching the hand-maintained tables first.
+    from adcp.media_buy_actions import _CONTROL_ACTIONS, action_update_fields
+
+    assert "update_media_buy_frequency_cap" in action_update_fields()
+    # Prove the fallback path rather than the table entry.
+    assert route_media_buy_action("update_media_buy_frequency_cap") is not None
+    assert "update_media_buy_frequency_cap" in _CONTROL_ACTIONS
+
+
+def test_action_update_fields_is_version_aware() -> None:
+    # lru_cache(maxsize=1) with no argument always returned the default
+    # bundle, so a client pinned to an older release dispatched on the wrong
+    # map.
+    from adcp.media_buy_actions import action_update_fields
+
+    assert action_update_fields("3.2.0-rc.3")["update_media_buy_frequency_cap"] == (
+        "frequency_cap",
+    )
+    assert action_update_fields("0.0.0-nonexistent") == {}

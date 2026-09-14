@@ -115,12 +115,14 @@ _LEGACY_ROLLUPS: dict[str, frozenset[str]] = {
             "remove_packages",
         }
     ),
-    # Deliberately NOT rolled up under `update_packages`: the aggregate cap is
-    # a media-buy-level field with one shared counter, so a seller advertising
-    # the coarse legacy `update_packages` has not thereby advertised it. Rolling
-    # it up would let a buyer infer a capability the seller never claimed.
     "sync_creatives": _CREATIVE_ACTIONS,
 }
+# `update_media_buy_frequency_cap` is deliberately absent from every rollup
+# above -- the comment belongs to the table, not to `sync_creatives`. The
+# aggregate cap is a media-buy-level field with one shared counter, so a seller
+# advertising the coarse legacy `update_packages`, or per-package
+# `update_frequency_caps`, has not thereby advertised it. Rolling it up would
+# let a buyer infer a capability the seller never claimed.
 
 _CONSTRAINT_ACTIONS: dict[str, frozenset[str]] = {
     "budget": frozenset(
@@ -138,8 +140,8 @@ _CONSTRAINT_ACTIONS: dict[str, frozenset[str]] = {
 }
 
 
-@lru_cache(maxsize=1)
-def action_update_fields() -> Mapping[str, tuple[str, ...]]:
+@lru_cache(maxsize=16)
+def action_update_fields(version: str | None = None) -> Mapping[str, tuple[str, ...]]:
     """Which ``update_media_buy`` request fields each action covers.
 
     AdCP 3.2.0-rc.3 splits this normative map across **two** ``enumMetadata``
@@ -156,12 +158,16 @@ def action_update_fields() -> Mapping[str, tuple[str, ...]]:
     dispatch on. A hand-copied table is a second source of truth that drifts on
     the next release.
 
+    ``version`` selects the bundle, so a client pinned to an older release
+    dispatches on that release's map rather than on the SDK's default. Cached
+    per version, because each is a pure function of an immutable bundle.
+
     Returns an empty mapping when the bundle predates the fields, so an older
     pin degrades rather than raising.
     """
     merged: dict[str, tuple[str, ...]] = {}
     for name in ("enums/media-buy-valid-action.json", "core/media-buy-available-action-id.json"):
-        block = _schema_enum_metadata(name)
+        block = _schema_enum_metadata(name, version=version)
         for action, metadata in block.items():
             if action.startswith("$") or not isinstance(metadata, Mapping):
                 continue
@@ -171,10 +177,10 @@ def action_update_fields() -> Mapping[str, tuple[str, ...]]:
     return merged
 
 
-def _schema_enum_metadata(relative_path: str) -> Mapping[str, Any]:
+def _schema_enum_metadata(relative_path: str, *, version: str | None = None) -> Mapping[str, Any]:
     from adcp.validation.schema_loader import get_named_schema_document
 
-    document = get_named_schema_document(relative_path)
+    document = get_named_schema_document(relative_path, version=version)
     block = (document or {}).get("enumMetadata")
     return block if isinstance(block, Mapping) else {}
 
@@ -383,13 +389,21 @@ class ActionDispatchClient(Protocol):
         raise NotImplementedError
 
 
-def route_media_buy_action(action: str) -> ActionTask | None:
+def route_media_buy_action(action: str, *, version: str | None = None) -> ActionTask | None:
     """Return the canonical compact task for an in-envelope action.
 
     Flight and package-addition changes require proposal refinement; creative
     lifecycle changes use ``sync_creatives``; the remaining accepted controls
-    use ``control_media_buy``.  Unknown future actions fail closed with
-    ``None`` so callers do not guess a route.
+    use ``control_media_buy``.
+
+    A structured-only action the tables above have not been taught still routes
+    when the bundle's merged ``enumMetadata`` says it mutates
+    ``update_media_buy`` fields. The spec adds these additively and tells SDKs
+    to dispatch on that block, so consulting it keeps a newer bundle working
+    instead of failing closed on a name the tables predate -- which is the bug
+    ``update_media_buy_frequency_cap`` exposed. Anything the bundle does not
+    describe either still fails closed with ``None`` so callers do not guess a
+    route.
     """
 
     if action in _CONTROL_ACTIONS:
@@ -398,6 +412,8 @@ def route_media_buy_action(action: str) -> ActionTask | None:
         return ActionTask.refine_proposals
     if action in _CREATIVE_ACTIONS:
         return ActionTask.sync_creatives
+    if action_update_fields(version).get(action):
+        return ActionTask.control_media_buy
     return None
 
 

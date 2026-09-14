@@ -40,6 +40,19 @@ This generalizes the three fields hard-coded in #1161
 including the AdCP 3.2.0-rc.3 additions: the MediaBuy-level ``frequency_cap``
 on ``update_media_buy`` and ``control_media_buy``, and every dimension of
 ``core/targeting-input.json`` on ``packages[]`` and ``new_packages[]``.
+
+Note for buyers
+---------------
+
+Restoring a null makes the *intent* reach the seller; it does not make the
+seller support it. Before sending a root ``frequency_cap`` at all, check
+``media_buy.aggregate_frequency_capping`` in the seller's
+``get_adcp_capabilities`` response, and the per-product
+``media_buy_support`` on each product in scope. A seller that does not
+advertise it MUST reject the whole mutation with ``UNSUPPORTED_FEATURE``
+before any change and MUST NOT clamp the cap, so an unchecked send is a
+round-trip wasted rather than a silent partial apply -- but it is still a
+round-trip you can avoid.
 """
 
 from __future__ import annotations
