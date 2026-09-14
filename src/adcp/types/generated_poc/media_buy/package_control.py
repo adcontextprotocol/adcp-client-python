@@ -36,11 +36,11 @@ class PackageControl(AdCPBaseModel):
     bidding: bidding_policy.BiddingPolicy | None = None
     paused: bool | None = None
     canceled: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description='Exercise an already-accepted unilateral package cancellation right. If seller agreement is required, refine the accepted proposal with change_kind amendment; cancellation proposals terminate the whole MediaBuy.'
         ),
-    ] = True
+    ] = None
     cancellation_reason: Annotated[str | None, Field(max_length=500, min_length=1)] = None
     targeting_overlay: Annotated[
         targeting.TargetingOverlay | None,
