@@ -110,9 +110,7 @@ def _collect_docstrings(tree: ast.Module) -> list[tuple[str, int]]:
         # user-facing. Skip single-leading-underscore private names only.
         if name.startswith("_") and not (name.startswith("__") and name.endswith("__")):
             continue
-        if not isinstance(
-            node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
-        ):
+        if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
         doc = ast.get_docstring(node)
         if doc:

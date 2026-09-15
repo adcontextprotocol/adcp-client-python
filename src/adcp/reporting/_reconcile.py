@@ -12,14 +12,34 @@ import asyncio
 import json
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from math import isfinite
-from typing import TYPE_CHECKING, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 from uuid import uuid4
 
 from pydantic import BaseModel
 
+from adcp.reporting._consumer import (
+    ConsumerLoopView,
+    ConsumerStatusCheckpoint,
+    ConsumerStatusCheckpointStore,
+    ConsumerStatusIntent,
+    ConsumerStatusPlanError,
+    ConsumerStatusPostError,
+    ConsumerStatusPostResult,
+    InMemoryConsumerStatusCheckpoints,
+    ReportingContentReading,
+    ReportingFailureCode,
+    ReportingOperationsContactView,
+    ReportingPinnedDefinition,
+    classify_content_mismatch,
+    consumer_status_chain_key,
+    load_consumer_loop_view,
+    plan_consumer_statuses,
+    post_consumer_statuses,
+    resolve_checkpointed_leaves,
+)
 from adcp.types import (
     GetReportingStatusRequest,
     GetReportingStatusResponse,
@@ -30,6 +50,7 @@ from adcp.types import (
     ReportingObligation,
     ReportingReceipt,
     ReportingRevision,
+    ReportingStatusIssue,
     SyncReportingReceiptsRequest,
     SyncReportingReceiptsResponse,
 )
@@ -103,6 +124,18 @@ class ExpectedReportingPeriod:
     media_buy_ids: tuple[str, ...]
     period_start: str
     period_end: str
+    #: Required to *state* a period the seller omitted: the consumer-status
+    #: ``period`` object requires it, and a buyer filing
+    #: ``obligation_missing`` has no seller obligation to read it off. Defaults
+    #: to UTC because that is what an omitted schedule alignment resolves to;
+    #: a configuration with a civil-time alignment must set it explicitly or
+    #: the statement describes a different period than the one expected.
+    source_timezone: str = "UTC"
+    #: The buyer's independently derived ``expected_at``. Needed because
+    #: ``obligation_missing`` is only valid at or after it, and the posting
+    #: deadline is measured from it -- neither is knowable from the seller's
+    #: ledger, which is precisely the point when the period is absent from it.
+    expected_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -132,6 +165,12 @@ class ReportingLedger:
     revisions: list[ReportingRevision]
     materializations: list[ReportingMaterialization]
     receipts: list[ReportingReceipt]
+    #: This caller's own consumer-status history, when the seller advertises
+    #: the loop. Needed to compare a planned statement against the current
+    #: leaf: without it a buyer cannot tell "nothing changed, do not re-file"
+    #: from "new claim, must supersede", and re-filing the same claim under a
+    #: new id churns the chain for no reason.
+    consumer_statuses: list[Any] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -153,6 +192,34 @@ class ReportingReconciliationResult:
     totals_by_revision: list[tuple[str, int, list[ReportingControlTotal]]] = field(
         default_factory=list
     )
+    #: AdCP 3.2.0-rc.3. What the seller said about *this buyer's* side of the
+    #: loop: how many periods it owes a status for, the issue lifecycle fields
+    #: for ageing a work item, and where to find a human. ``None`` when the
+    #: seller does not advertise ``consumer_status_task``, which is distinct
+    #: from an empty view -- see :class:`~adcp.reporting._consumer.ConsumerLoopView`.
+    consumer_loop: ConsumerLoopView | None = None
+    #: Statements the buyer owes right now, by the rc.3 deadline rather than by
+    #: scope close. Empty when nothing is due.
+    consumer_status_plan: list[ConsumerStatusIntent] = field(default_factory=list)
+
+    @property
+    def consumer_status_pending(self) -> int | None:
+        """The seller's ``obligation_counts.consumer_status_pending``, if any."""
+        return self.consumer_loop.consumer_status_pending if self.consumer_loop else None
+
+    @property
+    def operations_contact(self) -> ReportingOperationsContactView | None:
+        """The seller's advertised human escalation path. Never dereferenced."""
+        return self.consumer_loop.operations_contact if self.consumer_loop else None
+
+    @property
+    def consumer_mismatch_issues(self) -> tuple[ReportingStatusIssue, ...]:
+        """Issues the seller raised from this buyer's own statements.
+
+        Each carries ``opened_at`` (stable across re-emission, so it ages as one
+        work item), ``issue_state``, and an inert ``external_ref``.
+        """
+        return self.consumer_loop.mismatch_issues if self.consumer_loop else ()
 
 
 def _json(value: object) -> str:
@@ -240,6 +307,7 @@ async def load_reporting_ledger(
             revisions: dict[str, ReportingRevision] = {}
             materializations: dict[str, ReportingMaterialization] = {}
             receipts: dict[str, ReportingReceipt] = {}
+            consumer_statuses: dict[str, Any] = {}
             cursor: str | None = None
             seen_cursors: set[str] = set()
             snapshot_id: str | None = None
@@ -308,6 +376,13 @@ async def load_reporting_ledger(
                     )
                 for receipt in response.receipts or []:
                     _add_immutable(receipts, receipt.reporting_receipt_id, receipt, "receipt")
+                for status in getattr(response, "consumer_statuses", None) or []:
+                    _add_immutable(
+                        consumer_statuses,
+                        status.reporting_status_id,
+                        status,
+                        "consumer status",
+                    )
 
                 if not pagination.has_more:
                     break
@@ -318,7 +393,13 @@ async def load_reporting_ledger(
                     )
                 seen_cursors.add(cursor)
 
-            count = len(obligations) + len(revisions) + len(materializations) + len(receipts)
+            count = (
+                len(obligations)
+                + len(revisions)
+                + len(materializations)
+                + len(receipts)
+                + len(consumer_statuses)
+            )
             if total_count is not None and total_count != count:
                 raise ReportingReconciliationError(
                     "LEDGER_COUNT_MISMATCH",
@@ -337,6 +418,7 @@ async def load_reporting_ledger(
                 list(revisions.values()),
                 list(materializations.values()),
                 list(receipts.values()),
+                list(consumer_statuses.values()),
             )
         except ReportingReconciliationError as error:
             if error.code != "SNAPSHOT_CHANGED" or restart == max_snapshot_restarts:
@@ -726,6 +808,10 @@ async def reconcile_reporting_core(
     expected_periods: list[ExpectedReportingPeriod],
     max_snapshot_restarts: int = 2,
     now: datetime | None = None,
+    automated_recovery_window: timedelta | None = None,
+    readings: dict[str, ReportingContentReading] | None = None,
+    pinned_definition: ReportingPinnedDefinition | None = None,
+    capabilities: dict[str, Any] | None = None,
 ) -> ReportingReconciliationResult:
     """Reconcile the Core API-delivered tier without destination handling.
 
@@ -733,6 +819,15 @@ async def reconcile_reporting_core(
     the reporting clock.  Destination materializations, manifests, digests,
     and consumer receipts are deliberately rejected rather than accidentally
     activating a higher tier.
+
+    When ``automated_recovery_window`` is supplied the result also carries the
+    AdCP 3.2.0-rc.3 buyer-side loop: the seller's
+    ``obligation_counts.consumer_status_pending``, the issue lifecycle fields,
+    ``operations_contact``, and a plan of the statements this buyer owes *by
+    its deadline* rather than by scope close.  It is opt-in because posting
+    status is only a duty when the seller advertises ``consumer_status_task``
+    -- inferring a reverse endpoint from a seller that never offered one is the
+    failure the opt-in exists to prevent.
     """
     ledger = await load_reporting_ledger(
         client, request, max_snapshot_restarts=max_snapshot_restarts
@@ -755,7 +850,35 @@ async def reconcile_reporting_core(
             "RECONCILED_BILLING_NOT_ENABLED",
             "Core reconciliation received a consumer-receipt obligation",
         )
-    return evaluate_reporting_ledger(ledger, expected_periods=expected_periods, now=now)
+    result = evaluate_reporting_ledger(ledger, expected_periods=expected_periods, now=now)
+    if automated_recovery_window is not None:
+        result.consumer_loop = await load_consumer_loop_view(
+            client, request, capabilities=capabilities
+        )
+        result.consumer_status_plan = plan_consumer_statuses(
+            ledger.obligations,
+            now=now or ledger.ledger_as_of,
+            automated_recovery_window=automated_recovery_window,
+            # The periods the *buyer's* denominator expects and the seller's
+            # ledger omitted. Dropping these was the whole reason
+            # ``obligation_missing`` could never be emitted -- and it is the
+            # one status the seller cannot derive for itself.
+            missing_expected_periods=result.missing_expected_periods,
+            readings=readings,
+            definition=pinned_definition,
+            revisions={item.reporting_revision_id: item for item in ledger.revisions},
+            obligation_revisions={
+                obligation.reporting_obligation_id: [
+                    revision
+                    for revision in ledger.revisions
+                    if _revision_matches_obligation(revision, obligation)
+                ]
+                for obligation in ledger.obligations
+            },
+            current_statuses=ledger.consumer_statuses,
+            account_id=ledger.account_id,
+        )
+    return result
 
 
 async def reconcile_reporting(
@@ -930,6 +1053,24 @@ async def reconcile_reporting(
 
 
 __all__ = [
+    "ConsumerLoopView",
+    "ConsumerStatusCheckpoint",
+    "ConsumerStatusCheckpointStore",
+    "ConsumerStatusIntent",
+    "ConsumerStatusPlanError",
+    "ConsumerStatusPostError",
+    "ConsumerStatusPostResult",
+    "InMemoryConsumerStatusCheckpoints",
+    "ReportingContentReading",
+    "ReportingFailureCode",
+    "ReportingOperationsContactView",
+    "ReportingPinnedDefinition",
+    "classify_content_mismatch",
+    "consumer_status_chain_key",
+    "load_consumer_loop_view",
+    "plan_consumer_statuses",
+    "post_consumer_statuses",
+    "resolve_checkpointed_leaves",
     "ExpectedReportingPeriod",
     "ObligationReconciliation",
     "ReportingCheckpointStore",

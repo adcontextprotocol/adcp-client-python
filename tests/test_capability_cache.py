@@ -144,7 +144,9 @@ def test_cache_key_normalizes_trailing_slash(uri_with_slash: str, uri_without_sl
     normalization here, a single logical agent would split-brain across two cache
     entries depending on which slash form the caller passed.
     """
-    assert build_capability_cache_key(uri_with_slash) == build_capability_cache_key(uri_without_slash)
+    assert build_capability_cache_key(uri_with_slash) == build_capability_cache_key(
+        uri_without_slash
+    )
     assert build_capability_cache_key(uri_with_slash, auth_token="t") == build_capability_cache_key(
         uri_without_slash, auth_token="t"
     )

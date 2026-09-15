@@ -29,9 +29,7 @@ version = "7.0.0-beta.1"
 version = "1.0.0-beta.1"
 """
 
-    assert (
-        normalize_pyproject_text(text)
-        == """\
+    assert normalize_pyproject_text(text) == """\
 [project]
 name = "adcp"
 version = "7.0.0b1"
@@ -39,7 +37,6 @@ version = "7.0.0b1"
 [tool.example]
 version = "1.0.0-beta.1"
 """
-    )
 
 
 def test_normalize_pyproject_reports_whether_file_changed(tmp_path: Path) -> None:

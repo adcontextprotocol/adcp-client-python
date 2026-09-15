@@ -6,6 +6,7 @@ that walks nested children. This pattern comes up whenever an adopter's
 product or creative type carries extra fields that must be excluded
 from the wire but included in internal processing.
 """
+
 from __future__ import annotations
 
 from typing import Any

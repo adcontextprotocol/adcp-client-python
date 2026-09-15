@@ -149,6 +149,7 @@ jobs:
                  tests/conformance/decisioning/test_pg_idempotency_backend.py \
                  tests/conformance/decisioning/test_pg_task_webhook_outbox.py \
                  tests/conformance/decisioning/test_pg_reference_workflow_queue.py \
+                 tests/conformance/reporting/ \
                  -v
 
   conventional-commits:

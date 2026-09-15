@@ -2277,8 +2277,7 @@ async def test_sqlite_migrates_pre_release_tombstone_schema_before_purge(
         for trigger_name in trigger_names:
             conn.execute(f'DROP TRIGGER "{trigger_name}"')
         conn.execute("DROP TABLE adcp_compat_issuance_tombstones")
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE adcp_compat_issuance_tombstones (
                 token_hash TEXT PRIMARY KEY,
                 principal_id TEXT NOT NULL,
@@ -2287,8 +2286,7 @@ async def test_sqlite_migrates_pre_release_tombstone_schema_before_purge(
                 legacy_equivalence_hash TEXT NOT NULL,
                 retired_at TEXT NOT NULL
             )
-            """
-        )
+            """)
         conn.execute(
             "CREATE UNIQUE INDEX adcp_compat_issuance_tombstones_issuance_idx "
             "ON adcp_compat_issuance_tombstones (principal_id, issuance_fingerprint) "

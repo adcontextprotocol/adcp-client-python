@@ -48,16 +48,14 @@ def isolated_pool() -> Iterator[psycopg_pool.ConnectionPool]:
     table = f"test_adcp_replay_{secrets.token_hex(6)}"
     with psycopg_pool.ConnectionPool(TEST_URL, min_size=2, max_size=8) as pool:
         with pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(
-                f"""
+            cur.execute(f"""
                 CREATE TABLE {table} (
                     keyid      TEXT        COLLATE "C" NOT NULL,
                     nonce      TEXT        COLLATE "C" NOT NULL,
                     expires_at TIMESTAMPTZ NOT NULL,
                     PRIMARY KEY (keyid, nonce)
                 )
-                """
-            )
+                """)
             cur.execute(f"CREATE INDEX {table}_expires_idx ON {table} (expires_at)")
         try:
             yield pool, table  # type: ignore[misc]

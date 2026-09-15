@@ -69,16 +69,14 @@ def isolated_table() -> str:
     table = f"test_e2e_replay_{secrets.token_hex(6)}"
     with psycopg_pool.ConnectionPool(TEST_URL, min_size=1, max_size=2) as pool:
         with pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(
-                f"""
+            cur.execute(f"""
                 CREATE TABLE {table} (
                     keyid      TEXT        COLLATE "C" NOT NULL,
                     nonce      TEXT        COLLATE "C" NOT NULL,
                     expires_at TIMESTAMPTZ NOT NULL,
                     PRIMARY KEY (keyid, nonce)
                 )
-                """
-            )
+                """)
         yield table
         with pool.connection() as conn, conn.cursor() as cur:
             cur.execute(f"DROP TABLE IF EXISTS {table}")

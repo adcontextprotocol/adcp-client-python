@@ -7,6 +7,7 @@ Adopters use this pattern when child models need custom serialization
 (e.g. nested type extension, computed fields) beyond what Pydantic's
 default child serialization provides.
 """
+
 from __future__ import annotations
 
 from typing import Any

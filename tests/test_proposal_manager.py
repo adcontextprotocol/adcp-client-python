@@ -74,9 +74,7 @@ def _make_get_products_request(
     if buying_mode == "brief":
         kwargs["brief"] = brief
     elif buying_mode == "refine":
-        kwargs["refine"] = [
-            {"scope": "request", "ask": "narrow the brief"}
-        ]
+        kwargs["refine"] = [{"scope": "request", "ask": "narrow the brief"}]
     return GetProductsRequest(**kwargs)
 
 

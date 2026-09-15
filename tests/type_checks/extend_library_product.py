@@ -6,6 +6,7 @@ must not appear in the serialised response — tested here as a type
 contract (mypy), not a serialisation contract (see
 test_response_builder_subclass.py for the runtime side).
 """
+
 from __future__ import annotations
 
 from typing import Any

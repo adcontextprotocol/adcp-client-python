@@ -4,6 +4,7 @@ Verifies that an async factory satisfying PlatformFactory type-checks
 cleanly. LazyPlatformRouter is the migration target for registry-keyed
 adapters; this file tests the basic constructor + factory wiring.
 """
+
 from __future__ import annotations
 
 from adcp.decisioning import (
