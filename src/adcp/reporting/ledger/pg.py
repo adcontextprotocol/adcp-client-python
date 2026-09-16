@@ -76,6 +76,7 @@ import hashlib
 import json
 from collections.abc import Callable, Sequence
 from copy import deepcopy
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
@@ -114,6 +115,7 @@ from adcp.reporting.ledger.store import (
     LedgerPage,
     ReportingRowPage,
     check_issue_state_transition,
+    configuration_lifecycle,
     decode_cursor,
     encode_cursor,
     issue_is_retirable,
@@ -376,9 +378,11 @@ class PgReportingLedgerStore:
             # accept a different immutable generation from a losing writer.
             row = await (
                 await connection.execute(
-                    "SELECT content_sha256 FROM reporting_configurations"
+                    "SELECT content_sha256, activated_at, deactivated_at,"
+                    " automated_recovery_seconds, status_retention_days"
+                    " FROM reporting_configurations"
                     " WHERE account_id = %s AND delivery_config_id = %s"
-                    " AND delivery_config_version = %s",
+                    " AND delivery_config_version = %s FOR UPDATE",
                     (key.account_id, key.delivery_config_id, key.delivery_config_version),
                 )
             ).fetchone()
@@ -390,11 +394,52 @@ class PgReportingLedgerStore:
                     "version instead of editing a retained generation",
                 )
 
-            if inserted is not None and self._notifications_enabled:
+            scope = ReportingStatusScope(configuration.account_id, configuration.generation_key)
+            if inserted is not None:
+                if self._notifications_enabled:
+                    await self._dirty_status(
+                        connection,
+                        scope,
+                        "configuration",
+                        after=configuration_evidence(configuration),
+                    )
+                return
+            # rc.3 carries activation/deactivation and the recovery/retention
+            # windows as lifecycle state over one immutable generation, so a
+            # re-put that changes only those must apply -- otherwise a
+            # deactivated feed keeps minting obligations -- and must co-commit
+            # its status-dirty generation on this exact connection. An
+            # unchanged re-put stays a no-op and enqueues nothing.
+            retained = replace(
+                configuration,
+                activated_at=_utc(row[1]) if row[1] else None,
+                deactivated_at=_utc(row[2]) if row[2] else None,
+                automated_recovery_window=timedelta(seconds=float(row[3])),
+                status_retention_days=row[4],
+            )
+            if configuration_lifecycle(retained) == configuration_lifecycle(configuration):
+                return
+            await connection.execute(
+                "UPDATE reporting_configurations SET activated_at = %s, deactivated_at = %s,"
+                " automated_recovery_seconds = %s, status_retention_days = %s"
+                " WHERE account_id = %s AND delivery_config_id = %s"
+                " AND delivery_config_version = %s",
+                (
+                    configuration.activated_at,
+                    configuration.deactivated_at,
+                    configuration.automated_recovery_window.total_seconds(),
+                    configuration.status_retention_days,
+                    key.account_id,
+                    key.delivery_config_id,
+                    key.delivery_config_version,
+                ),
+            )
+            if self._notifications_enabled:
                 await self._dirty_status(
                     connection,
-                    ReportingStatusScope(configuration.account_id, configuration.generation_key),
+                    scope,
                     "configuration",
+                    before=configuration_evidence(retained),
                     after=configuration_evidence(configuration),
                 )
 
@@ -1216,23 +1261,23 @@ class PgReportingLedgerStore:
                     "reopened, and a recurrence gets a new occurrence",
                 )
             check_issue_state_transition(live.issue_state, state)
-            if state == live.issue_state and (
-                not external_ref or external_ref == live.external_ref
-            ):
-                await self._dirty_issue(connection, live, status_scope, enqueue=False)
-                return live
             await connection.execute(
                 "UPDATE reporting_issue_lifecycle"
                 " SET issue_state = %s,"
                 "     external_ref = COALESCE(%s, external_ref),"
-                "     retired_at = CASE WHEN %s = 'waived' AND issue_state <> 'waived'"
-                " THEN %s ELSE retired_at END"
+                "     retired_at = CASE WHEN %s = 'waived' THEN %s ELSE retired_at END"
                 " WHERE account_id = %s AND issue_key = %s AND generation = %s",
                 (state, external_ref, state, _utc(at), account_id, issue_key, live.generation),
             )
             refreshed = await self._issue_row(connection, issue_key, account_id, live.generation)
             assert refreshed is not None
-            await self._dirty_issue(connection, refreshed, status_scope, live)
+            # Derive the no-op from the resulting row rather than predicting
+            # it: an idempotent re-acknowledge changes nothing and enqueues
+            # nothing, while anything that does move retained evidence stays
+            # reconstructable for the projector.
+            await self._dirty_issue(
+                connection, refreshed, status_scope, live, enqueue=refreshed != live
+            )
             return refreshed
 
     async def retire_issue(

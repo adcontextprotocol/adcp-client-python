@@ -178,6 +178,13 @@ class PgReportingOutbox:
     def __init__(
         self, *, pool: AsyncConnectionPool, clock: Callable[[], datetime] | None = None
     ) -> None:
+        # Same actionable hint the sibling PG stores raise, so a base-install
+        # adopter is told to add the extra instead of meeting a driver error
+        # from inside the first query.
+        from adcp.reporting.ledger.pg import _INSTALL_HINT, PG_AVAILABLE
+
+        if not PG_AVAILABLE:
+            raise ImportError(_INSTALL_HINT)
         self._pool, self._clock = pool, clock
 
     async def create_schema(self) -> None:

@@ -76,7 +76,12 @@ leaves the old primary key in place and does not perform this upgrade.
 
 The reconciliation migration adds empty optional evidence tables and nullable,
 immutable managed digest/total evidence on revisions and adjustments. It does not infer historical
-evidence or enable a delivery tier. See the [storage contract](reporting-reconciliation-storage.md)
+evidence or enable a delivery tier. Re-running it also replaces the
+`reporting_reconciliation_reference_immutable()` guard function in place, so
+that a referenced configuration generation keeps its published content
+immutable while still accepting the rc.3 lifecycle columns (`activated_at`,
+`deactivated_at`, `automated_recovery_seconds`, `status_retention_days`). It
+rewrites no rows. See the [storage contract](reporting-reconciliation-storage.md)
 for the records, migration invariants, and deferred writer/handler work.
 
 The outbox migration adds empty event, delivery, and ordered status-dirty tables.

@@ -127,6 +127,7 @@ from pathlib import Path
 import adcp
 from adcp.reporting.outbox import (
     InMemoryReportingOutbox,
+    PgReportingOutbox,
     ReportingEnvelopeCipher,
     ReportingNotificationWorker,
 )
@@ -140,6 +141,14 @@ assert "installed" in str(Path(adcp.__file__))
 assert "notifications" not in inspect.signature(ReportingProducer).parameters
 assert not hasattr(InMemoryReportingLedgerStore(), "commit_materialization")
 outbox = InMemoryReportingOutbox(InMemoryReportingLedgerStore(notifications=True))
+# The PG outbox must refuse construction with the same actionable extra hint
+# the sibling PG stores raise, not a driver error from inside a later query.
+try:
+    PgReportingOutbox(pool=None)
+except ImportError as error:
+    assert "adcp[pg]" in str(error), str(error)
+else:
+    raise AssertionError("PgReportingOutbox must raise the [pg] install hint")
 assert files("adcp.reporting.ledger").joinpath("reporting_notification_outbox.sql").is_file()
 assert (
     get_named_validator("core/reporting-ledger-changed-webhook.json", version="3.2.0-rc.3")

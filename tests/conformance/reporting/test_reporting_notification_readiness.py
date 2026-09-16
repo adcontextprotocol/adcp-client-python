@@ -5,7 +5,11 @@ from datetime import timedelta
 
 import pytest
 
-from adcp.reporting.ledger import InMemoryReportingLedgerStore, ReportingDeliveryScope
+from adcp.reporting.ledger import (
+    InMemoryReportingLedgerStore,
+    LedgerConflictError,
+    ReportingDeliveryScope,
+)
 from adcp.reporting.outbox import (
     InMemoryReportingOutbox,
     ReportingNotificationError,
@@ -14,6 +18,7 @@ from adcp.reporting.outbox import (
 
 from ._generation_support import NOW, configuration
 from ._reconciliation_support import scenario
+from ._reliable_support import reliable_factory
 from .test_reporting_notification_outbox import seed
 
 
@@ -124,3 +129,172 @@ async def test_mutable_memory_configuration_lifecycle_keeps_core_semantics():
     assert dirty[1].after.automated_recovery_seconds == 7200
     assert dirty[2].after == dirty[0].after
     assert await outbox.list_events(account_id="acct_a") == ()
+
+
+async def test_configuration_lifecycle_state_is_shared_by_memory_and_postgres(
+    notification_harness,
+):
+    """rc.3 walks one immutable generation through ready -> inactive.
+
+    Both stores must apply a lifecycle-only re-put to the retained generation
+    and co-commit exactly one status-dirty generation for it, so #1168B's
+    projector sees the same journal on either backend. A PostgreSQL
+    ``ON CONFLICT DO NOTHING`` that dropped the update would leave a
+    deactivated feed minting obligations forever and never mark it dirty.
+    """
+    h = notification_harness
+    store = h.reliable.store
+    first = configuration()
+    assert first.deactivated_at is not None
+    inactive = replace(
+        first,
+        deactivated_at=first.deactivated_at + timedelta(hours=1),
+        automated_recovery_window=timedelta(hours=2),
+        status_retention_days=30,
+    )
+    await store.put_configuration(first)
+    # An unchanged re-put stays a no-op on both stores.
+    await store.put_configuration(first)
+    await store.put_configuration(inactive)
+    await store.put_configuration(inactive)
+    # Reverting the lifecycle is a further transition, not a rollback.
+    await store.put_configuration(first)
+
+    retained = await store.list_configurations(account_id="acct_a")
+    assert [item.deactivated_at for item in retained] == [first.deactivated_at]
+    assert retained[0].automated_recovery_window == first.automated_recovery_window
+    assert retained[0].status_retention_days == first.status_retention_days
+
+    dirty = [
+        record
+        for record in await h.outbox.read_status_dirty(account_id="acct_a")
+        if record.reason == "configuration"
+    ]
+    assert [record.cause_generation for record in dirty] == [1, 2, 3]
+    assert [record.scope for record in dirty] == [
+        ReportingStatusScope("acct_a", first.generation_key)
+    ] * 3
+    assert dirty[0].before is None
+    assert dirty[1].before == dirty[0].after and dirty[2].before == dirty[1].after
+    assert dirty[1].after.deactivated_at == inactive.deactivated_at
+    assert dirty[1].after.automated_recovery_seconds == 7200
+    assert dirty[1].after.status_retention_days == 30
+    assert dirty[2].after == dirty[0].after
+    # Lifecycle state is not a ledger change: no logical event is emitted.
+    assert await h.outbox.list_events(account_id="acct_a") == ()
+
+    # Changed content is still a conflict that mutates nothing and enqueues
+    # nothing, on the same generation the lifecycle re-put just touched.
+    with pytest.raises(LedgerConflictError) as conflict:
+        await store.put_configuration(replace(first, report_definition_id="rpd_other"))
+    assert conflict.value.code == "CONFIGURATION_GENERATION_IMMUTABLE"
+    assert await store.list_configurations(account_id="acct_a") == retained
+    assert [
+        record
+        for record in await h.outbox.read_status_dirty(account_id="acct_a")
+        if record.reason == "configuration"
+    ] == dirty
+
+
+async def test_reconciled_managed_generation_can_still_be_deactivated(notification_harness):
+    """The parent reference-immutability guard must not freeze lifecycle state.
+
+    A Managed generation referenced by reconciliation records keeps its
+    published content immutable while still reaching rc.3 ``inactive``.
+    """
+    h = notification_harness
+    s = await scenario(h.reliable.store)
+    await h.reliable.store.commit_materialization(s.outcome)
+    (config,) = await h.reliable.store.list_configurations(account_id="acct_a")
+    assert config.generation_key == s.binding.generation_key
+    assert config.deactivated_at is not None
+    stopped = replace(config, deactivated_at=config.deactivated_at + timedelta(hours=3))
+    await h.reliable.store.put_configuration(stopped)
+    (retained,) = await h.reliable.store.list_configurations(account_id="acct_a")
+    assert retained.deactivated_at == stopped.deactivated_at
+    assert retained.report_definition_id == config.report_definition_id
+    latest = [
+        record
+        for record in await h.outbox.read_status_dirty(account_id="acct_a")
+        if record.reason == "configuration"
+    ][-1]
+    assert latest.before.deactivated_at == config.deactivated_at
+    assert latest.after.deactivated_at == stopped.deactivated_at
+    with pytest.raises(LedgerConflictError) as conflict:
+        await h.reliable.store.put_configuration(replace(config, report_definition_id="rpd_other"))
+    assert conflict.value.code == "CONFIGURATION_GENERATION_IMMUTABLE"
+
+
+@pytest.mark.parametrize("backend", ["memory", "postgres"])
+async def test_default_off_issue_waive_keeps_parent_return_values(backend):
+    """Opting out must not change any existing Core return value.
+
+    ``retired_at`` is SDK bookkeeping with no rc.3 field behind it, so the A
+    slice may not silently freeze it. A repeated waive keeps advancing it and a
+    later ``external_ref`` still lands, exactly as before the outbox existed.
+    """
+    async with reliable_factory(backend, notifications=False) as reliable:
+        store = reliable.store
+        await store.ensure_issue_opened(
+            issue_key="k", account_id="acct_a", consumer_id=None, observed_at=NOW
+        )
+        await store.set_issue_state(
+            issue_key="k", account_id="acct_a", state="acknowledged", at=NOW
+        )
+        first = await store.set_issue_state(
+            issue_key="k", account_id="acct_a", state="waived", at=NOW + timedelta(hours=1)
+        )
+        assert first.retired_at == NOW + timedelta(hours=1)
+        again = await store.set_issue_state(
+            issue_key="k", account_id="acct_a", state="waived", at=NOW + timedelta(hours=9)
+        )
+        assert again.retired_at == NOW + timedelta(hours=9)
+        tagged = await store.set_issue_state(
+            issue_key="k",
+            account_id="acct_a",
+            state="waived",
+            at=NOW + timedelta(hours=20),
+            external_ref="ticket-2",
+        )
+        assert tagged.retired_at == NOW + timedelta(hours=20)
+        assert tagged.external_ref == "ticket-2"
+
+
+async def test_issue_dirty_records_track_actual_retained_evidence(notification_harness):
+    """The journal follows the record, so a projector can trust either store.
+
+    An idempotent re-acknowledge moves nothing and enqueues nothing. A repeated
+    waive does move ``retired_at``, so it must stay reconstructable.
+    """
+    h = notification_harness
+    store = h.reliable.store
+    await store.ensure_issue_opened(
+        issue_key="k", account_id="acct_a", consumer_id=None, observed_at=NOW
+    )
+    await store.set_issue_state(issue_key="k", account_id="acct_a", state="acknowledged", at=NOW)
+    await store.set_issue_state(
+        issue_key="k", account_id="acct_a", state="acknowledged", at=NOW + timedelta(hours=1)
+    )
+    waived = await store.set_issue_state(
+        issue_key="k", account_id="acct_a", state="waived", at=NOW + timedelta(hours=2)
+    )
+    rewaived = await store.set_issue_state(
+        issue_key="k", account_id="acct_a", state="waived", at=NOW + timedelta(hours=3)
+    )
+    issues = [
+        record
+        for record in await h.outbox.read_status_dirty(account_id="acct_a")
+        if record.reason == "issue"
+    ]
+    assert [record.after.issue_state for record in issues] == [
+        "open",
+        "acknowledged",
+        "waived",
+        "waived",
+    ]
+    assert [record.cause_generation for record in issues] == [1, 2, 3, 4]
+    assert issues[2].before.issue_state == "acknowledged"
+    assert issues[2].after.retired_at == waived.retired_at
+    assert issues[3].before.retired_at == waived.retired_at
+    assert issues[3].after.retired_at == rewaived.retired_at
+    assert await h.outbox.list_events(account_id="acct_a") == ()

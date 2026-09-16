@@ -146,6 +146,14 @@ async def prepare(h: NotificationHarness, operation: str):
     obligation, revision, rows = await seed(h, official=operation == "adjustment")
     if operation == "configuration":
         return lambda: store.put_configuration(replace(configuration(), delivery_config_version=2))
+    if operation == "configuration_lifecycle":
+        # The retained generation already exists; only rc.3 lifecycle state
+        # moves, so this exercises the UPDATE path rather than the INSERT.
+        base = configuration()
+        assert base.deactivated_at is not None
+        return lambda: store.put_configuration(
+            replace(base, deactivated_at=base.deactivated_at + timedelta(hours=1))
+        )
     if operation == "obligation":
         other = replace(
             obligation,
@@ -252,6 +260,7 @@ async def image(h: NotificationHarness):
     "operation",
     [
         "configuration",
+        "configuration_lifecycle",
         "obligation",
         "revision",
         "readability",

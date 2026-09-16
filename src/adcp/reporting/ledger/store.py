@@ -744,7 +744,10 @@ class InMemoryReportingLedgerStore:
                     "publish a new version instead of editing a retained generation",
                 )
             self._configurations[key] = configuration
-            if existing != configuration and self._notification_state is not None:
+            changed = existing is None or configuration_lifecycle(
+                existing
+            ) != configuration_lifecycle(configuration)
+            if changed and self._notification_state is not None:
                 self._dirty_status(
                     ReportingStatusScope(configuration.account_id, configuration.generation_key),
                     "configuration",
@@ -1218,25 +1221,19 @@ class InMemoryReportingLedgerStore:
                     "reopened, and a recurrence gets a new occurrence",
                 )
             check_issue_state_transition(live.issue_state, state)
-            if state == live.issue_state and (
-                not external_ref or external_ref == live.external_ref
-            ):
-                self._dirty_issue(live, status_scope, enqueue=False)
-                return live
             updated = replace(
                 live,
                 issue_state=state,
                 external_ref=external_ref or live.external_ref,
-                # Set only on the way into a retired state and never cleared:
-                # a waived issue keeps the instant it was waived.
-                retired_at=(
-                    _utc(at)
-                    if state == "waived" and live.issue_state != "waived"
-                    else live.retired_at
-                ),
+                # Set on the way into a retired state and never cleared.
+                retired_at=_utc(at) if state == "waived" else live.retired_at,
             )
             self._issues[key] = updated
-            self._dirty_issue(updated, status_scope, live)
+            # Derive the no-op from the resulting record rather than predicting
+            # it: an idempotent re-acknowledge changes nothing and enqueues
+            # nothing, while anything that does move retained evidence stays
+            # reconstructable for the projector.
+            self._dirty_issue(updated, status_scope, live, enqueue=updated != live)
             return updated
 
     async def retire_issue(
@@ -1451,6 +1448,24 @@ def reject_reserved_authoritative_party(configuration: ReportingConfiguration) -
             "every revision; omit the field or set it to 'seller'. See "
             "https://github.com/adcontextprotocol/adcp/issues/7440",
         )
+
+
+def configuration_lifecycle(configuration: ReportingConfiguration) -> tuple[Any, ...]:
+    """The rc.3 lifecycle state carried over one immutable content generation.
+
+    ``reporting-delivery-config-state.json`` walks a single generation from
+    ``ready`` to ``inactive``, requiring ``deactivated_at`` on the way, and the
+    recovery/retention windows are operational state too. That is why none of
+    these fields feed ``content_sha256``: a re-put changing only them applies
+    to the retained generation instead of conflicting with it. Both stores
+    compare exactly this tuple so their status-dirty journals agree.
+    """
+    return (
+        _utc(configuration.activated_at) if configuration.activated_at else None,
+        _utc(configuration.deactivated_at) if configuration.deactivated_at else None,
+        configuration.automated_recovery_window,
+        configuration.status_retention_days,
+    )
 
 
 def _config_payload(configuration: ReportingConfiguration) -> dict[str, Any]:

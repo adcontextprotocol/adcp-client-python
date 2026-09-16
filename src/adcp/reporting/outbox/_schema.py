@@ -69,7 +69,7 @@ SCHEMA_CONTRACT: dict[str, str] = {
         "cb1b0e47e2848ae79292f539f4c3fe85" "8b651db28434bdd468596b36cd08d9cb"
     ),
     "function:reporting_reconciliation_reference_immutable()": (
-        "f9048965fa08e87e4b26ecd108cce370" "f19ad939e03486f32fba66a899e7bd05"
+        "6461682d3ebaceb7ccd795f1d87c524a" "02f8d1f1487dd182e23779b44dae4ddf"
     ),
     "function:reporting_reconciliation_validate(r reporting_reconciliation_records)": (
         "309164066f02cc4d0f3ff66df47cf5c4" "ddddcc69525436634f94845e0d2864ed"

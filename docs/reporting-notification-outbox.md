@@ -86,6 +86,22 @@ idempotency key and its own prepared body. Re-emitting an event with
 `outbox.reemit(...)` advances the emission generation and generates new keys;
 ordinary retry changes neither generation, key, nor body bytes.
 
+A configuration generation's *content* stays immutable, while the rc.3
+lifecycle state it carries -- activation, deactivation, and the recovery and
+retention windows -- keeps evolving on that same generation
+(`reporting-delivery-config-state.json` walks one generation from `ready` to
+`inactive`). A re-put that changes only those fields therefore applies to the
+retained generation and co-commits one status-dirty generation; an unchanged
+re-put stays a no-op and enqueues nothing; changed content is still a
+`CONFIGURATION_GENERATION_IMMUTABLE` conflict that writes nothing. The
+reconciliation reference guard exempts exactly this lifecycle state, so a
+Managed generation bound by reconciliation records can still be deactivated.
+
+A dirty record follows the retained evidence rather than a predicted
+transition: an idempotent re-acknowledge of an issue changes nothing and
+enqueues nothing, while a repeated waive does move `retired_at` and stays
+reconstructable. Existing issue return values are unchanged by opting in.
+
 Status-dirty records form an account-ordered journal, with a trusted optional
 generation/obligation/consumer/feed scope, cause generations, and immutable
 record references. Readability, configuration lifecycle, and issue lifecycle
