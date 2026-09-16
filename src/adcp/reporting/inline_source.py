@@ -398,16 +398,14 @@ class InMemoryStagingStore:
     """
 
     def __init__(self) -> None:
-        self._objects: dict[tuple[str, str], bytes] = {}
-        self._scopes: dict[tuple[str, str], str] = {}
+        self._objects: dict[tuple[str, str, str], bytes] = {}
 
     async def stage(
         self, *, account_id: str, source_execution_key: str, ordinal: int, payload: bytes
     ) -> tuple[str, str]:
         digest = hashlib.sha256(payload).hexdigest()
         object_ref = f"{source_execution_key}.{ordinal}"
-        self._objects[(object_ref, digest)] = payload
-        self._scopes[(object_ref, digest)] = account_id
+        self._objects[(account_id, object_ref, digest)] = payload
         return object_ref, digest
 
     async def read(
@@ -419,8 +417,8 @@ class InMemoryStagingStore:
         source_scope: Mapping[str, Any],
         cancel: asyncio.Event,
     ) -> bytes:
-        key = (object_ref, object_generation)
-        if self._scopes.get(key) != account_id:
+        key = (account_id, object_ref, object_generation)
+        if key not in self._objects:
             raise PermissionError("staged object is outside the requested account scope")
         return self._objects[key]
 
