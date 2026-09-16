@@ -1,7 +1,7 @@
 -- AdCP Reliable Reporting ledger — durable obligations, revisions, and status.
 --
 -- Run this followed by reporting_ledger_account_generations.sql and
--- reporting_ledger_obligation_currency.sql and reporting_ledger_reconciliation.sql in ONE
+-- reporting_ledger_obligation_currency.sql in ONE
 -- transaction (psql --single-transaction -f ... -f ...), or call
 -- PgReportingLedgerStore.create_schema(). CREATE TABLE IF NOT EXISTS alone
 -- does not upgrade the global configuration primary key from 8.0.0-beta.15.

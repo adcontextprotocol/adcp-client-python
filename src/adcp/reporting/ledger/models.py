@@ -28,6 +28,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
 from adcp.reporting.currency import validate_currency, validate_currency_units
+from adcp.reporting.evidence import (
+    ReportingCanonicalDigest,
+    ReportingControlTotalRecord,
+    freeze_control_totals,
+)
 
 __all__ = [
     "ConsumerStatusRecord",
@@ -58,7 +63,19 @@ __all__ = [
 ReportingFinality = Literal["snapshot", "official"]
 ReportingHealth = Literal["healthy", "waiting", "delayed", "action_required", "complete"]
 ReportingProductionStatus = Literal["not_due", "pending", "published", "failed"]
-LedgerRecordKind = Literal["obligation", "revision", "adjustment", "consumer_status"]
+LedgerRecordKind = Literal[
+    "obligation",
+    "revision",
+    "adjustment",
+    "consumer_status",
+    "destination_binding",
+    "obligation_delivery",
+    "materialization_attempt",
+    "materialization",
+    "materialization_check",
+    "revision_receipt",
+    "adjustment_receipt",
+]
 
 #: The five values a consumer may state about one expected period. AdCP
 #: 3.2.0-rc.3 adds ``content_mismatch``: reporting that arrived and parsed but
@@ -417,6 +434,8 @@ class ReportingObligationRecord:
                         *self.definition.monetary_control_total_units,
                     ),
                 )
+        object.__setattr__(self, "media_buy_ids", tuple(self.media_buy_ids))
+        object.__setattr__(self, "package_ids", tuple(self.package_ids))
         if _utc(self.scope_resolved_at) != _utc(self.period.end):
             raise ValueError(
                 "scope_resolved_at must equal the period end; the denominator froze there "
@@ -459,8 +478,26 @@ class ReportingRevisionRecord:
     readable_at_commit: bool = True
     source_publication_id: str | None = None
     source_manifest_sha256: str | None = None
+    # Optional managed evidence supplied by a trusted publisher before any
+    # destination work. Core neither computes nor requires this contract.
+    canonical_content_digest: ReportingCanonicalDigest | None = None
+    managed_control_totals: tuple[ReportingControlTotalRecord, ...] | None = None
 
     def __post_init__(self) -> None:
+        if (
+            self.canonical_content_digest is not None
+            and type(self.canonical_content_digest) is not ReportingCanonicalDigest
+        ):
+            raise ValueError("managed revision evidence requires an immutable canonical digest")
+        object.__setattr__(
+            self, "control_totals", tuple(tuple(item) for item in self.control_totals)
+        )
+        if self.managed_control_totals is not None:
+            object.__setattr__(
+                self,
+                "managed_control_totals",
+                freeze_control_totals(self.managed_control_totals, self.control_totals),
+            )
         if self.finality == "official":
             if not (self.finality_basis and self.finality_policy_id and self.finalized_at):
                 raise ValueError(
@@ -503,6 +540,18 @@ class ReportingAdjustmentRecord:
     correction_observed_at: datetime
     created_at: datetime
     reason_detail: str | None = None
+    managed_control_total_deltas: tuple[ReportingControlTotalRecord, ...] | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "control_total_deltas", tuple(tuple(item) for item in self.control_total_deltas)
+        )
+        if self.managed_control_total_deltas is not None:
+            object.__setattr__(
+                self,
+                "managed_control_total_deltas",
+                freeze_control_totals(self.managed_control_total_deltas, self.control_total_deltas),
+            )
 
 
 @dataclass(frozen=True)

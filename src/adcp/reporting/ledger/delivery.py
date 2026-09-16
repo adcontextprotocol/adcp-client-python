@@ -1,0 +1,502 @@
+"""Optional durable seller contracts for future destination writers and receipt handlers.
+
+These stores persist evidence only. They do not resolve credentials, perform
+external writes, mount tasks, or advertise Managed Delivery/Reconciled Billing.
+The existing Core store protocol and construction contract remain unchanged.
+"""
+
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from typing import Any, Protocol, cast, runtime_checkable
+
+from adcp.reporting.ledger._delivery_state import (
+    DeliveryContext,
+    RecordT,
+    adjustment_payload,
+    adjustment_sha256,
+    change_id,
+    decode_record,
+    iso,
+    payload,
+    principal,
+    replay,
+    revision_control_totals,
+    totals_to_wire,
+    unavailable,
+    validate_transition,
+)
+from adcp.reporting.ledger.delivery_models import (
+    ReportingAdjustmentReceiptRecord,
+    ReportingDeliveryPrincipal,
+    ReportingDeliveryRecord,
+    ReportingDeliveryScope,
+    ReportingDestinationBinding,
+    ReportingMaterializationAttempt,
+    ReportingMaterializationCheck,
+    ReportingMaterializationKey,
+    ReportingMaterializationRecord,
+    ReportingObligationDeliveryRecord,
+    ReportingReceiptKey,
+    ReportingReceiptRecord,
+    ReportingRevisionReceiptRecord,
+)
+from adcp.reporting.ledger.models import (
+    LedgerSnapshot,
+    ReportingAdjustmentRecord,
+    ReportingConfigurationGenerationKey,
+    ReportingObligationRecord,
+    ReportingRevisionRecord,
+)
+from adcp.reporting.ledger.store import InMemoryReportingLedgerStore
+
+
+@runtime_checkable
+class ReportingDestinationStore(Protocol):
+    """Trusted configuration ingestion. Never accept a destination from a receipt body."""
+
+    async def put_destination_binding(
+        self, record: ReportingDestinationBinding
+    ) -> tuple[ReportingDestinationBinding, bool]: ...
+
+    async def bind_obligation_delivery(
+        self, record: ReportingObligationDeliveryRecord
+    ) -> tuple[ReportingObligationDeliveryRecord, bool]: ...
+
+    async def get_destination_binding(
+        self,
+        *,
+        caller: ReportingDeliveryPrincipal,
+        generation_key: ReportingConfigurationGenerationKey,
+    ) -> ReportingDestinationBinding | None: ...
+
+    async def get_obligation_delivery(
+        self, scope: ReportingDeliveryScope
+    ) -> ReportingObligationDeliveryRecord | None: ...
+
+
+@runtime_checkable
+class ReportingMaterializationStore(Protocol):
+    async def commit_materialization_attempt(
+        self, record: ReportingMaterializationAttempt
+    ) -> tuple[ReportingMaterializationAttempt, bool]: ...
+
+    async def commit_materialization(
+        self, record: ReportingMaterializationRecord
+    ) -> tuple[ReportingMaterializationRecord, bool]: ...
+
+    async def record_materialization_check(
+        self, record: ReportingMaterializationCheck
+    ) -> tuple[ReportingMaterializationCheck, bool]: ...
+
+    async def get_materialization(
+        self, key: ReportingMaterializationKey
+    ) -> ReportingMaterializationView | None: ...
+
+
+@runtime_checkable
+class ReportingReceiptStore(Protocol):
+    """Transport-derived scope is mandatory. Exact retries precede temporal checks.
+
+    ``received_at`` is assigned by the store; callers retry the immutable input
+    or the returned record. Both receipt kinds share the same scoped ID namespace.
+    """
+
+    async def record_revision_receipt(
+        self, record: ReportingRevisionReceiptRecord
+    ) -> tuple[ReportingRevisionReceiptRecord, bool]: ...
+
+    async def record_adjustment_receipt(
+        self, record: ReportingAdjustmentReceiptRecord
+    ) -> tuple[ReportingAdjustmentReceiptRecord, bool]: ...
+
+    async def get_receipt(self, key: ReportingReceiptKey) -> ReportingReceiptRecord | None: ...
+
+
+@runtime_checkable
+class ReportingReconciliationStore(
+    ReportingDestinationStore, ReportingMaterializationStore, ReportingReceiptStore, Protocol
+):
+    async def read_reconciliation_snapshot(
+        self,
+        *,
+        caller: ReportingDeliveryPrincipal,
+        boundary: LedgerSnapshot | None = None,
+    ) -> ReportingReconciliationSnapshot: ...
+
+
+@dataclass(frozen=True, slots=True)
+class ReportingMaterializationView:
+    attempt: ReportingMaterializationAttempt
+    binding: ReportingDestinationBinding
+    outcome: ReportingMaterializationRecord | None
+    checks: tuple[ReportingMaterializationCheck, ...]
+
+    @property
+    def check(self) -> ReportingMaterializationCheck | None:
+        return max(self.checks, key=lambda item: item.checked_at, default=None)
+
+    def readable_at(self, at: datetime) -> bool:
+        outcome = self.outcome
+        check = max(
+            (item for item in self.checks if item.checked_at <= at),
+            key=lambda item: item.checked_at,
+            default=None,
+        )
+        return bool(
+            outcome is not None
+            and outcome.status in {"available", "delivered"}
+            and outcome.resource is not None
+            and outcome.completed_at <= at < outcome.resource.expires_at
+            and (check is None or check.state == "readable")
+        )
+
+    def to_wire(self) -> dict[str, Any]:
+        """An inert projection for future handlers. Never exposes the trusted reference."""
+        attempt, binding, outcome = self.attempt, self.binding, self.outcome
+        generation = attempt.scope.generation_key
+        result: dict[str, Any] = {
+            "reporting_materialization_id": attempt.reporting_materialization_id,
+            "reporting_revision_id": attempt.reporting_revision_id,
+            "reporting_obligation_id": attempt.scope.reporting_obligation_id,
+            "delivery_config_id": generation.delivery_config_id,
+            "delivery_config_version": generation.delivery_config_version,
+            "destination_ref": binding.destination_ref,
+            "feed_purpose": binding.feed_purpose,
+            "method": binding.method,
+            "transport": binding.transport,
+            "attempt": attempt.attempt,
+            "status": outcome.status if outcome is not None else "pending",
+            "created_at": iso(attempt.created_at),
+        }
+        if outcome is None:
+            return result
+        if outcome.status == "failed":
+            result.update(failed_at=iso(outcome.completed_at), failure_code=outcome.failure_code)
+            return result
+        resource, verification = outcome.resource, outcome.verification
+        assert resource is not None and verification is not None
+        descriptor = {
+            key: value
+            for key, value in asdict(resource).items()
+            if value is not None and key != "object_refs"
+        }
+        descriptor["expires_at"] = iso(resource.expires_at)
+        descriptor["reader_compatibility"] = list(resource.reader_compatibility)
+        if resource.kind == "manifest":
+            descriptor["manifest_version"] = "1.0"
+        evidence: dict[str, Any] = {
+            "verified_at": iso(verification.verified_at),
+            "verification_path": verification.verification_path,
+            "verification_profile": verification.verification_profile,
+            "row_count": verification.row_count,
+            "control_totals": totals_to_wire(verification.control_totals),
+        }
+        if verification.canonical_content_digest is not None:
+            evidence["canonical_content_digest"] = verification.canonical_content_digest.to_wire()
+        if verification.physical_checksums:
+            evidence["physical_checksums"] = [
+                asdict(item) for item in verification.physical_checksums
+            ]
+        if verification.native_version_ref is not None:
+            evidence["native_commit_evidence"] = {
+                "native_version_ref": verification.native_version_ref,
+                "observed_through": verification.native_observed_through,
+            }
+        result.update(
+            ready_at=iso(outcome.completed_at), resource=descriptor, verification=evidence
+        )
+        return result
+
+
+@dataclass(frozen=True, slots=True)
+class ReportingReconciliationSnapshot:
+    caller: ReportingDeliveryPrincipal
+    boundary: LedgerSnapshot
+    records: tuple[ReportingDeliveryRecord, ...]
+
+    def materialization(
+        self, key: ReportingMaterializationKey
+    ) -> ReportingMaterializationView | None:
+        if key.principal != self.caller:
+            return None
+        attempt = next(
+            (
+                item
+                for item in self.records
+                if isinstance(item, ReportingMaterializationAttempt) and item.key == key
+            ),
+            None,
+        )
+        if attempt is None:
+            return None
+        binding = next(
+            (
+                item
+                for item in self.records
+                if isinstance(item, ReportingDestinationBinding)
+                and item.generation_key == attempt.scope.generation_key
+            ),
+            None,
+        )
+        if binding is None:
+            unavailable()
+        outcome = next(
+            (
+                item
+                for item in self.records
+                if isinstance(item, ReportingMaterializationRecord) and item.key == key
+            ),
+            None,
+        )
+        return ReportingMaterializationView(
+            attempt,
+            binding,
+            outcome,
+            tuple(
+                item
+                for item in self.records
+                if isinstance(item, ReportingMaterializationCheck)
+                and item.reporting_materialization_id == key.reporting_materialization_id
+            ),
+        )
+
+    @property
+    def current_receipts(self) -> tuple[ReportingReceiptRecord, ...]:
+        receipts = tuple(
+            item
+            for item in self.records
+            if isinstance(item, (ReportingRevisionReceiptRecord, ReportingAdjustmentReceiptRecord))
+        )
+        replaced = {item.supersedes_reporting_receipt_id for item in receipts}
+        return tuple(item for item in receipts if item.reporting_receipt_id not in replaced)
+
+    @property
+    def terminal_acceptances(self) -> tuple[ReportingReceiptKey, ...]:
+        return tuple(item.key for item in self.current_receipts if item.status == "accepted")
+
+
+class _ReconciliationOperations:
+    """Typed forwarding shared by the two storage mechanisms; not an adopter hook."""
+
+    async def _commit(self, record: RecordT) -> tuple[RecordT, bool]:
+        raise NotImplementedError
+
+    async def put_destination_binding(
+        self, record: ReportingDestinationBinding
+    ) -> tuple[ReportingDestinationBinding, bool]:
+        return await self._commit(record)
+
+    async def get_destination_binding(
+        self,
+        *,
+        caller: ReportingDeliveryPrincipal,
+        generation_key: ReportingConfigurationGenerationKey,
+    ) -> ReportingDestinationBinding | None:
+        if caller.account_id != generation_key.account_id:
+            return None
+        snapshot = await self.read_reconciliation_snapshot(caller=caller)
+        return next(
+            (
+                item
+                for item in snapshot.records
+                if isinstance(item, ReportingDestinationBinding)
+                and item.generation_key == generation_key
+            ),
+            None,
+        )
+
+    async def get_obligation_delivery(
+        self, scope: ReportingDeliveryScope
+    ) -> ReportingObligationDeliveryRecord | None:
+        snapshot = await self.read_reconciliation_snapshot(caller=scope.principal)
+        return next(
+            (
+                item
+                for item in snapshot.records
+                if isinstance(item, ReportingObligationDeliveryRecord) and item.scope == scope
+            ),
+            None,
+        )
+
+    async def bind_obligation_delivery(
+        self, record: ReportingObligationDeliveryRecord
+    ) -> tuple[ReportingObligationDeliveryRecord, bool]:
+        return await self._commit(record)
+
+    async def commit_materialization_attempt(
+        self, record: ReportingMaterializationAttempt
+    ) -> tuple[ReportingMaterializationAttempt, bool]:
+        return await self._commit(record)
+
+    async def commit_materialization(
+        self, record: ReportingMaterializationRecord
+    ) -> tuple[ReportingMaterializationRecord, bool]:
+        return await self._commit(record)
+
+    async def record_materialization_check(
+        self, record: ReportingMaterializationCheck
+    ) -> tuple[ReportingMaterializationCheck, bool]:
+        return await self._commit(record)
+
+    async def record_revision_receipt(
+        self, record: ReportingRevisionReceiptRecord
+    ) -> tuple[ReportingRevisionReceiptRecord, bool]:
+        return await self._commit(record)
+
+    async def record_adjustment_receipt(
+        self, record: ReportingAdjustmentReceiptRecord
+    ) -> tuple[ReportingAdjustmentReceiptRecord, bool]:
+        return await self._commit(record)
+
+    async def read_reconciliation_snapshot(
+        self, *, caller: ReportingDeliveryPrincipal, boundary: LedgerSnapshot | None = None
+    ) -> ReportingReconciliationSnapshot:
+        raise NotImplementedError
+
+    async def get_materialization(
+        self, key: ReportingMaterializationKey
+    ) -> ReportingMaterializationView | None:
+        snapshot = await self.read_reconciliation_snapshot(caller=key.principal)
+        return snapshot.materialization(key)
+
+    async def get_receipt(self, key: ReportingReceiptKey) -> ReportingReceiptRecord | None:
+        snapshot = await self.read_reconciliation_snapshot(caller=key.principal)
+        return next(
+            (
+                item
+                for item in snapshot.records
+                if isinstance(
+                    item, (ReportingRevisionReceiptRecord, ReportingAdjustmentReceiptRecord)
+                )
+                and item.key == key
+            ),
+            None,
+        )
+
+
+class InMemoryReportingReconciliationStore(InMemoryReportingLedgerStore, _ReconciliationOperations):
+    """Optional reference extension. No destination/receipt services at construction."""
+
+    async def _commit(self, record: RecordT) -> tuple[RecordT, bool]:
+        candidate = decode_record(payload(record))
+        who = principal(candidate)
+        async with self._lock:
+            retained = self._retained_delivery_records()
+            records = tuple(item[2] for item in retained if item[1] == who)
+            existing = replay(candidate, records)
+            if existing is not None:
+                return cast(RecordT, existing), False
+            context = self._delivery_context(candidate)
+            stored = validate_transition(candidate, records, context, self._clock())
+            self._append(who.account_id, stored.kind, change_id(stored))
+            retained.append((self._sequence, who, stored))
+            return cast(RecordT, stored), True
+
+    def _retained_delivery_records(
+        self,
+    ) -> list[tuple[int, ReportingDeliveryPrincipal, ReportingDeliveryRecord]]:
+        # Lazily allocated so construction keeps Core's exact component surface.
+        if not hasattr(self, "_delivery_records"):
+            self._delivery_records: list[
+                tuple[int, ReportingDeliveryPrincipal, ReportingDeliveryRecord]
+            ] = []
+        return self._delivery_records
+
+    def _delivery_context(self, record: ReportingDeliveryRecord) -> DeliveryContext:
+        if isinstance(record, ReportingDestinationBinding):
+            return DeliveryContext(configuration=self._configurations.get(record.generation_key))
+        obligation = self._obligations.get(record.scope.reporting_obligation_id)
+        revision_id = getattr(record, "reporting_revision_id", None)
+        if isinstance(record, ReportingAdjustmentReceiptRecord):
+            revision_id = record.adjusts_reporting_revision_id
+        revision = self._revisions.get(revision_id) if revision_id is not None else None
+        return DeliveryContext(
+            obligation=obligation,
+            revision=revision,
+            revision_obligation=(
+                self._obligations.get(revision.reporting_obligation_id) if revision else None
+            ),
+            adjustment=(
+                self._adjustments.get(record.reporting_adjustment_id)
+                if isinstance(record, ReportingAdjustmentReceiptRecord)
+                else None
+            ),
+        )
+
+    async def read_reconciliation_snapshot(
+        self, *, caller: ReportingDeliveryPrincipal, boundary: LedgerSnapshot | None = None
+    ) -> ReportingReconciliationSnapshot:
+        if boundary is None:
+            boundary = await self.open_snapshot(
+                account_id=caller.account_id, filters_fingerprint=caller.consumer_id
+            )
+        if boundary.account_id != caller.account_id:
+            unavailable()
+        async with self._lock:
+            return ReportingReconciliationSnapshot(
+                caller,
+                boundary,
+                tuple(
+                    record
+                    for sequence, owner, record in self._retained_delivery_records()
+                    if owner == caller and sequence <= boundary.max_sequence
+                ),
+            )
+
+
+def materialization_to_wire(
+    view: ReportingMaterializationView, *, obligation: ReportingObligationRecord
+) -> dict[str, Any]:
+    if view.attempt.scope.generation_key != obligation.generation_key or (
+        view.attempt.scope.reporting_obligation_id != obligation.reporting_obligation_id
+    ):
+        unavailable()
+    result = view.to_wire()
+    result["feed_purpose"] = obligation.feed_purpose
+    return result
+
+
+def receipt_to_wire(record: ReportingReceiptRecord) -> dict[str, Any]:
+    result = payload(record)
+    result.pop("scope")
+    result.pop("kind")
+    if isinstance(record, ReportingRevisionReceiptRecord):
+        result["reporting_obligation_id"] = record.scope.reporting_obligation_id
+        result["observed_control_totals"] = totals_to_wire(record.observed_control_totals)
+        if record.observed_canonical_content_digest is not None:
+            result["observed_canonical_content_digest"] = (
+                record.observed_canonical_content_digest.to_wire()
+            )
+    return {
+        key: value
+        for key, value in result.items()
+        if value is not None and not (key == "rejection_codes" and not value)
+    }
+
+
+def adjustment_to_wire(adjustment: ReportingAdjustmentRecord) -> dict[str, Any]:
+    """Complete immutable adjustment evidence, including reason_detail in its digest."""
+    return {
+        **adjustment_payload(adjustment),
+        "canonical_adjustment_sha256": adjustment_sha256(adjustment),
+    }
+
+
+def revision_to_wire(
+    revision: ReportingRevisionRecord, *, obligation: ReportingObligationRecord
+) -> dict[str, Any]:
+    """Opt-in evidence projection; Core's mounted handler remains unchanged."""
+    from adcp.reporting.ledger.status import _revision_to_wire
+
+    if (
+        revision.account_id != obligation.account_id
+        or revision.reporting_obligation_id != obligation.reporting_obligation_id
+    ):
+        unavailable()
+    result = _revision_to_wire(revision, obligation)
+    result["control_totals"] = totals_to_wire(revision_control_totals(revision, obligation))
+    if revision.canonical_content_digest is not None:
+        result["canonical_content_digest"] = revision.canonical_content_digest.to_wire()
+    return result

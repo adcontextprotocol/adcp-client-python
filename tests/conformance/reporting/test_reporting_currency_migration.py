@@ -98,10 +98,15 @@ async def test_migration_preserves_evidence_and_quarantines_unknown_currency(
             *(raw_upgrade(pool) for _ in range(3)),
         )
         after = await retained(pool)
-        # The ONLY record change is the explicit unknown column; all hashes,
-        # rows, units, issues, leases and sequence numbers are otherwise exact.
+        # Additive unknown evidence columns; all existing hashes, rows, units,
+        # issues, leases and sequence numbers are otherwise exact.
         for record in before["reporting_obligations"]:
             record["currency"] = None
+        for record in before["reporting_revisions"]:
+            record["canonical_content_digest"] = None
+            record["managed_control_totals"] = None
+        for record in before["reporting_adjustments"]:
+            record["managed_control_total_deltas"] = None
         assert after == before
         assert (await _primary_key(pool))[
             3
