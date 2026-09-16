@@ -582,9 +582,9 @@ def check_issue_state_transition(current: str, requested: str) -> None:
 class InMemoryReportingLedgerStore:
     """Process-local reference store. Correct, ordered, and not durable.
 
-    ``clock`` supplies the snapshot observation boundary, standing in for the
-    database clock a durable store reads.  Override it to place a test's ledger
-    boundary deliberately rather than wherever wall-clock time happens to fall.
+    ``clock`` supplies change timestamps and the snapshot observation boundary,
+    standing in for the database clock a durable store reads. Override it to
+    place a test's ledger boundary at a deliberate instant.
     """
 
     def __init__(self, *, clock: Callable[[], datetime] | None = None) -> None:
@@ -619,9 +619,7 @@ class InMemoryReportingLedgerStore:
 
     def _append(self, account_id: str, kind: LedgerRecordKind, record_id: str) -> None:
         self._sequence += 1
-        self._changes.append(
-            (self._sequence, account_id, kind, record_id, datetime.now(timezone.utc))
-        )
+        self._changes.append((self._sequence, account_id, kind, record_id, self._clock()))
 
     # -- configurations --------------------------------------------------
 

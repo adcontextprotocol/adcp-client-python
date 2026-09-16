@@ -110,6 +110,7 @@ async def _with_deadline(
     *,
     deadline_at: datetime,
     cancel: asyncio.Event,
+    clock: Callable[[], datetime] | None = None,
 ) -> _T:
     """Run ``operation`` under the slice deadline, cancelling cooperatively first.
 
@@ -118,7 +119,8 @@ async def _with_deadline(
     and settle.  An executor that ignores the event is then hard-cancelled --
     the harness stays bounded even when the thing it is grading does not.
     """
-    remaining = (_utc(deadline_at) - datetime.now(timezone.utc)).total_seconds()
+    now = clock() if clock is not None else datetime.now(timezone.utc)
+    remaining = (_utc(deadline_at) - _utc(now)).total_seconds()
     if cancel.is_set() or remaining <= 0:
         raise _fail(
             "EXECUTION_FAILED",
@@ -438,12 +440,14 @@ async def validate_reporting_source_execution(
     result: ReportingSourceExecutorResult,
     object_reader: ReportingSourceStagedObjectReader,
     cancel: asyncio.Event | None = None,
+    clock: Callable[[], datetime] | None = None,
 ) -> SourceBatchManifestV1:
     """Validate one execution end to end and return its verified manifest.
 
     Reads every staged object the manifest names and checks its bytes against
     the declared digest and size.  A manifest whose objects cannot be read, or
     read differently than claimed, is not evidence of anything.
+    ``clock`` permits deterministic deadline checks for retained test slices.
     """
     offering = _validate_request_against_capabilities(capabilities, request)
     if not result.ok:
@@ -477,6 +481,7 @@ async def validate_reporting_source_execution(
                 ),
                 deadline_at=request.deadline_at,
                 cancel=cancel,
+                clock=clock,
             )
         except ReportingSourceConformanceError:
             raise
@@ -499,13 +504,15 @@ async def run_reporting_source_replay_conformance(
     request: ReportingSourceSliceRequestV1,
     object_reader: ReportingSourceStagedObjectReader,
     cancel: asyncio.Event | None = None,
+    clock: Callable[[], datetime] | None = None,
 ) -> SourceBatchManifestV1:
     """Execute the same slice twice and require an identical immutable publication.
 
     Reusing a ``source_execution_key`` must return byte-identical manifest bytes
     and the same staged object set.  This is the check that catches the two most
     common non-conformances: a ``now()`` timestamp baked into the manifest, and a
-    fresh UUID minted per attempt.
+    fresh UUID minted per attempt. ``clock`` supplies the deadline-check instant
+    for both executions and their staged-object reads.
     """
     capabilities = executor.capabilities
     cancel = cancel or asyncio.Event()
@@ -515,6 +522,7 @@ async def run_reporting_source_replay_conformance(
             lambda: executor.execute(request, cancel=cancel),
             deadline_at=request.deadline_at,
             cancel=cancel,
+            clock=clock,
         )
         manifest = await validate_reporting_source_execution(
             capabilities=capabilities,
@@ -522,6 +530,7 @@ async def run_reporting_source_replay_conformance(
             result=result,
             object_reader=object_reader,
             cancel=cancel,
+            clock=clock,
         )
         return result, manifest
 
