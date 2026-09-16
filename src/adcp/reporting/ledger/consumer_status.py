@@ -68,7 +68,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, cast
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
-from adcp.reporting.ledger.health import current_required_revision, issue_id_for
+from adcp.reporting.ledger.health import issue_id_for
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ConsumerStatusValue,
@@ -82,6 +82,7 @@ from adcp.reporting.ledger.models import (
     ReportingRevisionRecord,
 )
 from adcp.reporting.ledger.store import LedgerConflictError, ReportingLedgerStore
+from adcp.reporting.revision_selection import select_reporting_revision
 
 __all__ = [
     "CONSUMER_STATUS_ENABLED",
@@ -244,6 +245,14 @@ class ConsumerStatusIngest:
                 account_id=stored.account_id,
                 reporting_obligation_id=stored.reporting_obligation_id,
             )
+        if obligation is None:
+            obligation = await self.store.find_obligation(
+                account_id=stored.account_id,
+                delivery_config_id=stored.delivery_config_id,
+                delivery_config_version=stored.delivery_config_version,
+                period_start=stored.period_start,
+                period_end=stored.period_end,
+            )
         revisions = (
             await self.store.list_revisions(
                 account_id=stored.account_id,
@@ -252,7 +261,18 @@ class ConsumerStatusIngest:
             if obligation is not None
             else ()
         )
-        current = current_required_revision(obligation, revisions) if obligation else None
+        current = None
+        if obligation is not None:
+            selection = select_reporting_revision(
+                revisions,
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+                required_finality=obligation.required_finality,
+            )
+            if selection.kind == "corrupt":
+                return  # Corruption cannot establish or resolve consumer disagreement.
+            if selection.kind == "selected":
+                current = selection.revision
         if not consumer_statement_conflicts(
             current=stored, current_revision=current, revisions=revisions
         ):
@@ -352,6 +372,32 @@ class ConsumerStatusIngest:
                     "this statement",
                 )
 
+        if obligation is None:
+            obligation = await self.store.find_obligation(
+                account_id=record.account_id,
+                delivery_config_id=record.delivery_config_id,
+                delivery_config_version=record.delivery_config_version,
+                period_start=record.period_start,
+                period_end=record.period_end,
+            )
+        required = None
+        if obligation is not None:
+            revisions = await self.store.list_revisions(
+                account_id=record.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+            )
+            selection = select_reporting_revision(
+                revisions,
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+                required_finality=obligation.required_finality,
+            )
+            if selection.kind == "corrupt":
+                raise LedgerConflictError(
+                    "HISTORY_UNAVAILABLE", "the revision history requires repair"
+                )
+            if selection.kind == "selected":
+                required = selection.revision
         if record.reporting_revision_id is None:
             return
 
@@ -377,11 +423,6 @@ class ConsumerStatusIngest:
         # recording it would degrade the caller's own view over bytes neither
         # party stands behind any more. The buyer's move there is to re-read and
         # either accept or dispute the current revision.
-        revisions = await self.store.list_revisions(
-            account_id=record.account_id,
-            reporting_obligation_id=obligation.reporting_obligation_id,
-        )
-        required = current_required_revision(obligation, revisions)
         if required is None or required.reporting_revision_id != record.reporting_revision_id:
             raise LedgerConflictError(
                 "REVISION_NOT_CURRENTLY_REQUIRED",

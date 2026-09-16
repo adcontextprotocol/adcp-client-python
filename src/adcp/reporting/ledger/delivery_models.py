@@ -71,7 +71,7 @@ def _freeze(value: Any, annotation: Any) -> Any:
             except ValueError:
                 continue
     elif origin is Literal:
-        if value in args and type(value) is type(args[0]):
+        if type(value) is type(args[0]) and value in args:
             return value
     elif origin is tuple and isinstance(value, (tuple, list)):
         if len(args) == 2 and args[1] is Ellipsis:

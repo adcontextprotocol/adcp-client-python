@@ -3,6 +3,7 @@ include README.md
 include LICENSE
 include MIGRATION*.md
 recursive-include src/adcp py.typed
+recursive-include src/adcp/reporting/materializer/assets *.json
 # Bundled AdCP JSON schemas. ``scripts/bundle_schemas.py`` mirrors
 # ``schemas/cache/`` into ``src/adcp/_schemas/`` before ``python -m
 # build`` so the validator ships with the wheel. Keep distributions on

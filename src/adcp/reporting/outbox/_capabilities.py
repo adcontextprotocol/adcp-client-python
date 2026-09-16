@@ -121,5 +121,7 @@ async def advertised_notifications(
             or frozen.currency != obligation.currency
         ):
             raise ReportingNotificationError("notification_chain_unready")
-        result["readiness_notification"] = "reporting.delivery_ready"
+        # B1 contracts and a frozen binding are not a durable materializer.
+        # B2 must supply a concrete verified write/finish readiness proof before
+        # a positive delivery_ready capability can be added here.
     return result

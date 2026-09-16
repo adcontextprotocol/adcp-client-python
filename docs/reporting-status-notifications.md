@@ -105,11 +105,62 @@ PostgreSQL. PostgreSQL exports load lazily and construction without the extra
 raises an actionable `adcp[pg]` installation hint.
 
 `PgStatusNotificationStore.create_schema()` executes the six existing ledger/A/B
-steps plus `reporting_status_notifications.sql` in one serialized transaction.
+steps plus `reporting_status_notifications.sql` and
+`reporting_status_selector_version.sql` in one serialized transaction.
 External migration tools must execute that same chain atomically. The original
 `required_schema.json`, A/B objects, functions and constraints are unchanged.
 `required_status_schema.json` independently validates C status and C activity
 objects. Missing C DDL suppresses status without changing B readiness.
+
+## Selector epoch cutover (#1167B1)
+
+B1 changes whole-history revision selection and directional feed issue scopes.
+Install the additive checkpoint migration, then **stop and drain old C
+projectors and sweepers before scheduling v2 turns**. Core/source, A/B outbox and
+C HTTP/activity writers remain usable. Installing schema alone does not fence
+old C; account cutover is explicit, persisted and separate from its completion.
+
+Drive `ReportingStatusProjector.rebuild_once()` (or
+`ReportingStatusService.rebuild_selector_once()`) until idle. This uses indexed
+discovery of every populated stale account compatible with the store's original
+escalation policy; no adopter account list or full periodic scan is needed.
+The existing service's `drain()` includes these turns. Use the same escalation
+policy as the original baseline; an explicitly targeted mismatched policy fails
+closed. Ordinary `project_one(account_id=...)` also resumes that account's
+interrupted cutover.
+
+Each first turn takes the existing account advisory lock, locks its checkpoints
+and commits a checkpoint-local v2 writer floor plus an account transitioning
+policy. A separate `selector_semantics_version` remains stale until projection
+has committed. The new guard examines only the checkpoint and a
+transaction-local v2 marker, avoiding an account-row lookup from old row-only
+due claims. Old pending lease identities are retained, but old claims,
+completions, projectors and readiness fail closed after the fence. Migration
+does not wait for those leases to expire. Transaction-local markers are cleared
+when connections return to the pool. Old named guards and their manifests are
+unchanged, so old `create_schema()` cannot remove the independent v2 guard.
+
+Subsequent short transactions drain captured source boundaries in `through`
+order, replay overdue semantic deadlines chronologically, then project current
+state and mark the account complete atomically. Checkpoint/event failure rolls
+back the entire turn. The scope union includes all retained checkpoints,
+including those no longer returned by current scope discovery; absent source
+history has a stable `HISTORY_UNAVAILABLE` result and no obsolete due deadline.
+
+No baseline, scope key, event, queue or activity history is deleted/reset. The
+six-column scope identity, generation, baseline highwater, dirty cursor and
+leases retain their meaning. Selector epoch is non-key metadata; canonical
+fingerprints retain `version: 1`. Unchanged canonical health/issues only advance
+the selector epoch and emit no event. Changed topology or issue membership
+emits the corrected status with its existing previous health and next monotone
+generation. Newly baselined accounts start at v2 without migration events.
+
+Readiness requires current schema, baseline, target epoch and zero stale or
+incomplete checkpoint migrations. Account transitions are isolated. The memory
+reference imports old shared-state images as v1 and performs the same restartable
+transition. These objects and `required_status_selector_schema.json` belong only
+to C checkpoint semantics; B1 adds no materializer persistence. See
+[B1 destination I/O](reporting-destination-writer.md) for the B2 rollout dependency.
 
 Default-off Core lifecycle writes also work before the A outbox migration. That
 schema has no issue-scope table: reads derive scope from retained status evidence

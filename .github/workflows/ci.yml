@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, python-adcp-sdk-setup]
   pull_request:
-    branches: [main, conductor/reporting-webhook-activity-1168b]
+    branches: [main, conductor/reporting-webhook-activity-1168b, conductor/reporting-status-notifications-1168c]
 
 # Default @adcp/sdk runner alias for storyboard jobs. Tracks the current
 # stable @adcp/sdk release via the ``latest`` npm dist-tag.
@@ -88,7 +88,7 @@ jobs:
 
       - name: Run adopter type-check suite
         if: matrix.python-version == '3.12'
-        run: mypy --strict tests/type_checks/ examples/reporting_webhook_activity.py examples/reporting_status_notifications.py
+        run: mypy --strict tests/type_checks/ examples/reporting_webhook_activity.py examples/reporting_status_notifications.py examples/reporting_destination_writer.py
 
       - name: Enforce adopter type-check fixture contract
         if: matrix.python-version == '3.12'
@@ -201,12 +201,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Fetch exact reviewed A and B compatibility artifacts
+      - name: Fetch exact reviewed A, B and C compatibility artifacts
         timeout-minutes: 1
         run: |
           git fetch --no-tags --depth=1 origin \
             21bf443e7d850d1800ec8a6f2e4abec1c8f85541 \
-            198d50e61c74fb82aedbf2c77e06a0e200b91db6
+            198d50e61c74fb82aedbf2c77e06a0e200b91db6 \
+            ea150fabd5ad90e3abf93f89729d2919f1c61798
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6

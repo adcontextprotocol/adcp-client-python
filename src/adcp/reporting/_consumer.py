@@ -40,6 +40,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, Protocol
 
+from adcp.reporting.revision_selection import RevisionHistoryEntry, select_reporting_revision
 from adcp.types import (
     GetReportingStatusRequest,
     ReportingObligation,
@@ -544,6 +545,9 @@ def plan_consumer_statuses(
             continue
 
         reading = readings.get(obligation_id)
+        history = obligation_revisions.get(obligation_id)
+        if history is not None:
+            _has_required_revision(obligation, history)  # Reject damage even when a reading exists.
         status: ConsumerStatusValue
         mismatch: MismatchCode | None = None
         failure: ReportingFailureCode | None = None
@@ -795,22 +799,36 @@ def _expected_at_of(period: Any) -> datetime | None:
 def _has_required_revision(
     obligation: ReportingObligation, revisions: Sequence[ReportingRevision] | None
 ) -> bool:
-    """Whether the seller has published a revision meeting the required finality.
-
-    Prefers the supplied revisions, because ``required_finality`` matters: an
-    obligation needing ``official`` is not satisfied by snapshots. Falls back to
-    ``revision_count``, which the spec defines as the number of distinct
-    revision records for this obligation in the snapshot, so a caller that did
-    not pass revisions still gets the coarse answer rather than a wrong one.
-    """
+    """Validate the caller's complete obligation partition before choosing finality."""
     if revisions is not None:
-        required = str(getattr(obligation.required_finality, "value", obligation.required_finality))
-        return any(
-            required == "snapshot"
-            or str(getattr(item.finality, "value", item.finality)) == "official"
-            for item in revisions
+        result = select_reporting_revision(
+            tuple(
+                RevisionHistoryEntry(
+                    "wire",
+                    obligation.reporting_obligation_id,
+                    item.reporting_revision_id,
+                    str(getattr(item.finality, "value", item.finality)),
+                    item.supersedes_reporting_revision_id,
+                )
+                for item in revisions
+            ),
+            account_id="wire",
+            reporting_obligation_id=obligation.reporting_obligation_id,
+            required_finality=str(
+                getattr(obligation.required_finality, "value", obligation.required_finality)
+            ),
         )
-    return bool(obligation.revision_count)
+        if result.kind == "corrupt" or len(revisions) != obligation.revision_count:
+            raise ConsumerStatusPlanError(
+                "the complete revision history requires repair before planning a consumer status"
+            )
+        return result.kind == "selected"
+    if obligation.revision_count:
+        raise ConsumerStatusPlanError(
+            "the obligation advertises revisions but no reading was supplied; "
+            "a complete revision history is required to select finality"
+        )
+    return False
 
 
 def _source_timezone(obligation: ReportingObligation) -> str:

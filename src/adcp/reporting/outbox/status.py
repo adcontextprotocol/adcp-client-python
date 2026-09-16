@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 from uuid import uuid4
 
 from adcp.reporting.ledger.models import ReportingDeliveryEscalation
@@ -25,6 +25,7 @@ from adcp.reporting.ledger.status_projection import (
     apply_intents_to_snapshot,
     lifecycle_intents,
 )
+from adcp.reporting.revision_selection import REPORTING_SELECTOR_VERSION
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,8 @@ class StatusCheckpoint:
     publishable: bool
     lease_token: str | None = field(default=None, repr=False)
     lease_expires_at: datetime | None = None
+    selector_semantics_version: int = REPORTING_SELECTOR_VERSION
+    selector_writer_floor: int = REPORTING_SELECTOR_VERSION
 
 
 @dataclass(frozen=True)
@@ -85,12 +88,25 @@ class StatusNotificationStore(Protocol):
     async def checkpoints(self, *, account_id: str) -> tuple[StatusCheckpoint, ...]: ...
 
 
+@runtime_checkable
+class StatusSelectorRebuildStore(Protocol):
+    """Indexed, account-discovering C cutover seam; no materializer work queue."""
+
+    async def rebuild_one(self) -> StatusTurn: ...
+
+
 @dataclass(frozen=True)
 class ReportingStatusProjector:
     store: StatusNotificationStore
 
     async def run_once(self, *, account_id: str) -> StatusTurn:
         return await self.store.project_one(account_id=account_id)
+
+    async def rebuild_once(self) -> StatusTurn:
+        """Reproject one populated old scope's account, without an account list."""
+        if not isinstance(self.store, StatusSelectorRebuildStore):
+            raise ReportingNotificationError("status_selector_rebuild_unsupported")
+        return await self.store.rebuild_one()
 
 
 @dataclass(frozen=True)
@@ -171,4 +187,7 @@ def settled_replay(snapshot: ReportingStatusSnapshot) -> ReportingStatusSnapshot
 
 
 def escalation_identity(escalation: ReportingDeliveryEscalation | None) -> dict[str, Any]:
-    return escalation.to_wire() if escalation else {}
+    return {
+        **(escalation.to_wire() if escalation else {}),
+        "selector_semantics_version": REPORTING_SELECTOR_VERSION,
+    }

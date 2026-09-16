@@ -40,6 +40,7 @@ from adcp.reporting._consumer import (
     post_consumer_statuses,
     resolve_checkpointed_leaves,
 )
+from adcp.reporting.revision_selection import RevisionHistoryEntry, select_reporting_revision
 from adcp.types import (
     GetReportingStatusRequest,
     GetReportingStatusResponse,
@@ -489,54 +490,50 @@ def _select_current(
         history_incomplete = True
     if history_incomplete:
         reasons.append("ASSOCIATED_HISTORY_INCOMPLETE")
-    superseded = {
-        item.supersedes_reporting_revision_id
-        for item in candidates
-        if item.supersedes_reporting_revision_id
-    }
-    candidate_ids = {item.reporting_revision_id for item in candidates}
     if any(not _revision_matches_obligation(item, obligation) for item in candidates) or any(
         item.reporting_revision_id in revision_ids
         and item.reporting_obligation_id != obligation.reporting_obligation_id
         for item in ledger.materializations
     ):
         reasons.append("REVISION_SCOPE_MISMATCH")
-    by_id = {item.reporting_revision_id: item for item in candidates}
-    leaves = [item for item in candidates if item.reporting_revision_id not in superseded]
-    # Walk every leaf back through its predecessors. A supersession cycle leaves
-    # its members unreachable, so a broken history cannot hide behind an official
-    # close the way a leaf-only count would let it.
-    reachable: set[str] = set()
-    for leaf in leaves:
-        node: ReportingRevision | None = leaf
-        while node is not None and node.reporting_revision_id not in reachable:
-            reachable.add(node.reporting_revision_id)
-            predecessor = node.supersedes_reporting_revision_id
-            node = by_id.get(predecessor) if predecessor else None
-    if (
-        any(
-            item.supersedes_reporting_revision_id
-            and item.supersedes_reporting_revision_id not in candidate_ids
+    selection = select_reporting_revision(
+        tuple(
+            RevisionHistoryEntry(
+                ledger.account_id,
+                obligation.reporting_obligation_id,
+                item.reporting_revision_id,
+                _enum(item.finality),
+                item.supersedes_reporting_revision_id,
+            )
             for item in candidates
+        ),
+        account_id=ledger.account_id,
+        reporting_obligation_id=obligation.reporting_obligation_id,
+        required_finality=_enum(obligation.required_finality),
+    )
+    if selection.kind == "corrupt":
+        reasons.append(
+            "AMBIGUOUS_REVISION_CHAIN"
+            if selection.reason
+            in {
+                "multiple_officials",
+                "forked_snapshot_history",
+                "disconnected_snapshot_history",
+                "duplicate_revision_id",
+            }
+            else "INCOMPLETE_REVISION_CHAIN"
         )
-        or reachable != candidate_ids
-    ):
-        reasons.append("INCOMPLETE_REVISION_CHAIN")
-    # Publication selection precedes destination selection. An official close
-    # coexists with retained snapshots; it does not supersede their histories.
-    # A newer unmaterialized publication must never reveal an older snapshot as
-    # the current deliverable merely because that snapshot has a ready resource.
-    official = [item for item in candidates if _enum(item.finality) == "official"]
-    # Snapshot topology is judged on its own. Selecting the official close must
-    # never excuse a forked snapshot history the buyer cannot reconcile.
-    snapshot_leaves = [item for item in leaves if _enum(item.finality) != "official"]
-    if official and len(snapshot_leaves) > 1:
-        reasons.append("AMBIGUOUS_REVISION_CHAIN")
-    current = official or snapshot_leaves
-    if len(current) != 1:
-        reasons.append("MISSING_CURRENT_REVISION" if not current else "AMBIGUOUS_REVISION_CHAIN")
         return None, None, reasons
-    revision = current[0]
+    if selection.kind == "not_ready":
+        reasons.append(
+            "FINALITY_NOT_MET"
+            if selection.reason == "official_required"
+            else "MISSING_CURRENT_REVISION"
+        )
+        return None, None, reasons
+    revision = next(
+        r for r in candidates if r.reporting_revision_id == selection.revision.reporting_revision_id
+    )
     if (
         not _coverage_is_full(obligation.coverage, obligation.media_buy_ids)
         or obligation.coverage.evaluated_at != obligation.scope_resolved_at

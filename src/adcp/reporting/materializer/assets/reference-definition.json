@@ -1,0 +1,48 @@
+{
+  "contract_version": "1.1",
+  "media_type": "application/vnd.adcp.reporting-definition+json",
+  "report_definition_id": "reference-report-v1",
+  "reporting_profile": "paid_media_delivery",
+  "grain": "row",
+  "source": {
+    "provider": {
+      "domain": "example.test"
+    },
+    "system": "non-production-reference",
+    "api_version": "1",
+    "query_semantics": {
+      "fixture_only": true
+    }
+  },
+  "calendar": {
+    "timezone_basis": "utc"
+  },
+  "metrics": [
+    {
+      "name": "impressions",
+      "source_expression": "impressions",
+      "aggregation": "sum"
+    },
+    {
+      "name": "spend",
+      "source_expression": "spend",
+      "aggregation": "sum",
+      "unit": "USD"
+    }
+  ],
+  "dimensions": [
+    "row_id"
+  ],
+  "restatement_policy": {
+    "source_requery_duration": "P1D",
+    "emit_only_on_content_change": true,
+    "official_correction_mode": "adjustments_only"
+  },
+  "finality_policies": [
+    {
+      "finality_policy_id": "reference-final",
+      "basis": "source_final",
+      "source_signal": "fixture_closed"
+    }
+  ]
+}
