@@ -42,6 +42,13 @@ leaf is terminal. History is never edited to mark a receipt superseded: current
 leaves and terminal acceptance keys are derived from the retained graph. Revision
 and adjustment receipt IDs share a namespace, as the batched wire request requires.
 
+A retained snapshot and a later official revision coexist as independent histories.
+The official revision does not supersede the snapshot. Each revision starts its own
+materialization attempt sequence and receipt chain, so both can have attempt `1`
+and a terminal acceptance. Accepting the official receipt leaves an earlier rejected
+snapshot receipt replaceable; neither chain changes the other's retained evidence.
+There is no mutable current-revision pointer in these storage contracts.
+
 ## Trusted inputs and credential boundary
 
 These are low-level seller storage contracts, not an authentication boundary.

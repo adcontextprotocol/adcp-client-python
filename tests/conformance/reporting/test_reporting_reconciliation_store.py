@@ -228,21 +228,28 @@ async def test_corruption_and_retention_preserve_receipts_and_snapshots(
     assert not (await store.get_materialization(s.attempt.key)).readable_at(clock.now)
 
 
+@pytest.mark.parametrize("has_predecessor", [False, True])
+@pytest.mark.parametrize("status", ["accepted", "rejected"])
 async def test_concurrent_workers_converge_without_terminal_races(
-    reconciliation_store: tuple[Store, Clock],
+    reconciliation_store: tuple[Store, Clock], has_predecessor: bool, status: str
 ) -> None:
     store, _ = reconciliation_store
     s = await scenario(store)
     writes = await asyncio.gather(*(store.commit_materialization(s.outcome) for _ in range(12)))
     assert sum(created for _, created in writes) == 1
-    rejected, _ = await store.record_revision_receipt(
-        replace(s.receipt, status="rejected", rejection_codes=("CONTENT_MISMATCH",))
-    )
+    predecessor = None
+    if has_predecessor:
+        rejected, _ = await store.record_revision_receipt(
+            replace(s.receipt, status="rejected", rejection_codes=("CONTENT_MISMATCH",))
+        )
+        predecessor = rejected.reporting_receipt_id
     receipts = [
         replace(
             s.receipt,
             reporting_receipt_id=f"receipt-concurrent-{i:04}",
-            supersedes_reporting_receipt_id=rejected.reporting_receipt_id,
+            status=status,
+            rejection_codes=("LOAD_FAILED",) if status == "rejected" else (),
+            supersedes_reporting_receipt_id=predecessor,
         )
         for i in range(12)
     ]
@@ -251,11 +258,139 @@ async def test_concurrent_workers_converge_without_terminal_races(
     )
     assert sum(isinstance(item, tuple) for item in outcomes) == 1
     assert all(
-        isinstance(item, tuple) or isinstance(item, LedgerConflictError) for item in outcomes
+        isinstance(item, tuple)
+        or (
+            isinstance(item, LedgerConflictError)
+            and item.code
+            == (
+                "ACCEPTED_RECEIPT_TERMINAL"
+                if status == "accepted"
+                else "REPORTING_RECORD_UNAVAILABLE"
+            )
+        )
+        for item in outcomes
     )
     snapshot = await store.read_reconciliation_snapshot(caller=s.attempt.scope.principal)
-    assert len(snapshot.terminal_acceptances) == 1
-    assert len([r for r in snapshot.records if r.kind == "revision_receipt"]) == 2
+    assert len(snapshot.current_receipts) == 1
+    assert len(snapshot.terminal_acceptances) == (1 if status == "accepted" else 0)
+    assert len([r for r in snapshot.records if r.kind == "revision_receipt"]) == (
+        2 if has_predecessor else 1
+    )
+    if status == "rejected":
+        accepted, written = await store.record_revision_receipt(
+            replace(
+                s.receipt,
+                reporting_receipt_id="receipt-after-replacement-race",
+                supersedes_reporting_receipt_id=snapshot.current_receipts[0].reporting_receipt_id,
+            )
+        )
+        assert written and accepted.status == "accepted"
+
+
+async def test_competing_materialization_outcomes_keep_one_terminal_fact(
+    reconciliation_store: tuple[Store, Clock],
+) -> None:
+    store, _ = reconciliation_store
+    s = await scenario(store)
+    failed = replace(
+        s.outcome,
+        status="failed",
+        resource=None,
+        verification=None,
+        failure_code="WRITE_FAILED",
+    )
+    outcomes = await asyncio.gather(
+        *(store.commit_materialization(item) for item in [s.outcome, failed] * 4),
+        return_exceptions=True,
+    )
+    written = [item for item in outcomes if isinstance(item, tuple)]
+    assert len(written) == 4
+    assert sum(created for _, created in written) == 1
+    assert all(item[0] == written[0][0] for item in written)
+    conflicts = [item for item in outcomes if isinstance(item, Exception)]
+    assert len(conflicts) == 4
+    assert all(
+        isinstance(item, LedgerConflictError) and item.code == "REPORTING_IDENTITY_CONFLICT"
+        for item in conflicts
+    )
+    assert (await store.get_materialization(s.attempt.key)).outcome == written[0][0]
+
+
+async def test_repair_appends_evidence_and_advances_checkpoint_without_rewriting_history(
+    reconciliation_store: tuple[Store, Clock],
+) -> None:
+    store, _ = reconciliation_store
+    s = await scenario(store)
+    await store.commit_materialization(s.outcome)
+    caller = s.attempt.scope.principal
+    handler = ReportingStatusHandler(store)
+    status_caller = ReportingStatusCaller(caller.account_id, caller.consumer_id)
+    core_before = await handler.handle({"view": "periods"}, caller=status_caller)
+    before = await store.read_reconciliation_snapshot(caller=caller)
+    corrupt = ReportingMaterializationCheck(
+        s.attempt.scope,
+        s.attempt.reporting_materialization_id,
+        "checkpoint-corrupt",
+        "corrupt",
+        END + timedelta(seconds=8),
+    )
+    await store.record_materialization_check(corrupt)
+    rejected, _ = await store.record_revision_receipt(
+        replace(
+            s.receipt,
+            status="rejected",
+            rejection_codes=("CONTENT_CORRUPT",),
+            observed_at=END + timedelta(seconds=9),
+        )
+    )
+    blocked = await store.read_reconciliation_snapshot(caller=caller)
+    repaired = replace(
+        corrupt,
+        check_id="checkpoint-repaired",
+        state="readable",
+        checked_at=END + timedelta(seconds=10),
+    )
+    await store.record_materialization_check(repaired)
+    accepted_input = replace(
+        s.receipt,
+        reporting_receipt_id="checkpoint-repaired-receipt",
+        supersedes_reporting_receipt_id=rejected.reporting_receipt_id,
+        observed_at=END + timedelta(seconds=11),
+    )
+    accepted, _ = await store.record_revision_receipt(accepted_input)
+    after = await store.read_reconciliation_snapshot(caller=caller)
+    assert after.records == before.records + (corrupt, rejected, repaired, accepted)
+    assert (
+        before.boundary.max_sequence < blocked.boundary.max_sequence < after.boundary.max_sequence
+    )
+    assert before.materialization(s.attempt.key).readable_at(NOW)
+    assert not blocked.materialization(s.attempt.key).readable_at(NOW)
+    assert after.materialization(s.attempt.key).readable_at(NOW)
+    for old in (before, blocked):
+        assert await store.read_reconciliation_snapshot(caller=caller, boundary=old.boundary) == old
+    for check in (corrupt, repaired):
+        assert await store.record_materialization_check(check) == (check, False)
+    assert await store.record_revision_receipt(accepted_input) == (accepted, False)
+    assert await store.read_reconciliation_snapshot(caller=caller) == after
+    # Core consumes the shared checkpoint without counting or exposing optional records.
+    core_after = await handler.handle(
+        {"view": "periods", "changes_after": core_before["changes_checkpoint"]},
+        caller=status_caller,
+    )
+    assert core_after["changes_checkpoint"] != core_before["changes_checkpoint"]
+    assert core_after["pagination"]["total_count"] == 0
+    assert core_after["periods"] == core_after["revisions"] == []
+    assert core_after["materializations"] == core_after["receipts"] == []
+    stranger = ReportingDeliveryPrincipal(caller.account_id, "another-consumer")
+    assert (
+        await store.read_reconciliation_snapshot(caller=stranger, boundary=after.boundary)
+    ).records == ()
+    with pytest.raises(LedgerConflictError) as error:
+        await store.read_reconciliation_snapshot(
+            caller=ReportingDeliveryPrincipal("another-account", caller.consumer_id),
+            boundary=after.boundary,
+        )
+    assert error.value.code == "REPORTING_RECORD_UNAVAILABLE"
 
 
 async def test_account_principal_isolation_and_shared_identifiers(

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 from dataclasses import replace
 from datetime import timedelta
 
 import pytest
 
 from adcp.reporting import ReportingLedger, evaluate_reporting_ledger
+from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger import (
     LedgerConflictError,
     ReportingAdjustmentReceiptRecord,
@@ -256,6 +258,157 @@ async def test_new_snapshot_revision_has_its_own_terminal_acceptance(
     )
     snapshot = await store.read_reconciliation_snapshot(caller=s.attempt.scope.principal)
     assert snapshot.terminal_acceptances == (first.key, second.key)
+
+
+async def test_snapshot_and_later_official_keep_independent_delivery_and_receipt_histories(
+    reconciliation_store: tuple[Store, Clock],
+) -> None:
+    store, _ = reconciliation_store
+    s = await scenario(store, billing=False, finality="snapshot")
+    await store.commit_materialization(s.outcome)
+    rejected, _ = await store.record_revision_receipt(
+        replace(s.receipt, status="rejected", rejection_codes=("LOAD_FAILED",))
+    )
+    earlier = await store.read_reconciliation_snapshot(caller=s.attempt.scope.principal)
+    snapshot_rows = (
+        await store.read_revision_rows(
+            account_id="acct_a", reporting_revision_id=s.revision.reporting_revision_id
+        )
+    ).rows
+    official_rows = [{**snapshot_rows[0], "spend": "13.50"}]
+    official_totals = (
+        s.revision.managed_control_totals[0],
+        replace(s.revision.managed_control_totals[1], value="13.50"),
+    )
+    totals = tuple((item.name, item.value) for item in official_totals)
+    digest = replace(
+        s.revision.canonical_content_digest,
+        value=hashlib.sha256(canonical_json_utf8_v1(official_rows)).hexdigest(),
+    )
+    official = replace(
+        s.revision,
+        reporting_revision_id="later-official-revision",
+        finality="official",
+        finality_basis="source_final",
+        finality_policy_id="policy-v1",
+        finalized_at=END + timedelta(seconds=5),
+        observed_at=END + timedelta(seconds=5),
+        created_at=END + timedelta(seconds=6),
+        control_totals=totals,
+        managed_control_totals=official_totals,
+        canonical_content_digest=digest,
+        revision_content_sha256=revision_content_sha256(
+            reporting_revision_id="later-official-revision",
+            row_count=1,
+            control_totals=totals,
+            reporting_rows=official_rows,
+            control_total_evidence=official_totals,
+        ),
+    )
+    assert official.supersedes_reporting_revision_id is None
+    with pytest.raises(ValueError, match="supersede"):
+        replace(official, supersedes_reporting_revision_id=s.revision.reporting_revision_id)
+    await store.commit_revision(official, official_rows)
+    attempt = replace(
+        s.attempt,
+        reporting_revision_id=official.reporting_revision_id,
+        reporting_materialization_id="official-materialization",
+        created_at=END + timedelta(seconds=7),
+    )
+    assert attempt.attempt == s.attempt.attempt == 1
+    await store.commit_materialization_attempt(attempt)
+    completed_at = END + timedelta(seconds=8)
+    outcome = replace(
+        s.outcome,
+        reporting_revision_id=official.reporting_revision_id,
+        reporting_materialization_id=attempt.reporting_materialization_id,
+        completed_at=completed_at,
+        resource=replace(
+            s.outcome.resource,
+            resource_ref="official-resource",
+            location="reports/later-official/manifest.json",
+            manifest_sha256="e" * 64,
+            object_refs=("reports/later-official/part-000.jsonl",),
+            expires_at=completed_at + timedelta(days=400),
+        ),
+        verification=replace(
+            s.outcome.verification,
+            verified_at=completed_at,
+            control_totals=official_totals,
+            canonical_content_digest=digest,
+            physical_checksums=(
+                replace(
+                    s.outcome.verification.physical_checksums[0],
+                    object_ref="reports/later-official/part-000.jsonl",
+                    value="f" * 64,
+                ),
+            ),
+        ),
+    )
+    await store.commit_materialization(outcome)
+    receipt = replace(
+        s.receipt,
+        reporting_receipt_id="official-receipt-0001",
+        reporting_revision_id=official.reporting_revision_id,
+        reporting_materialization_id=attempt.reporting_materialization_id,
+        observed_control_totals=official_totals,
+        observed_canonical_content_digest=digest,
+        observed_at=END + timedelta(seconds=9),
+        consumer_commit_ref="official-load-0001",
+    )
+    with pytest.raises(LedgerConflictError) as error:
+        await store.record_revision_receipt(
+            replace(receipt, supersedes_reporting_receipt_id=rejected.reporting_receipt_id)
+        )
+    assert error.value.code == "REPORTING_RECORD_UNAVAILABLE"
+    official_accepted, _ = await store.record_revision_receipt(receipt)
+    # Accepting the later official leaves the snapshot's rejected chain repairable.
+    snapshot_accepted, _ = await store.record_revision_receipt(
+        replace(
+            s.receipt,
+            reporting_receipt_id="snapshot-repaired-receipt-0002",
+            supersedes_reporting_receipt_id=rejected.reporting_receipt_id,
+            observed_at=END + timedelta(seconds=10),
+        )
+    )
+    history = await store.read_reconciliation_snapshot(caller=s.attempt.scope.principal)
+    assert history.current_receipts == (official_accepted, snapshot_accepted)
+    assert history.terminal_acceptances == (official_accepted.key, snapshot_accepted.key)
+    assert history.materialization(s.attempt.key).outcome == s.outcome
+    assert history.materialization(attempt.key).outcome == outcome
+    assert (
+        await store.read_revision_rows(
+            account_id="acct_a", reporting_revision_id=s.revision.reporting_revision_id
+        )
+    ).rows == snapshot_rows
+    assert await store.list_revisions(
+        account_id="acct_a", reporting_obligation_id=s.obligation.reporting_obligation_id
+    ) == (s.revision, official)
+    assert (
+        await store.read_reconciliation_snapshot(
+            caller=s.attempt.scope.principal, boundary=earlier.boundary
+        )
+        == earlier
+    )
+    for accepted in (official_accepted, snapshot_accepted):
+        assert await store.record_revision_receipt(accepted) == (accepted, False)
+        with pytest.raises(LedgerConflictError) as error:
+            await store.record_revision_receipt(
+                replace(
+                    accepted,
+                    received_at=None,
+                    reporting_receipt_id=accepted.reporting_receipt_id + "-successor",
+                    supersedes_reporting_receipt_id=accepted.reporting_receipt_id,
+                )
+            )
+        assert error.value.code == "ACCEPTED_RECEIPT_TERMINAL"
+    assert await store.read_reconciliation_snapshot(caller=s.attempt.scope.principal) == history
+    core = await ReportingStatusHandler(store).handle(
+        {"view": "periods"}, caller=ReportingStatusCaller("acct_a", "buyer")
+    )
+    GetReportingStatusResponse.model_validate(core)
+    assert {item["finality"] for item in core["revisions"]} == {"snapshot", "official"}
+    assert core["materializations"] == core["receipts"] == []
 
 
 @pytest.mark.parametrize(

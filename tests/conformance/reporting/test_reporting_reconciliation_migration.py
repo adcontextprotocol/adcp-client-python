@@ -24,7 +24,7 @@ MIGRATION = RESOURCES.joinpath("reporting_ledger_reconciliation.sql")
 
 
 def test_literal_stacked_schema_fixture() -> None:
-    # #1175 head / reviewed #1171 base 7bd5b8f6, without synthesized DDL edits.
+    # Literal #1175 bootstrap, unchanged at corrected #1171 head ff584b6f.
     assert hashlib.sha256((FIXTURES / "reporting_ledger_1171.sql").read_bytes()).hexdigest() == (
         "65d9b44e220f1828b48beb32a44334b956fbf27081bed72390de1c526e67df4e"
     )
