@@ -275,7 +275,7 @@ class ReportingProducer:
                         account_id=leased.account_id,
                         delivery_config_ids=[leased.delivery_config_id],
                     )
-                    if candidate.delivery_config_version == leased.delivery_config_version
+                    if candidate.generation_key == leased.generation_key
                 ),
                 None,
             )
@@ -439,6 +439,11 @@ class ReportingProducer:
         because re-reading a settled period on every worker turn would burn
         upstream quota to republish bytes nobody asked for.
         """
+        if configuration.generation_key != obligation.generation_key:
+            raise LedgerConflictError(
+                "CONFIGURATION_GENERATION_MISMATCH",
+                "the source configuration must belong to the obligation's account and generation",
+            )
         turn = turn or WorkerTurn()
         now = now or self._clock()
         revisions = await self._store.list_revisions(
