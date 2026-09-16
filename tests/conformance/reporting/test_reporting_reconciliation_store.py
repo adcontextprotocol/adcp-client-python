@@ -372,19 +372,19 @@ async def test_repair_appends_evidence_and_advances_checkpoint_without_rewriting
         assert await store.record_materialization_check(check) == (check, False)
     assert await store.record_revision_receipt(accepted_input) == (accepted, False)
     assert await store.read_reconciliation_snapshot(caller=caller) == after
-    # Core consumes the shared checkpoint without counting or exposing optional records.
+    # Reconciliation evidence cannot move Core's independent checkpoint.
     core_after = await handler.handle(
         {"view": "periods", "changes_after": core_before["changes_checkpoint"]},
         caller=status_caller,
     )
-    assert core_after["changes_checkpoint"] != core_before["changes_checkpoint"]
+    assert core_after["changes_checkpoint"] == core_before["changes_checkpoint"]
     assert core_after["pagination"]["total_count"] == 0
     assert core_after["periods"] == core_after["revisions"] == []
     assert core_after["materializations"] == core_after["receipts"] == []
     stranger = ReportingDeliveryPrincipal(caller.account_id, "another-consumer")
-    assert (
+    with pytest.raises(LedgerConflictError) as error:
         await store.read_reconciliation_snapshot(caller=stranger, boundary=after.boundary)
-    ).records == ()
+    assert error.value.code == "REPORTING_RECORD_UNAVAILABLE"
     with pytest.raises(LedgerConflictError) as error:
         await store.read_reconciliation_snapshot(
             caller=ReportingDeliveryPrincipal("another-account", caller.consumer_id),

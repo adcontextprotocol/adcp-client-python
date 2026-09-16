@@ -1,7 +1,8 @@
-"""PostgreSQL reconciliation extension, sharing the Core ledger transaction/feed."""
+"""PostgreSQL reconciliation evidence with a separate, principal-qualified feed."""
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, cast
 
 from adcp.reporting.ledger._delivery_state import (
@@ -13,9 +14,9 @@ from adcp.reporting.ledger._delivery_state import (
     fingerprint,
     payload,
     principal,
-    receipt_chain,
     record_identity,
     replay,
+    storage_identity,
     unavailable,
     validate_transition,
 )
@@ -23,16 +24,24 @@ from adcp.reporting.ledger.delivery import (
     ReportingReconciliationSnapshot,
     _ReconciliationOperations,
 )
+from adcp.reporting.ledger.delivery_changes import (
+    ReportingReconciliationChange,
+    ReportingReconciliationCheckpoint,
+    ReportingReconciliationCursor,
+    ReportingReconciliationFilter,
+    ReportingReconciliationPage,
+    ReportingReconciliationSnapshotToken,
+    change_boundary,
+    change_page,
+    read_position,
+    validate_boundary,
+)
 from adcp.reporting.ledger.delivery_models import (
     ReportingAdjustmentReceiptRecord,
     ReportingDeliveryPrincipal,
     ReportingDeliveryRecord,
     ReportingDestinationBinding,
-    ReportingMaterializationAttempt,
-    ReportingReceiptRecord,
-    ReportingRevisionReceiptRecord,
 )
-from adcp.reporting.ledger.models import LedgerSnapshot
 from adcp.reporting.ledger.pg import (
     _ADJUSTMENT_COLUMNS,
     _OBLIGATION_COLUMNS,
@@ -44,6 +53,41 @@ from adcp.reporting.ledger.pg import (
     _obligation_from_row,
     _revision_from_row,
 )
+from adcp.reporting.ledger.store import LedgerConflictError
+
+_IDENTITY_COLUMNS = (
+    "account_id",
+    "consumer_id",
+    "namespace",
+    "record_id",
+    "record_kind",
+    "delivery_config_id",
+    "delivery_config_version",
+    "reporting_obligation_id",
+    "reporting_revision_id",
+    "reporting_materialization_id",
+    "reporting_adjustment_id",
+    "attempt_number",
+    "receipt_chain_key",
+    "receipt_status",
+    "supersedes_receipt_id",
+)
+_SELECT_IDENTITY = ", ".join("r." + column for column in _IDENTITY_COLUMNS)
+_FEED_JOIN = (
+    "r.account_id = c.account_id AND r.consumer_id = c.consumer_id"
+    " AND r.namespace = c.namespace AND r.record_id = c.record_id"
+    " AND r.record_kind = c.record_kind AND r.change_id = c.change_id"
+    " AND r.content_sha256 = c.content_sha256"
+)
+_FEED_FILTER = (
+    "(%s::text[] IS NULL OR c.record_kind = ANY(%s))"
+    " AND (%s::text IS NULL OR r.reporting_obligation_id = %s)"
+)
+
+
+def _filter_params(filters: ReportingReconciliationFilter) -> tuple[Any, ...]:
+    kinds = list(filters.record_kinds) or None
+    return kinds, kinds, filters.reporting_obligation_id, filters.reporting_obligation_id
 
 
 class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOperations):
@@ -55,6 +99,16 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
     """
 
     async def _commit(self, record: RecordT) -> tuple[RecordT, bool]:
+        try:
+            return await self._commit_record(record)
+        except Exception as error:
+            # A concurrent/raw SQL writer must not turn a constraint detail
+            # (which may include an entire row) into a provider-payload echo.
+            if not str(getattr(error, "sqlstate", "")).startswith("23"):
+                raise
+        unavailable()
+
+    async def _commit_record(self, record: RecordT) -> tuple[RecordT, bool]:
         candidate = decode_record(payload(record))
         who = principal(candidate)
         async with self._pool.connection() as connection:
@@ -75,27 +129,96 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
                     now = time_row[0]
                 stored = validate_transition(candidate, records, context, now)
                 await self._insert(connection, stored)
-                if isinstance(
-                    stored, (ReportingRevisionReceiptRecord, ReportingAdjustmentReceiptRecord)
-                ):
-                    await self._advance_receipt(connection, stored)
-                await self._append_change(
-                    connection, who.account_id, stored.kind, change_id(stored)
-                )
+                await self._append_reconciliation_change(connection, stored)
                 return cast(RecordT, stored), True
+
+    async def _append_reconciliation_change(
+        self, connection: Any, record: ReportingDeliveryRecord
+    ) -> None:
+        who = principal(record)
+        row = await (
+            await connection.execute(
+                "INSERT INTO reporting_reconciliation_heads (account_id, consumer_id, max_sequence)"
+                " VALUES (%s, %s, 1) ON CONFLICT (account_id, consumer_id) DO UPDATE"
+                " SET max_sequence = reporting_reconciliation_heads.max_sequence + 1"
+                " RETURNING max_sequence",
+                (who.account_id, who.consumer_id),
+            )
+        ).fetchone()
+        assert row is not None
+        await connection.execute(
+            "INSERT INTO reporting_reconciliation_changes"
+            " (account_id, consumer_id, seq, namespace, record_id, record_kind,"
+            " change_id, content_sha256)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+            (
+                who.account_id,
+                who.consumer_id,
+                row[0],
+                *record_identity(record),
+                record.kind,
+                change_id(record),
+                fingerprint(record),
+            ),
+        )
+
+    async def _validate_feed(
+        self, connection: Any, who: ReportingDeliveryPrincipal
+    ) -> tuple[int, datetime]:
+        # Scope both sides before the join, count, or boundary. A missing/moved
+        # record or feed row must fail, never disappear through an inner join.
+        # The joined SQL fragment is constant; every caller value is parameterized.
+        row = await (
+            await connection.execute(
+                "SELECT count(c.seq), COALESCE(max(c.seq), 0),"  # nosec B608
+                " COALESCE((SELECT max_sequence FROM reporting_reconciliation_heads"
+                " WHERE account_id = %s AND consumer_id = %s), 0),"
+                " COALESCE(bool_or(c.seq IS NULL OR r.record_id IS NULL), false), clock_timestamp()"
+                " FROM (SELECT * FROM reporting_reconciliation_changes"
+                " WHERE account_id = %s AND consumer_id = %s) c"
+                " FULL JOIN (SELECT * FROM reporting_reconciliation_records"
+                " WHERE account_id = %s AND consumer_id = %s) r ON " + _FEED_JOIN,
+                (who.account_id, who.consumer_id) * 3,
+            )
+        ).fetchone()
+        assert row is not None
+        if row[0] != row[1] or row[1] != row[2] or row[3]:
+            fail("REPORTING_HISTORY_CORRUPT")
+        return row[2], row[4]
 
     async def _records(
         self, connection: Any, who: ReportingDeliveryPrincipal, maximum: int | None = None
     ) -> tuple[ReportingDeliveryRecord, ...]:
+        await self._validate_feed(connection, who)
+        return tuple(item.record for item in await self._changes(connection, who, maximum))
+
+    async def _changes(
+        self,
+        connection: Any,
+        who: ReportingDeliveryPrincipal,
+        maximum: int | None = None,
+        *,
+        after: int = 0,
+        limit: int | None = None,
+        filters: ReportingReconciliationFilter = ReportingReconciliationFilter(),
+    ) -> tuple[ReportingReconciliationChange, ...]:
         rows = await (
             await connection.execute(
-                "SELECT r.payload, r.content_sha256, c.seq, r.namespace, r.record_id,"
-                " r.record_kind, r.change_id FROM reporting_reconciliation_records r"
-                " LEFT JOIN reporting_ledger_changes c ON c.account_id = r.account_id"
-                " AND c.record_kind = r.record_kind AND c.record_id = r.change_id"
-                " WHERE r.account_id = %s AND r.consumer_id = %s"
-                " AND (c.seq IS NULL OR %s::bigint IS NULL OR c.seq <= %s::bigint) ORDER BY c.seq",
-                (who.account_id, who.consumer_id, maximum, maximum),
+                "SELECT r.payload, r.content_sha256, c.seq, r.change_id, "
+                f"{_SELECT_IDENTITY} FROM reporting_reconciliation_changes c"  # noqa: S608  # nosec B608
+                f" JOIN reporting_reconciliation_records r ON {_FEED_JOIN}"
+                " WHERE c.account_id = %s AND c.consumer_id = %s"
+                " AND (%s::bigint IS NULL OR c.seq <= %s::bigint) AND c.seq > %s"
+                f" AND {_FEED_FILTER} ORDER BY c.seq LIMIT %s",
+                (
+                    who.account_id,
+                    who.consumer_id,
+                    maximum,
+                    maximum,
+                    after,
+                    *_filter_params(filters),
+                    limit,
+                ),
             )
         ).fetchall()
         records = tuple(decode_record(row[0]) for row in rows)
@@ -103,13 +226,34 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
             principal(record) != who
             or fingerprint(record) != row[1]
             or row[2] is None
-            or record_identity(record) != (row[3], row[4])
-            or record.kind != row[5]
-            or change_id(record) != row[6]
+            or change_id(record) != row[3]
+            or storage_identity(record) != tuple(row[4:])
             for record, row in zip(records, rows)
         ):
             fail("REPORTING_HISTORY_CORRUPT")
-        return records
+        return tuple(
+            ReportingReconciliationChange(row[2], record) for row, record in zip(rows, records)
+        )
+
+    async def _change_count(
+        self,
+        connection: Any,
+        caller: ReportingDeliveryPrincipal,
+        after: int,
+        maximum: int,
+        filters: ReportingReconciliationFilter,
+    ) -> int:
+        row = await (
+            await connection.execute(
+                "SELECT count(*) FROM reporting_reconciliation_changes c"
+                f" JOIN reporting_reconciliation_records r ON {_FEED_JOIN}"  # noqa: S608  # nosec B608
+                " WHERE c.account_id = %s AND c.consumer_id = %s AND c.seq > %s AND c.seq <= %s"
+                f" AND {_FEED_FILTER}",
+                (caller.account_id, caller.consumer_id, after, maximum, *_filter_params(filters)),
+            )
+        ).fetchone()
+        assert row is not None
+        return int(row[0])
 
     async def _delivery_context(
         self, connection: Any, record: ReportingDeliveryRecord
@@ -152,15 +296,6 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
             )
         ).fetchone()
         adjustment_row = None
-        revision_obligation_row = None
-        if revision_row is not None:
-            revision_obligation_row = await (
-                await connection.execute(
-                    f"SELECT {_OBLIGATION_COLUMNS} FROM reporting_obligations"  # noqa: S608  # nosec B608
-                    " WHERE account_id = %s AND reporting_obligation_id = %s",
-                    (who.account_id, revision_row[2]),
-                )
-            ).fetchone()
         if isinstance(record, ReportingAdjustmentReceiptRecord):
             adjustment_row = await (
                 await connection.execute(
@@ -172,27 +307,10 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
         return DeliveryContext(
             obligation=_obligation_from_row(obligation_row) if obligation_row else None,
             revision=_revision_from_row(revision_row) if revision_row else None,
-            revision_obligation=(
-                _obligation_from_row(revision_obligation_row) if revision_obligation_row else None
-            ),
             adjustment=_adjustment_from_row(adjustment_row) if adjustment_row else None,
         )
 
     async def _insert(self, connection: Any, record: ReportingDeliveryRecord) -> None:
-        who = principal(record)
-        namespace, record_id = record_identity(record)
-        generation = (
-            record.generation_key
-            if isinstance(record, ReportingDestinationBinding)
-            else record.scope.generation_key
-        )
-        receipt = (
-            record
-            if isinstance(
-                record, (ReportingRevisionReceiptRecord, ReportingAdjustmentReceiptRecord)
-            )
-            else None
-        )
         await connection.execute(
             "INSERT INTO reporting_reconciliation_records"
             " (account_id, consumer_id, namespace, record_id, record_kind, delivery_config_id,"
@@ -203,84 +321,85 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
             " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
             " %s::jsonb, %s, %s)",
             (
-                who.account_id,
-                who.consumer_id,
-                namespace,
-                record_id,
-                record.kind,
-                generation.delivery_config_id,
-                generation.delivery_config_version,
-                (
-                    None
-                    if isinstance(record, ReportingDestinationBinding)
-                    else record.scope.reporting_obligation_id
-                ),
-                (
-                    record.adjusts_reporting_revision_id
-                    if isinstance(record, ReportingAdjustmentReceiptRecord)
-                    else getattr(record, "reporting_revision_id", None)
-                ),
-                getattr(record, "reporting_materialization_id", None),
-                (
-                    record.reporting_adjustment_id
-                    if isinstance(record, ReportingAdjustmentReceiptRecord)
-                    else None
-                ),
-                record.attempt if isinstance(record, ReportingMaterializationAttempt) else None,
-                receipt_chain(receipt) if receipt is not None else None,
-                receipt.status if receipt is not None else None,
-                receipt.supersedes_reporting_receipt_id if receipt is not None else None,
+                *storage_identity(record),
                 _json(payload(record)),
                 fingerprint(record),
                 change_id(record),
             ),
         )
 
-    async def _advance_receipt(self, connection: Any, record: ReportingReceiptRecord) -> None:
-        who = principal(record)
-        chain = receipt_chain(record)
-        if record.supersedes_reporting_receipt_id is None:
-            cursor = await connection.execute(
-                "INSERT INTO reporting_receipt_heads"
-                " (account_id, consumer_id, chain_key, receipt_id, receipt_status)"
-                " VALUES (%s, %s, %s, %s, %s)"
-                " ON CONFLICT (account_id, consumer_id, chain_key) DO NOTHING",
-                (
-                    who.account_id,
-                    who.consumer_id,
-                    chain,
-                    record.reporting_receipt_id,
-                    record.status,
-                ),
-            )
-        else:
-            cursor = await connection.execute(
-                "UPDATE reporting_receipt_heads SET receipt_id = %s, receipt_status = %s,"
-                " supersedes_receipt_id = %s"
-                " WHERE account_id = %s AND consumer_id = %s AND chain_key = %s"
-                " AND receipt_id = %s AND receipt_status = 'rejected'",
-                (
-                    record.reporting_receipt_id,
-                    record.status,
-                    record.supersedes_reporting_receipt_id,
-                    who.account_id,
-                    who.consumer_id,
-                    chain,
-                    record.supersedes_reporting_receipt_id,
-                ),
-            )
-        if cursor.rowcount != 1:
-            unavailable()
-
     async def read_reconciliation_snapshot(
-        self, *, caller: ReportingDeliveryPrincipal, boundary: LedgerSnapshot | None = None
+        self,
+        *,
+        caller: ReportingDeliveryPrincipal,
+        boundary: ReportingReconciliationSnapshotToken | None = None,
     ) -> ReportingReconciliationSnapshot:
-        if boundary is None:
-            boundary = await self.open_snapshot(
-                account_id=caller.account_id, filters_fingerprint=caller.consumer_id
+        async with self._pool.connection() as connection, connection.transaction():
+            await self._lock_account(connection, caller.account_id)
+            maximum, now = await self._validate_feed(connection, caller)
+            if boundary is None:
+                boundary = change_boundary(
+                    caller, maximum, self._clock() if self._clock is not None else now
+                )
+            if (
+                type(boundary) is not ReportingReconciliationSnapshotToken
+                or boundary.caller != caller
+                or boundary.min_sequence != 0
+                or boundary.filters != ReportingReconciliationFilter()
+            ):
+                unavailable()
+            validate_boundary(caller, boundary, maximum)
+            records = tuple(
+                item.record
+                for item in await self._changes(connection, caller, boundary.max_sequence)
             )
-        if boundary.account_id != caller.account_id:
-            unavailable()
-        async with self._pool.connection() as connection:
-            records = await self._records(connection, caller, boundary.max_sequence)
+            if len(records) != boundary.total_count:
+                fail("REPORTING_HISTORY_CORRUPT")
         return ReportingReconciliationSnapshot(caller, boundary, records)
+
+    async def read_reconciliation_changes(
+        self,
+        *,
+        caller: ReportingDeliveryPrincipal,
+        changes_after: ReportingReconciliationCheckpoint | None = None,
+        cursor: ReportingReconciliationCursor | None = None,
+        limit: int = 100,
+        filters: ReportingReconciliationFilter = ReportingReconciliationFilter(),
+    ) -> ReportingReconciliationPage:
+        after, boundary, last_key = read_position(caller, changes_after, cursor, limit, filters)
+        async with self._pool.connection() as connection, connection.transaction():
+            await self._lock_account(connection, caller.account_id)
+            maximum, now = await self._validate_feed(connection, caller)
+            if boundary is None:
+                count = await self._change_count(connection, caller, after, maximum, filters)
+                boundary = change_boundary(
+                    caller,
+                    maximum,
+                    self._clock() if self._clock is not None else now,
+                    after=after,
+                    total_count=count,
+                    filters=filters,
+                )
+            validate_boundary(caller, boundary, maximum)
+            if last_key is not None:
+                last = await self._changes(
+                    connection, caller, after, after=after - 1, limit=1, filters=filters
+                )
+                if not last or change_id(last[0].record) != last_key:
+                    raise LedgerConflictError(
+                        "INVALID_CHECKPOINT", "reconciliation key is unavailable"
+                    )
+                count = await self._change_count(
+                    connection, caller, boundary.min_sequence, boundary.max_sequence, filters
+                )
+                if count != boundary.total_count:
+                    fail("REPORTING_HISTORY_CORRUPT")
+            changes = await self._changes(
+                connection,
+                caller,
+                boundary.max_sequence,
+                after=after,
+                limit=limit + 1,
+                filters=filters,
+            )
+        return change_page(caller, boundary, after, changes, limit)

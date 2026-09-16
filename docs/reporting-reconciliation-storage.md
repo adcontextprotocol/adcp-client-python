@@ -48,6 +48,11 @@ materialization attempt sequence and receipt chain, so both can have attempt `1`
 and a terminal acceptance. Accepting the official receipt leaves an earlier rejected
 snapshot receipt replaceable; neither chain changes the other's retained evidence.
 There is no mutable current-revision pointer in these storage contracts.
+Consumers select the obligation's unique current revision before selecting a
+materialization. An official revision wins when present. Otherwise the unique
+unsuperseded snapshot is current. An unmaterialized, pending, or failed current
+revision never falls back to an older materialized snapshot; multiple current
+candidates fail closed.
 
 ## Trusted inputs and credential boundary
 
@@ -77,8 +82,13 @@ safe failure classifications and inert references. URL credentials, signed query
 strings, bearer material and private keys are refused without echoing the input.
 Adapters must supply public identifiers; syntax checks cannot establish
 the provenance of an otherwise opaque identifier.
-Native versions retain their decoded provider value, including characters such as
-`/`, `+`, and `=`. They are not entity IDs, URLs, or URI-encoded object references.
+Validators follow each field's wire contract: seller-issued entity IDs retain
+their schema grammar; provider locations, consumer load/commit IDs, reader feature
+labels, decoded object keys and native versions retain spaces, `/`, `+`, `=` and
+Unicode without rewriting. Object keys must be destination-relative. All these
+fields reject recognizable credentials and URLs, including encoded forms, without
+echoing the input. Native versions remain separate from object keys and are only
+URI-encoded when a later adapter constructs its provider request.
 
 ## Evidence and financial ordering
 
@@ -113,15 +123,27 @@ and pinned definition; omitted units inherit that context. Nonmonetary units and
 explicit types (including a decimal total represented by `"5"`) remain unchanged.
 Unknown historical currency or missing expected managed totals fails closed.
 
-One logical revision may fan out to another destination obligation only when its
-account, frozen period and resolved buy/package scope, coverage, definition and
-currency match exactly. That does not grant another principal access: each
-consumer still requires its own trusted binding and obligation delivery record.
+A revision belongs to exactly one frozen obligation identity. Every attempt,
+outcome and receipt must retain that account, configuration generation and
+obligation, even if another obligation has identical content, scope and currency.
+This slice has no obligation aliases or cross-obligation fan-out. Each consumer
+also requires its own trusted binding and obligation delivery record.
 
 Billing requires an official configuration, consumer receipts, and canonical digest
 verification. Other managed profiles retain their narrower assurance: native commits
 and manifest checksums do not assert cryptographic equality of logical rows.
 Available and delivered claims follow the frozen binding's success status.
+
+| Method | Canonical digest | Manifest checksums | Native commit |
+| --- | --- | --- | --- |
+| File transfer | Supported | Supported | Supported |
+| Dataset share | Supported | Rejected at binding | Supported |
+| Warehouse materialization | Supported | Rejected at binding | Supported |
+
+Billing permits only canonical digest verification. Native commit requires
+`resource.immutability == "native_version"`, identical resource/verification version
+references, and an exact representative-consumer or destination observation path.
+File transfer additionally requires the committed manifest and all object checksums.
 
 Adjustment acceptance verifies the complete adjustment's JCS/SHA-256 evidence,
 including optional `reason_detail`, and its exact official revision. Correction
@@ -129,22 +151,16 @@ observation must be no earlier than finalization and no later than creation; rec
 observation follows creation. Periods must be ordered. These are evidence records,
 not permission to post accounting entries, reopen books, change invoices, or settle.
 
-Two wire boundaries need attention in the completion PR:
-
-* The adjustment schema defines an independent receipt chain and does not require
-  prior acceptance of the official revision receipt. The store records those two
-  facts independently; completion must require both. An accepted adjustment alone
-  cannot establish reconciled completion.
-* The existing buyer `_select_current` can report `AMBIGUOUS_REVISION_CHAIN` when a
-  retained snapshot and a separate official revision coexist, while Core's producer
-  forbids an official revision from superseding a snapshot. This PR preserves that
-  financial finality rule. The completion PR must resolve reader selection against
-  the protocol before claiming a complete multi-finality lifecycle.
+The adjustment schema defines an independent receipt chain and does not require
+prior acceptance of the official revision receipt. The store records those two
+facts independently; completion must require both. An accepted adjustment alone
+cannot establish reconciled completion.
 
 ## Retention, snapshots, and future notifications
 
-`read_reconciliation_snapshot(caller=...)` reads retained records at a Core ledger
-boundary. Reusing its `boundary` excludes later outcomes, receipts and storage
+`read_reconciliation_snapshot(caller=...)` reads retained records at an independent
+account/consumer boundary, typed as `ReportingReconciliationSnapshotToken`.
+Reusing its `boundary` excludes later outcomes, receipts and storage
 checks. `get_materialization` returns the attempt, terminal outcome, binding and
 readability history; `get_receipt` requires an explicit account/consumer key.
 Expiry and corruption never erase immutable evidence or acceptance identity.
@@ -153,18 +169,58 @@ changing the materialization's terminal wire state. A successful resource must l
 through both the obligation floor and readiness plus the frozen retention contract.
 There is no purge or unchecked history-repair API.
 
+`ReportingReconciliationFeedStore` is a separate, optional replacement protocol;
+neither existing Core nor external reconciliation stores need new methods.
+Both reference stores implement `read_reconciliation_changes(caller=..., limit=...)`.
+It returns immutable `(sequence, record)` changes, a fixed boundary, an optional
+continuation cursor, and a checkpoint only on the final page. Every record kind, including checks and both
+receipt kinds, appears exactly once in sequence order when continuing from the
+last consumed position. Interleaving writes appear on the next walk. Foreign
+accounts and consumers never contribute records or change another principal's
+snapshot ID, count, cursor, checkpoint, or next sequence. Reconciliation writes
+also leave Core's sequence, snapshot ID, record counts and checkpoint unchanged.
+
+Persist a partial page's records and `ReportingReconciliationCursor` together;
+`changes_checkpoint` is `None` until the walk is complete. `cursor=page.cursor`
+continues the frozen walk across a process restart. Persist the final page with
+its `ReportingReconciliationCheckpoint`, then use `changes_after=checkpoint` to
+open the next walk. Repeating a position intentionally replays immutable records.
+`ReportingReconciliationFilter` supports record kinds and an exact obligation ID.
+Caller scope and filters apply before counting and limiting; PostgreSQL keyset-pages
+by the caller-local sequence under the frozen upper bound.
+
+Opaque tokens bind account, consumer, feed version, filter, lower/upper bounds and
+the last emitted sequence/record key. Tokens carry no authority: caller identity
+always comes from authenticated transport and is revalidated against retained
+records. A Core checkpoint, foreign scope, changed filter, invalid bounds, or
+inconsistent last key is rejected. Core's `LedgerRecordKind`, `LedgerPage`, required
+store protocols and wire projection remain unchanged. The early PR spelling
+`ReportingReconciliationChangeStore` is an alias for the optional feed protocol.
+
 The opt-in `materialization_to_wire`, `receipt_to_wire`, `revision_to_wire`, and
 `adjustment_to_wire` helpers support generated wire models. They are not mounted by
 the Core status handler. Snapshot records are a lower-level storage read, not an
 unbounded wire response; bounded status pagination and tier-correct counts belong
 to the completion PR.
 
-Each new record appends a distinct, scoped ledger change in the same transaction.
+Each new record appends a distinct change in `reporting_reconciliation_changes`
+and advances `reporting_reconciliation_heads` for its account/consumer in the same
+transaction. The memory store publishes the evidence and caller-local sequence
+with one assignment under its lock. Core's change feed is separate.
 Pending attempts and terminal outcomes have separate change kinds, so a snapshot
 cannot acquire terminal evidence committed after its boundary. Exact retries append
 nothing. Both stores share the transition validator; PostgreSQL serializes with the
-existing account lock and additionally uses a conditional receipt-head update.
-Database triggers reject evidence updates/deletes and terminal-head replacement.
+existing account lock. Database triggers validate principal, generation, obligation,
+revision, attempt and materialization references; receipt chains require the exact
+current rejected predecessor. An insert advances its receipt head atomically in
+the database, including for direct SQL writers. Composite foreign keys bind the
+exact publication and adjustment graph. Bidirectional composite foreign keys require
+the record and exact feed identity together; a deferred head reference and ordinal
+guards prevent missing, skipped or reassigned sequences. Reads validate both sides
+of the scoped feed/record join before boundary/count/limit so damage cannot disappear
+through filtering. Stored identity columns are compared against the decoded payload.
+Updates/deletes and terminal-head replacement are rejected; referenced
+Core publications stay frozen while leases and readability remain operational.
 This is the transaction in which #1168 can insert its outbox row; there is no adopter
 callback or after-commit webhook send in this PR.
 
@@ -177,15 +233,24 @@ The last migration is also one atomic statement in autocommit mode. All migratio
 share the schema advisory lock. Drain older writers before upgrading.
 
 The migration adds nullable managed digest/total evidence with no default/backfill,
-immutable record and receipt-head tables, and account-qualified reference indexes.
+immutable record, receipt-head, feed and caller-head tables, and account-qualified reference indexes.
 Literal beta.15 and #1171 upgrades preserve pre-existing rows, hashes, currency, leases,
 issue history and feed sequence numbers. Unknown currency/digest/total history stays
 unknown. Existing Core replay hashes do not change. A different replay of an
 existing adjustment now conflicts instead of silently returning its old content.
+Upgrading the initial reconciliation schema preserves every existing record,
+receipt head and legacy Core-feed row. It projects the retained legacy change order
+into dense, independent account/consumer sequences without changing original hashes
+or timestamps. The new reconciliation tokens do not reuse legacy/Core checkpoints;
+start with a reconciliation snapshot or initial feed walk. The migration validates
+all retained graph edges and feed identities and rejects incomplete history atomically;
+it never repairs missing evidence or reassigns an obligation identity.
 
 Table/index creation and prerequisite migrations take locks; production-sized
 duration is not benchmarked. The reference stores load one consumer's retained
-record set to validate transitions. Large histories need indexed queries or a
-conforming replacement store before production rollout. Only SDK store operations
+record set to validate transitions. Feed pages use indexed keyset reads, with scoped
+integrity/count scans; these reads share the account transaction lock with writes.
+Large histories need benchmarks or a conforming replacement store before production rollout.
+Only SDK store operations
 are supported writers; database owners can always circumvent application invariants
 by disabling constraints. PostgreSQL connection ownership remains with the adopter.

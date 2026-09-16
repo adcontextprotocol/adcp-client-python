@@ -16,6 +16,7 @@ from adcp.reporting.ledger import (
     ReportingCanonicalDigest,
     ReportingConfigurationGenerationKey,
     ReportingControlTotalRecord,
+    ReportingDeliveryPrincipal,
     ReportingDeliveryScope,
     ReportingDestinationBinding,
     ReportingDestinationStore,
@@ -28,6 +29,11 @@ from adcp.reporting.ledger import (
     ReportingReceiptKey,
     ReportingReceiptRecord,
     ReportingReceiptStore,
+    ReportingReconciliationCheckpoint,
+    ReportingReconciliationCursor,
+    ReportingReconciliationFeedStore,
+    ReportingReconciliationPage,
+    ReportingReconciliationSnapshotToken,
     ReportingReconciliationStore,
     ReportingRevisionReceiptRecord,
     ReportingRevisionRecord,
@@ -45,6 +51,36 @@ def reference() -> ReportingReconciliationStore:
 
 def persistent(pool: AsyncConnectionPool) -> ReportingReconciliationStore:
     return PgReportingReconciliationStore(pool=pool)
+
+
+def incremental(pool: AsyncConnectionPool) -> ReportingReconciliationFeedStore:
+    return PgReportingReconciliationStore(pool=pool)
+
+
+async def incremental_read(
+    store: ReportingReconciliationFeedStore,
+    caller: ReportingDeliveryPrincipal,
+    checkpoint: ReportingReconciliationCheckpoint | None,
+) -> ReportingReconciliationPage:
+    return await store.read_reconciliation_changes(
+        caller=caller, changes_after=checkpoint, limit=50
+    )
+
+
+async def continue_incremental_read(
+    store: ReportingReconciliationFeedStore, page: ReportingReconciliationPage
+) -> ReportingReconciliationPage:
+    boundary: ReportingReconciliationSnapshotToken = page.boundary
+    if page.has_more:
+        assert page.cursor is not None
+        cursor: ReportingReconciliationCursor = page.cursor
+        return await store.read_reconciliation_changes(
+            caller=page.caller, cursor=cursor, filters=boundary.filters
+        )
+    assert page.changes_checkpoint is not None
+    return await store.read_reconciliation_changes(
+        caller=page.caller, changes_after=page.changes_checkpoint, filters=boundary.filters
+    )
 
 
 def trusted_publisher_evidence(

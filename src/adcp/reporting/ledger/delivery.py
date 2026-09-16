@@ -18,6 +18,7 @@ from adcp.reporting.ledger._delivery_state import (
     adjustment_sha256,
     change_id,
     decode_record,
+    fail,
     iso,
     payload,
     principal,
@@ -26,6 +27,18 @@ from adcp.reporting.ledger._delivery_state import (
     totals_to_wire,
     unavailable,
     validate_transition,
+)
+from adcp.reporting.ledger.delivery_changes import (
+    ReportingReconciliationChange,
+    ReportingReconciliationCheckpoint,
+    ReportingReconciliationCursor,
+    ReportingReconciliationFilter,
+    ReportingReconciliationPage,
+    ReportingReconciliationSnapshotToken,
+    change_boundary,
+    change_page,
+    read_position,
+    validate_boundary,
 )
 from adcp.reporting.ledger.delivery_models import (
     ReportingAdjustmentReceiptRecord,
@@ -43,13 +56,12 @@ from adcp.reporting.ledger.delivery_models import (
     ReportingRevisionReceiptRecord,
 )
 from adcp.reporting.ledger.models import (
-    LedgerSnapshot,
     ReportingAdjustmentRecord,
     ReportingConfigurationGenerationKey,
     ReportingObligationRecord,
     ReportingRevisionRecord,
 )
-from adcp.reporting.ledger.store import InMemoryReportingLedgerStore
+from adcp.reporting.ledger.store import InMemoryReportingLedgerStore, LedgerConflictError
 
 
 @runtime_checkable
@@ -122,7 +134,7 @@ class ReportingReconciliationStore(
         self,
         *,
         caller: ReportingDeliveryPrincipal,
-        boundary: LedgerSnapshot | None = None,
+        boundary: ReportingReconciliationSnapshotToken | None = None,
     ) -> ReportingReconciliationSnapshot: ...
 
 
@@ -213,7 +225,7 @@ class ReportingMaterializationView:
 @dataclass(frozen=True, slots=True)
 class ReportingReconciliationSnapshot:
     caller: ReportingDeliveryPrincipal
-    boundary: LedgerSnapshot
+    boundary: ReportingReconciliationSnapshotToken
     records: tuple[ReportingDeliveryRecord, ...]
 
     def materialization(
@@ -351,7 +363,10 @@ class _ReconciliationOperations:
         return await self._commit(record)
 
     async def read_reconciliation_snapshot(
-        self, *, caller: ReportingDeliveryPrincipal, boundary: LedgerSnapshot | None = None
+        self,
+        *,
+        caller: ReportingDeliveryPrincipal,
+        boundary: ReportingReconciliationSnapshotToken | None = None,
     ) -> ReportingReconciliationSnapshot:
         raise NotImplementedError
 
@@ -379,30 +394,56 @@ class _ReconciliationOperations:
 class InMemoryReportingReconciliationStore(InMemoryReportingLedgerStore, _ReconciliationOperations):
     """Optional reference extension. No destination/receipt services at construction."""
 
+    _delivery_records: list[tuple[int, ReportingDeliveryPrincipal, ReportingDeliveryRecord]]
+
     async def _commit(self, record: RecordT) -> tuple[RecordT, bool]:
         candidate = decode_record(payload(record))
         who = principal(candidate)
         async with self._lock:
-            retained = self._retained_delivery_records()
-            records = tuple(item[2] for item in retained if item[1] == who)
+            records = tuple(item.record for item in self._caller_changes(who))
             existing = replay(candidate, records)
             if existing is not None:
                 return cast(RecordT, existing), False
             context = self._delivery_context(candidate)
             stored = validate_transition(candidate, records, context, self._clock())
-            self._append(who.account_id, stored.kind, change_id(stored))
-            retained.append((self._sequence, who, stored))
+            self._append_reconciliation_change(stored)
             return cast(RecordT, stored), True
+
+    def _append_reconciliation_change(self, record: ReportingDeliveryRecord) -> None:
+        who = principal(record)
+        retained = self._retained_delivery_records()
+        sequence = sum(owner == who for _, owner, _ in retained) + 1
+        # One assignment publishes the record, its feed row, and its local head.
+        # Core's sequence and change list never participate in this transaction.
+        self._delivery_records = [*retained, (sequence, who, record)]
 
     def _retained_delivery_records(
         self,
     ) -> list[tuple[int, ReportingDeliveryPrincipal, ReportingDeliveryRecord]]:
         # Lazily allocated so construction keeps Core's exact component surface.
         if not hasattr(self, "_delivery_records"):
-            self._delivery_records: list[
-                tuple[int, ReportingDeliveryPrincipal, ReportingDeliveryRecord]
-            ] = []
+            self._delivery_records = []
         return self._delivery_records
+
+    def _caller_changes(
+        self, caller: ReportingDeliveryPrincipal
+    ) -> tuple[ReportingReconciliationChange, ...]:
+        retained = [
+            item
+            for item in self._retained_delivery_records()
+            if item[1] == caller or principal(item[2]) == caller
+        ]
+        if any(
+            type(sequence) is not int
+            or sequence != ordinal
+            or owner != caller
+            or principal(record) != caller
+            for ordinal, (sequence, owner, record) in enumerate(retained, start=1)
+        ):
+            fail("REPORTING_HISTORY_CORRUPT")
+        return tuple(
+            ReportingReconciliationChange(sequence, record) for sequence, _, record in retained
+        )
 
     def _delivery_context(self, record: ReportingDeliveryRecord) -> DeliveryContext:
         if isinstance(record, ReportingDestinationBinding):
@@ -415,9 +456,6 @@ class InMemoryReportingReconciliationStore(InMemoryReportingLedgerStore, _Reconc
         return DeliveryContext(
             obligation=obligation,
             revision=revision,
-            revision_obligation=(
-                self._obligations.get(revision.reporting_obligation_id) if revision else None
-            ),
             adjustment=(
                 self._adjustments.get(record.reporting_adjustment_id)
                 if isinstance(record, ReportingAdjustmentReceiptRecord)
@@ -426,23 +464,76 @@ class InMemoryReportingReconciliationStore(InMemoryReportingLedgerStore, _Reconc
         )
 
     async def read_reconciliation_snapshot(
-        self, *, caller: ReportingDeliveryPrincipal, boundary: LedgerSnapshot | None = None
+        self,
+        *,
+        caller: ReportingDeliveryPrincipal,
+        boundary: ReportingReconciliationSnapshotToken | None = None,
     ) -> ReportingReconciliationSnapshot:
-        if boundary is None:
-            boundary = await self.open_snapshot(
-                account_id=caller.account_id, filters_fingerprint=caller.consumer_id
-            )
-        if boundary.account_id != caller.account_id:
-            unavailable()
         async with self._lock:
+            changes = self._caller_changes(caller)
+            if boundary is None:
+                boundary = change_boundary(caller, len(changes), self._clock())
+            if (
+                type(boundary) is not ReportingReconciliationSnapshotToken
+                or boundary.caller != caller
+                or boundary.min_sequence != 0
+                or boundary.filters != ReportingReconciliationFilter()
+            ):
+                unavailable()
+            validate_boundary(caller, boundary, len(changes))
+            if boundary.total_count != boundary.max_sequence:
+                fail("REPORTING_HISTORY_CORRUPT")
             return ReportingReconciliationSnapshot(
                 caller,
                 boundary,
-                tuple(
-                    record
-                    for sequence, owner, record in self._retained_delivery_records()
-                    if owner == caller and sequence <= boundary.max_sequence
-                ),
+                tuple(item.record for item in changes if item.sequence <= boundary.max_sequence),
+            )
+
+    async def read_reconciliation_changes(
+        self,
+        *,
+        caller: ReportingDeliveryPrincipal,
+        changes_after: ReportingReconciliationCheckpoint | None = None,
+        cursor: ReportingReconciliationCursor | None = None,
+        limit: int = 100,
+        filters: ReportingReconciliationFilter = ReportingReconciliationFilter(),
+    ) -> ReportingReconciliationPage:
+        after, boundary, last_key = read_position(caller, changes_after, cursor, limit, filters)
+        async with self._lock:
+            records = self._caller_changes(caller)
+            if boundary is None:
+                boundary = change_boundary(
+                    caller,
+                    len(records),
+                    self._clock(),
+                    after=after,
+                    total_count=sum(
+                        item.sequence > after and filters.matches(item.record) for item in records
+                    ),
+                    filters=filters,
+                )
+            validate_boundary(caller, boundary, len(records))
+            if last_key is not None and not any(
+                item.sequence == after
+                and change_id(item.record) == last_key
+                and filters.matches(item.record)
+                for item in records
+            ):
+                raise LedgerConflictError("INVALID_CHECKPOINT", "reconciliation key is unavailable")
+            changes = tuple(
+                item
+                for item in records
+                if boundary.min_sequence < item.sequence <= boundary.max_sequence
+                and filters.matches(item.record)
+            )
+            if len(changes) != boundary.total_count:
+                fail("REPORTING_HISTORY_CORRUPT")
+            return change_page(
+                caller,
+                boundary,
+                after,
+                tuple(item for item in changes if item.sequence > after),
+                limit,
             )
 
 

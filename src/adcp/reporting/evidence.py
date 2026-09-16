@@ -6,53 +6,99 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import ClassVar, Literal
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from pydantic import ConfigDict
 
 
-def native_version_reference(value: str) -> str:
-    """Retain a decoded, publicly classified native version without URI encoding.
+def _public_text(value: str, *, maximum: int) -> str:
+    """Reject recognizable credentials without normalizing a provider's identity.
 
-    Native versions are not entity IDs: for example, ``/``, ``+`` and ``=`` are
-    valid characters. The trusted adapter must establish that the value is public;
-    this guard rejects recognizable authorization material, not opaque secrets.
+    Provenance still belongs to the trusted adapter: no syntax check can decide
+    whether an arbitrary opaque value is a secret. Inspect percent-decoded forms
+    as well, so encoding cannot hide a URL or credential from this boundary.
     """
     if (
         type(value) is not str
-        or not 1 <= len(value) <= 1024
-        or not value.isprintable()
-        or "://" in value
-        or re.search(
-            r"(?i)(?:bearer\s|password|secret|token|signature|credential|private.key|-----BEGIN)",
-            value,
-        )
-    ):
-        raise ValueError("native version evidence requires a non-secret decoded public reference")
-    return value
-
-
-def public_reference(value: str, *, maximum: int = 1024, path: bool = False) -> str:
-    """Accept inert identifiers, never URLs, query strings or authentication material.
-
-    These are trusted public labels, not an arbitrary provider response sanitiser.
-    Adapters needing a richer provider identifier must retain it behind the trusted
-    binding and publish an opaque label. Error messages never interpolate input.
-    """
-    pattern = r"[A-Za-z0-9_.:/-]+" if path else r"[A-Za-z0-9_.:-]+"
-    if (
-        not isinstance(value, str)
         or not 1 <= len(value) <= maximum
-        or re.fullmatch(pattern, value) is None
-        or "://" in value
-        or value.startswith("/")
-        or any(part == ".." for part in value.split("/"))
-        or re.search(
-            r"(?i)(?:bearer|password|secret|token|signature|credential|private.key)", value
-        )
+        or not value.isprintable()
+        or not value.strip()
     ):
-        raise ValueError("reporting metadata requires a non-secret public reference")
+        raise ValueError("reporting metadata requires non-secret public text")
+    inspected = value
+    while True:
+        if (
+            not inspected.isprintable()
+            or "://" in inspected
+            or inspected.startswith("//")
+            or re.search(
+                r"(?i)(?:bearer|password|secret|token|signature|credential|private.key|"
+                r"authorization|api[ _-]?key|access[ _-]?key|-----BEGIN|"
+                r"(?:^|\s)(?:https?|ftp|file|data|mailto|s3|gs):|"
+                r"[^\s/:]+:[^\s/]+@)",
+                inspected,
+            )
+            or re.search(r"(?:^|[^A-Za-z0-9])(?:AKIA|ASIA)[A-Z0-9]{16}\b", inspected)
+            or re.search(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", inspected)
+        ):
+            raise ValueError("reporting metadata requires non-secret public text")
+        decoded = unquote(inspected)
+        if decoded == inspected:
+            break
+        inspected = decoded
     return value
+
+
+def reporting_identifier(value: str, *, maximum: int = 255) -> str:
+    """Seller-issued wire identities use the schema's deliberately narrow grammar."""
+    _public_text(value, maximum=maximum)
+    if re.fullmatch(r"[A-Za-z0-9_.:-]+", value) is None:
+        raise ValueError("reporting identity requires a public protocol identifier")
+    return value
+
+
+def principal_reference(value: str) -> str:
+    """Trusted public account/consumer identity, not a protocol entity ID."""
+    return _public_text(value, maximum=255)
+
+
+def destination_reference(value: str) -> str:
+    """Immutable public destination/configuration reference, with the wire length bound."""
+    return _public_text(value, maximum=255)
+
+
+def resource_location(value: str) -> str:
+    """Public provider-native relation/share/object name, kept byte-for-byte."""
+    return _public_text(value, maximum=2048)
+
+
+def file_object_reference(value: str) -> str:
+    """Decoded destination-relative object key, never a URL or version query."""
+    _public_text(value, maximum=1024)
+    if (
+        value.startswith(("/", "\\"))
+        or "\\" in value
+        or "?" in value
+        or "#" in value
+        or ".." in value.split("/")
+    ):
+        raise ValueError("reporting object evidence requires a destination-relative decoded key")
+    return value
+
+
+def native_version_reference(value: str) -> str:
+    """Decoded provider-native immutable version, including spaces, '/', '+' and '='."""
+    return _public_text(value, maximum=1024)
+
+
+def consumer_commit_reference(value: str) -> str:
+    """Public checkpoint, transaction or load ID; no protocol entity-ID grammar."""
+    return _public_text(value, maximum=512)
+
+
+def reader_feature_reference(value: str) -> str:
+    """Public reader/format requirement, which may be a provider's feature label."""
+    return _public_text(value, maximum=128)
 
 
 def sha256_value(value: str) -> str:
@@ -86,7 +132,7 @@ class ReportingControlTotalRecord:
             or self.value_type not in {"integer", "decimal"}
         ):
             raise ValueError("control total evidence requires immutable typed values")
-        public_reference(self.name, maximum=128)
+        reporting_identifier(self.name, maximum=128)
         if re.fullmatch(r"[A-Za-z][A-Za-z0-9_.:-]{0,127}", self.name) is None:
             raise ValueError("reporting total names require public metric identifiers")
         pattern = (
@@ -97,7 +143,7 @@ class ReportingControlTotalRecord:
         if re.fullmatch(pattern, self.value) is None:
             raise ValueError("control totals require canonical numeric strings matching their type")
         if self.unit is not None:
-            public_reference(self.unit, maximum=32)
+            _public_text(self.unit, maximum=32)
 
     def to_wire(self) -> dict[str, str]:
         result = {"name": self.name, "value": self.value, "value_type": self.value_type}
@@ -162,7 +208,7 @@ class ReportingCanonicalDigest:
             raise ValueError("canonical evidence requires immutable string values")
         sha256_value(self.value)
         sha256_value(self.canonicalization_sha256)
-        public_reference(self.canonicalization_id, maximum=128)
+        _public_text(self.canonicalization_id, maximum=128)
         uri = self.canonicalization_uri
         try:
             parsed = urlsplit(uri)

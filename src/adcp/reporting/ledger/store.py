@@ -1136,7 +1136,7 @@ class InMemoryReportingLedgerStore:
             ),
         )
 
-    def _resolve(self, kind: LedgerRecordKind, record_id: str) -> Any:
+    def _resolve(self, kind: str, record_id: str) -> Any:
         if kind == "obligation":
             return self._obligations.get(record_id)
         if kind == "revision":

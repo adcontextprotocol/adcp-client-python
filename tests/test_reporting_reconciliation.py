@@ -16,6 +16,7 @@ from adcp.decisioning.capabilities import MediaBuy
 from adcp.reporting import (
     ExpectedReportingPeriod,
     ReportingInspectionContext,
+    ReportingLedger,
     ReportingObservation,
     ReportingReconciliationError,
     ReportingTier,
@@ -1222,7 +1223,7 @@ async def test_incomplete_associated_history_prevents_definitive_result() -> Non
 
 
 @pytest.mark.asyncio
-async def test_one_revision_fans_out_without_double_counting_totals() -> None:
+async def test_one_revision_cannot_materialize_under_two_obligations() -> None:
     raw = _response()
     first = _obligation("obligation-a")
     second = _obligation("obligation-b")
@@ -1259,8 +1260,106 @@ async def test_one_revision_fans_out_without_double_counting_totals() -> None:
         expected_periods=[],
         now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
     )
-    assert result.definitive, result.obligations
-    assert len(result.totals_by_revision) == 1
+    assert not result.definitive
+    assert all("REVISION_SCOPE_MISMATCH" in item.reasons for item in result.obligations)
+
+
+@pytest.mark.parametrize("finality", ["official", "snapshot"])
+@pytest.mark.parametrize("delivery", ["absent", "pending", "failed", "available"])
+def test_current_publication_is_selected_before_its_materialization(
+    finality: str, delivery: str
+) -> None:
+    raw = _response()
+    obligation = raw["periods"][0]
+    obligation.update(
+        required_finality=finality,
+        revision_count=2,
+        reconciliation_mode="delivery_only",
+        reconciliation_status="not_required",
+        health="complete",
+    )
+    older = deepcopy(REVISION)
+    older.update(reporting_revision_id="older-materialized-snapshot", finality="snapshot")
+    for key in ("finality_basis", "finality_policy_id", "finalized_at"):
+        older.pop(key)
+    current = deepcopy(REVISION)
+    if finality == "snapshot":
+        current.update(
+            finality="snapshot", supersedes_reporting_revision_id=older["reporting_revision_id"]
+        )
+        for key in ("finality_basis", "finality_policy_id", "finalized_at"):
+            current.pop(key)
+    old_attempt = _materialization("older-materialization")
+    old_attempt["reporting_revision_id"] = older["reporting_revision_id"]
+    raw["revisions"] = [older, current]
+    raw["materializations"] = [old_attempt]
+    if delivery != "absent":
+        attempt = _materialization("current-materialization")
+        attempt["status"] = delivery
+        if delivery != "available":
+            for key in ("ready_at", "resource", "verification"):
+                attempt.pop(key)
+        if delivery == "failed":
+            attempt.update(failed_at="2026-09-02T00:00:05Z", failure_code="WRITE_FAILED")
+        raw["materializations"].append(attempt)
+    obligation.update(
+        materialization_count=len(raw["materializations"]),
+        successful_materialization_count=2 if delivery == "available" else 1,
+    )
+    response = GetReportingStatusResponse.model_validate(raw)
+    ledger = ReportingLedger(
+        response.ledger_snapshot_id,
+        response.ledger_as_of,
+        response.account_id,
+        response.scope,
+        response.periods,
+        response.revisions,
+        response.materializations,
+        response.receipts,
+    )
+    result = evaluate_reporting_ledger(
+        ledger, expected_periods=[], now=datetime.fromisoformat("2026-09-03T00:00:00+00:00")
+    )
+    selected = result.obligations[0]
+    assert selected.reporting_revision_id == current["reporting_revision_id"]
+    assert "AMBIGUOUS_REVISION_CHAIN" not in selected.reasons
+    assert "ASSOCIATED_HISTORY_INCOMPLETE" not in selected.reasons
+    if delivery == "available":
+        assert selected.reporting_materialization_id == "current-materialization"
+        assert result.definitive, selected.reasons
+    else:
+        assert selected.reporting_materialization_id is None
+        assert "MISSING_VERIFIED_MATERIALIZATION" in selected.reasons
+        assert not result.definitive
+
+
+@pytest.mark.parametrize("finality", ["official", "snapshot"])
+def test_publication_selection_rejects_multiple_current_revisions(finality: str) -> None:
+    raw = _response()
+    first = deepcopy(REVISION)
+    second = deepcopy(REVISION)
+    second["reporting_revision_id"] = "competing-publication"
+    if finality == "snapshot":
+        for revision in (first, second):
+            revision["finality"] = finality
+            for key in ("finality_basis", "finality_policy_id", "finalized_at"):
+                revision.pop(key)
+    raw["periods"][0].update(required_finality=finality, revision_count=2)
+    raw["revisions"] = [first, second]
+    response = GetReportingStatusResponse.model_validate(raw)
+    ledger = ReportingLedger(
+        response.ledger_snapshot_id,
+        response.ledger_as_of,
+        response.account_id,
+        response.scope,
+        response.periods,
+        response.revisions,
+        response.materializations,
+        response.receipts,
+    )
+    result = evaluate_reporting_ledger(ledger, expected_periods=[])
+    assert not result.definitive
+    assert "AMBIGUOUS_REVISION_CHAIN" in result.obligations[0].reasons
 
 
 @pytest.mark.asyncio

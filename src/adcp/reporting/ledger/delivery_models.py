@@ -19,8 +19,14 @@ from adcp.reporting.currency import validate_currency
 from adcp.reporting.evidence import (
     ReportingCanonicalDigest,
     aware_utc,
+    consumer_commit_reference,
+    destination_reference,
+    file_object_reference,
     native_version_reference,
-    public_reference,
+    principal_reference,
+    reader_feature_reference,
+    reporting_identifier,
+    resource_location,
     sha256_value,
 )
 from adcp.reporting.evidence import ReportingControlTotalRecord as ReportingControlTotalRecord
@@ -31,6 +37,15 @@ ReportingFormat = Literal["jsonl", "csv", "parquet", "avro", "orc"]
 VerificationProfile = Literal["canonical_digest", "manifest_checksums", "native_commit"]
 VerificationPath = Literal["producer", "representative_consumer", "destination"]
 ReceiptStatus = Literal["accepted", "rejected"]
+ReportingReconciliationRecordKind = Literal[
+    "destination_binding",
+    "obligation_delivery",
+    "materialization_attempt",
+    "materialization",
+    "materialization_check",
+    "revision_receipt",
+    "adjustment_receipt",
+]
 MaterializationFailure = Literal[
     "WRITE_FAILED", "VERIFICATION_FAILED", "CONTENT_CORRUPT", "RESOURCE_UNAVAILABLE"
 ]
@@ -98,8 +113,8 @@ class ReportingDeliveryPrincipal(_ClosedValue):
 
     def __post_init__(self) -> None:
         _freeze_fields(self)
-        public_reference(self.account_id, maximum=255)
-        public_reference(self.consumer_id, maximum=255)
+        principal_reference(self.account_id)
+        principal_reference(self.consumer_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,9 +128,9 @@ class ReportingDeliveryScope(_ClosedValue):
         if type(self.generation_key) is not ReportingConfigurationGenerationKey:
             raise ValueError("reporting scope requires the typed configuration generation")
         self.principal
-        public_reference(self.generation_key.delivery_config_id, maximum=64)
+        reporting_identifier(self.generation_key.delivery_config_id, maximum=64)
         _positive(self.generation_key.delivery_config_version)
-        public_reference(self.reporting_obligation_id, maximum=255)
+        reporting_identifier(self.reporting_obligation_id, maximum=255)
 
     @property
     def principal(self) -> ReportingDeliveryPrincipal:
@@ -129,7 +144,7 @@ class ReportingMaterializationKey(_ClosedValue):
 
     def __post_init__(self) -> None:
         _freeze_fields(self)
-        public_reference(self.reporting_materialization_id, maximum=255)
+        reporting_identifier(self.reporting_materialization_id, maximum=255)
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,7 +154,7 @@ class ReportingReceiptKey(_ClosedValue):
 
     def __post_init__(self) -> None:
         _freeze_fields(self)
-        public_reference(self.reporting_receipt_id, maximum=255)
+        reporting_identifier(self.reporting_receipt_id, maximum=255)
         if len(self.reporting_receipt_id) < 16:
             raise ValueError("a reporting receipt identifier requires at least 16 characters")
 
@@ -172,22 +187,24 @@ class ReportingDestinationBinding(_ClosedValue):
     def __post_init__(self) -> None:
         _freeze_fields(self)
         ReportingDeliveryScope(self.generation_key, self.consumer_id, "binding")
-        public_reference(self.destination_ref, maximum=255)
-        public_reference(self.trusted_binding_ref, maximum=255)
+        destination_reference(self.destination_ref)
+        destination_reference(self.trusted_binding_ref)
         if re.fullmatch(r"[a-z][a-z0-9_.-]{0,63}", self.transport) is None:
             raise ValueError("reporting transport requires a public protocol label")
-        public_reference(self.transport, maximum=64)
+        reporting_identifier(self.transport, maximum=64)
         _positive(self.resource_retention_days)
         object.__setattr__(self, "created_at", aware_utc(self.created_at))
         object.__setattr__(
             self,
             "reader_compatibility",
-            tuple(public_reference(value, maximum=128) for value in self.reader_compatibility),
+            tuple(reader_feature_reference(value) for value in self.reader_compatibility),
         )
         if len(set(self.reader_compatibility)) != len(self.reader_compatibility):
             raise ValueError("reader compatibility requirements must be unique")
         if self.method == "file_transfer" and self.format is None:
             raise ValueError("file transfer requires a declared format")
+        if self.verification_profile == "manifest_checksums" and self.method != "file_transfer":
+            raise ValueError("manifest checksum verification requires file transfer")
         if self.method == "warehouse_materialization" and self.success_status != "delivered":
             raise ValueError("warehouse materialization requires destination delivery")
         if self.method == "dataset_share" and self.success_status != "available":
@@ -228,8 +245,8 @@ class ReportingMaterializationAttempt(_ClosedValue):
 
     def __post_init__(self) -> None:
         _freeze_fields(self)
-        public_reference(self.reporting_revision_id, maximum=255)
-        public_reference(self.reporting_materialization_id, maximum=255)
+        reporting_identifier(self.reporting_revision_id, maximum=255)
+        reporting_identifier(self.reporting_materialization_id, maximum=255)
         _positive(self.attempt)
         object.__setattr__(self, "created_at", aware_utc(self.created_at))
 
@@ -252,8 +269,8 @@ class ReportingResourceRecord(_ClosedValue):
 
     def __post_init__(self) -> None:
         _freeze_fields(self)
-        public_reference(self.resource_ref, maximum=255)
-        public_reference(self.location, maximum=2048, path=True)
+        reporting_identifier(self.resource_ref, maximum=255)
+        resource_location(self.location)
         if self.native_version_ref is not None:
             native_version_reference(self.native_version_ref)
         if self.manifest_sha256 is not None:
@@ -266,12 +283,12 @@ class ReportingResourceRecord(_ClosedValue):
         object.__setattr__(
             self,
             "object_refs",
-            tuple(public_reference(value, path=True) for value in self.object_refs),
+            tuple(file_object_reference(value) for value in self.object_refs),
         )
         object.__setattr__(
             self,
             "reader_compatibility",
-            tuple(public_reference(value, maximum=128) for value in self.reader_compatibility),
+            tuple(reader_feature_reference(value) for value in self.reader_compatibility),
         )
         if len(set(self.object_refs)) != len(self.object_refs):
             raise ValueError("resource object references must be unique")
@@ -287,7 +304,7 @@ class ReportingPhysicalChecksum(_ClosedValue):
 
     def __post_init__(self) -> None:
         _freeze_fields(self)
-        public_reference(self.object_ref, path=True)
+        file_object_reference(self.object_ref)
         size = 64 if self.algorithm == "sha256" else 128
         if (
             not isinstance(self.value, str)
@@ -342,8 +359,8 @@ class ReportingMaterializationRecord(_ClosedValue):
 
     def __post_init__(self) -> None:
         _freeze_fields(self)
-        public_reference(self.reporting_revision_id, maximum=255)
-        public_reference(self.reporting_materialization_id, maximum=255)
+        reporting_identifier(self.reporting_revision_id, maximum=255)
+        reporting_identifier(self.reporting_materialization_id, maximum=255)
         object.__setattr__(self, "completed_at", aware_utc(self.completed_at))
         if self.status == "failed":
             if (
@@ -377,8 +394,8 @@ class ReportingMaterializationCheck(_ClosedValue):
 
     def __post_init__(self) -> None:
         _freeze_fields(self)
-        public_reference(self.reporting_materialization_id, maximum=255)
-        public_reference(self.check_id, maximum=255)
+        reporting_identifier(self.reporting_materialization_id, maximum=255)
+        reporting_identifier(self.check_id, maximum=255)
         object.__setattr__(self, "checked_at", aware_utc(self.checked_at))
 
 
@@ -405,8 +422,8 @@ class ReportingRevisionReceiptRecord(_ClosedValue):
     def __post_init__(self) -> None:
         _freeze_fields(self)
         self.key
-        public_reference(self.reporting_revision_id, maximum=255)
-        public_reference(self.reporting_materialization_id, maximum=255)
+        reporting_identifier(self.reporting_revision_id, maximum=255)
+        reporting_identifier(self.reporting_materialization_id, maximum=255)
         _positive(self.observed_row_count, zero=True)
         _unique_totals(self.observed_control_totals)
         if self.observed_manifest_sha256 is not None:
@@ -414,7 +431,7 @@ class ReportingRevisionReceiptRecord(_ClosedValue):
         if self.observed_native_version_ref is not None:
             native_version_reference(self.observed_native_version_ref)
         if self.consumer_commit_ref is not None:
-            public_reference(self.consumer_commit_ref, maximum=512)
+            consumer_commit_reference(self.consumer_commit_ref)
         _receipt_fields(self)
 
     @property
@@ -439,8 +456,8 @@ class ReportingAdjustmentReceiptRecord(_ClosedValue):
     def __post_init__(self) -> None:
         _freeze_fields(self)
         self.key
-        public_reference(self.reporting_adjustment_id, maximum=255)
-        public_reference(self.adjusts_reporting_revision_id, maximum=255)
+        reporting_identifier(self.reporting_adjustment_id, maximum=255)
+        reporting_identifier(self.adjusts_reporting_revision_id, maximum=255)
         sha256_value(self.observed_adjustment_sha256)
         _receipt_fields(self)
 

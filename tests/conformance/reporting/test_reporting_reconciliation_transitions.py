@@ -37,6 +37,7 @@ from ._reconciliation_support import Clock, Store, scenario
     [
         ("file_transfer", "canonical_digest"),
         ("file_transfer", "manifest_checksums"),
+        ("file_transfer", "native_commit"),
         ("dataset_share", "canonical_digest"),
         ("dataset_share", "native_commit"),
         ("warehouse_materialization", "canonical_digest"),
@@ -481,7 +482,7 @@ async def test_adjustment_ordering_and_digest_disagreement(
 
 
 @pytest.mark.parametrize("different_scope", [False, True])
-async def test_revision_fanout_requires_exact_frozen_logical_scope(
+async def test_revision_cannot_fan_out_to_a_different_frozen_obligation(
     reconciliation_store: tuple[Store, Clock], different_scope: bool
 ) -> None:
     store, _ = reconciliation_store
@@ -507,12 +508,11 @@ async def test_revision_fanout_requires_exact_frozen_logical_scope(
     scope = ReportingDeliveryScope(generation, "buyer", obligation.reporting_obligation_id)
     await store.bind_obligation_delivery(replace(s.delivery, scope=scope))
     attempt = replace(s.attempt, scope=scope, reporting_materialization_id="fanout-materialization")
-    if different_scope:
-        with pytest.raises(LedgerConflictError) as error:
-            await store.commit_materialization_attempt(attempt)
-        assert error.value.code == "REPORTING_RECORD_UNAVAILABLE"
-    else:
+    before = await store.read_reconciliation_snapshot(caller=scope.principal)
+    with pytest.raises(LedgerConflictError) as error:
         await store.commit_materialization_attempt(attempt)
+    assert error.value.code == "REPORTING_RECORD_UNAVAILABLE"
+    with pytest.raises(LedgerConflictError) as error:
         await store.commit_materialization(
             replace(
                 s.outcome,
@@ -520,15 +520,19 @@ async def test_revision_fanout_requires_exact_frozen_logical_scope(
                 reporting_materialization_id=attempt.reporting_materialization_id,
             )
         )
-        receipt, _ = await store.record_revision_receipt(
+    assert error.value.code == "REPORTING_RECORD_UNAVAILABLE"
+    assert await store.read_reconciliation_snapshot(caller=scope.principal) == before
+    await store.commit_materialization(s.outcome)
+    with pytest.raises(LedgerConflictError) as error:
+        await store.record_revision_receipt(
             replace(
                 s.receipt,
                 scope=scope,
                 reporting_receipt_id="fanout-receipt-0001",
-                reporting_materialization_id=attempt.reporting_materialization_id,
             )
         )
-        assert receipt.scope == scope
+    assert error.value.code == "REPORTING_RECORD_UNAVAILABLE"
+    assert (await store.record_revision_receipt(s.receipt))[1]
 
 
 async def test_core_and_managed_delivery_only_do_not_require_receipt_components(

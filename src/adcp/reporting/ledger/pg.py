@@ -1061,7 +1061,8 @@ class PgReportingLedgerStore:
             row = await (
                 await connection.execute(
                     "SELECT COALESCE(MAX(seq), 0), now() FROM reporting_ledger_changes"
-                    " WHERE account_id = %s",
+                    " WHERE account_id = %s AND record_kind IN"
+                    " ('obligation', 'revision', 'adjustment', 'consumer_status')",
                     (account_id,),
                 )
             ).fetchone()

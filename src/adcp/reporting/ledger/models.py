@@ -63,19 +63,7 @@ __all__ = [
 ReportingFinality = Literal["snapshot", "official"]
 ReportingHealth = Literal["healthy", "waiting", "delayed", "action_required", "complete"]
 ReportingProductionStatus = Literal["not_due", "pending", "published", "failed"]
-LedgerRecordKind = Literal[
-    "obligation",
-    "revision",
-    "adjustment",
-    "consumer_status",
-    "destination_binding",
-    "obligation_delivery",
-    "materialization_attempt",
-    "materialization",
-    "materialization_check",
-    "revision_receipt",
-    "adjustment_receipt",
-]
+LedgerRecordKind = Literal["obligation", "revision", "adjustment", "consumer_status"]
 
 #: The five values a consumer may state about one expected period. AdCP
 #: 3.2.0-rc.3 adds ``content_mismatch``: reporting that arrived and parsed but

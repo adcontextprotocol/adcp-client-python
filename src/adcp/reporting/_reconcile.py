@@ -441,9 +441,8 @@ def _select_current(
         item
         for item in ledger.revisions
         if (
-            item.reporting_revision_id in revision_ids
-            if managed_delivery
-            else _revision_matches_obligation(item, obligation)
+            _revision_matches_obligation(item, obligation)
+            or (managed_delivery and item.reporting_revision_id in revision_ids)
         )
     ]
     receipts = [
@@ -483,19 +482,30 @@ def _select_current(
         if item.supersedes_reporting_revision_id
     }
     candidate_ids = {item.reporting_revision_id for item in candidates}
+    if any(not _revision_matches_obligation(item, obligation) for item in candidates) or any(
+        item.reporting_revision_id in revision_ids
+        and item.reporting_obligation_id != obligation.reporting_obligation_id
+        for item in ledger.materializations
+    ):
+        reasons.append("REVISION_SCOPE_MISMATCH")
     if any(
         item.supersedes_reporting_revision_id
         and item.supersedes_reporting_revision_id not in candidate_ids
         for item in candidates
     ):
         reasons.append("INCOMPLETE_REVISION_CHAIN")
-    current = [item for item in candidates if item.reporting_revision_id not in superseded]
+    # Publication selection precedes destination selection. An official close
+    # coexists with retained snapshots; it does not supersede their histories.
+    # A newer unmaterialized publication must never reveal an older snapshot as
+    # the current deliverable merely because that snapshot has a ready resource.
+    official = [item for item in candidates if _enum(item.finality) == "official"]
+    current = official or [
+        item for item in candidates if item.reporting_revision_id not in superseded
+    ]
     if len(current) != 1:
         reasons.append("MISSING_CURRENT_REVISION" if not current else "AMBIGUOUS_REVISION_CHAIN")
         return None, None, reasons
     revision = current[0]
-    if any(not _revision_matches_obligation(item, obligation) for item in candidates):
-        reasons.append("REVISION_SCOPE_MISMATCH")
     if (
         not _coverage_is_full(obligation.coverage, obligation.media_buy_ids)
         or obligation.coverage.evaluated_at != obligation.scope_resolved_at

@@ -88,11 +88,17 @@ async def scenario(
     finality: ReportingFinality = "official",
     reconciliation_mode: Literal["delivery_only", "consumer_receipt"] = "consumer_receipt",
     control_total_evidence: tuple[ReportingControlTotalRecord, ...] | None = None,
+    reader_compatibility: tuple[str, ...] | None = None,
+    revision_id: str | None = None,
+    obligation_id: str | None = None,
+    destination_ref: str = "destination-generation-1",
 ) -> Scenario:
     feed = "billing" if billing else "analytics"
     config = replace(configuration(account_id), feed_purpose=feed, required_finality=finality)
     await store.put_configuration(config)
     obligation = replace(obligation_for(config), currency="EUR")
+    if obligation_id is not None:
+        obligation = replace(obligation, reporting_obligation_id=obligation_id)
     await store.commit_obligation(obligation)
     scope = ReportingDeliveryScope(
         config.generation_key, consumer_id, obligation.reporting_obligation_id
@@ -100,7 +106,7 @@ async def scenario(
     binding = ReportingDestinationBinding(
         generation_key=config.generation_key,
         consumer_id=consumer_id,
-        destination_ref="destination-generation-1",
+        destination_ref=destination_ref,
         trusted_binding_ref="trusted-binding-1",
         method=method,
         transport="test-storage",
@@ -110,7 +116,11 @@ async def scenario(
         resource_retention_days=400,
         created_at=START,
         format="jsonl" if method == "file_transfer" else None,
-        reader_compatibility=("jsonl-v1",) if method == "file_transfer" else ("table-v1",),
+        reader_compatibility=(
+            reader_compatibility
+            if reader_compatibility is not None
+            else (("jsonl-v1",) if method == "file_transfer" else ("table-v1",))
+        ),
         success_status="delivered" if method == "warehouse_materialization" else "available",
     )
     await store.put_destination_binding(binding)
@@ -131,7 +141,7 @@ async def scenario(
     )
     if control_total_evidence is not None:
         total_records = control_total_evidence
-    revision_id = f"revision-{account_id}"
+    revision_id = revision_id or f"revision-{account_id}"
     digest = ReportingCanonicalDigest(
         value=hashlib.sha256(canonical_json_utf8_v1(rows)).hexdigest(),
         canonicalization_id="rows-v1",
@@ -175,7 +185,11 @@ async def scenario(
             "warehouse_materialization": "warehouse_relation",
         }[method],
         location="reports/official/manifest.json",
-        immutability="immutable_location" if method == "file_transfer" else "native_version",
+        immutability=(
+            "immutable_location"
+            if method == "file_transfer" and profile != "native_commit"
+            else "native_version"
+        ),
         expires_at=completed + timedelta(days=400),
         manifest_sha256="c" * 64 if method == "file_transfer" else None,
         native_version_ref=(
@@ -187,7 +201,7 @@ async def scenario(
     verification = ReportingVerificationRecord(
         verified_at=completed,
         verification_path={
-            "file_transfer": "producer",
+            "file_transfer": "destination" if profile == "native_commit" else "producer",
             "dataset_share": "representative_consumer",
             "warehouse_materialization": "destination",
         }[method],

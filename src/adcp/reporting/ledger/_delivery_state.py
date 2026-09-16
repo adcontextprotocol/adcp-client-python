@@ -121,6 +121,63 @@ def receipt_chain(record: ReportingReceiptRecord) -> str:
     return hashlib.sha256(canonical_json_utf8_v1(parts)).hexdigest()
 
 
+def storage_identity(record: ReportingDeliveryRecord) -> tuple[str | int | None, ...]:
+    """Every indexed/joined/transition column, in the PostgreSQL schema order."""
+    who = principal(record)
+    if isinstance(record, ReportingDestinationBinding):
+        generation = record.generation_key
+        obligation_id = None
+    else:
+        generation = record.scope.generation_key
+        obligation_id = record.scope.reporting_obligation_id
+    receipt: ReportingReceiptRecord | None = record if isinstance(record, _RECEIPTS) else None
+    revision_id = None
+    if isinstance(record, ReportingAdjustmentReceiptRecord):
+        revision_id = record.adjusts_reporting_revision_id
+    elif isinstance(
+        record,
+        (
+            ReportingMaterializationAttempt,
+            ReportingMaterializationRecord,
+            ReportingRevisionReceiptRecord,
+        ),
+    ):
+        revision_id = record.reporting_revision_id
+    materialization_id = (
+        record.reporting_materialization_id
+        if isinstance(
+            record,
+            (
+                ReportingMaterializationAttempt,
+                ReportingMaterializationRecord,
+                ReportingMaterializationCheck,
+                ReportingRevisionReceiptRecord,
+            ),
+        )
+        else None
+    )
+    return (
+        who.account_id,
+        who.consumer_id,
+        *record_identity(record),
+        record.kind,
+        generation.delivery_config_id,
+        generation.delivery_config_version,
+        obligation_id,
+        revision_id,
+        materialization_id,
+        (
+            record.reporting_adjustment_id
+            if isinstance(record, ReportingAdjustmentReceiptRecord)
+            else None
+        ),
+        record.attempt if isinstance(record, ReportingMaterializationAttempt) else None,
+        receipt_chain(receipt) if receipt is not None else None,
+        receipt.status if receipt is not None else None,
+        receipt.supersedes_reporting_receipt_id if receipt is not None else None,
+    )
+
+
 def current_receipt(
     records: tuple[ReportingDeliveryRecord, ...], requested: ReportingReceiptRecord
 ) -> ReportingReceiptRecord | None:
@@ -161,7 +218,6 @@ class DeliveryContext:
     configuration: ReportingConfiguration | None = None
     obligation: ReportingObligationRecord | None = None
     revision: ReportingRevisionRecord | None = None
-    revision_obligation: ReportingObligationRecord | None = None
     adjustment: ReportingAdjustmentRecord | None = None
 
 
@@ -266,7 +322,7 @@ def validate_transition(
         revision is None
         or revision.account_id != who.account_id
         or revision.reporting_revision_id != revision_id
-        or not same_revision_scope(context.revision_obligation, obligation)
+        or revision.reporting_obligation_id != obligation.reporting_obligation_id
     ):
         unavailable()
 
@@ -363,27 +419,6 @@ def validate_transition(
     return replace(record, received_at=now)
 
 
-def same_revision_scope(
-    origin: ReportingObligationRecord | None, target: ReportingObligationRecord
-) -> bool:
-    """Destination-independent content may fan out only over the exact frozen slice."""
-    return bool(
-        origin is not None
-        and origin.account_id == target.account_id
-        and origin.report_definition_id == target.report_definition_id
-        and origin.reporting_profile == target.reporting_profile
-        and origin.definition == target.definition
-        and origin.currency == target.currency
-        and origin.period.start == target.period.start
-        and origin.period.end == target.period.end
-        and origin.period.source_timezone == target.period.source_timezone
-        and origin.scope_resolved_at == target.scope_resolved_at
-        and sorted(origin.media_buy_ids) == sorted(target.media_buy_ids)
-        and sorted(origin.package_ids) == sorted(target.package_ids)
-        and origin.coverage_status == target.coverage_status
-    )
-
-
 def _verify_materialization(
     record: ReportingMaterializationRecord,
     binding: ReportingDestinationBinding,
@@ -453,7 +488,8 @@ def _verify_materialization(
         or verification.native_version_ref is not None
     ):
         if (
-            verification.native_version_ref is None
+            resource.immutability != "native_version"
+            or verification.native_version_ref is None
             or verification.native_version_ref != resource.native_version_ref
             or verification.native_observed_through != path
         ):
