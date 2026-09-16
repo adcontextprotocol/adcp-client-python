@@ -36,6 +36,7 @@ import base64
 import hashlib
 import json
 from collections.abc import Callable, Sequence
+from copy import deepcopy
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Any, Literal, Protocol, runtime_checkable
@@ -47,6 +48,7 @@ from adcp.reporting.currency import (
     validate_currency_units,
     validate_monetary_content,
 )
+from adcp.reporting.evidence import ReportingControlTotalRecord
 from adcp.reporting.ledger.health import issue_id_for_occurrence
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
@@ -444,16 +446,64 @@ def _revision_identity(revision: ReportingRevisionRecord) -> str:
     Content plus binding, excluding readability -- which is mutable state about
     storage, not about what was published.
     """
-    return _fingerprint(
-        {
-            "finality": revision.finality,
-            "revision_content_sha256": revision.revision_content_sha256,
-            "row_count": revision.row_count,
-            "control_totals": [list(item) for item in revision.control_totals],
-            "obligation": revision.reporting_obligation_id,
-            "supersedes": revision.supersedes_reporting_revision_id,
-        }
+    payload = {
+        "finality": revision.finality,
+        "revision_content_sha256": revision.revision_content_sha256,
+        "row_count": revision.row_count,
+        "control_totals": [list(item) for item in revision.control_totals],
+        "obligation": revision.reporting_obligation_id,
+        "supersedes": revision.supersedes_reporting_revision_id,
+    }
+    if revision.canonical_content_digest is not None:
+        payload["canonical_content_digest"] = revision.canonical_content_digest.to_wire()
+    if revision.managed_control_totals is not None:
+        payload["managed_control_totals"] = [
+            item.to_wire() for item in revision.managed_control_totals
+        ]
+    if revision.canonical_content_digest is not None or revision.managed_control_totals is not None:
+        payload["managed_metadata"] = managed_revision_metadata(revision)
+    return _fingerprint(payload)
+
+
+def managed_revision_metadata(revision: ReportingRevisionRecord) -> dict[str, Any]:
+    """New evidence is exact; omit this block entirely for legacy replay hashes."""
+    return {
+        "account_id": revision.account_id,
+        "created_at": _utc(revision.created_at).isoformat(),
+        "observed_at": _utc(revision.observed_at).isoformat(),
+        "data_through": _utc(revision.data_through).isoformat() if revision.data_through else None,
+        "finality_basis": revision.finality_basis,
+        "finality_policy_id": revision.finality_policy_id,
+        "finalized_at": _utc(revision.finalized_at).isoformat() if revision.finalized_at else None,
+        "readable_at_commit": revision.readable_at_commit,
+        "source_publication_id": revision.source_publication_id,
+        "source_manifest_sha256": revision.source_manifest_sha256,
+    }
+
+
+def validate_managed_revision_rows(
+    revision: ReportingRevisionRecord, rows: Sequence[dict[str, Any]]
+) -> None:
+    """Managed expectations must start from an internally consistent Core revision.
+
+    This checks Core's existing binding only. It does not derive or substitute the
+    separate managed canonical digest or fetch its pinned contract.
+    """
+    if revision.canonical_content_digest is None and revision.managed_control_totals is None:
+        return
+    from adcp.reporting.ledger.producer import revision_content_sha256
+
+    actual = revision_content_sha256(
+        reporting_revision_id=revision.reporting_revision_id,
+        row_count=revision.row_count,
+        control_totals=revision.control_totals,
+        reporting_rows=rows,
+        control_total_evidence=revision.managed_control_totals,
     )
+    if actual != revision.revision_content_sha256:
+        raise LedgerConflictError(
+            "REVISION_CONTENT_MISMATCH", "revision row content does not match its immutable binding"
+        )
 
 
 def _consumer_status_identity(status: ConsumerStatusRecord) -> str:
@@ -663,6 +713,7 @@ class InMemoryReportingLedgerStore:
     async def commit_revision(
         self, revision: ReportingRevisionRecord, rows: Sequence[dict[str, Any]]
     ) -> ReportingRevisionRecord:
+        rows = tuple(deepcopy(row) for row in rows)
         # Checked first, exactly as PgReportingLedgerStore does: a caller whose
         # rows do not match its own declared count must get the same code from
         # both stores, not whichever invariant that store happens to reach.
@@ -671,10 +722,15 @@ class InMemoryReportingLedgerStore:
                 "ROW_COUNT_MISMATCH",
                 f"revision declares {revision.row_count} rows but {len(rows)} were supplied",
             )
+        validate_managed_revision_rows(revision, rows)
         async with self._lock:
             identity = _revision_identity(revision)
             existing = self._revisions.get(revision.reporting_revision_id)
             if existing is not None:
+                if existing.account_id != revision.account_id:
+                    raise LedgerConflictError(
+                        "REVISION_NOT_FOUND", "no such revision for this account"
+                    )
                 if self._revision_identity[revision.reporting_revision_id] != identity:
                     raise LedgerConflictError(
                         "REVISION_IMMUTABLE",
@@ -766,7 +822,7 @@ class InMemoryReportingLedgerStore:
         window = rows[offset : offset + limit]
         has_more = offset + limit < len(rows)
         return ReportingRowPage(
-            rows=tuple(dict(row) for row in window),
+            rows=tuple(deepcopy(row) for row in window),
             total_count=len(rows),
             has_more=has_more,
             cursor=(
@@ -793,6 +849,12 @@ class InMemoryReportingLedgerStore:
         async with self._lock:
             existing = self._adjustments.get(adjustment.reporting_adjustment_id)
             if existing is not None:
+                if existing.account_id != adjustment.account_id:
+                    raise LedgerConflictError("ADJUSTMENT_UNAVAILABLE", "adjustment is unavailable")
+                if existing != adjustment:
+                    raise LedgerConflictError(
+                        "ADJUSTMENT_IMMUTABLE", "adjustment content is immutable"
+                    )
                 return existing
             revision = self._revisions.get(adjustment.adjusts_reporting_revision_id)
             if revision is None or revision.account_id != adjustment.account_id:
@@ -1074,14 +1136,18 @@ class InMemoryReportingLedgerStore:
             ),
         )
 
-    def _resolve(self, kind: LedgerRecordKind, record_id: str) -> Any:
+    def _resolve(self, kind: str, record_id: str) -> Any:
         if kind == "obligation":
             return self._obligations.get(record_id)
         if kind == "revision":
             return self._revisions.get(record_id)
         if kind == "adjustment":
             return self._adjustments.get(record_id)
-        return self._statuses.get(record_id)
+        if kind == "consumer_status":
+            return self._statuses.get(record_id)
+        # Optional delivery records have their own retained snapshot reader.
+        # Core status must not count or expose them, even in a shared ledger.
+        return None
 
     def _in_scope(
         self,
@@ -1230,6 +1296,8 @@ def validate_revision_currency(
         metric_units=definition.monetary_metric_units if definition else (),
         total_units=definition.monetary_control_total_units if definition else (),
     )
+    if revision.managed_control_totals is not None:
+        validate_managed_total_units(obligation, revision.managed_control_totals)
 
 
 def validate_adjustment_currency(
@@ -1245,3 +1313,19 @@ def validate_adjustment_currency(
     for name, value in adjustment.control_total_deltas:
         if name in units:
             monetary_decimal(value)
+    if adjustment.managed_control_total_deltas is not None:
+        validate_managed_total_units(obligation, adjustment.managed_control_total_deltas)
+
+
+def validate_managed_total_units(
+    obligation: ReportingObligationRecord, totals: tuple[ReportingControlTotalRecord, ...]
+) -> None:
+    units = {"spend": require_frozen_currency(obligation.currency)}
+    if obligation.definition is not None:
+        units.update(obligation.definition.monetary_metric_units)
+        units.update(obligation.definition.monetary_control_total_units)
+    for total in totals:
+        if total.name in units and total.unit is not None and total.unit != units[total.name]:
+            raise LedgerConflictError(
+                "CURRENCY_MISMATCH", "control total evidence disagrees with frozen currency"
+            )

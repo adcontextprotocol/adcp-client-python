@@ -80,6 +80,16 @@ async def _retained_rows(pool: AsyncConnectionPool) -> dict[str, list[Any]]:
                 for record in result[table]:
                     if record.get("currency") is None:
                         record.pop("currency", None)
+            if table == "reporting_revisions":
+                for record in result[table]:
+                    if record.get("canonical_content_digest") is None:
+                        record.pop("canonical_content_digest", None)
+                    if record.get("managed_control_totals") is None:
+                        record.pop("managed_control_totals", None)
+            if table == "reporting_adjustments":
+                for record in result[table]:
+                    if record.get("managed_control_total_deltas") is None:
+                        record.pop("managed_control_total_deltas", None)
     return result
 
 
@@ -140,7 +150,10 @@ async def test_beta15_upgrade_preserves_all_evidence_and_survives_concurrent_boo
             == "PRIMARY KEY (account_id, delivery_config_id, delivery_config_version)"
         )
         assert await _retained_rows(pool) == before
-        assert await _other_constraints(pool) == constraints
+        # Later additive migrations may add constraints, but cannot replace or
+        # alter any of these pre-existing physical constraint/index identities.
+        for original, upgraded in zip(constraints, await _other_constraints(pool)):
+            assert set(original) <= set(upgraded)
         await asyncio.gather(_raw_upgrade(pool), PgReportingLedgerStore(pool=pool).create_schema())
         assert await _primary_key(pool) == upgraded_key
 

@@ -26,8 +26,9 @@ Schema bootstrap
 :meth:`create_schema` creates or upgrades the schema transactionally, including
 the account-qualified configuration primary key for beta.15 installations.
 The raw DDL ships in :file:`reporting_ledger.sql` followed by
-:file:`reporting_ledger_account_generations.sql` and
-:file:`reporting_ledger_obligation_currency.sql`; run all three in one transaction
+:file:`reporting_ledger_account_generations.sql`,
+:file:`reporting_ledger_obligation_currency.sql` and
+:file:`reporting_ledger_reconciliation.sql`; run all four in one transaction
 when using Alembic, Flyway, or psql. See :file:`docs/reporting-ledger-migration.md`
 for deployment and compatibility notes.
 
@@ -73,12 +74,14 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable, Sequence
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import require_frozen_currency
+from adcp.reporting.evidence import ReportingCanonicalDigest, ReportingControlTotalRecord
 from adcp.reporting.ledger.health import issue_id_for_occurrence
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
@@ -103,8 +106,10 @@ from adcp.reporting.ledger.store import (
     decode_cursor,
     encode_cursor,
     issue_is_retirable,
+    managed_revision_metadata,
     reject_reserved_authoritative_party,
     validate_adjustment_currency,
+    validate_managed_revision_rows,
     validate_revision_currency,
 )
 
@@ -126,6 +131,7 @@ _INSTALL_HINT = (
 _DDL_PATH = Path(__file__).parent / "reporting_ledger.sql"
 _ACCOUNT_GENERATIONS_DDL_PATH = Path(__file__).parent / "reporting_ledger_account_generations.sql"
 _CURRENCY_DDL_PATH = Path(__file__).parent / "reporting_ledger_obligation_currency.sql"
+_RECONCILIATION_DDL_PATH = Path(__file__).parent / "reporting_ledger_reconciliation.sql"
 
 __all__ = ["PG_AVAILABLE", "PgReportingLedgerStore"]
 
@@ -176,6 +182,7 @@ class PgReportingLedgerStore:
                 await connection.execute(_DDL_PATH.read_text())
                 await connection.execute(_ACCOUNT_GENERATIONS_DDL_PATH.read_text())
                 await connection.execute(_CURRENCY_DDL_PATH.read_text())
+                await connection.execute(_RECONCILIATION_DDL_PATH.read_text())
 
     # -- change feed ------------------------------------------------------
 
@@ -420,35 +427,31 @@ class PgReportingLedgerStore:
     async def commit_revision(
         self, revision: ReportingRevisionRecord, rows: Sequence[dict[str, Any]]
     ) -> ReportingRevisionRecord:
+        rows = tuple(deepcopy(row) for row in rows)
         if revision.row_count != len(rows):
             raise LedgerConflictError(
                 "ROW_COUNT_MISMATCH",
                 f"revision declares {revision.row_count} rows but {len(rows)} were supplied",
             )
+        validate_managed_revision_rows(revision, rows)
         digest = _fingerprint(_revision_payload(revision))
-        async with self._pool.connection() as connection:
+        async with self._pool.connection() as connection, connection.transaction():
+            await self._lock_account(connection, revision.account_id)
             existing = await (
                 await connection.execute(
-                    "SELECT content_sha256 FROM reporting_revisions"
+                    f"SELECT {_REVISION_COLUMNS}, content_sha256 FROM reporting_revisions"  # noqa: S608  # nosec B608
                     " WHERE reporting_revision_id = %s AND account_id = %s",
                     (revision.reporting_revision_id, revision.account_id),
                 )
             ).fetchone()
             if existing is not None:
-                if existing[0] != digest:
+                if existing[-1] != digest:
                     raise LedgerConflictError(
                         "REVISION_IMMUTABLE",
                         f"revision {revision.reporting_revision_id} already exists with "
                         "different content; a restatement is a new revision",
                     )
-                stored = await self.get_revision(
-                    account_id=revision.account_id,
-                    reporting_revision_id=revision.reporting_revision_id,
-                )
-                assert stored is not None
-                return stored
-
-            await self._lock_account(connection, revision.account_id)
+                return _revision_from_row(existing[:-1])
             obligation = await (
                 await connection.execute(
                     f"SELECT {_OBLIGATION_COLUMNS} FROM reporting_obligations"  # noqa: S608  # nosec B608
@@ -464,6 +467,7 @@ class PgReportingLedgerStore:
             validate_revision_currency(_obligation_from_row(obligation), revision, rows)
             if revision.supersedes_reporting_revision_id:
                 await self._require_current_leaf(connection, revision)
+            write_error = None
             try:
                 await connection.execute(
                     "INSERT INTO reporting_revisions"
@@ -472,9 +476,9 @@ class PgReportingLedgerStore:
                     "  data_through, created_at, supersedes_reporting_revision_id,"
                     "  finality_basis, finality_policy_id, finalized_at, readable,"
                     "  readable_at_commit, source_publication_id, source_manifest_sha256,"
-                    "  content_sha256)"
+                    "  content_sha256, canonical_content_digest, managed_control_totals)"
                     " VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s,"
-                    "         %s, %s, %s, %s, %s)",
+                    "         %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb)",
                     (
                         revision.reporting_revision_id,
                         revision.account_id,
@@ -495,10 +499,22 @@ class PgReportingLedgerStore:
                         revision.source_publication_id,
                         revision.source_manifest_sha256,
                         digest,
+                        (
+                            _json(revision.canonical_content_digest.to_wire())
+                            if revision.canonical_content_digest is not None
+                            else None
+                        ),
+                        (
+                            _json([item.to_wire() for item in revision.managed_control_totals])
+                            if revision.managed_control_totals is not None
+                            else None
+                        ),
                     ),
                 )
             except Exception as error:  # psycopg raises UniqueViolation subclasses
-                raise _translate_integrity_error(error) from error
+                write_error = _translate_integrity_error(error)
+            if write_error is not None:
+                raise write_error
             if rows:
                 await connection.cursor().executemany(
                     "INSERT INTO reporting_revision_rows"
@@ -627,7 +643,7 @@ class PgReportingLedgerStore:
     async def commit_adjustment(
         self, adjustment: ReportingAdjustmentRecord
     ) -> ReportingAdjustmentRecord:
-        async with self._pool.connection() as connection:
+        async with self._pool.connection() as connection, connection.transaction():
             await self._lock_account(connection, adjustment.account_id)
             existing = await (
                 await connection.execute(
@@ -637,7 +653,12 @@ class PgReportingLedgerStore:
                 )
             ).fetchone()
             if existing is not None:
-                return _adjustment_from_row(existing)
+                stored = _adjustment_from_row(existing)
+                if stored != adjustment:
+                    raise LedgerConflictError(
+                        "ADJUSTMENT_IMMUTABLE", "adjustment content is immutable"
+                    )
+                return stored
             revision = await (
                 await connection.execute(
                     "SELECT finality, reporting_obligation_id FROM reporting_revisions"
@@ -673,8 +694,8 @@ class PgReportingLedgerStore:
                     " (reporting_adjustment_id, account_id, adjusts_reporting_revision_id,"
                     "  reason_code, reason_detail, accounting_period_start,"
                     "  accounting_period_end, control_total_deltas, correction_observed_at,"
-                    "  created_at)"
-                    " VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s)"
+                    "  created_at, managed_control_total_deltas)"
+                    " VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s::jsonb)"
                     " ON CONFLICT (reporting_adjustment_id) DO NOTHING"
                     " RETURNING reporting_adjustment_id",
                     (
@@ -688,16 +709,24 @@ class PgReportingLedgerStore:
                         _json([[name, value] for name, value in adjustment.control_total_deltas]),
                         adjustment.correction_observed_at,
                         adjustment.created_at,
+                        (
+                            _json(
+                                [item.to_wire() for item in adjustment.managed_control_total_deltas]
+                            )
+                            if adjustment.managed_control_total_deltas is not None
+                            else None
+                        ),
                     ),
                 )
             ).fetchone()
-            if inserted is not None:
-                await self._append_change(
-                    connection,
-                    adjustment.account_id,
-                    "adjustment",
-                    adjustment.reporting_adjustment_id,
-                )
+            if inserted is None:
+                raise LedgerConflictError("ADJUSTMENT_UNAVAILABLE", "adjustment is unavailable")
+            await self._append_change(
+                connection,
+                adjustment.account_id,
+                "adjustment",
+                adjustment.reporting_adjustment_id,
+            )
         return adjustment
 
     async def list_adjustments(
@@ -1032,7 +1061,8 @@ class PgReportingLedgerStore:
             row = await (
                 await connection.execute(
                     "SELECT COALESCE(MAX(seq), 0), now() FROM reporting_ledger_changes"
-                    " WHERE account_id = %s",
+                    " WHERE account_id = %s AND record_kind IN"
+                    " ('obligation', 'revision', 'adjustment', 'consumer_status')",
                     (account_id,),
                 )
             ).fetchone()
@@ -1099,6 +1129,8 @@ class PgReportingLedgerStore:
     async def _resolve(
         self, connection: Any, account_id: str, kind: str, record_id: str
     ) -> Any | None:
+        if kind not in _RESOLVERS:
+            return None  # Higher-tier records are never projected by Core.
         table, columns, key, builder = _RESOLVERS[kind]
         row = await (
             await connection.execute(
@@ -1220,6 +1252,8 @@ def _translate_integrity_error(error: Exception) -> LedgerConflictError:
             "an official revision already exists for this obligation; publish a later source "
             "correction as an adjustment",
         )
+    if "reporting_revisions_pkey" in text:
+        return LedgerConflictError("REVISION_NOT_FOUND", "no such revision for this account")
     if "reporting_revisions_one_successor" in text:
         return LedgerConflictError(
             "SUPERSEDES_STALE",
@@ -1259,13 +1293,14 @@ _REVISION_COLUMNS = (
     "reporting_revision_id, account_id, reporting_obligation_id, finality,"
     " revision_content_sha256, row_count, control_totals, observed_at, data_through,"
     " created_at, supersedes_reporting_revision_id, finality_basis, finality_policy_id,"
-    " finalized_at, readable, readable_at_commit, source_publication_id, source_manifest_sha256"
+    " finalized_at, readable, readable_at_commit, source_publication_id, source_manifest_sha256,"
+    " canonical_content_digest, managed_control_totals"
 )
 
 _ADJUSTMENT_COLUMNS = (
     "reporting_adjustment_id, account_id, adjusts_reporting_revision_id, reason_code,"
     " reason_detail, accounting_period_start, accounting_period_end, control_total_deltas,"
-    " correction_observed_at, created_at"
+    " correction_observed_at, created_at, managed_control_total_deltas"
 )
 
 _STATUS_COLUMNS = (
@@ -1416,6 +1451,14 @@ def _revision_from_row(row: Sequence[Any]) -> ReportingRevisionRecord:
         readable_at_commit=row[15],
         source_publication_id=row[16],
         source_manifest_sha256=row[17],
+        canonical_content_digest=(
+            ReportingCanonicalDigest.from_wire(row[18]) if row[18] is not None else None
+        ),
+        managed_control_totals=(
+            tuple(ReportingControlTotalRecord.from_wire(item) for item in row[19])
+            if row[19] is not None
+            else None
+        ),
     )
 
 
@@ -1431,6 +1474,11 @@ def _adjustment_from_row(row: Sequence[Any]) -> ReportingAdjustmentRecord:
         control_total_deltas=tuple((name, value) for name, value in (row[7] or [])),
         correction_observed_at=_utc(row[8]),
         created_at=_utc(row[9]),
+        managed_control_total_deltas=(
+            tuple(ReportingControlTotalRecord.from_wire(item) for item in row[10])
+            if row[10] is not None
+            else None
+        ),
     )
 
 
@@ -1488,7 +1536,7 @@ def _consumer_status_payload(status: ConsumerStatusRecord) -> dict[str, Any]:
 
 
 def _revision_payload(revision: ReportingRevisionRecord) -> dict[str, Any]:
-    return {
+    payload = {
         "finality": revision.finality,
         "revision_content_sha256": revision.revision_content_sha256,
         "row_count": revision.row_count,
@@ -1496,6 +1544,15 @@ def _revision_payload(revision: ReportingRevisionRecord) -> dict[str, Any]:
         "obligation": revision.reporting_obligation_id,
         "supersedes": revision.supersedes_reporting_revision_id,
     }
+    if revision.canonical_content_digest is not None:
+        payload["canonical_content_digest"] = revision.canonical_content_digest.to_wire()
+    if revision.managed_control_totals is not None:
+        payload["managed_control_totals"] = [
+            item.to_wire() for item in revision.managed_control_totals
+        ]
+    if revision.canonical_content_digest is not None or revision.managed_control_totals is not None:
+        payload["managed_metadata"] = managed_revision_metadata(revision)
+    return payload
 
 
 _RESOLVERS: dict[str, tuple[str, str, str, Any]] = {

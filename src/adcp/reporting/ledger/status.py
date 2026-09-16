@@ -871,6 +871,8 @@ def _revision_to_wire(
         ],
         "created_at": _iso(revision.created_at),
     }
+    if revision.managed_control_totals is not None:
+        payload["control_totals"] = [item.to_wire() for item in revision.managed_control_totals]
     if obligation is not None:
         payload.update(
             report_definition_id=obligation.report_definition_id,

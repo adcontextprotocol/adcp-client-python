@@ -43,6 +43,7 @@ from adcp.reporting.currency import (
     require_frozen_currency,
     validate_currency,
 )
+from adcp.reporting.evidence import ReportingControlTotalRecord, freeze_control_totals
 from adcp.reporting.ledger.models import (
     ReportingConfiguration,
     ReportingDeliveryEscalation,
@@ -123,6 +124,7 @@ def revision_content_sha256(
     row_count: int,
     control_totals: Sequence[tuple[str, str]],
     reporting_rows: Sequence[dict[str, Any]],
+    control_total_evidence: Sequence[ReportingControlTotalRecord] | None = None,
 ) -> str:
     """The Core revision binding: JCS over the four bound fields, SHA-256.
 
@@ -132,15 +134,25 @@ def revision_content_sha256(
     ``{reporting_revision_id, row_count, control_totals, reporting_rows}`` --
     nothing about storage, materialization, or delivery, which is what keeps
     Core's digest distinct from the Managed Delivery canonicalization contract.
+
+    New managed publishers supply ``control_total_evidence`` to bind the exact
+    type/unit-bearing totals exposed by status and exact reads. Omitting it keeps
+    the existing Core pair projection and all previously retained hashes intact.
     """
+    totals = (
+        [
+            item.to_wire()
+            for item in freeze_control_totals(tuple(control_total_evidence), tuple(control_totals))
+        ]
+        if control_total_evidence is not None
+        else [{"name": name, "value": value} for name, value in control_totals]
+    )
     return hashlib.sha256(
         canonical_json_utf8_v1(
             {
                 "reporting_revision_id": reporting_revision_id,
                 "row_count": row_count,
-                "control_totals": [
-                    {"name": name, "value": value} for name, value in control_totals
-                ],
+                "control_totals": totals,
                 "reporting_rows": [dict(row) for row in reporting_rows],
             }
         )
