@@ -18,6 +18,7 @@ from adcp.reporting.outbox import (
 
 from . import test_reporting_status_projection_contract as _status_contract
 from ._generation_support import END, START, configuration, obligation_for, revision_for
+from ._reliable_support import reliable_factory
 from .test_reporting_notification_outbox import statement
 
 status_harness = _status_contract.status_harness
@@ -368,3 +369,52 @@ async def test_waiver_recovers_and_agreement_rearms_a_new_occurrence(status_harn
     assert new.issue_id != old.issue_id and new.generation == old.generation + 1
     assert (await h.events(consumer="buyer"))[-1].cause.issue_ids == (new.issue_id,)
     assert await h.status.baseline_ready(account_id="acct_a")
+
+
+@pytest.mark.parametrize("notifications", [False, True])
+@pytest.mark.parametrize("backend", ["memory", "postgres"])
+async def test_rejected_issue_scope_never_commits_a_lifecycle_move(backend, notifications):
+    """A refused scope refinement leaves the issue exactly as it was.
+
+    Default-off stores deliberately keep no rollback copy, so the reference
+    store must validate before it moves a record. The status harness always
+    enables notifications, which is why the memory arm escaped: with
+    ``notifications=False`` an invalid scope used to leave a waived issue
+    behind while PostgreSQL rolled the statement back.
+    """
+    async with reliable_factory(backend, notifications=notifications) as reliable:
+        ledger = reliable.store
+        opened = await ledger.ensure_issue_opened(
+            issue_key="k1", account_id="acct_a", consumer_id="buyer", observed_at=reliable.clock()
+        )
+        foreign = ReportingStatusScope("acct_b", consumer_id="buyer")
+        attempts = (
+            lambda: ledger.set_issue_state(
+                issue_key="k1",
+                account_id="acct_a",
+                state="waived",
+                at=reliable.clock(),
+                status_scope=foreign,
+            ),
+            lambda: ledger.retire_issue(
+                issue_key="k1", account_id="acct_a", at=reliable.clock(), status_scope=foreign
+            ),
+            lambda: ledger.ensure_issue_opened(
+                issue_key="k2",
+                account_id="acct_a",
+                consumer_id="buyer",
+                observed_at=reliable.clock(),
+                status_scope=foreign,
+            ),
+        )
+        for attempt in attempts:
+            with pytest.raises(ReportingNotificationError, match="invalid_status_scope"):
+                await attempt()
+            assert await ledger.get_issue(account_id="acct_a", issue_key="k1") == opened
+        # The refused occurrence never consumed a generation either, so a
+        # later legitimate open is still this key's first occurrence.
+        assert await ledger.get_issue(account_id="acct_a", issue_key="k2") is None
+        reopened = await ledger.ensure_issue_opened(
+            issue_key="k2", account_id="acct_a", consumer_id="buyer", observed_at=reliable.clock()
+        )
+        assert reopened.generation == 1 and reopened.issue_state == "open"

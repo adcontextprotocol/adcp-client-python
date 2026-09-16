@@ -716,22 +716,25 @@ class InMemoryReportingLedgerStore:
         if self._notification_state is not None:
             self._notification_state.mark_dirty(scope, reason, self._clock(), before, after)
 
-    def _dirty_issue(
+    def _resolve_issue_scope(
         self,
-        issue: ReportingIssueLifecycle,
-        status_scope: ReportingStatusScope | None,
-        before: ReportingIssueLifecycle | None = None,
         *,
-        enqueue: bool = True,
-    ) -> None:
-        key = (issue.account_id, issue.issue_id)
-        existing = self._issue_status_scopes.get(key)
+        account_id: str,
+        consumer_id: str | None,
+        issue_id: str,
+        status_scope: ReportingStatusScope | None,
+    ) -> ReportingStatusScope:
+        """Validate a requested scope refinement without touching retained state.
+
+        Default-off stores deliberately keep no rollback copy, so every caller
+        that moves an issue record must clear this check *before* mutating:
+        PostgreSQL rolls the statement back, the reference store cannot.
+        """
+        existing = self._issue_status_scopes.get((account_id, issue_id))
         scope = (
-            status_scope
-            or existing
-            or ReportingStatusScope(issue.account_id, consumer_id=issue.consumer_id)
+            status_scope or existing or ReportingStatusScope(account_id, consumer_id=consumer_id)
         )
-        if scope.account_id != issue.account_id or scope.consumer_id != issue.consumer_id:
+        if scope.account_id != account_id or scope.consumer_id != consumer_id:
             raise ReportingNotificationError("invalid_status_scope")
         validate_scope_refinement(existing, scope)
         if scope.generation_key is not None:
@@ -754,6 +757,24 @@ class InMemoryReportingLedgerStore:
                 )
             ):
                 raise ReportingNotificationError("invalid_status_scope")
+        return scope
+
+    def _dirty_issue(
+        self,
+        issue: ReportingIssueLifecycle,
+        status_scope: ReportingStatusScope | None,
+        before: ReportingIssueLifecycle | None = None,
+        *,
+        enqueue: bool = True,
+    ) -> None:
+        key = (issue.account_id, issue.issue_id)
+        existing = self._issue_status_scopes.get(key)
+        scope = self._resolve_issue_scope(
+            account_id=issue.account_id,
+            consumer_id=issue.consumer_id,
+            issue_id=issue.issue_id,
+            status_scope=status_scope,
+        )
         self._issue_status_scopes[key] = scope
         if enqueue and (before != issue or existing != scope):
             self._dirty_status(
@@ -1251,7 +1272,6 @@ class InMemoryReportingLedgerStore:
                 self._dirty_issue(live, status_scope, live)
                 return live
             generation = self._issue_generations.get(key, 0) + 1
-            self._issue_generations[key] = generation
             record = ReportingIssueLifecycle(
                 issue_key=issue_key,
                 issue_id=issue_id_for_occurrence(issue_key, generation),
@@ -1261,6 +1281,13 @@ class InMemoryReportingLedgerStore:
                 issue_state="open",
                 generation=generation,
             )
+            self._resolve_issue_scope(
+                account_id=account_id,
+                consumer_id=consumer_id,
+                issue_id=record.issue_id,
+                status_scope=status_scope,
+            )
+            self._issue_generations[key] = generation
             self._issues[key] = record
             self._dirty_issue(record, status_scope)
             return record
@@ -1301,6 +1328,12 @@ class InMemoryReportingLedgerStore:
                 # Set on the way into a retired state and never cleared.
                 retired_at=_utc(at) if state == "waived" else live.retired_at,
             )
+            self._resolve_issue_scope(
+                account_id=account_id,
+                consumer_id=live.consumer_id,
+                issue_id=live.issue_id,
+                status_scope=status_scope,
+            )
             self._issues[key] = updated
             # Derive the no-op from the resulting record rather than predicting
             # it: an idempotent re-acknowledge changes nothing and enqueues
@@ -1329,6 +1362,12 @@ class InMemoryReportingLedgerStore:
                 return None
             check_issue_state_transition(live.issue_state, "resolved")
             retired = replace(live, issue_state="resolved", retired_at=_utc(at))
+            self._resolve_issue_scope(
+                account_id=account_id,
+                consumer_id=live.consumer_id,
+                issue_id=live.issue_id,
+                status_scope=status_scope,
+            )
             self._issues[key] = retired
             self._dirty_issue(retired, status_scope, live)
             return retired
