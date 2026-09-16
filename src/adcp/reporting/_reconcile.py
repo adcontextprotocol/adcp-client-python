@@ -437,6 +437,18 @@ def _select_current(
     ]
     revision_ids = {item.reporting_revision_id for item in attempts}
     managed_delivery = obligation.destination_ref is not None
+    # ``ReportingRevision`` carries no obligation reference, so semantic scope
+    # alone cannot separate two obligations that legitimately share a definition,
+    # profile, campaign set and period. A revision some *other* obligation has
+    # materialized is that obligation's publication. Anything this obligation also
+    # materialized stays a candidate so illegal fan-out is reported below rather
+    # than silently narrowed away. Revisions no obligation has materialized -- an
+    # unmaterialized official included -- are never excluded here.
+    owned_elsewhere = {
+        item.reporting_revision_id
+        for item in ledger.materializations
+        if item.reporting_obligation_id != obligation.reporting_obligation_id
+    } - revision_ids
     candidates = [
         item
         for item in ledger.revisions
@@ -444,6 +456,7 @@ def _select_current(
             _revision_matches_obligation(item, obligation)
             or (managed_delivery and item.reporting_revision_id in revision_ids)
         )
+        and item.reporting_revision_id not in owned_elsewhere
     ]
     receipts = [
         item
@@ -488,10 +501,25 @@ def _select_current(
         for item in ledger.materializations
     ):
         reasons.append("REVISION_SCOPE_MISMATCH")
-    if any(
-        item.supersedes_reporting_revision_id
-        and item.supersedes_reporting_revision_id not in candidate_ids
-        for item in candidates
+    by_id = {item.reporting_revision_id: item for item in candidates}
+    leaves = [item for item in candidates if item.reporting_revision_id not in superseded]
+    # Walk every leaf back through its predecessors. A supersession cycle leaves
+    # its members unreachable, so a broken history cannot hide behind an official
+    # close the way a leaf-only count would let it.
+    reachable: set[str] = set()
+    for leaf in leaves:
+        node: ReportingRevision | None = leaf
+        while node is not None and node.reporting_revision_id not in reachable:
+            reachable.add(node.reporting_revision_id)
+            predecessor = node.supersedes_reporting_revision_id
+            node = by_id.get(predecessor) if predecessor else None
+    if (
+        any(
+            item.supersedes_reporting_revision_id
+            and item.supersedes_reporting_revision_id not in candidate_ids
+            for item in candidates
+        )
+        or reachable != candidate_ids
     ):
         reasons.append("INCOMPLETE_REVISION_CHAIN")
     # Publication selection precedes destination selection. An official close
@@ -499,9 +527,12 @@ def _select_current(
     # A newer unmaterialized publication must never reveal an older snapshot as
     # the current deliverable merely because that snapshot has a ready resource.
     official = [item for item in candidates if _enum(item.finality) == "official"]
-    current = official or [
-        item for item in candidates if item.reporting_revision_id not in superseded
-    ]
+    # Snapshot topology is judged on its own. Selecting the official close must
+    # never excuse a forked snapshot history the buyer cannot reconcile.
+    snapshot_leaves = [item for item in leaves if _enum(item.finality) != "official"]
+    if official and len(snapshot_leaves) > 1:
+        reasons.append("AMBIGUOUS_REVISION_CHAIN")
+    current = official or snapshot_leaves
     if len(current) != 1:
         reasons.append("MISSING_CURRENT_REVISION" if not current else "AMBIGUOUS_REVISION_CHAIN")
         return None, None, reasons
@@ -597,6 +628,9 @@ def _select_current(
         evidence = materialization.verification.native_commit_evidence
         if (
             not evidence
+            # A matching reference and path prove nothing unless the retained
+            # descriptor itself declares the resource immutable by native version.
+            or _enum(materialization.resource.immutability) != "native_version"
             or not materialization.resource.native_version_ref
             or evidence.native_version_ref != materialization.resource.native_version_ref
             or _enum(evidence.observed_through)

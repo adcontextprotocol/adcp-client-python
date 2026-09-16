@@ -1333,6 +1333,204 @@ def test_current_publication_is_selected_before_its_materialization(
         assert not result.definitive
 
 
+def _snapshot_revision(identifier: str, supersedes: str | None = None) -> dict[str, object]:
+    revision = deepcopy(REVISION)
+    revision.update(reporting_revision_id=identifier, finality="snapshot")
+    for key in ("finality_basis", "finality_policy_id", "finalized_at"):
+        revision.pop(key, None)
+    if supersedes is not None:
+        revision["supersedes_reporting_revision_id"] = supersedes
+    return revision
+
+
+def _ledger_from(raw: dict[str, object]) -> ReportingLedger:
+    response = GetReportingStatusResponse.model_validate(raw)
+    return ReportingLedger(
+        response.ledger_snapshot_id,
+        response.ledger_as_of,
+        response.account_id,
+        response.scope,
+        response.periods,
+        response.revisions,
+        response.materializations,
+        response.receipts,
+    )
+
+
+@pytest.mark.parametrize(
+    "topology,reason",
+    [("fork", "AMBIGUOUS_REVISION_CHAIN"), ("cycle", "INCOMPLETE_REVISION_CHAIN")],
+)
+def test_official_close_cannot_mask_a_broken_snapshot_history(topology: str, reason: str) -> None:
+    """Snapshot topology is judged on its own, not skipped once an official exists."""
+    raw = _response()
+    raw["periods"][0].update(
+        revision_count=3,
+        reconciliation_mode="delivery_only",
+        reconciliation_status="not_required",
+        health="complete",
+        required_finality="official",
+        materialization_count=1,
+        successful_materialization_count=1,
+    )
+    if topology == "fork":
+        snapshots = [_snapshot_revision("snapshot-a"), _snapshot_revision("snapshot-b")]
+    else:
+        snapshots = [
+            _snapshot_revision("snapshot-a", "snapshot-b"),
+            _snapshot_revision("snapshot-b", "snapshot-a"),
+        ]
+    raw["revisions"] = [*snapshots, deepcopy(REVISION)]
+    result = evaluate_reporting_ledger(
+        _ledger_from(raw),
+        expected_periods=[],
+        now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
+    )
+    assert not result.definitive
+    assert reason in result.obligations[0].reasons
+
+
+def test_identical_scope_obligations_each_keep_their_own_materialized_publication() -> None:
+    """``ReportingRevision`` carries no obligation, so use materialization ownership."""
+    raw = _response()
+    first, second = _obligation("obligation-a"), _obligation("obligation-b")
+    second.update(delivery_config_id="analytics-feed", feed_purpose="analytics")
+    for item in (first, second):
+        item.update(
+            revision_count=1,
+            reconciliation_mode="delivery_only",
+            reconciliation_status="not_required",
+            health="complete",
+            required_finality="official",
+            materialization_count=1,
+            successful_materialization_count=1,
+        )
+    revisions = []
+    materializations = []
+    for suffix, obligation in (("a", first), ("b", second)):
+        revision = deepcopy(REVISION)
+        revision["reporting_revision_id"] = f"revision-{suffix}"
+        revisions.append(revision)
+        attempt = _materialization(f"materialization-{suffix}", f"obligation-{suffix}")
+        attempt.update(
+            reporting_revision_id=f"revision-{suffix}",
+            delivery_config_id=obligation["delivery_config_id"],
+            feed_purpose=obligation["feed_purpose"],
+        )
+        materializations.append(attempt)
+    raw.update(periods=[first, second], revisions=revisions, materializations=materializations)
+    result = evaluate_reporting_ledger(
+        _ledger_from(raw),
+        expected_periods=[],
+        now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
+    )
+    assert result.definitive, [item.reasons for item in result.obligations]
+    assert [item.reporting_revision_id for item in result.obligations] == [
+        "revision-a",
+        "revision-b",
+    ]
+
+
+def test_unowned_publication_never_falls_back_to_an_older_materialized_snapshot() -> None:
+    """A newer unmaterialized official wins; an unresolvable owner fails closed."""
+    raw = _response()
+    first, second = _obligation("obligation-a"), _obligation("obligation-b")
+    second.update(delivery_config_id="analytics-feed", feed_purpose="analytics")
+    first.update(
+        revision_count=2,
+        reconciliation_mode="delivery_only",
+        reconciliation_status="not_required",
+        health="complete",
+        required_finality="snapshot",
+        materialization_count=1,
+        successful_materialization_count=1,
+    )
+    second.update(
+        revision_count=1,
+        reconciliation_mode="delivery_only",
+        reconciliation_status="not_required",
+        health="complete",
+        required_finality="official",
+        materialization_count=1,
+        successful_materialization_count=1,
+    )
+    unmaterialized = deepcopy(REVISION)
+    unmaterialized["reporting_revision_id"] = "revision-a-official"
+    owned = deepcopy(REVISION)
+    owned["reporting_revision_id"] = "revision-b-official"
+    stale = _materialization("materialization-a", "obligation-a")
+    stale["reporting_revision_id"] = "revision-a-snapshot"
+    other = _materialization("materialization-b", "obligation-b")
+    other.update(
+        reporting_revision_id="revision-b-official",
+        delivery_config_id="analytics-feed",
+        feed_purpose="analytics",
+    )
+    raw.update(
+        periods=[first, second],
+        revisions=[_snapshot_revision("revision-a-snapshot"), unmaterialized, owned],
+        materializations=[stale, other],
+    )
+    result = evaluate_reporting_ledger(
+        _ledger_from(raw),
+        expected_periods=[],
+        now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
+    )
+    assert not result.definitive
+    selected, unresolved = result.obligations
+    # The older snapshot has a ready resource; the current publication does not.
+    assert selected.reporting_revision_id == "revision-a-official"
+    assert selected.reporting_materialization_id is None
+    assert "MISSING_VERIFIED_MATERIALIZATION" in selected.reasons
+    # obligation-b cannot own the unmaterialized official, so it refuses to guess.
+    assert unresolved.reporting_revision_id is None
+    assert "AMBIGUOUS_REVISION_CHAIN" in unresolved.reasons
+
+
+def test_native_commit_requires_a_native_version_resource_descriptor() -> None:
+    """Matching refs and an observed path do not make a mutable location immutable."""
+    raw = _response()
+    raw["periods"][0].update(
+        revision_count=1,
+        reconciliation_mode="delivery_only",
+        reconciliation_status="not_required",
+        health="complete",
+        required_finality="official",
+        feed_purpose="analytics",
+        materialization_count=1,
+        successful_materialization_count=1,
+    )
+    attempt = _materialization("materialization-native")
+    attempt.update(feed_purpose="analytics", method="warehouse_materialization")
+    attempt["resource"] = {
+        "resource_ref": "resource-native",
+        "kind": "warehouse_relation",
+        "location": "project.dataset.table",
+        "immutability": "immutable_location",
+        "native_version_ref": "version-42",
+        "expires_at": "2026-12-01T00:00:00Z",
+    }
+    attempt["verification"] = {
+        "verified_at": "2026-09-02T00:00:05Z",
+        "verification_path": "destination",
+        "verification_profile": "native_commit",
+        "row_count": REVISION["row_count"],
+        "control_totals": TOTALS,
+        "native_commit_evidence": {
+            "native_version_ref": "version-42",
+            "observed_through": "destination",
+        },
+    }
+    raw["materializations"] = [attempt]
+    result = evaluate_reporting_ledger(
+        _ledger_from(raw),
+        expected_periods=[],
+        now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
+    )
+    assert not result.definitive
+    assert "PRODUCER_NATIVE_EVIDENCE_MISMATCH" in result.obligations[0].reasons
+
+
 @pytest.mark.parametrize("finality", ["official", "snapshot"])
 def test_publication_selection_rejects_multiple_current_revisions(finality: str) -> None:
     raw = _response()

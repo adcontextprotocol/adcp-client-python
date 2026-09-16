@@ -1,7 +1,8 @@
 """Independent scoped checkpoints cannot lose records to Core or to interleaving writes."""
 
+import asyncio
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import get_args
 
 import pytest
@@ -13,16 +14,20 @@ from adcp.reporting.ledger import (
     ReportingAdjustmentRecord,
     ReportingControlTotalRecord,
     ReportingDeliveryPrincipal,
+    ReportingMaterializationAttempt,
     ReportingMaterializationCheck,
     ReportingReconciliationCheckpoint,
     ReportingReconciliationCursor,
     ReportingReconciliationFeedStore,
     ReportingReconciliationFilter,
+    ReportingReconciliationSnapshotToken,
     ReportingReconciliationStore,
     ReportingStatusCaller,
     ReportingStatusHandler,
     adjustment_to_wire,
+    revision_content_sha256,
 )
+from adcp.reporting.ledger.delivery_changes import change_boundary
 from adcp.reporting.ledger.models import LedgerRecordKind
 from adcp.reporting.ledger.store import decode_cursor, encode_cursor
 
@@ -437,3 +442,119 @@ async def test_position_types_and_unissued_boundaries_cannot_be_interchanged(
     with pytest.raises(LedgerConflictError) as error:
         await store.read_reconciliation_snapshot(caller=caller, boundary=future)
     assert error.value.code == "INVALID_CHECKPOINT"
+
+
+@pytest.mark.parametrize("token", ["cursor", "snapshot"])
+async def test_a_callers_stale_boundary_is_a_token_error_not_retained_damage(
+    reconciliation_store: tuple[Store, Clock], token: str
+) -> None:
+    """A hand-built or stale boundary must never accuse the store of corruption."""
+    store, clock = reconciliation_store
+    s = await scenario(store)
+    clock.now = END + timedelta(seconds=10)
+    await store.commit_materialization(s.outcome)
+    caller = s.binding.principal
+    page = await store.read_reconciliation_changes(caller=caller, limit=1)
+    assert page.cursor is not None
+    decoded = decode_cursor(page.cursor)
+    if token == "cursor":
+        decoded["count"] = decoded["count"] - 1
+        decoded["snapshot"] = change_boundary(
+            caller,
+            decoded["through"],
+            datetime.fromisoformat(decoded["as_of"]),
+            after=decoded["after"],
+            total_count=decoded["count"],
+        ).snapshot_id
+        with pytest.raises(LedgerConflictError) as error:
+            await store.read_reconciliation_changes(
+                caller=caller, cursor=ReportingReconciliationCursor(encode_cursor(decoded)), limit=1
+            )
+    else:
+        as_of = datetime.fromisoformat(decoded["as_of"])
+        short = decoded["through"] - 1
+        forged = ReportingReconciliationSnapshotToken(
+            caller,
+            change_boundary(caller, decoded["through"], as_of, total_count=short).snapshot_id,
+            as_of,
+            0,
+            decoded["through"],
+            short,
+            ReportingReconciliationFilter(),
+        )
+        with pytest.raises(LedgerConflictError) as error:
+            await store.read_reconciliation_snapshot(caller=caller, boundary=forged)
+    assert error.value.code == "INVALID_CHECKPOINT"
+    # The retained feed itself is untouched and still walks completely.
+    assert len((await store.read_reconciliation_changes(caller=caller)).changes) == 4
+    assert len((await store.read_reconciliation_snapshot(caller=caller)).records) == 4
+
+
+async def test_distinct_concurrent_writes_take_dense_unique_feed_sequences(
+    reconciliation_store: tuple[Store, Clock],
+) -> None:
+    """Order-independent records for one principal must not collide or lose a sequence."""
+    store, clock = reconciliation_store
+    s = await scenario(store)
+    clock.now = END + timedelta(seconds=60)
+    await store.commit_materialization(s.outcome)
+    rows = (
+        await store.read_revision_rows(
+            account_id="acct_a", reporting_revision_id=s.revision.reporting_revision_id
+        )
+    ).rows
+    attempts = []
+    for index in range(4):
+        identifier = f"concurrent-revision-{index}"
+        revision = replace(
+            s.revision,
+            reporting_revision_id=identifier,
+            finality="snapshot",
+            finality_basis=None,
+            finality_policy_id=None,
+            finalized_at=None,
+            revision_content_sha256=revision_content_sha256(
+                reporting_revision_id=identifier,
+                row_count=s.revision.row_count,
+                control_totals=s.revision.control_totals,
+                reporting_rows=rows,
+                control_total_evidence=s.revision.managed_control_totals,
+            ),
+        )
+        await store.commit_revision(revision, rows)
+        # Each attempt is the first for its own revision, so validity does not
+        # depend on which of them the store happens to serialize first.
+        attempts.append(
+            replace(
+                s.attempt,
+                reporting_revision_id=identifier,
+                reporting_materialization_id=f"concurrent-materialization-{index}",
+                attempt=1,
+            )
+        )
+    results = await asyncio.gather(
+        *(store.commit_materialization_attempt(item) for item in attempts)
+    )
+    assert all(created for _, created in results)
+    page = await store.read_reconciliation_changes(caller=s.binding.principal, limit=1000)
+    sequences = [item.sequence for item in page.changes]
+    assert sequences == list(range(1, 4 + len(attempts) + 1))
+    assert page.total_count == len(page.changes) == 4 + len(attempts)
+    assert page.changes_checkpoint is not None
+    assert {
+        item.record.reporting_materialization_id
+        for item in page.changes
+        if isinstance(item.record, ReportingMaterializationAttempt)
+    } == {item.reporting_materialization_id for item in attempts} | {
+        s.attempt.reporting_materialization_id
+    }
+    if isinstance(store, PgReportingReconciliationStore):
+        async with store._pool.connection() as connection:
+            head = await (
+                await connection.execute(
+                    "SELECT max_sequence FROM reporting_reconciliation_heads"
+                    " WHERE account_id = %s AND consumer_id = %s",
+                    (s.binding.principal.account_id, s.binding.principal.consumer_id),
+                )
+            ).fetchone()
+        assert head is not None and head[0] == len(page.changes)

@@ -90,6 +90,16 @@ fields reject recognizable credentials and URLs, including encoded forms, withou
 echoing the input. Native versions remain separate from object keys and are only
 URI-encoded when a later adapter constructs its provider request.
 
+Credential detection matches *shapes*, not substrings. A keyword such as `token`
+or `authorization` only rejects a value when it stands alone as a word and
+introduces something after it (`token=…`, `Bearer …`, `authorization: …`), so
+ordinary operational names — `tokenized_inventory_daily`, `secretariat-report-v17`,
+`authorization_metrics_v2` — persist unchanged. Independently, any
+`?name=`/`&name=` query-parameter pair is refused in every reference field, because
+presigned S3/GCS URLs and Azure SAS tokens carry their secret in parameters this
+boundary cannot enumerate; `report.csv?sv=…&sig=…` never reaches storage even
+though no keyword appears in it.
+
 ## Evidence and financial ordering
 
 `ReportingRevisionRecord.canonical_content_digest` optionally holds a frozen
@@ -221,8 +231,37 @@ of the scoped feed/record join before boundary/count/limit so damage cannot disa
 through filtering. Stored identity columns are compared against the decoded payload.
 Updates/deletes and terminal-head replacement are rejected; referenced
 Core publications stay frozen while leases and readability remain operational.
+
+The database does not take the retained payload or its fingerprint on trust.
+`reporting_canonical_json` implements the `canonical_json_utf8_v1` profile in SQL, so
+every insert recomputes `content_sha256` from the stored bytes and a closed key
+allowlist refuses any field outside the frozen record types — no credential,
+provider response or metadata bag can be retained even by a writer that goes
+straight to the tables with correct identity columns. `reporting_reconciliation_evidence`
+then re-derives the financial predicate that decides money: a successful
+materialization must match its Core revision's row count, typed control totals and
+canonical digest, its binding's format, readers, method and success status, and its
+retention floor; an accepted revision receipt must match that materialization's
+profile, totals and profile-specific evidence inside the resource's readable window;
+and an accepted adjustment receipt's digest is recomputed from the retained
+adjustment columns. A payload that disagrees with its own fingerprint fails every
+read for that principal — including pages whose filter would have skipped the
+damaged row — rather than being silently excluded.
+
 This is the transaction in which #1168 can insert its outbox row; there is no adopter
 callback or after-commit webhook send in this PR.
+
+Cursors and checkpoints bind the feed version, account, consumer, normalized filter
+fingerprint, frozen bounds and last key, and a continuation restores its own frozen
+boundary before the store looks at today's head, so an authorized inter-page write
+is deferred to the next walk instead of invalidating this one. Like Core's cursors
+they are opaque but **unsigned**: the store re-validates caller, scope, filter and
+bounds on use. A principal can therefore present a boundary it built itself, but it
+gains nothing it could not reach through the supported API — a checkpoint at the
+current head is exactly the token a completed walk would have issued — and a
+boundary whose content disagrees with the retained feed fails as
+`INVALID_CHECKPOINT`, never as `REPORTING_HISTORY_CORRUPT`. Only a boundary this
+store opened can report retained damage.
 
 ## Migration and operational limits
 
@@ -250,7 +289,24 @@ Table/index creation and prerequisite migrations take locks; production-sized
 duration is not benchmarked. The reference stores load one consumer's retained
 record set to validate transitions. Feed pages use indexed keyset reads, with scoped
 integrity/count scans; these reads share the account transaction lock with writes.
+The integrity scan recomputes one canonical digest per retained record for the
+calling principal, and each insert recomputes its own, so both costs grow with a
+principal's history and are not benchmarked at production sizes.
 Large histories need benchmarks or a conforming replacement store before production rollout.
 Only SDK store operations
-are supported writers; database owners can always circumvent application invariants
-by disabling constraints. PostgreSQL connection ownership remains with the adopter.
+are supported writers, but ordinary direct SQL — inserts that satisfy every column
+constraint without disabling a trigger — can no longer retain extra payload
+metadata, a fingerprint its payload denies, or financial evidence the Core revision
+denies. A database owner who disables constraints outright can still corrupt the
+tables; reads then fail closed for that principal. PostgreSQL connection ownership
+remains with the adopter.
+
+The database canonicalizer sorts object keys by bytes, which equals the JCS
+UTF-16 order for the ASCII field names these records use, and reproduces
+`datetime.isoformat()` for the recomputed adjustment digest. A payload outside that
+domain simply fails its digest instead of being accepted. `ReportingRevision` carries
+no obligation reference on the wire, so the buyer selector associates a revision with
+an obligation through materialization ownership; two Core-only obligations that share
+a definition, profile, campaign set and period still fail closed as ambiguous rather
+than guess. An authoritative page-local ownership projection belongs to the status
+slice, not to this storage slice.

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, Protocol, cast, runtime_checkable
+from typing import Any, NoReturn, Protocol, cast, runtime_checkable
 
 from adcp.reporting.ledger._delivery_state import (
     DeliveryContext,
@@ -289,6 +289,13 @@ class ReportingReconciliationSnapshot:
         return tuple(item.key for item in self.current_receipts if item.status == "accepted")
 
 
+def _boundary_unavailable(requested: bool) -> NoReturn:
+    """Separate a caller's stale/forged boundary from genuine retained damage."""
+    if requested:
+        raise LedgerConflictError("INVALID_CHECKPOINT", "reconciliation boundary is unavailable")
+    fail("REPORTING_HISTORY_CORRUPT")
+
+
 class _ReconciliationOperations:
     """Typed forwarding shared by the two storage mechanisms; not an adopter hook."""
 
@@ -469,6 +476,7 @@ class InMemoryReportingReconciliationStore(InMemoryReportingLedgerStore, _Reconc
         caller: ReportingDeliveryPrincipal,
         boundary: ReportingReconciliationSnapshotToken | None = None,
     ) -> ReportingReconciliationSnapshot:
+        requested = boundary is not None
         async with self._lock:
             changes = self._caller_changes(caller)
             if boundary is None:
@@ -482,7 +490,10 @@ class InMemoryReportingReconciliationStore(InMemoryReportingLedgerStore, _Reconc
                 unavailable()
             validate_boundary(caller, boundary, len(changes))
             if boundary.total_count != boundary.max_sequence:
-                fail("REPORTING_HISTORY_CORRUPT")
+                # A caller-presented boundary that disagrees with the retained feed
+                # is a stale or hand-built token, never evidence that storage is
+                # corrupt. Only a boundary this store opened can accuse itself.
+                _boundary_unavailable(requested)
             return ReportingReconciliationSnapshot(
                 caller,
                 boundary,
@@ -499,6 +510,7 @@ class InMemoryReportingReconciliationStore(InMemoryReportingLedgerStore, _Reconc
         filters: ReportingReconciliationFilter = ReportingReconciliationFilter(),
     ) -> ReportingReconciliationPage:
         after, boundary, last_key = read_position(caller, changes_after, cursor, limit, filters)
+        continued = boundary is not None
         async with self._lock:
             records = self._caller_changes(caller)
             if boundary is None:
@@ -527,7 +539,7 @@ class InMemoryReportingReconciliationStore(InMemoryReportingLedgerStore, _Reconc
                 and filters.matches(item.record)
             )
             if len(changes) != boundary.total_count:
-                fail("REPORTING_HISTORY_CORRUPT")
+                _boundary_unavailable(continued)
             return change_page(
                 caller,
                 boundary,

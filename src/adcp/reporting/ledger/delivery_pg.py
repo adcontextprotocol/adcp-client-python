@@ -22,6 +22,7 @@ from adcp.reporting.ledger._delivery_state import (
 )
 from adcp.reporting.ledger.delivery import (
     ReportingReconciliationSnapshot,
+    _boundary_unavailable,
     _ReconciliationOperations,
 )
 from adcp.reporting.ledger.delivery_changes import (
@@ -167,24 +168,31 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
     ) -> tuple[int, datetime]:
         # Scope both sides before the join, count, or boundary. A missing/moved
         # record or feed row must fail, never disappear through an inner join.
+        # The payload digest scan covers the caller's whole retained graph, not
+        # just the rows a requested filter happens to select: a single retained
+        # payload that disagrees with its fingerprint must fail every page.
         # The joined SQL fragment is constant; every caller value is parameterized.
         row = await (
             await connection.execute(
                 "SELECT count(c.seq), COALESCE(max(c.seq), 0),"  # nosec B608
                 " COALESCE((SELECT max_sequence FROM reporting_reconciliation_heads"
                 " WHERE account_id = %s AND consumer_id = %s), 0),"
-                " COALESCE(bool_or(c.seq IS NULL OR r.record_id IS NULL), false), clock_timestamp()"
+                " COALESCE(bool_or(c.seq IS NULL OR r.record_id IS NULL), false),"
+                " COALESCE((SELECT bool_or(x.content_sha256"
+                " <> reporting_payload_sha256(x.payload))"
+                " FROM reporting_reconciliation_records x"
+                " WHERE x.account_id = %s AND x.consumer_id = %s), false), clock_timestamp()"
                 " FROM (SELECT * FROM reporting_reconciliation_changes"
                 " WHERE account_id = %s AND consumer_id = %s) c"
                 " FULL JOIN (SELECT * FROM reporting_reconciliation_records"
                 " WHERE account_id = %s AND consumer_id = %s) r ON " + _FEED_JOIN,
-                (who.account_id, who.consumer_id) * 3,
+                (who.account_id, who.consumer_id) * 4,
             )
         ).fetchone()
         assert row is not None
-        if row[0] != row[1] or row[1] != row[2] or row[3]:
+        if row[0] != row[1] or row[1] != row[2] or row[3] or row[4]:
             fail("REPORTING_HISTORY_CORRUPT")
-        return row[2], row[4]
+        return row[2], row[5]
 
     async def _records(
         self, connection: Any, who: ReportingDeliveryPrincipal, maximum: int | None = None
@@ -334,6 +342,7 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
         caller: ReportingDeliveryPrincipal,
         boundary: ReportingReconciliationSnapshotToken | None = None,
     ) -> ReportingReconciliationSnapshot:
+        requested = boundary is not None
         async with self._pool.connection() as connection, connection.transaction():
             await self._lock_account(connection, caller.account_id)
             maximum, now = await self._validate_feed(connection, caller)
@@ -354,7 +363,8 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
                 for item in await self._changes(connection, caller, boundary.max_sequence)
             )
             if len(records) != boundary.total_count:
-                fail("REPORTING_HISTORY_CORRUPT")
+                # See _boundary_unavailable: the caller's token, not the store.
+                _boundary_unavailable(requested)
         return ReportingReconciliationSnapshot(caller, boundary, records)
 
     async def read_reconciliation_changes(
@@ -393,7 +403,7 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
                     connection, caller, boundary.min_sequence, boundary.max_sequence, filters
                 )
                 if count != boundary.total_count:
-                    fail("REPORTING_HISTORY_CORRUPT")
+                    _boundary_unavailable(True)
             changes = await self._changes(
                 connection,
                 caller,

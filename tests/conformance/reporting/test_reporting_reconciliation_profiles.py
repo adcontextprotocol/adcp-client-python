@@ -170,3 +170,78 @@ async def test_provider_fields_reject_credentials_and_urls_without_echo(
                 },
             )
     assert unsafe not in str(error.value) and "DO_NOT_RETAIN" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "location",
+        "object_refs",
+        "native_version_ref",
+        "consumer_commit_ref",
+        "reader_compatibility",
+    ],
+)
+@pytest.mark.parametrize(
+    "signed",
+    [
+        "container/report.csv?sv=2024-11-04&sp=r&se=2027-01-01&sig=DO_NOT_RETAIN",
+        "export.parquet?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=DO_NOT_RETAIN",
+        "object?GoogleAccessId=DO_NOT_RETAIN&Expires=1893456000",
+        "share&Signature=DO_NOT_RETAIN",
+    ],
+)
+async def test_signed_query_material_is_refused_without_a_recognizable_keyword(
+    reconciliation_store: tuple[Store, Clock], field: str, signed: str
+) -> None:
+    """Presigned/SAS query material must never persist, keyword or not."""
+    store, _ = reconciliation_store
+    s = await scenario(store)
+    with pytest.raises(ValueError) as error:
+        if field == "consumer_commit_ref":
+            replace(s.receipt, consumer_commit_ref=signed)
+        else:
+            replace(
+                s.outcome.resource,
+                **{
+                    field: (
+                        (signed.replace("?", "-"),)
+                        if field in {"object_refs", "reader_compatibility"}
+                        else signed
+                    )
+                },
+            )
+    assert signed not in str(error.value) and "DO_NOT_RETAIN" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "benign",
+    [
+        "warehouse/tokenized_inventory_daily/part-000.jsonl",
+        "secretariat-report-v17/part-000.jsonl",
+        "authorization_metrics_v2/part-000.jsonl",
+        "credentials_review_2026/part-000.jsonl",
+        "Parquet & decimal=38 / secretariat.jsonl",
+    ],
+)
+async def test_operational_names_that_merely_contain_credential_words_survive(
+    reconciliation_store: tuple[Store, Clock], benign: str
+) -> None:
+    """A keyword only condemns a value when it stands alone and introduces one."""
+    store, _ = reconciliation_store
+    s = await scenario(store)
+    resource = replace(s.outcome.resource, location=benign, object_refs=(benign,))
+    outcome = replace(
+        s.outcome,
+        resource=resource,
+        verification=replace(
+            s.outcome.verification,
+            physical_checksums=(ReportingPhysicalChecksum(benign, "sha256", "d" * 64),),
+        ),
+    )
+    stored, created = await store.commit_materialization(outcome)
+    assert created and stored.resource is not None
+    assert stored.resource.location == benign and stored.resource.object_refs == (benign,)
+    view = await store.get_materialization(s.attempt.key)
+    assert isinstance(view, ReportingMaterializationView)
+    assert ReportingMaterialization.model_validate(view.to_wire()).resource.location == benign

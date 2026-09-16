@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import re
+import types
 from dataclasses import dataclass, replace
 from datetime import timedelta
+from importlib.resources import files
 from typing import Any
 
 import pytest
 
+from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger import (
     LedgerConflictError,
     PgReportingReconciliationStore,
@@ -22,8 +26,16 @@ from adcp.reporting.ledger import (
     adjustment_to_wire,
     revision_content_sha256,
 )
-from adcp.reporting.ledger._delivery_state import change_id, fingerprint, payload, storage_identity
+from adcp.reporting.ledger._delivery_state import (
+    change_id,
+    fingerprint,
+    iso,
+    payload,
+    storage_identity,
+)
 from adcp.reporting.ledger.delivery_pg import _IDENTITY_COLUMNS
+
+RESOURCES = files("adcp.reporting.ledger")
 
 from ._generation_support import END, NOW, configuration, isolated_reporting_pool
 from ._reconciliation_support import Scenario, scenario
@@ -101,6 +113,7 @@ class Graph:
     second: Scenario
     adjustment: ReportingAdjustmentReceiptRecord
     other_adjustment: ReportingAdjustmentReceiptRecord
+    adjustment_record: ReportingAdjustmentRecord
 
 
 @pytest.fixture
@@ -181,6 +194,7 @@ async def graph():
             replace(s.attempt, reporting_materialization_id="pending-attempt", attempt=2)
         )
         adjustments = []
+        records = []
         for index, candidate in enumerate((s, second)):
             adjustment = ReportingAdjustmentRecord(
                 f"adjustment-{index}",
@@ -197,6 +211,7 @@ async def graph():
                 ),
             )
             await store.commit_adjustment(adjustment)
+            records.append(adjustment)
             adjustments.append(
                 ReportingAdjustmentReceiptRecord(
                     candidate.attempt.scope,
@@ -208,7 +223,7 @@ async def graph():
                     END + timedelta(seconds=7),
                 )
             )
-        yield Graph(pool, store, s, second, *adjustments)
+        yield Graph(pool, store, s, second, *adjustments, records[0])
 
 
 @pytest.mark.parametrize(
@@ -621,3 +636,295 @@ async def test_sql_cannot_advance_move_or_erase_the_feed_without_exact_evidence(
         async with graph.pool.connection() as connection, connection.transaction():
             await connection.execute(statement)
     assert await graph.store.read_reconciliation_changes(caller=caller) == before
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"credential": "MUST_NOT_RETAIN"},
+        {"metadata": {"upstream.api_token": "MUST_NOT_RETAIN"}},
+        {"provider_response": ["MUST_NOT_RETAIN"]},
+    ],
+)
+async def test_ordinary_direct_sql_cannot_retain_extra_payload_metadata(
+    graph: Graph, extra: dict[str, Any]
+) -> None:
+    """No trigger is disabled here: a closed payload is a database invariant."""
+    from psycopg import IntegrityError
+    from psycopg.types.json import Jsonb
+
+    record = ReportingMaterializationCheck(
+        graph.first.attempt.scope,
+        graph.first.attempt.reporting_materialization_id,
+        "check-poisoned",
+        "readable",
+        END + timedelta(seconds=5),
+    )
+    poisoned = {**payload(record), **extra}
+    caller = graph.first.binding.principal
+    before = await graph.store.read_reconciliation_changes(caller=caller)
+    for digest in (fingerprint(record), "0" * 64):
+        with pytest.raises(IntegrityError) as error:
+            await raw_insert(graph.pool, record, payload=Jsonb(poisoned), content_sha256=digest)
+        assert "MUST_NOT_RETAIN" not in str(error.value)
+    async with graph.pool.connection() as connection:
+        assert (
+            await (
+                await connection.execute(
+                    "SELECT count(*) FROM reporting_reconciliation_records"
+                    " WHERE record_id = 'check-poisoned'"
+                )
+            ).fetchone()
+        )[0] == 0
+    assert await graph.store.read_reconciliation_changes(caller=caller) == before
+
+
+async def test_ordinary_direct_sql_cannot_retain_a_payload_its_digest_denies(
+    graph: Graph,
+) -> None:
+    from psycopg import IntegrityError
+    from psycopg.types.json import Jsonb
+
+    record = ReportingMaterializationCheck(
+        graph.first.attempt.scope,
+        graph.first.attempt.reporting_materialization_id,
+        "check-mismatched",
+        "readable",
+        END + timedelta(seconds=5),
+    )
+    honest = payload(record)
+    with pytest.raises(IntegrityError):
+        await raw_insert(graph.pool, record, content_sha256="0" * 64)
+    with pytest.raises(IntegrityError):
+        await raw_insert(graph.pool, record, payload=Jsonb({**honest, "state": "corrupt"}))
+    assert (await graph.store.record_materialization_check(record))[1]
+
+
+@pytest.mark.parametrize(
+    "damage",
+    [
+        "verification_row_count",
+        "verification_totals",
+        "verification_digest",
+        "verification_format",
+        "resource_retention",
+        "checksum_object_ref",
+    ],
+)
+async def test_direct_sql_cannot_commit_a_successful_outcome_the_revision_denies(
+    graph: Graph, damage: str
+) -> None:
+    """A coherent dataclass payload with a true fingerprint is not enough."""
+    from psycopg import IntegrityError
+
+    from adcp.reporting.ledger import ReportingCanonicalDigest
+
+    # 'pending-attempt' is retained with no outcome, so every case below is a
+    # first write for that materialization rather than a duplicate.
+    honest = replace(graph.first.outcome, reporting_materialization_id="pending-attempt")
+    verification, resource = honest.verification, honest.resource
+    assert verification is not None and resource is not None
+    if damage == "verification_row_count":
+        outcome = replace(honest, verification=replace(verification, row_count=999))
+    elif damage == "verification_totals":
+        outcome = replace(
+            honest,
+            verification=replace(
+                verification,
+                control_totals=tuple(
+                    replace(item, value="99999") if item.name == "spend" else item
+                    for item in verification.control_totals
+                ),
+            ),
+        )
+    elif damage == "verification_digest":
+        outcome = replace(
+            honest,
+            verification=replace(
+                verification,
+                canonical_content_digest=ReportingCanonicalDigest(
+                    "a" * 64,
+                    "rows-v1",
+                    "https://contracts.example.test/rows-v1.json",
+                    "b" * 64,
+                ),
+            ),
+        )
+    elif damage == "verification_format":
+        outcome = replace(honest, verification=replace(verification, verified_format="csv"))
+    elif damage == "checksum_object_ref":
+        outcome = replace(
+            honest,
+            resource=replace(resource, object_refs=(*resource.object_refs, "reports/extra.jsonl")),
+        )
+    else:
+        outcome = replace(
+            honest,
+            resource=replace(resource, expires_at=honest.completed_at + timedelta(days=1)),
+        )
+    with pytest.raises(IntegrityError):
+        await raw_insert(graph.pool, outcome)
+    assert (await graph.store.commit_materialization(honest))[1]
+
+
+@pytest.mark.parametrize(
+    "damage",
+    ["observed_row_count", "observed_totals", "observed_digest", "observed_profile"],
+)
+async def test_direct_sql_cannot_accept_a_receipt_its_materialization_denies(
+    graph: Graph, damage: str
+) -> None:
+    from psycopg import IntegrityError
+
+    from adcp.reporting.ledger import ReportingCanonicalDigest
+
+    s = graph.first
+    if damage == "observed_row_count":
+        receipt = replace(s.receipt, observed_row_count=999)
+    elif damage == "observed_totals":
+        receipt = replace(
+            s.receipt,
+            observed_control_totals=tuple(
+                replace(item, value="99999") if item.name == "spend" else item
+                for item in s.receipt.observed_control_totals
+            ),
+        )
+    elif damage == "observed_digest":
+        receipt = replace(
+            s.receipt,
+            observed_canonical_content_digest=ReportingCanonicalDigest(
+                "a" * 64, "rows-v1", "https://contracts.example.test/rows-v1.json", "b" * 64
+            ),
+        )
+    else:
+        receipt = replace(s.receipt, verification_profile="manifest_checksums")
+    receipt = replace(receipt, reporting_receipt_id="receipt-forged-0001")
+    with pytest.raises(IntegrityError):
+        await raw_insert(graph.pool, receipt)
+    async with graph.pool.connection() as connection:
+        assert not await (
+            await connection.execute("SELECT 1 FROM reporting_receipt_heads")
+        ).fetchall()
+    assert (await graph.store.record_revision_receipt(s.receipt))[1]
+
+
+async def test_direct_sql_cannot_accept_an_adjustment_digest_the_database_recomputes(
+    graph: Graph,
+) -> None:
+    """The adjustment digest is recomputed from retained columns, not trusted."""
+    from psycopg import IntegrityError
+
+    forged = replace(
+        graph.adjustment,
+        reporting_receipt_id="receipt-forged-adjust1",
+        observed_adjustment_sha256="a" * 64,
+    )
+    with pytest.raises(IntegrityError):
+        await raw_insert(graph.pool, forged)
+    assert (await graph.store.record_adjustment_receipt(graph.adjustment))[1]
+
+
+async def test_database_canonical_digest_agrees_with_the_sdk_encoding(graph: Graph) -> None:
+    """Byte parity for the SQL JCS profile, including a recomputed adjustment digest."""
+    from psycopg.types.json import Jsonb
+
+    records: list[ReportingDeliveryRecord] = [
+        graph.first.binding,
+        graph.first.delivery,
+        graph.first.attempt,
+        graph.first.outcome,
+        graph.first.receipt,
+        graph.adjustment,
+    ]
+    async with graph.pool.connection() as connection:
+        for record in records:
+            document = payload(record)
+            row = await (
+                await connection.execute(
+                    "SELECT reporting_canonical_json(%s::jsonb),"
+                    " reporting_payload_sha256(%s::jsonb)",
+                    (Jsonb(document), Jsonb(document)),
+                )
+            ).fetchone()
+            assert row is not None
+            assert row[0].encode() == canonical_json_utf8_v1(document)
+            assert row[1] == fingerprint(record)
+        wire = adjustment_to_wire(graph.adjustment_record)
+        row = await (
+            await connection.execute(
+                "SELECT reporting_payload_sha256(jsonb_build_object("
+                " 'reporting_adjustment_id', a.reporting_adjustment_id,"
+                " 'adjusts_reporting_revision_id', a.adjusts_reporting_revision_id,"
+                " 'reason_code', a.reason_code,"
+                " 'accounting_period', jsonb_build_object("
+                "   'start', reporting_iso_utc(a.accounting_period_start),"
+                "   'end', reporting_iso_utc(a.accounting_period_end)),"
+                " 'control_total_deltas', a.managed_control_total_deltas,"
+                " 'correction_observed_at', reporting_iso_utc(a.correction_observed_at),"
+                " 'created_at', reporting_iso_utc(a.created_at))"
+                " || CASE WHEN a.reason_detail IS NOT NULL"
+                "         THEN jsonb_build_object('reason_detail', a.reason_detail)"
+                "         ELSE '{}'::jsonb END)"
+                " FROM reporting_adjustments a WHERE a.reporting_adjustment_id = %s",
+                (graph.adjustment_record.reporting_adjustment_id,),
+            )
+        ).fetchone()
+        assert row is not None and row[0] == wire["canonical_adjustment_sha256"]
+
+
+@pytest.mark.parametrize(
+    "moment",
+    [
+        "2026-09-01T01:00:00+00:00",
+        "2026-09-01T01:02:03.123456+00:00",
+        "2026-09-01T01:02:03.000123+00:00",
+        "2026-09-01T01:02:03.100000+00:00",
+        "2026-12-31T23:59:59.999999+05:30",
+    ],
+)
+async def test_database_timestamp_encoding_matches_the_sdk_for_subsecond_evidence(
+    graph: Graph, moment: str
+) -> None:
+    """The recomputed adjustment digest depends on this byte-for-byte."""
+    from datetime import datetime
+
+    parsed = datetime.fromisoformat(moment)
+    async with graph.pool.connection() as connection:
+        row = await (
+            await connection.execute("SELECT reporting_iso_utc(%s::timestamptz)", (parsed,))
+        ).fetchone()
+    assert row is not None and row[0] == iso(parsed)
+
+
+async def test_closed_payload_allowlist_covers_every_retained_record_field() -> None:
+    """Drift guard: a new retained field must be added to the database allowlist."""
+    import typing
+    from dataclasses import fields, is_dataclass
+
+    from adcp.reporting.ledger import delivery_models
+
+    seen: set[type] = set()
+    expected: set[str] = set()
+
+    def walk(cls: type) -> None:
+        if cls in seen or not is_dataclass(cls):
+            return
+        seen.add(cls)
+        hints = typing.get_type_hints(cls)
+        for item in fields(cls):
+            expected.add(item.name)
+            stack = [hints[item.name]]
+            while stack:
+                annotation = stack.pop()
+                origin = typing.get_origin(annotation)
+                if origin in (types.UnionType, typing.Union) or origin is tuple:
+                    stack.extend(a for a in typing.get_args(annotation) if a is not Ellipsis)
+                elif is_dataclass(annotation):
+                    walk(annotation)
+
+    for record in typing.get_args(delivery_models.ReportingDeliveryRecord):
+        walk(record)
+    ddl = RESOURCES.joinpath("reporting_ledger_reconciliation.sql").read_text()
+    body = ddl.split("WHERE field <> ALL (ARRAY[", 1)[1].split("])", 1)[0]
+    declared = set(re.findall(r"'([a-z0-9_]+)'", body))
+    assert declared == expected

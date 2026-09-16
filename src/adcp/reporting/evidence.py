@@ -10,6 +10,32 @@ from urllib.parse import unquote, urlsplit
 
 from pydantic import ConfigDict
 
+# Credential *shapes*, never bare substrings. A keyword only condemns a value
+# when it stands alone as a word and introduces something after it, so ordinary
+# operational names -- ``tokenized_inventory_daily``, ``secretariat-report-v17``,
+# ``authorization_metrics_v2`` -- survive while ``token=...`` and ``Bearer x``
+# do not. Narrowing every provider identity to one ASCII token grammar instead
+# would reject wire-valid GAM/FreeWheel/warehouse references.
+_CREDENTIAL_WORD = (
+    r"bearer|password|passwd|secret|secrets|token|signature|credential|credentials|"
+    r"authorization|private[ _-]?key|api[ _-]?key|access[ _-]?key|access[ _-]?token|"
+    r"refresh[ _-]?token|client[ _-]?secret|sas[ _-]?token"
+)
+_CREDENTIAL_ASSIGNMENT = re.compile(
+    rf"(?i)(?<![A-Za-z0-9])(?:{_CREDENTIAL_WORD})(?![A-Za-z0-9])\s*(?:[:=]|\s)\s*\S"
+)
+# Signed-URL material -- Azure SAS, S3/GCS presigned queries -- hides its secret
+# in query parameters whose names this boundary cannot enumerate, so any
+# ``?name=`` / ``&name=`` pair is refused even with no recognizable keyword. Real
+# query strings have no whitespace around the separator, so a label such as
+# ``Parquet & decimal=38`` is not one.
+_QUERY_PARAMETER = re.compile(r"[?&][A-Za-z0-9_.\-]{1,64}=")
+_UNSAFE_SHAPE = re.compile(
+    r"(?i)(?:-----BEGIN|(?:^|\s)(?:https?|ftp|file|data|mailto|s3|gs):|[^\s/:]+:[^\s/]+@)"
+)
+_AWS_KEY_ID = re.compile(r"(?:^|[^A-Za-z0-9])(?:AKIA|ASIA)[A-Z0-9]{16}\b")
+_JWT = re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+")
+
 
 def _public_text(value: str, *, maximum: int) -> str:
     """Reject recognizable credentials without normalizing a provider's identity.
@@ -31,15 +57,11 @@ def _public_text(value: str, *, maximum: int) -> str:
             not inspected.isprintable()
             or "://" in inspected
             or inspected.startswith("//")
-            or re.search(
-                r"(?i)(?:bearer|password|secret|token|signature|credential|private.key|"
-                r"authorization|api[ _-]?key|access[ _-]?key|-----BEGIN|"
-                r"(?:^|\s)(?:https?|ftp|file|data|mailto|s3|gs):|"
-                r"[^\s/:]+:[^\s/]+@)",
-                inspected,
-            )
-            or re.search(r"(?:^|[^A-Za-z0-9])(?:AKIA|ASIA)[A-Z0-9]{16}\b", inspected)
-            or re.search(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", inspected)
+            or _UNSAFE_SHAPE.search(inspected)
+            or _CREDENTIAL_ASSIGNMENT.search(inspected)
+            or _QUERY_PARAMETER.search(inspected)
+            or _AWS_KEY_ID.search(inspected)
+            or _JWT.search(inspected)
         ):
             raise ValueError("reporting metadata requires non-secret public text")
         decoded = unquote(inspected)
