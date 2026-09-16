@@ -35,11 +35,12 @@ import asyncio
 import base64
 import hashlib
 import json
-from collections.abc import Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
+from contextlib import asynccontextmanager
 from copy import deepcopy
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
-from typing import Any, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import (
@@ -61,6 +62,18 @@ from adcp.reporting.ledger.models import (
     ReportingObligationRecord,
     ReportingRevisionRecord,
 )
+from adcp.reporting.ledger.notification_models import (
+    DirtyReason,
+    ReportingDomainEvent,
+    ReportingNotificationError,
+    ReportingStatusEvidence,
+    ReportingStatusScope,
+    configuration_evidence,
+    issue_evidence,
+)
+
+if TYPE_CHECKING:
+    from adcp.reporting.outbox.memory import NotificationState
 
 __all__ = [
     "InMemoryReportingLedgerStore",
@@ -587,7 +600,9 @@ class InMemoryReportingLedgerStore:
     place a test's ledger boundary at a deliberate instant.
     """
 
-    def __init__(self, *, clock: Callable[[], datetime] | None = None) -> None:
+    def __init__(
+        self, *, clock: Callable[[], datetime] | None = None, notifications: bool = False
+    ) -> None:
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._lock = asyncio.Lock()
         self._configurations: dict[ReportingConfigurationGenerationKey, ReportingConfiguration] = {}
@@ -613,6 +628,97 @@ class InMemoryReportingLedgerStore:
         # high-water mark so a recurrence never reuses an id.
         self._issues: dict[tuple[str, str], ReportingIssueLifecycle] = {}
         self._issue_generations: dict[tuple[str, str], int] = {}
+        self._notification_state: NotificationState | None = None
+        if notifications:
+            from adcp.reporting.outbox.memory import NotificationState
+
+            self._notification_state = NotificationState()
+
+    @asynccontextmanager
+    async def _mutation(self) -> AsyncIterator[None]:
+        """Publish domain changes and notifications under one rollback boundary.
+
+        Default-off stores retain their original lock cost. The reference
+        in-memory transaction copies retained values only when opted in.
+        """
+        async with self._lock:
+            before = (
+                deepcopy(
+                    {
+                        key: value
+                        for key, value in vars(self).items()
+                        if key not in {"_lock", "_clock"}
+                    }
+                )
+                if self._notification_state is not None
+                else None
+            )
+            try:
+                yield
+            except BaseException:
+                if before is not None:
+                    vars(self).update(before)
+                raise
+
+    def _record_notification(self, event: ReportingDomainEvent) -> None:
+        if self._notification_state is not None:
+            self._notification_state.enqueue(event)
+
+    def _dirty_status(
+        self,
+        scope: ReportingStatusScope,
+        reason: DirtyReason,
+        before: ReportingStatusEvidence | None = None,
+        after: ReportingStatusEvidence | None = None,
+    ) -> None:
+        if self._notification_state is not None:
+            self._notification_state.mark_dirty(scope, reason, self._clock(), before, after)
+
+    def _dirty_issue(
+        self,
+        issue: ReportingIssueLifecycle,
+        status_scope: ReportingStatusScope | None,
+        before: ReportingIssueLifecycle | None = None,
+        *,
+        enqueue: bool = True,
+    ) -> None:
+        if self._notification_state is None:
+            return
+        key = (issue.account_id, issue.issue_id)
+        existing = self._notification_state.issue_scopes.get(key)
+        scope = (
+            status_scope
+            or existing
+            or ReportingStatusScope(issue.account_id, consumer_id=issue.consumer_id)
+        )
+        if (
+            scope.account_id != issue.account_id
+            or scope.consumer_id != issue.consumer_id
+            or (existing is not None and scope != existing)
+        ):
+            raise ReportingNotificationError("invalid_status_scope")
+        if scope.generation_key is not None and scope.generation_key not in self._configurations:
+            raise ReportingNotificationError("invalid_status_scope")
+        if scope.reporting_obligation_id is not None:
+            obligation = self._obligations.get(scope.reporting_obligation_id)
+            if (
+                obligation is None
+                or obligation.account_id != scope.account_id
+                or (
+                    scope.generation_key is not None
+                    and obligation.generation_key != scope.generation_key
+                )
+                or (
+                    scope.feed_purpose is not None and obligation.feed_purpose != scope.feed_purpose
+                )
+            ):
+                raise ReportingNotificationError("invalid_status_scope")
+        if not enqueue:
+            return
+        self._notification_state.issue_scopes[key] = scope
+        self._dirty_status(
+            scope, "issue", issue_evidence(before) if before else None, issue_evidence(issue)
+        )
 
     async def create_schema(self) -> None:
         return None
@@ -625,7 +731,7 @@ class InMemoryReportingLedgerStore:
 
     async def put_configuration(self, configuration: ReportingConfiguration) -> None:
         reject_reserved_authoritative_party(configuration)
-        async with self._lock:
+        async with self._mutation():
             key = configuration.generation_key
             existing = self._configurations.get(key)
             if existing is not None and _fingerprint(_config_payload(existing)) != _fingerprint(
@@ -638,6 +744,13 @@ class InMemoryReportingLedgerStore:
                     "publish a new version instead of editing a retained generation",
                 )
             self._configurations[key] = configuration
+            if existing != configuration and self._notification_state is not None:
+                self._dirty_status(
+                    ReportingStatusScope(configuration.account_id, configuration.generation_key),
+                    "configuration",
+                    before=configuration_evidence(existing) if existing is not None else None,
+                    after=configuration_evidence(configuration),
+                )
 
     async def list_configurations(
         self, *, account_id: str, delivery_config_ids: Sequence[str] | None = None
@@ -655,7 +768,7 @@ class InMemoryReportingLedgerStore:
     async def commit_obligation(
         self, obligation: ReportingObligationRecord
     ) -> ReportingObligationRecord:
-        async with self._lock:
+        async with self._mutation():
             key = (
                 obligation.generation_key,
                 _utc(obligation.period.start).isoformat(),
@@ -673,6 +786,12 @@ class InMemoryReportingLedgerStore:
             self._obligations[obligation.reporting_obligation_id] = obligation
             self._obligation_by_period[key] = obligation.reporting_obligation_id
             self._append(obligation.account_id, "obligation", obligation.reporting_obligation_id)
+            if self._notification_state is not None:
+                self._dirty_status(
+                    ReportingStatusScope.for_obligation(obligation),
+                    "obligation",
+                    after=ReportingStatusEvidence("obligation", obligation.reporting_obligation_id),
+                )
             return obligation
 
     async def get_obligation(
@@ -721,7 +840,7 @@ class InMemoryReportingLedgerStore:
                 f"revision declares {revision.row_count} rows but {len(rows)} were supplied",
             )
         validate_managed_revision_rows(revision, rows)
-        async with self._lock:
+        async with self._mutation():
             identity = _revision_identity(revision)
             existing = self._revisions.get(revision.reporting_revision_id)
             if existing is not None:
@@ -762,6 +881,20 @@ class InMemoryReportingLedgerStore:
             self._revision_identity[revision.reporting_revision_id] = identity
             self._rows[revision.reporting_revision_id] = tuple(dict(row) for row in rows)
             self._append(revision.account_id, "revision", revision.reporting_revision_id)
+            if self._notification_state is not None:
+                from adcp.reporting.ledger.notification_events import revision_event
+
+                self._record_notification(revision_event(revision, self._clock()))
+                self._dirty_status(
+                    ReportingStatusScope.for_obligation(obligation),
+                    "revision",
+                    after=ReportingStatusEvidence(
+                        "revision",
+                        revision.reporting_revision_id,
+                        readable=revision.readable,
+                        supersedes_id=revision.supersedes_reporting_revision_id,
+                    ),
+                )
             return revision
 
     def _require_current_leaf(
@@ -833,18 +966,30 @@ class InMemoryReportingLedgerStore:
     async def set_revision_readable(
         self, *, account_id: str, reporting_revision_id: str, readable: bool
     ) -> None:
-        async with self._lock:
+        async with self._mutation():
             existing = self._revisions.get(reporting_revision_id)
             if existing is None or existing.account_id != account_id:
                 raise LedgerConflictError("REVISION_NOT_FOUND", "no such revision for this account")
+            if existing.readable == readable:
+                return
             self._revisions[reporting_revision_id] = replace(existing, readable=readable)
+            if self._notification_state is not None:
+                obligation = self._obligations[existing.reporting_obligation_id]
+                self._dirty_status(
+                    ReportingStatusScope.for_obligation(obligation),
+                    "readability",
+                    ReportingStatusEvidence(
+                        "revision", reporting_revision_id, readable=existing.readable
+                    ),
+                    ReportingStatusEvidence("revision", reporting_revision_id, readable=readable),
+                )
 
     # -- adjustments -----------------------------------------------------
 
     async def commit_adjustment(
         self, adjustment: ReportingAdjustmentRecord
     ) -> ReportingAdjustmentRecord:
-        async with self._lock:
+        async with self._mutation():
             existing = self._adjustments.get(adjustment.reporting_adjustment_id)
             if existing is not None:
                 if existing.account_id != adjustment.account_id:
@@ -870,6 +1015,17 @@ class InMemoryReportingLedgerStore:
             )
             self._adjustments[adjustment.reporting_adjustment_id] = adjustment
             self._append(adjustment.account_id, "adjustment", adjustment.reporting_adjustment_id)
+            if self._notification_state is not None:
+                from adcp.reporting.ledger.notification_events import adjustment_event
+
+                self._record_notification(adjustment_event(adjustment, self._clock()))
+                self._dirty_status(
+                    ReportingStatusScope.for_obligation(
+                        self._obligations[revision.reporting_obligation_id]
+                    ),
+                    "adjustment",
+                    after=ReportingStatusEvidence("adjustment", adjustment.reporting_adjustment_id),
+                )
             return adjustment
 
     async def list_adjustments(
@@ -905,7 +1061,7 @@ class InMemoryReportingLedgerStore:
     async def record_consumer_status(
         self, status: ConsumerStatusRecord
     ) -> tuple[ConsumerStatusRecord, bool]:
-        async with self._lock:
+        async with self._mutation():
             identity = _consumer_status_identity(status)
             existing = self._replay(status)
             if existing is not None:
@@ -931,6 +1087,26 @@ class InMemoryReportingLedgerStore:
             self._statuses[status.reporting_status_id] = status
             self._status_identity[status.reporting_status_id] = identity
             self._append(status.account_id, "consumer_status", status.reporting_status_id)
+            if self._notification_state is not None:
+                self._dirty_status(
+                    ReportingStatusScope(
+                        status.account_id,
+                        status.generation_key,
+                        status.reporting_obligation_id,
+                        status.consumer_id,
+                    ),
+                    "consumer_status",
+                    (
+                        ReportingStatusEvidence("consumer_status", leaf.reporting_status_id)
+                        if leaf is not None
+                        else None
+                    ),
+                    ReportingStatusEvidence(
+                        "consumer_status",
+                        status.reporting_status_id,
+                        supersedes_id=status.supersedes_reporting_status_id,
+                    ),
+                )
             return status, True
 
     def _current_status_leaf(self, chain_key: tuple[Any, ...]) -> ConsumerStatusRecord | None:
@@ -988,11 +1164,15 @@ class InMemoryReportingLedgerStore:
         account_id: str,
         consumer_id: str | None,
         observed_at: datetime,
+        status_scope: ReportingStatusScope | None = None,
     ) -> ReportingIssueLifecycle:
-        async with self._lock:
+        async with self._mutation():
             key = (account_id, issue_key)
             live = self._issues.get(key)
             if live is not None and live.live:
+                if self._notification_state is not None and live.consumer_id != consumer_id:
+                    raise ReportingNotificationError("invalid_status_scope")
+                self._dirty_issue(live, status_scope, enqueue=False)
                 return live
             generation = self._issue_generations.get(key, 0) + 1
             self._issue_generations[key] = generation
@@ -1006,6 +1186,7 @@ class InMemoryReportingLedgerStore:
                 generation=generation,
             )
             self._issues[key] = record
+            self._dirty_issue(record, status_scope)
             return record
 
     async def set_issue_state(
@@ -1016,8 +1197,9 @@ class InMemoryReportingLedgerStore:
         state: Literal["acknowledged", "waived"],
         at: datetime,
         external_ref: str | None = None,
+        status_scope: ReportingStatusScope | None = None,
     ) -> ReportingIssueLifecycle:
-        async with self._lock:
+        async with self._mutation():
             if state not in {"acknowledged", "waived"}:
                 raise LedgerConflictError(
                     "ISSUE_STATE_NOT_OPERATOR_SETTABLE",
@@ -1036,21 +1218,36 @@ class InMemoryReportingLedgerStore:
                     "reopened, and a recurrence gets a new occurrence",
                 )
             check_issue_state_transition(live.issue_state, state)
+            if state == live.issue_state and (
+                not external_ref or external_ref == live.external_ref
+            ):
+                self._dirty_issue(live, status_scope, enqueue=False)
+                return live
             updated = replace(
                 live,
                 issue_state=state,
                 external_ref=external_ref or live.external_ref,
                 # Set only on the way into a retired state and never cleared:
                 # a waived issue keeps the instant it was waived.
-                retired_at=_utc(at) if state == "waived" else live.retired_at,
+                retired_at=(
+                    _utc(at)
+                    if state == "waived" and live.issue_state != "waived"
+                    else live.retired_at
+                ),
             )
             self._issues[key] = updated
+            self._dirty_issue(updated, status_scope, live)
             return updated
 
     async def retire_issue(
-        self, *, issue_key: str, account_id: str, at: datetime
+        self,
+        *,
+        issue_key: str,
+        account_id: str,
+        at: datetime,
+        status_scope: ReportingStatusScope | None = None,
     ) -> ReportingIssueLifecycle | None:
-        async with self._lock:
+        async with self._mutation():
             key = (account_id, issue_key)
             live = self._issues.get(key)
             if live is None or not live.live or not issue_is_retirable(live.issue_state):
@@ -1063,6 +1260,7 @@ class InMemoryReportingLedgerStore:
             check_issue_state_transition(live.issue_state, "resolved")
             retired = replace(live, issue_state="resolved", retired_at=_utc(at))
             self._issues[key] = retired
+            self._dirty_issue(retired, status_scope, live)
             return retired
 
     async def get_issue(self, *, issue_key: str, account_id: str) -> ReportingIssueLifecycle | None:
