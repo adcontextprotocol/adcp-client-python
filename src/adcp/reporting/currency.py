@@ -71,9 +71,19 @@ def validate_currency_units(currency: str, units: Iterable[tuple[str, str]]) -> 
         )
 
 
+def _carries(row: Mapping[str, Any], name: str) -> bool:
+    """Whether a row actually reports ``name``.
+
+    ``None`` is "not reported", not zero and not an empty label -- the same
+    reading the inline adapter's control totals take, so the two cannot
+    disagree about which cells exist.
+    """
+    return row.get(name) is not None
+
+
 def validate_row_currencies(currency: str, rows: Sequence[Mapping[str, Any]]) -> None:
     """Reject mixed/mismatched row evidence before any aggregation takes place."""
-    observed = {validate_currency(row["currency"]) for row in rows if "currency" in row}
+    observed = {validate_currency(row["currency"]) for row in rows if _carries(row, "currency")}
     if len(observed) > 1:
         raise ReportingCurrencyError(
             "MIXED_CURRENCY_SCOPE", "source rows contain multiple currencies"
@@ -112,12 +122,20 @@ def validate_monetary_content(
     ``spend`` is the built-in money column for the existing single-currency
     API. Other monetary columns/totals must be declared by the trusted pinned
     definition. Unitless values inherit that declaration, never a source hint.
+
+    A metric absent from *some* rows has no honest additive total -- the same
+    rule :func:`adcp.reporting.inline_source._control_totals` applies when it
+    declines to publish one -- so a sparse money column is checked value by
+    value and left unsummed. A published total is still reconciled exactly, and
+    a column every row carries still has to come with one. Rows are what create
+    that demand, so a period with no rows owes no derived total; ``total_units``
+    is the declaration that demands one unconditionally.
     """
     validate_currency_units(currency, (*metric_units, *total_units))
     validate_row_currencies(currency, rows)
     declared_metrics = dict(metric_units)
     declared_totals = dict(total_units)
-    if "spend" in dict(totals) or any("spend" in row for row in rows):
+    if "spend" in dict(totals) or any(_carries(row, "spend") for row in rows):
         declared_metrics.setdefault("spend", currency)
     total_values = dict(totals)
     if len(total_values) != len(totals):
@@ -129,12 +147,20 @@ def validate_monetary_content(
             )
         monetary_decimal(total_values[name])
     for name in declared_metrics:
-        if any(name not in row for row in rows) or name not in total_values:
+        values = [monetary_decimal(row[name]) for row in rows if _carries(row, name)]
+        complete = len(values) == len(rows)
+        if name not in total_values:
+            if complete and rows:
+                raise ReportingCurrencyError(
+                    "MONETARY_TOTAL_MISMATCH",
+                    f"monetary metric {name!r} needs rows and a control total",
+                )
+            continue
+        if not complete:
             raise ReportingCurrencyError(
                 "MONETARY_TOTAL_MISMATCH",
-                f"monetary metric {name!r} needs rows and a control total",
+                f"control total {name!r} cannot be reconciled against rows missing it",
             )
-        values = [monetary_decimal(row[name]) for row in rows]
         # Do not let an adopter's Decimal context round an otherwise exact sum.
         # Decimal exponents are integers after the finite check above.
         precision = sum(len(value.as_tuple().digits) for value in values) + 1

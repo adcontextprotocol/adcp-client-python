@@ -464,7 +464,21 @@ class ReportingProducer:
             )
             if obligation is None:
                 continue
-            await self.acquire_obligation(configuration, obligation, turn=turn, now=now)
+            try:
+                await self.acquire_obligation(configuration, obligation, turn=turn, now=now)
+            except ReportingCurrencyError as error:
+                # One obligation whose money cannot be interpreted -- a legacy
+                # period with no retained currency, or a source contradicting
+                # the frozen one -- is a stuck slice, not a broken worker.
+                # Raising here would starve every later period under this
+                # configuration on every turn, forever.
+                logger.info(
+                    "reporting slice failed obligation=%s code=%s",
+                    obligation.reporting_obligation_id,
+                    error.code,
+                )
+                turn.slices_failed.append(obligation.reporting_obligation_id)
+                self._note_escalation(obligation, turn, now=now)
 
     async def acquire_obligation(
         self,
@@ -491,7 +505,6 @@ class ReportingProducer:
                 "the source configuration must belong to the obligation's account and generation",
             )
         obligation = await self._stored_obligation(obligation)
-        require_frozen_currency(obligation.currency)
         turn = turn or WorkerTurn()
         now = now or self._clock()
         revisions = await self._store.list_revisions(
@@ -505,6 +518,11 @@ class ReportingProducer:
         satisfied = any(item.readable for item in revisions)
         if satisfied and not restate:
             return None
+        # Everything below needs the frozen code: the slice request carries it,
+        # the manifest is checked against it, and the revision is written under
+        # it. Gate here rather than earlier so a settled legacy obligation stays
+        # the no-op it already was instead of becoming an error on every turn.
+        require_frozen_currency(obligation.currency)
 
         finality = obligation.required_finality
         offering_id = self._offerings.offering_for(finality)

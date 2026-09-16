@@ -986,3 +986,174 @@ async def test_control_total_units_use_trusted_semantics_instead_of_guessing_fro
             object_reader=staging,
         )
         assert next(t for t in manifest.control_totals if t.name == "custom_total").unit == "GRP"
+
+
+async def _forget_currency(
+    store: ReportingLedgerStore, obligation: ReportingObligationRecord
+) -> None:
+    """Rewrite one obligation the way a pre-#1171 ledger retained it."""
+    if isinstance(store, InMemoryReportingLedgerStore):
+        store._obligations[obligation.reporting_obligation_id] = replace(obligation, currency=None)
+        return
+    trigger = "reporting_obligation_currency_immutable"
+    async with store._pool.connection() as connection:
+        await connection.execute(f"ALTER TABLE reporting_obligations DISABLE TRIGGER {trigger}")
+        await connection.execute(
+            "UPDATE reporting_obligations SET currency = NULL WHERE reporting_obligation_id = %s",
+            (obligation.reporting_obligation_id,),
+        )
+        await connection.execute(f"ALTER TABLE reporting_obligations ENABLE TRIGGER {trigger}")
+
+
+@pytest.mark.parametrize("settled", [True, False])
+async def test_an_unresolved_legacy_obligation_cannot_starve_later_periods(
+    store: ReportingLedgerStore, settled: bool
+) -> None:
+    """Upgrading must not turn one unknown period into a permanently dead worker."""
+    config = replace(configuration(), deactivated_at=END + timedelta(days=1))
+    await store.put_configuration(config)
+    source, staging = source_for(money_rows)
+    producer = producer_for(store, source, staging, currency="EUR")
+    legacy, later = await producer.close_elapsed_periods(config)
+    if settled:
+        settled_revision = await producer.acquire_obligation(config, legacy)
+        assert settled_revision is not None and settled_revision.readable
+    await _forget_currency(store, legacy)
+
+    turn = await producer.run_worker()
+
+    assert turn.leased is not None and turn.leased.generation_key == config.generation_key
+    # The period that *does* have a proven currency is published on this turn.
+    published = await store.list_revisions(
+        account_id="eur", reporting_obligation_id=later.reporting_obligation_id
+    )
+    assert [item.reporting_revision_id for item in published] == turn.revisions_committed
+    assert len(turn.revisions_committed) == 1
+    # A settled legacy period is the no-op it always was; an unfulfilled one is
+    # a stuck slice the supervisor can see, not an exception out of the turn.
+    assert turn.slices_failed == ([] if settled else [legacy.reporting_obligation_id])
+    retained = await store.get_obligation(
+        account_id="eur", reporting_obligation_id=legacy.reporting_obligation_id
+    )
+    assert retained is not None and retained.currency is None
+    assert len(
+        await store.list_revisions(
+            account_id="eur", reporting_obligation_id=legacy.reporting_obligation_id
+        )
+    ) == (1 if settled else 0)
+    # Repeating the turn stays stable rather than compounding the quarantine.
+    assert not (await producer.run_worker()).revisions_committed
+
+
+async def test_a_metric_absent_from_some_rows_needs_no_invented_total(
+    store: ReportingLedgerStore,
+) -> None:
+    """A sparse money column has no honest sum; it must not block publication.
+
+    An omitted cell and an explicit ``null`` say the same thing -- not
+    reported -- for both a money column and a row's ``currency`` label, so
+    neither an unlabeled row nor a missing price is evidence of a second
+    currency or of a measured zero.
+    """
+
+    def fetch(request: ReportingSourceSliceRequestV1) -> InlineFetchResult:
+        buy = request.coverage.constituents[0].media_buy_id
+        return InlineFetchResult(
+            rows=[
+                {"media_buy_id": buy, "impressions": 5, "spend": "0.10", "currency": "EUR"},
+                {"media_buy_id": buy, "impressions": 7, "currency": None},
+            ]
+        )
+
+    source, staging = source_for(fetch)
+    producer = producer_for(store, source, staging, currency="EUR")
+    # No pinned monetary control total: a definition that pins one is entitled
+    # to demand it, but the built-in spend handling must not invent that demand.
+    config = configuration()
+    (obligation,) = await producer.close_elapsed_periods(config)
+    revision = await producer.acquire_obligation(config, obligation)
+    assert revision is not None
+    # The inline adapter declines to publish a spend total here, and the ledger
+    # agrees rather than demanding one it cannot derive.
+    assert dict(revision.control_totals) == {"impressions": "12"}
+    content = await store.read_revision_rows(
+        account_id="eur", reporting_revision_id=revision.reporting_revision_id
+    )
+    assert [row.get("spend") for row in content.rows] == ["0.10", None]
+
+    # A total that *is* published still has to reconcile against every row.
+    # The null cell is what makes this irreconcilable: read as a zero it would
+    # sum to the published 0.10 and commit.
+    sparse = [
+        {"media_buy_id": "mb_eur", "spend": "0.10"},
+        {"media_buy_id": "mb_eur", "impressions": 7, "spend": None},
+    ]
+    unreconcilable = replace(
+        revision_for(obligation)[0],
+        reporting_revision_id="rpr_eur_sparse_total",
+        row_count=2,
+        control_totals=(("spend", "0.10"),),
+    )
+    with pytest.raises(ReportingCurrencyError, match="MONETARY_TOTAL_MISMATCH"):
+        await store.commit_revision(unreconcilable, sparse)
+
+
+async def test_row_count_is_rejected_before_money_in_both_stores(
+    store: ReportingLedgerStore,
+) -> None:
+    """Both stores answer a miscounted revision with the same code."""
+    config = configuration()
+    (obligation,) = await producer_for(
+        store, UncalledSource(), currency="EUR"
+    ).close_elapsed_periods(config)
+    revision, _ = revision_for(obligation)
+    with pytest.raises(LedgerConflictError) as caught:
+        await store.commit_revision(
+            replace(revision, control_totals=(("spend", "9.99"),)),
+            [
+                {"media_buy_id": "mb_eur", "spend": "0.10"},
+                {"media_buy_id": "mb_eur", "spend": "0.20"},
+            ],
+        )
+    assert caught.value.code == "ROW_COUNT_MISMATCH"
+
+
+@pytest.mark.parametrize("pinned_total", [False, True])
+async def test_a_period_with_no_rows_owes_no_derived_monetary_total(
+    store: ReportingLedgerStore, pinned_total: bool
+) -> None:
+    """The demand for a total is derived from rows, so an empty period owes none.
+
+    Two rows that both omit ``spend`` report no spend, and a period with no
+    rows at all reports no less than that -- deriving a demand from the empty
+    case would make zero rows stricter than two. A definition that pins a
+    monetary *control total* is the declaration meaning "always present", and
+    it still fails closed here.
+    """
+    config = configuration(pinned_currency="EUR")
+    assert config.definition is not None
+    config = replace(
+        config,
+        definition=replace(
+            config.definition,
+            monetary_control_total_units=(("spend", "EUR"),) if pinned_total else (),
+        ),
+    )
+    (obligation,) = await producer_for(
+        store, UncalledSource(), currency="EUR"
+    ).close_elapsed_periods(config)
+    revision_id = "rpr_eur_empty"
+    empty = replace(
+        revision_for(obligation)[0],
+        reporting_revision_id=revision_id,
+        row_count=0,
+        control_totals=(),
+        revision_content_sha256=revision_content_sha256(
+            reporting_revision_id=revision_id, row_count=0, control_totals=(), reporting_rows=[]
+        ),
+    )
+    if pinned_total:
+        with pytest.raises(ReportingCurrencyError, match="MONETARY_TOTAL_MISMATCH"):
+            await store.commit_revision(empty, [])
+        return
+    assert (await store.commit_revision(empty, [])).row_count == 0

@@ -1028,6 +1028,21 @@ def _coerce(answer: InlineFetchReturn, *, currency: str) -> InlineFetchResult:
     )
 
 
+def _declared_currency(holder: Any) -> Any:
+    """The currency a delivery object labels itself with, or ``None``.
+
+    ``GetMediaBuyDeliveryResponse.currency`` is deprecated in AdCP 3.2 and
+    Pydantic warns on every attribute read of it. Checking a legacy
+    response-wide label against the frozen request is deliberate -- a
+    contradiction there still has to fail the slice -- so read the stored
+    value rather than emitting a DeprecationWarning per fetch.
+    """
+    stored = getattr(holder, "__dict__", None)
+    if isinstance(stored, dict) and "currency" in stored:
+        return stored["currency"]
+    return getattr(holder, "currency", None)
+
+
 def _delivery_rows(answer: Any, *, currency: str) -> InlineFetchResult | None:
     """Project an AdCP ``GetMediaBuyDeliveryResponse`` into normalized rows.
 
@@ -1054,7 +1069,7 @@ def _delivery_rows(answer: Any, *, currency: str) -> InlineFetchResult | None:
         [
             {"currency": observed}
             for holder in currency_holders
-            if (observed := getattr(holder, "currency", None)) is not None
+            if (observed := _declared_currency(holder)) is not None
         ],
     )
     period = getattr(answer, "reporting_period", None)

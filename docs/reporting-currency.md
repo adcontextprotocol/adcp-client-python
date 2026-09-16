@@ -103,6 +103,16 @@ Non-additive/custom metrics require an appropriate seller/source validator.
 Nonmonetary control-total units are preserved; three capital letters alone do
 not make a unit a currency.
 
+A metric that some rows omit has no honest sum, because an omitted cell and a
+measured zero are different facts. That is exactly when `InlineReportingSource`
+declines to publish a control total for it, and those rows still publish: each
+reported value is checked and the column is left unsummed. A control total that
+*is* published must reconcile against every row; a column every row carries must
+come with one. A period with no rows carries no money column, so it owes no
+derived total -- `monetary_control_total_units` is the declaration meaning
+"always present", and it applies rows or none. `null` reads as "not reported"
+for both money columns and row `currency` labels.
+
 Source slice requests use only the stored currency. A manifest's currency and
 explicit monetary total units must match; its definition binding must also
 match any retained pin before staging is read or a revision is committed. The

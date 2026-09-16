@@ -663,6 +663,14 @@ class InMemoryReportingLedgerStore:
     async def commit_revision(
         self, revision: ReportingRevisionRecord, rows: Sequence[dict[str, Any]]
     ) -> ReportingRevisionRecord:
+        # Checked first, exactly as PgReportingLedgerStore does: a caller whose
+        # rows do not match its own declared count must get the same code from
+        # both stores, not whichever invariant that store happens to reach.
+        if revision.row_count != len(rows):
+            raise LedgerConflictError(
+                "ROW_COUNT_MISMATCH",
+                f"revision declares {revision.row_count} rows but {len(rows)} were supplied",
+            )
         async with self._lock:
             identity = _revision_identity(revision)
             existing = self._revisions.get(revision.reporting_revision_id)
@@ -696,11 +704,6 @@ class InMemoryReportingLedgerStore:
                 )
             if revision.supersedes_reporting_revision_id:
                 self._require_current_leaf(revision, siblings)
-            if revision.row_count != len(rows):
-                raise LedgerConflictError(
-                    "ROW_COUNT_MISMATCH",
-                    f"revision declares {revision.row_count} rows but {len(rows)} were supplied",
-                )
             self._revisions[revision.reporting_revision_id] = revision
             self._revision_identity[revision.reporting_revision_id] = identity
             self._rows[revision.reporting_revision_id] = tuple(dict(row) for row in rows)

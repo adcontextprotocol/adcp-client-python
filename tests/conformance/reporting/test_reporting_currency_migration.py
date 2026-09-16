@@ -151,7 +151,16 @@ async def test_migration_preserves_evidence_and_quarantines_unknown_currency(
             configuration(), delivery_config_id="pending", required_finality="official"
         )
         assert await producer.close_elapsed_periods(config) == []
-        for candidate in (old, pending, replace(pending, currency="EUR")):
+        # ``old`` closed officially before the upgrade: acquisition is already
+        # terminal, so it stays the no-op it was rather than becoming an error
+        # the worker loop would hit on every turn. Nothing is read or written.
+        assert (
+            await producer.acquire_obligation(
+                replace(config, delivery_config_id=old.delivery_config_id), old, restate=True
+            )
+            is None
+        )
+        for candidate in (pending, replace(pending, currency="EUR")):
             with pytest.raises(ReportingCurrencyError, match="CURRENCY_UNRESOLVED"):
                 await producer.acquire_obligation(
                     replace(config, delivery_config_id=candidate.delivery_config_id),

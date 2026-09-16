@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
+import warnings
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -570,6 +571,41 @@ async def test_a_get_media_buy_delivery_response_projects_into_rows(currency: st
     totals = {total.name: total.value for total in manifest.control_totals}
     assert totals["impressions"] == "10"
     assert totals["spend"] == "1.25"
+
+
+async def test_the_deprecated_response_currency_is_checked_without_warning() -> None:
+    """The legacy response-wide label still has to be read -- silently.
+
+    ``GetMediaBuyDeliveryResponse.currency`` is deprecated in AdCP 3.2, so a
+    naive attribute read emits a DeprecationWarning on every single fetch. An
+    adopter running warnings as errors would see that surface as an opaque
+    ``PROVIDER_TRANSIENT`` failure instead of a published slice.
+    """
+    from adcp.types import GetMediaBuyDeliveryResponse
+
+    request = redacted_snapshot_request(currency="EUR")
+    response = GetMediaBuyDeliveryResponse.model_validate(
+        {
+            "reporting_period": {
+                "start": request.period.start.isoformat(),
+                "end": request.period.source_read_cutoff_at.isoformat(),
+            },
+            "currency": "EUR",
+            "media_buy_deliveries": [
+                {
+                    "media_buy_id": "media-buy-redacted",
+                    "status": "active",
+                    "totals": {"impressions": 10, "spend": 1.25},
+                    "by_package": [],
+                }
+            ],
+        }
+    )
+    source = _source(lambda _request: response)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        result = await _run(source, request)
+    assert result.ok
 
 
 async def test_an_unrecognized_return_value_is_a_typed_failure() -> None:

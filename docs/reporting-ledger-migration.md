@@ -136,7 +136,14 @@ The options considered are:
    safe when historical evidence is unavailable.
 
 Upgraded workers refuse acquisition, snapshot restatement, new revision and
-new adjustment writes for unknown obligations with `CURRENCY_UNRESOLVED`.
+new adjustment writes for unknown obligations with `CURRENCY_UNRESOLVED`. An
+obligation that is already satisfied or officially closed has no acquisition
+work to refuse, so it stays the no-op it was before the upgrade. Inside
+`run_worker`, an unresolved obligation is reported in `WorkerTurn.slices_failed`
+and escalated like any other stuck slice: every *other* period under the same
+configuration still closes and publishes on that same turn. A direct
+`acquire_obligation` call still raises, so an operator driving one period by
+hand sees the failure.
 Exact legacy obligation/revision/adjustment replays still return the retained
 record without appending evidence. Status and content reads remain available;
 unknown obligations project `HISTORY_UNAVAILABLE`, `action_required` and
