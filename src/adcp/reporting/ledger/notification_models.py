@@ -1,11 +1,8 @@
-"""Closed logical notifications and the additive status-projector handoff.
-
-There is deliberately no status-changed event constructor. A dirty scope is
-work for a complete projector, not evidence that projected health changed.
-"""
+"""Closed logical notifications and typed, consumer-qualified status identities."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -14,18 +11,26 @@ from uuid import uuid4
 
 from pydantic import TypeAdapter, ValidationError
 
-from adcp.reporting.evidence import aware_utc, principal_reference, reporting_identifier
+from adcp.reporting.evidence import (
+    aware_utc,
+    consumer_reference,
+    principal_reference,
+    reporting_identifier,
+)
 from adcp.reporting.ledger.delivery_models import _ClosedValue, _freeze_fields
 from adcp.reporting.ledger.models import (
     ReportingConfiguration,
     ReportingConfigurationGenerationKey,
     ReportingFinality,
+    ReportingHealth,
     ReportingIssueLifecycle,
     ReportingObligationRecord,
 )
 from adcp.validation.schema_loader import get_named_validator
 
-NotificationType: TypeAlias = Literal["reporting.ledger_changed", "reporting.delivery_ready"]
+NotificationType: TypeAlias = Literal[
+    "reporting.ledger_changed", "reporting.delivery_ready", "reporting.status_changed"
+]
 FeedPurpose: TypeAlias = Literal["pacing", "analytics", "billing"]
 DirtyReason: TypeAlias = Literal[
     "configuration",
@@ -95,7 +100,7 @@ class MaterializationReady(_ClosedValue):
 
     def __post_init__(self) -> None:
         _freeze_fields(self)
-        principal_reference(self.consumer_id)
+        consumer_reference(self.consumer_id)
         for value in (
             self.reporting_obligation_id,
             self.reporting_revision_id,
@@ -107,7 +112,38 @@ class MaterializationReady(_ClosedValue):
             object.__setattr__(self, "data_through", aware_utc(self.data_through))
 
 
-NotificationCause: TypeAlias = RevisionPublished | AdjustmentPublished | MaterializationReady
+@dataclass(frozen=True, slots=True)
+class StatusChanged(_ClosedValue):
+    """One locked scope checkpoint generation; private identity stays off the wire."""
+
+    scope: ReportingStatusScope
+    health: ReportingHealth
+    fingerprint: str
+    checkpoint_generation: int
+    previous_health: ReportingHealth | None = None
+    issue_ids: tuple[str, ...] = ()
+    kind: Literal["status_changed"] = field(default="status_changed", kw_only=True)
+
+    def __post_init__(self) -> None:
+        _freeze_fields(self)
+        if (
+            self.scope.generation_key is None
+            or self.scope.feed_purpose is None
+            or self.checkpoint_generation < 1
+            or len(self.fingerprint) != 64
+            or any(c not in "0123456789abcdef" for c in self.fingerprint)
+            or tuple(sorted(set(self.issue_ids))) != self.issue_ids
+            or len(self.issue_ids) > 16
+            or (self.health in {"delayed", "action_required"} and not self.issue_ids)
+        ):
+            raise ReportingNotificationError("invalid_status_projection")
+        for issue_id in self.issue_ids:
+            reporting_identifier(issue_id)
+
+
+NotificationCause: TypeAlias = (
+    RevisionPublished | AdjustmentPublished | MaterializationReady | StatusChanged
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,9 +164,16 @@ class ReportingDomainEvent(_ClosedValue):
         if isinstance(self.cause, MaterializationReady):
             if self.cause.generation_key.account_id != self.account_id:
                 raise ReportingNotificationError()
+        if isinstance(self.cause, StatusChanged) and (
+            self.cause.scope.account_id != self.account_id
+            or self.cause.checkpoint_generation != self.cause_generation
+        ):
+            raise ReportingNotificationError()
 
     @property
     def notification_type(self) -> NotificationType:
+        if isinstance(self.cause, StatusChanged):
+            return "reporting.status_changed"
         return (
             "reporting.delivery_ready"
             if isinstance(self.cause, MaterializationReady)
@@ -144,6 +187,13 @@ class ReportingDomainEvent(_ClosedValue):
             return cause.reporting_revision_id
         if isinstance(cause, AdjustmentPublished):
             return cause.reporting_adjustment_id
+        if isinstance(cause, StatusChanged):
+            from adcp.reporting.canonical_json import canonical_json_utf8_v1
+
+            return (
+                "rpsc_"
+                + hashlib.sha256(canonical_json_utf8_v1(cause.scope.checkpoint_key)).hexdigest()
+            )
         # Structured encoding: consumers and materializations may reuse IDs.
         return json.dumps(
             [cause.consumer_id, cause.reporting_materialization_id], separators=(",", ":")
@@ -151,6 +201,8 @@ class ReportingDomainEvent(_ClosedValue):
 
     @property
     def consumer_namespace(self) -> str:
+        if isinstance(self.cause, StatusChanged):
+            return self.cause.scope.consumer_id or ""
         return self.cause.consumer_id if isinstance(self.cause, MaterializationReady) else ""
 
     @property
@@ -191,6 +243,21 @@ class ReportingDomainEvent(_ClosedValue):
                 reporting_adjustment_id=cause.reporting_adjustment_id,
                 adjusts_reporting_revision_id=cause.adjusts_reporting_revision_id,
             )
+        elif isinstance(cause, StatusChanged):
+            key = cause.scope.generation_key
+            assert key is not None
+            value.update(
+                delivery_config_id=key.delivery_config_id,
+                delivery_config_version=key.delivery_config_version,
+                feed_purpose=cause.scope.feed_purpose,
+                health=cause.health,
+            )
+            if cause.scope.reporting_obligation_id is not None:
+                value["reporting_obligation_id"] = cause.scope.reporting_obligation_id
+            if cause.previous_health is not None:
+                value["previous_health"] = cause.previous_health
+            if cause.issue_ids:
+                value["issue_ids"] = list(cause.issue_ids)
         else:
             value.update(
                 delivery_config_id=cause.generation_key.delivery_config_id,
@@ -225,11 +292,25 @@ class ReportingStatusScope(_ClosedValue):
         _freeze_fields(self)
         principal_reference(self.account_id)
         if self.consumer_id is not None:
-            principal_reference(self.consumer_id)
+            consumer_reference(self.consumer_id)
         if self.reporting_obligation_id is not None:
             reporting_identifier(self.reporting_obligation_id, maximum=255)
         if self.generation_key is not None and self.generation_key.account_id != self.account_id:
             raise ReportingNotificationError("invalid_status_scope")
+
+    @property
+    def checkpoint_key(self) -> tuple[str, str, str, int, str, str]:
+        """Six independent, non-null columns. Scope kinds never share an ID space."""
+        if self.generation_key is None:
+            raise ReportingNotificationError("invalid_status_scope")
+        return (
+            self.account_id,
+            self.consumer_id or "",
+            self.generation_key.delivery_config_id,
+            self.generation_key.delivery_config_version,
+            "obligation" if self.reporting_obligation_id is not None else "configuration",
+            self.reporting_obligation_id or "",
+        )
 
     @classmethod
     def for_obligation(
@@ -246,6 +327,26 @@ class ReportingStatusScope(_ClosedValue):
                 "feed_purpose": obligation.feed_purpose,
             }
         )
+
+
+def validate_scope_refinement(
+    existing: ReportingStatusScope | None, requested: ReportingStatusScope
+) -> None:
+    """Only fill unknown detail within the same account and consumer.
+
+    Ownership of added generation/obligation fields must additionally be checked
+    by the connection-bound store before it persists the refinement.
+    """
+    if existing is not None and (
+        existing.account_id != requested.account_id
+        or existing.consumer_id != requested.consumer_id
+        or any(
+            getattr(existing, name) is not None
+            and getattr(existing, name) != getattr(requested, name)
+            for name in ("generation_key", "reporting_obligation_id", "feed_purpose")
+        )
+    ):
+        raise ReportingNotificationError("invalid_status_scope")
 
 
 @dataclass(frozen=True, slots=True)

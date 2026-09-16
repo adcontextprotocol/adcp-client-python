@@ -107,6 +107,7 @@ async def test_populated_a_to_b_migration_is_additive_repeated_and_atomic(autoco
 
 
 async def test_concurrent_and_interrupted_b_migration_visibility():
+    pytest.importorskip("psycopg_pool")
     from psycopg_pool import AsyncConnectionPool
 
     async with isolated_reporting_pool(autocommit=True) as pool:
@@ -240,6 +241,7 @@ async def test_required_named_constraint_must_be_validated():
 
 @pytest.mark.parametrize("flag", ["indisvalid", "indisready"])
 async def test_required_unusable_index_blocks_capability_boot(flag):
+    pytest.importorskip("psycopg")
     from psycopg import sql
 
     from adcp.reporting.outbox import ReportingActivitySupport
@@ -267,6 +269,8 @@ async def test_required_unusable_index_blocks_capability_boot(flag):
 
 
 async def test_independent_pg_workers_reserve_once_and_lock_parent_before_head(monkeypatch):
+    pytest.importorskip("psycopg")
+    pytest.importorskip("psycopg_pool")
     from psycopg import AsyncConnection
     from psycopg_pool import AsyncConnectionPool
 
@@ -338,6 +342,8 @@ async def test_independent_pg_workers_reserve_once_and_lock_parent_before_head(m
 async def test_lock_wait_rechecks_expiry_before_reservation_and_rolls_back_counter(
     locked, monkeypatch
 ):
+    pytest.importorskip("psycopg")
+    pytest.importorskip("psycopg_pool")
     from psycopg import AsyncConnection
     from psycopg_pool import AsyncConnectionPool
 
@@ -418,6 +424,7 @@ async def test_lock_wait_rechecks_expiry_before_reservation_and_rolls_back_count
 
 @pytest.mark.parametrize("mutation", ["DELETE", "RESET", "RETARGET"])
 async def test_retained_head_cannot_be_deleted_reset_or_retargeted_after_purge(mutation):
+    pytest.importorskip("psycopg")
     import psycopg
 
     async with reliable_factory("postgres", notifications=True) as reliable:
@@ -464,6 +471,7 @@ async def test_retained_head_cannot_be_deleted_reset_or_retargeted_after_purge(m
     ],
 )
 async def test_sql_rejects_mutable_identity_request_and_token(field, value):
+    pytest.importorskip("psycopg")
     import psycopg
     from psycopg import sql
 

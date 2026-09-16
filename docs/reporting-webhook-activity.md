@@ -4,8 +4,10 @@ This optional layer extends the [reporting outbox](reporting-notification-outbox
 It records reporting HTTP attempts and projects them into visible
 `list_accounts.accounts[].webhook_activity`. It adds no methods to the legacy
 `AccountStore` or `ReportingLedgerStore` protocols. The generic webhook supervisor
-does not provide this reporting activity contract. Status notification projection
-and its clock sweeper remain #1168C.
+does not provide this reporting activity contract. The separate
+[#1168C status lifecycle](reporting-status-notifications.md) provides status
+projection and clock sweeps, with a closed B+C activity union when both queues
+are mounted.
 
 ## Mounting and lifecycle
 
@@ -63,6 +65,12 @@ sufficient. All present values must agree exactly. Blank, nonprintable, or
 reserved anonymous values fail, including case variants of `anonymous`, `anon`,
 `unauthenticated`, `none`, and `null`. Normalize legitimate aliases in trusted
 authentication adapters before this boundary.
+
+The C SDK also rejects recognizable credential shapes in raw and repeatedly
+percent-decoded principals, while retaining canonical BuyerAgent HTTPS URLs.
+The same URL-capable boundary applies to `ReportingDeliveryPrincipal` and
+reconciliation storage; namespace identity survives receipt/history paging and
+PostgreSQL restart. See the [status identity contract](reporting-status-notifications.md#registration-authorization-and-activity).
 
 Neither an account assertion, request body, subscriber ID, nor
 `consumer_namespace` chooses this principal. The async worker restores it from

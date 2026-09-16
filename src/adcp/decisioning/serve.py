@@ -52,6 +52,7 @@ if TYPE_CHECKING:
     from adcp.decisioning.state import StateReader
     from adcp.decisioning.task_registry import TaskRegistry
     from adcp.reporting.outbox.activity import ReportingActivityProjector
+    from adcp.reporting.outbox.status_support import ReportingStatusSupport
     from adcp.reporting.outbox.support import ReportingActivitySupport
     from adcp.signing.brand_authz import BrandAuthorizationResolver
     from adcp.webhook_sender import WebhookSender
@@ -104,6 +105,7 @@ def create_adcp_server_from_platform(
     adcp_version: str | None = None,
     account_activity: ReportingActivityProjector | None = None,
     reporting_activity: ReportingActivitySupport | None = None,
+    reporting_status: ReportingStatusSupport | None = None,
 ) -> tuple[PlatformHandler, ThreadPoolExecutor, TaskRegistry]:
     """Build the :class:`PlatformHandler` + supporting wiring from a
     :class:`DecisioningPlatform`.
@@ -406,6 +408,7 @@ def create_adcp_server_from_platform(
         adcp_version=resolved_adcp_version,
         account_activity=account_activity,
         reporting_activity=reporting_activity,
+        reporting_status=reporting_status,
     )
 
     # Boot-time fail-fast: property_list_filtering declared but no fetcher wired.
@@ -504,6 +507,7 @@ def serve(
     adcp_version: str | None = None,
     account_activity: ReportingActivityProjector | None = None,
     reporting_activity: ReportingActivitySupport | None = None,
+    reporting_status: ReportingStatusSupport | None = None,
     **serve_kwargs: Any,
 ) -> None:
     """One-call wrapper — build the handler and serve over MCP.
@@ -629,6 +633,7 @@ def serve(
         adcp_version=adcp_version,
         account_activity=account_activity,
         reporting_activity=reporting_activity,
+        reporting_status=reporting_status,
     )
 
     # Phase 1 sandbox-authority — wire the comply controller's account

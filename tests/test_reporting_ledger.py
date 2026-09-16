@@ -1309,11 +1309,8 @@ async def test_pending_is_absent_when_the_task_is_not_advertised() -> None:
     assert "consumer_status_pending" not in payload["obligation_counts"]
 
 
-async def test_a_waived_mismatch_leaves_the_view_degraded_without_publishing_it() -> None:
-    # Waiving records an off-protocol agreement to stop acting, not a finding
-    # that the reporting is fine. If it returned the period to healthy a seller
-    # could unilaterally erase a buyer-attributed disagreement, which is the
-    # one outcome this separately attributed loop exists to prevent.
+async def test_a_waived_mismatch_recovers_without_publishing_a_hidden_issue() -> None:
+    # C applies the published-issue invariant to the authoritative read itself.
     store, obligation = await _seeded()
     await store.commit_revision(*_revision(obligation))
     await ConsumerStatusIngest(store, enabled=True, clock=store._clock).handle(
@@ -1339,7 +1336,7 @@ async def test_a_waived_mismatch_leaves_the_view_degraded_without_publishing_it(
         external_ref="OPS-1234",
     )
     after = await handler.handle({"view": "summary"}, caller=CALLER)
-    assert after["health"] == "action_required"
+    assert after["health"] == "complete"
     assert [item for item in after["issues"] if item["code"] == "CONSUMER_STATUS_MISMATCH"] == []
 
 
@@ -1614,7 +1611,7 @@ async def test_an_unrelated_seller_problem_does_not_reset_the_escalation_clock()
     assert again["opened_at"] == opened["opened_at"]
 
 
-async def test_a_waived_issue_is_never_moved_to_resolved_by_the_projection() -> None:
+async def test_agreement_retires_a_waiver_and_rearms_the_condition() -> None:
     store, obligation, issue_key = await _open_mismatch_issue()
     handler = ReportingStatusHandler(store, consumer_status_enabled=True)
     await handler.handle({"view": "summary"}, caller=CALLER)
@@ -1645,12 +1642,11 @@ async def test_a_waived_issue_is_never_moved_to_resolved_by_the_projection() -> 
         consumer_id="buyer_1",
     )
     await handler.handle({"view": "summary"}, caller=CALLER)
-    # Waived stays waived: overwriting it with `resolved` would replace one
-    # readable act with a different one, and the forward-only lifecycle forbids
-    # the edge anyway.
+    # Only an agreeing observation rearms a waived condition; repeated reads
+    # of the same disagreement remain waived and do not create occurrences.
     async with store._lock:
         stored = store._issues[(ACCOUNT, issue_key)]
-    assert stored.issue_state == "waived"
+    assert stored.issue_state == "resolved"
 
 
 # -- ingest identity resolution ---------------------------------------------

@@ -72,14 +72,21 @@ one failure mode a reporting ledger must not have.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
-from collections.abc import Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
+from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
+
+_BOUND_CONNECTION: ContextVar[tuple[object, object, Any] | None] = ContextVar(
+    "reporting_bound_connection", default=None
+)
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import require_frozen_currency
@@ -108,6 +115,7 @@ from adcp.reporting.ledger.notification_models import (
     configuration_evidence,
     decode_status_scope,
     issue_evidence,
+    validate_scope_refinement,
 )
 from adcp.reporting.ledger.store import (
     LeasedConfiguration,
@@ -128,6 +136,8 @@ from adcp.reporting.ledger.store import (
 
 if TYPE_CHECKING:
     from psycopg_pool import AsyncConnectionPool
+
+    from adcp.reporting.ledger.status_projection import ReportingStatusSnapshot
 
 try:
     from psycopg_pool import AsyncConnectionPool as _AsyncConnectionPool  # noqa: F401
@@ -187,6 +197,29 @@ class PgReportingLedgerStore:
         self._clock = clock
         self._notifications_enabled = notifications
 
+    @asynccontextmanager
+    async def _connection(self) -> AsyncIterator[Any]:
+        bound = _BOUND_CONNECTION.get()
+        if bound is not None and bound[:2] == (self._pool, asyncio.current_task()):
+            yield bound[2]
+        else:
+            async with self._pool.connection() as connection:
+                yield connection
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncIterator[PgReportingLedgerStore]:
+        """Group source operations into one committed status boundary.
+
+        Pool ownership remains with the adopter. Nested turns are savepoints;
+        callers acquire accounts in canonical order when touching several.
+        """
+        async with self._connection() as connection, connection.transaction():
+            token = _BOUND_CONNECTION.set((self._pool, asyncio.current_task(), connection))
+            try:
+                yield self
+            finally:
+                _BOUND_CONNECTION.reset(token)
+
     async def create_schema(self) -> None:
         """Create or upgrade the ledger atomically, serializing concurrent boots.
 
@@ -194,22 +227,33 @@ class PgReportingLedgerStore:
         Keep the migration in that transaction, including with an autocommit
         pool, so a second process cannot observe a partially upgraded schema.
         """
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             async with connection.transaction():
-                await connection.execute(_DDL_PATH.read_text())
-                await connection.execute(_ACCOUNT_GENERATIONS_DDL_PATH.read_text())
-                await connection.execute(_CURRENCY_DDL_PATH.read_text())
-                await connection.execute(_RECONCILIATION_DDL_PATH.read_text())
-                await connection.execute(_NOTIFICATIONS_DDL_PATH.read_text())
-                await connection.execute(_ACTIVITY_DDL_PATH.read_text())
-                if self._notifications_enabled:
-                    from adcp.reporting.outbox._schema import validate_schema
+                await self._create_schema_on(connection)
 
-                    await validate_schema(connection)
+    async def _create_schema_on(self, connection: Any) -> None:
+        for path in (
+            _DDL_PATH,
+            _ACCOUNT_GENERATIONS_DDL_PATH,
+            _CURRENCY_DDL_PATH,
+            _RECONCILIATION_DDL_PATH,
+            _NOTIFICATIONS_DDL_PATH,
+            _ACTIVITY_DDL_PATH,
+        ):
+            await connection.execute(path.read_text())
+        if self._notifications_enabled:
+            from adcp.reporting.outbox._schema import validate_schema
+
+            await validate_schema(connection)
 
     async def _notification_now(self, connection: Any) -> datetime:
         from adcp.reporting.outbox.pg import database_now
 
+        if self._clock is not None:
+            # Preserve the explicit conformance clock across deferred boundary
+            # capture. Production leaves this unset and captures database time
+            # after the complete source transaction's writes, before commit.
+            await connection.execute("SELECT set_config('adcp.status_clock_override', 'on', true)")
         return await database_now(connection, self._clock)
 
     async def _record_notification(self, connection: Any, event: ReportingDomainEvent) -> None:
@@ -227,8 +271,10 @@ class PgReportingLedgerStore:
         after: ReportingStatusEvidence | None = None,
     ) -> None:
         if self._notifications_enabled:
+            from adcp.reporting.ledger.status_snapshot import settle_snapshot_on
             from adcp.reporting.outbox.pg import mark_dirty
 
+            await settle_snapshot_on(self, connection, account_id=scope.account_id)
             await mark_dirty(
                 connection, scope, reason, await self._notification_now(connection), before, after
             )
@@ -242,39 +288,41 @@ class PgReportingLedgerStore:
         *,
         enqueue: bool = True,
     ) -> None:
-        if not self._notifications_enabled:
-            return
         from dataclasses import asdict
 
-        row = await (
-            await connection.execute(
-                "SELECT scope FROM reporting_issue_status_scopes"
-                " WHERE account_id = %s AND issue_id = %s",
-                (issue.account_id, issue.issue_id),
-            )
-        ).fetchone()
+        has_scope_storage = await self._issue_scope_storage_on(connection)
+        row = (
+            await (
+                await connection.execute(
+                    "SELECT scope FROM reporting_issue_status_scopes"
+                    " WHERE account_id = %s AND issue_id = %s",
+                    (issue.account_id, issue.issue_id),
+                )
+            ).fetchone()
+            if has_scope_storage
+            else None
+        )
         existing = decode_status_scope(row[0]) if row else None
         scope = (
             status_scope
             or existing
             or ReportingStatusScope(issue.account_id, consumer_id=issue.consumer_id)
         )
-        if (
-            scope.account_id != issue.account_id
-            or scope.consumer_id != issue.consumer_id
-            or (existing is not None and scope != existing)
-        ):
+        if scope.account_id != issue.account_id or scope.consumer_id != issue.consumer_id:
             raise ReportingNotificationError("invalid_status_scope")
+        validate_scope_refinement(existing, scope)
         if scope.generation_key is not None:
             key = scope.generation_key
             configuration = await (
                 await connection.execute(
-                    "SELECT 1 FROM reporting_configurations WHERE account_id = %s"
+                    "SELECT feed_purpose FROM reporting_configurations WHERE account_id = %s"
                     " AND delivery_config_id = %s AND delivery_config_version = %s",
                     (scope.account_id, key.delivery_config_id, key.delivery_config_version),
                 )
             ).fetchone()
-            if configuration is None:
+            if configuration is None or (
+                scope.feed_purpose is not None and configuration[0] != scope.feed_purpose
+            ):
                 raise ReportingNotificationError("invalid_status_scope")
         if scope.reporting_obligation_id is not None:
             obligation = await (
@@ -298,20 +346,38 @@ class PgReportingLedgerStore:
                 or (scope.feed_purpose is not None and obligation[2] != scope.feed_purpose)
             ):
                 raise ReportingNotificationError("invalid_status_scope")
-        if not enqueue:
+        if not has_scope_storage:
+            # Default-off Core writers also support the pre-outbox schema.
+            # Migration introduces scope persistence without rewriting history.
             return
         await connection.execute(
             "INSERT INTO reporting_issue_status_scopes (account_id, issue_id, scope)"
-            " VALUES (%s,%s,%s::jsonb) ON CONFLICT (account_id, issue_id) DO NOTHING",
+            " VALUES (%s,%s,%s::jsonb) ON CONFLICT (account_id, issue_id)"
+            " DO UPDATE SET scope = EXCLUDED.scope",
             (issue.account_id, issue.issue_id, _json(asdict(scope))),
         )
-        await self._dirty_status(
-            connection,
-            scope,
-            "issue",
-            issue_evidence(before) if before else None,
-            issue_evidence(issue),
-        )
+        if enqueue and (before != issue or existing != scope):
+            await self._dirty_status(
+                connection,
+                scope,
+                "issue",
+                issue_evidence(before) if before else None,
+                issue_evidence(issue),
+            )
+
+    async def _issue_scope_storage_on(self, connection: Any) -> bool:
+        row = await (
+            await connection.execute(
+                "SELECT to_regclass(quote_ident(current_schema())"
+                " || '.reporting_issue_status_scopes')"
+            )
+        ).fetchone()
+        present = row is not None and row[0] is not None
+        if not present and self._notifications_enabled:
+            raise ReportingNotificationError(
+                "notification_schema_unready:missing:reporting_issue_status_scopes"
+            )
+        return present
 
     # -- change feed ------------------------------------------------------
 
@@ -332,6 +398,28 @@ class PgReportingLedgerStore:
         await connection.execute(
             "SELECT pg_advisory_xact_lock(hashtext(%s))", (f"adcp.reporting:{account_id}",)
         )
+        # Optional C lock order: account, boundary cursor, canonical typed scopes,
+        # then source evidence. A/B schemas and custom stores need no C methods.
+        present = await (
+            await connection.execute(
+                "SELECT to_regclass(quote_ident(current_schema()) || '.reporting_status_accounts')"
+            )
+        ).fetchone()
+        if present is not None and present[0] is not None:
+            await (
+                await connection.execute(
+                    "SELECT 1 FROM reporting_status_accounts WHERE account_id=%s FOR UPDATE",
+                    (account_id,),
+                )
+            ).fetchall()
+            await (
+                await connection.execute(
+                    "SELECT 1 FROM reporting_status_scope_checkpoints WHERE account_id=%s"
+                    " ORDER BY account_id, consumer_namespace, delivery_config_id, version,"
+                    " scope_kind, obligation_namespace FOR UPDATE",
+                    (account_id,),
+                )
+            ).fetchall()
 
     # -- configurations ---------------------------------------------------
 
@@ -340,7 +428,7 @@ class PgReportingLedgerStore:
         key = configuration.generation_key
         payload = _configuration_payload(configuration)
         digest = _fingerprint(payload)
-        async with self._pool.connection() as connection, connection.transaction():
+        async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, key.account_id)
             inserted_cursor = await connection.execute(
                 "INSERT INTO reporting_configurations"
@@ -448,24 +536,32 @@ class PgReportingLedgerStore:
     async def list_configurations(
         self, *, account_id: str, delivery_config_ids: Sequence[str] | None = None
     ) -> tuple[ReportingConfiguration, ...]:
+        async with self._connection() as connection:
+            return await self._list_configurations_on(
+                connection, account_id=account_id, delivery_config_ids=delivery_config_ids
+            )
+
+    @staticmethod
+    async def _list_configurations_on(
+        connection: Any, *, account_id: str, delivery_config_ids: Sequence[str] | None = None
+    ) -> tuple[ReportingConfiguration, ...]:
         clause = " AND delivery_config_id = ANY(%s)" if delivery_config_ids else ""
         params: list[Any] = [account_id]
         if delivery_config_ids:
             params.append(list(delivery_config_ids))
-        async with self._pool.connection() as connection:
-            rows = await (
-                await connection.execute(
-                    "SELECT delivery_config_id, delivery_config_version, account_id,"  # noqa: S608  # nosec B608
-                    " report_definition_id, reporting_profile, feed_purpose, required_finality,"
-                    " account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
-                    " automated_recovery_seconds, status_retention_days, definition,"
-                    " authoritative_party"
-                    " FROM reporting_configurations"
-                    f" WHERE account_id = %s{clause}"  # noqa: S608 — clause is a literal
-                    " ORDER BY delivery_config_id, delivery_config_version",
-                    tuple(params),
-                )
-            ).fetchall()
+        rows = await (
+            await connection.execute(
+                "SELECT delivery_config_id, delivery_config_version, account_id,"  # noqa: S608  # nosec B608
+                " report_definition_id, reporting_profile, feed_purpose, required_finality,"
+                " account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
+                " automated_recovery_seconds, status_retention_days, definition,"
+                " authoritative_party"
+                " FROM reporting_configurations"
+                f" WHERE account_id = %s{clause}"  # noqa: S608 — clause is a literal
+                " ORDER BY delivery_config_id, delivery_config_version",
+                tuple(params),
+            )
+        ).fetchall()
         return tuple(_configuration_from_row(row) for row in rows)
 
     # -- obligations ------------------------------------------------------
@@ -474,7 +570,7 @@ class PgReportingLedgerStore:
         self, obligation: ReportingObligationRecord
     ) -> ReportingObligationRecord:
         key = obligation.generation_key
-        async with self._pool.connection() as connection, connection.transaction():
+        async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, key.account_id)
             existing_row = await (
                 await connection.execute(
@@ -574,7 +670,7 @@ class PgReportingLedgerStore:
     async def get_obligation(
         self, *, account_id: str, reporting_obligation_id: str
     ) -> ReportingObligationRecord | None:
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             row = await (
                 await connection.execute(
                     f"SELECT {_OBLIGATION_COLUMNS} FROM reporting_obligations"  # noqa: S608  # nosec B608
@@ -598,7 +694,7 @@ class PgReportingLedgerStore:
             delivery_config_id=delivery_config_id,
             delivery_config_version=delivery_config_version,
         )
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             row = await (
                 await connection.execute(
                     f"SELECT {_OBLIGATION_COLUMNS} FROM reporting_obligations"  # noqa: S608  # nosec B608
@@ -628,7 +724,7 @@ class PgReportingLedgerStore:
             )
         validate_managed_revision_rows(revision, rows)
         digest = _fingerprint(_revision_payload(revision))
-        async with self._pool.connection() as connection, connection.transaction():
+        async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, revision.account_id)
             existing = await (
                 await connection.execute(
@@ -770,7 +866,7 @@ class PgReportingLedgerStore:
     async def list_revisions(
         self, *, account_id: str, reporting_obligation_id: str
     ) -> tuple[ReportingRevisionRecord, ...]:
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             rows = await (
                 await connection.execute(
                     f"SELECT {_REVISION_COLUMNS} FROM reporting_revisions"  # noqa: S608  # nosec B608
@@ -784,7 +880,7 @@ class PgReportingLedgerStore:
     async def get_revision(
         self, *, account_id: str, reporting_revision_id: str
     ) -> ReportingRevisionRecord | None:
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             row = await (
                 await connection.execute(
                     f"SELECT {_REVISION_COLUMNS} FROM reporting_revisions"  # noqa: S608  # nosec B608
@@ -803,7 +899,7 @@ class PgReportingLedgerStore:
         limit: int = 500,
     ) -> ReportingRowPage:
         offset = int(decode_cursor(cursor).get("offset", 0)) if cursor else 0
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             owned = await (
                 await connection.execute(
                     "SELECT row_count FROM reporting_revisions"
@@ -837,7 +933,7 @@ class PgReportingLedgerStore:
     async def set_revision_readable(
         self, *, account_id: str, reporting_revision_id: str, readable: bool
     ) -> None:
-        async with self._pool.connection() as connection, connection.transaction():
+        async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, account_id)
             existing = await (
                 await connection.execute(
@@ -879,7 +975,7 @@ class PgReportingLedgerStore:
     async def commit_adjustment(
         self, adjustment: ReportingAdjustmentRecord
     ) -> ReportingAdjustmentRecord:
-        async with self._pool.connection() as connection, connection.transaction():
+        async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, adjustment.account_id)
             existing = await (
                 await connection.execute(
@@ -983,7 +1079,7 @@ class PgReportingLedgerStore:
     ) -> tuple[ReportingAdjustmentRecord, ...]:
         if not reporting_revision_ids:
             return ()
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             rows = await (
                 await connection.execute(
                     f"SELECT {_ADJUSTMENT_COLUMNS} FROM reporting_adjustments"  # noqa: S608  # nosec B608
@@ -999,13 +1095,31 @@ class PgReportingLedgerStore:
     async def record_consumer_status(
         self, status: ConsumerStatusRecord
     ) -> tuple[ConsumerStatusRecord, bool]:
+        from adcp.reporting.evidence import consumer_reference
+
+        consumer_reference(status.consumer_id)
         key = status.generation_key
         digest = _fingerprint(_consumer_status_payload(status))
-        async with self._pool.connection() as connection, connection.transaction():
+        async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, status.account_id)
             replay = await self._replay(connection, status, digest)
             if replay is not None:
                 return replay, False
+
+            from adcp.reporting.ledger.status_snapshot import (
+                read_snapshot_on,
+                validate_status_evidence,
+            )
+
+            validate_status_evidence(
+                status,
+                await read_snapshot_on(
+                    connection,
+                    account_id=status.account_id,
+                    clock=self._clock,
+                    include_issue_scopes=await self._issue_scope_storage_on(connection),
+                ),
+            )
 
             leaf = await (
                 await connection.execute(
@@ -1084,6 +1198,9 @@ class PgReportingLedgerStore:
             await self._append_change(
                 connection, status.account_id, "consumer_status", status.reporting_status_id
             )
+            from adcp.reporting.ledger.status_snapshot import settle_snapshot_on
+
+            await settle_snapshot_on(self, connection, account_id=status.account_id)
             if self._notifications_enabled:
                 await self._dirty_status(
                     connection,
@@ -1103,6 +1220,19 @@ class PgReportingLedgerStore:
                 )
         return status, True
 
+    async def record_consumer_status_with_lifecycle(
+        self, status: ConsumerStatusRecord
+    ) -> tuple[ConsumerStatusRecord, bool]:
+        """Optional participant: the record and lifecycle share the source transaction."""
+        return await self.record_consumer_status(status)
+
+    async def read_status_snapshot(self, *, account_id: str) -> ReportingStatusSnapshot:
+        from adcp.reporting.ledger.status_snapshot import settle_snapshot_on
+
+        async with self._connection() as connection, connection.transaction():
+            await self._lock_account(connection, account_id)
+            return await settle_snapshot_on(self, connection, account_id=account_id)
+
     @staticmethod
     async def _get_consumer_status(
         connection: Any, status: ConsumerStatusRecord
@@ -1120,7 +1250,7 @@ class PgReportingLedgerStore:
     async def resolve_consumer_status_replay(
         self, status: ConsumerStatusRecord
     ) -> ConsumerStatusRecord | None:
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             return await self._replay(
                 connection, status, _fingerprint(_consumer_status_payload(status))
             )
@@ -1173,7 +1303,7 @@ class PgReportingLedgerStore:
                 "     AND o.period_end = s.period_end)))"
             )
             params.append(list(reporting_obligation_ids))
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             rows = await (
                 await connection.execute(
                     f"SELECT {_STATUS_COLUMNS} FROM reporting_consumer_statuses s"  # noqa: S608  # nosec B608
@@ -1195,44 +1325,78 @@ class PgReportingLedgerStore:
         observed_at: datetime,
         status_scope: ReportingStatusScope | None = None,
     ) -> ReportingIssueLifecycle:
-        async with self._pool.connection() as connection, connection.transaction():
-            # Serialize per account so two concurrent readers of one condition
-            # converge on one occurrence instead of both computing
-            # generation = N + 1 and racing the partial unique index.
+        async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, account_id)
-            live = await self._live_issue(connection, issue_key, account_id)
-            if live is not None:
-                if self._notifications_enabled and live.consumer_id != consumer_id:
-                    raise ReportingNotificationError("invalid_status_scope")
-                await self._dirty_issue(connection, live, status_scope, enqueue=False)
-                return live
-            row = await (
-                await connection.execute(
-                    "SELECT COALESCE(MAX(generation), 0) FROM reporting_issue_lifecycle"
-                    " WHERE account_id = %s AND issue_key = %s",
-                    (account_id, issue_key),
-                )
-            ).fetchone()
-            generation = int(row[0] if row else 0) + 1
-            issue_id = issue_id_for_occurrence(issue_key, generation)
-            await connection.execute(
-                "INSERT INTO reporting_issue_lifecycle"
-                " (issue_key, account_id, generation, issue_id, consumer_id, opened_at,"
-                "  issue_state)"
-                " VALUES (%s, %s, %s, %s, %s, %s, 'open')",
-                (issue_key, account_id, generation, issue_id, consumer_id, _utc(observed_at)),
-            )
-            record = ReportingIssueLifecycle(
+            return await self._ensure_issue_opened_on(
+                connection,
                 issue_key=issue_key,
-                issue_id=issue_id,
                 account_id=account_id,
                 consumer_id=consumer_id,
-                opened_at=_utc(observed_at),
-                issue_state="open",
-                generation=generation,
+                observed_at=observed_at,
+                status_scope=status_scope,
             )
-            await self._dirty_issue(connection, record, status_scope)
-            return record
+
+    async def _ensure_issue_opened_on(
+        self,
+        connection: Any,
+        *,
+        issue_key: str,
+        account_id: str,
+        consumer_id: str | None,
+        observed_at: datetime,
+        status_scope: ReportingStatusScope | None = None,
+        enqueue: bool = True,
+    ) -> ReportingIssueLifecycle:
+        live = await self._live_issue(connection, issue_key, account_id)
+        if live is not None:
+            if live.consumer_id != consumer_id:
+                raise ReportingNotificationError("invalid_status_scope")
+            await self._dirty_issue(connection, live, status_scope, live, enqueue=enqueue)
+            return live
+        row = await (
+            await connection.execute(
+                "SELECT generation, consumer_id, issue_id FROM reporting_issue_lifecycle"
+                " WHERE account_id = %s AND issue_key = %s ORDER BY generation DESC LIMIT 1",
+                (account_id, issue_key),
+            )
+        ).fetchone()
+        if row is not None:
+            if row[1] != consumer_id:
+                raise ReportingNotificationError("invalid_status_scope")
+            previous = (
+                await (
+                    await connection.execute(
+                        "SELECT scope FROM reporting_issue_status_scopes"
+                        " WHERE account_id=%s AND issue_id=%s",
+                        (account_id, row[2]),
+                    )
+                ).fetchone()
+                if await self._issue_scope_storage_on(connection)
+                else None
+            )
+            previous_scope = decode_status_scope(previous[0]) if previous else None
+            if status_scope is not None:
+                validate_scope_refinement(previous_scope, status_scope)
+            else:
+                status_scope = previous_scope
+        generation = int(row[0] if row else 0) + 1
+        issue_id = issue_id_for_occurrence(issue_key, generation)
+        await connection.execute(
+            "INSERT INTO reporting_issue_lifecycle"
+            " (issue_key, account_id, generation, issue_id, consumer_id, opened_at, issue_state)"
+            " VALUES (%s, %s, %s, %s, %s, %s, 'open')",
+            (issue_key, account_id, generation, issue_id, consumer_id, _utc(observed_at)),
+        )
+        record = ReportingIssueLifecycle(
+            issue_key=issue_key,
+            issue_id=issue_id,
+            account_id=account_id,
+            consumer_id=consumer_id,
+            opened_at=_utc(observed_at),
+            generation=generation,
+        )
+        await self._dirty_issue(connection, record, status_scope, enqueue=enqueue)
+        return record
 
     async def set_issue_state(
         self,
@@ -1253,7 +1417,7 @@ class PgReportingLedgerStore:
                 "degraded projection while the statement that caused it is still the "
                 "consumer's current leaf",
             )
-        async with self._pool.connection() as connection, connection.transaction():
+        async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, account_id)
             live = await self._live_issue(connection, issue_key, account_id)
             if live is None:
@@ -1277,9 +1441,7 @@ class PgReportingLedgerStore:
             # it: an idempotent re-acknowledge changes nothing and enqueues
             # nothing, while anything that does move retained evidence stays
             # reconstructable for the projector.
-            await self._dirty_issue(
-                connection, refreshed, status_scope, live, enqueue=refreshed != live
-            )
+            await self._dirty_issue(connection, refreshed, status_scope, live)
             return refreshed
 
     async def retire_issue(
@@ -1290,29 +1452,44 @@ class PgReportingLedgerStore:
         at: datetime,
         status_scope: ReportingStatusScope | None = None,
     ) -> ReportingIssueLifecycle | None:
-        async with self._pool.connection() as connection, connection.transaction():
+        async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, account_id)
-            live = await self._live_issue(connection, issue_key, account_id)
-            if live is None or not issue_is_retirable(live.issue_state):
-                # Convergent, and a waived issue is left alone: it is already
-                # retired from the projection by agreement, and overwriting
-                # that readable act with `resolved` is an edge the forward-only
-                # lifecycle forbids.
-                return None
-            check_issue_state_transition(live.issue_state, "resolved")
-            await connection.execute(
-                "UPDATE reporting_issue_lifecycle"
-                " SET issue_state = 'resolved', retired_at = %s"
-                " WHERE account_id = %s AND issue_key = %s AND generation = %s",
-                (_utc(at), account_id, issue_key, live.generation),
+            return await self._retire_issue_on(
+                connection,
+                issue_key=issue_key,
+                account_id=account_id,
+                at=at,
+                status_scope=status_scope,
             )
-            retired = await self._issue_row(connection, issue_key, account_id, live.generation)
-            assert retired is not None
-            await self._dirty_issue(connection, retired, status_scope, live)
-            return retired
+
+    async def _retire_issue_on(
+        self,
+        connection: Any,
+        *,
+        issue_key: str,
+        account_id: str,
+        at: datetime,
+        status_scope: ReportingStatusScope | None = None,
+        enqueue: bool = True,
+        agreeing: bool = False,
+    ) -> ReportingIssueLifecycle | None:
+        live = await self._live_issue(connection, issue_key, account_id)
+        if live is None or (not issue_is_retirable(live.issue_state) and not agreeing):
+            return None
+        if live.issue_state != "waived":
+            check_issue_state_transition(live.issue_state, "resolved")
+        await connection.execute(
+            "UPDATE reporting_issue_lifecycle SET issue_state = 'resolved', retired_at = %s"
+            " WHERE account_id = %s AND issue_key = %s AND generation = %s",
+            (_utc(at), account_id, issue_key, live.generation),
+        )
+        retired = await self._issue_row(connection, issue_key, account_id, live.generation)
+        assert retired is not None
+        await self._dirty_issue(connection, retired, status_scope, live, enqueue=enqueue)
+        return retired
 
     async def get_issue(self, *, issue_key: str, account_id: str) -> ReportingIssueLifecycle | None:
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             return await self._live_issue(connection, issue_key, account_id)
 
     @staticmethod
@@ -1345,7 +1522,7 @@ class PgReportingLedgerStore:
     # -- snapshots --------------------------------------------------------
 
     async def open_snapshot(self, *, account_id: str, filters_fingerprint: str) -> LedgerSnapshot:
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             row = await (
                 await connection.execute(
                     "SELECT COALESCE(MAX(seq), 0), now() FROM reporting_ledger_changes"
@@ -1375,9 +1552,12 @@ class PgReportingLedgerStore:
         offset: int,
         limit: int,
         changes_after_sequence: int | None,
+        feed_purposes: Sequence[str] | None = None,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
     ) -> LedgerPage:
         lower = changes_after_sequence or 0
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             rows = await (
                 await connection.execute(
                     "SELECT seq, record_kind, record_id FROM reporting_ledger_changes"
@@ -1389,11 +1569,21 @@ class PgReportingLedgerStore:
 
             selected: list[tuple[int, LedgerRecordKind, Any]] = []
             for _seq, kind, record_id in rows:
-                record = await self._resolve(connection, snapshot.account_id, kind, record_id)
+                record = await self._resolve(
+                    connection, snapshot.account_id, kind, record_id, consumer_id=consumer_id
+                )
                 if record is None:
                     continue
                 if not await self._in_scope(
-                    connection, kind, record, delivery_config_ids, media_buy_ids, consumer_id
+                    connection,
+                    kind,
+                    record,
+                    delivery_config_ids,
+                    media_buy_ids,
+                    consumer_id,
+                    feed_purposes,
+                    period_start,
+                    period_end,
                 ):
                     continue
                 selected.append((_seq, kind, record))
@@ -1415,15 +1605,26 @@ class PgReportingLedgerStore:
         )
 
     async def _resolve(
-        self, connection: Any, account_id: str, kind: str, record_id: str
+        self,
+        connection: Any,
+        account_id: str,
+        kind: str,
+        record_id: str,
+        *,
+        consumer_id: str | None = None,
     ) -> Any | None:
         if kind not in _RESOLVERS:
             return None  # Higher-tier records are never projected by Core.
         table, columns, key, builder = _RESOLVERS[kind]
+        consumer_filter = " AND consumer_id=%s" if kind == "consumer_status" else ""
+        parameters = (
+            (account_id, record_id, consumer_id) if consumer_filter else (account_id, record_id)
+        )
         row = await (
             await connection.execute(
-                f"SELECT {columns} FROM {table} WHERE account_id = %s AND {key} = %s",  # noqa: S608  # nosec B608
-                (account_id, record_id),
+                f"SELECT {columns} FROM {table} WHERE account_id = %s AND {key} = %s"  # noqa: S608  # nosec B608
+                f"{consumer_filter}",  # nosec B608
+                parameters,
             )
         ).fetchone()
         return builder(row) if row else None
@@ -1436,19 +1637,40 @@ class PgReportingLedgerStore:
         delivery_config_ids: Sequence[str] | None,
         media_buy_ids: Sequence[str] | None,
         consumer_id: str | None,
+        feed_purposes: Sequence[str] | None = None,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
     ) -> bool:
+        from adcp.reporting.ledger.status_projection import configuration_selected, period_selected
+
         if kind == "consumer_status":
             # A caller sees only its own statements; another consumer's
             # operational status is never disclosed.
-            return consumer_id is not None and record.consumer_id == consumer_id
-        obligation = await self._obligation_for(connection, kind, record)
-        if obligation is None:
+            if consumer_id is None or record.consumer_id != consumer_id:
+                return False
+            owner = record
+            start, end = record.period_start, record.period_end
+        else:
+            owner = await self._obligation_for(connection, kind, record)
+            if owner is None:
+                return False
+            start, end = owner.period.start, owner.period.end
+            if media_buy_ids and not set(media_buy_ids).intersection(owner.media_buy_ids):
+                return False
+        configurations = await self._list_configurations_on(
+            connection, account_id=record.account_id, delivery_config_ids=[owner.delivery_config_id]
+        )
+        configuration = next(
+            (c for c in configurations if c.generation_key == owner.generation_key), None
+        )
+        if configuration is None:
             return False
-        if delivery_config_ids and obligation.delivery_config_id not in set(delivery_config_ids):
-            return False
-        if media_buy_ids and not set(media_buy_ids).intersection(obligation.media_buy_ids):
-            return False
-        return True
+        return configuration_selected(
+            configuration,
+            delivery_config_ids=delivery_config_ids or (),
+            media_buy_ids=media_buy_ids or (),
+            feed_purposes=feed_purposes or (),
+        ) and period_selected(start, end, period_start, period_end)
 
     async def _obligation_for(
         self, connection: Any, kind: str, record: Any
@@ -1457,19 +1679,16 @@ class PgReportingLedgerStore:
             found: ReportingObligationRecord = record
             return found
         if kind == "revision":
-            return await self.get_obligation(
-                account_id=record.account_id,
-                reporting_obligation_id=record.reporting_obligation_id,
+            return await self._resolve(
+                connection, record.account_id, "obligation", record.reporting_obligation_id
             )
-        revision = await self.get_revision(
-            account_id=record.account_id,
-            reporting_revision_id=record.adjusts_reporting_revision_id,
+        revision = await self._resolve(
+            connection, record.account_id, "revision", record.adjusts_reporting_revision_id
         )
         if revision is None:
             return None
-        return await self.get_obligation(
-            account_id=revision.account_id,
-            reporting_obligation_id=revision.reporting_obligation_id,
+        return await self._resolve(
+            connection, revision.account_id, "obligation", revision.reporting_obligation_id
         )
 
     # -- leasing ----------------------------------------------------------
@@ -1478,7 +1697,7 @@ class PgReportingLedgerStore:
         self, *, worker_id: str, now: datetime, lease_seconds: float
     ) -> LeasedConfiguration | None:
         expires = _utc(now) + timedelta(seconds=lease_seconds)
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             row = await (
                 await connection.execute(
                     "UPDATE reporting_configurations SET lease_worker_id = %s,"
@@ -1505,7 +1724,7 @@ class PgReportingLedgerStore:
 
     async def release_period_close(self, lease: LeasedConfiguration, *, worker_id: str) -> None:
         key = lease.generation_key
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             await connection.execute(
                 "UPDATE reporting_configurations SET lease_worker_id = NULL,"
                 " lease_expires_at = NULL"

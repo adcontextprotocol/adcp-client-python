@@ -118,6 +118,7 @@ async def test_direct_and_hopwise_historical_schema_chain(source, hopwise):
 
 @pytest.mark.parametrize("autocommit", [False, True])
 async def test_concurrent_repeated_install_from_independent_pools(autocommit):
+    pytest.importorskip("psycopg_pool")
     from psycopg_pool import AsyncConnectionPool
 
     async with isolated_reporting_pool(autocommit=autocommit) as pool:
@@ -140,6 +141,7 @@ async def test_concurrent_repeated_install_from_independent_pools(autocommit):
 
 
 async def test_interrupted_autocommit_install_is_invisible_and_restart_converges():
+    pytest.importorskip("psycopg_pool")
     from psycopg_pool import AsyncConnectionPool
 
     async with isolated_reporting_pool(autocommit=True) as pool:
@@ -227,6 +229,7 @@ async def test_readiness_validates_the_installed_chain_not_table_presence(damage
 
 
 async def test_malformed_outbox_upgrade_rolls_back_entire_chain():
+    pytest.importorskip("psycopg")
     import psycopg
 
     async with isolated_reporting_pool(autocommit=True) as pool:

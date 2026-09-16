@@ -1,4 +1,4 @@
-"""Optional transactional reporting notifications. Status projection is not enabled."""
+"""Optional transactional reporting notifications, activity and status lifecycle."""
 
 from typing import TYPE_CHECKING
 
@@ -11,12 +11,14 @@ from adcp.reporting.ledger.notification_models import (
     ReportingStatusEvidence,
     ReportingStatusScope,
     RevisionPublished,
+    StatusChanged,
     validate_notification_payload,
 )
 from adcp.reporting.outbox.activity import (
     ActivityOutcome,
     ActivityRequest,
     ReportingActivityProjector,
+    ReportingActivityReader,
     ReportingActivityStore,
     WebhookAttempt,
     sanitize_activity_url,
@@ -39,13 +41,50 @@ from adcp.reporting.outbox.routing import (
     ReportingSigningResolver,
     ReportingSubscriptionResolver,
 )
+from adcp.reporting.outbox.status import (
+    ReportingStatusProjector,
+    ReportingStatusSweeper,
+    StatusBoundary,
+    StatusCheckpoint,
+    StatusDueLease,
+    StatusNotificationStore,
+    StatusTurn,
+)
+from adcp.reporting.outbox.status_memory import (
+    InMemoryReportingStatusOutbox,
+    InMemoryStatusNotificationStore,
+)
+from adcp.reporting.outbox.status_service import (
+    ReportingStatusNotificationLifecycle,
+    ReportingStatusService,
+)
+from adcp.reporting.outbox.status_support import ReportingStatusSupport
 from adcp.reporting.outbox.support import ReportingActivitySupport
 from adcp.reporting.outbox.worker import ReportingNotificationWorker
 
 if TYPE_CHECKING:
     from adcp.reporting.outbox.pg import PgReportingOutbox
+    from adcp.reporting.outbox.status_activity_pg import PgReportingActivityUnionStore
+    from adcp.reporting.outbox.status_pg import PgReportingStatusOutbox, PgStatusNotificationStore
 
 __all__ = [
+    "ReportingStatusNotificationLifecycle",
+    "ReportingStatusService",
+    "ReportingActivityReader",
+    "ReportingStatusSupport",
+    "PgReportingActivityUnionStore",
+    "StatusChanged",
+    "StatusBoundary",
+    "StatusCheckpoint",
+    "StatusDueLease",
+    "StatusNotificationStore",
+    "StatusTurn",
+    "ReportingStatusProjector",
+    "ReportingStatusSweeper",
+    "InMemoryReportingStatusOutbox",
+    "InMemoryStatusNotificationStore",
+    "PgReportingStatusOutbox",
+    "PgStatusNotificationStore",
     "ActivityOutcome",
     "ActivityRequest",
     "ReportingActivityProjector",
@@ -82,6 +121,20 @@ __all__ = [
 
 
 def __getattr__(name: str) -> object:
+    if name == "PgReportingActivityUnionStore":
+        from adcp.reporting.outbox.status_activity_pg import PgReportingActivityUnionStore
+
+        return PgReportingActivityUnionStore
+    if name in {"PgReportingStatusOutbox", "PgStatusNotificationStore"}:
+        from adcp.reporting.outbox.status_pg import (
+            PgReportingStatusOutbox,
+            PgStatusNotificationStore,
+        )
+
+        return {
+            "PgReportingStatusOutbox": PgReportingStatusOutbox,
+            "PgStatusNotificationStore": PgStatusNotificationStore,
+        }[name]
     if name == "PgReportingOutbox":
         from adcp.reporting.outbox.pg import PgReportingOutbox
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import shutil
@@ -96,6 +97,36 @@ def test_distribution_subprocess_deadline_is_bounded_and_sanitized(tmp_path):
 @pytest.fixture(scope="module")
 def built_distribution(tmp_path_factory):
     path = tmp_path_factory.mktemp("reporting-outbox-distribution")
+    cache = os.environ.get("ADCP_REPORTING_DISTRIBUTION")
+    sources = [
+        ROOT / name
+        for name in ("pyproject.toml", "setup.py", "MANIFEST.in", "README.md", "LICENSE")
+    ]
+    sources.extend(ROOT.glob("MIGRATION*.md"))
+    sources.extend(
+        p
+        for p in (ROOT / "src").rglob("*")
+        if p.is_file()
+        and not any(
+            part in {"__pycache__", "_schemas"} or part.endswith(".egg-info") for part in p.parts
+        )
+    )
+    sources.extend(p for p in (ROOT / "schemas/cache").rglob("*.json"))
+    digest = hashlib.sha256()
+    for item in sorted(sources):
+        digest.update(str(item.relative_to(ROOT)).encode())
+        digest.update(item.read_bytes())
+    fingerprint = digest.hexdigest()
+    cached = Path(cache) if cache else None
+    if cached is not None and (cached / "source.sha256").is_file():
+        assert (
+            cached / "source.sha256"
+        ).read_text().strip() == fingerprint, (
+            "distribution source changed; rebuild the release artifact"
+        )
+        wheel, source = next(cached.glob("*.whl")), next(cached.glob("*.tar.gz"))
+        print("notification_distribution stage=reuse-verified-wheel-sdist passed", flush=True)
+        return path, wheel, source
     project = path / "project"
     project.mkdir()
     for name in ("pyproject.toml", "setup.py", "MANIFEST.in", "README.md", "LICENSE"):
@@ -119,6 +150,12 @@ def built_distribution(tmp_path_factory):
         cwd=path,
     )
     wheel, source = next(dist.glob("*.whl")), next(dist.glob("*.tar.gz"))
+    if cached is not None:
+        cached.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(wheel, cached / wheel.name)
+        shutil.copy2(source, cached / source.name)
+        (cached / "source.sha256").write_text(fingerprint + "\n")
+        wheel, source = cached / wheel.name, cached / source.name
     return path, wheel, source
 
 
@@ -156,11 +193,14 @@ from adcp.reporting.outbox import (
     resolve_reporting_consumer,
 )
 from adcp.reporting.ledger import InMemoryReportingLedgerStore, ReportingProducer
+from adcp.reporting.ledger import ReportingStatusSnapshot, StatusProjectionInput, project_status_scope
+from adcp.reporting.outbox import ReportingStatusNotificationLifecycle, ReportingStatusService, StatusChanged
 from adcp.validation.schema_loader import get_named_validator
-import inspect
+import inspect, sys
 
 assert importlib.util.find_spec("psycopg") is None
 assert importlib.util.find_spec("psycopg_pool") is None
+assert "adcp.reporting.outbox.status_pg" not in sys.modules
 assert "installed" in str(Path(adcp.__file__))
 assert "notifications" not in inspect.signature(ReportingProducer).parameters
 assert not hasattr(InMemoryReportingLedgerStore(), "commit_materialization")
@@ -173,9 +213,22 @@ except ImportError as error:
     assert "adcp[pg]" in str(error), str(error)
 else:
     raise AssertionError("PgReportingOutbox must raise the [pg] install hint")
+from adcp.reporting.outbox import PgStatusNotificationStore, PgReportingStatusOutbox, PgReportingActivityUnionStore
+for constructor in (lambda: PgStatusNotificationStore(None),
+                    lambda: PgReportingStatusOutbox(pool=None),
+                    lambda: PgReportingActivityUnionStore(None, None)):
+    try:
+        constructor()
+    except ImportError as error:
+        assert "adcp[pg]" in str(error)
+    else:
+        raise AssertionError("every C PG constructor must explain its extra")
 assert files("adcp.reporting.ledger").joinpath("reporting_notification_outbox.sql").is_file()
 assert files("adcp.reporting.ledger").joinpath("reporting_webhook_activity.sql").is_file()
 assert files("adcp.reporting.outbox").joinpath("required_schema.json").is_file()
+assert files("adcp.reporting.outbox").joinpath("required_status_schema.json").is_file()
+assert files("adcp.reporting.ledger").joinpath("reporting_status_notifications.sql").is_file()
+assert get_named_validator("core/reporting-status-changed-webhook.json", version="3.2.0-rc.3") is not None
 assert get_named_validator("core/webhook-activity-record.json", version="3.2.0-rc.3") is not None
 assert (
     get_named_validator("core/reporting-ledger-changed-webhook.json", version="3.2.0-rc.3")
@@ -194,7 +247,11 @@ def test_wheel_and_sdist_contain_exact_complete_sql_chain(built_distribution):
     _, wheel, source = built_distribution
     with zipfile.ZipFile(wheel) as archive, tarfile.open(source) as tar:
         prefix = tar.getnames()[0].split("/")[0]
-        for name in (*CHAIN, "reporting_webhook_activity.sql"):
+        for name in (
+            *CHAIN,
+            "reporting_webhook_activity.sql",
+            "reporting_status_notifications.sql",
+        ):
             expected = (ROOT / "src" / "adcp" / "reporting" / "ledger" / name).read_bytes()
             assert archive.read(f"adcp/reporting/ledger/{name}") == expected
             member = tar.extractfile(f"{prefix}/src/adcp/reporting/ledger/{name}")
@@ -206,6 +263,10 @@ def test_wheel_and_sdist_contain_exact_complete_sql_chain(built_distribution):
         expected = (ROOT / "src/adcp/reporting/outbox/required_schema.json").read_bytes()
         assert archive.read("adcp/reporting/outbox/required_schema.json") == expected
         member = tar.extractfile(f"{prefix}/src/adcp/reporting/outbox/required_schema.json")
+        assert member is not None and member.read() == expected
+        expected = (ROOT / "src/adcp/reporting/outbox/required_status_schema.json").read_bytes()
+        assert archive.read("adcp/reporting/outbox/required_status_schema.json") == expected
+        member = tar.extractfile(f"{prefix}/src/adcp/reporting/outbox/required_status_schema.json")
         assert member is not None and member.read() == expected
 
 
@@ -243,6 +304,7 @@ async def test_installed_pg_extra_migrates_commits_and_restarts(installed_distri
         script = r"""
 import asyncio, json, sys
 from datetime import datetime, timedelta
+from dataclasses import replace
 from importlib.resources import files
 from pydantic import TypeAdapter
 from psycopg_pool import AsyncConnectionPool
@@ -256,6 +318,7 @@ from adcp.reporting.outbox import (
     ActivityOutcome, ActivityRequest, PgReportingOutbox, ReportingEnvelopeCipher,
     ReportingLegacyAuthentication, ReportingNotificationSubscription,
     ReportingNotificationWorker, ReportingActivityProjector, ReportingActivitySupport,
+    PgStatusNotificationStore,
 )
 from adcp.reporting.outbox._schema import schema_objects
 
@@ -354,6 +417,41 @@ async def main():
             account_id="other", consumer_id=subscription.principal_id,
         ) == ()
         assert await outbox.list_events(account_id="other") == ()
+        status_ledger = PgReportingReconciliationStore(pool=fresh, clock=clock, notifications=True)
+        status = PgStatusNotificationStore(status_ledger)
+        await status.create_schema()
+        await status.baseline(account_id="acct_a")
+        await status_ledger.set_revision_readable(account_id="acct_a",
+            reporting_revision_id=values["revision"]["reporting_revision_id"], readable=False)
+        assert (await status.project_one(account_id="acct_a")).events == 2
+        status_events = await status.outbox.list_events(account_id="acct_a")
+        status_subscription = replace(subscription, event_types=("reporting.status_changed",))
+        class StatusConfigurations:
+            async def list_active(self, *, account_id, notification_type):
+                return (status_subscription,) if account_id == status_subscription.account_id else ()
+            async def get_active(self, *, account_id, subscriber_id, notification_type):
+                return status_subscription if account_id == status_subscription.account_id else None
+        status_worker = ReportingNotificationWorker(outbox=status.outbox,
+            subscriptions=StatusConfigurations(), cipher=cipher, clock=clock, activity=status.outbox)
+        assert await status_worker.expand_one(account_id="acct_a")
+        status_lease = await status.outbox.claim_delivery(account_id="acct_a", now=clock(), lease_seconds=60)
+        status_body = cipher.open(status_lease.delivery).prepared
+        assert json.loads(status_body.body)["notification_type"] == "reporting.status_changed"
+        assert await status.outbox.finish_delivery(status_lease, now=clock(), state="pending", retry_at=clock())
+    async with AsyncConnectionPool(values["conninfo"], kwargs=values["kwargs"], open=False) as c_restart:
+        ledger = PgReportingReconciliationStore(pool=c_restart, clock=clock, notifications=True)
+        status = PgStatusNotificationStore(ledger)
+        await status.create_schema()
+        assert await status.baseline_ready(account_id="acct_a")
+        assert not (await status.project_one(account_id="acct_a")).did_work
+        assert await status.outbox.list_events(account_id="acct_a") == status_events
+        status_lease = await status.outbox.claim_delivery(account_id="acct_a", now=clock(), lease_seconds=60)
+        retry = cipher.open(status_lease.delivery).prepared
+        assert retry.body == status_body.body and retry.idempotency_key == status_body.idempotency_key
+        assert await status.outbox.finish_delivery(status_lease, now=clock(), state="complete")
+        assert await status.outbox.reemit(account_id="acct_a", consumer_namespace="",
+            notification_id=status_events[0].notification_id, now=clock()) == 2
+        assert await status.outbox.list_events(account_id="acct_a") == status_events
     print("installed-pg-restart-ok")
 
 

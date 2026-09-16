@@ -37,10 +37,12 @@ import hashlib
 import json
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from copy import deepcopy
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
+from uuid import uuid4
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import (
@@ -70,10 +72,16 @@ from adcp.reporting.ledger.notification_models import (
     ReportingStatusScope,
     configuration_evidence,
     issue_evidence,
+    validate_scope_refinement,
 )
 
 if TYPE_CHECKING:
+    from adcp.reporting.ledger.status_projection import ReportingStatusSnapshot
     from adcp.reporting.outbox.memory import NotificationState
+
+_MEMORY_TRANSACTION: ContextVar[tuple[int, object] | None] = ContextVar(
+    "reporting_memory_transaction", default=None
+)
 
 __all__ = [
     "InMemoryReportingLedgerStore",
@@ -614,8 +622,8 @@ class InMemoryReportingLedgerStore:
         self._revision_identity: dict[str, str] = {}
         self._rows: dict[str, tuple[dict[str, Any], ...]] = {}
         self._adjustments: dict[str, ReportingAdjustmentRecord] = {}
-        self._statuses: dict[str, ConsumerStatusRecord] = {}
-        self._status_identity: dict[str, str] = {}
+        self._statuses: dict[tuple[str, str, str], ConsumerStatusRecord] = {}
+        self._status_identity: dict[tuple[str, str, str], str] = {}
         self._changes: list[tuple[int, str, LedgerRecordKind, str, datetime]] = []
         self._sequence = 0
         self._leases: dict[ReportingConfigurationGenerationKey, tuple[str, datetime]] = {}
@@ -628,11 +636,14 @@ class InMemoryReportingLedgerStore:
         # high-water mark so a recurrence never reuses an id.
         self._issues: dict[tuple[str, str], ReportingIssueLifecycle] = {}
         self._issue_generations: dict[tuple[str, str], int] = {}
+        self._issue_status_scopes: dict[tuple[str, str], ReportingStatusScope] = {}
         self._notification_state: NotificationState | None = None
+        self._status_notification_state: Any = None
         if notifications:
             from adcp.reporting.outbox.memory import NotificationState
 
             self._notification_state = NotificationState()
+            self._notification_state.issue_scopes = self._issue_status_scopes
 
     @asynccontextmanager
     async def _mutation(self) -> AsyncIterator[None]:
@@ -641,7 +652,12 @@ class InMemoryReportingLedgerStore:
         Default-off stores retain their original lock cost. The reference
         in-memory transaction copies retained values only when opted in.
         """
+        owner = (id(self), asyncio.current_task())
+        if _MEMORY_TRANSACTION.get() == owner:
+            yield
+            return
         async with self._lock:
+            token = _MEMORY_TRANSACTION.set(owner)
             before = (
                 deepcopy(
                     {
@@ -654,11 +670,37 @@ class InMemoryReportingLedgerStore:
                 else None
             )
             try:
+                dirty_start = len(self._notification_state.dirty) if self._notification_state else 0
                 yield
+                if self._notification_state is not None:
+                    from adcp.reporting.ledger.status_snapshot import settle_memory_snapshot
+                    from adcp.reporting.outbox.status import StatusBoundary
+
+                    dirty = tuple(self._notification_state.dirty[dirty_start:])
+                    transaction_id = str(uuid4())
+                    for account_id in sorted({d.scope.account_id for d in dirty}):
+                        snapshot = settle_memory_snapshot(self, account_id)
+                        account_dirty = tuple(d for d in dirty if d.scope.account_id == account_id)
+                        self._notification_state.boundaries.append(
+                            StatusBoundary(
+                                transaction_id,
+                                max(d.sequence for d in account_dirty),
+                                account_dirty,
+                                snapshot,
+                            )
+                        )
             except BaseException:
                 if before is not None:
                     vars(self).update(before)
                 raise
+            finally:
+                _MEMORY_TRANSACTION.reset(token)
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncIterator[InMemoryReportingLedgerStore]:
+        """Group several source mutations into one atomic, replayable boundary."""
+        async with self._mutation():
+            yield self
 
     def _record_notification(self, event: ReportingDomainEvent) -> None:
         if self._notification_state is not None:
@@ -682,23 +724,22 @@ class InMemoryReportingLedgerStore:
         *,
         enqueue: bool = True,
     ) -> None:
-        if self._notification_state is None:
-            return
         key = (issue.account_id, issue.issue_id)
-        existing = self._notification_state.issue_scopes.get(key)
+        existing = self._issue_status_scopes.get(key)
         scope = (
             status_scope
             or existing
             or ReportingStatusScope(issue.account_id, consumer_id=issue.consumer_id)
         )
-        if (
-            scope.account_id != issue.account_id
-            or scope.consumer_id != issue.consumer_id
-            or (existing is not None and scope != existing)
-        ):
+        if scope.account_id != issue.account_id or scope.consumer_id != issue.consumer_id:
             raise ReportingNotificationError("invalid_status_scope")
-        if scope.generation_key is not None and scope.generation_key not in self._configurations:
-            raise ReportingNotificationError("invalid_status_scope")
+        validate_scope_refinement(existing, scope)
+        if scope.generation_key is not None:
+            configuration = self._configurations.get(scope.generation_key)
+            if configuration is None or (
+                scope.feed_purpose is not None and configuration.feed_purpose != scope.feed_purpose
+            ):
+                raise ReportingNotificationError("invalid_status_scope")
         if scope.reporting_obligation_id is not None:
             obligation = self._obligations.get(scope.reporting_obligation_id)
             if (
@@ -713,12 +754,11 @@ class InMemoryReportingLedgerStore:
                 )
             ):
                 raise ReportingNotificationError("invalid_status_scope")
-        if not enqueue:
-            return
-        self._notification_state.issue_scopes[key] = scope
-        self._dirty_status(
-            scope, "issue", issue_evidence(before) if before else None, issue_evidence(issue)
-        )
+        self._issue_status_scopes[key] = scope
+        if enqueue and (before != issue or existing != scope):
+            self._dirty_status(
+                scope, "issue", issue_evidence(before) if before else None, issue_evidence(issue)
+            )
 
     async def create_schema(self) -> None:
         return None
@@ -1050,10 +1090,11 @@ class InMemoryReportingLedgerStore:
             return self._replay(status)
 
     def _replay(self, status: ConsumerStatusRecord) -> ConsumerStatusRecord | None:
-        existing = self._statuses.get(status.reporting_status_id)
+        key = (status.account_id, status.consumer_id, status.reporting_status_id)
+        existing = self._statuses.get(key)
         if existing is None:
             return None
-        if self._status_identity[status.reporting_status_id] != _consumer_status_identity(status):
+        if self._status_identity[key] != _consumer_status_identity(status):
             raise LedgerConflictError(
                 "STATUS_IDENTITY_CONFLICT",
                 f"reporting_status_id {status.reporting_status_id} was already "
@@ -1064,11 +1105,20 @@ class InMemoryReportingLedgerStore:
     async def record_consumer_status(
         self, status: ConsumerStatusRecord
     ) -> tuple[ConsumerStatusRecord, bool]:
+        from adcp.reporting.evidence import consumer_reference
+
+        consumer_reference(status.consumer_id)
         async with self._mutation():
             identity = _consumer_status_identity(status)
             existing = self._replay(status)
             if existing is not None:
                 return existing, False
+            from adcp.reporting.ledger.status_snapshot import (
+                memory_snapshot,
+                validate_status_evidence,
+            )
+
+            validate_status_evidence(status, memory_snapshot(self, status.account_id))
             leaf = self._current_status_leaf(status.chain_key)
             if status.supersedes_reporting_status_id:
                 if (
@@ -1080,16 +1130,22 @@ class InMemoryReportingLedgerStore:
                         "supersedes_reporting_status_id must name this chain's current leaf; "
                         "a stale pointer would let a successful retry erase a recorded outage",
                     )
-                self._statuses[leaf.reporting_status_id] = replace(leaf, superseded=True)
+                self._statuses[(leaf.account_id, leaf.consumer_id, leaf.reporting_status_id)] = (
+                    replace(leaf, superseded=True)
+                )
             elif leaf is not None:
                 raise LedgerConflictError(
                     "STATUS_SUPERSEDES_REQUIRED",
                     "this chain already has a current statement; a new statement must "
                     "explicitly supersede it",
                 )
-            self._statuses[status.reporting_status_id] = status
-            self._status_identity[status.reporting_status_id] = identity
+            key = (status.account_id, status.consumer_id, status.reporting_status_id)
+            self._statuses[key] = status
+            self._status_identity[key] = identity
             self._append(status.account_id, "consumer_status", status.reporting_status_id)
+            from adcp.reporting.ledger.status_snapshot import settle_memory_snapshot
+
+            settle_memory_snapshot(self, status.account_id)
             if self._notification_state is not None:
                 self._dirty_status(
                     ReportingStatusScope(
@@ -1111,6 +1167,17 @@ class InMemoryReportingLedgerStore:
                     ),
                 )
             return status, True
+
+    async def record_consumer_status_with_lifecycle(
+        self, status: ConsumerStatusRecord
+    ) -> tuple[ConsumerStatusRecord, bool]:
+        return await self.record_consumer_status(status)
+
+    async def read_status_snapshot(self, *, account_id: str) -> ReportingStatusSnapshot:
+        from adcp.reporting.ledger.status_snapshot import settle_memory_snapshot
+
+        async with self._mutation():
+            return settle_memory_snapshot(self, account_id)
 
     def _current_status_leaf(self, chain_key: tuple[Any, ...]) -> ConsumerStatusRecord | None:
         for item in self._statuses.values():
@@ -1172,10 +1239,16 @@ class InMemoryReportingLedgerStore:
         async with self._mutation():
             key = (account_id, issue_key)
             live = self._issues.get(key)
-            if live is not None and live.live:
-                if self._notification_state is not None and live.consumer_id != consumer_id:
+            if live is not None:
+                if live.consumer_id != consumer_id:
                     raise ReportingNotificationError("invalid_status_scope")
-                self._dirty_issue(live, status_scope, enqueue=False)
+                previous_scope = self._issue_status_scopes.get((account_id, live.issue_id))
+                if status_scope is not None:
+                    validate_scope_refinement(previous_scope, status_scope)
+                else:
+                    status_scope = previous_scope
+            if live is not None and live.live:
+                self._dirty_issue(live, status_scope, live)
                 return live
             generation = self._issue_generations.get(key, 0) + 1
             self._issue_generations[key] = generation
@@ -1233,7 +1306,7 @@ class InMemoryReportingLedgerStore:
             # it: an idempotent re-acknowledge changes nothing and enqueues
             # nothing, while anything that does move retained evidence stays
             # reconstructable for the projector.
-            self._dirty_issue(updated, status_scope, live, enqueue=updated != live)
+            self._dirty_issue(updated, status_scope, live)
             return updated
 
     async def retire_issue(
@@ -1294,6 +1367,9 @@ class InMemoryReportingLedgerStore:
         offset: int,
         limit: int,
         changes_after_sequence: int | None,
+        feed_purposes: Sequence[str] | None = None,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
     ) -> LedgerPage:
         lower = changes_after_sequence or 0
         selected = [
@@ -1306,10 +1382,19 @@ class InMemoryReportingLedgerStore:
 
         records: list[tuple[int, LedgerRecordKind, Any]] = []
         for sequence, _account, kind, record_id, _committed in sorted(selected):
-            record = self._resolve(kind, record_id)
+            record = self._resolve(kind, record_id, snapshot.account_id, consumer_id)
             if record is None or record.account_id != snapshot.account_id:
                 continue
-            if not self._in_scope(kind, record, config_filter, media_buy_filter, consumer_id):
+            if not self._in_scope(
+                kind,
+                record,
+                config_filter,
+                media_buy_filter,
+                consumer_id,
+                feed_purposes,
+                period_start,
+                period_end,
+            ):
                 continue
             records.append((sequence, kind, record))
 
@@ -1329,7 +1414,9 @@ class InMemoryReportingLedgerStore:
             ),
         )
 
-    def _resolve(self, kind: str, record_id: str) -> Any:
+    def _resolve(
+        self, kind: str, record_id: str, account_id: str = "", consumer_id: str | None = None
+    ) -> Any:
         if kind == "obligation":
             return self._obligations.get(record_id)
         if kind == "revision":
@@ -1337,7 +1424,7 @@ class InMemoryReportingLedgerStore:
         if kind == "adjustment":
             return self._adjustments.get(record_id)
         if kind == "consumer_status":
-            return self._statuses.get(record_id)
+            return self._statuses.get((account_id, consumer_id or "", record_id))
         # Optional delivery records have their own retained snapshot reader.
         # Core status must not count or expose them, even in a shared ledger.
         return None
@@ -1349,13 +1436,46 @@ class InMemoryReportingLedgerStore:
         config_filter: set[str] | None,
         media_buy_filter: set[str] | None,
         consumer_id: str | None,
+        feed_purposes: Sequence[str] | None = None,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
     ) -> bool:
+        from adcp.reporting.ledger.status_projection import configuration_selected, period_selected
+
         if kind == "consumer_status":
             # A caller sees only its own statements; another consumer's
             # operational status is not disclosed.
-            return consumer_id is not None and record.consumer_id == consumer_id
+            if consumer_id is None or record.consumer_id != consumer_id:
+                return False
+            configuration = self._configurations.get(record.generation_key)
+            return (
+                configuration is not None
+                and configuration_selected(
+                    configuration,
+                    delivery_config_ids=tuple(config_filter or ()),
+                    media_buy_ids=tuple(media_buy_filter or ()),
+                    feed_purposes=feed_purposes or (),
+                )
+                and period_selected(
+                    record.period_start, record.period_end, period_start, period_end
+                )
+            )
         obligation = self._obligation_for(kind, record)
         if obligation is None:
+            return False
+        configuration = self._configurations.get(obligation.generation_key)
+        if (
+            configuration is None
+            or not configuration_selected(
+                configuration,
+                delivery_config_ids=tuple(config_filter or ()),
+                media_buy_ids=tuple(media_buy_filter or ()),
+                feed_purposes=feed_purposes or (),
+            )
+            or not period_selected(
+                obligation.period.start, obligation.period.end, period_start, period_end
+            )
+        ):
             return False
         if config_filter is not None and obligation.delivery_config_id not in config_filter:
             return False

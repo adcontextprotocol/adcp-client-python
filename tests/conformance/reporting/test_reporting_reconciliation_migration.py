@@ -435,6 +435,7 @@ async def test_upgrade_from_initial_reconciliation_preserves_records_heads_and_c
 
 @pytest.mark.parametrize("damage", ["missing_attempt", "missing_feed"])
 async def test_initial_upgrade_rejects_orphaned_outcome_without_repair(damage: str) -> None:
+    pytest.importorskip("psycopg")
     import psycopg
 
     async with isolated_reporting_pool() as pool:

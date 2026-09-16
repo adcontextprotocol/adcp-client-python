@@ -165,6 +165,14 @@ from adcp.reporting.ledger.status import (
     ReportingStatusHandler,
     ReportingStatusView,
 )
+from adcp.reporting.ledger.status_projection import (
+    ReportingStatusSnapshot,
+    StatusLifecycleIntent,
+    StatusProjectionInput,
+    StatusProjectionResult,
+    project_status_scope,
+)
+from adcp.reporting.ledger.status_snapshot import ReportingStatusParticipant
 from adcp.reporting.ledger.store import (
     InMemoryReportingLedgerStore,
     LeasedConfiguration,
@@ -180,8 +188,20 @@ from adcp.reporting.ledger.store import (
 if TYPE_CHECKING:
     from adcp.reporting.ledger.delivery_pg import PgReportingReconciliationStore
     from adcp.reporting.ledger.pg import PgReportingLedgerStore
+    from adcp.reporting.ledger.status_server import (
+        ReportingStatusCallerResolver,
+        ReportingStatusNotificationHandler,
+    )
 
 __all__ = [
+    "ReportingStatusCallerResolver",
+    "ReportingStatusNotificationHandler",
+    "ReportingStatusSnapshot",
+    "StatusLifecycleIntent",
+    "StatusProjectionInput",
+    "StatusProjectionResult",
+    "project_status_scope",
+    "ReportingStatusParticipant",
     "ConsumerMismatch",
     "ConsumerStatusDisabledError",
     "ConsumerStatusIngest",
@@ -283,7 +303,7 @@ __all__ = [
 
 
 def __getattr__(name: str) -> object:
-    """Load the Postgres store lazily so ``psycopg`` stays an optional extra."""
+    """Keep core evidence imports independent of database and server adapters."""
     if name == "PgReportingLedgerStore":
         from adcp.reporting.ledger.pg import PgReportingLedgerStore
 
@@ -292,4 +312,8 @@ def __getattr__(name: str) -> object:
         from adcp.reporting.ledger.delivery_pg import PgReportingReconciliationStore
 
         return PgReportingReconciliationStore
+    if name in {"ReportingStatusCallerResolver", "ReportingStatusNotificationHandler"}:
+        from adcp.reporting.ledger import status_server
+
+        return getattr(status_server, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

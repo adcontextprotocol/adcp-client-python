@@ -114,7 +114,9 @@ class ReportingDeliveryPrincipal(_ClosedValue):
     def __post_init__(self) -> None:
         _freeze_fields(self)
         principal_reference(self.account_id)
-        principal_reference(self.consumer_id)
+        from adcp.reporting.evidence import consumer_reference
+
+        consumer_reference(self.consumer_id)
 
 
 @dataclass(frozen=True, slots=True)
