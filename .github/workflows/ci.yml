@@ -88,7 +88,7 @@ jobs:
 
       - name: Run adopter type-check suite
         if: matrix.python-version == '3.12'
-        run: mypy --strict tests/type_checks/
+        run: mypy --strict tests/type_checks/ examples/reporting_webhook_activity.py
 
       - name: Enforce adopter type-check fixture contract
         if: matrix.python-version == '3.12'
@@ -126,6 +126,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+
+      - name: Fetch reviewed reporting baseline for rolling binary tests
+        timeout-minutes: 1
+        run: git fetch --no-tags --depth=1 origin 21bf443e7d850d1800ec8a6f2e4abec1c8f85541
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6

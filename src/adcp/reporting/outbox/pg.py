@@ -24,6 +24,7 @@ from adcp.reporting.ledger.notification_models import (
     dirty_storage,
     event_storage,
 )
+from adcp.reporting.outbox._activity_pg import _PgReportingActivity
 from adcp.reporting.outbox.memory import validate_finish
 from adcp.reporting.outbox.models import (
     DeliveryBinding,
@@ -165,14 +166,15 @@ class _LostLeaseError(Exception):
     pass
 
 
-class PgReportingOutbox:
+class PgReportingOutbox(_PgReportingActivity):
     """Caller-owned pool, database time, expiring random tokens, fenced writes.
 
     ``now`` arguments implement the shared memory protocol. In PostgreSQL they
     never override the database clock; only the explicit constructor ``clock``
     seam does, for deterministic tests. Retry *durations* are applied to DB time.
     Claims are counted for diagnostics, never as an HTTP retry limit. Evidence
-    and prepared bindings are retained indefinitely; this slice has no purge.
+    and prepared bindings are retained indefinitely. The additive activity
+    participant purges only completed HTTP history beyond its retention floor.
     """
 
     def __init__(
@@ -418,12 +420,13 @@ class PgReportingOutbox:
             row = await (
                 await conn.execute(
                     "SELECT 1 FROM reporting_notification_deliveries WHERE account_id = %s"
-                    " AND consumer_namespace = %s"
+                    " AND consumer_namespace = %s AND principal_id = %s"
                     " AND delivery_id = %s AND state = 'leased' AND lease_token = %s"
                     " AND lease_expires_at > %s",
                     (
                         binding.account_id,
                         binding.consumer_namespace,
+                        binding.principal_id,
                         binding.delivery_id,
                         lease.token,
                         at,
@@ -450,7 +453,7 @@ class PgReportingOutbox:
                 "UPDATE reporting_notification_deliveries SET state = %s, error_code = %s,"
                 " due_at = %s, lease_token = NULL, lease_expires_at = NULL"
                 " WHERE account_id = %s AND delivery_id = %s AND state = 'leased'"
-                " AND consumer_namespace = %s"
+                " AND consumer_namespace = %s AND principal_id = %s"
                 " AND lease_token = %s AND lease_expires_at > %s",
                 (
                     state,
@@ -459,6 +462,7 @@ class PgReportingOutbox:
                     binding.account_id,
                     binding.delivery_id,
                     binding.consumer_namespace,
+                    binding.principal_id,
                     lease.token,
                     at,
                 ),

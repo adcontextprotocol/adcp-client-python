@@ -258,6 +258,8 @@ if TYPE_CHECKING:
     from adcp.decisioning.state import StateReader
     from adcp.decisioning.task_registry import TaskRegistry
     from adcp.decisioning.types import Account
+    from adcp.reporting.outbox.activity import ReportingActivityProjector
+    from adcp.reporting.outbox.support import ReportingActivitySupport
     from adcp.webhook_sender import WebhookSender
     from adcp.webhook_supervisor import WebhookDeliverySupervisor
 
@@ -1034,6 +1036,13 @@ def _build_list_accounts_filter(params: Any) -> dict[str, Any]:
     checks. Mirrors the JS-side ``buildListAccountsFilter`` shape.
     """
     filter_dict: dict[str, Any] = {}
+    account = getattr(params, "account", None)
+    if account is not None:
+        filter_dict["account"] = (
+            account.model_dump(mode="json", exclude_none=True)
+            if hasattr(account, "model_dump")
+            else account
+        )
     status = getattr(params, "status", None)
     if status is not None:
         filter_dict["status"] = status.value if hasattr(status, "value") else status
@@ -1414,6 +1423,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         advertise_all: bool = False,
         timed_sync_get_products_limit: int | None = None,
         adcp_version: str | None = None,
+        account_activity: ReportingActivityProjector | None = None,
+        reporting_activity: ReportingActivitySupport | None = None,
     ) -> None:
         super().__init__()
         # ``None`` resolves to the protocol version bundled with this SDK, so
@@ -1421,6 +1432,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # unnegotiated dispatch.
         self._adcp_version = resolve_adcp_version(adcp_version)
         self._platform = platform
+        self._account_activity = account_activity
+        self._reporting_activity = reporting_activity
         self._executor = executor
         self._registry = registry
         self._state_reader = state_reader
@@ -2042,6 +2055,15 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         _apply_canonical_creatives_capability(
             response,
             adcp_version=(context.resolved_adcp_version if context is not None else None),
+        )
+
+        from adcp.reporting.outbox.support import validate_activity_claims
+
+        await validate_activity_claims(
+            response,
+            support=self._reporting_activity,
+            account_activity=self._account_activity,
+            account_listing=callable(getattr(self._platform.accounts, "list", None)),
         )
 
         if has_scoped_caps:
@@ -2894,7 +2916,22 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         result = _call_with_optional_ctx(listing, filter_dict, ctx=resolve_ctx)
         if inspect.isawaitable(result):
             result = await result
-        return cast("ListAccountsResponse", _project_list_accounts(result))
+        projected = _project_list_accounts(result)
+        if self._account_activity is not None:
+            limit = getattr(params, "webhook_activity_limit", None)
+            projected = await self._account_activity.enrich(
+                projected,
+                context=resolve_ctx,
+                include=getattr(params, "include_webhook_activity", False) is True,
+                limit=50 if limit is None else limit,
+            )
+        else:
+            from adcp.reporting.outbox.activity import omit_account_activity
+
+            projected = omit_account_activity(projected)
+        return cast(
+            "ListAccountsResponse", strip_credentials_from_wire_result("list_accounts", projected)
+        )
 
     # ----- Optional-method gate -----
 

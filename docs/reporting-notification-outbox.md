@@ -12,10 +12,11 @@ It retains a durable status-dirty handoff for the later complete status projecto
 | Managed destination/reconciliation change | Consumer-scoped status-dirty evidence |
 | Verified materialization with its frozen Managed binding | `reporting.delivery_ready`, scoped to the reconciliation consumer |
 
-There is no `reporting.status_changed` emitter. Clock sweeps, complete status
-fingerprint deduplication, and webhook activity projection belong to #1168B.
-The capability helper omits `status_notification` and sets
-`supports_webhook_activity=false`.
+There is no `reporting.status_changed` emitter. Clock sweeps and complete status
+fingerprint deduplication belong to #1168C. The optional
+[#1168B activity layer](reporting-webhook-activity.md) adds durable HTTP reservations
+and a list-accounts projection. Without that mounted layer the capability helper
+omits `status_notification` and sets `supports_webhook_activity=false`.
 
 ## Optional wiring
 
@@ -63,8 +64,9 @@ Core subscriber request cannot create a readiness event or capability.
 
 The helper verifies that the opted-in ledger and outbox use the same store or
 pool, that current registrations have usable authentication, and that the
-entire installed PostgreSQL chain matches its column, constraint, index,
-trigger, and guard-function contract. It does not infer operational readiness
+required objects in the PostgreSQL chain match their column, constraint, index,
+trigger, and guard-function contracts. Unrelated adopter objects are allowed.
+It does not infer operational readiness
 from the presence of objects. Continue scheduling the worker while advertising
 these fields. Custom stores can implement the additive outbox protocol;
 automatic capability verification conservatively covers the SDK reference stores.
@@ -185,8 +187,9 @@ deduplicate using a trusted publisher identity that survives key rotation and
 the idempotency key. A lost ACK can produce another authenticated request with
 identical body/key and a fresh signature. Polling remains the recovery path.
 
-This slice retains events, expansion checkpoints, prepared bindings and dirty
-evidence indefinitely. It has no purge API or finite advertised activity horizon.
+The base outbox retains events, expansion checkpoints, prepared bindings and dirty
+evidence indefinitely. The optional activity layer retains pending reservations
+and counters indefinitely; its scoped purge enforces a 30-day terminal-history floor.
 Do not delete parent events, keys, or prepared bindings while any delivery is
 nonterminal or within an adopter's promised retry/activity retention horizon.
 
@@ -195,12 +198,12 @@ nonterminal or within an adopter's promised retry/activity retention horizon.
 `reporting_notification_outbox.sql` follows the reviewed four-file foundation
 chain. It adds notification events, expansion/delivery leases, ordered dirty
 records, projector checkpoints, and typed issue scope storage. It rewrites and
-backfills no ledger evidence. `create_schema()` installs all five steps atomically;
+backfills no ledger evidence. `reporting_webhook_activity.sql` follows as an
+additive sixth step. `create_schema()` installs all six steps atomically;
 opted-in stores and `PgReportingOutbox.create_schema()` also validate the complete
-installed contract before committing. Default-off Core startup preserves its
-compatibility with adopter indexes. The conservative notification readiness check
-requires the SDK table definitions, including their indexes and guards, to match
-the bundled contract. Concurrent and repeated installations serialize on the schema
+required outbox contract before committing. Activity startup additionally validates
+the sixth step. Readiness validates required objects independently and ignores
+unrelated adopter additions. Concurrent and repeated installations serialize on the schema
 advisory lock. The standalone outbox SQL is atomic even on an autocommit
 connection with the foundation already installed. See
 [reporting ledger migrations](reporting-ledger-migration.md).
@@ -216,6 +219,6 @@ cover commit/fanout and real TLS HTTP acceptance/ACK. All child, pipe, receiver
 and barrier waits have hard watchdogs with sanitized role/PID/checkpoint
 diagnostics; no timing sleeps control an interleaving. The receiver fixture
 self-check verifies both rotation keys before the full process lane is run.
-The distribution tests build an sdist, build its wheel, import a real base
-installation with PostgreSQL absent, then install `[pg]` and exercise migration,
-commit and restart from that wheel.
+The distribution tests build an sdist and its wheel, install each with PostgreSQL
+absent, then install each with `[pg]` and exercise migration, commit, retry,
+activity projection and restart on PostgreSQL 16.

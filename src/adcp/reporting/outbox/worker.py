@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -15,6 +16,13 @@ from adcp.reporting.ledger.notification_models import (
     decode_event,
 )
 from adcp.reporting.outbox._transport_logging import protected_transport_logs
+from adcp.reporting.outbox.activity import (
+    ActivityOutcome,
+    ActivityRequest,
+    ReportingActivityProjector,
+    ReportingActivityStore,
+    WebhookAttempt,
+)
 from adcp.reporting.outbox.models import (
     DeliveryLease,
     ErrorCode,
@@ -48,6 +56,12 @@ class _Outcome:
     error: ErrorCode | None = None
 
 
+@dataclass
+class _HttpObservation:
+    reservation: WebhookAttempt | None = None
+    started_ns: int = 0
+
+
 class ReportingNotificationWorker:
     """At-least-once delivery with immutable bytes and per-attempt signing.
 
@@ -70,6 +84,7 @@ class ReportingNotificationWorker:
         clock: Callable[[], datetime] | None = None,
         lease_seconds: float = 60,
         retry_seconds: float = 5,
+        activity: ReportingActivityStore | None = None,
     ) -> None:
         if lease_seconds < 1 or retry_seconds <= 0:
             raise ValueError("positive retry and at least one second of lease are required")
@@ -81,6 +96,9 @@ class ReportingNotificationWorker:
         )
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self.lease_seconds, self.retry_seconds = lease_seconds, retry_seconds
+        if activity is not None and id(activity) != id(outbox):
+            raise ReportingNotificationError("activity_requires_reporting_outbox")
+        self.activity = activity
 
     async def advertised_notifications(
         self,
@@ -88,17 +106,23 @@ class ReportingNotificationWorker:
         *,
         account_id: str,
         ready_scope: ReportingDeliveryScope | None = None,
+        activity_projector: ReportingActivityProjector | None = None,
     ) -> dict[str, str | bool]:
         """Check the installed chain at startup before publishing these fields.
 
         Merge the result into the producer's capability block while this worker
         is scheduled. Ready support additionally requires a retained Managed
-        scope. No status or activity projection is claimed by this slice.
+        scope. Activity additionally requires the mounted durable projector;
+        status notification projection belongs to the subsequent slice.
         """
         from adcp.reporting.outbox._capabilities import advertised_notifications
 
         return await advertised_notifications(
-            self, ledger, account_id=account_id, ready_scope=ready_scope
+            self,
+            ledger,
+            account_id=account_id,
+            ready_scope=ready_scope,
+            activity_projector=activity_projector,
         )
 
     async def expand_one(self, *, account_id: str) -> bool:
@@ -184,11 +208,16 @@ class ReportingNotificationWorker:
         except (ReportingNotificationError, ValueError, TypeError):
             outcome = _Outcome("quarantined", "integrity_failure")
         else:
+            observation = _HttpObservation()
             try:
                 outcome = await asyncio.wait_for(
-                    self._attempt(lease, opened), timeout=self.lease_seconds * 0.8
+                    self._attempt(lease, opened, observation), timeout=self.lease_seconds * 0.8
                 )
             except (TimeoutError, asyncio.TimeoutError):
+                # Worker cancellation is not an observed HTTP timeout. A
+                # reservation remains pending until a known result is ACKed.
+                if observation.reservation is not None:
+                    return True
                 outcome = _Outcome("pending", "network")
         now = self._clock()
         # A DB failure after HTTP acceptance is intentionally not converted to
@@ -204,7 +233,19 @@ class ReportingNotificationWorker:
         )
         return True
 
-    async def _attempt(self, lease: DeliveryLease, opened: OpenedReportingDelivery) -> _Outcome:
+    async def _record_outcome(
+        self, observation: _HttpObservation, outcome: ActivityOutcome
+    ) -> None:
+        if self.activity is not None and observation.reservation is not None:
+            completed = await self.activity.complete_attempt(
+                observation.reservation, outcome=outcome, now=self._clock()
+            )
+            if not completed:
+                raise ReportingNotificationError("activity_completion_unconfirmed")
+
+    async def _attempt(
+        self, lease: DeliveryLease, opened: OpenedReportingDelivery, observation: _HttpObservation
+    ) -> _Outcome:
         binding = lease.delivery.binding
         try:
             current = await self.subscriptions.get_active(
@@ -223,6 +264,7 @@ class ReportingNotificationWorker:
             type(current) is not ReportingNotificationSubscription
             or not current.matches(opened.event)
             or current.subscriber_id != binding.subscriber_id
+            or current.principal_id != binding.principal_id
             or current.fingerprint != binding.subscription_fingerprint
         ):
             return _Outcome("suppressed", "subscription_changed")
@@ -239,8 +281,34 @@ class ReportingNotificationWorker:
                 # Invoke the concrete SDK seam. Adopter-provided sender objects,
                 # subclasses, overridden send methods, clients and hooks never
                 # cross this boundary. URL/DNS validation is inside this seam.
+                request = ActivityRequest(opened.subscription.url, len(opened.prepared.body))
+                callback_used = False
+
                 async def current_fence() -> bool:
-                    return await self.outbox.delivery_lease_current(lease, now=self._clock())
+                    nonlocal callback_used
+                    if callback_used:
+                        raise PreparedWebhookAttemptExpiredError("prepared_attempt_expired")
+                    callback_used = True
+                    if not await self.outbox.delivery_lease_current(lease, now=self._clock()):
+                        return False
+                    if self.activity is not None:
+                        # Signing, URL/DNS preparation, and the final fence
+                        # precede this transaction. No awaitable preparation
+                        # remains between reservation and starting peer I/O.
+                        try:
+                            observation.reservation = await self.activity.reserve_attempt(
+                                lease, request=request, now=self._clock()
+                            )
+                        except ReportingNotificationError as error:
+                            if error.code == "activity_lease_expired":
+                                raise PreparedWebhookAttemptExpiredError(
+                                    "prepared_attempt_expired"
+                                ) from None
+                            raise
+                        if observation.reservation is None:
+                            return False
+                    observation.started_ns = time.monotonic_ns()
+                    return True
 
                 with protected_transport_logs():
                     result = await WebhookSender.send_prepared(
@@ -248,20 +316,39 @@ class ReportingNotificationWorker:
                     )
             except PreparedWebhookAttemptExpiredError:
                 return _Outcome("pending", "lease_expired")
+            except ReportingNotificationError:
+                # Failed/unknown reservation commit means no HTTP and no ACK.
+                raise
             except SSRFValidationError as error:
                 return (
                     _Outcome("pending", "network")
                     if error.transient
                     else (_Outcome("quarantined", "invalid_configuration"))
                 )
-            except (httpx.TransportError, OSError, TimeoutError):
+            except (httpx.TimeoutException, TimeoutError):
+                await self._record_outcome(observation, ActivityOutcome("timeout"))
+                return _Outcome("pending", "network")
+            except (httpx.TransportError, OSError):
+                await self._record_outcome(observation, ActivityOutcome("connection_error"))
                 return _Outcome("pending", "network")
             except (ValueError, TypeError):
+                if observation.reservation is not None:
+                    raise ReportingNotificationError("activity_result_unknown") from None
                 return _Outcome("quarantined", "invalid_payload")
             except Exception:
                 # Signing backends can fail transiently; retain no exception
                 # prose, traceback, headers, URL, or response/provider body.
+                if observation.reservation is not None:
+                    raise ReportingNotificationError("activity_result_unknown") from None
                 return _Outcome("pending", "signing_unavailable")
+            await self._record_outcome(
+                observation,
+                ActivityOutcome(
+                    "success" if result.ok else "failed",
+                    result.status_code,
+                    max(0, (time.monotonic_ns() - observation.started_ns) // 1_000_000),
+                ),
+            )
             if result.ok:
                 return _Outcome("complete")
             if result.status_code in {408, 425, 429} or 500 <= result.status_code < 600:

@@ -270,8 +270,9 @@ async def test_default_off_upgrade_preserves_adopter_index_and_opt_in_checks_rea
                 ).fetchone()
             )[0]
             assert retained == original
-        # Enabling the outbox invokes the full conservative SDK chain check.
+        # B validates the required subset: an unrelated index remains compatible.
         from adcp.reporting.outbox import PgReportingOutbox
 
-        with pytest.raises(ReportingNotificationError, match="notification_schema_unready"):
-            await PgReportingOutbox(pool=pool).create_schema()
+        await PgReportingOutbox(pool=pool).create_schema()
+        async with pool.connection() as conn:
+            await validate_schema(conn, activity=True)

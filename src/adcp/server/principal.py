@@ -194,6 +194,7 @@ _ACCOUNT_NOTIFICATION_TYPES = frozenset(
         "signal.priced",
         "signal.removed",
         "wholesale_feed.bulk_change",
+        "reporting.ledger_changed",
         "reporting.delivery_ready",
         "reporting.status_changed",
     }
