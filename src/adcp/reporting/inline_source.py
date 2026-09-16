@@ -12,6 +12,13 @@ answers "what did this scope deliver in this window?" and it produces a
 conforming ``basic`` manifest, complete with staged objects, coverage
 evidence, and byte-identical replay.
 
+For uneven metric support, return :class:`InlineFetchResult` with
+``cell_availability={constituent_id: {metric_name: MetricEvidence(...)}}``.
+Omitted cells retain the constituent defaults. Explicit evidence controls each
+cell independently; mixed cells make the constituent partial, and a metric
+column an adapter declares incomplete receives no control total. Metric
+semantics always come from the selected SDK offering.
+
 The three answers a fetch can give
 ---------------------------------
 
@@ -59,7 +66,9 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any, Protocol, TypeAlias, runtime_checkable
+from typing import Any, Literal, Protocol, TypeAlias, runtime_checkable
+
+from pydantic import TypeAdapter, ValidationError
 
 from adcp.reporting.currency import (
     ReportingCurrencyError,
@@ -67,6 +76,7 @@ from adcp.reporting.currency import (
     validate_row_currencies,
 )
 from adcp.reporting.source import (
+    EvidenceReason,
     MediaBuyConstituentV1,
     PackageItemConstituentV1,
     ProductConstituentV1,
@@ -98,15 +108,102 @@ __all__ = [
     "InlineFetch",
     "InlineFetchResult",
     "InlineReportingSource",
+    "MetricEvidence",
     "ReportingSealStore",
     "ReportingStagingStore",
     "SealedSlice",
+    "metric_delayed_through",
+    "metric_unsupported_everywhere",
 ]
 
 
 # --------------------------------------------------------------------------
 # Fetch results
 # --------------------------------------------------------------------------
+
+
+_REASON = TypeAdapter(EvidenceReason)
+_AVAILABLE = frozenset({"present", "explicit_zero"})
+
+
+class _CellEvidenceError(ValueError):
+    """A deterministic adapter error, never an unclassified provider fault."""
+
+
+@dataclass(frozen=True)
+class MetricEvidence:
+    """Source evidence for one requested constituent/metric cell.
+
+    This carries availability only. The SDK binds metric semantics from the
+    selected offering. Prefer the named constructors; direct construction
+    enforces the same invariants and raises ``ValueError`` for invalid evidence.
+
+    Watermarks must be timezone-aware. Reasons use the manifest's bounded ASCII
+    evidence format; use stable, redacted explanations such as
+    ``not_video_inventory`` rather than provider diagnostics or credentials.
+    """
+
+    status: Literal["present", "explicit_zero", "missing", "delayed", "unsupported"]
+    data_through: datetime | None = None
+    reason: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.status not in ("present", "explicit_zero", "missing", "delayed", "unsupported"):
+            raise _CellEvidenceError("MetricEvidence.status is not a supported cell status")
+        if self.data_through is not None:
+            if (
+                not isinstance(self.data_through, datetime)
+                or self.data_through.tzinfo is None
+                or self.data_through.utcoffset() is None
+            ):
+                raise _CellEvidenceError(
+                    "MetricEvidence.data_through must be a timezone-aware datetime"
+                )
+        if self.status == "present" and self.data_through is None:
+            raise _CellEvidenceError("MetricEvidence present requires data_through")
+        if self.status in _AVAILABLE:
+            if self.reason is not None:
+                raise _CellEvidenceError(f"MetricEvidence {self.status} must not carry a reason")
+        else:
+            if self.reason is None:
+                raise _CellEvidenceError(f"MetricEvidence {self.status} requires a stable reason")
+            try:
+                _REASON.validate_python(self.reason, strict=True)
+            except ValidationError as error:
+                raise _CellEvidenceError(
+                    "MetricEvidence.reason must be a wire-valid stable reason"
+                ) from error
+        if self.status in {"missing", "unsupported"} and self.data_through is not None:
+            raise _CellEvidenceError(f"MetricEvidence {self.status} must not carry data_through")
+
+    @classmethod
+    def present(cls, data_through: datetime) -> MetricEvidence:
+        """The source measured this metric through the supplied watermark."""
+        return cls("present", data_through=data_through)
+
+    @classmethod
+    def explicit_zero(cls, *, data_through: datetime | None = None) -> MetricEvidence:
+        """An observed zero; omit the watermark to inherit the fetch watermark.
+
+        Any supplied row values for this cell must be numeric zeros. An
+        omitted row value is not converted into a control-total contribution.
+        """
+        return cls("explicit_zero", data_through=data_through)
+
+    @classmethod
+    def missing(cls, reason: str) -> MetricEvidence:
+        """The source returned no answer for this cell."""
+        return cls("missing", reason=reason)
+
+    @classmethod
+    def delayed(cls, reason: str, *, data_through: datetime | None = None) -> MetricEvidence:
+        """The metric is not ready; retain its watermark when one is known."""
+        return cls("delayed", data_through=data_through, reason=reason)
+
+    @classmethod
+    def unavailable(cls, reason: str) -> MetricEvidence:
+        """The source cannot measure this cell (wire status ``unsupported``)."""
+        return cls("unsupported", reason=reason)
 
 
 @dataclass(frozen=True)
@@ -155,8 +252,70 @@ class InlineFetchResult:
     warnings: Sequence[str] = ()
     """Safe, redacted operator notes retained on the publication."""
 
-    currency: str | None = None
+    currency: str | None = field(default=None, kw_only=True)
     """Optional source corroboration; must match the already frozen request."""
+
+    cell_availability: Mapping[str, Mapping[str, MetricEvidence]] | None = field(
+        default=None, kw_only=True
+    )
+    """Optional ``{constituent_id: {metric_name: evidence}}`` overrides.
+
+    Keys are the frozen request's constituent IDs, which need not equal media
+    buy IDs. Omitted cells retain the derived constituent status and watermark.
+    Explicit cells override even missing/unsupported constituent defaults;
+    mixed availability promotes the constituent to ``partial``. The SDK still
+    applies the source cutoff, observation ceiling, and authoritative freshness
+    gate. A cell watermark may advance the batch watermark without advancing
+    other cells. This is an adapter surface, not the manifest's wire-format
+    ``metric_availability`` list.
+
+    Unknown keys, duplicate mapping entries, invalid evidence, and contradictory
+    explicit zeros raise ``ValueError`` before staging. A zero-row batch must
+    be wholly explicit-zero or wholly unavailable under the existing contract.
+    """
+
+    @classmethod
+    def all_present(
+        cls, rows: Sequence[Mapping[str, Any]], *, data_through: datetime
+    ) -> InlineFetchResult:
+        """Cover the whole request through a watermark, using the legacy defaults.
+
+        Constituents with rows are present; covered constituents without rows
+        are observed zeros. Use ``cell_availability`` for exceptions.
+        """
+        return cls(rows=rows, data_through=data_through)
+
+
+def metric_unsupported_everywhere(
+    request: ReportingSourceSliceRequestV1, metric_name: str, reason: str
+) -> dict[str, dict[str, MetricEvidence]]:
+    """Build ``cell_availability`` for a metric unsupported across the request.
+
+    Other metrics retain the fetch's constituent defaults. Pass the returned
+    map to :class:`InlineFetchResult`, alongside rows, watermarks, or warnings.
+    """
+    return _metric_everywhere(request, metric_name, MetricEvidence.unavailable(reason))
+
+
+def metric_delayed_through(
+    request: ReportingSourceSliceRequestV1,
+    metric_name: str,
+    watermark: datetime,
+    *,
+    reason: str = "The reporting source has not finalized this metric yet",
+) -> dict[str, dict[str, MetricEvidence]]:
+    """Build ``cell_availability`` retaining a delayed metric's known watermark."""
+    return _metric_everywhere(
+        request, metric_name, MetricEvidence.delayed(reason, data_through=watermark)
+    )
+
+
+def _metric_everywhere(
+    request: ReportingSourceSliceRequestV1, metric_name: str, evidence: MetricEvidence
+) -> dict[str, dict[str, MetricEvidence]]:
+    if metric_name not in request.requested_metrics:
+        raise _CellEvidenceError(f"cell_availability has unknown requested metric {metric_name!r}")
+    return {item.constituent_id: {metric_name: evidence} for item in request.coverage.constituents}
 
 
 #: What an inline fetch may return.  ``None`` is "not ready".
@@ -484,6 +643,11 @@ class InlineReportingSource:
             )
         except ReportingSourceError as error:
             return ReportingSourceExecutorResult.failed(error.error)
+        except _CellEvidenceError:
+            # Constructors/helpers may run inside the fetch. Keep the same
+            # actionable ValueError as matrix validation after the fetch,
+            # rather than redacting an adapter bug as a retryable provider fault.
+            raise
         except asyncio.CancelledError:
             raise
         except Exception as error:
@@ -575,6 +739,7 @@ class InlineReportingSource:
     ) -> ReportingSourceExecutorResult:
         observed_at = self._clock()
         data_through = _clamp_watermark(request, result.data_through, observed_at)
+        overrides = _validate_cell_availability(request, result.cell_availability)
         covered = (
             {item.constituent_id for item in request.coverage.constituents}
             if result.covered_constituent_ids is None
@@ -583,7 +748,7 @@ class InlineReportingSource:
         covered -= set(result.unavailable_constituents)
 
         rows_by_constituent: dict[str, list[Mapping[str, Any]]] = {
-            constituent_id: [] for constituent_id in covered
+            item.constituent_id: [] for item in request.coverage.constituents
         }
         unmatched = 0
         for row in result.rows:
@@ -592,6 +757,8 @@ class InlineReportingSource:
                 unmatched += 1
                 continue
             rows_by_constituent[constituent_id].append(row)
+            if constituent_id not in covered and not overrides.get(constituent_id):
+                unmatched += 1
 
         warnings = list(result.warnings)
         if unmatched:
@@ -603,7 +770,19 @@ class InlineReportingSource:
         statuses = self._derive_statuses(
             request, result, covered, rows_by_constituent, data_through
         )
-        coverage_status = _roll_up(statuses.values())
+        constituents, cells = self._resolve_availability(
+            request,
+            result,
+            overrides=overrides,
+            statuses=statuses,
+            rows_by_constituent=rows_by_constituent,
+            data_through=data_through,
+            observed_at=observed_at,
+        )
+        # Granular watermarks are bounded by the batch watermark on the wire.
+        # Advancing it for an explicit cell must not advance fallback cells.
+        data_through = max(data_through, *(cell.data_through or data_through for cell in cells))
+        coverage_status = _roll_up([item.status for item in constituents])
 
         if request.coverage.expected == "full" and coverage_status != "full":
             # Never publish a partial answer to a full-coverage slice; the
@@ -619,6 +798,31 @@ class InlineReportingSource:
                 )
             )
 
+        # A partial constituent is deliberately excluded: a known zero for
+        # one metric must never turn unavailable neighbours into a batch zero.
+        explicit_zero = not result.rows and all(cell.status == "explicit_zero" for cell in cells)
+        if (
+            not result.rows
+            and not explicit_zero
+            and any(cell.status in _AVAILABLE for cell in cells)
+        ):
+            # Reachable from a derived result too, so the message names the
+            # shape rather than the optional field an adopter may never have set.
+            raise _CellEvidenceError(
+                "a zero-row batch cannot mix available and unavailable cells; supply rows "
+                "for the observed metrics or withdraw their availability"
+            )
+        # Only a *declared* exception withdraws a column.  A control total is
+        # a checksum over the staged rows -- consumers recompute it from the
+        # revision's rows -- so an unmatched row or a legacy-derived
+        # unavailable constituent leaves it verifiable and unchanged.
+        declared_incomplete = {
+            cell.metric
+            for cell in cells
+            if cell.status not in _AVAILABLE
+            and cell.metric in overrides.get(cell.constituent_id, {})
+        }
+        control_totals = _control_totals(request, result.rows, declared_incomplete)
         payload = _encode_rows(result.rows)
         object_ref, object_generation = await self._staging.stage(
             account_id=request.identity.account_id,
@@ -637,23 +841,17 @@ class InlineReportingSource:
             row_count=len(result.rows),
         )
 
-        available = {
-            constituent_id
-            for constituent_id, status in statuses.items()
-            if status in {"present", "explicit_zero"}
-        }
-        explicit_zero = bool(available) and not result.rows and available == set(statuses)
         manifest = self._seal_manifest(
             request,
             observed_at=observed_at,
             data_through=data_through,
             staged=staged,
-            statuses=statuses,
+            constituents=constituents,
+            cells=cells,
             coverage_status=coverage_status,
-            reasons=dict(result.unavailable_constituents),
             explicit_zero=explicit_zero,
             row_count=len(result.rows),
-            control_totals=_control_totals(request, result.rows),
+            control_totals=control_totals,
             warnings=warnings,
         )
 
@@ -706,6 +904,107 @@ class InlineReportingSource:
                 statuses[constituent_id] = "explicit_zero"
         return statuses
 
+    def _resolve_availability(
+        self,
+        request: ReportingSourceSliceRequestV1,
+        result: InlineFetchResult,
+        *,
+        overrides: Mapping[str, Mapping[str, MetricEvidence]],
+        statuses: Mapping[str, ReportingAvailabilityStatus],
+        rows_by_constituent: Mapping[str, Sequence[Mapping[str, Any]]],
+        data_through: datetime,
+        observed_at: datetime,
+    ) -> tuple[list[ReportingConstituentCoverageV1], list[ReportingMetricAvailabilityV1]]:
+        """Resolve cells first, then derive coverage without widening their claims."""
+        offering = self._capabilities.offering(request.offering_id)
+        declared = {metric.name: metric for metric in offering.metrics}
+        constituents: list[ReportingConstituentCoverageV1] = []
+        cells: list[ReportingMetricAvailabilityV1] = []
+        for item in request.coverage.constituents:
+            constituent_id = item.constituent_id
+            fallback = statuses[constituent_id]
+            fallback_reason = (
+                None
+                if fallback in _AVAILABLE
+                else result.unavailable_constituents.get(constituent_id)
+                or _DEFAULT_REASONS[fallback]
+            )
+            constituent_cells: list[ReportingMetricAvailabilityV1] = []
+            for metric in request.requested_metrics:
+                status = fallback
+                watermark = data_through if status in _AVAILABLE else None
+                reason = fallback_reason
+                explicit = overrides.get(constituent_id, {}).get(metric)
+                if explicit is not None:
+                    _validate_cell_rows(
+                        constituent_id, metric, explicit, rows_by_constituent[constituent_id]
+                    )
+                    status, reason = explicit.status, explicit.reason
+                    watermark = explicit.data_through
+                    if watermark is not None:
+                        if _utc(watermark) < _utc(request.period.start):
+                            raise _CellEvidenceError(
+                                f"cell_availability ({constituent_id!r}, {metric!r}) "
+                                "data_through must not precede the reporting period"
+                            )
+                        watermark = _clamp_watermark(request, watermark, observed_at)
+                    elif status == "explicit_zero":
+                        watermark = data_through
+                    if (
+                        status in _AVAILABLE
+                        and request.publication_class == "AUTHORITATIVE"
+                        and watermark is not None
+                        and _utc(watermark) < _utc(request.period.end)
+                    ):
+                        status, reason = "delayed", _DEFAULT_REASONS["delayed"]
+                # Evidence follows the cell status, never its constituent's
+                # roll-up. Only the selected SDK offering supplies semantics.
+                constituent_cells.append(
+                    ReportingMetricAvailabilityV1(
+                        constituent_id=constituent_id,
+                        metric=metric,
+                        semantic_contract_id=declared[metric].semantic_contract_id,
+                        semantic_contract_version=declared[metric].semantic_contract_version,
+                        semantic_contract_sha256=declared[metric].semantic_contract_sha256,
+                        status=status,
+                        data_through=watermark,
+                        reason=reason,
+                    )
+                )
+            cells.extend(constituent_cells)
+            status = fallback
+            watermark = data_through if status in _AVAILABLE else None
+            reason = fallback_reason
+            if overrides.get(constituent_id):
+                cell_statuses = {cell.status for cell in constituent_cells}
+                if len(cell_statuses) == 1:
+                    status = constituent_cells[0].status
+                elif cell_statuses <= _AVAILABLE:
+                    status = "present"
+                else:
+                    status = "partial"
+                if status in _AVAILABLE:
+                    watermark = min(
+                        cell.data_through
+                        for cell in constituent_cells
+                        if cell.data_through is not None
+                    )
+                    reason = None
+                else:
+                    watermark = None
+                    reasons = {cell.reason for cell in constituent_cells}
+                    reason = (
+                        constituent_cells[0].reason
+                        if len(reasons) == 1 and constituent_cells[0].reason is not None
+                        else _DEFAULT_REASONS[status]
+                    )
+            constituents.append(
+                ReportingConstituentCoverageV1(
+                    constituent=item, status=status, data_through=watermark, reason=reason
+                )
+            )
+        return constituents, cells
+
     def _seal_manifest(
         self,
         request: ReportingSourceSliceRequestV1,
@@ -713,49 +1012,19 @@ class InlineReportingSource:
         observed_at: datetime,
         data_through: datetime,
         staged: SourceBatchObjectV1,
-        statuses: Mapping[str, ReportingAvailabilityStatus],
+        constituents: list[ReportingConstituentCoverageV1],
+        cells: list[ReportingMetricAvailabilityV1],
         coverage_status: str,
-        reasons: Mapping[str, str],
         explicit_zero: bool,
         row_count: int,
         control_totals: list[SourceControlTotalV1],
         warnings: list[str],
     ) -> SourceBatchManifestV1:
-        available = {"present", "explicit_zero"}
-
-        def evidence(constituent_id: str) -> dict[str, Any]:
-            status = statuses[constituent_id]
-            if status in available:
-                return {"data_through": data_through}
-            return {"reason": reasons.get(constituent_id) or _DEFAULT_REASONS[status]}
-
         coverage = SourceBatchCoverageV1(
             denominator_fingerprint=request.coverage.denominator_fingerprint,
             status=coverage_status,  # type: ignore[arg-type]
-            constituents=[
-                ReportingConstituentCoverageV1(
-                    constituent=item,
-                    status=statuses[item.constituent_id],
-                    **evidence(item.constituent_id),
-                )
-                for item in request.coverage.constituents
-            ],
+            constituents=constituents,
         )
-        offering = self._capabilities.offering(request.offering_id)
-        declared = {metric.name: metric for metric in offering.metrics}
-        cells = [
-            ReportingMetricAvailabilityV1(
-                constituent_id=item.constituent_id,
-                metric=metric,
-                semantic_contract_id=declared[metric].semantic_contract_id,
-                semantic_contract_version=declared[metric].semantic_contract_version,
-                semantic_contract_sha256=declared[metric].semantic_contract_sha256,
-                status=statuses[item.constituent_id],
-                **evidence(item.constituent_id),
-            )
-            for item in request.coverage.constituents
-            for metric in request.requested_metrics
-        ]
         finality_at = (
             max(_utc(observed_at), _utc(request.period.end))
             if request.publication_class == "AUTHORITATIVE"
@@ -825,6 +1094,83 @@ _DEFAULT_REASONS: Mapping[str, str] = {
 # --------------------------------------------------------------------------
 
 
+def _validate_cell_availability(
+    request: ReportingSourceSliceRequestV1,
+    availability: Mapping[str, Mapping[str, MetricEvidence]] | None,
+) -> dict[str, dict[str, MetricEvidence]]:
+    """Validate and snapshot overrides before any staging or seal side effects.
+
+    Do not coerce keys or collapse mappings into dicts before checking them:
+    custom Mapping implementations can expose duplicate logical entries.
+    Ordinary dicts have already discarded duplicate keys before this boundary.
+    """
+    if availability is None:
+        return {}
+    if not isinstance(availability, Mapping):
+        raise _CellEvidenceError("cell_availability must be a nested mapping")
+    requested_ids = {item.constituent_id for item in request.coverage.constituents}
+    requested_metrics = set(request.requested_metrics)
+    validated: dict[str, dict[str, MetricEvidence]] = {}
+    for constituent_id, metrics in availability.items():
+        if not isinstance(constituent_id, str) or constituent_id not in requested_ids:
+            raise _CellEvidenceError(
+                f"cell_availability has unknown constituent_id {constituent_id!r}"
+            )
+        if constituent_id in validated:
+            raise _CellEvidenceError(
+                f"cell_availability has duplicate constituent_id {constituent_id!r}"
+            )
+        if not isinstance(metrics, Mapping):
+            raise _CellEvidenceError(
+                f"cell_availability for {constituent_id!r} must be a metric mapping"
+            )
+        validated[constituent_id] = {}
+        for metric, evidence in metrics.items():
+            if not isinstance(metric, str) or metric not in requested_metrics:
+                raise _CellEvidenceError(
+                    f"cell_availability has unknown requested metric {metric!r}"
+                )
+            if metric in validated[constituent_id]:
+                raise _CellEvidenceError(
+                    f"cell_availability has duplicate cell ({constituent_id!r}, {metric!r})"
+                )
+            if not isinstance(evidence, MetricEvidence):
+                raise _CellEvidenceError(
+                    f"cell_availability ({constituent_id!r}, {metric!r}) must be MetricEvidence"
+                )
+            validated[constituent_id][metric] = evidence
+    return validated
+
+
+def _validate_cell_rows(
+    constituent_id: str,
+    metric: str,
+    evidence: MetricEvidence,
+    rows: Sequence[Mapping[str, Any]],
+) -> None:
+    """Reject explicit assertions contradicted by the supplied measurements.
+
+    Legacy derived cells remain permissive. Metric value types are defined by
+    the offering, but an explicit present cell needs a value and a claimed zero
+    must not conceal a nonzero, nonnumeric, or non-finite measurement.
+    """
+    label = f"cell_availability ({constituent_id!r}, {metric!r})"
+    if evidence.status == "present" and (not rows or any(row.get(metric) is None for row in rows)):
+        raise _CellEvidenceError(f"{label} present requires a value in every constituent row")
+    if evidence.status == "explicit_zero":
+        for row in rows:
+            if row.get(metric) is None:
+                continue
+            try:
+                value = _decimal(row[metric])
+            except (InvalidOperation, TypeError, ValueError) as error:
+                raise _CellEvidenceError(
+                    f"{label} explicit_zero requires numeric zero row values"
+                ) from error
+            if not value.is_finite() or value != 0:
+                raise _CellEvidenceError(f"{label} explicit_zero requires numeric zero row values")
+
+
 def _now() -> datetime:
     moment = datetime.now(timezone.utc)
     return moment.replace(microsecond=(moment.microsecond // 1000) * 1000)
@@ -885,16 +1231,26 @@ def _encode_rows(rows: Sequence[Mapping[str, Any]]) -> bytes:
 
 
 def _control_totals(
-    request: ReportingSourceSliceRequestV1, rows: Sequence[Mapping[str, Any]]
+    request: ReportingSourceSliceRequestV1,
+    rows: Sequence[Mapping[str, Any]],
+    declared_incomplete: Collection[str],
 ) -> list[SourceControlTotalV1]:
-    """Sum each requested metric across the rows, exactly.
+    """Sum each requested metric across the staged rows, exactly.
 
     Money sums through :class:`~decimal.Decimal` and is emitted as a string.
     A float total would round differently in two languages and turn a
     consumer's equality check into a flake.
+
+    ``declared_incomplete`` names the metrics an adapter explicitly withdrew
+    for at least one cell.  Those columns may still carry row values, but the
+    adapter has said they are not a measurement, so totalling them would
+    contradict the very evidence it supplied.  Every other column keeps the
+    checksum a consumer recomputes from the revision's rows.
     """
     totals: list[SourceControlTotalV1] = []
     for metric in request.requested_metrics:
+        if metric in declared_incomplete:
+            continue
         values = [row[metric] for row in rows if row.get(metric) is not None]
         if len(values) != len(rows):
             # A metric absent from some rows has no honest total; the
