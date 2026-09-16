@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import subprocess
 import sys
 from dataclasses import asdict, replace
@@ -26,6 +25,7 @@ from adcp.reporting.outbox._schema import REQUIRED_OBJECTS, schema_objects, vali
 
 from ._generation_support import (
     NOW,
+    assert_c_collated_rolling_database,
     configuration,
     isolated_reporting_pool,
     obligation_for,
@@ -530,8 +530,7 @@ async def test_pending_orphans_are_retained_without_parent_and_db_clock_cannot_b
 
 @pytest.fixture(scope="module")
 def actual_a_source(tmp_path_factory):
-    if not os.environ.get("ADCP_PG_TEST_URL"):
-        pytest.skip("actual A/B compatibility requires real PostgreSQL")
+    assert_c_collated_rolling_database()
     target = tmp_path_factory.mktemp("reporting-1168a-source") / "worktree"
     checkout = subprocess.run(
         ["git", "worktree", "add", "--detach", str(target), BASE],

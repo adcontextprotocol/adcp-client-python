@@ -169,6 +169,13 @@ in one transaction. The B step is also atomic on its own, serializes concurrent
 installations, backfills nothing, and adds only B tables/indexes/constraints/
 functions/triggers. It does not change any A table or attach a new object to one.
 
+These rolling gates execute the frozen A artifact, whose readiness digest is
+collation-sensitive, so they are only measurable on a C-collated database: the
+fixture calls the shared `assert_c_collated_rolling_database()` precondition and
+the CI job initialises its cluster with
+`--encoding=UTF8 --lc-collate=C --lc-ctype=C`. See
+`docs/reporting-status-notifications.md` for the full explanation.
+
 An actual A binary at `21bf443e` can continue its existing work on a B-upgraded
 database without rejecting B's additive objects or claiming activity. B accepts
 the A required-object subset for existing outbox work, but its activity readiness

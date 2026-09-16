@@ -274,10 +274,13 @@ behaviour, not a C regression — C cannot patch a frozen artifact — but it me
 "old A stays ready until C" is only true on a `C`-collated database. Every SDK
 identity column is `TEXT COLLATE "C"`, so `C` is the deployment contract; B and
 C readiness is per-object and therefore locale-independent, which a manifest
-shape regression pins. The rolling CI job initialises its cluster with
-`--encoding=UTF8 --lc-collate=C --lc-ctype=C` and the rolling fixture asserts
-that precondition with an actionable message rather than silently measuring the
-locale instead of the upgrade.
+shape regression pins. Every CI job that executes a frozen artifact -- both
+the status job and the general PostgreSQL conformance job, which runs the B
+activity rolling tests -- initialises its cluster with
+`--encoding=UTF8 --lc-collate=C --lc-ctype=C`, and every frozen-artifact
+fixture calls one shared `assert_c_collated_rolling_database()` precondition
+that fails with an actionable message rather than silently measuring the locale
+instead of the upgrade.
 
 Every writer in the advertised status account surface must enable the durable
 dirty journal. Compatibility of default-off core writes does not make those

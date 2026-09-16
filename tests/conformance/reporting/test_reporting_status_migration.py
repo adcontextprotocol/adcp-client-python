@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import subprocess
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -30,6 +29,7 @@ from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS, validat
 from . import test_reporting_notification_process_matrix as _process
 from ._generation_support import (
     NOW,
+    assert_c_collated_rolling_database,
     configuration,
     isolated_reporting_pool,
     obligation_for,
@@ -63,40 +63,9 @@ C_QUEUES = (
 )
 
 
-def assert_c_collated_rolling_database(url):
-    """The rolling gate is only meaningful on a C-collated database.
-
-    The reviewed A artifact digests each table's constraints as one aggregate
-    ordered by ``pg_get_constraintdef()`` -- a ``text`` expression sorted under
-    the *database* default collation. Under any other default collation A's own
-    freshly created schema hashes differently from A's bundled contract, so A
-    reports ``a_notifications_closed`` before C has migrated anything and the
-    rolling classification below would measure the locale instead of the
-    upgrade. Every SDK identity column is ``TEXT COLLATE "C"``, so C is the
-    contract; fail loudly rather than weaken or skip the assertion.
-    """
-    import psycopg
-
-    with psycopg.connect(url, autocommit=True) as connection:
-        row = connection.execute(
-            "SELECT datcollate, datlocprovider, daticulocale FROM pg_database"
-            " WHERE datname = current_database()"
-        ).fetchone()
-    assert row is not None
-    collate, provider, icu = row
-    assert collate == "C" and (provider != "i" or icu in {None, "C"}), (
-        "the A/B rolling gate requires a C-collated database"
-        f" (found datcollate={collate!r} provider={provider!r} icu={icu!r});"
-        " create it with initdb --lc-collate=C --lc-ctype=C"
-    )
-
-
 @pytest.fixture(scope="module")
 def actual_sources(tmp_path_factory):
-    url = os.environ.get("ADCP_PG_TEST_URL")
-    if not url:
-        pytest.skip("actual A/B-on-C binaries require PostgreSQL")
-    assert_c_collated_rolling_database(url)
+    assert_c_collated_rolling_database()
     targets = {}
     try:
         for release, sha in ARTIFACTS.items():

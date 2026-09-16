@@ -116,6 +116,10 @@ jobs:
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: adcp_test
+          # This job runs frozen-A readiness too (reporting activity rolling
+          # tests), and A's readiness digest is collation-sensitive. Keep this
+          # in step with pg-reporting-status: see assert_c_collated_rolling_database.
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
         ports:
           - 5432:5432
         options: >-
@@ -167,13 +171,14 @@ jobs:
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: adcp_status_test
-          # The reviewed A artifact's readiness digest aggregates
-          # pg_get_constraintdef() text ordered under the database's default
-          # collation, so its own manifest only reproduces on a C-collated
-          # database. Every SDK identity column is TEXT COLLATE "C", so C is
-          # the contract this gate must run under; the image otherwise
-          # initdb's en_US.utf8 and old A mis-classifies before any migration.
+          # Every job that executes a frozen A/B artifact must pin this. A's
+          # readiness digest aggregates pg_get_constraintdef() text ordered
+          # under the database's default collation, so A's own manifest only
+          # reproduces on a C-collated database; the image otherwise initdb's
+          # en_US.utf8 and old A mis-classifies before any migration. Every SDK
+          # identity column is TEXT COLLATE "C", so C is the contract.
           # --encoding is required: a bare C locale would default to SQL_ASCII.
+          # assert_c_collated_rolling_database fails loudly on workflow drift.
           POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
         ports:
           - 5432:5432
