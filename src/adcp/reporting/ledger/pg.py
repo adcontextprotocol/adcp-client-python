@@ -27,8 +27,9 @@ Schema bootstrap
 the account-qualified configuration primary key for beta.15 installations.
 The raw DDL ships in :file:`reporting_ledger.sql` followed by
 :file:`reporting_ledger_account_generations.sql`,
-:file:`reporting_ledger_obligation_currency.sql` and
-:file:`reporting_ledger_reconciliation.sql`; run all four in one transaction
+:file:`reporting_ledger_obligation_currency.sql`,
+:file:`reporting_ledger_reconciliation.sql`, and
+:file:`reporting_notification_outbox.sql`; run all five in one transaction
 when using Alembic, Flyway, or psql. See :file:`docs/reporting-ledger-migration.md`
 for deployment and compatibility notes.
 
@@ -75,6 +76,7 @@ import hashlib
 import json
 from collections.abc import Callable, Sequence
 from copy import deepcopy
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
@@ -97,12 +99,23 @@ from adcp.reporting.ledger.models import (
     ReportingRevisionRecord,
     ReportingScheduleSpec,
 )
+from adcp.reporting.ledger.notification_models import (
+    DirtyReason,
+    ReportingDomainEvent,
+    ReportingNotificationError,
+    ReportingStatusEvidence,
+    ReportingStatusScope,
+    configuration_evidence,
+    decode_status_scope,
+    issue_evidence,
+)
 from adcp.reporting.ledger.store import (
     LeasedConfiguration,
     LedgerConflictError,
     LedgerPage,
     ReportingRowPage,
     check_issue_state_transition,
+    configuration_lifecycle,
     decode_cursor,
     encode_cursor,
     issue_is_retirable,
@@ -132,6 +145,7 @@ _DDL_PATH = Path(__file__).parent / "reporting_ledger.sql"
 _ACCOUNT_GENERATIONS_DDL_PATH = Path(__file__).parent / "reporting_ledger_account_generations.sql"
 _CURRENCY_DDL_PATH = Path(__file__).parent / "reporting_ledger_obligation_currency.sql"
 _RECONCILIATION_DDL_PATH = Path(__file__).parent / "reporting_ledger_reconciliation.sql"
+_NOTIFICATIONS_DDL_PATH = Path(__file__).parent / "reporting_notification_outbox.sql"
 
 __all__ = ["PG_AVAILABLE", "PgReportingLedgerStore"]
 
@@ -158,6 +172,7 @@ class PgReportingLedgerStore:
         *,
         pool: AsyncConnectionPool,
         clock: Callable[[], datetime] | None = None,
+        notifications: bool = False,
     ) -> None:
         if not PG_AVAILABLE:
             raise ImportError(_INSTALL_HINT)
@@ -169,6 +184,7 @@ class PgReportingLedgerStore:
         # tests that need to stand at a specific instant relative to seeded
         # evidence rather than wherever wall-clock time happens to fall.
         self._clock = clock
+        self._notifications_enabled = notifications
 
     async def create_schema(self) -> None:
         """Create or upgrade the ledger atomically, serializing concurrent boots.
@@ -183,6 +199,117 @@ class PgReportingLedgerStore:
                 await connection.execute(_ACCOUNT_GENERATIONS_DDL_PATH.read_text())
                 await connection.execute(_CURRENCY_DDL_PATH.read_text())
                 await connection.execute(_RECONCILIATION_DDL_PATH.read_text())
+                await connection.execute(_NOTIFICATIONS_DDL_PATH.read_text())
+                if self._notifications_enabled:
+                    from adcp.reporting.outbox._schema import validate_schema
+
+                    await validate_schema(connection)
+
+    async def _notification_now(self, connection: Any) -> datetime:
+        from adcp.reporting.outbox.pg import database_now
+
+        return await database_now(connection, self._clock)
+
+    async def _record_notification(self, connection: Any, event: ReportingDomainEvent) -> None:
+        if self._notifications_enabled:
+            from adcp.reporting.outbox.pg import enqueue_event
+
+            await enqueue_event(connection, event)
+
+    async def _dirty_status(
+        self,
+        connection: Any,
+        scope: ReportingStatusScope,
+        reason: DirtyReason,
+        before: ReportingStatusEvidence | None = None,
+        after: ReportingStatusEvidence | None = None,
+    ) -> None:
+        if self._notifications_enabled:
+            from adcp.reporting.outbox.pg import mark_dirty
+
+            await mark_dirty(
+                connection, scope, reason, await self._notification_now(connection), before, after
+            )
+
+    async def _dirty_issue(
+        self,
+        connection: Any,
+        issue: ReportingIssueLifecycle,
+        status_scope: ReportingStatusScope | None,
+        before: ReportingIssueLifecycle | None = None,
+        *,
+        enqueue: bool = True,
+    ) -> None:
+        if not self._notifications_enabled:
+            return
+        from dataclasses import asdict
+
+        row = await (
+            await connection.execute(
+                "SELECT scope FROM reporting_issue_status_scopes"
+                " WHERE account_id = %s AND issue_id = %s",
+                (issue.account_id, issue.issue_id),
+            )
+        ).fetchone()
+        existing = decode_status_scope(row[0]) if row else None
+        scope = (
+            status_scope
+            or existing
+            or ReportingStatusScope(issue.account_id, consumer_id=issue.consumer_id)
+        )
+        if (
+            scope.account_id != issue.account_id
+            or scope.consumer_id != issue.consumer_id
+            or (existing is not None and scope != existing)
+        ):
+            raise ReportingNotificationError("invalid_status_scope")
+        if scope.generation_key is not None:
+            key = scope.generation_key
+            configuration = await (
+                await connection.execute(
+                    "SELECT 1 FROM reporting_configurations WHERE account_id = %s"
+                    " AND delivery_config_id = %s AND delivery_config_version = %s",
+                    (scope.account_id, key.delivery_config_id, key.delivery_config_version),
+                )
+            ).fetchone()
+            if configuration is None:
+                raise ReportingNotificationError("invalid_status_scope")
+        if scope.reporting_obligation_id is not None:
+            obligation = await (
+                await connection.execute(
+                    "SELECT delivery_config_id, delivery_config_version, feed_purpose"
+                    " FROM reporting_obligations WHERE account_id = %s"
+                    " AND reporting_obligation_id = %s",
+                    (scope.account_id, scope.reporting_obligation_id),
+                )
+            ).fetchone()
+            if (
+                obligation is None
+                or (
+                    scope.generation_key is not None
+                    and obligation[:2]
+                    != (
+                        scope.generation_key.delivery_config_id,
+                        scope.generation_key.delivery_config_version,
+                    )
+                )
+                or (scope.feed_purpose is not None and obligation[2] != scope.feed_purpose)
+            ):
+                raise ReportingNotificationError("invalid_status_scope")
+        if not enqueue:
+            return
+        await connection.execute(
+            "INSERT INTO reporting_issue_status_scopes (account_id, issue_id, scope)"
+            " VALUES (%s,%s,%s::jsonb) ON CONFLICT (account_id, issue_id) DO NOTHING",
+            (issue.account_id, issue.issue_id, _json(asdict(scope))),
+        )
+        await self._dirty_status(
+            connection,
+            scope,
+            "issue",
+            issue_evidence(before) if before else None,
+            issue_evidence(issue),
+        )
 
     # -- change feed ------------------------------------------------------
 
@@ -211,8 +338,9 @@ class PgReportingLedgerStore:
         key = configuration.generation_key
         payload = _configuration_payload(configuration)
         digest = _fingerprint(payload)
-        async with self._pool.connection() as connection:
-            await connection.execute(
+        async with self._pool.connection() as connection, connection.transaction():
+            await self._lock_account(connection, key.account_id)
+            inserted_cursor = await connection.execute(
                 "INSERT INTO reporting_configurations"
                 " (delivery_config_id, delivery_config_version, account_id,"
                 "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
@@ -221,7 +349,8 @@ class PgReportingLedgerStore:
                 "  authoritative_party, content_sha256)"
                 " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s,"
                 "         %s::jsonb, %s, %s)"
-                " ON CONFLICT (account_id, delivery_config_id, delivery_config_version) DO NOTHING",
+                " ON CONFLICT (account_id, delivery_config_id, delivery_config_version) DO NOTHING"
+                " RETURNING delivery_config_id",
                 (
                     key.delivery_config_id,
                     key.delivery_config_version,
@@ -242,15 +371,18 @@ class PgReportingLedgerStore:
                     digest,
                 ),
             )
+            inserted = await inserted_cursor.fetchone()
             # Check *after* the insert. ON CONFLICT waits for a concurrent
             # winner; a fresh READ COMMITTED statement sees its retained
             # content. A pre-insert check followed by DO NOTHING could silently
             # accept a different immutable generation from a losing writer.
             row = await (
                 await connection.execute(
-                    "SELECT content_sha256 FROM reporting_configurations"
+                    "SELECT content_sha256, activated_at, deactivated_at,"
+                    " automated_recovery_seconds, status_retention_days"
+                    " FROM reporting_configurations"
                     " WHERE account_id = %s AND delivery_config_id = %s"
-                    " AND delivery_config_version = %s",
+                    " AND delivery_config_version = %s FOR UPDATE",
                     (key.account_id, key.delivery_config_id, key.delivery_config_version),
                 )
             ).fetchone()
@@ -260,6 +392,55 @@ class PgReportingLedgerStore:
                     f"configuration {key.delivery_config_id}@{key.delivery_config_version} "
                     "already exists with different content for this account; publish a new "
                     "version instead of editing a retained generation",
+                )
+
+            scope = ReportingStatusScope(configuration.account_id, configuration.generation_key)
+            if inserted is not None:
+                if self._notifications_enabled:
+                    await self._dirty_status(
+                        connection,
+                        scope,
+                        "configuration",
+                        after=configuration_evidence(configuration),
+                    )
+                return
+            # rc.3 carries activation/deactivation and the recovery/retention
+            # windows as lifecycle state over one immutable generation, so a
+            # re-put that changes only those must apply -- otherwise a
+            # deactivated feed keeps minting obligations -- and must co-commit
+            # its status-dirty generation on this exact connection. An
+            # unchanged re-put stays a no-op and enqueues nothing.
+            retained = replace(
+                configuration,
+                activated_at=_utc(row[1]) if row[1] else None,
+                deactivated_at=_utc(row[2]) if row[2] else None,
+                automated_recovery_window=timedelta(seconds=float(row[3])),
+                status_retention_days=row[4],
+            )
+            if configuration_lifecycle(retained) == configuration_lifecycle(configuration):
+                return
+            await connection.execute(
+                "UPDATE reporting_configurations SET activated_at = %s, deactivated_at = %s,"
+                " automated_recovery_seconds = %s, status_retention_days = %s"
+                " WHERE account_id = %s AND delivery_config_id = %s"
+                " AND delivery_config_version = %s",
+                (
+                    configuration.activated_at,
+                    configuration.deactivated_at,
+                    configuration.automated_recovery_window.total_seconds(),
+                    configuration.status_retention_days,
+                    key.account_id,
+                    key.delivery_config_id,
+                    key.delivery_config_version,
+                ),
+            )
+            if self._notifications_enabled:
+                await self._dirty_status(
+                    connection,
+                    scope,
+                    "configuration",
+                    before=configuration_evidence(retained),
+                    after=configuration_evidence(configuration),
                 )
 
     async def list_configurations(
@@ -291,7 +472,7 @@ class PgReportingLedgerStore:
         self, obligation: ReportingObligationRecord
     ) -> ReportingObligationRecord:
         key = obligation.generation_key
-        async with self._pool.connection() as connection:
+        async with self._pool.connection() as connection, connection.transaction():
             await self._lock_account(connection, key.account_id)
             existing_row = await (
                 await connection.execute(
@@ -364,6 +545,15 @@ class PgReportingLedgerStore:
                     "obligation",
                     obligation.reporting_obligation_id,
                 )
+                if self._notifications_enabled:
+                    await self._dirty_status(
+                        connection,
+                        ReportingStatusScope.for_obligation(obligation),
+                        "obligation",
+                        after=ReportingStatusEvidence(
+                            "obligation", obligation.reporting_obligation_id
+                        ),
+                    )
                 return obligation
         # Another worker won the period close; converge on its obligation.
         existing = await self.find_obligation(
@@ -520,15 +710,33 @@ class PgReportingLedgerStore:
                 await connection.cursor().executemany(
                     "INSERT INTO reporting_revision_rows"
                     " (reporting_revision_id, ordinal, row_payload)"
-                    " VALUES (%s, %s, %s::jsonb)",
+                    " SELECT reporting_revision_id, %s, %s::jsonb FROM reporting_revisions"
+                    " WHERE account_id = %s AND reporting_revision_id = %s",
                     [
-                        (revision.reporting_revision_id, ordinal, _json(row))
+                        (ordinal, _json(row), revision.account_id, revision.reporting_revision_id)
                         for ordinal, row in enumerate(rows)
                     ],
                 )
             await self._append_change(
                 connection, revision.account_id, "revision", revision.reporting_revision_id
             )
+            if self._notifications_enabled:
+                from adcp.reporting.ledger.notification_events import revision_event
+
+                await self._record_notification(
+                    connection, revision_event(revision, await self._notification_now(connection))
+                )
+                await self._dirty_status(
+                    connection,
+                    ReportingStatusScope.for_obligation(_obligation_from_row(obligation)),
+                    "revision",
+                    after=ReportingStatusEvidence(
+                        "revision",
+                        revision.reporting_revision_id,
+                        readable=revision.readable,
+                        supersedes_id=revision.supersedes_reporting_revision_id,
+                    ),
+                )
         return revision
 
     @staticmethod
@@ -627,17 +835,42 @@ class PgReportingLedgerStore:
     async def set_revision_readable(
         self, *, account_id: str, reporting_revision_id: str, readable: bool
     ) -> None:
-        async with self._pool.connection() as connection:
-            updated = await (
+        async with self._pool.connection() as connection, connection.transaction():
+            await self._lock_account(connection, account_id)
+            existing = await (
                 await connection.execute(
-                    "UPDATE reporting_revisions SET readable = %s"
-                    " WHERE account_id = %s AND reporting_revision_id = %s"
-                    " RETURNING reporting_revision_id",
-                    (readable, account_id, reporting_revision_id),
+                    "SELECT readable, reporting_obligation_id FROM reporting_revisions"
+                    " WHERE account_id = %s AND reporting_revision_id = %s FOR UPDATE",
+                    (account_id, reporting_revision_id),
                 )
             ).fetchone()
-        if updated is None:
-            raise LedgerConflictError("REVISION_NOT_FOUND", "no such revision for this account")
+            if existing is None:
+                raise LedgerConflictError("REVISION_NOT_FOUND", "no such revision for this account")
+            if existing[0] == readable:
+                return
+            await connection.execute(
+                "UPDATE reporting_revisions SET readable = %s"
+                " WHERE account_id = %s AND reporting_revision_id = %s",
+                (readable, account_id, reporting_revision_id),
+            )
+            if self._notifications_enabled:
+                obligation = await (
+                    await connection.execute(
+                        f"SELECT {_OBLIGATION_COLUMNS} FROM reporting_obligations"  # nosec B608
+                        " WHERE account_id = %s AND reporting_obligation_id = %s",
+                        (account_id, existing[1]),
+                    )
+                ).fetchone()
+                assert obligation is not None
+                await self._dirty_status(
+                    connection,
+                    ReportingStatusScope.for_obligation(_obligation_from_row(obligation)),
+                    "readability",
+                    ReportingStatusEvidence(
+                        "revision", reporting_revision_id, readable=existing[0]
+                    ),
+                    ReportingStatusEvidence("revision", reporting_revision_id, readable=readable),
+                )
 
     # -- adjustments ------------------------------------------------------
 
@@ -728,6 +961,19 @@ class PgReportingLedgerStore:
                 "adjustment",
                 adjustment.reporting_adjustment_id,
             )
+            if self._notifications_enabled:
+                from adcp.reporting.ledger.notification_events import adjustment_event
+
+                await self._record_notification(
+                    connection,
+                    adjustment_event(adjustment, await self._notification_now(connection)),
+                )
+                await self._dirty_status(
+                    connection,
+                    ReportingStatusScope.for_obligation(_obligation_from_row(obligation)),
+                    "adjustment",
+                    after=ReportingStatusEvidence("adjustment", adjustment.reporting_adjustment_id),
+                )
         return adjustment
 
     async def list_adjustments(
@@ -753,12 +999,12 @@ class PgReportingLedgerStore:
     ) -> tuple[ConsumerStatusRecord, bool]:
         key = status.generation_key
         digest = _fingerprint(_consumer_status_payload(status))
-        async with self._pool.connection() as connection:
+        async with self._pool.connection() as connection, connection.transaction():
+            await self._lock_account(connection, status.account_id)
             replay = await self._replay(connection, status, digest)
             if replay is not None:
                 return replay, False
 
-            await self._lock_account(connection, status.account_id)
             leaf = await (
                 await connection.execute(
                     "SELECT reporting_status_id FROM reporting_consumer_statuses"
@@ -836,6 +1082,23 @@ class PgReportingLedgerStore:
             await self._append_change(
                 connection, status.account_id, "consumer_status", status.reporting_status_id
             )
+            if self._notifications_enabled:
+                await self._dirty_status(
+                    connection,
+                    ReportingStatusScope(
+                        status.account_id,
+                        status.generation_key,
+                        status.reporting_obligation_id,
+                        status.consumer_id,
+                    ),
+                    "consumer_status",
+                    ReportingStatusEvidence("consumer_status", leaf[0]) if leaf else None,
+                    ReportingStatusEvidence(
+                        "consumer_status",
+                        status.reporting_status_id,
+                        supersedes_id=status.supersedes_reporting_status_id,
+                    ),
+                )
         return status, True
 
     @staticmethod
@@ -928,14 +1191,18 @@ class PgReportingLedgerStore:
         account_id: str,
         consumer_id: str | None,
         observed_at: datetime,
+        status_scope: ReportingStatusScope | None = None,
     ) -> ReportingIssueLifecycle:
-        async with self._pool.connection() as connection:
+        async with self._pool.connection() as connection, connection.transaction():
             # Serialize per account so two concurrent readers of one condition
             # converge on one occurrence instead of both computing
             # generation = N + 1 and racing the partial unique index.
             await self._lock_account(connection, account_id)
             live = await self._live_issue(connection, issue_key, account_id)
             if live is not None:
+                if self._notifications_enabled and live.consumer_id != consumer_id:
+                    raise ReportingNotificationError("invalid_status_scope")
+                await self._dirty_issue(connection, live, status_scope, enqueue=False)
                 return live
             row = await (
                 await connection.execute(
@@ -953,7 +1220,7 @@ class PgReportingLedgerStore:
                 " VALUES (%s, %s, %s, %s, %s, %s, 'open')",
                 (issue_key, account_id, generation, issue_id, consumer_id, _utc(observed_at)),
             )
-            return ReportingIssueLifecycle(
+            record = ReportingIssueLifecycle(
                 issue_key=issue_key,
                 issue_id=issue_id,
                 account_id=account_id,
@@ -962,6 +1229,8 @@ class PgReportingLedgerStore:
                 issue_state="open",
                 generation=generation,
             )
+            await self._dirty_issue(connection, record, status_scope)
+            return record
 
     async def set_issue_state(
         self,
@@ -971,6 +1240,7 @@ class PgReportingLedgerStore:
         state: Literal["acknowledged", "waived"],
         at: datetime,
         external_ref: str | None = None,
+        status_scope: ReportingStatusScope | None = None,
     ) -> ReportingIssueLifecycle:
         if state not in {"acknowledged", "waived"}:
             raise LedgerConflictError(
@@ -981,7 +1251,7 @@ class PgReportingLedgerStore:
                 "degraded projection while the statement that caused it is still the "
                 "consumer's current leaf",
             )
-        async with self._pool.connection() as connection:
+        async with self._pool.connection() as connection, connection.transaction():
             await self._lock_account(connection, account_id)
             live = await self._live_issue(connection, issue_key, account_id)
             if live is None:
@@ -1001,12 +1271,24 @@ class PgReportingLedgerStore:
             )
             refreshed = await self._issue_row(connection, issue_key, account_id, live.generation)
             assert refreshed is not None
+            # Derive the no-op from the resulting row rather than predicting
+            # it: an idempotent re-acknowledge changes nothing and enqueues
+            # nothing, while anything that does move retained evidence stays
+            # reconstructable for the projector.
+            await self._dirty_issue(
+                connection, refreshed, status_scope, live, enqueue=refreshed != live
+            )
             return refreshed
 
     async def retire_issue(
-        self, *, issue_key: str, account_id: str, at: datetime
+        self,
+        *,
+        issue_key: str,
+        account_id: str,
+        at: datetime,
+        status_scope: ReportingStatusScope | None = None,
     ) -> ReportingIssueLifecycle | None:
-        async with self._pool.connection() as connection:
+        async with self._pool.connection() as connection, connection.transaction():
             await self._lock_account(connection, account_id)
             live = await self._live_issue(connection, issue_key, account_id)
             if live is None or not issue_is_retirable(live.issue_state):
@@ -1022,7 +1304,10 @@ class PgReportingLedgerStore:
                 " WHERE account_id = %s AND issue_key = %s AND generation = %s",
                 (_utc(at), account_id, issue_key, live.generation),
             )
-            return await self._issue_row(connection, issue_key, account_id, live.generation)
+            retired = await self._issue_row(connection, issue_key, account_id, live.generation)
+            assert retired is not None
+            await self._dirty_issue(connection, retired, status_scope, live)
+            return retired
 
     async def get_issue(self, *, issue_key: str, account_id: str) -> ReportingIssueLifecycle | None:
         async with self._pool.connection() as connection:

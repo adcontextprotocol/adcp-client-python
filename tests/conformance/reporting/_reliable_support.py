@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar
 
 import pytest
 
@@ -59,8 +59,15 @@ from adcp.reporting.ledger import (
     ReportingRevisionRecord,
     ReportingScheduleSpec,
     ReportingVerificationRecord,
-    WorkerTurn,
     revision_content_sha256,
+)
+from adcp.reporting.outbox import (
+    InMemoryReportingOutbox,
+    PgReportingOutbox,
+    ReportingEnvelopeCipher,
+    ReportingNotificationSubscription,
+    ReportingNotificationWorker,
+    ReportingSigningMaterial,
 )
 from adcp.reporting.source import (
     MetricOfferingV1,
@@ -121,10 +128,10 @@ class FailurePlan:
     """Finite, named fault/barrier scripts; no probabilistic failure or sleeps."""
 
     def __init__(self) -> None:
-        self.steps: dict[str, deque[Exception | Barrier]] = defaultdict(deque)
+        self.steps: dict[str, deque[BaseException | Barrier]] = defaultdict(deque)
         self.hits: list[str] = []
 
-    def at(self, point: str, *steps: Exception | Barrier) -> None:
+    def at(self, point: str, *steps: BaseException | Barrier) -> None:
         self.steps[point].extend(steps)
 
     async def hit(self, point: str) -> None:
@@ -174,13 +181,25 @@ class ScriptedSource:
         return result
 
 
+class _DidWork(Protocol):
+    @property
+    def did_work(self) -> bool: ...
+
+
+_TurnT = TypeVar("_TurnT", bound=_DidWork, covariant=True)
+
+
+class _Runnable(Protocol[_TurnT]):
+    async def run_worker(self) -> _TurnT: ...
+
+
 async def drain_until_idle(
-    producer: ReportingProducer,
+    producer: _Runnable[_TurnT],
     clock: ManualClock,
     *,
     idle_turns: int = 1,
     max_turns: int = 32,
-) -> tuple[WorkerTurn, ...]:
+) -> tuple[_TurnT, ...]:
     """Drain a known number of configurations with a finite retry/lease budget.
 
     Set idle_turns to the number of configurations: one idle account must not
@@ -188,7 +207,7 @@ async def drain_until_idle(
     """
     if not 1 <= idle_turns <= max_turns:
         raise ValueError("idle_turns must fit the positive turn budget")
-    turns: list[WorkerTurn] = []
+    turns: list[_TurnT] = []
     idle = 0
     for _ in range(max_turns):
         turn = await asyncio.wait_for(producer.run_worker(), timeout=10)
@@ -516,6 +535,7 @@ class ReliableHarness:
     clock: ManualClock
     blobs: _BytesStore
     failures: FailurePlan = field(default_factory=FailurePlan)
+    notifications: bool = False
     currencies: dict[str, str] = field(default_factory=lambda: {"eur": "EUR", "usd": "USD"})
     manifests: dict[tuple[str, str], SourceBatchManifestV1] = field(default_factory=dict)
     staging: _Staging = field(init=False)
@@ -584,7 +604,9 @@ class ReliableHarness:
             )
             await pool.open(wait=True)
             self.blobs = _BytesStore(pool)
-            self.store = PgReportingReconciliationStore(pool=pool, clock=self.clock)
+            self.store = PgReportingReconciliationStore(
+                pool=pool, clock=self.clock, notifications=self.notifications
+            )
             self.__post_init__()
         else:
             # This is an explicit test fixture image, not an SDK persistence API.
@@ -609,18 +631,28 @@ class ReliableHarness:
 
 @asynccontextmanager
 async def reliable_factory(
-    backend: Backend, *, initialize: bool = True
+    backend: Backend,
+    *,
+    initialize: bool = True,
+    notifications: bool = False,
+    autocommit: bool = False,
 ) -> AsyncIterator[ReliableHarness]:
     clock = ManualClock()
     if backend == "memory":
         harness = ReliableHarness(
-            InMemoryReportingReconciliationStore(clock=clock), clock, _BytesStore()
+            InMemoryReportingReconciliationStore(clock=clock, notifications=notifications),
+            clock,
+            _BytesStore(),
+            notifications=notifications,
         )
         yield harness
     else:
-        async with isolated_reporting_pool() as pool:
+        async with isolated_reporting_pool(autocommit=autocommit) as pool:
             harness = ReliableHarness(
-                PgReportingReconciliationStore(pool=pool, clock=clock), clock, _BytesStore(pool)
+                PgReportingReconciliationStore(pool=pool, clock=clock, notifications=notifications),
+                clock,
+                _BytesStore(pool),
+                notifications=notifications,
             )
             if initialize:
                 await harness.store.create_schema()
@@ -743,3 +775,417 @@ async def publication_records(
         consumer_commit_ref=f"load-{suffix}",
     )
     return PublishedRecords(binding, delivery, attempt, outcome, receipt)
+
+
+class SimulatedCrash(BaseException):
+    """Abrupt service death, deliberately outside ordinary retry catches."""
+
+
+def notification_subscription(
+    account: str = "acct_a",
+    subscriber: str = "buyer",
+    *,
+    principal: str = "buyer",
+    events: tuple[str, ...] = ("reporting.ledger_changed", "reporting.delivery_ready"),
+    url: str = "https://receiver.example.test/reporting?token=URL_SECRET",
+    **changes: Any,
+) -> ReportingNotificationSubscription:
+    values: dict[str, Any] = dict(
+        account_id=account,
+        subscriber_id=subscriber,
+        principal_id=principal,
+        url=url,
+        event_types=events,
+        configuration_revision="registration-1",
+        authorization_ref="authorized-principal-1",
+        proof_of_control_ref="account-challenge-1",
+        signing_scope_id="seller-signing-scope-1",
+        active=True,
+        authorized=True,
+        proof_valid=True,
+    )
+    values.update(changes)
+    return ReportingNotificationSubscription(**values)
+
+
+class ScriptedSubscriptions:
+    """Normalized trusted account configurations, with one atomic list read."""
+
+    def __init__(self, failures: FailurePlan) -> None:
+        self.failures = failures
+        self.values: dict[tuple[str, str], ReportingNotificationSubscription] = {}
+        self.lists: list[tuple[str, str]] = []
+        self.gets: list[tuple[str, str, str]] = []
+
+    def put(self, value: ReportingNotificationSubscription) -> None:
+        self.values[(value.account_id, value.subscriber_id)] = value
+
+    async def list_active(self, *, account_id: str, notification_type: str):
+        self.lists.append((account_id, notification_type))
+        await self.failures.hit("subscriptions.list.before")
+        snapshot = tuple(
+            value
+            for (account, _), value in self.values.items()
+            if account == account_id and value.active and notification_type in value.event_types
+        )
+        await self.failures.hit("subscriptions.list.after")
+        return snapshot
+
+    async def get_active(self, *, account_id: str, subscriber_id: str, notification_type: str):
+        self.gets.append((account_id, subscriber_id, notification_type))
+        await self.failures.hit("subscriptions.get")
+        return self.values.get((account_id, subscriber_id))
+
+
+class ScriptedSigning:
+    def __init__(self, failures: FailurePlan) -> None:
+        self.failures = failures
+        self.generation = 1
+        self.calls: list[tuple[str, str, str]] = []
+
+    async def resolve(self, *, account_id: str, principal_id: str, signing_scope_id: str):
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+        self.calls.append((account_id, principal_id, signing_scope_id))
+        await self.failures.hit("signing.resolve")
+        return ReportingSigningMaterial(
+            Ed25519PrivateKey.from_private_bytes(bytes([self.generation]) * 32),
+            f"https://seller.example.test/keys#key-{self.generation}",
+            "ed25519",
+            frozenset({"ed25519"}),
+        )
+
+
+def notification_verification_keys() -> list[dict[str, Any]]:
+    """The exact public-key fixture used by the separate receiver process."""
+    import base64
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    result = []
+    for generation in (1, 2):
+        public = Ed25519PrivateKey.from_private_bytes(bytes([generation]) * 32).public_key()
+        result.append(
+            {
+                "kty": "OKP",
+                "crv": "Ed25519",
+                "alg": "EdDSA",
+                "use": "sig",
+                "adcp_use": "request-signing",
+                "key_ops": ["verify"],
+                "kid": f"https://seller.example.test/keys#key-{generation}",
+                "x": base64.urlsafe_b64encode(
+                    public.public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+                )
+                .rstrip(b"=")
+                .decode(),
+            }
+        )
+    return result
+
+
+@dataclass(frozen=True)
+class ReceivedNotification:
+    account_id: str
+    subscriber_id: str
+    idempotency_key: str
+    body: bytes = field(repr=False)
+    headers: dict[str, str] = field(repr=False)
+    target: str = field(repr=False)
+
+
+class ScriptedNotificationReceiver:
+    """HTTP/1 byte peer below the SDK's actual pinning and signing paths.
+
+    We replace only the network socket. The production resolver, SSRF policy,
+    pinning backend, sender, httpx/httpcore HTTP encoding, and signature code all
+    run. This receiver persists accepted bytes in the same deterministic private
+    receiver store used by the preceding reporting slice.
+    """
+
+    def __init__(self, harness: ReliableHarness) -> None:
+        self.harness = harness
+        self.received: list[ReceivedNotification] = []
+        self.connections: list[tuple[str, int]] = []
+        self.responses: dict[str, deque[int | Exception]] = defaultdict(deque)
+        self.dns_addresses: dict[str, list[str]] = {}
+        self.dns_calls: list[str] = []
+
+    def install(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import socket
+        from types import SimpleNamespace
+
+        from httpcore._backends.anyio import AnyIOBackend
+
+        from adcp import webhook_auth
+        from adcp.signing import signer
+
+        # The signing library has its own crypto clock. Keep even that private
+        # test dependency deterministic without replacing global time.time().
+        crypto_time = SimpleNamespace(time=lambda: self.harness.clock().timestamp())
+        monkeypatch.setattr(signer, "time", crypto_time)
+        monkeypatch.setattr(webhook_auth, "time", crypto_time)
+
+        original_resolve = socket.getaddrinfo
+        receiver = self
+
+        def resolve(host, port, *args, **kwargs):
+            if isinstance(host, bytes):
+                host = host.decode("ascii")
+            if str(host).endswith(".example.test"):
+                receiver.dns_calls.append(host)
+                addresses = receiver.dns_addresses.get(host, ["8.8.8.8"])
+                address = addresses.pop(0) if len(addresses) > 1 else addresses[0]
+                family = socket.AF_INET6 if ":" in address else socket.AF_INET
+                return [(family, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (address, port))]
+            return original_resolve(host, port, *args, **kwargs)
+
+        async def connect(backend, host, port, **kwargs):
+            receiver.connections.append((host, port))
+            # The parent of the SDK pinning backend receives an IP, never an
+            # attacker-controlled hostname to resolve for a second time.
+            assert host in {"8.8.8.8", "1.1.1.1"}
+            assert port == 443
+            return _NotificationStream(receiver)
+
+        monkeypatch.setattr(socket, "getaddrinfo", resolve)
+        monkeypatch.setattr(AnyIOBackend, "connect_tcp", connect)
+
+    async def respond(self, raw: bytes) -> bytes:
+        head, body = raw.split(b"\r\n\r\n", 1)
+        lines = head.decode("ascii").split("\r\n")
+        headers = dict(line.split(": ", 1) for line in lines[1:])
+        headers = {key.lower(): value for key, value in headers.items()}
+        value = json.loads(body)
+        subscriber = value["subscriber_id"]
+        await self.harness.failures.hit("http.before")
+        await self.harness.failures.hit(f"http.before:{subscriber}")
+        script = self.responses[subscriber]
+        step = script.popleft() if script else 200
+        if isinstance(step, Exception):
+            raise step
+        self.received.append(
+            ReceivedNotification(
+                value["account_id"],
+                subscriber,
+                value["idempotency_key"],
+                body,
+                headers,
+                lines[0].split(" ")[1],
+            )
+        )
+        if 200 <= step < 300:
+            await self.harness.receiver.write(value["account_id"], value["idempotency_key"], body)
+            await self.harness.failures.hit("http.accepted")
+        response_body = b"provider token=DO_NOT_PERSIST"
+        redirect = b"Location: https://169.254.169.254/secret\r\n" if step == 302 else b""
+        return (
+            f"HTTP/1.1 {step} Test\r\nContent-Length: {len(response_body)}\r\n".encode()
+            + redirect
+            + b"\r\n"
+            + response_body
+        )
+
+
+class _NotificationStream:
+    def __init__(self, receiver: ScriptedNotificationReceiver) -> None:
+        self.receiver, self.request, self.response = receiver, bytearray(), None
+
+    async def write(self, buffer, timeout=None):
+        self.request.extend(buffer)
+
+    async def read(self, max_bytes, timeout=None):
+        if self.response is None:
+            self.response = await self.receiver.respond(bytes(self.request))
+        chunk, self.response = self.response[:max_bytes], self.response[max_bytes:]
+        return chunk
+
+    async def start_tls(self, ssl_context, server_hostname=None, timeout=None):
+        return self
+
+    async def aclose(self):
+        pass
+
+    def get_extra_info(self, info):
+        return None
+
+
+@dataclass(frozen=True)
+class NotificationTurn:
+    did_work: bool
+
+
+class NotificationRunner:
+    """Adapter for the shared bounded drain_until_idle state-machine driver."""
+
+    def __init__(self, worker: ReportingNotificationWorker, accounts: tuple[str, ...]) -> None:
+        self.worker, self.accounts, self.turn = worker, accounts, 0
+
+    async def run_worker(self) -> NotificationTurn:
+        account = self.accounts[self.turn % len(self.accounts)]
+        self.turn += 1
+        expanded = await self.worker.expand_one(account_id=account)
+        delivered = await self.worker.deliver_one(account_id=account)
+        return NotificationTurn(expanded or delivered)
+
+
+@dataclass
+class NotificationHarness:
+    reliable: ReliableHarness
+    subscriptions: ScriptedSubscriptions = field(init=False)
+    signing: ScriptedSigning = field(init=False)
+    receiver: ScriptedNotificationReceiver = field(init=False)
+    cipher: ReportingEnvelopeCipher = field(
+        default_factory=lambda: ReportingEnvelopeCipher(b"e" * 32)
+    )
+
+    def __post_init__(self) -> None:
+        self.subscriptions = ScriptedSubscriptions(self.reliable.failures)
+        self.signing = ScriptedSigning(self.reliable.failures)
+        self.receiver = ScriptedNotificationReceiver(self.reliable)
+        self.subscriptions.put(notification_subscription())
+
+    @property
+    def outbox(self):
+        if self.reliable.blobs.pool is not None:
+            return PgReportingOutbox(pool=self.reliable.blobs.pool, clock=self.reliable.clock)
+        return InMemoryReportingOutbox(self.reliable.store)
+
+    def worker(self, **kwargs: Any) -> ReportingNotificationWorker:
+        return ReportingNotificationWorker(
+            outbox=self.outbox,
+            subscriptions=self.subscriptions,
+            signing=self.signing,
+            cipher=self.cipher,
+            clock=self.reliable.clock,
+            **kwargs,
+        )
+
+    async def drain(self, *accounts: str):
+        selected = accounts or ("acct_a",)
+        return await drain_until_idle(
+            NotificationRunner(self.worker(), selected),
+            self.reliable.clock,
+            idle_turns=len(selected),
+        )
+
+
+@pytest.fixture(params=["memory", "postgres"])
+async def notification_harness(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch):
+    async with reliable_factory(request.param, notifications=True, autocommit=True) as reliable:
+        harness = NotificationHarness(reliable)
+        harness.receiver.install(monkeypatch)
+        yield harness
+
+
+@dataclass
+class ServiceProcess:
+    """A separately pooled service controlled by newline-JSON barriers.
+
+    Waits have watchdog bounds. Neither process orchestration nor convergence
+    uses timing sleeps. Configuration travels over stdin, never command args.
+    """
+
+    process: asyncio.subprocess.Process
+    role: str
+    last_point: str = "spawned"
+    lifetime_expired: bool = False
+
+    def diagnostic(self, action: str) -> str:
+        return (
+            f"reporting_matrix role={self.role} pid={self.process.pid} action={action}"
+            f" last_point={self.last_point} exit={self.process.returncode}"
+            f" lifetime_expired={self.lifetime_expired}"
+        )
+
+    def trace(self, action: str) -> None:
+        # Visible under pytest -s; no routing data, secrets, or child prose.
+        print(self.diagnostic(action), flush=True)
+
+    async def send(self, **value: Any) -> None:
+        assert self.process.stdin is not None
+        self.process.stdin.write(json.dumps(value).encode() + b"\n")
+        try:
+            await asyncio.wait_for(self.process.stdin.drain(), 5)
+        except (TimeoutError, asyncio.TimeoutError, BrokenPipeError, ConnectionResetError):
+            raise AssertionError(self.diagnostic("stdin_failed")) from None
+
+    async def event(self, point: str, *, timeout_seconds: float = 30) -> dict[str, Any]:
+        assert self.process.stdout is not None
+        self.trace(f"waiting:{point}")
+        try:
+            raw = await asyncio.wait_for(self.process.stdout.readline(), timeout_seconds)
+        except (TimeoutError, asyncio.TimeoutError):
+            raise AssertionError(self.diagnostic(f"deadline:{point}")) from None
+        if not raw:
+            # Reading stderr to EOF here can itself hang on a living child;
+            # arbitrary tracebacks are also inappropriate diagnostics.
+            raise AssertionError(self.diagnostic(f"eof_before:{point}"))
+        value: dict[str, Any] = json.loads(raw)
+        allowed = {"point", "classification", "stage", "attempt", "backend_pid", "port", "did_work"}
+        assert set(value).issubset(allowed), self.diagnostic("invalid_child_protocol")
+        self.last_point = value["point"]
+        self.trace(f"received:{self.last_point}")
+        assert value["point"] == point, (self.diagnostic(f"expected:{point}"), value)
+        return value
+
+    async def finish(self, *, code: int = 0) -> None:
+        try:
+            actual = await asyncio.wait_for(self.process.wait(), 15)
+        except (TimeoutError, asyncio.TimeoutError):
+            raise AssertionError(self.diagnostic("exit_deadline")) from None
+        assert actual == code, self.diagnostic(f"expected_exit:{code}")
+        self.trace("exited")
+
+    async def kill(self) -> None:
+        if self.process.returncode is None:
+            self.trace("kill_owned_process")
+            try:
+                self.process.kill()
+            except ProcessLookupError:
+                pass
+        if self.process.stdin is not None:
+            self.process.stdin.close()
+        try:
+            await asyncio.wait_for(self.process.wait(), 15)
+        except (TimeoutError, asyncio.TimeoutError):
+            raise AssertionError(self.diagnostic("kill_deadline")) from None
+
+    async def watchdog(self) -> None:
+        try:
+            await asyncio.wait_for(self.process.wait(), 90)
+        except (TimeoutError, asyncio.TimeoutError):
+            self.lifetime_expired = True
+            self.trace("lifetime_deadline")
+            await self.kill()
+
+
+@asynccontextmanager
+async def service_process(
+    pool: AsyncConnectionPool, role: str, **settings: Any
+) -> AsyncIterator[ServiceProcess]:
+    import sys
+
+    process = await asyncio.wait_for(
+        asyncio.create_subprocess_exec(
+            sys.executable,
+            "-m",
+            "tests.conformance.reporting._reliable_process",
+            role,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        ),
+        10,
+    )
+    service = ServiceProcess(process, role)
+    service.trace("spawned")
+    watchdog = asyncio.create_task(service.watchdog())
+    try:
+        await service.send(conninfo=pool.conninfo, pool_kwargs=pool.kwargs, **settings)
+        yield service
+    finally:
+        await service.kill()
+        watchdog.cancel()
+        await asyncio.gather(watchdog, return_exceptions=True)

@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import json
 import warnings
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -241,6 +241,10 @@ class ScopeTransientlyUnavailable(RuntimeError):  # noqa: N818 - public issue co
     Durable outbox workers release the row for retry, allowing credential
     rotation or a temporarily unavailable key service to recover.
     """
+
+
+class PreparedWebhookAttemptExpiredError(RuntimeError):
+    """A prepared request lost its durable fence before the HTTP attempt."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -767,8 +771,17 @@ class WebhookSender:
             extra_headers=dict(extra_headers) if extra_headers else {},
         )
 
-    async def send_prepared(self, prepared: PreparedWebhook) -> WebhookDeliveryResult:
-        """Sign and post a previously prepared immutable webhook request."""
+    async def send_prepared(
+        self,
+        prepared: PreparedWebhook,
+        *,
+        before_attempt: Callable[[], Awaitable[bool]] | None = None,
+    ) -> WebhookDeliveryResult:
+        """Sign and post a previously prepared immutable webhook request.
+
+        Durable publishers can recheck an expiring fence after DNS/signing and
+        immediately before HTTP. A false result aborts without sending bytes.
+        """
         if not prepared.idempotency_key:
             raise ValueError("prepared webhook idempotency_key must be non-empty")
         if not prepared.body:
@@ -793,6 +806,7 @@ class WebhookSender:
             body=prepared.body,
             idempotency_key=prepared.idempotency_key,
             extra_headers=prepared.extra_headers or None,
+            before_attempt=before_attempt,
         )
 
     async def send_revocation_notification(
@@ -1124,6 +1138,7 @@ class WebhookSender:
         body: bytes,
         idempotency_key: str,
         extra_headers: Mapping[str, str] | None,
+        before_attempt: Callable[[], Awaitable[bool]] | None = None,
     ) -> WebhookDeliveryResult:
         """Sign + POST a pre-serialized body through an SSRF-validated transport.
 
@@ -1180,6 +1195,15 @@ class WebhookSender:
             extra=extra_headers,
             reserved=self._auth.reserved_headers(),
         )
+
+        if before_attempt is not None:
+            try:
+                if not await before_attempt():
+                    raise PreparedWebhookAttemptExpiredError("prepared_attempt_expired")
+            except BaseException:
+                if transport is not None:
+                    await transport.aclose()
+                raise
 
         if transport is not None:
             # Owned-client path. ``trust_env=False`` prevents httpx from

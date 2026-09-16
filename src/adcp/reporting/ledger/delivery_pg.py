@@ -131,6 +131,24 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
                 stored = validate_transition(candidate, records, context, now)
                 await self._insert(connection, stored)
                 await self._append_reconciliation_change(connection, stored)
+                if self._notifications_enabled:
+                    from adcp.reporting.ledger.notification_events import (
+                        delivery_dirty,
+                        materialization_event,
+                    )
+
+                    event = materialization_event(
+                        stored,
+                        records,
+                        context.obligation,
+                        context.revision,
+                        context.configuration,
+                        now,
+                    )
+                    if event is not None:
+                        await self._record_notification(connection, event)
+                    scope, reason, evidence = delivery_dirty(stored, context.obligation)
+                    await self._dirty_status(connection, scope, reason, after=evidence)
                 return cast(RecordT, stored), True
 
     async def _append_reconciliation_change(
@@ -268,8 +286,13 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
         self, connection: Any, record: ReportingDeliveryRecord
     ) -> DeliveryContext:
         who = principal(record)
-        if isinstance(record, ReportingDestinationBinding):
-            generation = record.generation_key
+        configuration = None
+        if isinstance(record, ReportingDestinationBinding) or self._notifications_enabled:
+            generation = (
+                record.generation_key
+                if isinstance(record, ReportingDestinationBinding)
+                else record.scope.generation_key
+            )
             row = await (
                 await connection.execute(
                     "SELECT delivery_config_id, delivery_config_version, account_id,"
@@ -286,7 +309,9 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
                     ),
                 )
             ).fetchone()
-            return DeliveryContext(configuration=_configuration_from_row(row) if row else None)
+            configuration = _configuration_from_row(row) if row else None
+        if isinstance(record, ReportingDestinationBinding):
+            return DeliveryContext(configuration=configuration)
         obligation_row = await (
             await connection.execute(
                 f"SELECT {_OBLIGATION_COLUMNS} FROM reporting_obligations"  # noqa: S608  # nosec B608
@@ -314,6 +339,7 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
                 )
             ).fetchone()
         return DeliveryContext(
+            configuration=configuration,
             obligation=_obligation_from_row(obligation_row) if obligation_row else None,
             revision=_revision_from_row(revision_row) if revision_row else None,
             adjustment=_adjustment_from_row(adjustment_row) if adjustment_row else None,
