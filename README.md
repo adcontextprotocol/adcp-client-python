@@ -356,6 +356,7 @@ forward traffic degrades gracefully rather than failing.
 - **[Handler authoring](docs/handler-authoring.md)** - Building an AdCP-compliant agent on `adcp.server`
 - **[Production seller path](docs/production-seller.md)** - Choose the server abstraction and wire durable multi-tenant tasks and webhook delivery
 - **[Validation contract](docs/validation-contract.md)** - Canonical wire validation versus structural Pydantic models
+- **[Reporting source adapters](docs/reporting-source-adapters.md)** - Per-metric availability evidence, coverage, and control totals for inline delivery fetches
 - **[Migrating from SDK 6 to 7](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v6_to_v7.md)** - Breaking API, security, concurrency, and webhook changes
 - **[Migrating from SDK 7 to 8](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v7_to_v8.md)** - Secure webhook defaults and telemetry changes
 - **[Migrating from AdCP 3.1 to 3.2 beta](MIGRATION_ADCP_3.1_TO_3.2.md)** - Compact lifecycle adoption and old/new compatibility matrix
