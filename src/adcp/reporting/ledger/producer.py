@@ -30,13 +30,19 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 import logging
-from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, TypeAlias
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
+from adcp.reporting.currency import (
+    ReportingCurrencyError,
+    require_frozen_currency,
+    validate_currency,
+)
 from adcp.reporting.ledger.models import (
     ReportingConfiguration,
     ReportingDeliveryEscalation,
@@ -53,6 +59,7 @@ from adcp.reporting.ledger.store import (
 from adcp.reporting.source import (
     MediaBuyConstituentV1,
     ReportingConstituent,
+    ReportingContractIdentityV1,
     ReportingPublicationClass,
     ReportingSourceCoverageRequestV1,
     ReportingSourceExecutor,
@@ -67,6 +74,8 @@ from adcp.reporting.source import (
 )
 
 __all__ = [
+    "CurrencyResolver",
+    "FixedCurrencyResolver",
     "ProducerOfferings",
     "ReportingProducer",
     "WorkerTurn",
@@ -74,6 +83,34 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+CurrencyResolver: TypeAlias = Callable[
+    [ReportingConfiguration, ReportingObligationRecord], Awaitable[str] | str
+]
+"""Resolve from trusted account/definition state at the obligation's period end.
+
+The candidate obligation supplies the account-qualified generation, historical
+scope and boundary. It has no currency yet. No buyer context or source response
+is passed. Implementations must reject mixed-currency media-buy/package scope;
+``require_single_currency`` can check their historical constituent values.
+An async resolver may load the account context for a future reporting service.
+"""
+
+
+@dataclass(frozen=True)
+class FixedCurrencyResolver:
+    """The backward-compatible single-currency default, also usable explicitly."""
+
+    currency: str = "USD"
+
+    def __post_init__(self) -> None:
+        validate_currency(self.currency)
+
+    def __call__(
+        self, configuration: ReportingConfiguration, obligation: ReportingObligationRecord
+    ) -> str:
+        return self.currency
 
 
 def _utc(value: datetime) -> datetime:
@@ -172,6 +209,7 @@ class ReportingProducer:
         lease_seconds: float = 60.0,
         max_periods_per_turn: int = 64,
         clock: Callable[[], datetime] | None = None,
+        currency_resolver: CurrencyResolver | None = None,
     ) -> None:
         self._source = source
         self._offerings = offerings
@@ -182,6 +220,11 @@ class ReportingProducer:
         self._lease_seconds = lease_seconds
         self._max_periods_per_turn = max_periods_per_turn
         self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._currency_resolver = (
+            currency_resolver
+            if currency_resolver is not None
+            else FixedCurrencyResolver(offerings.currency)
+        )
 
     @property
     def store(self) -> ReportingLedgerStore:
@@ -341,6 +384,9 @@ class ReportingProducer:
                 definition=configuration.definition,
                 created_at=now,
             )
+            resolved = self._currency_resolver(configuration, obligation)
+            currency = await resolved if inspect.isawaitable(resolved) else resolved
+            obligation = replace(obligation, currency=validate_currency(currency))
             stored = await self._store.commit_obligation(obligation)
             committed.append(stored)
             turn.obligations_committed.append(stored.reporting_obligation_id)
@@ -418,7 +464,21 @@ class ReportingProducer:
             )
             if obligation is None:
                 continue
-            await self.acquire_obligation(configuration, obligation, turn=turn, now=now)
+            try:
+                await self.acquire_obligation(configuration, obligation, turn=turn, now=now)
+            except ReportingCurrencyError as error:
+                # One obligation whose money cannot be interpreted -- a legacy
+                # period with no retained currency, or a source contradicting
+                # the frozen one -- is a stuck slice, not a broken worker.
+                # Raising here would starve every later period under this
+                # configuration on every turn, forever.
+                logger.info(
+                    "reporting slice failed obligation=%s code=%s",
+                    obligation.reporting_obligation_id,
+                    error.code,
+                )
+                turn.slices_failed.append(obligation.reporting_obligation_id)
+                self._note_escalation(obligation, turn, now=now)
 
     async def acquire_obligation(
         self,
@@ -444,6 +504,7 @@ class ReportingProducer:
                 "CONFIGURATION_GENERATION_MISMATCH",
                 "the source configuration must belong to the obligation's account and generation",
             )
+        obligation = await self._stored_obligation(obligation)
         turn = turn or WorkerTurn()
         now = now or self._clock()
         revisions = await self._store.list_revisions(
@@ -457,6 +518,11 @@ class ReportingProducer:
         satisfied = any(item.readable for item in revisions)
         if satisfied and not restate:
             return None
+        # Everything below needs the frozen code: the slice request carries it,
+        # the manifest is checked against it, and the revision is written under
+        # it. Gate here rather than earlier so a settled legacy obligation stays
+        # the no-op it already was instead of becoming an error on every turn.
+        require_frozen_currency(obligation.currency)
 
         finality = obligation.required_finality
         offering_id = self._offerings.offering_for(finality)
@@ -495,6 +561,7 @@ class ReportingProducer:
             return None
 
         manifest = self._verified_manifest(result)
+        self._validate_manifest_currency(obligation, manifest)
         return await self.commit_revision_from_manifest(
             obligation,
             manifest,
@@ -567,6 +634,8 @@ class ReportingProducer:
         edit path.  An official close is terminal, so a later source correction
         must arrive as an adjustment instead.
         """
+        obligation = await self._stored_obligation(obligation)
+        self._validate_manifest_currency(obligation, manifest)
         now = now or self._clock()
         turn = turn or WorkerTurn()
         existing = await self._store.list_revisions(
@@ -610,6 +679,71 @@ class ReportingProducer:
         turn.revisions_committed.append(committed.reporting_revision_id)
         return committed
 
+    async def _stored_obligation(
+        self, obligation: ReportingObligationRecord
+    ) -> ReportingObligationRecord:
+        """Always use the durable winner, including for public low-level calls."""
+        stored = await self._store.get_obligation(
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+        )
+        if stored is None:
+            raise LedgerConflictError(
+                "OBLIGATION_NOT_FOUND", "commit the obligation before source work"
+            )
+        if stored.generation_key != obligation.generation_key:
+            raise LedgerConflictError(
+                "CONFIGURATION_GENERATION_MISMATCH", "the obligation's retained generation differs"
+            )
+        return stored
+
+    @staticmethod
+    def _validate_manifest_currency(
+        obligation: ReportingObligationRecord, manifest: SourceBatchManifestV1
+    ) -> None:
+        currency = require_frozen_currency(obligation.currency)
+        if manifest.currency != currency:
+            raise ReportingCurrencyError(
+                "CURRENCY_MISMATCH", "source manifest currency disagrees with the frozen obligation"
+            )
+        identity = manifest.identity
+        if (
+            identity.account_id != obligation.account_id
+            or identity.reporting_obligation_id != obligation.reporting_obligation_id
+            or identity.delivery_config_id != obligation.delivery_config_id
+            or identity.delivery_config_version != obligation.delivery_config_version
+            or identity.report_definition_id != obligation.report_definition_id
+        ):
+            raise LedgerConflictError("MANIFEST_MISMATCH", "manifest does not bind this obligation")
+        definition = obligation.definition
+        units = {"spend": currency}
+        ReportingProducer._validate_definition_binding(obligation, manifest.contract)
+        if definition is not None:
+            units.update(definition.monetary_metric_units)
+            units.update(definition.monetary_control_total_units)
+        for total in manifest.control_totals:
+            expected = units.get(total.name)
+            if expected is not None and total.unit is not None and total.unit != expected:
+                raise ReportingCurrencyError(
+                    "CURRENCY_MISMATCH",
+                    "source control total unit disagrees with the frozen currency",
+                )
+
+    @staticmethod
+    def _validate_definition_binding(
+        obligation: ReportingObligationRecord, contract: ReportingContractIdentityV1
+    ) -> None:
+        definition = obligation.definition
+        if definition is not None and (
+            contract.report_definition_id != obligation.report_definition_id
+            or contract.reporting_profile != obligation.reporting_profile
+            or any(getattr(contract, name) != value for name, value in definition.to_wire().items())
+        ):
+            raise LedgerConflictError(
+                "REPORT_DEFINITION_MISMATCH",
+                "the source definition differs from the obligation's pin",
+            )
+
     @staticmethod
     def _current_snapshot_leaf(revisions: Sequence[ReportingRevisionRecord]) -> str | None:
         snapshots = [item for item in revisions if item.finality == "snapshot"]
@@ -652,10 +786,11 @@ class ReportingProducer:
         as a new immutable observation. The ordinal comes from durable state,
         not from the clock, so neither behavior depends on wall time.
         """
+        offering = self._source.capabilities.offering(offering_id)
         constituents: list[ReportingConstituent] = [
             MediaBuyConstituentV1(
                 constituent_id=media_buy_id,
-                product_id=configuration.report_definition_id,
+                product_id=obligation.report_definition_id,
                 media_buy_id=media_buy_id,
             )
             for media_buy_id in obligation.media_buy_ids
@@ -696,7 +831,7 @@ class ReportingProducer:
             offering_id=offering_id,
             publication_namespace=self._offerings.publication_namespace,
             publication_class=publication_class,
-            contract=self._source.capabilities.offering(offering_id).contract,
+            contract=offering.contract,
             period=ReportingSourcePeriodV1(
                 period_key=obligation.period.period_key,
                 source_local_date=_source_local_date(
@@ -722,7 +857,7 @@ class ReportingProducer:
             ),
             requested_metrics=list(self._offerings.requested_metrics),
             requested_dimensions=list(self._offerings.requested_dimensions),
-            currency=self._offerings.currency,
+            currency=require_frozen_currency(obligation.currency),
             deadline_at=_utc(now) + self._offerings.slice_timeout,
         )
 
@@ -740,6 +875,7 @@ def _logical_slice_fingerprint(obligation: ReportingObligationRecord, offering_i
             "period_start": _utc(obligation.period.start).isoformat(),
             "period_end": _utc(obligation.period.end).isoformat(),
             "media_buy_ids": sorted(obligation.media_buy_ids),
+            "currency": require_frozen_currency(obligation.currency),
         }
     )
 

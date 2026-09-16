@@ -77,6 +77,7 @@ from adcp.reporting.ledger import (  # noqa: E402
 )
 from adcp.reporting.ledger.models import first_ordinal_after  # noqa: E402
 from adcp.reporting.ledger.pg import PgReportingLedgerStore  # noqa: E402
+from adcp.reporting.source import reporting_source_capabilities_sha256_v1  # noqa: E402
 from adcp.types import (  # noqa: E402
     GetReportingStatusRequest,
     GetReportingStatusResponse,
@@ -248,8 +249,25 @@ def _producer(
     store: PgReportingLedgerStore, source: SimulatedSource, *, now: datetime
 ) -> tuple[ReportingProducer, InlineReportingSource]:
     staging = InMemoryStagingStore()
+    # The source must advertise the definition pinned by these configurations;
+    # the generic fixture advertises a different example definition.
+    capabilities = redacted_capabilities()
+    contract = capabilities.offerings[0].contract.model_copy(
+        update={"report_definition_id": DEFINITION_ID, **DEFINITION.to_wire()}
+    )
+    capabilities = capabilities.model_copy(
+        update={
+            "offerings": [
+                offering.model_copy(update={"contract": contract})
+                for offering in capabilities.offerings
+            ]
+        }
+    )
+    capabilities = capabilities.model_copy(
+        update={"capabilities_sha256": reporting_source_capabilities_sha256_v1(capabilities)}
+    )
     executor = InlineReportingSource(
-        capabilities=redacted_capabilities(),
+        capabilities=capabilities,
         fetch=source,
         staging=staging,
         seals=InMemorySealStore(),

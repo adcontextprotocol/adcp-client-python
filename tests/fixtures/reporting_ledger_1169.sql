@@ -1,7 +1,6 @@
 -- AdCP Reliable Reporting ledger — durable obligations, revisions, and status.
 --
--- Run this followed by reporting_ledger_account_generations.sql and
--- reporting_ledger_obligation_currency.sql in ONE
+-- Run this followed by reporting_ledger_account_generations.sql in ONE
 -- transaction (psql --single-transaction -f ... -f ...), or call
 -- PgReportingLedgerStore.create_schema(). CREATE TABLE IF NOT EXISTS alone
 -- does not upgrade the global configuration primary key from 8.0.0-beta.15.
@@ -82,10 +81,7 @@ CREATE TABLE IF NOT EXISTS reporting_obligations (
     -- definition that changes later must not retroactively re-describe a
     -- period that already closed.
     definition              JSONB,
-    created_at              TIMESTAMPTZ      NOT NULL,
-    -- NULL is unknown legacy currency, never an implicit USD default. The
-    -- currency migration installs validation and immutability on all schemas.
-    currency                TEXT COLLATE "C"
+    created_at              TIMESTAMPTZ      NOT NULL
 );
 
 -- One obligation per logical period. Without this, two workers racing a period

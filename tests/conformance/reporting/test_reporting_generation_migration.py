@@ -74,6 +74,12 @@ async def _retained_rows(pool: AsyncConnectionPool) -> dict[str, list[Any]]:
                 )
             ).fetchall()
             result[table] = [row[0] for row in rows]
+            if table == "reporting_obligations":
+                # #1171 adds an explicit unknown currency. This test still
+                # compares every byte of the pre-existing #1169 evidence.
+                for record in result[table]:
+                    if record.get("currency") is None:
+                        record.pop("currency", None)
     return result
 
 
@@ -97,6 +103,7 @@ async def _other_constraints(pool: AsyncConnectionPool) -> list[Any]:
                 "SELECT oid, conname, pg_get_constraintdef(oid) FROM pg_constraint"
                 " WHERE connamespace = current_schema()::regnamespace"
                 " AND NOT (conrelid = 'reporting_configurations'::regclass AND contype = 'p')"
+                " AND conname <> 'reporting_obligations_currency_code'"
                 " ORDER BY oid"
             )
         ).fetchall()

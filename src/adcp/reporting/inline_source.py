@@ -54,12 +54,18 @@ import json
 import os
 import tempfile
 from collections.abc import Awaitable, Callable, Collection, Mapping, Sequence
-from dataclasses import dataclass, field
+from copy import deepcopy
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Protocol, TypeAlias, runtime_checkable
 
+from adcp.reporting.currency import (
+    ReportingCurrencyError,
+    validate_currency,
+    validate_row_currencies,
+)
 from adcp.reporting.source import (
     MediaBuyConstituentV1,
     PackageItemConstituentV1,
@@ -148,6 +154,9 @@ class InlineFetchResult:
 
     warnings: Sequence[str] = ()
     """Safe, redacted operator notes retained on the publication."""
+
+    currency: str | None = None
+    """Optional source corroboration; must match the already frozen request."""
 
 
 #: What an inline fetch may return.  ``None`` is "not ready".
@@ -453,7 +462,26 @@ class InlineReportingSource:
                 # Coerce inside the guard: a fetch that returns something
                 # unrecognizable is a source failure like any other, not an
                 # exception escaping the executor.
-                answer = _coerce(answer)
+                answer = _coerce(answer, currency=request.currency)
+                # Retain the rows we checked across staging awaits. A fetch
+                # may return a shared cache whose mappings later change.
+                answer = replace(answer, rows=tuple(deepcopy(dict(row)) for row in answer.rows))
+                if (
+                    answer.currency is not None
+                    and validate_currency(answer.currency) != request.currency
+                ):
+                    raise ReportingCurrencyError(
+                        "CURRENCY_MISMATCH",
+                        "inline source currency disagrees with the frozen request",
+                    )
+                # Before staging and, crucially, before _control_totals aggregates.
+                validate_row_currencies(request.currency, answer.rows)
+        except ReportingCurrencyError as error:
+            return ReportingSourceExecutorResult.failed(
+                ReportingSourceErrorV1(
+                    code="INTEGRITY_FAILED", retry="terminal", safe_message=str(error)
+                )
+            )
         except ReportingSourceError as error:
             return ReportingSourceExecutorResult.failed(error.error)
         except asyncio.CancelledError:
@@ -890,11 +918,21 @@ def _control_totals(
         scaled = any(_scale_of(item) < 0 for item in decimals)
         if scaled:
             totals.append(
-                SourceControlTotalV1(name=metric, value=_plain(total), value_type="decimal")
+                SourceControlTotalV1(
+                    name=metric,
+                    value=_plain(total),
+                    value_type="decimal",
+                    unit=request.currency if metric == "spend" else None,
+                )
             )
         else:
             totals.append(
-                SourceControlTotalV1(name=metric, value=str(int(total)), value_type="integer")
+                SourceControlTotalV1(
+                    name=metric,
+                    value=str(int(total)),
+                    value_type="integer",
+                    unit=request.currency if metric == "spend" else None,
+                )
             )
     return totals
 
@@ -974,11 +1012,11 @@ def _is_async_callable(fetch: InlineFetch) -> bool:
     return call is not None and asyncio.iscoroutinefunction(call)
 
 
-def _coerce(answer: InlineFetchReturn) -> InlineFetchResult:
+def _coerce(answer: InlineFetchReturn, *, currency: str) -> InlineFetchResult:
     """Normalize whatever the fetch returned into an :class:`InlineFetchResult`."""
     if isinstance(answer, InlineFetchResult):
         return answer
-    rows = _delivery_rows(answer)
+    rows = _delivery_rows(answer, currency=currency)
     if rows is not None:
         return rows
     if isinstance(answer, Sequence) and not isinstance(answer, (str, bytes)):
@@ -990,7 +1028,22 @@ def _coerce(answer: InlineFetchReturn) -> InlineFetchResult:
     )
 
 
-def _delivery_rows(answer: Any) -> InlineFetchResult | None:
+def _declared_currency(holder: Any) -> Any:
+    """The currency a delivery object labels itself with, or ``None``.
+
+    ``GetMediaBuyDeliveryResponse.currency`` is deprecated in AdCP 3.2 and
+    Pydantic warns on every attribute read of it. Checking a legacy
+    response-wide label against the frozen request is deliberate -- a
+    contradiction there still has to fail the slice -- so read the stored
+    value rather than emitting a DeprecationWarning per fetch.
+    """
+    stored = getattr(holder, "__dict__", None)
+    if isinstance(stored, dict) and "currency" in stored:
+        return stored["currency"]
+    return getattr(holder, "currency", None)
+
+
+def _delivery_rows(answer: Any, *, currency: str) -> InlineFetchResult | None:
     """Project an AdCP ``GetMediaBuyDeliveryResponse`` into normalized rows.
 
     Prefers the response's own ``reporting_rows`` when present -- those are
@@ -1002,6 +1055,23 @@ def _delivery_rows(answer: Any) -> InlineFetchResult | None:
     reporting_rows = getattr(answer, "reporting_rows", None)
     if deliveries is None and reporting_rows is None:
         return None
+    # Flattening must not discard a response/media-buy/package denomination
+    # before it can contradict the frozen request. These are source hints,
+    # never a way to choose the obligation's currency.
+    currency_holders = [answer]
+    for delivery in deliveries or ():
+        currency_holders.append(delivery)
+        currency_holders.extend(getattr(delivery, "by_package", None) or ())
+        for window in getattr(delivery, "windows", None) or ():
+            currency_holders.extend(getattr(window, "by_package", None) or ())
+    validate_row_currencies(
+        currency,
+        [
+            {"currency": observed}
+            for holder in currency_holders
+            if (observed := _declared_currency(holder)) is not None
+        ],
+    )
     period = getattr(answer, "reporting_period", None)
     data_through = getattr(period, "end", None) if period is not None else None
     if reporting_rows:
