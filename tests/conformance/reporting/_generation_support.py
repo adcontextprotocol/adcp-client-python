@@ -109,6 +109,7 @@ def obligation_for(config: ReportingConfiguration) -> ReportingObligationRecord:
         schedule=config.schedule,
         definition=config.definition,
         created_at=END,
+        currency="USD",
     )
 
 

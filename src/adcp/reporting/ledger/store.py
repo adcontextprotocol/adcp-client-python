@@ -41,6 +41,12 @@ from datetime import datetime, timezone
 from typing import Any, Literal, Protocol, runtime_checkable
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
+from adcp.reporting.currency import (
+    monetary_decimal,
+    require_frozen_currency,
+    validate_currency_units,
+    validate_monetary_content,
+)
 from adcp.reporting.ledger.health import issue_id_for_occurrence
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
@@ -195,6 +201,8 @@ class ReportingLedgerStore(Protocol):
 
         Idempotent by ``(account, config generation, period)``, not by id: two
         workers racing a period close must converge on one obligation.
+        New records require an explicit, validated currency. A legacy record
+        with unknown currency can be read/replayed but cannot be filled here.
         """
         ...
 
@@ -613,6 +621,7 @@ class InMemoryReportingLedgerStore:
                     "OBLIGATION_IDENTITY_CONFLICT",
                     "the obligation identifier already belongs to a different logical period",
                 )
+            require_frozen_currency(obligation.currency)
             self._obligations[obligation.reporting_obligation_id] = obligation
             self._obligation_by_period[key] = obligation.reporting_obligation_id
             self._append(obligation.account_id, "obligation", obligation.reporting_obligation_id)
@@ -671,6 +680,7 @@ class InMemoryReportingLedgerStore:
                     "OBLIGATION_NOT_FOUND",
                     "a revision must attach to an obligation committed at the period close",
                 )
+            validate_revision_currency(obligation, revision, rows)
             siblings = [
                 item
                 for item in self._revisions.values()
@@ -792,6 +802,9 @@ class InMemoryReportingLedgerStore:
                     "adjustments correct an official revision; restate a snapshot with a "
                     "superseding snapshot revision instead",
                 )
+            validate_adjustment_currency(
+                self._obligations[revision.reporting_obligation_id], adjustment
+            )
             self._adjustments[adjustment.reporting_adjustment_id] = adjustment
             self._append(adjustment.account_id, "adjustment", adjustment.reporting_adjustment_id)
             return adjustment
@@ -1186,6 +1199,7 @@ def _config_payload(configuration: ReportingConfiguration) -> dict[str, Any]:
         "account_timezone": configuration.account_timezone,
         "authoritative_party": configuration.authoritative_party,
         "media_buy_ids": sorted(configuration.media_buy_ids),
+        "definition": configuration.definition.to_storage() if configuration.definition else None,
         "schedule": {
             "period_duration": schedule.period_duration,
             "delivery_sla": schedule.delivery_sla,
@@ -1196,3 +1210,35 @@ def _config_payload(configuration: ReportingConfiguration) -> dict[str, Any]:
             ),
         },
     }
+
+
+def validate_revision_currency(
+    obligation: ReportingObligationRecord,
+    revision: ReportingRevisionRecord,
+    rows: Sequence[dict[str, Any]],
+) -> None:
+    """Shared write gate; low-level stores enforce the same monetary invariant."""
+    currency = require_frozen_currency(obligation.currency)
+    definition = obligation.definition
+    validate_monetary_content(
+        currency=currency,
+        rows=rows,
+        totals=revision.control_totals,
+        metric_units=definition.monetary_metric_units if definition else (),
+        total_units=definition.monetary_control_total_units if definition else (),
+    )
+
+
+def validate_adjustment_currency(
+    obligation: ReportingObligationRecord, adjustment: ReportingAdjustmentRecord
+) -> None:
+    """Deltas inherit units from the target's obligation; they cannot re-resolve."""
+    currency = require_frozen_currency(obligation.currency)
+    units = {"spend": currency}
+    if obligation.definition is not None:
+        units.update(obligation.definition.monetary_metric_units)
+        units.update(obligation.definition.monetary_control_total_units)
+    validate_currency_units(currency, units.items())
+    for name, value in adjustment.control_total_deltas:
+        if name in units:
+            monetary_decimal(value)

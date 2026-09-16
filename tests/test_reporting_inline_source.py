@@ -518,17 +518,18 @@ async def test_row_encoding_is_key_order_independent() -> None:
 # -- delivery-response projection -------------------------------------------
 
 
-async def test_a_get_media_buy_delivery_response_projects_into_rows() -> None:
+@pytest.mark.parametrize("currency", ["USD", "EUR"])
+async def test_a_get_media_buy_delivery_response_projects_into_rows(currency: str) -> None:
     from adcp.types import GetMediaBuyDeliveryResponse
 
-    request = redacted_snapshot_request()
+    request = redacted_snapshot_request(currency=currency)
     response = GetMediaBuyDeliveryResponse.model_validate(
         {
             "reporting_period": {
                 "start": request.period.start.isoformat(),
                 "end": request.period.source_read_cutoff_at.isoformat(),
             },
-            "currency": "USD",
+            "currency": currency,
             "media_buy_deliveries": [
                 {
                     "media_buy_id": "media-buy-redacted",
@@ -539,7 +540,7 @@ async def test_a_get_media_buy_delivery_response_projects_into_rows() -> None:
                             "package_id": "pkg-1",
                             "pricing_model": "cpm",
                             "rate": 1.0,
-                            "currency": "USD",
+                            "currency": currency,
                             "impressions": 6,
                             "spend": 0.75,
                         },
@@ -547,7 +548,7 @@ async def test_a_get_media_buy_delivery_response_projects_into_rows() -> None:
                             "package_id": "pkg-2",
                             "pricing_model": "cpm",
                             "rate": 1.0,
-                            "currency": "USD",
+                            "currency": currency,
                             "impressions": 4,
                             "spend": 0.5,
                         },
@@ -565,6 +566,7 @@ async def test_a_get_media_buy_delivery_response_projects_into_rows() -> None:
     )
     assert manifest.row_count == 2
     assert manifest.coverage.status == "full"
+    assert manifest.currency == currency
     totals = {total.name: total.value for total in manifest.control_totals}
     assert totals["impressions"] == "10"
     assert totals["spend"] == "1.25"

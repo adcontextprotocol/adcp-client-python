@@ -26,7 +26,8 @@ Schema bootstrap
 :meth:`create_schema` creates or upgrades the schema transactionally, including
 the account-qualified configuration primary key for beta.15 installations.
 The raw DDL ships in :file:`reporting_ledger.sql` followed by
-:file:`reporting_ledger_account_generations.sql`; run both in one transaction
+:file:`reporting_ledger_account_generations.sql` and
+:file:`reporting_ledger_obligation_currency.sql`; run all three in one transaction
 when using Alembic, Flyway, or psql. See :file:`docs/reporting-ledger-migration.md`
 for deployment and compatibility notes.
 
@@ -77,6 +78,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
+from adcp.reporting.currency import require_frozen_currency
 from adcp.reporting.ledger.health import issue_id_for_occurrence
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
@@ -102,6 +104,8 @@ from adcp.reporting.ledger.store import (
     encode_cursor,
     issue_is_retirable,
     reject_reserved_authoritative_party,
+    validate_adjustment_currency,
+    validate_revision_currency,
 )
 
 if TYPE_CHECKING:
@@ -121,6 +125,7 @@ _INSTALL_HINT = (
 
 _DDL_PATH = Path(__file__).parent / "reporting_ledger.sql"
 _ACCOUNT_GENERATIONS_DDL_PATH = Path(__file__).parent / "reporting_ledger_account_generations.sql"
+_CURRENCY_DDL_PATH = Path(__file__).parent / "reporting_ledger_obligation_currency.sql"
 
 __all__ = ["PG_AVAILABLE", "PgReportingLedgerStore"]
 
@@ -170,6 +175,7 @@ class PgReportingLedgerStore:
             async with connection.transaction():
                 await connection.execute(_DDL_PATH.read_text())
                 await connection.execute(_ACCOUNT_GENERATIONS_DDL_PATH.read_text())
+                await connection.execute(_CURRENCY_DDL_PATH.read_text())
 
     # -- change feed ------------------------------------------------------
 
@@ -279,6 +285,23 @@ class PgReportingLedgerStore:
         key = obligation.generation_key
         async with self._pool.connection() as connection:
             await self._lock_account(connection, key.account_id)
+            existing_row = await (
+                await connection.execute(
+                    f"SELECT {_OBLIGATION_COLUMNS} FROM reporting_obligations"  # noqa: S608  # nosec B608
+                    " WHERE account_id = %s AND delivery_config_id = %s"
+                    " AND delivery_config_version = %s AND period_start = %s AND period_end = %s",
+                    (
+                        key.account_id,
+                        key.delivery_config_id,
+                        key.delivery_config_version,
+                        obligation.period.start,
+                        obligation.period.end,
+                    ),
+                )
+            ).fetchone()
+            if existing_row is not None:
+                return _obligation_from_row(existing_row)
+            require_frozen_currency(obligation.currency)
             try:
                 inserted = await (
                     await connection.execute(
@@ -288,9 +311,9 @@ class PgReportingLedgerStore:
                         "  feed_purpose, period_key, period_start, period_end, source_timezone,"
                         "  expected_at, scope_resolved_at, automated_recovery_deadline_at,"
                         "  required_finality, coverage_status, media_buy_ids, package_ids,"
-                        "  schedule, definition, created_at)"
+                        "  schedule, definition, created_at, currency)"
                         " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
-                        "         %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s)"
+                        "         %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s)"
                         " ON CONFLICT (account_id, delivery_config_id, delivery_config_version,"
                         "              period_start, period_end) DO NOTHING"
                         " RETURNING reporting_obligation_id",
@@ -320,6 +343,7 @@ class PgReportingLedgerStore:
                                 else None
                             ),
                             obligation.created_at,
+                            obligation.currency,
                         ),
                     )
                 ).fetchone()
@@ -427,7 +451,7 @@ class PgReportingLedgerStore:
             await self._lock_account(connection, revision.account_id)
             obligation = await (
                 await connection.execute(
-                    "SELECT 1 FROM reporting_obligations"
+                    f"SELECT {_OBLIGATION_COLUMNS} FROM reporting_obligations"  # noqa: S608  # nosec B608
                     " WHERE reporting_obligation_id = %s AND account_id = %s",
                     (revision.reporting_obligation_id, revision.account_id),
                 )
@@ -437,6 +461,7 @@ class PgReportingLedgerStore:
                     "OBLIGATION_NOT_FOUND",
                     "a revision must attach to an obligation committed at the period close",
                 )
+            validate_revision_currency(_obligation_from_row(obligation), revision, rows)
             if revision.supersedes_reporting_revision_id:
                 await self._require_current_leaf(connection, revision)
             try:
@@ -604,9 +629,18 @@ class PgReportingLedgerStore:
     ) -> ReportingAdjustmentRecord:
         async with self._pool.connection() as connection:
             await self._lock_account(connection, adjustment.account_id)
+            existing = await (
+                await connection.execute(
+                    f"SELECT {_ADJUSTMENT_COLUMNS} FROM reporting_adjustments"  # noqa: S608  # nosec B608
+                    " WHERE reporting_adjustment_id = %s AND account_id = %s",
+                    (adjustment.reporting_adjustment_id, adjustment.account_id),
+                )
+            ).fetchone()
+            if existing is not None:
+                return _adjustment_from_row(existing)
             revision = await (
                 await connection.execute(
-                    "SELECT finality FROM reporting_revisions"
+                    "SELECT finality, reporting_obligation_id FROM reporting_revisions"
                     " WHERE reporting_revision_id = %s AND account_id = %s",
                     (adjustment.adjusts_reporting_revision_id, adjustment.account_id),
                 )
@@ -621,6 +655,18 @@ class PgReportingLedgerStore:
                     "adjustments correct an official revision; restate a snapshot with a "
                     "superseding snapshot revision instead",
                 )
+            obligation = await (
+                await connection.execute(
+                    f"SELECT {_OBLIGATION_COLUMNS} FROM reporting_obligations"  # noqa: S608  # nosec B608
+                    " WHERE reporting_obligation_id = %s AND account_id = %s",
+                    (revision[1], adjustment.account_id),
+                )
+            ).fetchone()
+            if obligation is None:
+                raise LedgerConflictError(
+                    "OBLIGATION_NOT_FOUND", "the adjustment target has no obligation"
+                )
+            validate_adjustment_currency(_obligation_from_row(obligation), adjustment)
             inserted = await (
                 await connection.execute(
                     "INSERT INTO reporting_adjustments"
@@ -1206,7 +1252,7 @@ _OBLIGATION_COLUMNS = (
     " report_definition_id, reporting_profile, feed_purpose, period_key, period_start,"
     " period_end, source_timezone, expected_at, scope_resolved_at,"
     " automated_recovery_deadline_at, required_finality, coverage_status, media_buy_ids,"
-    " package_ids, schedule, definition, created_at"
+    " package_ids, schedule, definition, created_at, currency"
 )
 
 _REVISION_COLUMNS = (
@@ -1268,7 +1314,7 @@ def _schedule_payload(schedule: ReportingScheduleSpec) -> dict[str, Any]:
 def _definition_payload(
     definition: ReportingDefinitionBinding | None,
 ) -> dict[str, Any] | None:
-    return definition.to_wire() if definition is not None else None
+    return definition.to_storage() if definition is not None else None
 
 
 def _definition_from_payload(payload: dict[str, Any] | None) -> ReportingDefinitionBinding | None:
@@ -1346,6 +1392,7 @@ def _obligation_from_row(row: Sequence[Any]) -> ReportingObligationRecord:
         schedule=_schedule_from_payload(row[18]),
         definition=_definition_from_payload(row[19]),
         created_at=_utc(row[20]),
+        currency=row[21],
     )
 
 

@@ -103,6 +103,7 @@ def _obligation(
         + configuration.automated_recovery_window,
         schedule=configuration.schedule,
         created_at=boundary.end,
+        currency="USD",
     )
     defaults.update(overrides)
     return ReportingObligationRecord(**defaults)  # type: ignore[arg-type]

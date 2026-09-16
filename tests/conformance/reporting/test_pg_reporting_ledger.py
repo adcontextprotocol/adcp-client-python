@@ -149,6 +149,7 @@ def _obligation(configuration: ReportingConfiguration, ordinal: int = 0, **overr
         automated_recovery_deadline_at=boundary.expected_at + timedelta(hours=6),
         schedule=configuration.schedule,
         created_at=boundary.end,
+        currency="USD",
     )
     defaults.update(overrides)
     return ReportingObligationRecord(**defaults)  # type: ignore[arg-type]

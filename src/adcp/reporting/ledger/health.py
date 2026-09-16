@@ -114,6 +114,36 @@ def project_obligation_health(
     ]
     current = _current_revision(qualifying)
 
+    if obligation.currency is None:
+        return ObligationProjection(
+            health="action_required",
+            production_status="published" if revisions else "pending",
+            issues=(
+                ReportingIssue(
+                    issue_id=issue_id_for(
+                        "core-currency-unresolved-v1", obligation.reporting_obligation_id
+                    ),
+                    code="HISTORY_UNAVAILABLE",
+                    severity="action_required",
+                    responsible_party="seller",
+                    recommended_action="contact_seller",
+                    reporting_obligation_id=obligation.reporting_obligation_id,
+                    delivery_config_id=obligation.delivery_config_id,
+                    delivery_config_version=obligation.delivery_config_version,
+                    feed_purpose=obligation.feed_purpose,
+                    media_buy_ids=obligation.media_buy_ids,
+                    period_start=obligation.period.start,
+                    period_end=obligation.period.end,
+                    message=(
+                        "Currency was not retained for this legacy obligation; "
+                        "verified historical evidence is required."
+                    ),
+                ),
+            ),
+            satisfied=False,
+            current_revision=current,
+        )
+
     readable = [revision for revision in qualifying if revision.readable]
     if readable:
         return ObligationProjection(
