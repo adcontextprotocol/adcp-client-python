@@ -15,9 +15,9 @@ evidence, and byte-identical replay.
 For uneven metric support, return :class:`InlineFetchResult` with
 ``cell_availability={constituent_id: {metric_name: MetricEvidence(...)}}``.
 Omitted cells retain the constituent defaults. Explicit evidence controls each
-cell independently; mixed cells make the constituent partial, and incomplete
-metric columns receive no control total. Metric semantics always come from the
-selected SDK offering.
+cell independently; mixed cells make the constituent partial, and a metric
+column an adapter declares incomplete receives no control total. Metric
+semantics always come from the selected SDK offering.
 
 The three answers a fetch can give
 ---------------------------------
@@ -776,11 +776,23 @@ class InlineReportingSource:
             and not explicit_zero
             and any(cell.status in _AVAILABLE for cell in cells)
         ):
+            # Reachable from a derived result too, so the message names the
+            # shape rather than the optional field an adopter may never have set.
             raise _CellEvidenceError(
-                "cell_availability cannot mix available and unavailable cells in a zero-row "
-                "batch; supply rows for observed metrics"
+                "a zero-row batch cannot mix available and unavailable cells; supply rows "
+                "for the observed metrics or withdraw their availability"
             )
-        control_totals = [] if unmatched else _control_totals(request, result.rows, cells)
+        # Only a *declared* exception withdraws a column.  A control total is
+        # a checksum over the staged rows -- consumers recompute it from the
+        # revision's rows -- so an unmatched row or a legacy-derived
+        # unavailable constituent leaves it verifiable and unchanged.
+        declared_incomplete = {
+            cell.metric
+            for cell in cells
+            if cell.status not in _AVAILABLE
+            and cell.metric in overrides.get(cell.constituent_id, {})
+        }
+        control_totals = _control_totals(request, result.rows, declared_incomplete)
         payload = _encode_rows(result.rows)
         object_ref, object_generation = await self._staging.stage(
             account_id=request.identity.account_id,
@@ -1191,19 +1203,23 @@ def _encode_rows(rows: Sequence[Mapping[str, Any]]) -> bytes:
 def _control_totals(
     request: ReportingSourceSliceRequestV1,
     rows: Sequence[Mapping[str, Any]],
-    cells: Sequence[ReportingMetricAvailabilityV1],
+    declared_incomplete: Collection[str],
 ) -> list[SourceControlTotalV1]:
-    """Sum only metrics whose entire requested column is available and valid.
+    """Sum each requested metric across the staged rows, exactly.
 
     Money sums through :class:`~decimal.Decimal` and is emitted as a string.
     A float total would round differently in two languages and turn a
-    consumer's equality check into a flake. Partial/delayed measurements may
-    still have row values, but those are not evidence of a complete total.
+    consumer's equality check into a flake.
+
+    ``declared_incomplete`` names the metrics an adapter explicitly withdrew
+    for at least one cell.  Those columns may still carry row values, but the
+    adapter has said they are not a measurement, so totalling them would
+    contradict the very evidence it supplied.  Every other column keeps the
+    checksum a consumer recomputes from the revision's rows.
     """
     totals: list[SourceControlTotalV1] = []
-    incomplete_metrics = {cell.metric for cell in cells if cell.status not in _AVAILABLE}
     for metric in request.requested_metrics:
-        if metric in incomplete_metrics:
+        if metric in declared_incomplete:
             continue
         values = [row[metric] for row in rows if row.get(metric) is not None]
         if len(values) != len(rows):

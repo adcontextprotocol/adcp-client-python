@@ -79,7 +79,12 @@ def _capabilities() -> ReportingSourceCapabilitiesV1:
     )
 
 
-def _request(*, authoritative: bool = False, second: bool = False) -> ReportingSourceSliceRequestV1:
+def _request(
+    *,
+    authoritative: bool = False,
+    second: bool = False,
+    metrics: list[str] | None = None,
+) -> ReportingSourceSliceRequestV1:
     base = redacted_authoritative_request() if authoritative else redacted_snapshot_request()
     constituents = list(base.coverage.constituents)
     if second:
@@ -92,7 +97,7 @@ def _request(*, authoritative: bool = False, second: bool = False) -> ReportingS
         )
     return base.model_copy(
         update={
-            "requested_metrics": METRICS,
+            "requested_metrics": metrics or METRICS,
             "coverage": ReportingSourceCoverageRequestV1(
                 expected="partial",
                 constituents=constituents,
@@ -274,9 +279,16 @@ async def test_zero_row_mixed_unavailability_has_no_manufactured_measurements() 
     )
     assert manifest.coverage.status == "partial"
     assert {cell.status for cell in manifest.metric_availability} == {"missing", "unsupported"}
-    assert not manifest.control_totals
     assert manifest.row_count == 0
     assert not manifest.explicit_zero
+    # The declared exception withdraws its column. The derived cells keep the
+    # zero-row totals a legacy unavailable batch has always published, which
+    # the wire rule constrains to zero rather than forbidding.
+    assert {total.name: total.value for total in manifest.control_totals} == {
+        "impressions": "0",
+        "clicks": "0",
+        "viewability": "0",
+    }
 
 
 async def test_full_request_with_mixed_cells_fails_without_staging() -> None:
@@ -418,9 +430,20 @@ async def test_zero_row_available_and_unavailable_mix_is_rejected_without_a_wire
         staging=_NoStaging(),
     )
     with pytest.raises(
-        ValueError, match="cannot mix available and unavailable cells in a zero-row batch"
+        ValueError, match="a zero-row batch cannot mix available and unavailable cells"
     ):
         await source.execute(_request(), cancel=asyncio.Event())
+
+
+async def test_the_zero_row_mixing_error_does_not_blame_an_unused_field() -> None:
+    """A derived result reaches the same guard without ever naming a cell."""
+    source = _source(
+        lambda req: InlineFetchResult(rows=[], covered_constituent_ids=[CID]),
+        staging=_NoStaging(),
+    )
+    with pytest.raises(ValueError, match="a zero-row batch cannot mix") as caught:
+        await source.execute(_request(second=True), cancel=asyncio.Event())
+    assert "cell_availability" not in str(caught.value)
 
 
 @pytest.mark.parametrize("status", ["present", "explicit_zero"])
@@ -554,18 +577,31 @@ async def test_omitted_unavailable_metrics_do_not_suppress_other_metric_totals()
     assert {total.name for total in manifest.control_totals} == set(METRICS) - {"completed_views"}
 
 
-async def test_unmatched_rows_are_retained_but_cannot_inflate_requested_totals() -> None:
+async def test_unmatched_rows_are_warned_about_and_stay_in_the_staged_checksum() -> None:
     manifest = await _seal([ROW, {**ROW, "media_buy_id": "not_requested"}])
     assert manifest.row_count == 2
     assert manifest.warnings
-    assert not manifest.control_totals
+    # A control total is recomputed from the revision's rows, so it must cover
+    # every staged row -- including one no constituent claimed.
+    assert {total.name: total.value for total in manifest.control_totals} == {
+        "impressions": "20",
+        "clicks": "0",
+        "viewability": "1.50",
+        "completed_views": "4",
+    }
 
 
-async def test_missing_zero_row_constituent_does_not_contribute_an_invented_zero_total() -> None:
+async def test_a_derived_missing_constituent_does_not_withdraw_its_neighbour_totals() -> None:
     request = _request(second=True)
     manifest = await _seal(InlineFetchResult(rows=[ROW], covered_constituent_ids=[CID]), request)
     assert manifest.coverage.status == "partial"
-    assert not manifest.control_totals
+    assert manifest.coverage.constituents[1].status == "missing"
+    assert {total.name: total.value for total in manifest.control_totals} == {
+        "impressions": "10",
+        "clicks": "0",
+        "viewability": "0.75",
+        "completed_views": "2",
+    }
 
 
 async def test_a_covered_zero_row_constituent_keeps_zeros_only_for_its_available_metrics() -> None:
@@ -726,6 +762,96 @@ async def test_legacy_rows_results_and_empty_overrides_seal_identically(rows: An
         assert result.ok
         results.append(result.manifest_bytes)
     assert all(payload == results[0] for payload in results)
+
+
+@pytest.mark.parametrize(
+    ("answer", "second", "totals"),
+    [
+        pytest.param(
+            [ROW, {**ROW, "media_buy_id": "not_requested"}],
+            False,
+            {"impressions": "20", "clicks": "0", "viewability": "1.50", "completed_views": "4"},
+            id="unmatched_row",
+        ),
+        pytest.param(
+            InlineFetchResult(rows=[ROW], covered_constituent_ids=[CID]),
+            True,
+            {"impressions": "10", "clicks": "0", "viewability": "0.75", "completed_views": "2"},
+            id="uncovered_constituent",
+        ),
+        pytest.param(
+            InlineFetchResult(rows=[ROW], unavailable_constituents={SECOND_CID: "no_data"}),
+            True,
+            {"impressions": "10", "clicks": "0", "viewability": "0.75", "completed_views": "2"},
+            id="unavailable_constituent",
+        ),
+        pytest.param(
+            InlineFetchResult(
+                rows=[ROW, {**ROW, "media_buy_id": "media-buy-second"}],
+                unavailable_constituents={SECOND_CID: "late"},
+                unavailable_status="delayed",
+            ),
+            True,
+            {"impressions": "20", "clicks": "0", "viewability": "1.50", "completed_views": "4"},
+            id="delayed_constituent",
+        ),
+        pytest.param(
+            None,
+            False,
+            {"impressions": "0", "clicks": "0", "viewability": "0", "completed_views": "0"},
+            id="not_ready",
+        ),
+    ],
+)
+async def test_results_without_declared_cells_keep_their_legacy_control_totals(
+    answer: Any, second: bool, totals: dict[str, str]
+) -> None:
+    """A caller that never opted in must not lose evidence it already published.
+
+    These are the shapes where the derived constituent status is not uniformly
+    available. Withdrawing their totals would change sealed bytes, the content
+    fingerprint, and the ledger revision content hash for adopters who supplied
+    no ``cell_availability`` at all.
+    """
+    manifest = await _seal(answer, _request(second=second))
+    assert {total.name: total.value for total in manifest.control_totals} == totals
+
+
+async def test_five_independent_statuses_seal_in_one_constituent_matrix() -> None:
+    metrics = [*METRICS, "spend"]
+    request = _request(metrics=metrics)
+    watermark = min(request.period.end, request.period.source_read_cutoff_at)
+    delayed_through = watermark - timedelta(hours=4)
+    expected = {
+        "impressions": ("present", watermark, None),
+        "clicks": ("explicit_zero", watermark, None),
+        "viewability": ("delayed", delayed_through, "measurement_pending"),
+        "completed_views": ("unsupported", None, "not_video_inventory"),
+        "spend": ("missing", None, "not_returned"),
+    }
+    manifest = await _seal(
+        InlineFetchResult(
+            rows=[{"media_buy_id": "media-buy-redacted", "impressions": 10, "clicks": 0}],
+            cell_availability={
+                CID: {
+                    "impressions": MetricEvidence.present(watermark),
+                    "clicks": MetricEvidence.explicit_zero(),
+                    "viewability": MetricEvidence.delayed(
+                        "measurement_pending", data_through=delayed_through
+                    ),
+                    "completed_views": MetricEvidence.unavailable("not_video_inventory"),
+                    "spend": MetricEvidence.missing("not_returned"),
+                }
+            },
+        ),
+        request,
+    )
+    assert manifest.coverage.constituents[0].status == "partial"
+    assert {
+        cell.metric: (cell.status, cell.data_through, cell.reason)
+        for cell in manifest.metric_availability
+    } == expected
+    assert {total.name for total in manifest.control_totals} == {"impressions", "clicks"}
 
 
 async def test_existing_positional_result_arguments_keep_their_meaning() -> None:

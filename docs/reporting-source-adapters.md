@@ -68,14 +68,17 @@ does not reach period end becomes `delayed`, with a reason and its watermark.
 Cell evidence cannot bypass that freshness gate.
 
 Rows can omit missing, unsupported, or delayed metrics; available measurements
-for other metrics are retained. A control total is emitted only when every
-requested constituent's cell for that metric is present or explicit-zero and
-every staged row contains a valid finite numeric value for it. Missing fields,
-nulls, booleans, and invalid numbers prevent a total. An omitted explicit-zero
-row value is not filled in. A covered constituent with no rows can contribute
-an observed zero; a missing constituent cannot. Rows outside the requested
-coverage remain staged with a warning and prevent totals from claiming the
-requested denominator.
+for other metrics are retained. A control total is a checksum over the staged
+rows -- a consumer recomputes it from the revision's rows -- so it covers every
+staged row, including rows outside the requested coverage, which stay staged
+with a warning. It is emitted when every staged row carries a valid finite
+numeric value for the metric. Missing fields, nulls, booleans, and invalid
+numbers prevent a total, and an omitted explicit-zero row value is not filled
+in. Declaring any cell of a metric `missing`, `delayed`, or `unsupported`
+withdraws that metric's total even when rows still carry values, because the
+adapter has said those values are not a measurement. Statuses the SDK derives
+on its own withdraw nothing: a result with no `cell_availability` publishes
+exactly the totals it published before.
 
 The existing zero-row wire rule is unchanged: an empty batch must be wholly
 explicit-zero or wholly unavailable. It cannot mix available cells with
@@ -95,9 +98,8 @@ return InlineFetchResult.all_present(rows, data_through=watermark)
 This uses the constituent defaults: constituents with rows are present and
 covered constituents without rows are observed zeros. Bare `[]` still means
 an observed zero; `None` still means not ready. Existing positional
-`InlineFetchResult` arguments retain their meaning. Totals for incomplete
-denominators or unmatched rows are now omitted instead of implying complete
-measurements, including for legacy results.
+`InlineFetchResult` arguments retain their meaning, and so do their control
+totals -- only an explicitly declared cell withdraws one.
 
 Bulk helpers return maps to pass to `cell_availability`, leaving the result's
 other options available:
