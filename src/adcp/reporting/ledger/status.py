@@ -257,9 +257,7 @@ class ReportingStatusHandler:
                     projection=projection,
                     revisions=revisions,
                     statuses=statuses,
-                    generation=generations.get(
-                        (obligation.delivery_config_id, obligation.delivery_config_version)
-                    ),
+                    generation=generations.get(obligation.generation_key),
                     caller=caller,
                     snapshot=snapshot,
                 )
@@ -436,9 +434,7 @@ class ReportingStatusHandler:
                 projection=projection,
                 revisions=revisions,
                 statuses=statuses,
-                generation=generations.get(
-                    (obligation.delivery_config_id, obligation.delivery_config_version)
-                ),
+                generation=generations.get(obligation.generation_key),
                 caller=caller,
                 snapshot=snapshot,
             )
@@ -692,6 +688,7 @@ def _scope_to_wire(
     )
     horizon_start = _parse(requested.get("start")) or retained_from
     horizon_end = _parse(requested.get("end")) or _utc(ledger_as_of)
+    generations = {item.generation_key: item for item in configurations}
     return {
         "period_start": _iso(horizon_start),
         "period_end": _iso(horizon_end),
@@ -702,15 +699,17 @@ def _scope_to_wire(
         "all_accessible_media_buys": not request.get("media_buy_ids"),
         "delivery_config_generations": [
             {
-                "delivery_config_id": config_id,
-                "delivery_config_version": version,
-                "feed_purpose": feed_purpose,
+                "delivery_config_id": generation.delivery_config_id,
+                "delivery_config_version": generation.delivery_config_version,
+                "feed_purpose": generation.feed_purpose,
             }
-            for config_id, version, feed_purpose in sorted(
-                {
-                    (item.delivery_config_id, item.delivery_config_version, item.feed_purpose)
-                    for item in configurations
-                }
+            for generation in sorted(
+                generations.values(),
+                key=lambda item: (
+                    item.account_id,
+                    item.delivery_config_id,
+                    item.delivery_config_version,
+                ),
             )
         ],
         "feed_purposes": sorted({item.feed_purpose for item in configurations}),

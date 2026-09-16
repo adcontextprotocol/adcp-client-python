@@ -48,6 +48,7 @@ from adcp.reporting.ledger.models import (
     LedgerSnapshot,
     ReportingAdjustmentRecord,
     ReportingConfiguration,
+    ReportingConfigurationGenerationKey,
     ReportingIssueLifecycle,
     ReportingObligationRecord,
     ReportingRevisionRecord,
@@ -93,6 +94,14 @@ class LeasedConfiguration:
     delivery_config_id: str
     delivery_config_version: int
     lease_expires_at: datetime
+
+    @property
+    def generation_key(self) -> ReportingConfigurationGenerationKey:
+        return ReportingConfigurationGenerationKey(
+            account_id=self.account_id,
+            delivery_config_id=self.delivery_config_id,
+            delivery_config_version=self.delivery_config_version,
+        )
 
 
 @dataclass(frozen=True)
@@ -160,7 +169,7 @@ class ReportingLedgerStore(Protocol):
     """Durable home for obligations, revisions, adjustments, and statuses."""
 
     async def create_schema(self) -> None:
-        """Idempotently create whatever this store needs. Safe on every boot."""
+        """Idempotently create or upgrade this store's schema. Safe on every boot."""
         ...
 
     # -- configurations --------------------------------------------------
@@ -523,9 +532,11 @@ class InMemoryReportingLedgerStore:
     def __init__(self, *, clock: Callable[[], datetime] | None = None) -> None:
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._lock = asyncio.Lock()
-        self._configurations: dict[tuple[str, int], ReportingConfiguration] = {}
+        self._configurations: dict[ReportingConfigurationGenerationKey, ReportingConfiguration] = {}
         self._obligations: dict[str, ReportingObligationRecord] = {}
-        self._obligation_by_period: dict[tuple[str, str, int, str, str], str] = {}
+        self._obligation_by_period: dict[
+            tuple[ReportingConfigurationGenerationKey, str, str], str
+        ] = {}
         self._revisions: dict[str, ReportingRevisionRecord] = {}
         self._revision_identity: dict[str, str] = {}
         self._rows: dict[str, tuple[dict[str, Any], ...]] = {}
@@ -534,7 +545,7 @@ class InMemoryReportingLedgerStore:
         self._status_identity: dict[str, str] = {}
         self._changes: list[tuple[int, str, LedgerRecordKind, str, datetime]] = []
         self._sequence = 0
-        self._leases: dict[tuple[str, int], tuple[str, datetime]] = {}
+        self._leases: dict[ReportingConfigurationGenerationKey, tuple[str, datetime]] = {}
         # Live occurrence per (account, issue_key), plus the retired generation
         # high-water mark so a recurrence never reuses an id.
         self._issues: dict[tuple[str, str], ReportingIssueLifecycle] = {}
@@ -561,7 +572,8 @@ class InMemoryReportingLedgerStore:
             ):
                 raise LedgerConflictError(
                     "CONFIGURATION_GENERATION_IMMUTABLE",
-                    f"configuration {key[0]}@{key[1]} already exists with different content; "
+                    f"configuration {key.delivery_config_id}@{key.delivery_config_version} "
+                    "already exists with different content for this account; "
                     "publish a new version instead of editing a retained generation",
                 )
             self._configurations[key] = configuration
@@ -584,15 +596,18 @@ class InMemoryReportingLedgerStore:
     ) -> ReportingObligationRecord:
         async with self._lock:
             key = (
-                obligation.account_id,
-                obligation.delivery_config_id,
-                obligation.delivery_config_version,
+                obligation.generation_key,
                 _utc(obligation.period.start).isoformat(),
                 _utc(obligation.period.end).isoformat(),
             )
             existing_id = self._obligation_by_period.get(key)
             if existing_id is not None:
                 return self._obligations[existing_id]
+            if obligation.reporting_obligation_id in self._obligations:
+                raise LedgerConflictError(
+                    "OBLIGATION_IDENTITY_CONFLICT",
+                    "the obligation identifier already belongs to a different logical period",
+                )
             self._obligations[obligation.reporting_obligation_id] = obligation
             self._obligation_by_period[key] = obligation.reporting_obligation_id
             self._append(obligation.account_id, "obligation", obligation.reporting_obligation_id)
@@ -614,14 +629,20 @@ class InMemoryReportingLedgerStore:
         period_end: datetime,
     ) -> ReportingObligationRecord | None:
         key = (
-            account_id,
-            delivery_config_id,
-            delivery_config_version,
+            ReportingConfigurationGenerationKey(
+                account_id=account_id,
+                delivery_config_id=delivery_config_id,
+                delivery_config_version=delivery_config_version,
+            ),
             _utc(period_start).isoformat(),
             _utc(period_end).isoformat(),
         )
         found = self._obligation_by_period.get(key)
-        return self._obligations.get(found) if found else None
+        return (
+            await self.get_obligation(account_id=account_id, reporting_obligation_id=found)
+            if found
+            else None
+        )
 
     # -- revisions -------------------------------------------------------
 
@@ -862,15 +883,14 @@ class InMemoryReportingLedgerStore:
         when the seller later creates that obligation the existing chain must
         attach to it rather than being lost, forked, or reset.
         """
-        if status.reporting_obligation_id in wanted:
-            return True
         for obligation_id in wanted:
             obligation = self._obligations.get(obligation_id)
-            if obligation is None:
+            if obligation is None or obligation.account_id != status.account_id:
                 continue
+            if status.reporting_obligation_id == obligation_id:
+                return True
             if (
-                obligation.delivery_config_id == status.delivery_config_id
-                and obligation.delivery_config_version == status.delivery_config_version
+                obligation.generation_key == status.generation_key
                 and obligation.report_definition_id == status.report_definition_id
                 and _utc(obligation.period.start) == _utc(status.period_start)
                 and _utc(obligation.period.end) == _utc(status.period_end)
@@ -1011,7 +1031,7 @@ class InMemoryReportingLedgerStore:
         records: list[tuple[int, LedgerRecordKind, Any]] = []
         for sequence, _account, kind, record_id, _committed in sorted(selected):
             record = self._resolve(kind, record_id)
-            if record is None:
+            if record is None or record.account_id != snapshot.account_id:
                 continue
             if not self._in_scope(kind, record, config_filter, media_buy_filter, consumer_id):
                 continue
@@ -1100,9 +1120,9 @@ class InMemoryReportingLedgerStore:
 
     async def release_period_close(self, lease: LeasedConfiguration, *, worker_id: str) -> None:
         async with self._lock:
-            key = (lease.delivery_config_id, lease.delivery_config_version)
+            key = lease.generation_key
             held = self._leases.get(key)
-            if held is not None and held[0] == worker_id:
+            if held == (worker_id, _utc(lease.lease_expires_at)):
                 del self._leases[key]
 
 

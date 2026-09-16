@@ -36,6 +36,7 @@ __all__ = [
     "LedgerSnapshot",
     "ReportingAdjustmentRecord",
     "ReportingConfiguration",
+    "ReportingConfigurationGenerationKey",
     "ReportingFinality",
     "ReportingHealth",
     "ReportingDeliveryEscalation",
@@ -288,6 +289,20 @@ def first_ordinal_after(
 
 
 @dataclass(frozen=True)
+class ReportingConfigurationGenerationKey:
+    """The account-qualified identity of one accepted configuration generation.
+
+    ``delivery_config_id`` is caller-selected and may be reused by another
+    account. Use this value for lookups, joins, and leases rather than a tuple
+    that could omit the account. It is immutable and hashable for use in maps.
+    """
+
+    account_id: str
+    delivery_config_id: str
+    delivery_config_version: int
+
+
+@dataclass(frozen=True)
 class ReportingConfiguration:
     """One accepted reporting configuration generation.
 
@@ -320,8 +335,12 @@ class ReportingConfiguration:
     authoritative_party: Literal["seller", "consumer"] = "seller"
 
     @property
-    def generation_key(self) -> tuple[str, int]:
-        return (self.delivery_config_id, self.delivery_config_version)
+    def generation_key(self) -> ReportingConfigurationGenerationKey:
+        return ReportingConfigurationGenerationKey(
+            account_id=self.account_id,
+            delivery_config_id=self.delivery_config_id,
+            delivery_config_version=self.delivery_config_version,
+        )
 
 
 @dataclass(frozen=True)
@@ -351,6 +370,14 @@ class ReportingObligationRecord:
     package_ids: tuple[str, ...] = ()
     definition: ReportingDefinitionBinding | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @property
+    def generation_key(self) -> ReportingConfigurationGenerationKey:
+        return ReportingConfigurationGenerationKey(
+            account_id=self.account_id,
+            delivery_config_id=self.delivery_config_id,
+            delivery_config_version=self.delivery_config_version,
+        )
 
     def __post_init__(self) -> None:
         if _utc(self.scope_resolved_at) != _utc(self.period.end):
@@ -479,12 +506,23 @@ class ConsumerStatusRecord:
     superseded: bool = False
 
     @property
+    def generation_key(self) -> ReportingConfigurationGenerationKey:
+        return ReportingConfigurationGenerationKey(
+            account_id=self.account_id,
+            delivery_config_id=self.delivery_config_id,
+            delivery_config_version=self.delivery_config_version,
+        )
+
+    @property
     def chain_key(self) -> tuple[str, str, str, int, str, str, str]:
         """The logical chain this statement belongs to.
 
         Deliberately keyed *without* the seller's obligation id.  Requiring it
         would make the first missing report invisible again, which is the exact
         failure this loop exists to surface.
+
+        The flat shape is retained for compatibility with persisted statement
+        digests. Use ``generation_key`` when joining configuration generations.
         """
         return (
             self.account_id,

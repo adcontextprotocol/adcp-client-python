@@ -72,6 +72,7 @@ from adcp.reporting.ledger.health import current_required_revision, issue_id_for
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ConsumerStatusValue,
+    ReportingConfigurationGenerationKey,
     ReportingDeliveryEscalation,
     ReportingHealth,
     ReportingIssue,
@@ -283,11 +284,7 @@ class ConsumerStatusIngest:
             account_id=record.account_id, delivery_config_ids=[record.delivery_config_id]
         )
         generation = next(
-            (
-                item
-                for item in configurations
-                if item.delivery_config_version == record.delivery_config_version
-            ),
+            (item for item in configurations if item.generation_key == record.generation_key),
             None,
         )
         if generation is None:
@@ -330,8 +327,7 @@ class ConsumerStatusIngest:
                     "resolve for this caller and account",
                 )
             if (
-                obligation.delivery_config_id != record.delivery_config_id
-                or obligation.delivery_config_version != record.delivery_config_version
+                obligation.generation_key != record.generation_key
                 or obligation.report_definition_id != record.report_definition_id
                 or _utc(obligation.period.start) != _utc(record.period_start)
                 or _utc(obligation.period.end) != _utc(record.period_end)
@@ -528,13 +524,18 @@ def consumer_mismatch_issue_key(
     ``obligation_missing`` attaches to the repaired obligation later, and the
     spec requires that chain never be lost, forked, or reset.
     """
+    generation = ReportingConfigurationGenerationKey(
+        account_id=account_id,
+        delivery_config_id=delivery_config_id,
+        delivery_config_version=delivery_config_version,
+    )
     payload = canonical_json_utf8_v1(
         [
             "core-consumer-status-mismatch-v1",
-            account_id,
+            generation.account_id,
             consumer_id,
-            delivery_config_id,
-            delivery_config_version,
+            generation.delivery_config_id,
+            generation.delivery_config_version,
             report_definition_id,
             _utc(period_start).isoformat(),
             _utc(period_end).isoformat(),
