@@ -105,7 +105,15 @@ jobs:
   pg-conformance:
     name: Postgres conformance tests (Postgres 16)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 15 minutes no longer covers this job. Pinning the cluster to C collation
+    # made the frozen-A rolling tests do their real subprocess work instead of
+    # failing fast on a locale mismatch, and that budget had to also absorb
+    # checkout, the A baseline fetch, Python setup and a [dev,pg] install before
+    # the suite even starts. Exact-head local execution is 1,486 passed in
+    # 9m49s, so 30 minutes (already this workflow's matrix-job budget) leaves
+    # real headroom for runner variance instead of trading a growing serial
+    # matrix for flaky timing.
+    timeout-minutes: 30
     services:
       postgres:
         # CI-local ephemeral database. POSTGRES_HOST_AUTH_METHOD=trust
@@ -148,6 +156,9 @@ jobs:
           pip install -e ".[dev,pg]"
 
       - name: Run Postgres conformance tests
+        # Bound the suite itself below the job budget so a genuine hang is
+        # reported against this step rather than consuming the whole job.
+        timeout-minutes: 25
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_test
         run: |
