@@ -176,6 +176,29 @@ async def test_an_expired_lease_cannot_release_a_replacement_with_the_same_worke
     assert await store.lease_period_close(worker_id="extra", now=later, lease_seconds=60) is None
 
 
+async def test_a_worker_that_releases_each_turn_reaches_every_accounts_generation(
+    store: ReportingLedgerStore,
+) -> None:
+    """A single worker loop must not starve the accounts it did not lease first.
+
+    ``ReportingProducer.run_worker`` releases in a ``finally``, so a store that
+    always hands back the first leasable generation would close periods for one
+    account forever and never reach the others -- invisible until two accounts
+    share a ``delivery_config_id``, which is exactly what this change allows.
+    """
+    accounts = ("acct_a", "acct_b", "acct_c")
+    await asyncio.gather(*(store.put_configuration(configuration(name)) for name in accounts))
+    worked: list[str] = []
+    for _ in range(len(accounts) * 3):
+        lease = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+        assert lease is not None
+        assert lease.generation_key == configuration(lease.account_id).generation_key
+        worked.append(lease.account_id)
+        await store.release_period_close(lease, worker_id="solo")
+    assert set(worked) == set(accounts)
+    assert set(worked[: len(accounts)]) == set(accounts)
+
+
 async def test_concurrent_period_closes_converge_within_each_account(
     store: ReportingLedgerStore,
 ) -> None:

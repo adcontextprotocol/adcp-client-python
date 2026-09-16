@@ -546,6 +546,11 @@ class InMemoryReportingLedgerStore:
         self._changes: list[tuple[int, str, LedgerRecordKind, str, datetime]] = []
         self._sequence = 0
         self._leases: dict[ReportingConfigurationGenerationKey, tuple[str, datetime]] = {}
+        # When each generation was last handed to a worker, so releasing a
+        # lease sends that generation to the back of the queue instead of
+        # letting it win every turn.
+        self._lease_turns: dict[ReportingConfigurationGenerationKey, int] = {}
+        self._lease_turn = 0
         # Live occurrence per (account, issue_key), plus the retired generation
         # high-water mark so a recurrence never reuses an id.
         self._issues: dict[tuple[str, str], ReportingIssueLifecycle] = {}
@@ -1104,19 +1109,39 @@ class InMemoryReportingLedgerStore:
         from datetime import timedelta
 
         async with self._lock:
-            for key, configuration in self._configurations.items():
+            moment = _utc(now)
+            # Rank leasable generations the way the SQL store's
+            # `ORDER BY lease_expires_at NULLS FIRST` does -- unheld before
+            # expired, oldest expiry first -- then break the tie by whichever
+            # generation went longest without a turn.  Without that last term a
+            # worker that releases at the end of every turn re-leases the same
+            # generation forever, and every other account's periods are never
+            # closed: starvation that only appears once two accounts can hold
+            # the same delivery_config_id.
+            ranked: list[tuple[tuple[int, float, int], ReportingConfigurationGenerationKey]] = []
+            for key in self._configurations:
+                turn = self._lease_turns.get(key, 0)
                 held = self._leases.get(key)
-                if held is not None and _utc(held[1]) > _utc(now):
-                    continue
-                expires = _utc(now) + timedelta(seconds=lease_seconds)
-                self._leases[key] = (worker_id, expires)
-                return LeasedConfiguration(
-                    account_id=configuration.account_id,
-                    delivery_config_id=configuration.delivery_config_id,
-                    delivery_config_version=configuration.delivery_config_version,
-                    lease_expires_at=expires,
-                )
-            return None
+                if held is None:
+                    ranked.append(((0, 0.0, turn), key))
+                elif _utc(held[1]) <= moment:
+                    ranked.append(((1, _utc(held[1]).timestamp(), turn), key))
+            if not ranked:
+                return None
+            # `min` keeps the first of equal ranks, so generations that have
+            # never been leased are handed out in the order they were accepted.
+            key = min(ranked, key=lambda item: item[0])[1]
+            configuration = self._configurations[key]
+            expires = moment + timedelta(seconds=lease_seconds)
+            self._lease_turn += 1
+            self._lease_turns[key] = self._lease_turn
+            self._leases[key] = (worker_id, expires)
+            return LeasedConfiguration(
+                account_id=configuration.account_id,
+                delivery_config_id=configuration.delivery_config_id,
+                delivery_config_version=configuration.delivery_config_version,
+                lease_expires_at=expires,
+            )
 
     async def release_period_close(self, lease: LeasedConfiguration, *, worker_id: str) -> None:
         async with self._lock:
