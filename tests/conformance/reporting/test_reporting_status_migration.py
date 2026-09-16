@@ -63,10 +63,40 @@ C_QUEUES = (
 )
 
 
+def assert_c_collated_rolling_database(url):
+    """The rolling gate is only meaningful on a C-collated database.
+
+    The reviewed A artifact digests each table's constraints as one aggregate
+    ordered by ``pg_get_constraintdef()`` -- a ``text`` expression sorted under
+    the *database* default collation. Under any other default collation A's own
+    freshly created schema hashes differently from A's bundled contract, so A
+    reports ``a_notifications_closed`` before C has migrated anything and the
+    rolling classification below would measure the locale instead of the
+    upgrade. Every SDK identity column is ``TEXT COLLATE "C"``, so C is the
+    contract; fail loudly rather than weaken or skip the assertion.
+    """
+    import psycopg
+
+    with psycopg.connect(url, autocommit=True) as connection:
+        row = connection.execute(
+            "SELECT datcollate, datlocprovider, daticulocale FROM pg_database"
+            " WHERE datname = current_database()"
+        ).fetchone()
+    assert row is not None
+    collate, provider, icu = row
+    assert collate == "C" and (provider != "i" or icu in {None, "C"}), (
+        "the A/B rolling gate requires a C-collated database"
+        f" (found datcollate={collate!r} provider={provider!r} icu={icu!r});"
+        " create it with initdb --lc-collate=C --lc-ctype=C"
+    )
+
+
 @pytest.fixture(scope="module")
 def actual_sources(tmp_path_factory):
-    if not os.environ.get("ADCP_PG_TEST_URL"):
+    url = os.environ.get("ADCP_PG_TEST_URL")
+    if not url:
         pytest.skip("actual A/B-on-C binaries require PostgreSQL")
+    assert_c_collated_rolling_database(url)
     targets = {}
     try:
         for release, sha in ARTIFACTS.items():
@@ -524,3 +554,55 @@ async def test_live_reviewed_a_b_workers_never_claim_or_touch_pending_c_queues(
             assert await status.outbox.list_events(account_id="acct_a") == events
             await receiver.send(stop=True)
             await receiver.finish()
+
+
+def test_required_manifests_stay_per_object_so_readiness_ignores_the_locale():
+    """No manifest entry may aggregate several catalog rows in sort order.
+
+    The reviewed A artifact hashed each table's constraints as a single
+    aggregate ordered by ``pg_get_constraintdef()`` -- a ``text`` expression
+    sorted under the *database* default collation. That is why actual A's
+    readiness only reproduces on a C-collated database (see
+    ``assert_c_collated_rolling_database``). B and C must stay strictly
+    per-object, so a deployment's locale can never change readiness.
+    """
+    prefixes = ("table:", "column:", "constraint:", "index:", "trigger:", "function:")
+    for name, manifest in (
+        ("required_schema.json", REQUIRED_OBJECTS),
+        ("required_status_schema.json", REQUIRED_STATUS_OBJECTS),
+    ):
+        assert manifest, name
+        for key, value in manifest.items():
+            assert key.startswith(prefixes), (name, key)
+            assert set(value) >= {"fingerprint", "enabled"}, (name, key)
+
+
+async def test_status_activity_union_requires_positional_column_parity():
+    """``SELECT *`` UNION ALL maps B and C attempts by position, not by name.
+
+    ``PgReportingActivityUnionStore`` unions both histories with ``SELECT *``,
+    so the result takes B's column *names* and C's values *positionally*. A
+    reordered or inserted column in either table would silently swap
+    same-typed fields -- ``lease_token``/``reservation_token``,
+    ``notification_id``/``idempotency_key`` -- in every projected attempt,
+    with no error anywhere.
+    """
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        ledger = PgReportingReconciliationStore(pool=pool, notifications=True)
+        await ledger.create_schema()
+        await PgStatusNotificationStore(ledger).create_schema()
+        layout = {}
+        async with pool.connection() as conn:
+            for table in ("reporting_webhook_attempts", "reporting_status_webhook_attempts"):
+                layout[table] = await (
+                    await conn.execute(
+                        "SELECT a.attnum, a.attname, format_type(a.atttypid, a.atttypmod)"
+                        " FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid"
+                        " JOIN pg_namespace n ON n.oid = c.relnamespace"
+                        " WHERE n.nspname = current_schema() AND c.relname = %s"
+                        " AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum",
+                        (table,),
+                    )
+                ).fetchall()
+        assert layout["reporting_webhook_attempts"] == (layout["reporting_status_webhook_attempts"])
+        assert len(layout["reporting_webhook_attempts"]) == 18

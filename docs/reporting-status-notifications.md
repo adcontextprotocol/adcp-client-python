@@ -264,6 +264,21 @@ that an unmodified A worker can restart with notification readiness green on C.
 Deploy B or C for restarts that need that readiness check. No A/B compatibility
 artifact is patched by the tests.
 
+That readiness limit has a second, pre-existing cause worth stating plainly:
+reviewed A digests each table's constraints as one aggregate ordered by
+`pg_get_constraintdef()`, a `text` expression sorted under the **database
+default collation**. On any non-`C`-collated database A's bundled contract does
+not reproduce even against A's own freshly created schema, so A notification
+readiness is already closed there before C migrates anything. That is A's
+behaviour, not a C regression — C cannot patch a frozen artifact — but it means
+"old A stays ready until C" is only true on a `C`-collated database. Every SDK
+identity column is `TEXT COLLATE "C"`, so `C` is the deployment contract; B and
+C readiness is per-object and therefore locale-independent, which a manifest
+shape regression pins. The rolling CI job initialises its cluster with
+`--encoding=UTF8 --lc-collate=C --lc-ctype=C` and the rolling fixture asserts
+that precondition with an actionable message rather than silently measuring the
+locale instead of the upgrade.
+
 Every writer in the advertised status account surface must enable the durable
 dirty journal. Compatibility of default-off core writes does not make those
 unjournaled writes eligible for status notification projection.
