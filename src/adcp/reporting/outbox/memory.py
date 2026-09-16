@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timedelta
 from secrets import token_hex
 from typing import TYPE_CHECKING
@@ -19,6 +19,14 @@ from adcp.reporting.ledger.notification_models import (
     ReportingStatusScope,
     event_storage,
 )
+from adcp.reporting.outbox.activity import (
+    ActivityOutcome,
+    ActivityRequest,
+    WebhookAttempt,
+    activity_limit,
+    retention_cutoff,
+)
+from adcp.reporting.outbox.identity import canonical_consumer
 from adcp.reporting.outbox.models import (
     ERROR_CODES,
     DeliveryLease,
@@ -76,6 +84,8 @@ class NotificationState:
     dirty: list[ReportingStatusDirty] = field(default_factory=list)
     checkpoints: dict[tuple[str, str], int] = field(default_factory=dict)
     issue_scopes: dict[tuple[str, str], ReportingStatusScope] = field(default_factory=dict)
+    activity_heads: dict[tuple[str, str, str, str], int] = field(default_factory=dict)
+    activity: dict[tuple[str, str, str, str, int], WebhookAttempt] = field(default_factory=dict)
 
     def enqueue(self, event: ReportingDomainEvent) -> None:
         """Internal synchronous participant; caller owns the ledger transaction."""
@@ -263,7 +273,7 @@ class InMemoryReportingOutbox:
         async with self._store._lock:
             binding = lease.delivery.binding
             item = self._state.deliveries.get((binding.account_id, binding.delivery_id))
-            return item is not None and item[1].held(lease.token, now)
+            return item is not None and item[0] == lease.delivery and item[1].held(lease.token, now)
 
     async def finish_delivery(
         self,
@@ -278,10 +288,112 @@ class InMemoryReportingOutbox:
         async with self._store._lock:
             binding = lease.delivery.binding
             item = self._state.deliveries.get((binding.account_id, binding.delivery_id))
-            if item is None or not item[1].held(lease.token, now):
+            if item is None or item[0] != lease.delivery or not item[1].held(lease.token, now):
                 return False
             _finish(item[1], now=now, state=state, error_code=error_code, retry_at=retry_at)
             return True
+
+    async def reserve_attempt(
+        self, lease: DeliveryLease, *, request: ActivityRequest, now: datetime
+    ) -> WebhookAttempt | None:
+        binding = lease.delivery.binding
+        consumer = canonical_consumer(binding.principal_id)
+        request = ActivityRequest(request.url, request.payload_size_bytes)
+        key = (
+            binding.account_id,
+            consumer,
+            binding.subscriber_id,
+            binding.idempotency_key,
+        )
+        async with self._store._lock:
+            item = self._state.deliveries.get((binding.account_id, binding.delivery_id))
+            if (
+                item is None
+                or item[0] != lease.delivery
+                or item[1].expires_at != lease.expires_at
+                or not item[1].held(lease.token, now)
+            ):
+                return None
+            if any(
+                row.lease_token == lease.token and row.binding == binding
+                for row in self._state.activity.values()
+            ):
+                return None
+            number = self._state.activity_heads.get(key, 0) + 1
+            attempt = WebhookAttempt(
+                binding, number, lease.token, token_hex(32), aware_utc(now), request
+            )
+            self._state.activity_heads[key] = number
+            self._state.activity[(*key, number)] = attempt
+            return attempt
+
+    async def complete_attempt(
+        self, attempt: WebhookAttempt, *, outcome: ActivityOutcome, now: datetime
+    ) -> bool:
+        ActivityOutcome.__post_init__(outcome)
+        binding = attempt.binding
+        consumer = canonical_consumer(binding.principal_id)
+        key = (
+            binding.account_id,
+            consumer,
+            binding.subscriber_id,
+            binding.idempotency_key,
+            attempt.attempt,
+        )
+        async with self._store._lock:
+            original = self._state.activity.get(key)
+            if (
+                original != attempt
+                or attempt.outcome is not None
+                or aware_utc(now) < attempt.fired_at
+            ):
+                return False
+            self._state.activity[key] = replace(
+                attempt, outcome=outcome, completed_at=aware_utc(now)
+            )
+            return True
+
+    async def list_activity(
+        self, *, account_id: str, consumer_id: str, limit: int = 50
+    ) -> tuple[WebhookAttempt, ...]:
+        consumer_id, limit = canonical_consumer(consumer_id), activity_limit(limit)
+        async with self._store._lock:
+            return tuple(
+                sorted(
+                    (
+                        row
+                        for key, row in self._state.activity.items()
+                        if key[0] == account_id and key[1] == consumer_id
+                    ),
+                    key=lambda row: (
+                        row.fired_at,
+                        row.binding.notification_id,
+                        row.binding.idempotency_key,
+                        row.binding.subscriber_id,
+                        row.attempt,
+                        row.binding.delivery_id,
+                    ),
+                    reverse=True,
+                )[:limit]
+            )
+
+    async def purge_activity(
+        self, *, account_id: str, consumer_id: str, now: datetime, retention_days: int = 30
+    ) -> int:
+        consumer_id = canonical_consumer(consumer_id)
+        cutoff = retention_cutoff(now, retention_days)
+        async with self._store._lock:
+            keys = [
+                key
+                for key, row in self._state.activity.items()
+                if key[0] == account_id
+                and key[1] == consumer_id
+                and row.completed_at is not None
+                and row.completed_at < cutoff
+            ]
+            for key in keys:
+                del self._state.activity[key]
+            return len(keys)
 
     async def list_deliveries(self, *, account_id: str) -> tuple[DeliveryStatus, ...]:
         async with self._store._lock:

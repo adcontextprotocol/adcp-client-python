@@ -51,6 +51,8 @@ if TYPE_CHECKING:
     from adcp.decisioning.resolve import ResourceResolver
     from adcp.decisioning.state import StateReader
     from adcp.decisioning.task_registry import TaskRegistry
+    from adcp.reporting.outbox.activity import ReportingActivityProjector
+    from adcp.reporting.outbox.support import ReportingActivitySupport
     from adcp.signing.brand_authz import BrandAuthorizationResolver
     from adcp.webhook_sender import WebhookSender
     from adcp.webhook_supervisor import WebhookDeliverySupervisor
@@ -100,6 +102,8 @@ def create_adcp_server_from_platform(
     advertise_all: bool = False,
     validate_at_init: bool = True,
     adcp_version: str | None = None,
+    account_activity: ReportingActivityProjector | None = None,
+    reporting_activity: ReportingActivitySupport | None = None,
 ) -> tuple[PlatformHandler, ThreadPoolExecutor, TaskRegistry]:
     """Build the :class:`PlatformHandler` + supporting wiring from a
     :class:`DecisioningPlatform`.
@@ -234,6 +238,11 @@ def create_adcp_server_from_platform(
         :func:`validate_idempotency_wiring`) are synchronous-pure and
         always run; this flag only gates the capabilities-response
         check. See #700.
+    :param account_activity: Optional reporting activity projector applied after
+        legacy account visibility/filtering. Only requested activity is read.
+    :param reporting_activity: Optional concrete durable reporting worker/store
+        chain. Truthy activity capability claims require this validated mount;
+        account activity additionally requires ``account_activity``.
 
     To wire a :class:`ProposalManager` (v1 two-platform composition),
     pass it on a :class:`PlatformRouter` via
@@ -395,6 +404,8 @@ def create_adcp_server_from_platform(
         advertise_all=advertise_all,
         timed_sync_get_products_limit=resolved_timed_sync_limit,
         adcp_version=resolved_adcp_version,
+        account_activity=account_activity,
+        reporting_activity=reporting_activity,
     )
 
     # Boot-time fail-fast: property_list_filtering declared but no fetcher wired.
@@ -491,6 +502,8 @@ def serve(
     pre_validation_hooks: dict[str, Any] | None = None,
     validate_at_init: bool = True,
     adcp_version: str | None = None,
+    account_activity: ReportingActivityProjector | None = None,
+    reporting_activity: ReportingActivitySupport | None = None,
     **serve_kwargs: Any,
 ) -> None:
     """One-call wrapper — build the handler and serve over MCP.
@@ -614,6 +627,8 @@ def serve(
         advertise_all=advertise_all,
         validate_at_init=validate_at_init,
         adcp_version=adcp_version,
+        account_activity=account_activity,
+        reporting_activity=reporting_activity,
     )
 
     # Phase 1 sandbox-authority — wire the comply controller's account

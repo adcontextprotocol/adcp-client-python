@@ -52,7 +52,9 @@ obligation IDs, the named obligations must exist in the requested account.
    `reporting_ledger_account_generations.sql`,
    `reporting_ledger_obligation_currency.sql`,
    `reporting_ledger_reconciliation.sql`, and
-   `reporting_notification_outbox.sql` migrations in one transaction.
+   `reporting_notification_outbox.sql` and `reporting_webhook_activity.sql`
+   migrations in one transaction. For the later A-to-B additive upgrade and
+   activity activation barrier, see [durable reporting activity](reporting-webhook-activity.md).
 3. Restart reporting work with the upgraded SDK on every instance.
 
 For deployments managed by a migration tool, the standalone migration is
