@@ -341,6 +341,7 @@ async def test_event_enqueue_failure_rolls_back_revision_and_rows(
 
 
 async def test_postgres_precommit_invisibility_from_distinct_autocommit_pool(monkeypatch):
+    pytest.importorskip("psycopg_pool")
     from psycopg_pool import AsyncConnectionPool
 
     async with reliable_factory("postgres", notifications=True, autocommit=True) as reliable:

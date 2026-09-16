@@ -31,12 +31,11 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Sequence
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from typing import Any, Literal
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
-from adcp.reporting.ledger.health import aggregate_reporting_health, project_obligation_health
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ReportingAdjustmentRecord,
@@ -46,7 +45,16 @@ from adcp.reporting.ledger.models import (
     ReportingIssue,
     ReportingObligationRecord,
     ReportingRevisionRecord,
-    iso_duration_to_timedelta,
+)
+from adcp.reporting.ledger.notification_models import ReportingStatusScope
+from adcp.reporting.ledger.status_projection import (
+    ReportingStatusSnapshot,
+    StatusProjectionInput,
+    apply_intents_to_snapshot,
+    lifecycle_intents,
+    mismatch_key,
+    project_status_scope,
+    status_retained_from,
 )
 from adcp.reporting.ledger.store import (
     LedgerConflictError,
@@ -88,7 +96,7 @@ class ReportingStatusCaller:
 
 
 class ReportingStatusHandler:
-    """Projects a ledger store onto the ``get_reporting_status`` wire shape."""
+    """Render one captured status snapshot using the same pure projection as push."""
 
     def __init__(
         self,
@@ -98,469 +106,322 @@ class ReportingStatusHandler:
         consumer_status_enabled: bool = False,
         escalation: ReportingDeliveryEscalation | None = None,
     ) -> None:
-        # Deliberately no clock. ``ledger_as_of`` is the *store's* observation
-        # boundary -- in Postgres, the database clock -- because that is what
-        # makes every page of one cursor describe the same instant. A handler
-        # with its own clock could disagree with the snapshot it is paginating.
         self._store = store
         self._page_size = page_size
         self._consumer_status_enabled = consumer_status_enabled
-        # The advertised consumer_mismatch_escalation_seconds / operations_contact
-        # pair. Absent means the seller publishes no escalation commitment; it
-        # never means an unbounded one, so the projection simply does not apply
-        # an escalation boundary.
         self._escalation = escalation
 
     async def handle(
         self, request: dict[str, Any], *, caller: ReportingStatusCaller
     ) -> dict[str, Any]:
-        """Serve one ``get_reporting_status`` request."""
-        view: ReportingStatusView = request.get("view", "summary")
-        if view not in {"summary", "periods", "revision"}:
-            raise LedgerConflictError("INVALID_VIEW", f"unsupported reporting status view {view!r}")
-        if view == "revision":
-            return await self._revision_view(request, caller=caller)
+        snapshot = await self._load(caller)
+        return self.render_snapshot(request, caller=caller, snapshot=snapshot)
 
-        filters = _filters(request)
-        snapshot = await self._store.open_snapshot(
-            account_id=caller.account_id, filters_fingerprint=_fingerprint(filters)
+    async def _load(self, caller: ReportingStatusCaller) -> ReportingStatusSnapshot:
+        from adcp.reporting.ledger.status_snapshot import ReportingStatusParticipant
+
+        if isinstance(self._store, ReportingStatusParticipant):
+            return await self._store.read_status_snapshot(account_id=caller.account_id)
+        # Optional upgrade: custom stores keep their original structural API.
+        # This fallback cannot establish durable status-notification readiness.
+        boundary = await self._store.open_snapshot(
+            account_id=caller.account_id, filters_fingerprint="status-projection-v1"
         )
-        cursor = (request.get("pagination") or {}).get("cursor")
-        offset = 0
-        if cursor:
-            decoded = decode_cursor(cursor)
-            if decoded.get("snapshot") != snapshot.snapshot_id:
-                # A cursor from another snapshot, caller, account, or filter set
-                # is unusable: continuing it would silently blend two ledger
-                # boundaries into one "consistent" walk.
-                raise LedgerConflictError(
-                    "CURSOR_SNAPSHOT_MISMATCH",
-                    "this cursor belongs to a different ledger snapshot or filter set; "
-                    "restart the walk",
-                )
-            offset = int(decoded.get("offset", 0))
-
-        changes_after = request.get("changes_after")
-        page = await self._store.read_page(
-            snapshot=snapshot,
-            consumer_id=caller.consumer_id if self._consumer_status_enabled else None,
-            delivery_config_ids=filters["delivery_config_ids"],
-            media_buy_ids=filters["media_buy_ids"],
-            offset=offset,
-            limit=self._page_size,
-            changes_after_sequence=_checkpoint_sequence(changes_after),
-        )
-        if view == "periods":
-            return await self._periods_view(page, snapshot, caller=caller, request=request)
-        return await self._summary_view(snapshot, caller=caller, request=request, filters=filters)
-
-    # -- summary ---------------------------------------------------------
-
-    async def _summary_view(
-        self,
-        snapshot: Any,
-        *,
-        caller: ReportingStatusCaller,
-        request: dict[str, Any],
-        filters: dict[str, Any],
-    ) -> dict[str, Any]:
-        obligations, projections, issues, pending = await self._project_scope(
-            snapshot, caller=caller, filters=filters
-        )
-        scope_closed = _scope_closed(obligations, ledger_as_of=snapshot.ledger_as_of)
-        health = aggregate_reporting_health(
-            (projection.health for projection in projections.values()),
-            scope_closed=scope_closed,
-            coverage_complete=all(
-                obligation.coverage_status == "full" for obligation in obligations
-            ),
-        )
-        data_through = _scope_data_through(projections.values())
-        states = [projection.health for projection in projections.values()]
-        counts: dict[str, int] = {
-            "total": len(obligations),
-            **{
-                state: sum(1 for item in states if item == state)
-                for state in ("waiting", "healthy", "delayed", "action_required", "complete")
-            },
-        }
-        if self._consumer_status_enabled:
-            # Required on the summary view whenever consumer_status_task is
-            # advertised. It overlaps the health counts rather than
-            # partitioning them, and is never a health input.
-            counts["consumer_status_pending"] = pending
-        configurations = await self._store.list_configurations(
-            account_id=caller.account_id, delivery_config_ids=filters["delivery_config_ids"]
-        )
-        return {
-            "status": "completed",
-            "view": "summary",
-            "ledger_snapshot_id": snapshot.snapshot_id,
-            "ledger_as_of": _iso(snapshot.ledger_as_of),
-            "account_id": caller.account_id,
-            "scope": _scope_to_wire(
-                configurations, ledger_as_of=snapshot.ledger_as_of, request=request
-            ),
-            "health": health,
-            "coverage": _coverage_roll_up(obligations),
-            "data_through": _iso(data_through) if data_through else None,
-            "next_expected_at": _next_expected(obligations, ledger_as_of=snapshot.ledger_as_of),
-            "obligation_counts": counts,
-            "issues": [issue.to_wire() for issue in issues],
-        }
-
-    # -- periods ---------------------------------------------------------
-
-    async def _periods_view(
-        self,
-        page: Any,
-        snapshot: Any,
-        *,
-        caller: ReportingStatusCaller,
-        request: dict[str, Any],
-    ) -> dict[str, Any]:
-        obligations: list[dict[str, Any]] = []
-        generations = {
-            configuration.generation_key: configuration
-            for configuration in await self._store.list_configurations(account_id=caller.account_id)
-        }
-        # Revisions on this page may belong to obligations that are not, so
-        # resolve each one: a wire revision is self-describing and needs its
-        # obligation's scope, period, and definition binding.
-        owners: dict[str, ReportingObligationRecord] = {}
-        for revision in page.revisions:
-            if revision.reporting_obligation_id not in owners:
-                owner = await self._store.get_obligation(
-                    account_id=caller.account_id,
-                    reporting_obligation_id=revision.reporting_obligation_id,
-                )
-                if owner is not None:
-                    owners[revision.reporting_obligation_id] = owner
-        for obligation in page.obligations:
-            revisions = await self._store.list_revisions(
-                account_id=caller.account_id,
-                reporting_obligation_id=obligation.reporting_obligation_id,
-            )
-            statuses = await self._statuses_for(obligation, caller=caller)
-            projection = project_obligation_health(
-                obligation,
-                revisions,
-                ledger_as_of=snapshot.ledger_as_of,
-                scope_closed=_obligation_closed(obligation, snapshot.ledger_as_of),
-            )
-            projection_issues = list(projection.issues)
-            health = projection.health
-            production_status = projection.production_status
-            if self._consumer_status_enabled:
-                mismatch = await self._project_mismatch(
-                    obligation=obligation,
-                    projection=projection,
-                    revisions=revisions,
-                    statuses=statuses,
-                    generation=generations.get(obligation.generation_key),
-                    caller=caller,
-                    snapshot=snapshot,
-                )
-                if mismatch is not None:
-                    # Only this caller's view degrades. One consumer's
-                    # statement never changes another caller's view or the
-                    # seller's advertised reliability statistics.
-                    health = mismatch.severity
-                    if mismatch.published:
-                        projection_issues.append(mismatch.issue)
-            obligations.append(
-                _obligation_to_wire(
-                    obligation,
-                    revisions=revisions,
-                    health=health,
-                    production_status=production_status,
-                    issues=projection_issues,
-                    statuses=statuses if self._consumer_status_enabled else (),
-                )
-            )
-
-        configurations = await self._store.list_configurations(
-            account_id=caller.account_id,
-            delivery_config_ids=list(request.get("delivery_config_ids") or []) or None,
-        )
-        payload: dict[str, Any] = {
-            "status": "completed",
-            "view": "periods",
-            "ledger_snapshot_id": snapshot.snapshot_id,
-            "ledger_as_of": _iso(snapshot.ledger_as_of),
-            "changes_checkpoint": _encode_checkpoint(snapshot.max_sequence),
-            "account_id": caller.account_id,
-            "scope": _scope_to_wire(
-                configurations, ledger_as_of=snapshot.ledger_as_of, request=request
-            ),
-            "periods": obligations,
-            "revisions": [
-                _revision_to_wire(item, owners.get(item.reporting_obligation_id))
-                for item in page.revisions
-            ],
-            "adjustments": [_adjustment_to_wire(item) for item in page.adjustments],
-            # Core has no destinations and no receipts. The arrays are present
-            # and empty rather than absent, so a consumer reads "this tier does
-            # not materialize" instead of "this seller forgot a field".
-            "materializations": [],
-            "receipts": [],
-            "pagination": {
-                "total_count": page.total_count,
-                "has_more": page.has_more,
-                **({"cursor": page.cursor} if page.cursor else {}),
-            },
-        }
-        if self._consumer_status_enabled:
-            payload["consumer_statuses"] = [
-                _consumer_status_to_wire(item) for item in page.consumer_statuses
-            ]
-        return payload
-
-    async def _statuses_for(
-        self, obligation: ReportingObligationRecord, *, caller: ReportingStatusCaller
-    ) -> tuple[ConsumerStatusRecord, ...]:
-        if not self._consumer_status_enabled:
-            return ()
-        return await self._store.list_consumer_statuses(
-            account_id=caller.account_id,
-            consumer_id=caller.consumer_id,
-            reporting_obligation_ids=[obligation.reporting_obligation_id],
-        )
-
-    # -- revision --------------------------------------------------------
-
-    async def _revision_view(
-        self, request: dict[str, Any], *, caller: ReportingStatusCaller
-    ) -> dict[str, Any]:
-        revision_id = request.get("reporting_revision_id")
-        if not revision_id:
-            raise LedgerConflictError(
-                "MISSING_REVISION_ID", "a revision view requires reporting_revision_id"
-            )
-        revision = await self._store.get_revision(
-            account_id=caller.account_id, reporting_revision_id=revision_id
-        )
-        if revision is None:
-            # Identical shape for unknown and unauthorized: a distinguishable
-            # "not found" would let a caller enumerate another tenant's ids.
-            raise LedgerConflictError(
-                "LOOKUP_UNAVAILABLE", "no such revision is available to this caller"
-            )
-        owner = await self._store.get_obligation(
-            account_id=caller.account_id,
-            reporting_obligation_id=revision.reporting_obligation_id,
-        )
-        adjustments = await self._store.list_adjustments(
-            account_id=caller.account_id, reporting_revision_ids=[revision_id]
-        )
-        snapshot = await self._store.open_snapshot(
-            account_id=caller.account_id,
-            filters_fingerprint=_fingerprint({"revision": revision_id}),
-        )
-        return {
-            "status": "completed",
-            "view": "revision",
-            "ledger_snapshot_id": snapshot.snapshot_id,
-            "ledger_as_of": _iso(snapshot.ledger_as_of),
-            "account_id": caller.account_id,
-            "revision": _revision_to_wire(revision, owner),
-            "adjustments": [_adjustment_to_wire(item) for item in adjustments],
-            "materializations": [],
-            "receipts": [],
-            "pagination": {"total_count": 1, "has_more": False},
-        }
-
-    # -- shared projection ------------------------------------------------
-
-    async def _project_scope(
-        self, snapshot: Any, *, caller: ReportingStatusCaller, filters: dict[str, Any]
-    ) -> tuple[
-        list[ReportingObligationRecord],
-        dict[str, Any],
-        list[ReportingIssue],
-        int,
-    ]:
-        """Walk the whole snapshot for a summary.
-
-        A summary is a roll-up, so it deliberately reads every obligation in
-        scope rather than a page: a summary computed from one page would report
-        health for an arbitrary subset and call it the scope.
-        """
+        configurations = await self._store.list_configurations(account_id=caller.account_id)
         obligations: list[ReportingObligationRecord] = []
+        adjustments: list[ReportingAdjustmentRecord] = []
         offset = 0
+        changes: list[tuple[int, str, str, str]] = []
         while True:
             page = await self._store.read_page(
-                snapshot=snapshot,
+                snapshot=boundary,
                 consumer_id=caller.consumer_id if self._consumer_status_enabled else None,
-                delivery_config_ids=filters["delivery_config_ids"],
-                media_buy_ids=filters["media_buy_ids"],
+                delivery_config_ids=None,
+                media_buy_ids=None,
                 offset=offset,
                 limit=self._page_size,
                 changes_after_sequence=None,
             )
             obligations.extend(page.obligations)
+            adjustments.extend(page.adjustments)
             if not page.has_more:
                 break
             offset += self._page_size
+        revisions_list: list[ReportingRevisionRecord] = []
+        for o in obligations:
+            revisions_list.extend(
+                await self._store.list_revisions(
+                    account_id=caller.account_id, reporting_obligation_id=o.reporting_obligation_id
+                )
+            )
+        revisions = tuple(revisions_list)
+        statuses = (
+            await self._store.list_consumer_statuses(
+                account_id=caller.account_id, consumer_id=caller.consumer_id
+            )
+            if self._consumer_status_enabled
+            else ()
+        )
+        lifecycles = []
+        for key in sorted({mismatch_key(s) for s in statuses}):
+            issue = await self._store.get_issue(account_id=caller.account_id, issue_key=key)
+            if issue is not None:
+                lifecycles.append(issue)
+        for kind, records, attribute in (
+            ("obligation", obligations, "reporting_obligation_id"),
+            ("revision", revisions, "reporting_revision_id"),
+            ("adjustment", adjustments, "reporting_adjustment_id"),
+            ("consumer_status", statuses, "reporting_status_id"),
+        ):
+            changes.extend(
+                (len(changes) + i + 1, kind, getattr(record, attribute), "")
+                for i, record in enumerate(records)
+            )
+        snapshot = ReportingStatusSnapshot(
+            caller.account_id,
+            boundary.ledger_as_of,
+            tuple(configurations),
+            tuple(obligations),
+            revisions,
+            tuple(statuses),
+            tuple(lifecycles),
+            adjustments=tuple(adjustments),
+            changes=tuple(changes),
+        )
+        for _ in range(3):
+            intents = lifecycle_intents(snapshot)
+            if not intents:
+                return snapshot
+            for intent in intents:
+                issue = intent.lifecycle
+                if intent.action == "ensure_mismatch":
+                    await self._store.ensure_issue_opened(
+                        issue_key=issue.issue_key,
+                        account_id=issue.account_id,
+                        consumer_id=issue.consumer_id,
+                        observed_at=issue.opened_at,
+                    )
+                elif intent.action == "retire_mismatch":
+                    await self._store.retire_issue(
+                        issue_key=issue.issue_key, account_id=issue.account_id, at=snapshot.as_of
+                    )
+            snapshot = apply_intents_to_snapshot(snapshot, intents)
+        raise LedgerConflictError(
+            "STATUS_PROJECTION_UNAVAILABLE", "status lifecycle did not converge"
+        )
 
-        generations = {
-            configuration.generation_key: configuration
-            for configuration in await self._store.list_configurations(account_id=caller.account_id)
-        }
-        projections: dict[str, Any] = {}
-        issues: list[ReportingIssue] = []
-        pending = 0
-        for obligation in obligations:
-            revisions = await self._store.list_revisions(
-                account_id=caller.account_id,
-                reporting_obligation_id=obligation.reporting_obligation_id,
-            )
-            projection = project_obligation_health(
-                obligation,
-                revisions,
-                ledger_as_of=snapshot.ledger_as_of,
-                scope_closed=_obligation_closed(obligation, snapshot.ledger_as_of),
-            )
-            projections[obligation.reporting_obligation_id] = projection
-            issues.extend(projection.issues)
-            if not self._consumer_status_enabled:
-                continue
-
-            statuses = await self._statuses_for(obligation, caller=caller)
-            if _consumer_status_pending(obligation, statuses, ledger_as_of=snapshot.ledger_as_of):
-                pending += 1
-            mismatch = await self._project_mismatch(
-                obligation=obligation,
-                projection=projection,
-                revisions=revisions,
-                statuses=statuses,
-                generation=generations.get(obligation.generation_key),
-                caller=caller,
-                snapshot=snapshot,
-            )
-            if mismatch is None:
-                continue
-            if mismatch.published:
-                issues.append(mismatch.issue)
-            # A waived mismatch still degrades this caller's view. Waiving
-            # records an off-protocol agreement to stop *acting*, not a finding
-            # that the reporting is fine -- otherwise a seller could
-            # unilaterally erase a buyer-attributed disagreement, which is the
-            # one outcome this separately attributed loop exists to prevent.
-            projections[obligation.reporting_obligation_id] = _degraded(
-                projection, mismatch.severity
-            )
-        return obligations, projections, issues, pending
-
-    async def _project_mismatch(
+    def render_snapshot(
         self,
+        request: dict[str, Any],
         *,
-        obligation: ReportingObligationRecord,
-        projection: Any,
-        revisions: Sequence[ReportingRevisionRecord],
-        statuses: Sequence[ConsumerStatusRecord],
-        generation: ReportingConfiguration | None,
         caller: ReportingStatusCaller,
-        snapshot: Any,
-    ) -> Any:
-        """Project this caller's mismatch, keeping ``opened_at`` durable.
-
-        The lifecycle row is opened on *first observation* and read back on
-        every later one, so ``opened_at`` never advances and the escalation
-        clock cannot be reset by polling. When the condition clears, the
-        occurrence is retired here rather than by an operator, which is what
-        makes "never retire while the causing statement is still the current
-        leaf" true by construction.
-        """
-        from adcp.reporting.ledger.consumer_status import (
-            consumer_mismatch_issue_key,
-            consumer_statement_conflicts,
-            current_consumer_statement,
-            project_consumer_mismatch,
+        snapshot: ReportingStatusSnapshot,
+    ) -> dict[str, Any]:
+        """Render captured database evidence without any store calls or clock reads."""
+        view = request.get("view", "summary")
+        if view not in {"summary", "periods", "revision"}:
+            raise LedgerConflictError("INVALID_VIEW", "unsupported reporting status view")
+        if snapshot.account_id != caller.account_id:
+            raise LedgerConflictError("LOOKUP_UNAVAILABLE", "status is unavailable to this caller")
+        filters = _filters(request)
+        scope = ReportingStatusScope(
+            caller.account_id,
+            consumer_id=caller.consumer_id if self._consumer_status_enabled else None,
         )
-
-        issue_key = consumer_mismatch_issue_key(
-            account_id=caller.account_id,
-            consumer_id=caller.consumer_id,
-            delivery_config_id=obligation.delivery_config_id,
-            delivery_config_version=obligation.delivery_config_version,
-            report_definition_id=obligation.report_definition_id,
-            period_start=obligation.period.start,
-            period_end=obligation.period.end,
+        snapshot_id = (
+            "rpls_"
+            + _fingerprint(
+                [
+                    caller.account_id,
+                    caller.consumer_id if self._consumer_status_enabled else None,
+                    filters,
+                    snapshot.max_sequence,
+                ]
+            )[:32]
         )
-        sla = (
-            iso_duration_to_timedelta(generation.schedule.delivery_sla)
-            if generation is not None
-            else timedelta(0)
+        offset = 0
+        cursor = (request.get("pagination") or {}).get("cursor")
+        if cursor:
+            decoded = decode_cursor(cursor)
+            if decoded.get("snapshot") != snapshot_id:
+                raise LedgerConflictError(
+                    "CURSOR_SNAPSHOT_MISMATCH",
+                    "this cursor belongs to a different snapshot, caller or filter set;"
+                    " restart the walk",
+                )
+            offset = int(decoded.get("offset", 0))
+            if "as_of" in decoded:
+                snapshot = replace(snapshot, as_of=datetime.fromisoformat(decoded["as_of"]))
+        value = StatusProjectionInput(
+            snapshot,
+            scope,
+            self._escalation,
+            tuple(filters["delivery_config_ids"] or ()),
+            tuple(filters["media_buy_ids"] or ()),
+            tuple(filters["feed_purposes"] or ()),
+            _parse(filters["period_start"]),
+            _parse(filters["period_end"]),
         )
-        recovery = (
-            generation.automated_recovery_window if generation is not None else timedelta(hours=6)
-        )
-        # Probe without opening: a clean projection must not mint an issue.
-        probe = project_consumer_mismatch(
-            obligation=obligation,
-            current_revision=projection.current_revision,
-            statuses=statuses,
-            seller_health=projection.health,
-            revisions=revisions,
-            ledger_as_of=snapshot.ledger_as_of,
-            delivery_sla=sla,
-            automated_recovery_window=recovery,
-            escalation=self._escalation,
-            lifecycle=await self._store.get_issue(
-                issue_key=issue_key, account_id=caller.account_id
-            ),
-        )
-        current = current_consumer_statement(statuses)
-        still_conflicts = current is not None and consumer_statement_conflicts(
-            current=current,
-            current_revision=projection.current_revision,
-            revisions=revisions,
-        )
-        if not still_conflicts:
-            # Retire on the *condition* clearing, never on the probe returning
-            # None. project_consumer_mismatch also returns None when the seller
-            # is already degraded for an unrelated reason, and retiring there
-            # would mint a new issue_id and opened_at on the later repair --
-            # resetting the escalation clock on a disagreement that never went
-            # away. The spec carries opened_at unchanged and retires a
-            # CONSUMER_STATUS_MISMATCH only per consumer_mismatch_lifecycle.
-            # `retire_issue` is convergent and leaves a waived occurrence
-            # alone -- a waived issue is already out of the projection by
-            # agreement, and overwriting that readable act with `resolved` is
-            # an edge the forward-only lifecycle forbids. Both stores enforce
-            # that, so this caller does not restate the rule.
-            await self._store.retire_issue(
-                issue_key=issue_key,
-                account_id=caller.account_id,
-                at=snapshot.ledger_as_of,
+        result = project_status_scope(value)
+        if result.intents:
+            raise LedgerConflictError(
+                "STATUS_PROJECTION_UNAVAILABLE", "status lifecycle is pending"
             )
-            return None
-        if probe is None:
-            # The condition stands but the seller is already degraded for its
-            # own reasons, so this caller's view needs no second issue. Leave
-            # the occurrence open: opened_at survives to the repair.
-            return None
-        lifecycle = await self._store.ensure_issue_opened(
-            issue_key=issue_key,
-            account_id=caller.account_id,
-            consumer_id=caller.consumer_id,
-            observed_at=snapshot.ledger_as_of,
+        common: dict[str, Any] = {
+            "status": "completed",
+            "view": view,
+            "ledger_snapshot_id": snapshot_id,
+            "ledger_as_of": _iso(snapshot.as_of),
+            "account_id": caller.account_id,
+        }
+        if view == "revision":
+            revision_id = request.get("reporting_revision_id")
+            if not revision_id:
+                raise LedgerConflictError(
+                    "MISSING_REVISION_ID", "a revision view requires reporting_revision_id"
+                )
+            revision = next(
+                (r for r in snapshot.revisions if r.reporting_revision_id == revision_id), None
+            )
+            if revision is None:
+                raise LedgerConflictError(
+                    "LOOKUP_UNAVAILABLE", "no such revision is available to this caller"
+                )
+            owner = next(
+                (
+                    o
+                    for o in snapshot.obligations
+                    if o.reporting_obligation_id == revision.reporting_obligation_id
+                ),
+                None,
+            )
+            return {
+                **common,
+                "revision": _revision_to_wire(revision, owner),
+                "adjustments": [
+                    _adjustment_to_wire(a)
+                    for a in snapshot.adjustments
+                    if a.adjusts_reporting_revision_id == revision_id
+                ],
+                "materializations": [],
+                "receipts": [],
+                "pagination": {"total_count": 1, "has_more": False},
+            }
+        common["scope"] = _scope_to_wire(
+            result.configurations,
+            ledger_as_of=snapshot.as_of,
+            request=request,
+            obligations=tuple(p.obligation for p in result.obligations),
         )
-        # Re-project with the durable opened_at so the escalation boundary is
-        # measured from first observation, not from this poll.
-        return project_consumer_mismatch(
-            obligation=obligation,
-            current_revision=projection.current_revision,
-            statuses=statuses,
-            seller_health=projection.health,
-            revisions=revisions,
-            ledger_as_of=snapshot.ledger_as_of,
-            delivery_sla=sla,
-            automated_recovery_window=recovery,
-            escalation=self._escalation,
-            lifecycle=lifecycle,
-        )
+        obligations = tuple(p.obligation for p in result.obligations)
+        if view == "summary":
+            states: list[str] = [p.projection.health for p in result.obligations]
+            counts = {
+                "total": len(obligations),
+                **{
+                    state: states.count(state)
+                    for state in ("waiting", "healthy", "delayed", "action_required", "complete")
+                },
+            }
+            if self._consumer_status_enabled:
+                counts["consumer_status_pending"] = result.pending_count
+            watermark = _scope_data_through(p.projection for p in result.obligations)
+            next_expected = _next_expected(obligations, ledger_as_of=snapshot.as_of)
+            return {
+                **common,
+                "health": result.health,
+                "coverage": _coverage_roll_up(obligations, as_of=snapshot.as_of),
+                "data_through": _iso(watermark) if watermark else None,
+                **(
+                    {"next_expected_at": next_expected}
+                    if next_expected is not None and result.health != "complete"
+                    else {}
+                ),
+                "obligation_counts": counts,
+                "issues": [i.to_wire() for i in result.issues],
+            }
+        owners = {o.reporting_obligation_id: o for o in obligations}
+        records: dict[tuple[str, str], Any] = {
+            ("obligation", o.reporting_obligation_id): o for o in obligations
+        }
+        for r in snapshot.revisions:
+            if r.reporting_obligation_id in owners:
+                records[("revision", r.reporting_revision_id)] = r
+        for a in snapshot.adjustments:
+            if ("revision", a.adjusts_reporting_revision_id) in records:
+                records[("adjustment", a.reporting_adjustment_id)] = a
+        generation_keys = {c.generation_key for c in result.configurations}
+        if self._consumer_status_enabled:
+            for s in snapshot.statuses:
+                if s.consumer_id == caller.consumer_id and s.generation_key in generation_keys:
+                    if (value.period_start is not None and s.period_end <= value.period_start) or (
+                        value.period_end is not None and s.period_start >= value.period_end
+                    ):
+                        continue
+                    records[("consumer_status", s.reporting_status_id)] = s
+        lower = _checkpoint_sequence(request.get("changes_after")) or 0
+        selected = [
+            (kind, records[(kind, record_id)])
+            for seq, kind, record_id, _ in sorted(snapshot.changes)
+            if seq > lower and (kind, record_id) in records
+        ]
+        window = selected[offset : offset + self._page_size]
+        has_more = offset + self._page_size < len(selected)
+        periods = []
+        for kind, record in window:
+            if kind != "obligation":
+                continue
+            scoped = project_status_scope(
+                replace(value, scope=ReportingStatusScope.for_obligation(record, scope.consumer_id))
+            )
+            item = scoped.obligations[0]
+            periods.append(
+                _obligation_to_wire(
+                    record,
+                    revisions=item.revisions,
+                    health=scoped.health,
+                    production_status=item.projection.production_status,
+                    issues=scoped.issues,
+                    statuses=item.statuses,
+                )
+            )
+        payload = {
+            **common,
+            "health": result.health,
+            "issues": [issue.to_wire() for issue in result.issues],
+            "changes_checkpoint": _encode_checkpoint(snapshot.max_sequence),
+            "periods": periods,
+            "revisions": [
+                _revision_to_wire(r, owners.get(r.reporting_obligation_id))
+                for kind, r in window
+                if kind == "revision"
+            ],
+            "adjustments": [_adjustment_to_wire(a) for kind, a in window if kind == "adjustment"],
+            "materializations": [],
+            "receipts": [],
+            "pagination": {
+                "total_count": len(selected),
+                "has_more": has_more,
+                **(
+                    {
+                        "cursor": encode_cursor(
+                            {
+                                "snapshot": snapshot_id,
+                                "offset": offset + self._page_size,
+                                "as_of": snapshot.as_of.isoformat(),
+                            }
+                        )
+                    }
+                    if has_more
+                    else {}
+                ),
+            },
+        }
+        if self._consumer_status_enabled:
+            payload["consumer_statuses"] = [
+                _consumer_status_to_wire(s) for kind, s in window if kind == "consumer_status"
+            ]
+        return payload
 
 
 def _consumer_status_pending(
@@ -592,10 +453,16 @@ def _degraded(projection: Any, severity: str = "action_required") -> Any:
 
 
 def _filters(request: dict[str, Any]) -> dict[str, Any]:
+    period = request.get("period") or {}
+    start, end = _parse(period.get("start")), _parse(period.get("end"))
+    if start is not None and end is not None and end <= start:
+        raise LedgerConflictError("INVALID_PERIOD", "the status horizon must be nonempty")
     return {
-        "delivery_config_ids": list(request.get("delivery_config_ids") or []) or None,
-        "media_buy_ids": list(request.get("media_buy_ids") or []) or None,
-        "feed_purposes": list(request.get("feed_purposes") or []) or None,
+        "delivery_config_ids": sorted(set(request.get("delivery_config_ids") or [])) or None,
+        "media_buy_ids": sorted(set(request.get("media_buy_ids") or [])) or None,
+        "feed_purposes": sorted(set(request.get("feed_purposes") or [])) or None,
+        "period_start": start.isoformat() if start else None,
+        "period_end": end.isoformat() if end else None,
     }
 
 
@@ -662,6 +529,7 @@ def _scope_to_wire(
     *,
     ledger_as_of: datetime,
     request: dict[str, Any],
+    obligations: Sequence[ReportingObligationRecord] = (),
 ) -> dict[str, Any]:
     """The denominator this read's health was computed over.
 
@@ -677,15 +545,7 @@ def _scope_to_wire(
     make the consumer's record count meaningless.
     """
     requested = request.get("period") or {}
-    retention = max((item.status_retention_days for item in configurations), default=0)
-    activations = [_utc(item.activated_at) for item in configurations if item.activated_at]
-    # Retained coverage starts at the later of "as far back as we keep
-    # evidence" and "when the first configuration existed" -- claiming
-    # coverage before either would be claiming it over nothing.
-    retained_from = max(
-        [_utc(ledger_as_of) - timedelta(days=retention)]
-        + ([min(activations)] if activations else [])
-    )
+    retained_from = status_retained_from(configurations, ledger_as_of)
     horizon_start = _parse(requested.get("start")) or retained_from
     horizon_end = _parse(requested.get("end")) or _utc(ledger_as_of)
     generations = {item.generation_key: item for item in configurations}
@@ -693,10 +553,16 @@ def _scope_to_wire(
         "period_start": _iso(horizon_start),
         "period_end": _iso(horizon_end),
         # No further obligation can enter a horizon that has already elapsed.
-        "scope_closed": horizon_end <= _utc(ledger_as_of),
+        "scope_closed": horizon_end <= _utc(ledger_as_of)
+        and all(o.period.end <= ledger_as_of for o in obligations),
         # True when the caller named no media buys, so the scope is every buy
         # it can reach rather than an enumerated subset.
         "all_accessible_media_buys": not request.get("media_buy_ids"),
+        **(
+            {"media_buy_ids": sorted(set(request["media_buy_ids"]))}
+            if request.get("media_buy_ids")
+            else {}
+        ),
         "delivery_config_generations": [
             {
                 "delivery_config_id": generation.delivery_config_id,
@@ -717,16 +583,24 @@ def _scope_to_wire(
         "ledger_retained_from": _iso(retained_from),
         # False means health cannot prove completeness for the whole requested
         # horizon, because part of it predates what this ledger still retains.
-        "coverage_complete": horizon_start >= retained_from,
+        "coverage_complete": not configurations or horizon_start >= retained_from,
     }
 
 
 def _parse(value: Any) -> datetime | None:
     if not value:
         return None
-    if isinstance(value, datetime):
-        return _utc(value)
-    return _utc(datetime.fromisoformat(str(value).replace("Z", "+00:00")))
+    try:
+        result = (
+            value
+            if isinstance(value, datetime)
+            else datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        )
+        if result.tzinfo is not None and result.utcoffset() is not None:
+            return _utc(result)
+    except (TypeError, ValueError):
+        pass
+    raise LedgerConflictError("INVALID_PERIOD", "status timestamps must include a timezone")
 
 
 def _period_to_wire(obligation: ReportingObligationRecord) -> dict[str, Any]:
@@ -769,21 +643,27 @@ def _obligation_coverage(obligation: ReportingObligationRecord) -> dict[str, Any
     }
 
 
-def _coverage_roll_up(obligations: Sequence[ReportingObligationRecord]) -> dict[str, Any]:
+def _coverage_roll_up(
+    obligations: Sequence[ReportingObligationRecord], *, as_of: datetime
+) -> dict[str, Any]:
     media_buy_ids = sorted(
         {item for obligation in obligations for item in obligation.media_buy_ids}
     )
     package_ids = sorted({item for obligation in obligations for item in obligation.package_ids})
     statuses = {obligation.coverage_status for obligation in obligations}
-    status = "full" if statuses <= {"full"} else ("partial" if "full" in statuses else "none")
+    status = (
+        "full"
+        if statuses <= {"full"}
+        else ("partial" if statuses.intersection({"full", "partial"}) else "none")
+    )
     if "unknown" in statuses:
         status = "unknown"
     evaluated = (
-        max(obligation.scope_resolved_at for obligation in obligations) if obligations else None
+        max(obligation.scope_resolved_at for obligation in obligations) if obligations else as_of
     )
     return {
         "status": status,
-        "evaluated_at": _iso(evaluated) if evaluated else None,
+        "evaluated_at": _iso(evaluated),
         "media_buy_ids": media_buy_ids,
         "fully_covered_media_buy_ids": media_buy_ids if status == "full" else [],
         "partially_covered_media_buy_ids": [],
@@ -867,7 +747,8 @@ def _revision_to_wire(
         "data_through_precision": "exact" if revision.data_through else "unknown",
         "row_count": revision.row_count,
         "control_totals": [
-            {"name": name, "value": value} for name, value in revision.control_totals
+            _legacy_total_to_wire(name, value, obligation)
+            for name, value in revision.control_totals
         ],
         "created_at": _iso(revision.created_at),
     }
@@ -893,6 +774,28 @@ def _revision_to_wire(
     return payload
 
 
+def _legacy_total_to_wire(
+    name: str, value: str, obligation: ReportingObligationRecord | None = None
+) -> dict[str, str]:
+    """Project retained Core totals without altering their immutable evidence.
+
+    Legacy Core stores canonical numeric strings. Preserve that representation;
+    monetary units, where known, come only from the frozen obligation.
+    """
+    units = {}
+    if obligation is not None:
+        if obligation.currency is not None:
+            units["spend"] = obligation.currency
+        if obligation.definition is not None:
+            units.update(obligation.definition.monetary_control_total_units)
+    return {
+        "name": name,
+        "value": value,
+        "value_type": "decimal" if "." in value or name in units else "integer",
+        **({"unit": units[name]} if name in units else {}),
+    }
+
+
 def _adjustment_to_wire(adjustment: ReportingAdjustmentRecord) -> dict[str, Any]:
     return {
         "reporting_adjustment_id": adjustment.reporting_adjustment_id,
@@ -902,9 +805,11 @@ def _adjustment_to_wire(adjustment: ReportingAdjustmentRecord) -> dict[str, Any]
             "start": _iso(adjustment.accounting_period_start),
             "end": _iso(adjustment.accounting_period_end),
         },
-        "control_total_deltas": [
-            {"name": name, "value": value} for name, value in adjustment.control_total_deltas
-        ],
+        "control_total_deltas": (
+            [_legacy_total_to_wire(name, value) for name, value in adjustment.control_total_deltas]
+            if adjustment.managed_control_total_deltas is None
+            else [total.to_wire() for total in adjustment.managed_control_total_deltas]
+        ),
         "correction_observed_at": _iso(adjustment.correction_observed_at),
         "created_at": _iso(adjustment.created_at),
     }

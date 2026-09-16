@@ -195,7 +195,7 @@ class PgReportingOutbox(_PgReportingActivity):
         await PgReportingLedgerStore(pool=self._pool, notifications=True).create_schema()
 
     async def list_events(self, *, account_id: str) -> tuple[ReportingDomainEvent, ...]:
-        async with self._pool.connection() as conn:
+        async with self._connection() as conn:
             rows = await (
                 await conn.execute(
                     "SELECT snapshot FROM reporting_notification_events WHERE account_id = %s"
@@ -213,7 +213,7 @@ class PgReportingOutbox(_PgReportingActivity):
     ) -> ExpansionLease | None:
         if lease_seconds <= 0:
             raise ValueError("lease_seconds must be positive")
-        async with self._pool.connection() as conn, conn.transaction():
+        async with self._connection() as conn, conn.transaction():
             at = await database_now(conn, self._clock)
             row = await (
                 await conn.execute(
@@ -247,7 +247,7 @@ class PgReportingOutbox(_PgReportingActivity):
         self, lease: ExpansionLease, deliveries: tuple[StoredDelivery, ...], *, now: datetime
     ) -> bool:
         try:
-            async with self._pool.connection() as conn, conn.transaction():
+            async with self._connection() as conn, conn.transaction():
                 at = await database_now(conn, self._clock)
                 row = await (
                     await conn.execute(
@@ -338,29 +338,37 @@ class PgReportingOutbox(_PgReportingActivity):
     ) -> bool:
         validate_finish(state, error_code)
         delay = max(0.0, (retry_at - now).total_seconds()) if retry_at is not None else 0.0
-        async with self._pool.connection() as conn, conn.transaction():
+        async with self._connection() as conn, conn.transaction():
             return await self._finish_expansion(
                 conn, lease, state=state, error_code=error_code, delay=delay
             )
 
-    async def reemit(self, *, account_id: str, notification_id: str, now: datetime) -> int:
-        async with self._pool.connection() as conn, conn.transaction():
-            row = await (
+    async def reemit(
+        self,
+        *,
+        account_id: str,
+        notification_id: str,
+        now: datetime,
+        consumer_namespace: str | None = None,
+    ) -> int:
+        async with self._connection() as conn, conn.transaction():
+            rows = await (
                 await conn.execute(
                     "SELECT consumer_namespace FROM reporting_notification_events"
                     " WHERE account_id = %s"
-                    " AND notification_id = %s FOR UPDATE",
-                    (account_id, notification_id),
+                    " AND notification_id = %s AND (%s::text IS NULL OR consumer_namespace = %s)"
+                    " ORDER BY consumer_namespace FOR UPDATE",
+                    (account_id, notification_id, consumer_namespace, consumer_namespace),
                 )
-            ).fetchone()
-            if row is None:
+            ).fetchall()
+            if len(rows) != 1:
                 raise ReportingNotificationError("event_unavailable")
-            consumer = row[0]
+            consumer = rows[0][0]
             row = await (
                 await conn.execute(
                     "SELECT max(emission_generation) + 1 FROM reporting_notification_expansions"
-                    " WHERE account_id = %s AND notification_id = %s",
-                    (account_id, notification_id),
+                    " WHERE account_id = %s AND consumer_namespace = %s AND notification_id = %s",
+                    (account_id, consumer, notification_id),
                 )
             ).fetchone()
             assert row is not None
@@ -384,7 +392,7 @@ class PgReportingOutbox(_PgReportingActivity):
     ) -> DeliveryLease | None:
         if lease_seconds <= 0:
             raise ValueError("lease_seconds must be positive")
-        async with self._pool.connection() as conn, conn.transaction():
+        async with self._connection() as conn, conn.transaction():
             at = await database_now(conn, self._clock)
             row = await (
                 await conn.execute(
@@ -415,7 +423,7 @@ class PgReportingOutbox(_PgReportingActivity):
 
     async def delivery_lease_current(self, lease: DeliveryLease, *, now: datetime) -> bool:
         binding = lease.delivery.binding
-        async with self._pool.connection() as conn:
+        async with self._connection() as conn:
             at = await database_now(conn, self._clock)
             row = await (
                 await conn.execute(
@@ -447,7 +455,7 @@ class PgReportingOutbox(_PgReportingActivity):
         validate_finish(state, error_code)
         delay = max(0.0, (retry_at - now).total_seconds()) if retry_at is not None else 0.0
         binding = lease.delivery.binding
-        async with self._pool.connection() as conn, conn.transaction():
+        async with self._connection() as conn, conn.transaction():
             at = await database_now(conn, self._clock)
             cursor = await conn.execute(
                 "UPDATE reporting_notification_deliveries SET state = %s, error_code = %s,"
@@ -470,7 +478,7 @@ class PgReportingOutbox(_PgReportingActivity):
             return bool(cursor.rowcount)
 
     async def list_deliveries(self, *, account_id: str) -> tuple[DeliveryStatus, ...]:
-        async with self._pool.connection() as conn:
+        async with self._connection() as conn:
             rows = await (
                 await conn.execute(
                     f"SELECT {_DELIVERY_COLUMNS}, state, claim_count, due_at, error_code"  # nosec B608
@@ -485,7 +493,7 @@ class PgReportingOutbox(_PgReportingActivity):
         self, scope: ReportingStatusScope, *, reason: DirtyReason, now: datetime
     ) -> None:
         """Additive clock-sweep handoff, not a scheduler or a status projector."""
-        async with self._pool.connection() as conn, conn.transaction():
+        async with self._connection() as conn, conn.transaction():
             await mark_dirty(conn, scope, reason, await database_now(conn, self._clock))
 
     async def read_status_dirty(
@@ -493,7 +501,7 @@ class PgReportingOutbox(_PgReportingActivity):
     ) -> tuple[ReportingStatusDirty, ...]:
         if not 1 <= limit <= 1000 or after < 0:
             raise ValueError("invalid dirty checkpoint window")
-        async with self._pool.connection() as conn:
+        async with self._connection() as conn:
             rows = await (
                 await conn.execute(
                     "SELECT snapshot FROM reporting_status_dirty WHERE account_id = %s"
@@ -507,7 +515,7 @@ class PgReportingOutbox(_PgReportingActivity):
         return records
 
     async def status_checkpoint(self, *, account_id: str, projector_id: str) -> int:
-        async with self._pool.connection() as conn:
+        async with self._connection() as conn:
             row = await (
                 await conn.execute(
                     "SELECT sequence FROM reporting_status_checkpoints WHERE account_id = %s"
@@ -520,7 +528,7 @@ class PgReportingOutbox(_PgReportingActivity):
     async def advance_status_checkpoint(
         self, *, account_id: str, projector_id: str, expected: int, through: int
     ) -> bool:
-        async with self._pool.connection() as conn, conn.transaction():
+        async with self._connection() as conn, conn.transaction():
             row = await (
                 await conn.execute(
                     "SELECT max_sequence FROM reporting_status_dirty_heads WHERE account_id = %s",

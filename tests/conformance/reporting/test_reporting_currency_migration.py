@@ -205,6 +205,7 @@ async def test_migration_preserves_evidence_and_quarantines_unknown_currency(
 
 
 async def test_currency_constraints_and_immutability_cover_direct_sql() -> None:
+    pytest.importorskip("psycopg")
     from psycopg.errors import CheckViolation
 
     async with isolated_reporting_pool() as pool:
@@ -246,6 +247,7 @@ async def test_currency_constraints_and_immutability_cover_direct_sql() -> None:
 
 
 async def test_unexpected_default_rolls_back_without_rewriting_evidence() -> None:
+    pytest.importorskip("psycopg")
     from psycopg.errors import RaiseException
 
     async with isolated_reporting_pool() as pool:

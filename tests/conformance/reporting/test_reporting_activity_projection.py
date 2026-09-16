@@ -469,6 +469,10 @@ async def test_handler_boot_and_request_capability_gates_follow_projection_witho
     reporting = ReportingDeliveryCapabilities.model_validate(
         {
             "supported": True,
+            # Required polling task names are explicit declarations. Generated
+            # defaults must no longer silently advertise optional reporting work.
+            "configuration_task": "sync_accounts",
+            "status_task": "get_reporting_status",
             "offerings": [_OFFERING],
             "automated_recovery_window_seconds": 3600,
             "status_retention_days": 30,

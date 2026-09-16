@@ -551,6 +551,7 @@ async def test_sql_cannot_rewrite_roots_referenced_by_frozen_evidence(
 
 @pytest.mark.parametrize("method", ["file_transfer", "dataset_share", "warehouse_materialization"])
 async def test_sql_native_commit_cannot_claim_immutable_location(method: str) -> None:
+    pytest.importorskip("psycopg")
     from psycopg import IntegrityError
 
     async with isolated_reporting_pool() as pool:

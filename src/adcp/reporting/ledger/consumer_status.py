@@ -72,6 +72,7 @@ from adcp.reporting.ledger.health import current_required_revision, issue_id_for
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ConsumerStatusValue,
+    ReportingConfiguration,
     ReportingConfigurationGenerationKey,
     ReportingDeliveryEscalation,
     ReportingHealth,
@@ -199,11 +200,19 @@ class ConsumerStatusIngest:
                     results.append({"result": "unchanged", "consumer_status": _to_wire(replay)})
                     continue
                 await self._validate_against_configuration(record)
-                stored, recorded = await self.store.record_consumer_status(record)
+                from adcp.reporting.ledger.status_snapshot import ReportingStatusParticipant
+
+                atomic = isinstance(self.store, ReportingStatusParticipant)
+                if atomic and isinstance(self.store, ReportingStatusParticipant):
+                    stored, recorded = await self.store.record_consumer_status_with_lifecycle(
+                        record
+                    )
+                else:
+                    stored, recorded = await self.store.record_consumer_status(record)
             except LedgerConflictError as error:
                 results.append(_failed(status_id, error.code, str(error)))
                 continue
-            if recorded:
+            if recorded and not atomic:
                 await self._open_issue_on_first_observation(stored)
             results.append(
                 {
@@ -306,6 +315,7 @@ class ConsumerStatusIngest:
                 "not at all",
             )
         await self._resolve_named_records(record)
+        validate_consumer_status_timing(record, generation, as_of=self._now())
 
     async def _resolve_named_records(self, record: ConsumerStatusRecord) -> None:
         """Resolve the optional obligation and revision ids the caller supplied.
@@ -424,6 +434,75 @@ class ConsumerStatusIngest:
         )
 
 
+def validate_consumer_status_timing(
+    record: ConsumerStatusRecord, generation: ReportingConfiguration, *, as_of: datetime
+) -> None:
+    """Validate a statement's derived calendar and observation at the locked boundary."""
+    from zoneinfo import ZoneInfo
+
+    from adcp.reporting.ledger.models import derive_period, iso_duration_to_timedelta
+
+    stamps = (
+        record.period_start,
+        record.period_end,
+        record.status_as_of,
+        record.recorded_at,
+        as_of,
+    )
+    if any(t.tzinfo is None or t.utcoffset() is None for t in stamps):
+        raise LedgerConflictError(
+            "INVALID_STATUS_TIME", "status timestamps must include a timezone"
+        )
+    if record.status_as_of > as_of or record.status_as_of < record.period_start:
+        raise LedgerConflictError(
+            "INVALID_STATUS_TIME", "status observation is outside its valid time range"
+        )
+    zone_name = generation.schedule.timezone_name(generation.account_timezone)
+    if record.period_source_timezone != zone_name:
+        raise LedgerConflictError(
+            "INVALID_STATUS_PERIOD", "status timezone differs from the accepted schedule"
+        )
+    zone = ZoneInfo(zone_name)
+    anchor = generation.schedule.period_anchor or datetime(1970, 1, 1, tzinfo=timezone.utc)
+    delta = record.period_start.astimezone(zone).replace(tzinfo=None) - anchor.astimezone(
+        zone
+    ).replace(tzinfo=None)
+    duration = iso_duration_to_timedelta(generation.schedule.period_duration)
+    if duration <= timedelta(0) or delta % duration:
+        raise LedgerConflictError(
+            "INVALID_STATUS_PERIOD", "status period is not a scheduled boundary"
+        )
+    try:
+        period = derive_period(
+            generation.schedule,
+            account_timezone=generation.account_timezone,
+            ordinal=delta // duration,
+            activated_at=generation.activated_at,
+        )
+    except ValueError:
+        raise LedgerConflictError(
+            "INVALID_STATUS_PERIOD", "status period is outside the accepted generation"
+        ) from None
+    if (
+        period.start != record.period_start
+        or period.end != record.period_end
+        or (
+            generation.deactivated_at is not None
+            and record.period_start >= generation.deactivated_at
+        )
+    ):
+        raise LedgerConflictError(
+            "INVALID_STATUS_PERIOD", "status period is outside the accepted generation"
+        )
+    if (
+        record.consumer_status in {"obligation_missing", "revision_missing"}
+        and record.status_as_of < period.expected_at
+    ):
+        raise LedgerConflictError(
+            "STATUS_NOT_DUE", "a missing report cannot be asserted before its expected time"
+        )
+
+
 def _narrow_recorded_status(value: str) -> ConsumerStatusValue:
     """Narrow a schema ``consumer_status`` to the values this ledger records.
 
@@ -494,10 +573,9 @@ class ConsumerMismatch:
 
     issue: ReportingIssue
     severity: Literal["delayed", "action_required"]
-    #: ``False`` once a seller has waived the statement. The view still
-    #: degrades -- waiving is an agreement to stop *acting*, not a finding that
-    #: the reporting is fine -- but a waived issue is not published in
-    #: ``issues[]``.
+    #: Only published occurrences contribute health. A waived occurrence is
+    #: omitted entirely by ``project_consumer_mismatch`` until agreement
+    #: retires it and rearms the chain for a subsequent occurrence.
     published: bool = True
 
 
@@ -715,6 +793,8 @@ def project_consumer_mismatch(
     """
     current = current_consumer_statement(statuses)
     if current is None:
+        return None
+    if lifecycle is not None and lifecycle.issue_state == "waived":
         return None
     if not consumer_statement_conflicts(
         current=current, current_revision=current_revision, revisions=revisions

@@ -72,8 +72,16 @@ async def test_process_receiver_fixture_verifies_both_rotation_keys():
 async def replace_stored(h, old, changed):
     if isinstance(h.reliable.store, InMemoryReportingLedgerStore):
         state = h.reliable.store._notification_state
-        _, work = state.deliveries.pop((old.binding.account_id, old.binding.delivery_id))
-        state.deliveries[(changed.binding.account_id, changed.binding.delivery_id)] = (
+        _, work = state.deliveries.pop(
+            (old.binding.account_id, old.binding.consumer_namespace, old.binding.delivery_id)
+        )
+        state.deliveries[
+            (
+                changed.binding.account_id,
+                changed.binding.consumer_namespace,
+                changed.binding.delivery_id,
+            )
+        ] = (
             changed,
             work,
         )

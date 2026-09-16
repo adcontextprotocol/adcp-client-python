@@ -179,7 +179,19 @@ class WebhookAttempt:
         return row
 
 
-class ReportingActivityStore(Protocol):
+class ReportingActivityReader(Protocol):
+    """Optional read/purge projection, including the closed B+C activity union."""
+
+    async def list_activity(
+        self, *, account_id: str, consumer_id: str, limit: int = 50
+    ) -> tuple[WebhookAttempt, ...]: ...
+
+    async def purge_activity(
+        self, *, account_id: str, consumer_id: str, now: datetime, retention_days: int = 30
+    ) -> int: ...
+
+
+class ReportingActivityStore(ReportingActivityReader, Protocol):
     async def reserve_attempt(
         self, lease: DeliveryLease, *, request: ActivityRequest, now: datetime
     ) -> WebhookAttempt | None: ...
@@ -222,7 +234,7 @@ class ReportingActivityProjector:
     Memory stores support conformance but cannot justify durable capabilities.
     """
 
-    def __init__(self, store: ReportingActivityStore) -> None:
+    def __init__(self, store: ReportingActivityReader) -> None:
         self.store = store
 
     async def for_account(
