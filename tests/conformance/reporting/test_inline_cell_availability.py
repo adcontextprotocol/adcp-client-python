@@ -622,11 +622,40 @@ async def test_a_covered_zero_row_constituent_keeps_zeros_only_for_its_available
             assert cell.status == (
                 "unsupported" if cell.metric == "completed_views" else "explicit_zero"
             )
+    # SECOND_CID staged no rows, so its withdrawal reaches no sum: the checksum
+    # over the rows that *were* measured is retained for every metric. Only a
+    # withdrawal by a constituent that staged rows -- whose values the adapter
+    # has disclaimed -- removes a total. See
+    # test_a_withdrawal_only_removes_the_total_its_own_rows_could_corrupt.
     assert {total.name: total.value for total in manifest.control_totals} == {
         "impressions": "10",
         "clicks": "0",
         "viewability": "0.75",
+        "completed_views": "2",
     }
+
+
+async def test_a_withdrawal_only_removes_the_total_its_own_rows_could_corrupt() -> None:
+    """The same withdrawal, from the constituent that actually staged the rows.
+
+    Its rows carry ``completed_views``, and the adapter has said those values
+    are not a measurement, so the total goes -- summing them would contradict
+    the evidence. The distinction matters because a control total is the exact
+    sum of the staged rows: a cell with no rows cannot put a disclaimed value
+    in it, and withdrawing on its behalf would destroy a checksum the consumer
+    (and, for money, the obligation ledger) reconciles against those rows.
+    """
+    request = _request(second=True)
+    manifest = await _seal(
+        InlineFetchResult(
+            rows=[ROW, {**ROW, "media_buy_id": "media-buy-second"}],
+            cell_availability={
+                CID: {"completed_views": MetricEvidence.unavailable("not_video_inventory")}
+            },
+        ),
+        request,
+    )
+    assert {total.name for total in manifest.control_totals} == set(METRICS) - {"completed_views"}
 
 
 async def test_explicit_zero_evidence_for_every_cell_can_seal_a_real_empty_period() -> None:

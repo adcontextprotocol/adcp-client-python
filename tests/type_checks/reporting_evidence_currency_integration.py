@@ -37,8 +37,14 @@ def fetch(request: ReportingSourceSliceRequestV1) -> InlineFetchResult:
     )
 
 
-def configure(capabilities: ReportingSourceCapabilitiesV1) -> ReportingSourceExecutor:
+def configure(
+    capabilities: ReportingSourceCapabilitiesV1,
+    monetary_metric_units: Sequence[tuple[str, str]] = (),
+) -> ReportingSourceExecutor:
     async def fetch_async(request: ReportingSourceSliceRequestV1) -> InlineFetchResult:
         return fetch(request)
 
-    return InlineReportingSource(capabilities=capabilities, fetch=fetch_async)
+    monetary: Sequence[str] = [name for name, _unit in monetary_metric_units]
+    return InlineReportingSource(
+        capabilities=capabilities, fetch=fetch_async, monetary_metrics=monetary
+    )

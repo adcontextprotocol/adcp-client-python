@@ -15,9 +15,12 @@ evidence, and byte-identical replay.
 For uneven metric support, return :class:`InlineFetchResult` with
 ``cell_availability={constituent_id: {metric_name: MetricEvidence(...)}}``.
 Omitted cells retain the constituent defaults. Explicit evidence controls each
-cell independently; mixed cells make the constituent partial, and a metric
-column an adapter declares incomplete receives no control total. Metric
-semantics always come from the selected SDK offering.
+cell independently and mixed cells make the constituent partial. A cell that
+withdraws a metric its own constituent's rows report withdraws that metric's
+control total, so no total ever sums a disclaimed value; a cell that staged no
+rows reaches no sum and leaves its neighbours' subtotal intact. Money has no
+such choice -- see ``monetary_metrics`` on :class:`InlineReportingSource`.
+Metric semantics always come from the selected SDK offering.
 
 The three answers a fetch can give
 ---------------------------------
@@ -124,6 +127,14 @@ __all__ = [
 
 _REASON = TypeAdapter(EvidenceReason)
 _AVAILABLE = frozenset({"present", "explicit_zero"})
+#: The statuses that withdraw a cell: the source gave no measurement for it.
+_WITHDRAWN = frozenset({"missing", "delayed", "unsupported"})
+#: The always-monetary column of the single-currency reporting API; a trusted
+#: definition may freeze others through ``monetary_metrics``.  The obligation
+#: ledger reconciles money against the rows a revision retains, which is why a
+#: withdrawal contradicted by its own rows cannot just drop the total the way a
+#: non-monetary column can.
+_MONEY = "spend"
 
 
 class _CellEvidenceError(ValueError):
@@ -269,8 +280,9 @@ class InlineFetchResult:
     other cells. This is an adapter surface, not the manifest's wire-format
     ``metric_availability`` list.
 
-    Unknown keys, duplicate mapping entries, invalid evidence, and contradictory
-    explicit zeros raise ``ValueError`` before staging. A zero-row batch must
+    Unknown keys, duplicate mapping entries, invalid evidence, contradictory
+    explicit zeros, and a withdrawn *monetary* cell whose own constituent's rows
+    report that metric raise ``ValueError`` before staging. A zero-row batch must
     be wholly explicit-zero or wholly unavailable under the existing contract.
     """
 
@@ -529,6 +541,16 @@ class InlineReportingSource:
         against the requested denominator, which covers the common shapes.
         Rows that match nothing are retained in the staged object but excluded
         from coverage, and a warning names how many were dropped.
+    monetary_metrics:
+        The metric names the trusted report definition froze as money, beyond
+        the built-in ``spend``.  Supply
+        ``ReportingDefinitionBinding.monetary_metric_units`` keys (and any
+        ``monetary_control_total_units`` keys) when the obligation declares
+        them: the frozen slice request cannot carry those declarations, because
+        ``to_wire()`` keeps them off the wire so retained contract hashes do
+        not move, so the adapter would otherwise not know which columns the
+        ledger will reconcile.  A custom money column that is not declared here
+        behaves like a non-monetary one.
     include_exception_detail:
         Whether an unclassified exception's ``str()`` may enter the retained
         safe message.  **Off by default**: HTTP client exceptions routinely
@@ -553,6 +575,7 @@ class InlineReportingSource:
         ) = None,
         staged_commit_prefix: str = "inline",
         include_exception_detail: bool = False,
+        monetary_metrics: Collection[str] = (),
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         unsupported = [
@@ -573,6 +596,12 @@ class InlineReportingSource:
         self._constituent_of = constituent_of or _default_constituent_of
         self._staged_commit_prefix = staged_commit_prefix
         self.include_exception_detail = include_exception_detail
+        # Mirrors validate_monetary_content exactly: ``spend`` is the built-in
+        # money column of the single-currency API, plus whatever the trusted
+        # definition froze.  The frozen slice request cannot supply these --
+        # ReportingDefinitionBinding.to_wire() deliberately keeps the unit
+        # declarations off the wire so retained contract hashes do not move.
+        self._monetary = frozenset(monetary_metrics) | {_MONEY}
         self._clock = clock or _now
 
     @property
@@ -814,11 +843,19 @@ class InlineReportingSource:
         # a checksum over the staged rows -- consumers recompute it from the
         # revision's rows -- so an unmatched row or a legacy-derived
         # unavailable constituent leaves it verifiable and unchanged.
+        # A withdrawal only reaches the sum through the rows its own constituent
+        # staged.  A cell that staged none cannot put a disclaimed value in the
+        # total, so the checksum over the rows that *were* measured is retained
+        # -- which is also what keeps a monetary column reconcilable when one
+        # constituent delivered nothing and its money is unavailable.  A batch
+        # with no rows withdraws either way: a "0" there would publish
+        # unavailability as an observed zero.
         declared_incomplete = {
             cell.metric
             for cell in cells
             if cell.status not in _AVAILABLE
             and cell.metric in overrides.get(cell.constituent_id, {})
+            and (not result.rows or rows_by_constituent[cell.constituent_id])
         }
         control_totals = _control_totals(request, result.rows, declared_incomplete)
         payload = _encode_rows(result.rows)
@@ -935,7 +972,11 @@ class InlineReportingSource:
                 explicit = overrides.get(constituent_id, {}).get(metric)
                 if explicit is not None:
                     _validate_cell_rows(
-                        constituent_id, metric, explicit, rows_by_constituent[constituent_id]
+                        constituent_id,
+                        metric,
+                        explicit,
+                        rows_by_constituent[constituent_id],
+                        monetary=metric in self._monetary,
                     )
                     status, reason = explicit.status, explicit.reason
                     watermark = explicit.data_through
@@ -1145,16 +1186,36 @@ def _validate_cell_rows(
     metric: str,
     evidence: MetricEvidence,
     rows: Sequence[Mapping[str, Any]],
+    *,
+    monetary: bool,
 ) -> None:
     """Reject explicit assertions contradicted by the supplied measurements.
 
     Legacy derived cells remain permissive. Metric value types are defined by
     the offering, but an explicit present cell needs a value and a claimed zero
     must not conceal a nonzero, nonnumeric, or non-finite measurement.
+
+    A withdrawn *non-monetary* cell stays permissive on purpose: an adapter may
+    stage a provider's payload byte-for-byte and declare per cell which of its
+    columns are measurements, and the withdrawal removes that metric's control
+    total rather than falsifying it.  Money is different, because it is the one
+    column the obligation ledger reconciles against the rows it retains: a
+    withdrawal there can neither drop the total (the ledger refuses the
+    revision, forever, behind an immutable replay) nor keep it (it would sum a
+    value the adapter disclaims).  So say so here, before anything is staged.
     """
     label = f"cell_availability ({constituent_id!r}, {metric!r})"
     if evidence.status == "present" and (not rows or any(row.get(metric) is None for row in rows)):
         raise _CellEvidenceError(f"{label} present requires a value in every constituent row")
+    if (
+        monetary
+        and evidence.status in _WITHDRAWN
+        and any(row.get(metric) is not None for row in rows)
+    ):
+        raise _CellEvidenceError(
+            f"{label} {evidence.status} contradicts a monetary value this constituent's own rows "
+            f"report; omit {metric!r} from those rows, or declare the cell measured"
+        )
     if evidence.status == "explicit_zero":
         for row in rows:
             if row.get(metric) is None:
@@ -1240,10 +1301,12 @@ def _control_totals(
     consumer's equality check into a flake.
 
     ``declared_incomplete`` names the metrics an adapter explicitly withdrew
-    for at least one cell.  Those columns may still carry row values, but the
-    adapter has said they are not a measurement, so totalling them would
-    contradict the very evidence it supplied.  Every other column keeps the
-    checksum a consumer recomputes from the revision's rows.
+    for a cell that can reach this sum -- one whose own constituent staged rows,
+    or any cell at all when there are no rows to sum.  Those columns may still
+    carry row values, but the adapter has said they are not a measurement, so
+    totalling them would contradict the very evidence it supplied.  A cell that
+    staged no rows contributes nothing and withdraws nothing: every other column
+    keeps the checksum a consumer recomputes from the revision's rows.
     """
     totals: list[SourceControlTotalV1] = []
     for metric in request.requested_metrics:

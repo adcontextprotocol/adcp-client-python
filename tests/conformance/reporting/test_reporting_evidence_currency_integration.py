@@ -304,6 +304,261 @@ async def test_one_unavailable_spend_cell_suppresses_only_its_metric_total(
     assert [item.status for item in manifest.coverage.constituents] == ["present", "partial"]
 
 
+def _with_second_constituent(
+    request: ReportingSourceSliceRequestV1,
+) -> ReportingSourceSliceRequestV1:
+    constituents = [
+        *request.coverage.constituents,
+        MediaBuyConstituentV1(
+            constituent_id="second",
+            media_buy_id="second-buy",
+            product_id=request.contract.report_definition_id,
+        ),
+    ]
+    return request.model_copy(
+        update={
+            "coverage": ReportingSourceCoverageRequestV1(
+                expected="partial",
+                constituents=constituents,
+                denominator_fingerprint=coverage_denominator_fingerprint_v1(constituents),
+            )
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    "second_rows", ["none", "without-spend"], ids=["zero-delivery", "omitted-money"]
+)
+async def test_a_no_row_unavailable_spend_cell_still_commits_its_neighbour_subtotal(
+    reliable: ReliableHarness, second_rows: str
+) -> None:
+    """A withdrawn cell that contributes no value must not withdraw the subtotal.
+
+    A buy that delivered nothing and whose billing is pending is the answer
+    per-metric evidence exists to give. It reaches no sum, so the checksum over
+    the rows that *were* measured stays exact -- and stays publishable: the
+    obligation ledger requires the total for a spend column every retained row
+    carries, and refuses a revision without one with ``MONETARY_TOTAL_MISMATCH``
+    on the immutable replay of every retry. A constituent whose rows omit spend
+    leaves the column sparse instead, which has no honest total either way.
+    """
+    h = reliable
+    producer, obligation, request = await frozen_slice(h)
+    request = _with_second_constituent(request)
+    first, second = request.coverage.constituents
+    measured = {
+        "media_buy_id": first.media_buy_id,
+        "impressions": 5,
+        "clicks": 0,
+        "spend": "0.10",
+        "currency": request.currency,
+    }
+    rows = [measured]
+    if second_rows == "without-spend":
+        rows.append(
+            {key: value for key, value in measured.items() if key != "spend"}
+            | {"media_buy_id": second.media_buy_id}
+        )
+    answer = InlineFetchResult(
+        rows=rows,
+        currency=request.currency,
+        cell_availability={
+            item.constituent_id: {
+                "impressions": (
+                    MetricEvidence.present(request.period.end)
+                    if item is first or second_rows == "without-spend"
+                    else MetricEvidence.explicit_zero()
+                ),
+                "clicks": MetricEvidence.explicit_zero(data_through=request.period.end),
+                "spend": (
+                    MetricEvidence.present(request.period.end)
+                    if item is first
+                    else MetricEvidence.unavailable("billing_pending")
+                ),
+            }
+            for item in (first, second)
+        },
+    )
+    result = await h.source(lambda req: answer).execute(request, cancel=asyncio.Event())
+    manifest = verified(result)
+    # The withdrawal is carried by the cell's own evidence, not by a gap in the totals.
+    assert {
+        (cell.constituent_id, cell.status)
+        for cell in manifest.metric_availability
+        if cell.metric == "spend"
+    } == {(first.constituent_id, "present"), (second.constituent_id, "unsupported")}
+    spend = [
+        (total.value, total.unit, total.value_type)
+        for total in manifest.control_totals
+        if total.name == "spend"
+    ]
+    assert spend == ([] if second_rows == "without-spend" else [("0.10", "EUR", "decimal")])
+    revision = await h.commit_slice(producer, obligation, request, result)
+    assert revision.managed_control_totals is not None
+    assert [
+        ReportingControlTotalRecord(total.name, total.value, total.value_type, total.unit)
+        for total in manifest.control_totals
+    ] == list(revision.managed_control_totals)
+    await commit_records(h, await publication_records(h, obligation, revision))
+
+
+@pytest.mark.parametrize("status", ["missing", "delayed", "unsupported"])
+async def test_a_withdrawn_money_cell_its_own_rows_contradict_fails_before_staging(
+    reliable: ReliableHarness, status: str
+) -> None:
+    """Money is the column the ledger reconciles, so it has nowhere to go.
+
+    Withdrawing a cell whose own matched rows report that metric says both "not
+    measured" and "here is the measurement". For a non-monetary column the
+    withdrawal simply removes the total and keeps the provider payload staged
+    byte-for-byte. Spend has no such out: dropping its total makes the ledger
+    refuse the revision with ``MONETARY_TOTAL_MISMATCH`` on the immutable replay
+    of every retry, and keeping it would sum a value the adapter disclaims. So
+    it fails while nothing is staged, sealed, or retained.
+    """
+    h = reliable
+    _, obligation, request = await frozen_slice(h)
+    first = request.coverage.constituents[0]
+    answer = InlineFetchResult(
+        rows=[
+            {
+                "media_buy_id": first.media_buy_id,
+                "impressions": 5,
+                "clicks": 0,
+                "spend": "0.10",
+                "currency": request.currency,
+            }
+        ],
+        currency=request.currency,
+        cell_availability={
+            first.constituent_id: {"spend": MetricEvidence(status=status, reason="billing_pending")}
+        },
+    )
+    with pytest.raises(ValueError, match=f"{status} contradicts a monetary value"):
+        await h.source(lambda req: answer).execute(request, cancel=asyncio.Event())
+    assert "stage.before" not in h.failures.hits and "seal.before" not in h.failures.hits
+    assert (
+        await h.seals.get(
+            account_id="eur", source_execution_key=request.identity.source_execution_key
+        )
+        is None
+    )
+    assert (
+        await h.store.list_revisions(
+            account_id="eur", reporting_obligation_id=obligation.reporting_obligation_id
+        )
+        == ()
+    )
+
+
+async def test_a_custom_frozen_monetary_metric_is_distinguished_like_spend(
+    reliable: ReliableHarness,
+) -> None:
+    """#1171's custom ``monetary_metric_units`` wedge for exactly the same reason.
+
+    ``validate_monetary_content`` reconciles every metric the trusted definition
+    froze as money, not just ``spend``. The frozen slice request cannot carry
+    those declarations -- ``ReportingDefinitionBinding.to_wire()`` keeps them off
+    the wire so retained contract hashes do not move -- so the adapter is told
+    which columns they are through ``monetary_metrics``. A declared custom money
+    column then behaves exactly like spend on both sides of the distinction; an
+    undeclared one keeps #1173's non-monetary behavior, which is why this is an
+    explicit trusted seam rather than a hardcoded metric name.
+    """
+    h = reliable
+    base = configuration("eur").definition
+    assert base is not None
+    config = replace(
+        configuration("eur"),
+        definition=replace(base, monetary_metric_units=(("clicks", "EUR"),)),
+    )
+    producer, obligation, request = await frozen_slice(h, config=config)
+    request = _with_second_constituent(request)
+    first, second = request.coverage.constituents
+    assert obligation.definition is not None
+    frozen_money = [name for name, _ in obligation.definition.monetary_metric_units]
+    assert frozen_money == ["clicks"]
+
+    def build(*, contradict: bool) -> InlineFetchResult:
+        rows = [
+            {
+                "media_buy_id": first.media_buy_id,
+                "impressions": 5,
+                "clicks": "0.25",
+                "spend": "0.10",
+                "currency": request.currency,
+            }
+        ]
+        if contradict:
+            rows.append(dict(rows[0], media_buy_id=second.media_buy_id))
+        available = MetricEvidence.present(request.period.end)
+        return InlineFetchResult(
+            rows=rows,
+            currency=request.currency,
+            cell_availability={
+                item.constituent_id: {
+                    "impressions": (
+                        available if item is first or contradict else MetricEvidence.explicit_zero()
+                    ),
+                    "spend": (
+                        available if item is first or contradict else MetricEvidence.explicit_zero()
+                    ),
+                    "clicks": (
+                        available
+                        if item is first
+                        else MetricEvidence.unavailable("measurement_pending")
+                    ),
+                }
+                for item in (first, second)
+            },
+        )
+
+    def source(*, contradict: bool, declared: bool) -> InlineReportingSource:
+        answer = build(contradict=contradict)
+        return InlineReportingSource(
+            capabilities=h.source(complete_fetch).capabilities,
+            fetch=lambda req: answer,
+            staging=h.staging,
+            seals=h.seals,
+            monetary_metrics=frozen_money if declared else (),
+            clock=h.clock,
+        )
+
+    def keyed(key: str) -> ReportingSourceSliceRequestV1:
+        return request.model_copy(
+            update={"identity": request.identity.model_copy(update={"source_execution_key": key})}
+        )
+
+    # The declaring constituent staged no rows, so its neighbour's money subtotal
+    # survives -- and only then can the ledger admit the revision at all.
+    surviving = keyed("custom-money-subtotal")
+    result = await source(contradict=False, declared=True).execute(
+        surviving, cancel=asyncio.Event()
+    )
+    totals = {total.name: total.value for total in verified(result).control_totals}
+    assert totals["clicks"] == "0.25"
+    revision = await h.commit_slice(producer, obligation, surviving, result)
+    await commit_records(h, await publication_records(h, obligation, revision))
+
+    # The same withdrawal from a constituent whose own rows report it. Undeclared,
+    # it keeps #1173's behavior: the column is simply not totalled.
+    permissive = await source(contradict=True, declared=False).execute(
+        keyed("custom-money-undeclared"), cancel=asyncio.Event()
+    )
+    assert "clicks" not in {total.name for total in verified(permissive).control_totals}
+
+    # Declared, it is refused before anything is staged or sealed.
+    refused = keyed("custom-money-contradiction")
+    with pytest.raises(ValueError, match="'clicks'.*contradicts a monetary value"):
+        await source(contradict=True, declared=True).execute(refused, cancel=asyncio.Event())
+    assert (
+        await h.seals.get(
+            account_id="eur", source_execution_key=refused.identity.source_execution_key
+        )
+        is None
+    )
+
+
 @pytest.mark.parametrize("mismatch", ["result", "row", "mixed", "invalid"])
 @pytest.mark.parametrize("asynchronous", [False, True], ids=["sync", "async"])
 async def test_currency_failure_with_cell_evidence_precedes_staging_and_sealing(

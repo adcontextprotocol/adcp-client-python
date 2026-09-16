@@ -74,11 +74,60 @@ staged row, including rows outside the requested coverage, which stay staged
 with a warning. It is emitted when every staged row carries a valid finite
 numeric value for the metric. Missing fields, nulls, booleans, and invalid
 numbers prevent a total, and an omitted explicit-zero row value is not filled
-in. Declaring any cell of a metric `missing`, `delayed`, or `unsupported`
-withdraws that metric's total even when rows still carry values, because the
-adapter has said those values are not a measurement. Statuses the SDK derives
-on its own withdraw nothing: a result with no `cell_availability` publishes
-exactly the totals it published before.
+in. Statuses the SDK derives on its own withdraw nothing: a result with no
+`cell_availability` publishes exactly the totals it published before.
+
+### The withdrawal invariant
+
+A declared `missing`, `delayed`, or `unsupported` cell asserts that the source
+produced **no measurement** for it. A control total is the exact sum of a metric
+over every staged row, so the only question a withdrawal raises is whether it
+can put a disclaimed value in that sum. Two shapes follow, and they are
+deliberately not treated alike:
+
+- **A withdrawal by a constituent that staged rows removes that metric's
+  total.** Its own rows carry values the adapter has disclaimed, so summing
+  them would contradict the evidence it supplied. The rows stay staged
+  byte-for-byte -- an adapter may publish a provider payload unchanged and
+  declare per cell which of its columns are measurements.
+- **A withdrawal by a constituent that staged no rows removes nothing.** It
+  reaches no sum, so the checksum over the rows that *were* measured is
+  retained. A buy that delivered nothing and whose billing is pending is the
+  answer per-metric evidence exists to give; withdrawing its neighbours'
+  subtotal would destroy a checksum the consumer recomputes.
+
+A batch with no rows at all is the one case where a withdrawal removes a total
+on its own: a `0` there would publish unavailability as an observed zero.
+Unavailability is otherwise carried by the cell's own evidence, never by a
+missing total.
+
+### Monetary columns have no third option
+
+`spend`, plus every metric the trusted report definition froze through
+`monetary_metric_units` / `monetary_control_total_units`, is reconciled by the
+obligation ledger against the rows a revision retains. For those columns the
+first shape above has nowhere to go: dropping the total makes the ledger refuse
+the revision with `MONETARY_TOTAL_MISMATCH` on the immutable replay of every
+retry, and keeping it would sum a value the adapter disclaims. So a withdrawn
+monetary cell whose own constituent's rows report that metric raises
+`ValueError` before anything is staged or sealed. Omit the metric from those
+rows, or declare the cell measured.
+
+The frozen slice request cannot carry those unit declarations --
+`ReportingDefinitionBinding.to_wire()` keeps them off the wire so retained
+contract hashes do not move -- so tell the adapter which columns they are:
+
+```python
+InlineReportingSource(
+    capabilities=capabilities,
+    fetch=fetch,
+    monetary_metrics=[name for name, _ in obligation.definition.monetary_metric_units],
+)
+```
+
+`spend` is always included. A custom money column that is **not** declared here
+is treated as non-monetary, which can still wedge the obligation for that
+column -- declare it whenever the obligation's definition does.
 
 The existing zero-row wire rule is unchanged: an empty batch must be wholly
 explicit-zero or wholly unavailable. It cannot mix available cells with
@@ -99,7 +148,8 @@ This uses the constituent defaults: constituents with rows are present and
 covered constituents without rows are observed zeros. Bare `[]` still means
 an observed zero; `None` still means not ready. Existing positional
 `InlineFetchResult` arguments retain their meaning, and so do their control
-totals -- only an explicitly declared cell withdraws one.
+totals -- only an explicitly declared cell withdraws one, under the
+[withdrawal invariant](#the-withdrawal-invariant).
 
 Bulk helpers return maps to pass to `cell_availability`, leaving the result's
 other options available:
