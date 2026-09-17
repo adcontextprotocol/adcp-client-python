@@ -254,6 +254,53 @@ async def test_external_terminal_write_parks_owned_pending_history_without_a_hot
         assert await h.queue() == ((), ())
 
 
+async def test_public_terminal_outcome_keeps_projection_dirty_work_without_readiness(backend):
+    """Suppressing the fenced readiness event must not drop ordinary projection work.
+
+    Adopters keep persisting materialization outcomes directly while the durable
+    service runs. Before this regression the materializer store silently stopped
+    marking the status scope dirty for those writes, so the projector never saw
+    the outcome and `get_reporting_status` stayed stale indefinitely.
+    """
+    from adcp.reporting.ledger._delivery_state import change_id
+    from adcp.reporting.ledger.notification_models import ReportingStatusEvidence
+
+    async with durable_harness(backend, notifications=True) as h:
+        case = await durable_case(h.store)
+        lease = await case.claim()
+        outcome = ReportingMaterializationRecord(
+            case.scope,
+            lease.attempt.reporting_revision_id,
+            lease.attempt.reporting_materialization_id,
+            "failed",
+            lease.attempt.created_at,
+            failure_code="WRITE_FAILED",
+        )
+        before = await h.dirty()
+        stored, created = await h.store.commit_materialization(outcome)
+        assert created
+        added = (await h.dirty())[len(before) :]
+        assert [reason for reason, _ in added] == ["materialization"]
+        assert added[0][1] == ReportingStatusEvidence(stored.kind, change_id(stored))
+        # The readiness intent still belongs only to a fenced verified finish.
+        assert await h.queue() == ((), ())
+        assert "reporting.delivery_ready" not in await h.ordinary_events()
+
+
+async def test_reserved_attempt_keeps_the_finish_transaction_as_the_only_dirty_work(backend):
+    """Reservation stays short: the terminal finish owns the projection work."""
+    async with durable_harness(backend, notifications=True) as h:
+        case = await durable_case(h.store)
+        before = await h.dirty()
+        lease = await case.claim()
+        assert (await h.dirty())[len(before) :] == ()
+        prepared, verified = await case.verified(lease)
+        assert (
+            await h.store.finish_materialization(lease, prepared=prepared, verified=verified)
+        ).state == "verified"
+        assert [reason for reason, _ in (await h.dirty())[len(before) :]] == ["materialization"]
+
+
 async def test_restored_exact_component_can_explicitly_resume_parked_identity(backend):
     async with durable_harness(backend, notifications=True) as h:
         case = await durable_case(h.store)

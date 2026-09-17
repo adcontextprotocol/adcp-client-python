@@ -157,10 +157,15 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
                 self._wake_obligation(account_id, revision.reporting_obligation_id)
 
     def _commit_record_unlocked(
-        self, record: RecordT, *, notify: bool = True
+        self, record: RecordT, *, notify: bool = True, dirty: bool = True
     ) -> tuple[RecordT, bool]:
+        # Only the fenced verified finish may enqueue a readiness intent. An
+        # ordinary public outcome keeps the projection dirty work it has always
+        # produced; suppressing that would silently stall the status projector.
         stored, added = super()._commit_record_unlocked(
-            record, notify=notify and not isinstance(record, ReportingMaterializationRecord)
+            record,
+            notify=notify and not isinstance(record, ReportingMaterializationRecord),
+            dirty=dirty,
         )
         if added:
             if isinstance(record, ReportingDestinationBinding):
@@ -315,7 +320,7 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
                     + timedelta(days=context.binding.resource_retention_days),
                     now,
                 )
-                self._commit_record_unlocked(delivery, notify=False)
+                self._commit_record_unlocked(delivery, notify=False, dirty=False)
             attempt = ReportingMaterializationAttempt(
                 candidate.scope,
                 revision.reporting_revision_id,
@@ -323,7 +328,7 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
                 len(attempts) + 1,
                 now,
             )
-            self._commit_record_unlocked(attempt, notify=False)
+            self._commit_record_unlocked(attempt, notify=False, dirty=False)
             request = ReportingDestinationRequest.from_binding(context.binding, attempt, key)
             work = _Work(
                 candidate.scope,
@@ -520,7 +525,7 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
                 replace(verified.verification, verified_at=now) if verified is not None else None,
                 public_failure(error) if error is not None else None,
             )
-            stored, inserted = self._commit_record_unlocked(outcome, notify=False)
+            stored, inserted = self._commit_record_unlocked(outcome, notify=False, dirty=False)
             self._materializer_dirty(stored, context)
             if inserted and verified is not None and self._notification_state is not None:
                 revision = next(

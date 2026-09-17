@@ -118,13 +118,17 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
                 return await self._commit_record_on(connection, candidate)
 
     async def _commit_record_on(
-        self, connection: Any, record: RecordT, *, notify: bool = True
+        self, connection: Any, record: RecordT, *, notify: bool = True, dirty: bool = True
     ) -> tuple[RecordT, bool]:
         """Connection-bound primitive. Caller holds the account transaction lock.
 
         Materializer finish uses this exact connection for evidence, caller
         feed, projection dirty work and its acknowledgment.
         No connection is acquired and no external code runs here.
+
+        ``notify`` and ``dirty`` are independent: suppressing a readiness event
+        must never also drop the projection work that an ordinary public write
+        has always produced.
         """
         candidate = decode_record(payload(record))
         who = principal(candidate)
@@ -142,24 +146,26 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
         stored = validate_transition(candidate, records, context, now)
         await self._insert(connection, stored)
         await self._append_reconciliation_change(connection, stored)
-        if notify and self._notifications_enabled:
+        if (notify or dirty) and self._notifications_enabled:
             from adcp.reporting.ledger.notification_events import (
                 delivery_dirty,
                 materialization_event,
             )
 
-            event = materialization_event(
-                stored,
-                records,
-                context.obligation,
-                context.revision,
-                context.configuration,
-                now,
-            )
-            if event is not None:
-                await self._record_notification(connection, event)
-            scope, reason, evidence = delivery_dirty(stored, context.obligation)
-            await self._dirty_status(connection, scope, reason, after=evidence)
+            if notify:
+                event = materialization_event(
+                    stored,
+                    records,
+                    context.obligation,
+                    context.revision,
+                    context.configuration,
+                    now,
+                )
+                if event is not None:
+                    await self._record_notification(connection, event)
+            if dirty:
+                scope, reason, evidence = delivery_dirty(stored, context.obligation)
+                await self._dirty_status(connection, scope, reason, after=evidence)
         return cast(RecordT, stored), True
 
     async def _append_reconciliation_change(

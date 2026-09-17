@@ -157,7 +157,11 @@ activation belong to B2.4.
 | Successful artifact later becomes unreadable, revoked, unhealthy or expired | Preserve the immutable successful outcome/count; park or project degraded health | Repair authority/health or explicitly persist recovery; no automatic new attempt after success |
 
 Public persistence still permits attempt N+1 after **any** immutable terminal
-outcome. The autonomous allocator intentionally owns a narrower retry policy.
+outcome, and an ordinary public materialization outcome keeps producing its usual
+status projection work. Only the deliverable readiness event is reserved for the
+fenced verified finish; the projector must never go stale because an adopter
+persisted an outcome itself. The autonomous allocator intentionally owns a
+narrower retry policy.
 Attempt numbers are revision-specific. Selecting a different revision never
 deletes another revision's work/history; selecting the same unreadable revision
 never resets its sequence. Official-required selection never falls back to a

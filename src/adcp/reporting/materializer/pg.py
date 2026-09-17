@@ -110,13 +110,16 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
     _materializer_sample_after: tuple[str, str] | None = None
 
     async def _commit_record_on(
-        self, connection: Any, record: RecordT, *, notify: bool = True
+        self, connection: Any, record: RecordT, *, notify: bool = True, dirty: bool = True
     ) -> tuple[RecordT, bool]:
-        # Only the fenced verified finish may enqueue a readiness intent.
+        # Only the fenced verified finish may enqueue a readiness intent. An
+        # ordinary public outcome keeps the projection dirty work it has always
+        # produced; suppressing that would silently stall the status projector.
         return await super()._commit_record_on(
             connection,
             record,
             notify=notify and not isinstance(record, ReportingMaterializationRecord),
+            dirty=dirty,
         )
 
     @materializer_errors
@@ -423,11 +426,11 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
                 + timedelta(days=context.binding.resource_retention_days),
                 now,
             )
-            await self._commit_record_on(connection, delivery, notify=False)
+            await self._commit_record_on(connection, delivery, notify=False, dirty=False)
         attempt = ReportingMaterializationAttempt(
             scope, revision.reporting_revision_id, "rpm_" + uuid4().hex, len(attempts) + 1, now
         )
-        await self._commit_record_on(connection, attempt, notify=False)
+        await self._commit_record_on(connection, attempt, notify=False, dirty=False)
         request = ReportingDestinationRequest.from_binding(context.binding, attempt, key)
         inserted = await (
             await connection.execute(
@@ -729,7 +732,9 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
                 replace(verified.verification, verified_at=now) if verified is not None else None,
                 public_failure(error) if error is not None else None,
             )
-            stored, inserted = await self._commit_record_on(connection, outcome, notify=False)
+            stored, inserted = await self._commit_record_on(
+                connection, outcome, notify=False, dirty=False
+            )
             await self._materializer_dirty_on(connection, stored, context)
             if inserted and verified is not None and self._notifications_enabled:
                 revision = next(

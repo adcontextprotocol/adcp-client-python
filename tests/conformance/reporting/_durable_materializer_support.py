@@ -101,6 +101,36 @@ class DurableHarness:
             ).fetchall()
         return tuple(r[0] for r in events), tuple(r[0] for r in expansions)
 
+    async def dirty(self):
+        """Ordered status projection work, identical shape on both backends."""
+        if self.pool is None:
+            state = self.store._notification_state
+            records = () if state is None else tuple(state.dirty)
+        else:
+            from adcp.reporting.ledger.notification_models import decode_dirty
+
+            async with self.pool.connection() as c:
+                rows = await (
+                    await c.execute(
+                        "SELECT snapshot FROM reporting_status_dirty ORDER BY account_id,sequence"
+                    )
+                ).fetchall()
+            records = tuple(decode_dirty(row[0]) for row in rows)
+        return tuple((r.reason, r.after) for r in records)
+
+    async def ordinary_events(self):
+        """The old shared notification queue, which B2 must never publish into."""
+        if self.pool is None:
+            state = self.store._notification_state
+            return (
+                () if state is None else tuple(e.notification_type for e in state.events.values())
+            )
+        async with self.pool.connection() as c:
+            rows = await (
+                await c.execute("SELECT notification_type FROM reporting_notification_events")
+            ).fetchall()
+        return tuple(row[0] for row in rows)
+
     async def works(self):
         if self.pool is None:
             return tuple(
