@@ -27,10 +27,22 @@ dependency.
 
 `materializer_ready()` validates storage prerequisites; it is **not** a tier or
 mount readiness certificate. There is no caller-supplied production-ready
-switch. B1's development writer remains ineligible, and the current capability
-helpers retain C's Managed/Reconciled veto. This unit offers a production
-orchestration primitive, not an activated seller offering. Core-only deployments
-keep their existing stores and do not need destination or receipt components.
+switch. B1's development writer remains ineligible. This unit offers a
+production orchestration primitive, not an activated seller offering.
+
+**Adopting a materializer store closes notification advertisement entirely, not
+only Managed/Reconciled.** `advertised_notifications` matches the ledger by exact
+`type(...)`, and neither `InMemoryReportingMaterializerStore` nor
+`PgReportingMaterializerStore` is in that approved production identity set. A
+deployment that advertises Core `reporting.ledger_changed` today through
+`PgReportingReconciliationStore` will instead get a closed
+`notification_chain_unready` after switching classes. That is deliberate and
+fail closed: B2.4 admits these stores only once it proves projection, component
+and mount readiness. Until then, run the durable service on a materializer store
+and keep advertising from the reviewed store, or accept closed advertisement.
+Polling is unaffected — this helper gates notification capabilities only.
+Core-only deployments keep their existing stores and do not need destination or
+receipt components.
 
 Import the optional `ReportingMaterializerStore` protocol, service, lease,
 turn and boundary types from `adcp.reporting.materializer`. The PostgreSQL store

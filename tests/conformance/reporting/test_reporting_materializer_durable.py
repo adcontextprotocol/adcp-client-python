@@ -69,6 +69,57 @@ async def test_durable_verified_success_still_cannot_advertise_unactivated_readi
         assert len((await h.queue())[0]) == 1 and (await h.queue())[1] == ("quarantined",)
 
 
+async def test_materializer_store_closes_core_advertisement_until_b24_admits_it(backend):
+    """Pin the full extent of the closed advertisement so B2.4 must act deliberately.
+
+    `advertised_notifications` matches the ledger by exact `type(...)`, so both
+    materializer stores lose Core `reporting.ledger_changed` too, not only the
+    Managed/Reconciled claims. Fail closed is correct here, but it is broader
+    than a tier veto and an adopter switching store classes must be told.
+    """
+    from adcp.reporting.ledger.notification_models import ReportingNotificationError
+    from adcp.reporting.outbox import (
+        InMemoryReportingOutbox,
+        PgReportingOutbox,
+        ReportingEnvelopeCipher,
+        ReportingNotificationWorker,
+    )
+
+    class NoSubscriptions:
+        async def list_active(self, **kwargs):
+            return ()
+
+        async def get_active(self, **kwargs):
+            return None
+
+    async def advertise(store, outbox):
+        return await ReportingNotificationWorker(
+            outbox=outbox,
+            subscriptions=NoSubscriptions(),
+            cipher=ReportingEnvelopeCipher(b"e" * 32),
+        ).advertised_notifications(store, account_id="acct_a", ready_scope=None)
+
+    async with durable_harness(backend, notifications=True) as h:
+        if h.pool is None:
+            from adcp.reporting.ledger.delivery import InMemoryReportingReconciliationStore
+
+            reviewed = InMemoryReportingReconciliationStore(notifications=True)
+            reviewed_outbox = InMemoryReportingOutbox(reviewed)
+            outbox = InMemoryReportingOutbox(h.store)
+        else:
+            from adcp.reporting.ledger.delivery_pg import PgReportingReconciliationStore
+
+            reviewed = PgReportingReconciliationStore(pool=h.pool, notifications=True)
+            reviewed_outbox = PgReportingOutbox(pool=h.pool)
+            outbox = PgReportingOutbox(pool=h.pool)
+        # The reviewed store still advertises the Core notification.
+        assert (await advertise(reviewed, reviewed_outbox))["ledger_notification"] == (
+            "reporting.ledger_changed"
+        )
+        with pytest.raises(ReportingNotificationError, match="notification_chain_unready"):
+            await advertise(h.store, outbox)
+
+
 @pytest.mark.parametrize("notifications", [False, True])
 @pytest.mark.parametrize("count", [0, 501])
 async def test_verified_finish_captures_private_inputs_acks_and_quarantines_exact_event(
