@@ -39,7 +39,7 @@ async def test_capability_fragment_exposes_only_complete_notifications(notificat
         )
 
 
-async def test_managed_capability_requires_retained_configuration_and_frozen_scope(
+async def test_frozen_binding_alone_never_advertises_managed_readiness(
     notification_harness,
 ):
     h = notification_harness
@@ -49,7 +49,6 @@ async def test_managed_capability_requires_retained_configuration_and_frozen_sco
     )
     assert fields == {
         "ledger_notification": "reporting.ledger_changed",
-        "readiness_notification": "reporting.delivery_ready",
         "supports_webhook_activity": False,
     }
     with pytest.raises(ReportingNotificationError):

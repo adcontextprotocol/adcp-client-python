@@ -1,0 +1,42 @@
+{
+  "contract_version": "1.0",
+  "media_type": "application/vnd.adcp.reporting-canonicalization+json",
+  "algorithm": "adcp_jcs_rows_v1",
+  "schema_sha256": "aa4927d97b5e5889c4d79bd5461da81657cafea75a61d266ab452bfa0fc5d799",
+  "primary_keys": [
+    "row_id"
+  ],
+  "golden_vectors": {
+    "empty_report": {
+      "name": "empty",
+      "purpose": "empty_report",
+      "input_rows": [],
+      "canonical_utf8_base64": "W10=",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ordering_encoding": {
+      "name": "unicode-order",
+      "purpose": "ordering_encoding",
+      "input_rows": [
+        {
+          "spend": "2.50",
+          "impressions": 2,
+          "currency": "USD",
+          "row_id": "z",
+          "details": {
+            "": "é",
+            "😀": "é"
+          }
+        },
+        {
+          "spend": "1.00",
+          "impressions": 1,
+          "currency": "USD",
+          "row_id": "a"
+        }
+      ],
+      "canonical_utf8_base64": "W3siY3VycmVuY3kiOiJVU0QiLCJpbXByZXNzaW9ucyI6MSwicm93X2lkIjoiYSIsInNwZW5kIjoiMS4wMCJ9LHsiY3VycmVuY3kiOiJVU0QiLCJkZXRhaWxzIjp7IvCfmIAiOiLDqSIsIu6AgCI6ImXMgSJ9LCJpbXByZXNzaW9ucyI6Miwicm93X2lkIjoieiIsInNwZW5kIjoiMi41MCJ9XQ==",
+      "sha256": "3fb72666e0a391ef931445b5cebe16f8a6a801594acc885d4f2b1f18fb9a8eff"
+    }
+  }
+}

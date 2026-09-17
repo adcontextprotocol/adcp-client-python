@@ -184,6 +184,14 @@ from adcp.reporting.ledger.store import (
     issue_is_retirable,
     reject_reserved_authoritative_party,
 )
+from adcp.reporting.revision_selection import (
+    REPORTING_SELECTOR_VERSION,
+    ReportingRevisionCorrupt,
+    ReportingRevisionNotReady,
+    ReportingRevisionSelected,
+    ReportingRevisionSelection,
+    select_reporting_revision,
+)
 
 if TYPE_CHECKING:
     from adcp.reporting.ledger.delivery_pg import PgReportingReconciliationStore
@@ -194,6 +202,12 @@ if TYPE_CHECKING:
     )
 
 __all__ = [
+    "REPORTING_SELECTOR_VERSION",
+    "ReportingRevisionCorrupt",
+    "ReportingRevisionNotReady",
+    "ReportingRevisionSelected",
+    "ReportingRevisionSelection",
+    "select_reporting_revision",
     "ReportingStatusCallerResolver",
     "ReportingStatusNotificationHandler",
     "ReportingStatusSnapshot",

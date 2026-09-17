@@ -14,6 +14,7 @@ from adcp.reporting.ledger import (
 )
 from adcp.reporting.ledger.status_snapshot import read_snapshot_on
 from adcp.reporting.outbox import PgStatusNotificationStore, ReportingStatusSweeper
+from adcp.reporting.outbox.status import escalation_identity
 from adcp.reporting.outbox.status_pg import _replay_storage
 
 from ._generation_support import (
@@ -139,13 +140,13 @@ async def database_seed(pool, case="expected", *, baseline=True):
             await c.execute(
                 "INSERT INTO reporting_status_accounts (account_id, policy)"
                 " VALUES ('acct_a', %s::jsonb)",
-                (json.dumps(policy.to_wire() if policy else {}),),
+                (json.dumps(escalation_identity(policy)),),
             )
             await status._apply_on(c, snapshot, through=through, baseline=True)
             await c.execute(
                 "UPDATE reporting_status_accounts SET baseline_complete=TRUE,"
                 " baseline_highwater=%s, dirty_sequence=%s, baseline_at=%s,"
-                " replay_lifecycles=%s::jsonb WHERE account_id='acct_a'",
+                " replay_lifecycles=%s::jsonb, selector_target_version=2, selector_transition='complete' WHERE account_id='acct_a'",
                 (through, through, snapshot.as_of, _replay_storage(snapshot)),
             )
     return ledger, status, at, escalation
@@ -236,7 +237,7 @@ async def test_real_clock_checkpoint_event_crash_restart_converges_once(crash):
             await child.kill()
         await settle_status(pool)
         # Capture expiry into durable state; reclaim uses production DB time.
-        async with pool.connection() as c:
+        async with status._transaction("acct_a") as c:
             await c.execute(
                 "UPDATE reporting_status_scope_checkpoints SET lease_expires_at=clock_timestamp()"
                 " WHERE lease_token IS NOT NULL"

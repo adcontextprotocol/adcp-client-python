@@ -39,6 +39,7 @@ from adcp.reporting.ledger.models import (
     ReportingProductionStatus,
     ReportingRevisionRecord,
 )
+from adcp.reporting.revision_selection import select_reporting_revision
 
 __all__ = [
     "ObligationProjection",
@@ -107,12 +108,44 @@ def project_obligation_health(
 ) -> ObligationProjection:
     """Classify one obligation's immutable evidence at the snapshot's clock."""
     boundary = _utc(ledger_as_of)
-    qualifying = [
-        revision
-        for revision in revisions
-        if obligation.required_finality == "snapshot" or revision.finality == "official"
-    ]
-    current = _current_revision(qualifying)
+    selection = select_reporting_revision(
+        revisions,
+        account_id=obligation.account_id,
+        reporting_obligation_id=obligation.reporting_obligation_id,
+        required_finality=obligation.required_finality,
+    )
+    current = selection.revision if selection.kind == "selected" else None
+
+    if selection.kind == "corrupt":
+        return ObligationProjection(
+            health="action_required",
+            production_status="published" if revisions else "pending",
+            issues=(
+                ReportingIssue(
+                    issue_id=issue_id_for(
+                        "core-revision-history-corrupt-v2",
+                        obligation.account_id,
+                        obligation.reporting_obligation_id,
+                    ),
+                    code="HISTORY_UNAVAILABLE",
+                    severity="action_required",
+                    responsible_party="seller",
+                    recommended_action="contact_seller",
+                    reporting_obligation_id=obligation.reporting_obligation_id,
+                    delivery_config_id=obligation.delivery_config_id,
+                    delivery_config_version=obligation.delivery_config_version,
+                    feed_purpose=obligation.feed_purpose,
+                    media_buy_ids=obligation.media_buy_ids,
+                    period_start=obligation.period.start,
+                    period_end=obligation.period.end,
+                    message=(
+                        "The retained revision history is inconsistent; seller repair is required."
+                    ),
+                ),
+            ),
+            satisfied=False,
+            current_revision=None,
+        )
 
     if obligation.currency is None:
         return ObligationProjection(
@@ -201,48 +234,18 @@ def current_required_revision(
     obligation: ReportingObligationRecord,
     revisions: Sequence[ReportingRevisionRecord],
 ) -> ReportingRevisionRecord | None:
-    """The revision the seller currently requires for this obligation.
+    """Source-compatible wrapper. Corrupt and not-ready histories both return None.
 
-    Shared by the health projection and the ``sync_reporting_status`` ingest on
-    purpose. If the two computed "current" differently, a buyer could file a
-    ``content_mismatch`` the ingest accepts and the projection then treats as
-    naming a superseded revision -- a statement permanently stuck disputing
-    bytes nobody stands behind.
-
-    Applies the obligation's ``required_finality`` first, then takes the
-    unsuperseded leaf: an official revision is terminal so it wins outright,
-    and among snapshots the current one is whichever no other supersedes.
+    New callers should consume ``select_reporting_revision``'s discriminated
+    result so corruption can be parked for repair instead of retried as absence.
     """
-    qualifying = [
-        revision
-        for revision in revisions
-        if obligation.required_finality == "snapshot" or revision.finality == "official"
-    ]
-    return _current_revision(qualifying)
-
-
-def _current_revision(
-    revisions: Sequence[ReportingRevisionRecord],
-) -> ReportingRevisionRecord | None:
-    """The unsuperseded leaf of a revision chain.
-
-    An official revision is terminal, so it wins outright.  Among snapshots,
-    the current one is whichever no other snapshot supersedes.
-    """
-    if not revisions:
-        return None
-    official = [item for item in revisions if item.finality == "official"]
-    if official:
-        return max(official, key=lambda item: (_utc(item.created_at), item.reporting_revision_id))
-    superseded = {
-        item.supersedes_reporting_revision_id
-        for item in revisions
-        if item.supersedes_reporting_revision_id
-    }
-    leaves = [item for item in revisions if item.reporting_revision_id not in superseded]
-    if not leaves:
-        return None
-    return max(leaves, key=lambda item: (_utc(item.created_at), item.reporting_revision_id))
+    result = select_reporting_revision(
+        revisions,
+        account_id=obligation.account_id,
+        reporting_obligation_id=obligation.reporting_obligation_id,
+        required_finality=obligation.required_finality,
+    )
+    return result.revision if result.kind == "selected" else None
 
 
 def _overdue_issue(

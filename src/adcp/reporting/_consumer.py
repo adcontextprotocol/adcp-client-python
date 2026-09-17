@@ -40,6 +40,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, Protocol
 
+from adcp.reporting.revision_selection import RevisionHistoryEntry, select_reporting_revision
 from adcp.types import (
     GetReportingStatusRequest,
     ReportingObligation,
@@ -481,6 +482,14 @@ def plan_consumer_statuses(
     publishing nothing it demonstrably published, and ``received`` asserts
     bytes the buyer never looked at.
 
+    ``obligation_revisions`` must carry each due obligation's *complete*
+    retained history -- the same partition its ``revision_count`` declares.
+    Finality is chosen by whole-history selection
+    (:func:`~adcp.reporting.revision_selection.select_reporting_revision`), not
+    by a count, so a partition that is absent, short, long or structurally
+    damaged raises :class:`ConsumerStatusPlanError` instead of selecting from
+    it. An obligation with ``revision_count == 0`` needs no entry.
+
     ``current_statuses`` is this caller's own status history from the same
     ledger read. An intent whose content matches the current leaf is skipped
     entirely -- re-filing an unchanged claim under a fresh id churns the chain
@@ -544,6 +553,9 @@ def plan_consumer_statuses(
             continue
 
         reading = readings.get(obligation_id)
+        history = obligation_revisions.get(obligation_id)
+        if history is not None:
+            _has_required_revision(obligation, history)  # Reject damage even when a reading exists.
         status: ConsumerStatusValue
         mismatch: MismatchCode | None = None
         failure: ReportingFailureCode | None = None
@@ -795,22 +807,43 @@ def _expected_at_of(period: Any) -> datetime | None:
 def _has_required_revision(
     obligation: ReportingObligation, revisions: Sequence[ReportingRevision] | None
 ) -> bool:
-    """Whether the seller has published a revision meeting the required finality.
-
-    Prefers the supplied revisions, because ``required_finality`` matters: an
-    obligation needing ``official`` is not satisfied by snapshots. Falls back to
-    ``revision_count``, which the spec defines as the number of distinct
-    revision records for this obligation in the snapshot, so a caller that did
-    not pass revisions still gets the coarse answer rather than a wrong one.
-    """
+    """Validate the caller's complete obligation partition before choosing finality."""
     if revisions is not None:
-        required = str(getattr(obligation.required_finality, "value", obligation.required_finality))
-        return any(
-            required == "snapshot"
-            or str(getattr(item.finality, "value", item.finality)) == "official"
-            for item in revisions
+        result = select_reporting_revision(
+            tuple(
+                RevisionHistoryEntry(
+                    "wire",
+                    obligation.reporting_obligation_id,
+                    item.reporting_revision_id,
+                    str(getattr(item.finality, "value", item.finality)),
+                    item.supersedes_reporting_revision_id,
+                )
+                for item in revisions
+            ),
+            account_id="wire",
+            reporting_obligation_id=obligation.reporting_obligation_id,
+            required_finality=str(
+                getattr(obligation.required_finality, "value", obligation.required_finality)
+            ),
         )
-    return bool(obligation.revision_count)
+        if result.kind == "corrupt" or len(revisions) != obligation.revision_count:
+            raise ConsumerStatusPlanError(
+                f"obligation {obligation.reporting_obligation_id!r} was given "
+                f"{len(revisions)} revisions against a declared revision_count of "
+                f"{obligation.revision_count}, or a damaged chain; obligation_revisions must "
+                "be that obligation's complete retained history. Re-read the seller's "
+                "snapshot rather than filing a status against a history neither party can "
+                "reconcile"
+            )
+        return result.kind == "selected"
+    if obligation.revision_count:
+        raise ConsumerStatusPlanError(
+            f"obligation {obligation.reporting_obligation_id!r} advertises "
+            f"{obligation.revision_count} revisions but obligation_revisions carries no entry "
+            "for it; pass its complete retained history. required_finality cannot be decided "
+            "from a count, and guessing would file a status nobody validated"
+        )
+    return False
 
 
 def _source_timezone(obligation: ReportingObligation) -> str:

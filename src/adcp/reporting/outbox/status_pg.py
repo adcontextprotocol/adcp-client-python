@@ -58,7 +58,7 @@ _WHERE = (
 )
 _CHECKPOINT = (
     "scope, fingerprint, generation, snapshot, next_due_at, source_sequence, baseline, publishable,"
-    " lease_token, lease_expires_at, initialized"
+    " lease_token, lease_expires_at, selector_semantics_version, selector_writer_floor, initialized"
 )
 
 _LIFECYCLE = TypeAdapter(ReportingIssueLifecycle)
@@ -212,11 +212,19 @@ class PgStatusNotificationStore:
                 .joinpath("reporting_status_notifications.sql")
                 .read_text()
             )
+            await connection.execute(
+                files("adcp.reporting.ledger")
+                .joinpath("reporting_status_selector_version.sql")
+                .read_text()
+            )
             await validate_status_schema(connection)
 
     @asynccontextmanager
     async def _transaction(self, account_id: str) -> AsyncIterator[Any]:
         async with self.ledger._pool.connection() as connection, connection.transaction():
+            await connection.execute(
+                "SELECT set_config('adcp.reporting.selector_semantics_version', '2', true)"
+            )
             await self.ledger._lock_account(connection, account_id)
             yield connection
 
@@ -240,8 +248,8 @@ class PgStatusNotificationStore:
         for scope in projection_scopes(snapshot):
             await connection.execute(
                 f"INSERT INTO reporting_status_scope_checkpoints ({_KEY}, scope, fingerprint,"  # nosec B608
-                " snapshot, source_sequence, baseline, publishable)"
-                ' VALUES (%s,%s,%s,%s,%s,%s,%s::jsonb,%s,\'{"health":"waiting"}\',0,FALSE,FALSE)'
+                " snapshot, source_sequence, baseline, publishable, selector_writer_floor)"
+                ' VALUES (%s,%s,%s,%s,%s,%s,%s::jsonb,%s,\'{"health":"waiting"}\',0,FALSE,FALSE,2)'
                 f" ON CONFLICT ({_KEY}) DO NOTHING",  # nosec B608
                 (*scope.checkpoint_key, json.dumps(asdict(scope)), "0" * 64),
             )
@@ -258,7 +266,8 @@ class PgStatusNotificationStore:
         await connection.execute(
             "UPDATE reporting_status_scope_checkpoints SET scope=%s::jsonb, fingerprint=%s,"
             " generation=%s, snapshot=%s::jsonb, next_due_at=%s, source_sequence=%s,"
-            " baseline=%s, publishable=%s, initialized=TRUE"
+            " baseline=%s, publishable=%s, initialized=TRUE, selector_semantics_version=%s,"
+            " selector_writer_floor=%s"
             f" WHERE {_WHERE}",  # nosec B608
             (
                 json.dumps(asdict(checkpoint.scope)),
@@ -269,6 +278,8 @@ class PgStatusNotificationStore:
                 checkpoint.source_sequence,
                 checkpoint.baseline,
                 checkpoint.publishable,
+                checkpoint.selector_semantics_version,
+                checkpoint.selector_writer_floor,
                 *checkpoint.scope.checkpoint_key,
             ),
         )
@@ -284,7 +295,15 @@ class PgStatusNotificationStore:
         await self._lock_scopes_on(connection, snapshot)
         snapshot = settled_replay(snapshot)
         count = 0
-        for scope in projection_scopes(snapshot):
+        rows = await (
+            await connection.execute(
+                "SELECT scope FROM reporting_status_scope_checkpoints WHERE account_id=%s"
+                " ORDER BY account_id, consumer_namespace, delivery_config_id, version,"
+                " scope_kind, obligation_namespace",
+                (snapshot.account_id,),
+            )
+        ).fetchall()
+        for scope in (decode_status_scope(row[0]) for row in rows):
             row = await (
                 await connection.execute(
                     f"SELECT {_CHECKPOINT} FROM reporting_status_scope_checkpoints WHERE {_WHERE}"  # nosec B608
@@ -318,7 +337,8 @@ class PgStatusNotificationStore:
                 )
             ).fetchone()
             if row is not None and row[0]:
-                await self._account_on(connection, account_id)
+                if not await self._needs_rebuild_on(connection, account_id):
+                    await self._account_on(connection, account_id)
                 return False
             await connection.execute(
                 "INSERT INTO reporting_status_accounts (account_id, policy) VALUES (%s,%s::jsonb)"
@@ -338,6 +358,7 @@ class PgStatusNotificationStore:
                 "UPDATE reporting_status_accounts SET baseline_complete=TRUE,"
                 " baseline_highwater=%s,"
                 " dirty_sequence=%s, baseline_at=%s, replay_lifecycles=%s::jsonb"
+                ", selector_target_version=2, selector_transition='complete'"
                 " WHERE account_id=%s",
                 (through, through, snapshot.as_of, _replay_storage(snapshot), account_id),
             )
@@ -355,13 +376,115 @@ class PgStatusNotificationStore:
                     (account_id,),
                 )
             ).fetchone()
-            if row is None or not row[0]:
+            if row is None or not row[0] or await self._needs_rebuild_on(connection, account_id):
                 return False
             if row[1] != escalation_identity(self.escalation):
                 raise ReportingNotificationError("status_policy_conflict")
             # Readiness describes the durable lifecycle, independently of the
             # account's current business health or waived issue occurrences.
             return True
+
+    async def _needs_rebuild_on(self, connection: Any, account_id: str) -> bool:
+        row = await (
+            await connection.execute(
+                "SELECT selector_target_version <> 2 OR selector_transition <> 'complete'"
+                " OR EXISTS(SELECT 1 FROM reporting_status_scope_checkpoints c"
+                " WHERE c.account_id=a.account_id AND"
+                " (c.selector_semantics_version <> 2 OR c.selector_writer_floor <> 2))"
+                " FROM reporting_status_accounts a WHERE account_id=%s AND baseline_complete",
+                (account_id,),
+            )
+        ).fetchone()
+        return bool(row and row[0])
+
+    async def _rebuild_on(self, connection: Any, account_id: str) -> StatusTurn:
+        if not await self._needs_rebuild_on(connection, account_id):
+            return StatusTurn(False)
+        row = await (
+            await connection.execute(
+                "SELECT policy, selector_transition FROM reporting_status_accounts"
+                " WHERE account_id=%s FOR UPDATE",
+                (account_id,),
+            )
+        ).fetchone()
+        expected = escalation_identity(self.escalation)
+        legacy = {k: v for k, v in expected.items() if k != "selector_semantics_version"}
+        if row[0] not in (expected, legacy):
+            raise ReportingNotificationError("status_policy_conflict")
+        if row[1] != "transitioning":
+            # Phase one commits a checkpoint-local writer floor. The guard
+            # never reads/locks an account, including for old due claimers.
+            await (
+                await connection.execute(
+                    "SELECT 1 FROM reporting_status_scope_checkpoints WHERE account_id=%s"
+                    " ORDER BY account_id, consumer_namespace, delivery_config_id, version,"
+                    " scope_kind, obligation_namespace FOR UPDATE",
+                    (account_id,),
+                )
+            ).fetchall()
+            await connection.execute(
+                "UPDATE reporting_status_scope_checkpoints SET selector_writer_floor=2"
+                " WHERE account_id=%s AND selector_writer_floor <> 2",
+                (account_id,),
+            )
+            await connection.execute(
+                "UPDATE reporting_status_accounts SET selector_target_version=2,"
+                " selector_transition='transitioning', policy=%s::jsonb WHERE account_id=%s",
+                (json.dumps(expected), account_id),
+            )
+            return StatusTurn(True)
+        # Phase two advances exactly one immutable boundary or deadline per
+        # transaction. A crash leaves the durable cursor at the last commit.
+        turn = await self._project_on(connection, account_id)
+        if turn.did_work:
+            return turn
+        snapshot = await settle_snapshot_on(self.ledger, connection, account_id=account_id)
+        through = await self._account_on(connection, account_id)
+        due = await (
+            await connection.execute(
+                "SELECT min(next_due_at) FROM reporting_status_scope_checkpoints"
+                " WHERE account_id=%s AND next_due_at <= %s",
+                (account_id, snapshot.as_of),
+            )
+        ).fetchone()
+        if due[0] is not None:
+            count = await self._apply_on(
+                connection, replace(snapshot, as_of=due[0]), through=through
+            )
+            return StatusTurn(True, count)
+        count = await self._apply_on(connection, snapshot, through=through)
+        await connection.execute(
+            "UPDATE reporting_status_accounts SET selector_transition='complete',"
+            " replay_lifecycles=%s::jsonb WHERE account_id=%s",
+            (_replay_storage(snapshot), account_id),
+        )
+        return StatusTurn(True, count)
+
+    async def rebuild_one(self) -> StatusTurn:
+        """Discover incomplete C cutovers by index, without enumerating accounts."""
+        expected = escalation_identity(self.escalation)
+        policies = (
+            json.dumps(expected),
+            json.dumps({k: v for k, v in expected.items() if k != "selector_semantics_version"}),
+        )
+        async with self.ledger._pool.connection() as connection:
+            row = await (
+                await connection.execute(
+                    "SELECT account_id FROM reporting_status_accounts WHERE baseline_complete"
+                    " AND (selector_target_version <> 2 OR selector_transition <> 'complete')"
+                    " AND policy IN (%s::jsonb,%s::jsonb)"
+                    " UNION SELECT c.account_id FROM reporting_status_scope_checkpoints c"
+                    " JOIN reporting_status_accounts a ON a.account_id=c.account_id"
+                    " WHERE (c.selector_semantics_version <> 2 OR c.selector_writer_floor <> 2)"
+                    " AND a.baseline_complete AND a.policy IN (%s::jsonb,%s::jsonb)"
+                    " ORDER BY account_id LIMIT 1",
+                    (*policies, *policies),
+                )
+            ).fetchone()
+        if row is None:
+            return StatusTurn(False)
+        async with self._transaction(row[0]) as connection:
+            return await self._rebuild_on(connection, row[0])
 
     async def _project_on(self, connection: Any, account_id: str) -> StatusTurn:
         through = await self._account_on(connection, account_id)
@@ -394,6 +517,9 @@ class PgStatusNotificationStore:
 
     async def project_one(self, *, account_id: str) -> StatusTurn:
         async with self._transaction(account_id) as connection:
+            rebuilt = await self._rebuild_on(connection, account_id)
+            if rebuilt.did_work:
+                return rebuilt
             return await self._project_on(connection, account_id)
 
     async def claim_due(
@@ -401,7 +527,10 @@ class PgStatusNotificationStore:
     ) -> StatusDueLease | None:
         if lease_seconds <= 0:
             raise ValueError("lease_seconds must be positive")
-        async with self.ledger._pool.connection() as connection, connection.transaction():
+        async with self._transaction(account_id) as connection:
+            if await self._needs_rebuild_on(connection, account_id):
+                return None
+            await self._account_on(connection, account_id)
             at = await database_now(connection, self.ledger._clock)
             row = await (
                 await connection.execute(
@@ -452,6 +581,8 @@ class PgStatusNotificationStore:
     async def complete_due(self, lease: StatusDueLease) -> StatusTurn:
         try:
             async with self._transaction(lease.scope.account_id) as connection:
+                if await self._needs_rebuild_on(connection, lease.scope.account_id):
+                    return StatusTurn(False)
                 await self._account_on(connection, lease.scope.account_id)
                 if not await self._held_on(connection, lease):
                     return StatusTurn(False)

@@ -24,7 +24,6 @@ from adcp.reporting.ledger.consumer_status import (
 from adcp.reporting.ledger.health import (
     ObligationProjection,
     aggregate_reporting_health,
-    current_required_revision,
     issue_id_for,
     issue_id_for_occurrence,
     project_obligation_health,
@@ -46,6 +45,7 @@ from adcp.reporting.ledger.notification_models import (
     ReportingStatusScope,
     validate_scope_refinement,
 )
+from adcp.reporting.revision_selection import select_reporting_revision
 
 
 @dataclass(frozen=True)
@@ -180,7 +180,20 @@ def lifecycle_intents(snapshot: ReportingStatusSnapshot) -> tuple[StatusLifecycl
             for r in snapshot.revisions
             if owner is not None and r.reporting_obligation_id == owner.reporting_obligation_id
         )
-        required = current_required_revision(owner, revisions) if owner else None
+        required = None
+        if owner is not None:
+            selection = select_reporting_revision(
+                revisions,
+                account_id=owner.account_id,
+                reporting_obligation_id=owner.reporting_obligation_id,
+                required_finality=owner.required_finality,
+            )
+            if selection.kind == "corrupt":
+                # Keep prior consumer occurrences intact until seller history
+                # can establish agreement. Health exposes HISTORY_UNAVAILABLE.
+                continue
+            if selection.kind == "selected":
+                required = selection.revision
         conflicts = consumer_statement_conflicts(
             current=status, current_revision=required, revisions=revisions
         )
@@ -325,6 +338,11 @@ def _selected(scope: ReportingStatusScope, target: ReportingStatusScope) -> bool
         scope.account_id == target.account_id
         and (scope.consumer_id is None or scope.consumer_id == target.consumer_id)
         and (
+            scope.feed_purpose is None
+            or target.feed_purpose is None
+            or scope.feed_purpose == target.feed_purpose
+        )
+        and (
             scope.generation_key is None
             or target.generation_key is None
             or scope.generation_key == target.generation_key
@@ -416,6 +434,7 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
         c
         for c in snapshot.configurations
         if (scope.generation_key is None or c.generation_key == scope.generation_key)
+        and (scope.feed_purpose is None or c.feed_purpose == scope.feed_purpose)
         and configuration_selected(
             c,
             delivery_config_ids=value.delivery_config_ids,
@@ -431,6 +450,7 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
         # restored/custom stores. Never erase its health by filtering through
         # only the extant configuration rows; apply the same typed selection.
         if (scope.generation_key is None or o.generation_key == scope.generation_key)
+        and (scope.feed_purpose is None or o.feed_purpose == scope.feed_purpose)
         and (not value.delivery_config_ids or o.delivery_config_id in value.delivery_config_ids)
         and (not value.feed_purposes or o.feed_purpose in value.feed_purposes)
         and (
@@ -451,6 +471,33 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
     projected: list[StatusObligationProjection] = []
     candidates: set[datetime] = set()
     pending = 0
+    if (scope.reporting_obligation_id is not None and not obligations) or (
+        scope.generation_key is not None and not configurations and not obligations
+    ):
+        # A retained checkpoint can outlive the registry/obligation that made
+        # its scope discoverable. Keep the row and its event identity, publish
+        # the absence honestly, and leave no obsolete clock deadline behind.
+        issues.append(
+            ReportingIssue(
+                issue_id=issue_id_for(
+                    "retained-scope-history-unavailable-v2",
+                    canonical_json_utf8_v1(asdict(scope)).hex(),
+                ),
+                code="HISTORY_UNAVAILABLE",
+                severity="action_required",
+                responsible_party="seller",
+                recommended_action="contact_seller",
+                reporting_obligation_id=scope.reporting_obligation_id,
+                delivery_config_id=(
+                    scope.generation_key.delivery_config_id if scope.generation_key else None
+                ),
+                delivery_config_version=(
+                    scope.generation_key.delivery_config_version if scope.generation_key else None
+                ),
+                feed_purpose=scope.feed_purpose,
+                message="The retained reporting scope has no available source history.",
+            )
+        )
     retained_from = status_retained_from(configurations, snapshot.as_of)
     if value.period_start is not None and value.period_start < retained_from:
         for configuration in configurations:

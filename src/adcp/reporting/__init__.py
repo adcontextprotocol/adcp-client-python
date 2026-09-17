@@ -75,10 +75,22 @@ if TYPE_CHECKING:
     from adcp.reporting import fixtures as fixtures
     from adcp.reporting import inline_source as inline_source
     from adcp.reporting import ledger as ledger
+    from adcp.reporting import materializer as materializer
+    from adcp.reporting import revision_selection as revision_selection
     from adcp.reporting import source as source
 
 _LAZY_SUBMODULES = frozenset(
-    {"canonical_json", "conformance", "currency", "fixtures", "inline_source", "ledger", "source"}
+    {
+        "canonical_json",
+        "conformance",
+        "currency",
+        "fixtures",
+        "inline_source",
+        "ledger",
+        "materializer",
+        "revision_selection",
+        "source",
+    }
 )
 
 
