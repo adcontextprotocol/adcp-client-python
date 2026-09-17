@@ -194,6 +194,11 @@ failure must not change correctness. Observe only closed `ReportingMaterializerT
 state/reason and opaque IDs. Never log sessions, credentials, signed URLs,
 provider bodies, raw driver exceptions, or secret destination configuration.
 
+An out-of-range `lease_seconds` or boundary position is a caller-argument
+rejection, not a destination outcome: it raises a `ValueError` naming the bound
+before any store or destination work. Reserve `ReportingWriterError` for real
+failures, where `retry`/`effect` describe an actual external attempt.
+
 ## Rolling compatibility envelope
 
 The executable gate is

@@ -14,12 +14,22 @@ P = ParamSpec("P")
 T = TypeVar("T")
 
 
+class ReportingMaterializerUsageError(ValueError):
+    """A deterministic caller-argument rejection with a fixed SDK message.
+
+    Raised only by the SDK's own argument validators, before any store or
+    destination work. It stays a ``ValueError`` so existing adopter handling is
+    unchanged, and the guard re-raises it instead of reporting an unknown
+    external effect that never happened.
+    """
+
+
 def materializer_errors(method: Callable[P, Awaitable[T]]) -> Callable[P, Coroutine[Any, Any, T]]:
     @wraps(method)
     async def guarded(*args: P.args, **kwargs: P.kwargs) -> T:
         try:
             return await method(*args, **kwargs)
-        except (ReportingWriterError, LedgerConflictError):
+        except (ReportingWriterError, LedgerConflictError, ReportingMaterializerUsageError):
             raise
         except asyncio.CancelledError:
             canceled = True

@@ -25,7 +25,10 @@ from adcp.reporting.ledger.delivery_models import (
 from adcp.reporting.ledger.models import ReportingConfiguration
 from adcp.reporting.ledger.notification_events import delivery_dirty, materialization_event
 from adcp.reporting.ledger.store import LedgerConflictError
-from adcp.reporting.materializer._errors import materializer_errors
+from adcp.reporting.materializer._errors import (
+    ReportingMaterializerUsageError,
+    materializer_errors,
+)
 from adcp.reporting.materializer.capture import (
     MaterializerNotificationState,
     ReportingMaterializerBoundary,
@@ -619,7 +622,9 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
         self, *, caller: ReportingDeliveryPrincipal, after: int = 0, limit: int = 100
     ) -> tuple[ReportingMaterializerBoundary, ...]:
         if type(after) is not int or after < 0 or type(limit) is not int or not 1 <= limit <= 100:
-            raise ValueError("materializer boundary reads require bounded positions")
+            raise ReportingMaterializerUsageError(
+                "materializer boundary reads require bounded positions"
+            )
         async with self._lock:
             return tuple(
                 b

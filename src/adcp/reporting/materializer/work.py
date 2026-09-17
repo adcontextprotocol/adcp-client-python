@@ -25,6 +25,7 @@ from adcp.reporting.ledger.models import (
     ReportingObligationRecord,
     ReportingRevisionRecord,
 )
+from adcp.reporting.materializer._errors import ReportingMaterializerUsageError
 from adcp.reporting.materializer.contracts import (
     ReportingDestinationRequest,
     ReportingPreparedRevision,
@@ -264,7 +265,7 @@ class ReportingMaterializerStore(ReportingRevisionRowReader, Protocol):
 
 def validate_lease_seconds(value: int) -> None:
     if type(value) is not int or not 3 <= value <= 300:
-        raise ValueError("materializer leases require 3..300 seconds")
+        raise ReportingMaterializerUsageError("materializer leases require 3..300 seconds")
 
 
 def public_failure(error: ReportingWriterFailure) -> MaterializationFailure:

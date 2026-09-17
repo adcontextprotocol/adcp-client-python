@@ -28,7 +28,10 @@ from adcp.reporting.ledger.pg import (
     _revision_from_row,
 )
 from adcp.reporting.ledger.store import LedgerConflictError
-from adcp.reporting.materializer._errors import materializer_errors
+from adcp.reporting.materializer._errors import (
+    ReportingMaterializerUsageError,
+    materializer_errors,
+)
 from adcp.reporting.materializer.capture import (
     ReportingMaterializerBoundary,
     decode_materializer_boundary,
@@ -870,7 +873,9 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
         self, *, caller: ReportingDeliveryPrincipal, after: int = 0, limit: int = 100
     ) -> tuple[ReportingMaterializerBoundary, ...]:
         if type(after) is not int or after < 0 or type(limit) is not int or not 1 <= limit <= 100:
-            raise ValueError("materializer boundary reads require bounded positions")
+            raise ReportingMaterializerUsageError(
+                "materializer boundary reads require bounded positions"
+            )
         async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, caller.account_id)
             rows = await (

@@ -117,6 +117,44 @@ async def test_service_owns_reservation_verification_and_finish(backend):
         assert case.writer.write_effects == 1
 
 
+async def test_invalid_caller_arguments_stay_actionable_and_claim_no_external_effect(backend):
+    """A caller-argument rejection must not masquerade as an unknown external effect.
+
+    The closed-error guard previously rewrote these deterministic ``ValueError``s
+    into ``RESOURCE_UNAVAILABLE``/``same_identity``/``unknown``, which tells an
+    adopter a destination write may have started and hides what to correct.
+    """
+    async with durable_harness(backend) as h:
+        case = await durable_case(h.store)
+        before = await h.image()
+        calls = (
+            (
+                "materializer leases",
+                lambda: h.store.claim_materialization(keys=case.keys, lease_seconds=1),
+            ),
+            (
+                "materializer leases",
+                lambda: h.store.claim_materialization(keys=case.keys, lease_seconds=301),
+            ),
+            (
+                "materializer boundary reads",
+                lambda: h.store.read_materializer_boundaries(caller=case.scope.principal, after=-1),
+            ),
+            (
+                "materializer boundary reads",
+                lambda: h.store.read_materializer_boundaries(caller=case.scope.principal, limit=0),
+            ),
+        )
+        for expected, call in calls:
+            with pytest.raises(ValueError) as caught:
+                await call()
+            assert not isinstance(caught.value, ReportingWriterError)
+            assert str(caught.value).startswith(expected)
+            assert not hasattr(caught.value, "failure")
+        assert await h.image() == before
+        assert case.writer.write_effects == 0
+
+
 async def test_unknown_effect_resumes_same_attempt_external_identity_and_rejects_old_fence(backend):
     async with durable_harness(backend) as h:
         case = await durable_case(h.store)
