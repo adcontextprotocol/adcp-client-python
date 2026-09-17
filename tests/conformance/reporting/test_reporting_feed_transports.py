@@ -31,6 +31,106 @@ from ._receipt_transport import MountedReceipts, error_code
 __all__ = ["feeds"]
 
 
+@pytest.fixture(autouse=True)
+def _a2a_compat_send_and_aggregate():
+    # Override the repository's unit-mock adapter shim. These mounted tests
+    # consume the actual public SDK's async-generator response stream.
+    pass
+
+
+@pytest.mark.parametrize("a2a_version", ["0.3", "1.0"])
+@pytest.mark.parametrize("direction", ["mcp-to-a2a", "a2a-to-mcp"])
+async def test_public_sdk_numeric_filter_continuation_in_both_directions(
+    feeds, a2a_version, direction
+):
+    h = feeds
+    s, _, _ = await mixed_case(h)
+    mounted = MountedFeed(h)
+    mounted.authorize(s)
+    req = feed_request(
+        s,
+        context={"sample": 0.125},
+        ext={"vendor": {"integral": 1, "fraction": 0.25, "nested": [-2, -0.0, True, 1.5]}},
+    )
+    start, finish = direction.split("-to-")
+    async with mounted.sdk_clients(a2a_version) as (clients, observed):
+        first_result = await clients[start].get_reporting_status(
+            GetReportingStatusRequest.model_validate(req)
+        )
+        assert first_result.success, first_result
+        first = first_result.data.model_dump(mode="json", exclude_unset=True)
+        assert first["context"] == req["context"]
+        assert first["pagination"]["has_more"] is True
+        continued = {
+            **req,
+            "context": {"sample": 0.75},
+            "pagination": {"max_results": 100, "cursor": first["pagination"]["cursor"]},
+        }
+        before = await h.image()
+        last_result = await clients[finish].get_reporting_status(
+            GetReportingStatusRequest.model_validate(continued)
+        )
+        assert last_result.success, last_result
+        last = last_result.data.model_dump(mode="json", exclude_unset=True)
+        assert last["context"] == continued["context"]
+        for key in ("changes_checkpoint", "ledger_snapshot_id", "ledger_as_of"):
+            assert last[key] == first[key]
+        assert last["pagination"] == {"total_count": 6, "has_more": False}
+        for value in (True, "1", 1.25):
+            for position in (
+                {"pagination": continued["pagination"]},
+                {"changes_after": last["changes_checkpoint"]},
+            ):
+                changed = deepcopy(req)
+                changed.update(position)
+                changed["ext"]["vendor"]["integral"] = value
+                rejected = await clients[finish].adapter.get_reporting_status(changed)
+                assert rejected.success is False, rejected
+                assert rejected.adcp_error["code"] == "INVALID_CHECKPOINT", rejected
+        assert await h.image() == before
+        empty = await clients[finish].get_reporting_status(
+            GetReportingStatusRequest.model_validate(
+                {**req, "changes_after": last["changes_checkpoint"]}
+            )
+        )
+        assert empty.success, empty
+        assert empty.data.pagination.total_count == 0
+        assert empty.data.pagination.has_more is False
+        calls = {protocol: (method, params) for protocol, method, params in observed}
+        assert set(calls) == {"mcp", "a2a"}
+        assert calls["a2a"][0] == ("SendMessage" if a2a_version == "1.0" else "message/send")
+        assert type(calls["mcp"][1]["ext"]["vendor"]["integral"]) is int
+        assert type(calls["a2a"][1]["ext"]["vendor"]["integral"]) is float
+        assert calls["a2a"][1]["ext"]["vendor"]["fraction"] == 0.25
+
+
+@pytest.mark.parametrize("a2a_version", ["0.3", "1.0"])
+async def test_public_sdk_rounding_a_large_integer_is_a_changed_filter(feeds, a2a_version):
+    h = feeds
+    s, _, _ = await mixed_case(h)
+    mounted = MountedFeed(h)
+    mounted.authorize(s)
+    exact = 9007199254740993
+    req = feed_request(s, ext={"vendor": {"integral": exact}})
+    async with mounted.sdk_clients(a2a_version) as (clients, observed):
+        first = await clients["mcp"].get_reporting_status(
+            GetReportingStatusRequest.model_validate(req)
+        )
+        assert first.success, first
+        before = await h.image()
+        for position in (
+            {"pagination": {"cursor": first.data.pagination.cursor}},
+            {"changes_after": first.data.changes_checkpoint},
+        ):
+            changed = await clients["a2a"].adapter.get_reporting_status({**req, **position})
+            assert changed.success is False, changed
+            assert changed.adcp_error["code"] == "INVALID_CHECKPOINT", changed
+        assert await h.image() == before
+        calls = {protocol: params for protocol, _, params in observed}
+        assert calls["mcp"]["ext"]["vendor"]["integral"] == exact
+        assert calls["a2a"]["ext"]["vendor"]["integral"] == 9007199254740992.0
+
+
 async def test_mounted_fractional_context_and_filters_keep_exact_integer_page_bounds(feeds):
     h = feeds
     s, _, _ = await mixed_case(h)

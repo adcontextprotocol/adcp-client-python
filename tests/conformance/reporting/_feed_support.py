@@ -1,6 +1,7 @@
 """Shared memory/PostgreSQL feed vectors and real mounted reporting reads."""
 
-from contextlib import asynccontextmanager
+import json
+from contextlib import AsyncExitStack, asynccontextmanager
 from copy import deepcopy
 from dataclasses import replace
 
@@ -163,6 +164,66 @@ class MountedFeed(MountedReceipts):
         self.handler.get_reporting_status = self.idempotency.wrap(self.handler.get_reporting_status)
         if kwargs.get("version") is not None:
             self.handler.adcp_version = kwargs["version"]
+
+    @asynccontextmanager
+    async def sdk_clients(self, a2a_version, *, token="token-one"):
+        """Public typed clients and real encoders; only HTTP I/O uses ASGI."""
+        import httpx2
+
+        from adcp import ADCPClient, AgentConfig
+
+        observed = []
+
+        async def capture(request):
+            if request.method != "POST":
+                return
+            body = json.loads(request.content)
+            method = body.get("method")
+            if method == "tools/call":
+                params = body["params"]["arguments"]
+                protocol = "mcp"
+            elif method in {"message/send", "SendMessage"}:
+                params = body["params"]["message"]["parts"][0]["data"]["parameters"]
+                protocol = "a2a"
+            else:
+                return
+            observed.append((protocol, method, params))
+
+        async with self.client(public_url="http://localhost") as transport:
+            # Keep both public SDK transport stacks, negotiation and encoders.
+            # The factory/HTTP pool injection only replaces the network socket.
+            def mcp_http(**kwargs):
+                return httpx2.AsyncClient(
+                    transport=httpx2.ASGITransport(app=transport._transport.app),
+                    event_hooks={"request": [capture]},
+                    **kwargs,
+                )
+
+            clients = {}
+            async with AsyncExitStack() as stack:
+                for protocol in ("mcp", "a2a"):
+                    config = AgentConfig(
+                        id=f"feed-{protocol}",
+                        agent_uri=(
+                            "http://localhost/mcp/" if protocol == "mcp" else "http://localhost"
+                        ),
+                        protocol=protocol,
+                        auth_token=token,
+                        auth_header="Authorization",
+                        auth_type="bearer",
+                    )
+                    clients[protocol] = await stack.enter_async_context(
+                        ADCPClient(
+                            config,
+                            adcp_version="3.2-rc.3",
+                            force_a2a_version=a2a_version if protocol == "a2a" else None,
+                            httpx_client_factory=mcp_http if protocol == "mcp" else None,
+                        )
+                    )
+                transport.headers["Authorization"] = f"Bearer {token}"
+                transport.event_hooks["request"].append(capture)
+                clients["a2a"].adapter._httpx_client = transport
+                yield clients, observed
 
     async def mcp(self, client, request=None, *, mutate_wire=None, **kwargs):
         def rewrite(wire):

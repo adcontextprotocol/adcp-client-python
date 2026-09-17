@@ -61,7 +61,12 @@ the final deduplicated wire set **after** closure; it stays identical on all pag
 Use the same semantic filters throughout a walk. `pagination.max_results` may
 change (1–100), and `context` is echoed independently on each request. All
 semantic fields, including vendor `ext`, bind the snapshot. Ordinary finite JSON
-numbers are supported in context and vendor filters. Account aliases are bound
+numbers are supported in context and vendor filters. Integral numeric forms
+such as `1` and `1.0` bind identically across MCP and A2A's protobuf encoding,
+including nested vendor values. Fractions, booleans, strings and changed numbers
+remain distinct. An A2A double that rounds a large integer to a different value
+cannot continue the original filter. Page bounds and receipt financial numeric
+validation retain their separate strict rules. Account aliases are bound
 through the authenticated canonical account, not their spelling in the request.
 
 Each page supplies one identical `changes_checkpoint`. Persist or advance it

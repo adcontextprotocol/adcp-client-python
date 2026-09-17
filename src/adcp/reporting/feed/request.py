@@ -20,6 +20,23 @@ TASK = "get_reporting_status"
 TOKEN_LIMIT = 2048
 
 
+def _semantic_numbers(value: Any) -> Any:
+    """Bind equal JSON numbers identically across MCP and protobuf Struct.
+
+    Struct represents every number as a double, including integral values.
+    Keep exact integers (and booleans) intact: rounding an integer through a
+    float here could silently authorize a genuinely different vendor filter.
+    The caller validates finite ordinary JSON before applying this transform.
+    """
+    if type(value) is float and value.is_integer():
+        return int(value)
+    if type(value) is dict:
+        return {key: _semantic_numbers(item) for key, item in value.items()}
+    if type(value) is list:
+        return [_semantic_numbers(item) for item in value]
+    return value
+
+
 def transport_parameters(params: dict[str, Any]) -> dict[str, Any]:
     """Read ordinary JSON without rounding the raw pagination integer first.
 
@@ -162,10 +179,12 @@ class FeedRequest:
             # fractional numbers. The restricted financial evidence encoder is
             # not their wire contract. Store deterministic JSON *bytes* as part
             # of the snapshot binding, without normalizing the caller's context.
+            # Integral number spellings are transport-equivalent; fractional
+            # values and nonnumeric JSON types retain their distinct meanings.
             if json.loads(json.dumps(request, allow_nan=False)) != request:
                 raise ValueError
             encoded = json.dumps(
-                filters, allow_nan=False, sort_keys=True, separators=(",", ":")
+                _semantic_numbers(filters), allow_nan=False, sort_keys=True, separators=(",", ":")
             ).encode("ascii")
             return cls(encoded, cursor, checkpoint, limit)
         except (ValueError, TypeError, KeyError, OverflowError, RecursionError):
