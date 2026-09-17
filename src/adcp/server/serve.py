@@ -539,8 +539,36 @@ async def _dispatch_with_middleware(
     if not middleware:
         return await call_handler()
 
+    receipt_request = None
+    if skill_name == "sync_reporting_receipts":
+        from adcp.exceptions import ADCPTaskError
+        from adcp.reporting.receipts.errors import ReportingReceiptError
+        from adcp.reporting.receipts.wire import ReceiptBatch
+        from adcp.types import Error
+
+        try:
+            receipt_request = ReceiptBatch.parse(params)
+        except ReportingReceiptError as error:
+            raise ADCPTaskError(
+                operation=skill_name, errors=[Error(code=error.code, message=str(error))]
+            ) from None
+
     async def _step(index: int) -> Any:
         if index >= len(middleware):
+            if receipt_request is not None:
+                try:
+                    if ReceiptBatch.parse(params) != receipt_request:
+                        raise ReportingReceiptError("INVALID_REQUEST")
+                except ReportingReceiptError:
+                    raise ADCPTaskError(
+                        operation=skill_name,
+                        errors=[
+                            Error(
+                                code="INVALID_REQUEST",
+                                message="receipt requests cannot be rewritten",
+                            )
+                        ],
+                    ) from None
             return await call_handler()
         mw = middleware[index]
 
@@ -549,6 +577,14 @@ async def _dispatch_with_middleware(
 
         return await mw(skill_name, params, context, call_next)
 
+    if skill_name == "sync_reporting_receipts":
+        from adcp.server.idempotency.store import _RECEIPT_BATCH_DISPATCH
+
+        token = _RECEIPT_BATCH_DISPATCH.set(True)
+        try:
+            return await _step(0)
+        finally:
+            _RECEIPT_BATCH_DISPATCH.reset(token)
     return await _step(0)
 
 
@@ -1635,7 +1671,8 @@ def _run_mcp_http(
     import anyio
     import uvicorn
 
-    host = getattr(mcp.settings, "host", "0.0.0.0")
+    # Intentional server listener fallback; deployment settings select the host.
+    host = getattr(mcp.settings, "host", "0.0.0.0")  # nosec B104
     port = int(mcp.settings.port)
     log_level = getattr(mcp.settings, "log_level", "INFO").lower()
 
@@ -1722,7 +1759,8 @@ def _build_a2a_app(
     from adcp.server.a2a_server import create_a2a_server
     from adcp.server.discovery import resolve_base_url
 
-    resolved_base_url = resolve_base_url("0.0.0.0", port, base_url)
+    # The URL resolver translates the wildcard listener into a usable public URL.
+    resolved_base_url = resolve_base_url("0.0.0.0", port, base_url)  # nosec B104
 
     app = create_a2a_server(
         handler,
@@ -1817,7 +1855,8 @@ def _serve_a2a(
         auth=auth,
         public_url=public_url,
     )
-    sock = _bind_reusable_socket("0.0.0.0", resolved_port)
+    # Intentional public serving socket; authentication is composed by the app.
+    sock = _bind_reusable_socket("0.0.0.0", resolved_port)  # nosec B104
     try:
         # Same bind-boundary INFO as the MCP path so A2A adopters
         # also see one framework-controlled line confirming the
@@ -2151,7 +2190,8 @@ def _serve_mcp_and_a2a(
     import uvicorn
 
     resolved_port = port or int(os.environ.get("PORT", "3001"))
-    resolved_host = host or os.environ.get("ADCP_HOST", "0.0.0.0")
+    # Intentional server default, configurable by argument or deployment env.
+    resolved_host = host or os.environ.get("ADCP_HOST", "0.0.0.0")  # nosec B104
     log_level = "info"
 
     app = _build_mcp_and_a2a_app(
@@ -2443,7 +2483,10 @@ def create_mcp_server(
     from mcp.server.transport_security import TransportSecuritySettings
 
     resolved_port = port or int(os.environ.get("PORT", "3001"))
-    resolved_host = host if host is not None else (os.environ.get("ADCP_HOST") or "0.0.0.0")
+    # Intentional server default, configurable by argument or deployment env.
+    resolved_host = (
+        host if host is not None else (os.environ.get("ADCP_HOST") or "0.0.0.0")  # nosec B104
+    )
     mcp: Any = MCPServer(name, instructions=instructions)
     mcp.settings = _ADCPMCPSettingsProxy(mcp.settings)
     object.__setattr__(mcp.settings, "host", resolved_host)
@@ -2609,6 +2652,10 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
 
         class ADCPStreamableHTTPASGIApp:
             async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+                if getattr(mcp, "_adcp_receipt_ingress", False):
+                    from adcp.reporting.receipts.transport import receipt_body_receive
+
+                    receive = receipt_body_receive(scope, receive, limit=max_request_body_size)
                 token = _ADCP_MCP_REQUEST_CONTEXT.set(Request(scope, receive))
                 try:
                     await streamable_http(scope, receive, send)
@@ -2740,7 +2787,21 @@ def _register_tool(
         build_mcp_error_result,
     )
 
+    if name == "sync_reporting_receipts":
+        object.__setattr__(mcp, "_adcp_receipt_ingress", True)
+
     async def fn(**kwargs: Any) -> dict[str, Any]:
+        if name == "sync_reporting_receipts":
+            request_context = _get_starlette_request_for_dispatch()
+            if request_context is not None:
+                from adcp.reporting.receipts.transport import (
+                    RAW_RECEIPT_BODY_SCOPE_KEY,
+                    mcp_receipt_parameters,
+                )
+
+                kwargs = mcp_receipt_parameters(
+                    request_context.scope.get(RAW_RECEIPT_BODY_SCOPE_KEY)
+                )
         # Caller identity: FastMCP does not expose an authenticated principal
         # at the SDK level (``Context.client_id`` is a session hint, not an
         # authenticated user). Sellers wire auth via HTTP middleware on

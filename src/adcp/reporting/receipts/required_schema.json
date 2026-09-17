@@ -1,0 +1,410 @@
+{
+  "column:reporting_receipt_ingestion_batches.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_receipt_ingestion_batches.admission_epoch": {
+    "enabled": true,
+    "fingerprint": "42202005517b72e082eb22c9eceb2ac0252815e5df700c83eb50c54cfeb46297"
+  },
+  "column:reporting_receipt_ingestion_batches.canonical_request": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:reporting_receipt_ingestion_batches.consumer_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_receipt_ingestion_batches.created_at": {
+    "enabled": true,
+    "fingerprint": "336df3243b293695d8321965e92f26d3f132e11514ed9678fb5e64e0015fa580"
+  },
+  "column:reporting_receipt_ingestion_batches.expected_count": {
+    "enabled": true,
+    "fingerprint": "64be57437fdc0a07a97985c2aa058031f8082db7251bdb4d5afa1a9b088de97a"
+  },
+  "column:reporting_receipt_ingestion_batches.final_response": {
+    "enabled": true,
+    "fingerprint": "1f539b84d6adb1a8577add320aabb81fdd5c614ad01b46c7b77eb55b995a6556"
+  },
+  "column:reporting_receipt_ingestion_batches.final_sha256": {
+    "enabled": true,
+    "fingerprint": "85b88fb407e112399f25b5dc8830dfdcb2a8271ecf00e70b662f6917b4a002cd"
+  },
+  "column:reporting_receipt_ingestion_batches.finalized_at": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
+  "column:reporting_receipt_ingestion_batches.idempotency_key": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_receipt_ingestion_batches.request_sha256": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_receipt_ingestion_boundaries.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_receipt_ingestion_boundaries.account_sequence": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_receipt_ingestion_boundaries.as_of": {
+    "enabled": true,
+    "fingerprint": "1cac4e73af11a8ecafd646ef6a0ff6ecb087d46f150408dcfebc630fe1bf5e1e"
+  },
+  "column:reporting_receipt_ingestion_boundaries.consumer_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_receipt_ingestion_boundaries.content_sha256": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_receipt_ingestion_boundaries.input": {
+    "enabled": true,
+    "fingerprint": "ac355fc16c02b70cb0a24afee8214cdce5f5cbfdc7fd1630786d5101932ecfa4"
+  },
+  "column:reporting_receipt_ingestion_boundaries.receipt_namespace": {
+    "enabled": true,
+    "fingerprint": "3c136011bb3ec377d8e534e35c5e0e338531ff0a5cae3e41945a2eec630c09e6"
+  },
+  "column:reporting_receipt_ingestion_boundaries.reporting_receipt_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_receipt_ingestion_boundaries.sequence": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_receipt_ingestion_heads.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_receipt_ingestion_heads.consumer_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_receipt_ingestion_heads.max_sequence": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_receipt_ingestion_results.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_receipt_ingestion_results.consumer_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_receipt_ingestion_results.content_sha256": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_receipt_ingestion_results.idempotency_key": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_receipt_ingestion_results.ordinal": {
+    "enabled": true,
+    "fingerprint": "64be57437fdc0a07a97985c2aa058031f8082db7251bdb4d5afa1a9b088de97a"
+  },
+  "column:reporting_receipt_ingestion_results.receipt_kind": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:reporting_receipt_ingestion_results.receipt_namespace": {
+    "enabled": true,
+    "fingerprint": "3c136011bb3ec377d8e534e35c5e0e338531ff0a5cae3e41945a2eec630c09e6"
+  },
+  "column:reporting_receipt_ingestion_results.receipt_record_id": {
+    "enabled": true,
+    "fingerprint": "85b88fb407e112399f25b5dc8830dfdcb2a8271ecf00e70b662f6917b4a002cd"
+  },
+  "column:reporting_receipt_ingestion_results.recorded_at": {
+    "enabled": true,
+    "fingerprint": "336df3243b293695d8321965e92f26d3f132e11514ed9678fb5e64e0015fa580"
+  },
+  "column:reporting_receipt_ingestion_results.reporting_receipt_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_receipt_ingestion_results.result": {
+    "enabled": true,
+    "fingerprint": "ac355fc16c02b70cb0a24afee8214cdce5f5cbfdc7fd1630786d5101932ecfa4"
+  },
+  "constraint:reporting_receipt_ingestion_batches.reporting_receipt_ingestion_batches_admission_epoch_check": {
+    "enabled": true,
+    "fingerprint": "abd3e698b241244e9e751e940838ef5bcecdd79d21aab371f4b595818b5b1f95"
+  },
+  "constraint:reporting_receipt_ingestion_batches.reporting_receipt_ingestion_batches_canonical_request_check": {
+    "enabled": true,
+    "fingerprint": "912af24f35b588c366cb2e7520d612baab36ec0e91e5b2489a8a8ef4fc3e2d68"
+  },
+  "constraint:reporting_receipt_ingestion_batches.reporting_receipt_ingestion_batches_check": {
+    "enabled": true,
+    "fingerprint": "5fcb92d5ab815be1be7ba3958714ac48a157ee8e3780601e1807108704249a12"
+  },
+  "constraint:reporting_receipt_ingestion_batches.reporting_receipt_ingestion_batches_check1": {
+    "enabled": true,
+    "fingerprint": "66f19a2cc809660aef7b568e84764eb65c35964a4523a6c245afc61e90678500"
+  },
+  "constraint:reporting_receipt_ingestion_batches.reporting_receipt_ingestion_batches_check2": {
+    "enabled": true,
+    "fingerprint": "927d933d82230e62d52dd8e37bdc6a1879f7765f2060d9c9fcd3ad39494744c8"
+  },
+  "constraint:reporting_receipt_ingestion_batches.reporting_receipt_ingestion_batches_check3": {
+    "enabled": true,
+    "fingerprint": "6540b709a9e52537489a92313773f473f9ef7e1e1d9d59cebeaf0490a49006f1"
+  },
+  "constraint:reporting_receipt_ingestion_batches.reporting_receipt_ingestion_batches_check4": {
+    "enabled": true,
+    "fingerprint": "47d0a4b1d9cd02cfd02f0e8d88e2010a6f7c70c9d1a59ed6eedfd283e3e4ea09"
+  },
+  "constraint:reporting_receipt_ingestion_batches.reporting_receipt_ingestion_batches_check5": {
+    "enabled": true,
+    "fingerprint": "1b2547b965ab254cabcecf3edab1bdf0c65848b46c52a9c0268629f5a5f1f44f"
+  },
+  "constraint:reporting_receipt_ingestion_batches.reporting_receipt_ingestion_batches_expected_count_check": {
+    "enabled": true,
+    "fingerprint": "723d4bcaf0cee6c6aa069b6ed53e19524ba88a12da5a0c4de7809ee446b5bb6e"
+  },
+  "constraint:reporting_receipt_ingestion_batches.reporting_receipt_ingestion_batches_idempotency_key_check": {
+    "enabled": true,
+    "fingerprint": "bb45ae8ff7c580eb4c52bca8b48aae27441c134868327a8627baf671e651dc6d"
+  },
+  "constraint:reporting_receipt_ingestion_batches.reporting_receipt_ingestion_batches_pkey": {
+    "enabled": true,
+    "fingerprint": "bd14bccb4c52b10981823f13e78f2d623d0f82b2d8103fe009b0ead4e7c4d7ed"
+  },
+  "constraint:reporting_receipt_ingestion_batches.reporting_receipt_ingestion_batches_request_sha256_check": {
+    "enabled": true,
+    "fingerprint": "e4296548e9e39b78a6b347016c0bccde754cd6a0afbbe2ed963a125a1bca1918"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_b_account_id_consumer_id_recei_fkey": {
+    "enabled": true,
+    "fingerprint": "e7f6d3026b2a48db5725fedb3296c4ea22741e47af12b0c59e30bb4e29f6e2ce"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_b_account_id_consumer_id_report_key": {
+    "enabled": true,
+    "fingerprint": "4da8231cf59acee96ee91b4f06240f128843063504be0c21755ed8748bfbc403"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_bou_account_id_account_sequence_key": {
+    "enabled": true,
+    "fingerprint": "460b11d8840751c3e894245e33c24e704407f4b3ca42bbd9e832cb48a0c3b24d"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundaries_account_sequence_check": {
+    "enabled": true,
+    "fingerprint": "1a64697a81e3b39433d851f9916df1964cbbc260aa54dd6fee4076c7e805c70e"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundaries_check": {
+    "enabled": true,
+    "fingerprint": "88c2bcdd52446d3f8a7c5e21b16f277d231d44a17842e8c625d02e31cc16dd22"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundaries_check1": {
+    "enabled": true,
+    "fingerprint": "6db9e761fce16f6deaabe04581b3813f3495382b5edf905c2c01a772151eed89"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundaries_check2": {
+    "enabled": true,
+    "fingerprint": "6c5865ad0c28d00ec74194418def9d764ddf85b230f1dfb6d14c6e505eda3737"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundaries_check3": {
+    "enabled": true,
+    "fingerprint": "53c1080ff5edc81171541e32d6cdaf69dfa2376bd4cc5bb31774ab2d4b773ff2"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundaries_check4": {
+    "enabled": true,
+    "fingerprint": "65d0dca50d7ca308123252fcc784fb427fd857d8bf3092bd85fc8fff5787d7ec"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundaries_check5": {
+    "enabled": true,
+    "fingerprint": "0d806a2b956a1e8947dcc43c634352ed52c1c3f158235145b2fe5a96db5fb379"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundaries_check6": {
+    "enabled": true,
+    "fingerprint": "b330c171bc0bb87ac12aa97aca4d4ae7167e0c07d7b61b3b688c63df9588d927"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundaries_input_check": {
+    "enabled": true,
+    "fingerprint": "1403f246fdde17015118d212847ed5d8169df3adc0364598cbd5e82be066e1bf"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundaries_input_check1": {
+    "enabled": true,
+    "fingerprint": "7e7cefdce39915938ec708771cbe2b61b774ad362d41d2d3ef2a7896c9baa177"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundaries_input_check2": {
+    "enabled": true,
+    "fingerprint": "908f04e9bfa67eef862e12260105785952531a776178a8b57ec271ff21b3aec5"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundaries_pkey": {
+    "enabled": true,
+    "fingerprint": "00dd5f9ba4e0d0face7ab27fe5e52ffa9c4101943c95afb8ec1badb401c7010d"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundaries_receipt_namespace_check": {
+    "enabled": true,
+    "fingerprint": "2c7db1fb7a2ce91e34550c4a9925c8dadadc94ef57d8e020e4ba8d7875c94b15"
+  },
+  "constraint:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundaries_sequence_check": {
+    "enabled": true,
+    "fingerprint": "554d491362648e795a6567528a6244977d5df276216297f35e26e4750f869dcf"
+  },
+  "constraint:reporting_receipt_ingestion_heads.reporting_receipt_ingestion_heads_max_sequence_check": {
+    "enabled": true,
+    "fingerprint": "ee47acec8d450eed7f99b637596847d21bc449a12317a605fd6b6cb0fad6aa79"
+  },
+  "constraint:reporting_receipt_ingestion_heads.reporting_receipt_ingestion_heads_pkey": {
+    "enabled": true,
+    "fingerprint": "4d853add149814edf9eadd3f752bf43f1f7164cba2bd079f0349d4d540a7f20c"
+  },
+  "constraint:reporting_receipt_ingestion_results.reporting_receipt_ingestion_r_account_id_consumer_id_idemp_fkey": {
+    "enabled": true,
+    "fingerprint": "b95192b8aa7ab2d51fc9ba9dc1c88ee5c32d39da4725efb06cfb67b494588383"
+  },
+  "constraint:reporting_receipt_ingestion_results.reporting_receipt_ingestion_r_account_id_consumer_id_idempo_key": {
+    "enabled": true,
+    "fingerprint": "3e31e8cc82fc1bc507bc26bd28159937ac3f8ab8fc55a9926fc476568e3e49b1"
+  },
+  "constraint:reporting_receipt_ingestion_results.reporting_receipt_ingestion_r_account_id_consumer_id_recei_fkey": {
+    "enabled": true,
+    "fingerprint": "9af695720cddd0dcbc5cff566319d54a58086960a9ab861d8908b3d7a43db762"
+  },
+  "constraint:reporting_receipt_ingestion_results.reporting_receipt_ingestion_results_check": {
+    "enabled": true,
+    "fingerprint": "e665b17e336517d76d15cf779c34c687a7ebb443ccb89e1fa2ae90cbb74120d7"
+  },
+  "constraint:reporting_receipt_ingestion_results.reporting_receipt_ingestion_results_check1": {
+    "enabled": true,
+    "fingerprint": "3c812b76d750d500699370919d0e256db83181eab776d254f897a5f68fb5ff96"
+  },
+  "constraint:reporting_receipt_ingestion_results.reporting_receipt_ingestion_results_check2": {
+    "enabled": true,
+    "fingerprint": "af7466439087470d4590ea91c3d7d7de23bf47af1424ed14c254c96727784149"
+  },
+  "constraint:reporting_receipt_ingestion_results.reporting_receipt_ingestion_results_ordinal_check": {
+    "enabled": true,
+    "fingerprint": "681e853666470c336498661c1ed30b8e5ed60024aa72dead813393d62eca83ce"
+  },
+  "constraint:reporting_receipt_ingestion_results.reporting_receipt_ingestion_results_pkey": {
+    "enabled": true,
+    "fingerprint": "330a35cc748968f52093f6d1707fbcf4ac136f7d76327874eedb54000f2bb793"
+  },
+  "constraint:reporting_receipt_ingestion_results.reporting_receipt_ingestion_results_receipt_kind_check": {
+    "enabled": true,
+    "fingerprint": "807349018715c3cfc653a1889df10225848b212a749d4977dfb37f4799674474"
+  },
+  "constraint:reporting_receipt_ingestion_results.reporting_receipt_ingestion_results_receipt_namespace_check": {
+    "enabled": true,
+    "fingerprint": "2c7db1fb7a2ce91e34550c4a9925c8dadadc94ef57d8e020e4ba8d7875c94b15"
+  },
+  "constraint:reporting_receipt_ingestion_results.reporting_receipt_ingestion_results_reporting_receipt_id_check": {
+    "enabled": true,
+    "fingerprint": "db3e198b5d35078fd20db3918eca7084516ec6eb8d49efa1a6eec5a0a744c6f2"
+  },
+  "constraint:reporting_receipt_ingestion_results.reporting_receipt_ingestion_results_result_check": {
+    "enabled": true,
+    "fingerprint": "c57c0272ed7fd01b0fbb2972e8d5144bbf4566e21a3fda58d7d521dcecdf499a"
+  },
+  "function:reporting_receipt_ingestion_batch_guard()": {
+    "enabled": true,
+    "fingerprint": "ebaa3104d98c18b32d36b7af443877f80d2a6ea4d564be68053ad937ba80b4b3"
+  },
+  "function:reporting_receipt_ingestion_canonical(document jsonb)": {
+    "enabled": true,
+    "fingerprint": "83894ca562527560f07f5f8e27e4bccf728e851f5f12652ebc82f8f04630ad3e"
+  },
+  "function:reporting_receipt_ingestion_graph()": {
+    "enabled": true,
+    "fingerprint": "570d827fe99bcd57d5f2614c0ed146d5d9cbd51d0c816ee6262cbdff140ab5f7"
+  },
+  "function:reporting_receipt_ingestion_immutable()": {
+    "enabled": true,
+    "fingerprint": "099d3850fab91c795d5516e3e99066e1d02598a71e5d71e8dee9c69d998abb57"
+  },
+  "function:reporting_receipt_ingestion_result_guard()": {
+    "enabled": true,
+    "fingerprint": "628db026db8a5a70ccd3e9c66c3b5ef344c80da2a662cc97c488a103dac3dc4c"
+  },
+  "function:reporting_receipt_ingestion_sha256(document jsonb)": {
+    "enabled": true,
+    "fingerprint": "6f95f80903a080155fd6ecc522fdc99a6f656914f3973b44b1cb46a3c393f228"
+  },
+  "function:reporting_receipt_ingestion_utf16(value text)": {
+    "enabled": true,
+    "fingerprint": "e136f3cbdb9aed5e8d48defef32a573c6d4b26a3f52a952022d1246adc0dffca"
+  },
+  "function:reporting_receipt_ingestion_wire(document jsonb)": {
+    "enabled": true,
+    "fingerprint": "1a01db876edf8d3f077375aa09edc56c1feb5ab658d7a5aa3cdb17c461675cb0"
+  },
+  "index:reporting_receipt_ingestion_batches.reporting_receipt_ingestion_batches_pkey": {
+    "enabled": true,
+    "fingerprint": "65c0ec48dceaace248f672b59680b283319529a1fd41125a15a96733092c5387"
+  },
+  "index:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_b_account_id_consumer_id_report_key": {
+    "enabled": true,
+    "fingerprint": "54844be45542b67fafaef6dd517b51e5a7147877035e47f711af914b90422f26"
+  },
+  "index:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_bou_account_id_account_sequence_key": {
+    "enabled": true,
+    "fingerprint": "e6c0904fc74d63aef2188c36ee5788d297d8f6175a0d10d5fe658a8d8030cbe3"
+  },
+  "index:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundaries_pkey": {
+    "enabled": true,
+    "fingerprint": "fe4b6f5a34e2c778f77138231b76fd27e8ee56639e357293b9f4700553db0da7"
+  },
+  "index:reporting_receipt_ingestion_heads.reporting_receipt_ingestion_heads_pkey": {
+    "enabled": true,
+    "fingerprint": "a6fbc55d5bd3cc94f0cfdb3c3ea72c1611cccb2aeccbd67c0576076149dd2804"
+  },
+  "index:reporting_receipt_ingestion_results.reporting_receipt_ingestion_r_account_id_consumer_id_idempo_key": {
+    "enabled": true,
+    "fingerprint": "bb57e83db85651fd68160cc0b437f0a730a4587d9f7f832b7b10c1e6141b0281"
+  },
+  "index:reporting_receipt_ingestion_results.reporting_receipt_ingestion_results_pkey": {
+    "enabled": true,
+    "fingerprint": "16d6c560b7bb8eb6e36ae8f59aaff25aa8f2efb906f2f6ce9795c4a753f8baff"
+  },
+  "index:reporting_reconciliation_records.reporting_receipt_ingestion_chain": {
+    "enabled": true,
+    "fingerprint": "956676e509d0b5c196f9abaa090eb4a57e8b764838572951105b9096b68b36b1"
+  },
+  "table:reporting_receipt_ingestion_batches": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_receipt_ingestion_boundaries": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_receipt_ingestion_heads": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_receipt_ingestion_results": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "trigger:reporting_receipt_ingestion_batches.reporting_receipt_ingestion_batch": {
+    "enabled": true,
+    "fingerprint": "d5c809b674a594c41801296da98b81ba108bd08414bfc3bb711b266a7d589ef0"
+  },
+  "trigger:reporting_receipt_ingestion_boundaries.reporting_receipt_ingestion_boundary_immutable": {
+    "enabled": true,
+    "fingerprint": "1ccb241ae1c0a4a467c64cc246d1ae159f5c78621b7b5a549f862e4b808958d1"
+  },
+  "trigger:reporting_receipt_ingestion_results.reporting_receipt_ingestion_result": {
+    "enabled": true,
+    "fingerprint": "053262f24d8e8762ff76615ce66db34be3403992d0aeec598c27ee709ee5835a"
+  },
+  "trigger:reporting_receipt_ingestion_results.reporting_receipt_ingestion_result_immutable": {
+    "enabled": true,
+    "fingerprint": "3e71c52e6576becdc89161b72a6b986f83e0301400e9049ed88a64d3b1889a56"
+  },
+  "trigger:reporting_reconciliation_records.reporting_receipt_ingestion_graph": {
+    "enabled": true,
+    "fingerprint": "05a5ce8a48fb20c3682b8baede61ad9a2391e06908a91a6148760eec5550f685"
+  }
+}

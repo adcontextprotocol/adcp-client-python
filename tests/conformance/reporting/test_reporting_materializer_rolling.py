@@ -29,9 +29,9 @@ ARTIFACTS = {
 }
 
 
-def build_frozen(artifact, tmp_path_factory, request):
+def build_frozen(artifact, tmp_path_factory, request, *, sha=None):
     assert_c_collated_rolling_database()
-    sha = ARTIFACTS[artifact]
+    sha = sha or ARTIFACTS[artifact]
     root = tmp_path_factory.mktemp(f"materializer-{artifact}")
     request.addfinalizer(lambda: shutil.rmtree(root))
     archive, source, dist, environment = (
@@ -80,6 +80,8 @@ def build_frozen(artifact, tmp_path_factory, request):
         "outbox/status_pg.py",
         "materializer/contracts.py",
         "materializer/verification.py",
+        "materializer/pg.py",
+        "materializer/capture.py",
     ):
         path = source / "src/adcp/reporting" / relative
         if path.exists():

@@ -37,6 +37,7 @@ import warnings
 import weakref
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from functools import wraps
 from typing import Any
 
@@ -51,6 +52,10 @@ from adcp.server.idempotency.backends import (
 from adcp.server.idempotency.canonicalize import canonical_json_sha256
 
 logger = logging.getLogger(__name__)
+
+# Set only by the SDK transport dispatcher, never from request metadata. This
+# also covers middleware whose wrapped callable is named call_next/execute.
+_RECEIPT_BATCH_DISPATCH: ContextVar[bool] = ContextVar("receipt_batch_dispatch", default=False)
 
 # Registry of functions returned by IdempotencyStore.wrap. Read by
 # adcp.decisioning.validate_idempotency.is_wrapped() to reconcile the
@@ -215,6 +220,15 @@ class IdempotencyStore:
 
         @wraps(handler)
         async def _wrapped(*args: Any, **kwargs: Any) -> Any:
+            if (
+                _RECEIPT_BATCH_DISPATCH.get()
+                or getattr(handler, "__name__", None) == "sync_reporting_receipts"
+            ):
+                # Receipt ingress owns durable whole-batch replay after exact
+                # account/consumer authorization. This generic key omits the
+                # resolved account and cached hits bypass that authorization.
+                # It also adds replayed=True, changing the immutable response.
+                return await handler(*args, **kwargs)
             handler_self, hash_source, context = _resolve_call_args(args, kwargs)
 
             operation = getattr(handler, "__name__", "handler")

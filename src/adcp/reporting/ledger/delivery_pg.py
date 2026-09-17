@@ -137,12 +137,7 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
         if existing is not None:
             return cast(RecordT, existing), False
         context = await self._delivery_context(connection, candidate)
-        if self._clock is not None:
-            now = self._clock()
-        else:
-            time_row = await (await connection.execute("SELECT clock_timestamp()")).fetchone()
-            assert time_row is not None
-            now = time_row[0]
+        now = await self._delivery_time_on(connection, candidate)
         stored = validate_transition(candidate, records, context, now)
         await self._insert(connection, stored)
         await self._append_reconciliation_change(connection, stored)
@@ -167,6 +162,14 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
                 scope, reason, evidence = delivery_dirty(stored, context.obligation)
                 await self._dirty_status(connection, scope, reason, after=evidence)
         return cast(RecordT, stored), True
+
+    async def _delivery_time_on(self, connection: Any, record: ReportingDeliveryRecord) -> datetime:
+        """Connection-bound clock seam; old public clock overrides remain supported."""
+        if self._clock is not None:
+            return self._clock()
+        time_row = await (await connection.execute("SELECT clock_timestamp()")).fetchone()
+        assert time_row is not None
+        return cast(datetime, time_row[0])
 
     async def _append_reconciliation_change(
         self, connection: Any, record: ReportingDeliveryRecord

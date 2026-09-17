@@ -159,17 +159,73 @@ _A2A_PARSED_REQUEST_SCOPE_KEY = "adcp.a2a_parsed_request"
 class _A2ARequestContextMiddleware:
     """Make the originating HTTP request available during A2A dispatch."""
 
-    def __init__(self, app: Any) -> None:
+    def __init__(self, app: Any, *, receipt_ingress: bool = False) -> None:
         self.app = app
+        self.receipt_ingress = receipt_ingress
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
-        token = _A2A_REQUEST_CONTEXT.set(Request(scope, receive=receive))
+        downstream_receive = receive
+        if self.receipt_ingress:
+            from collections import deque
+
+            from adcp.reporting.receipts.transport import (
+                MAX_RECEIPT_BODY_BYTES,
+                RAW_RECEIPT_BODY_SCOPE_KEY,
+                a2a_receipt_has_invalid_unicode,
+                receipt_body_receive,
+            )
+
+            captured_receive = receipt_body_receive(scope, receive)
+            prefix = bytearray()
+            trailing = None
+            more_body = False
+            # Read ahead only to the bounded receipt capture limit, then replay
+            # the same bytes. Coalesce small chunks so one-byte/empty chunks
+            # cannot grow an unbounded queue of ASGI message dictionaries.
+            while True:
+                message = await captured_receive()
+                chunk = message.get("body", b"")
+                if (
+                    message.get("type") != "http.request"
+                    or len(prefix) + len(chunk) > MAX_RECEIPT_BODY_BYTES
+                ):
+                    trailing, more_body = message, True
+                    break
+                prefix.extend(chunk)
+                more_body = message.get("more_body", False)
+                if not more_body:
+                    break
+            buffered: deque[Any] = deque()
+            if prefix or trailing is None:
+                buffered.append(
+                    {"type": "http.request", "body": bytes(prefix), "more_body": more_body}
+                )
+            if trailing is not None:
+                buffered.append(trailing)
+
+            async def replay_receive() -> Any:
+                return buffered.popleft() if buffered else await captured_receive()
+
+            downstream_receive = replay_receive
+            if a2a_receipt_has_invalid_unicode(scope.get(RAW_RECEIPT_BODY_SCOPE_KEY)):
+                from starlette.responses import JSONResponse
+
+                await JSONResponse(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": None,
+                        "error": {"code": -32700, "message": "Invalid receipt JSON encoding"},
+                    },
+                    status_code=400,
+                )(scope, downstream_receive, send)
+                return
+        token = _A2A_REQUEST_CONTEXT.set(Request(scope, receive=downstream_receive))
         try:
-            await self.app(scope, receive, send)
+            await self.app(scope, downstream_receive, send)
         finally:
             _A2A_REQUEST_CONTEXT.reset(token)
 
@@ -558,13 +614,44 @@ class ADCPAgentExecutor(AgentExecutor):
         JSON fallback).
         """
         request = _A2A_REQUEST_CONTEXT.get()
+        parsed = None
         if request is not None:
             cached = request.scope.get(_A2A_PARSED_REQUEST_SCOPE_KEY)
             if cached is not None:
-                return cast(tuple[str | None, dict[str, Any]], cached)
-        if self._message_parser is not None:
-            return self._message_parser(context)
-        return self._default_parse_request(context)
+                parsed = cast(tuple[str | None, dict[str, Any]], cached)
+        if parsed is None:
+            if self._message_parser is not None:
+                parsed = self._message_parser(context)
+            else:
+                try:
+                    parsed = self._default_parse_request(context)
+                except ValueError:
+                    # The protobuf JSON printer refuses non-finite numbers.
+                    # A standard raw receipt invocation still reaches mandatory
+                    # strict preflight and a closed INVALID_REQUEST, without
+                    # logging a protobuf serialization exception.
+                    if request is not None:
+                        from adcp.reporting.receipts.transport import (
+                            RAW_RECEIPT_BODY_SCOPE_KEY,
+                            a2a_receipt_parameters,
+                        )
+
+                        raw = a2a_receipt_parameters(request.scope.get(RAW_RECEIPT_BODY_SCOPE_KEY))
+                        if raw is not None:
+                            return "sync_reporting_receipts", raw
+                    raise
+        if parsed[0] == "sync_reporting_receipts" and request is not None:
+            from adcp.reporting.receipts.transport import (
+                RAW_RECEIPT_BODY_SCOPE_KEY,
+                a2a_receipt_parameters,
+            )
+
+            # The protobuf representation has already lost numeric lexemes.
+            # Only the standard raw invocation can authorize the batch body.
+            return parsed[0], (
+                a2a_receipt_parameters(request.scope.get(RAW_RECEIPT_BODY_SCOPE_KEY)) or {}
+            )
+        return parsed
 
     def _default_parse_request(self, context: RequestContext) -> tuple[str | None, dict[str, Any]]:
         """Built-in parser. Supports two formats:
@@ -1419,7 +1506,10 @@ def create_a2a_server(
     # during executor dispatch. This is installed for direct
     # ``create_a2a_server`` adopters as well as the unified ``serve`` path,
     # independent of whether bearer-auth middleware is configured.
-    app.add_middleware(_A2ARequestContextMiddleware)
+    app.add_middleware(
+        _A2ARequestContextMiddleware,
+        receipt_ingress="sync_reporting_receipts" in executor.supported_skills,
+    )
 
     # Startup log lives on the create_a2a_server path (symmetric with
     # MCP's _register_handler_tools). Moved out of
