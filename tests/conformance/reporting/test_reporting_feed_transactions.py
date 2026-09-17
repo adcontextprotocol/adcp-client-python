@@ -239,9 +239,9 @@ async def test_verified_finish_capture_and_epoch_zero_queue_are_frozen_without_r
 async def test_postgres_captures_on_one_connection_under_account_lock_and_uses_database_time(
     monkeypatch,
 ):
-    from psycopg_pool import AsyncConnectionPool
-
     async with isolated_reporting_pool(autocommit=True) as outer:
+        from psycopg_pool import AsyncConnectionPool
+
         async with AsyncConnectionPool(
             outer.conninfo, kwargs=outer.kwargs, min_size=1, max_size=1, open=False
         ) as pool:
