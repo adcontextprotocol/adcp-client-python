@@ -404,22 +404,35 @@ class InMemoryReportingReconciliationStore(InMemoryReportingLedgerStore, _Reconc
     _delivery_records: list[tuple[int, ReportingDeliveryPrincipal, ReportingDeliveryRecord]]
 
     async def _commit(self, record: RecordT) -> tuple[RecordT, bool]:
+        candidate = cast(RecordT, decode_record(payload(record)))
+        async with self._mutation():
+            return self._commit_record_unlocked(candidate)
+
+    def _commit_record_unlocked(
+        self, record: RecordT, *, notify: bool = True, dirty: bool = True
+    ) -> tuple[RecordT, bool]:
+        """Caller owns the memory mutation; no lock or callback is acquired here.
+
+        ``notify`` and ``dirty`` are independent: suppressing a readiness event
+        must never also drop the projection work that an ordinary public write
+        has always produced.
+        """
         candidate = decode_record(payload(record))
         who = principal(candidate)
-        async with self._mutation():
-            records = tuple(item.record for item in self._caller_changes(who))
-            existing = replay(candidate, records)
-            if existing is not None:
-                return cast(RecordT, existing), False
-            context = self._delivery_context(candidate)
-            stored = validate_transition(candidate, records, context, self._clock())
-            self._append_reconciliation_change(stored)
-            if self._notification_state is not None:
-                from adcp.reporting.ledger.notification_events import (
-                    delivery_dirty,
-                    materialization_event,
-                )
+        records = tuple(item.record for item in self._caller_changes(who))
+        existing = replay(candidate, records)
+        if existing is not None:
+            return cast(RecordT, existing), False
+        context = self._delivery_context(candidate)
+        stored = validate_transition(candidate, records, context, self._clock())
+        self._append_reconciliation_change(stored)
+        if (notify or dirty) and self._notification_state is not None:
+            from adcp.reporting.ledger.notification_events import (
+                delivery_dirty,
+                materialization_event,
+            )
 
+            if notify:
                 event = materialization_event(
                     stored,
                     records,
@@ -430,9 +443,10 @@ class InMemoryReportingReconciliationStore(InMemoryReportingLedgerStore, _Reconc
                 )
                 if event is not None:
                     self._record_notification(event)
+            if dirty:
                 scope, reason, evidence = delivery_dirty(stored, context.obligation)
                 self._dirty_status(scope, reason, after=evidence)
-            return cast(RecordT, stored), True
+        return cast(RecordT, stored), True
 
     def _append_reconciliation_change(self, record: ReportingDeliveryRecord) -> None:
         who = principal(record)
