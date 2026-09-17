@@ -231,3 +231,41 @@ async def foreign_targets(h, s):
         consumer_id,
         "materialization-consumer",
     )
+
+
+async def extra_materialization(h, s, materialization_id, attempt_number):
+    """Commit one more valid attempt/materialization for s's exact scope."""
+    created = s.attempt.created_at + timedelta(seconds=attempt_number)
+    completed = s.outcome.completed_at + timedelta(seconds=attempt_number)
+    await h.store.commit_materialization_attempt(
+        replace(
+            s.attempt,
+            reporting_materialization_id=materialization_id,
+            attempt=attempt_number,
+            created_at=created,
+        )
+    )
+    await h.store.commit_materialization(
+        replace(
+            s.outcome,
+            reporting_materialization_id=materialization_id,
+            completed_at=completed,
+            resource=replace(s.outcome.resource, expires_at=completed + timedelta(days=400)),
+            verification=replace(s.outcome.verification, verified_at=completed),
+        )
+    )
+    return materialization_id
+
+
+async def foreign_account(h, *, account_id="acct_b"):
+    """Commit one more COMPLETE, VALID account and return its exact identifiers.
+
+    Obligations, revisions and adjustments are globally keyed, so the same
+    identifier cannot exist under two accounts. The account relationship can
+    therefore only be probed by naming another account's real identifiers from
+    this account's receipt, which is what the returned values are for.
+    """
+    other = await receipt_case(h, account_id=account_id)
+    adjustment = await adjustment_for(h, other, reporting_adjustment_id=f"adjustment-{account_id}")
+    materialization = await extra_materialization(h, other, f"materialization-{account_id}", 2)
+    return other, adjustment, materialization

@@ -18,6 +18,7 @@ from adcp.reporting.receipts.records import receipt_record
 from ._generation_support import END
 from ._receipt_support import (
     adjustment_for,
+    foreign_account,
     foreign_targets,
     receipt_case,
     receipt_harness,
@@ -435,9 +436,11 @@ def _foreign_case(s, f, fault):
 
     ``adjustment_other_revision`` deliberately observes *after* the foreign
     adjustment was created. Every ordering comparison then holds on its own, so
-    ``adjusts_reporting_revision_id`` in the adjustment tuple is the only thing
-    left refusing the write. A nearer observation would be refused by the
-    ordering rule instead and could not attribute the ownership predicate.
+    within this trigger ``adjusts_reporting_revision_id`` is the remaining
+    reason the adjustment tuple finds no row. A nearer observation would be
+    refused by the ordering rule instead and could not attribute the ownership
+    predicate. Inherited reconciliation guards still refuse the write if this
+    predicate is weakened, so this is attribution, not exclusive necessity.
     """
     if fault == "materialization_other_obligation":
         return "revision", {"reporting_materialization_id": f.materialization_id}, {}
@@ -577,6 +580,8 @@ async def test_literal_sql_blocks_damaged_adjustment_chains(fault):
         records, leaf = damaged_chain(s, fault, root)
         seed_before = await h.image()
         # Owner-level seeding only; the final literal INSERT runs every trigger.
+        # "fork" is the exception: the unique successor index refuses it during
+        # seeding, so that variant never reaches a trigger-enabled INSERT.
         with pytest.raises(IntegrityError) if fault == "fork" else nullcontext():
             async with h.pool.connection() as c, c.transaction():
                 await c.execute("SET LOCAL session_replication_role = replica")
@@ -612,4 +617,58 @@ async def test_literal_sql_blocks_damaged_adjustment_chains(fault):
             "receipt replacement is unavailable",
             "receipt history is inconsistent",
         }
+        assert await h.image() == before
+
+
+_FOREIGN_ACCOUNT_SQL = {
+    "revision_other_account": "receipt target is unavailable",
+    "obligation_other_account": "receipt target is unavailable",
+    "materialization_other_account": "receipt artifact is unavailable",
+    "adjustment_other_account": "receipt adjustment order is invalid",
+}
+
+
+@pytest.mark.parametrize("fault", list(_FOREIGN_ACCOUNT_SQL))
+async def test_literal_sql_rejects_valid_other_account_targets(fault):
+    """The account column of each financial tuple, at the write predicate itself.
+
+    Store-level and mounted authorization denials are a different boundary and
+    cannot stand in for this: they never reach an INSERT. Obligations, revisions
+    and adjustments are globally keyed, so a foreign-account reference is the
+    only way to exercise the account column with a wholly valid target row.
+    """
+    async with receipt_harness("postgres") as h:
+        from psycopg import IntegrityError
+
+        s = await receipt_case(h)
+        other, adjustment, materialization = await foreign_account(h)
+        if fault == "adjustment_other_account":
+            candidate = receipt_record(
+                "adjustment_receipt", await adjustment_for(h, s), s.binding.principal, s.obligation
+            )
+            candidate = replace(
+                candidate, reporting_adjustment_id=adjustment["reporting_adjustment_id"]
+            )
+        else:
+            candidate = receipt_record(
+                "revision_receipt", receipt_to_wire(s.receipt), s.binding.principal, s.obligation
+            )
+            if fault == "revision_other_account":
+                candidate = replace(
+                    candidate, reporting_revision_id=other.revision.reporting_revision_id
+                )
+            elif fault == "obligation_other_account":
+                candidate = replace(
+                    candidate,
+                    scope=replace(
+                        candidate.scope,
+                        reporting_obligation_id=other.obligation.reporting_obligation_id,
+                    ),
+                )
+            else:
+                candidate = replace(candidate, reporting_materialization_id=materialization)
+        before = await h.image()
+        with pytest.raises(IntegrityError) as error:
+            await raw_insert(h.pool, candidate)
+        assert error.value.diag.message_primary == _FOREIGN_ACCOUNT_SQL[fault]
         assert await h.image() == before
