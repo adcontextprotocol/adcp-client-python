@@ -6,6 +6,7 @@ import importlib
 import json
 import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 from uuid import uuid4
 
@@ -112,6 +113,18 @@ async def main():
             return result
 
     verifier = reference_verifier()
+    if settings.get("legacy_definition"):
+        verifier = replace(
+            verifier,
+            key=replace(
+                verifier.key,
+                definition=replace(
+                    verifier.key.definition,
+                    monetary_metric_units=(),
+                    monetary_control_total_units=(),
+                ),
+            ),
+        )
     registry = ReportingRevisionVerifierRegistry((verifier,))
     writer = ReferenceReportingDestinationWriter((verifier.key.capability,))
     reference = ReferenceReportingResolver(writer, registry, (decode_record(settings["binding"]),))

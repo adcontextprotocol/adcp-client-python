@@ -47,6 +47,8 @@ def b1_wheels(built_distribution):
             "outbox/required_status_selector_schema.json",
             "ledger/reporting_materializer.sql",
             "materializer/required_schema.json",
+            "ledger/reporting_receipt_ingestion.sql",
+            "receipts/required_schema.json",
         ):
             assert (
                 vcs.read(f"adcp/reporting/{relative}")
@@ -98,6 +100,10 @@ def test_python310_installed_wheel_exports_verifier_reference_and_strict_adopter
     durable_adopter = path / f"durable_adopter_{kind}.py"
     shutil.copy2(ROOT / "examples/reporting_durable_materializer.py", durable_example)
     shutil.copy2(ROOT / "tests/type_checks/reporting_durable_materializer.py", durable_adopter)
+    receipt_example = path / f"receipt_example_{kind}.py"
+    receipt_adopter = path / f"receipt_adopter_{kind}.py"
+    shutil.copy2(ROOT / "examples/reporting_receipt_ingress.py", receipt_example)
+    shutil.copy2(ROOT / "tests/type_checks/reporting_receipt_ingress.py", receipt_adopter)
     result = json.loads(
         run_step(
             [str(python), "-I", str(smoke)],
@@ -113,6 +119,7 @@ def test_python310_installed_wheel_exports_verifier_reference_and_strict_adopter
         "installed": True,
         "assets": hashes,
         "durable": True,
+        "receipts": True,
     }
     config = path / "mypy.ini"
     config.write_text(
@@ -133,6 +140,8 @@ def test_python310_installed_wheel_exports_verifier_reference_and_strict_adopter
             str(example),
             str(durable_adopter),
             str(durable_example),
+            str(receipt_adopter),
+            str(receipt_example),
         ],
         label=f"b1-{kind}-installed-adopter-types",
         cwd=path,

@@ -17,6 +17,7 @@ from adcp.reporting.ledger._delivery_state import (
     adjustment_payload,
     adjustment_sha256,
     change_id,
+    current_receipt,
     decode_record,
     fail,
     iso,
@@ -281,8 +282,7 @@ class ReportingReconciliationSnapshot:
             for item in self.records
             if isinstance(item, (ReportingRevisionReceiptRecord, ReportingAdjustmentReceiptRecord))
         )
-        replaced = {item.supersedes_reporting_receipt_id for item in receipts}
-        return tuple(item for item in receipts if item.reporting_receipt_id not in replaced)
+        return tuple(item for item in receipts if current_receipt(self.records, item) == item)
 
     @property
     def terminal_acceptances(self) -> tuple[ReportingReceiptKey, ...]:
