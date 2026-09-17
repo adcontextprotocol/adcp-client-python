@@ -58,7 +58,18 @@ jobs:
   test:
     name: Test Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The job ceiling is not the suite's budget: it also has to absorb
+    # checkout, Python setup, the editable [dev] install and, on 3.12 only,
+    # ruff/mypy/mypy --strict/the type-ignore contract before pytest starts,
+    # then post-job cleanup after it ends. On an ubuntu-latest runner that
+    # pre-test work is ~1m30s and the plain suite is ~16m, but 3.12 adds
+    # coverage tracing on ~9.4k tests: at 30 minutes that leg was cancelled
+    # mid-run at 99% with no failing test, which reports as a red matrix and
+    # hides real signal. Bound the suite itself below (so a hang fails one
+    # named step with its own message instead of silently taking the job), and
+    # leave the job enough room that step bound plus setup and cleanup still
+    # fit with margin for runner variance.
+    timeout-minutes: 60
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
@@ -94,12 +105,18 @@ jobs:
         if: matrix.python-version == '3.12'
         run: python scripts/check_type_ignore_contract.py
 
+      # Bounded well above the observed ~16m (plain) and ~30m (coverage) runs
+      # so ordinary variance never trips it, and well below the job ceiling so
+      # a genuinely stuck suite still fails *this* step with a timeout rather
+      # than being cancelled as a whole job.
       - name: Run tests
         if: matrix.python-version != '3.12'
+        timeout-minutes: 45
         run: pytest tests/ -v
 
       - name: Run tests with coverage
         if: matrix.python-version == '3.12'
+        timeout-minutes: 45
         run: pytest tests/ -v --cov=src/adcp --cov-report=term-missing
 
   pg-conformance:
