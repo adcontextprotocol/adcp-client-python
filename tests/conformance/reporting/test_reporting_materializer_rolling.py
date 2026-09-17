@@ -39,7 +39,7 @@ def build_frozen(artifact, tmp_path_factory, request):
     )
     source.mkdir()
     run_step(
-        ["git", "archive", "--format=tar.gz", f"--output={archive}", sha],
+        ["git", "archive", "--format=tar.gz", "-1", f"--output={archive}", sha],
         label=f"{artifact}-exact-git-archive",
         cwd=ROOT,
     )

@@ -195,6 +195,32 @@ async def test_public_next_attempt_is_still_permitted_after_any_terminal_outcome
 
 
 @pytest.mark.parametrize("backend", ["memory", "postgres"])
+@pytest.mark.parametrize("source", ["writer_metadata", "store_reservation"])
+async def test_service_entry_point_closes_errors_before_reservation(backend, source, monkeypatch):
+    async with durable_harness(backend, notifications=True) as h:
+        case = await durable_case(h.store)
+        monkeypatch.setattr(type(h.store), "__repr__", lambda self: SECRET)
+        assert SECRET not in repr(case.service())
+        if source == "writer_metadata":
+
+            def broken_metadata(self):
+                raise RuntimeError(SECRET)
+
+            monkeypatch.setattr(type(case.writer), "capabilities", property(broken_metadata))
+        else:
+
+            async def broken_reservation(self, **kwargs):
+                raise RuntimeError(SECRET)
+
+            monkeypatch.setattr(type(h.store), "claim_materialization", broken_reservation)
+        with pytest.raises(ReportingWriterError) as error:
+            await case.service().run_once()
+        safe_exception(error.value)
+        assert not await h.works() and await h.queue() == ((), ())
+        assert case.writer.write_effects == 0
+
+
+@pytest.mark.parametrize("backend", ["memory", "postgres"])
 async def test_driver_failure_is_a_closed_error_without_provider_context(backend, monkeypatch):
     async with durable_harness(backend) as h:
         case = await durable_case(h.store)

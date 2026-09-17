@@ -256,7 +256,10 @@ jobs:
     runs-on: ubuntu-latest
     # Actual wheel builds/installations plus isolated worker processes are a
     # separate bounded job; do not consume the existing conformance headroom.
-    timeout-minutes: 25
+    # Seven real installations plus process/crash and Python 3.10 distribution
+    # cells approach twenty minutes locally; allow runner variance and retain
+    # five minutes outside the suite for setup and cleanup.
+    timeout-minutes: 35
     services:
       postgres:
         image: postgres:16
@@ -296,7 +299,7 @@ jobs:
       - name: Install test dependencies
         run: pip install -e ".[dev,pg]"
       - name: Run installed frozen binaries and materializer migrations
-        timeout-minutes: 20
+        timeout-minutes: 30
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_materializer_test
           ADCP_PYTHON310: ${{ steps.materializer-python310.outputs.python-path }}

@@ -126,7 +126,11 @@ def run_step(command, *, label, cwd, value=None, timeout=120):
             f" stdout_chars={len(stdout)} stderr_chars={len(stderr)}"
             f" stderr={redacted_stage_stderr(stderr)}"
         )
-    print(f"notification_distribution stage={label} passed", flush=True)
+    print(
+        f"notification_distribution stage={label} passed"
+        f" elapsed_ms={int((time.monotonic() - started) * 1000)}",
+        flush=True,
+    )
     return stdout
 
 

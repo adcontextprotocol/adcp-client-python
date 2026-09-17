@@ -6,6 +6,7 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
+from adcp.reporting.materializer._errors import materializer_errors
 from adcp.reporting.materializer.contracts import (
     ReportingDestinationWriter,
     ReportingIOContext,
@@ -71,7 +72,7 @@ class ReportingMaterializerService:
     paginated readback; the service checks current ledger authority before each.
     """
 
-    store: ReportingMaterializerStore
+    store: ReportingMaterializerStore = field(repr=False)
     io: ReportingDestinationIO = field(repr=False)
     writer: ReportingDestinationWriter = field(repr=False)
     lease_seconds: int = 30
@@ -84,6 +85,7 @@ class ReportingMaterializerService:
         if type(self.io) is not ReportingDestinationIO:
             raise failure("UNSUPPORTED_VERIFICATION")
 
+    @materializer_errors
     async def run_once(self) -> ReportingMaterializerTurn:
         keys = tuple(
             v.key
