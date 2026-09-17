@@ -684,12 +684,22 @@ class ReportingProducer:
             reporting_obligation_id=obligation.reporting_obligation_id,
             required_finality="snapshot",
         )
-        if selection.kind == "corrupt":
+        # A retained official close coexists with the snapshot chain and wins
+        # whole-history selection outright, so it is never the snapshot leaf.
+        # Reading it as one would root a restatement at ``None`` and split the
+        # obligation into two snapshot roots -- a permanently corrupt history
+        # over immutable rows, with no repair path.
+        leaf = select_reporting_revision(
+            tuple(item for item in existing if item.finality == "snapshot"),
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+            required_finality="snapshot",
+        )
+        if selection.kind == "corrupt" or leaf.kind == "corrupt":
             raise LedgerConflictError("HISTORY_UNAVAILABLE", "the revision history requires repair")
-        current = selection.revision if selection.kind == "selected" else None
         supersedes = (
-            current.reporting_revision_id
-            if finality == "snapshot" and current is not None and current.finality == "snapshot"
+            leaf.revision.reporting_revision_id
+            if finality == "snapshot" and leaf.kind == "selected"
             else None
         )
 

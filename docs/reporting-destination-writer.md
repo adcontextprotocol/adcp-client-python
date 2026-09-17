@@ -98,9 +98,18 @@ Preparation reads **every** frozen source page, including zero rows and 501+
 rows, rederives the Core digest and the canonical digest, and recomputes typed
 totals before destination authorization. SDK source cursors bind revision and
 offset; custom row readers return the same `ReportingRowPage` identity/cursor
-contract. Stable totals, cursor progress, cycles, `has_more` pairing and final
-count are enforced. Source/destination walks bound bytes, recursive items,
-nesting, rows, pages, objects and chunks.
+contract. Both bundled ledger stores now reject a cursor issued for another
+revision and any `read_revision_rows` page size outside 1..500 with
+`INVALID_CURSOR` / `INVALID_PAGE_SIZE`; a caller that paged in larger windows
+must split its walk. Stable totals, cursor progress, cycles, `has_more` pairing
+and final count are enforced. Source/destination walks bound bytes, recursive
+items, nesting, rows, pages, objects and chunks.
+
+A retained Core `ReportingDefinitionBinding` is only loosely constrained, so an
+obligation may carry a definition the strict verification key cannot express --
+a versioned query URI, an uppercase or short digest, a legacy dialect or schema
+version. Preparation, write and readback answer that with the closed
+`BINDING_MISMATCH` failure rather than a raw `ValueError`.
 
 Readback independently verifies every logical destination row in order. File
 verification also reads the exact manifest bytes and its closed schema,

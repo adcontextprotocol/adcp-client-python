@@ -482,6 +482,14 @@ def plan_consumer_statuses(
     publishing nothing it demonstrably published, and ``received`` asserts
     bytes the buyer never looked at.
 
+    ``obligation_revisions`` must carry each due obligation's *complete*
+    retained history -- the same partition its ``revision_count`` declares.
+    Finality is chosen by whole-history selection
+    (:func:`~adcp.reporting.revision_selection.select_reporting_revision`), not
+    by a count, so a partition that is absent, short, long or structurally
+    damaged raises :class:`ConsumerStatusPlanError` instead of selecting from
+    it. An obligation with ``revision_count == 0`` needs no entry.
+
     ``current_statuses`` is this caller's own status history from the same
     ledger read. An intent whose content matches the current leaf is skipped
     entirely -- re-filing an unchanged claim under a fresh id churns the chain
@@ -820,13 +828,20 @@ def _has_required_revision(
         )
         if result.kind == "corrupt" or len(revisions) != obligation.revision_count:
             raise ConsumerStatusPlanError(
-                "the complete revision history requires repair before planning a consumer status"
+                f"obligation {obligation.reporting_obligation_id!r} was given "
+                f"{len(revisions)} revisions against a declared revision_count of "
+                f"{obligation.revision_count}, or a damaged chain; obligation_revisions must "
+                "be that obligation's complete retained history. Re-read the seller's "
+                "snapshot rather than filing a status against a history neither party can "
+                "reconcile"
             )
         return result.kind == "selected"
     if obligation.revision_count:
         raise ConsumerStatusPlanError(
-            "the obligation advertises revisions but no reading was supplied; "
-            "a complete revision history is required to select finality"
+            f"obligation {obligation.reporting_obligation_id!r} advertises "
+            f"{obligation.revision_count} revisions but obligation_revisions carries no entry "
+            "for it; pass its complete retained history. required_finality cannot be decided "
+            "from a count, and guessing would file a status nobody validated"
         )
     return False
 

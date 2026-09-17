@@ -1,10 +1,12 @@
 """Whole-history selection is identical for Core, C, ingest and B1 preparation."""
 
+import asyncio
 from dataclasses import replace
 from itertools import permutations
 
 import pytest
 
+from adcp.reporting.fixtures import SNAPSHOT_OFFERING_ID
 from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     LedgerConflictError,
@@ -26,6 +28,8 @@ from adcp.reporting.outbox import ReportingStatusScope
 from adcp.reporting.revision_selection import RevisionHistoryEntry
 
 from ._generation_support import NOW, UncalledSource, configuration, obligation_for, revision_for
+from ._reliable_support import complete_fetch, reliable_factory
+from ._reliable_support import configuration as reliable_configuration
 from .test_reporting_notification_outbox import statement
 
 
@@ -234,3 +238,56 @@ def test_unreadable_official_never_falls_back_to_materialized_snapshot():
         obligation, (snapshot, official), ledger_as_of=NOW, scope_closed=True
     )
     assert result.health == "action_required" and result.current_revision is official
+
+
+@pytest.mark.parametrize("backend", ["memory", "postgres"])
+async def test_snapshot_restatement_after_an_official_close_keeps_one_chain(backend):
+    """A retained official close must never be mistaken for the snapshot leaf.
+
+    Whole-history selection answers "what does this obligation currently
+    publish", and a unique official wins that outright. Reusing that answer to
+    choose ``supersedes`` roots the next restatement at ``None``, so the
+    obligation ends up with two snapshot roots -- ``disconnected_snapshot_history``
+    over immutable rows, which every selector caller then parks for a repair
+    nothing in the SDK can perform.
+    """
+    async with reliable_factory(backend) as h:
+        config = reliable_configuration("eur")
+        await h.store.put_configuration(config)
+        producer = h.producer(h.source(complete_fetch), managed=False)
+        (obligation,) = await producer.close_elapsed_periods(config)
+
+        async def commit(observation, finality):
+            request = producer._build_slice(  # noqa: SLF001 - the suite's slice fixture
+                config, obligation, SNAPSHOT_OFFERING_ID, now=h.clock(), observation=observation
+            )
+            result = await producer._source.execute(request, cancel=asyncio.Event())  # noqa: SLF001
+            return await h.commit_slice(producer, obligation, request, result, finality=finality)
+
+        first = await commit(0, "snapshot")
+        second = await commit(1, "snapshot")
+        official = await commit(2, "official")
+        assert first.supersedes_reporting_revision_id is None
+        assert second.supersedes_reporting_revision_id == first.reporting_revision_id
+        assert official.supersedes_reporting_revision_id is None
+
+        restated = await commit(3, "snapshot")
+        assert restated.supersedes_reporting_revision_id == second.reporting_revision_id
+
+        history = await h.store.list_revisions(
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+        )
+        selection = select_reporting_revision(
+            history,
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+            required_finality=obligation.required_finality,
+        )
+        assert selection.kind == "selected"
+        assert selection.revision.reporting_revision_id == official.reporting_revision_id
+        projection = project_obligation_health(
+            obligation, history, ledger_as_of=h.clock(), scope_closed=True
+        )
+        assert [i.code for i in projection.issues] == []
+        assert projection.current_revision is not None

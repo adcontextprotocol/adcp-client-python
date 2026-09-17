@@ -173,6 +173,39 @@ def test_public_verification_key_rejects_credentials_in_every_definition_coordin
     assert "do-not-expose" not in str(caught.value) + repr(caught.value)
 
 
+@pytest.mark.parametrize(
+    "field", ["report_definition_uri", "schema_uri", "schema_dialect", "schema_version"]
+)
+async def test_a_retained_definition_the_key_cannot_express_is_a_closed_binding_mismatch(field):
+    # ``ReportingDefinitionBinding`` is Core's loosely constrained retained
+    # record: it applies none of the verification key's HTTPS/digest/identifier
+    # screens, so real obligations carry values this key cannot express. Every
+    # public entry point must answer that with the closed BINDING_MISMATCH its
+    # callers already catch, never a raw ValueError through the failure contract.
+    case = await materializer_case()
+    loose = replace(
+        case.obligation.definition,
+        **{field: "https://provider.example.test/data?token=do-not-expose"},
+    )
+    obligation = replace(case.obligation, definition=loose)
+    with pytest.raises(ReportingWriterError) as caught:
+        await case.prepare(obligation=obligation)
+    assert caught.value.failure.code == "BINDING_MISMATCH"
+    assert case.writer.open_count == 0
+
+    locator = await case.io.write(case.prepared, context=io_context())
+    prepared = replace(case.prepared, obligation=obligation)
+    for operation in (
+        case.io.write(prepared, context=io_context()),
+        case.io.verify(prepared, locator, context=io_context()),
+    ):
+        with pytest.raises(ReportingWriterError) as caught:
+            await operation
+        assert caught.value.failure.code == "BINDING_MISMATCH"
+        assert "do-not-expose" not in str(caught.value) + repr(caught.value)
+    assert case.writer.open_count == case.writer.close_count == 1
+
+
 async def test_service_heartbeat_is_a_checkpoint_only_and_fences_before_source_read():
     case = await materializer_case()
     calls = 0

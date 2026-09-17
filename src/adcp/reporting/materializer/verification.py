@@ -31,7 +31,11 @@ from adcp.reporting.ledger.delivery_models import (
     _ClosedValue,
     _freeze_fields,
 )
-from adcp.reporting.ledger.models import ReportingObligationRecord, ReportingRevisionRecord
+from adcp.reporting.ledger.models import (
+    ReportingDefinitionBinding,
+    ReportingObligationRecord,
+    ReportingRevisionRecord,
+)
 from adcp.reporting.ledger.producer import revision_content_sha256
 from adcp.reporting.ledger.store import LedgerConflictError, ReportingRowPage, revision_row_offset
 from adcp.reporting.materializer._json import (
@@ -330,8 +334,7 @@ class ReportingRevisionVerifierRegistry(_ClosedValue):
             raise failure("REVISION_NOT_READY")
         request = ReportingDestinationRequest.from_binding(binding, attempt, key)
         if (
-            obligation.definition is None
-            or replace(key, definition=obligation.definition) != key
+            not _same_definition(key, obligation.definition)
             or (obligation.report_definition_id, obligation.reporting_profile)
             != (key.report_definition_id, key.reporting_profile)
             or request.generation != obligation.generation_key
@@ -513,8 +516,7 @@ class ReportingDestinationIO:
             or prepared.delivery.scope.generation_key != request.generation
             or prepared.delivery.scope.reporting_obligation_id != request.reporting_obligation_id
             or prepared.delivery.currency != obligation.currency
-            or obligation.definition is None
-            or replace(verifier.key, definition=obligation.definition) != verifier.key
+            or not _same_definition(verifier.key, obligation.definition)
             or (obligation.report_definition_id, obligation.reporting_profile)
             != (verifier.key.report_definition_id, verifier.key.reporting_profile)
             or (binding.method, binding.transport, binding.format, binding.verification_profile)
@@ -555,6 +557,25 @@ class ReportingDestinationIO:
         if problem.code == "SOURCE_INVALID":
             problem = ReportingWriterFailure("DESTINATION_CORRUPT", "new_attempt", "applied")
         raise ReportingWriterError(problem)
+
+
+def _same_definition(
+    key: ReportingVerificationKey, definition: ReportingDefinitionBinding | None
+) -> bool:
+    """Total, closed comparison against the frozen verification key.
+
+    A retained Core definition is only loosely constrained, so one this strict
+    key contract cannot even express -- a versioned query URI, an uppercase or
+    short digest, a legacy dialect -- is a binding mismatch. Rebinding it must
+    never surface a raw ``ValueError`` through the closed failure boundary.
+    """
+    rebound: ReportingVerificationKey | None = None
+    if definition is not None:
+        try:
+            rebound = replace(key, definition=definition)
+        except Exception:
+            rebound = None
+    return rebound == key
 
 
 def _session_binding(
