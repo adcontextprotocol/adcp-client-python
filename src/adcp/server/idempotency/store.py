@@ -56,6 +56,7 @@ logger = logging.getLogger(__name__)
 # Set only by the SDK transport dispatcher, never from request metadata. This
 # also covers middleware whose wrapped callable is named call_next/execute.
 _RECEIPT_BATCH_DISPATCH: ContextVar[bool] = ContextVar("receipt_batch_dispatch", default=False)
+_FROZEN_FEED_DISPATCH: ContextVar[bool] = ContextVar("frozen_feed_dispatch", default=False)
 
 # Registry of functions returned by IdempotencyStore.wrap. Read by
 # adcp.decisioning.validate_idempotency.is_wrapped() to reconcile the
@@ -220,6 +221,13 @@ class IdempotencyStore:
 
         @wraps(handler)
         async def _wrapped(*args: Any, **kwargs: Any) -> Any:
+            if _FROZEN_FEED_DISPATCH.get() or (
+                getattr(handler, "__name__", None) == "get_reporting_status"
+                and getattr(getattr(handler, "__self__", None), "reporting_feed_store", None)
+                is not None
+            ):
+                # A frozen page is replayable data, never cached authorization.
+                return await handler(*args, **kwargs)
             if (
                 _RECEIPT_BATCH_DISPATCH.get()
                 or getattr(handler, "__name__", None) == "sync_reporting_receipts"

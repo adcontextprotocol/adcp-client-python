@@ -1,0 +1,134 @@
+{
+  "column:reporting_feed_snapshots.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_feed_snapshots.as_of": {
+    "enabled": true,
+    "fingerprint": "1cac4e73af11a8ecafd646ef6a0ff6ecb087d46f150408dcfebc630fe1bf5e1e"
+  },
+  "column:reporting_feed_snapshots.consumer_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_feed_snapshots.content_sha256": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_feed_snapshots.document": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:reporting_feed_snapshots.ownership_mode": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_feed_snapshots.representation_version": {
+    "enabled": true,
+    "fingerprint": "64be57437fdc0a07a97985c2aa058031f8082db7251bdb4d5afa1a9b088de97a"
+  },
+  "column:reporting_feed_snapshots.signing_key": {
+    "enabled": true,
+    "fingerprint": "554c34e416bd4546469b42d5773bc7c59b2104366ffa5259a2838c64cd826e57"
+  },
+  "column:reporting_feed_snapshots.snapshot_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_check": {
+    "enabled": true,
+    "fingerprint": "00c281a801bf6afa7206453af0c2ec9839dae0df4420b9b7f6a1990eeb7c358f"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_check1": {
+    "enabled": true,
+    "fingerprint": "375f2992cfd0b07e7dfefe6ae5c2aaa8fd16007d5964e91e8372a28c09aa684f"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_check2": {
+    "enabled": true,
+    "fingerprint": "84972326afd68c2ff32f599ad0f129c22b91072d0eb4e1380613a91ded47e6da"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_check3": {
+    "enabled": true,
+    "fingerprint": "18aad02260bda2aba9f6e51349520ac53ba3901ac25e26877d4b06c9d92832e3"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_check4": {
+    "enabled": true,
+    "fingerprint": "ba2bd76a123a1c07c02d86609a9275fccedb28c2a9049ac87e5441c6c4e8aa64"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_check5": {
+    "enabled": true,
+    "fingerprint": "fbb1a305ea8b9cd37c90a3612dccb065ca57d04405711dcba64a98bff46e5761"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_check6": {
+    "enabled": true,
+    "fingerprint": "d6b940c0765d3ae2e773a1cba51ae8b478820bbe9bc593e005115421d1e9a415"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_check7": {
+    "enabled": true,
+    "fingerprint": "87a2ec39393813ff33449cd7a02cc4738d1e91d5b6406e212b78372def2c1778"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_document_check": {
+    "enabled": true,
+    "fingerprint": "84bdfff00c1f410606570fb522ab542616825c122b05a4e5d7b35d9937dd70e4"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_document_check1": {
+    "enabled": true,
+    "fingerprint": "763668adc07dbcc7c5275dab0bbd3b9f0b6833893acd9725f4e9913d09c3c1e9"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_document_check2": {
+    "enabled": true,
+    "fingerprint": "b393d759417c024e203b8521b8ba1e34d76e85dda5a8dfcdb1882ed2a56568f2"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_document_check3": {
+    "enabled": true,
+    "fingerprint": "2053806dff13a9802996d32867a3858703e7e9a03b11735d216582cbde48ab4b"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_document_check4": {
+    "enabled": true,
+    "fingerprint": "bf8ed87ea3b56d6eb3d7c0efa3575695b2b9e56f32bc0b3d172cc2395bcb1c9d"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_ownership_mode_check": {
+    "enabled": true,
+    "fingerprint": "4d3e5de1f3258f357fb28587d1142caf0d851d7e57b996e71e7388088177ab7f"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_pkey": {
+    "enabled": true,
+    "fingerprint": "69c464c154977fe93cbcf866d711d9dc62357603a4a2cc104b280b44984d3533"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_representation_version_check": {
+    "enabled": true,
+    "fingerprint": "0636237258851bc8ba3cb359ab12163c204ef4fc6ae8428235a218b8e2f4c49c"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_signing_key_check": {
+    "enabled": true,
+    "fingerprint": "4beb9e7f9146e3095acdb7d1dd3867766108e3ab93313deb9b6b0953e992c024"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_snapshot_id_check": {
+    "enabled": true,
+    "fingerprint": "da3012902db7fe22f476ac4cca0d315f27456cace1dbb9f2ba4b3c9eae2d0a9e"
+  },
+  "constraint:reporting_feed_snapshots.reporting_feed_snapshots_snapshot_id_key": {
+    "enabled": true,
+    "fingerprint": "c97a22e931dedffcfbd8ab22824035126745be64aa5d616a90e33563643ca749"
+  },
+  "function:reporting_feed_immutable()": {
+    "enabled": true,
+    "fingerprint": "b17f620de435a86c8815c3efbace4b602166bad7dc95f923434d402cddcd63f5"
+  },
+  "index:reporting_feed_snapshots.reporting_feed_snapshots_pkey": {
+    "enabled": true,
+    "fingerprint": "14570880993d60951d32cd0af8202fd77cbeb41255e8a953339f2250d8aa76c0"
+  },
+  "index:reporting_feed_snapshots.reporting_feed_snapshots_snapshot_id_key": {
+    "enabled": true,
+    "fingerprint": "a92d1e1e87600141c76239c1a044aadf70462a648598f28c41c9c507cca36230"
+  },
+  "table:reporting_feed_snapshots": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "trigger:reporting_feed_snapshots.reporting_feed_immutable": {
+    "enabled": true,
+    "fingerprint": "e14c7a91478071445133f1dcf1354904686724cbe5830d08039e11c7e4568829"
+  }
+}

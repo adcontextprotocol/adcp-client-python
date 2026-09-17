@@ -2422,6 +2422,14 @@ def get_tools_for_handler(
                 # stubs. Do not mutate cached upstream/generated schema inputs.
                 definition["inputSchema"] = receipt_schema("request")
                 definition["outputSchema"] = receipt_schema("sync")
+            elif (
+                definition["name"] == "get_reporting_status"
+                and getattr(instance, "reporting_feed_store", None) is not None
+            ):
+                from adcp.reporting.feed.request import feed_schema
+
+                definition["inputSchema"] = feed_schema("request")
+                definition["outputSchema"] = feed_schema("sync")
         return definitions
 
     if not list_validator_keys(version=resolved_version):
@@ -2445,6 +2453,16 @@ def get_tools_for_handler(
 
             definition["inputSchema"] = receipt_schema("request", version=resolved_version)
             definition["outputSchema"] = receipt_schema("sync", version=resolved_version)
+            versioned.append(definition)
+            continue
+        if (
+            name == "get_reporting_status"
+            and getattr(instance, "reporting_feed_store", None) is not None
+        ):
+            from adcp.reporting.feed.request import feed_schema
+
+            definition["inputSchema"] = feed_schema("request", version=resolved_version)
+            definition["outputSchema"] = feed_schema("sync", version=resolved_version)
             versioned.append(definition)
             continue
         definition["inputSchema"] = input_schema
@@ -2757,6 +2775,10 @@ def create_tool_caller(
     }.get(method_name, method_name)
     method = getattr(handler, adopter_method_name)
     params_model = _resolve_params_pydantic_model(method)
+    frozen_reporting_feed = (
+        method_name == "get_reporting_status"
+        and getattr(handler, "reporting_feed_store", None) is not None
+    )
 
     # Opt-in server-side schema modes. ``None`` keeps validation off
     # entirely (zero overhead on the hot path) — the TS-port default for
@@ -2772,6 +2794,17 @@ def create_tool_caller(
         ctx = context if context is not None else ToolContext()
 
         raw_params = params  # Preserve original wire params for context echo.
+
+        if frozen_reporting_feed and params.get("view") == "periods":
+            from adcp.reporting.feed.errors import ReportingFeedError
+            from adcp.reporting.feed.request import FeedRequest
+
+            try:
+                FeedRequest.parse(params)
+            except ReportingFeedError as exc:
+                raise ADCPTaskError(
+                    operation=method_name, errors=[Error(code=exc.code, message=str(exc))]
+                ) from None
 
         if method_name == "sync_reporting_receipts":
             from adcp.reporting.receipts.errors import ReportingReceiptError
@@ -3024,7 +3057,11 @@ def create_tool_caller(
                     ],
                 ) from exc
 
-        if isinstance(params, dict) and method_name != "sync_reporting_receipts":
+        if (
+            isinstance(params, dict)
+            and method_name != "sync_reporting_receipts"
+            and not frozen_reporting_feed
+        ):
             params = _apply_unknown_field_policy(
                 method_name,
                 params,
@@ -3054,6 +3091,8 @@ def create_tool_caller(
         call_params: Any = params
         if method_name == "sync_reporting_receipts":
             call_params = raw_params
+        elif frozen_reporting_feed:
+            call_params = params
         elif params_model is not None and isinstance(params, dict):
             try:
                 call_params = params_model.model_validate(params)
@@ -3261,6 +3300,8 @@ def create_tool_caller(
             result.pop("status")
         return result
 
+    if frozen_reporting_feed:
+        setattr(call_tool, "_adcp_frozen_reporting_feed", True)
     return call_tool
 
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from adcp.decisioning.context import AuthInfo, RequestContext
 from adcp.decisioning.registry import BuyerAgent, BuyerAgentRegistry, HttpSigCredential
@@ -14,8 +14,11 @@ from adcp.reporting.outbox.identity import canonical_consumer, resolve_reporting
 from adcp.reporting.receipts.errors import ReportingReceiptError
 from adcp.reporting.receipts.store import ReportingReceiptBatchStore
 from adcp.reporting.receipts.wire import TASK, validate_receipt_request
-from adcp.server.base import ADCPHandler, ToolContext
-from adcp.types import Error, SyncReportingReceiptsRequest
+from adcp.server.base import ADCPHandler, NotImplementedResponse, ToolContext
+from adcp.types import Error, GetReportingStatusRequest, SyncReportingReceiptsRequest
+
+if TYPE_CHECKING:
+    from adcp.reporting.feed.store import ReportingFeedStore
 
 ReceiptAccountResolver = Callable[[dict[str, Any], ToolContext, str], Awaitable[str]]
 """Resolve AND reauthorize the exact account reference for this consumer on every call.
@@ -91,7 +94,7 @@ async def _consumer(context: ToolContext, registry: BuyerAgentRegistry | None) -
 
 
 class ReportingReceiptHandler(ADCPHandler[ToolContext]):
-    """Mount only the durable receipt task; tier activation remains separately gated.
+    """Mount receipts and the optional frozen feed; tier activation is separately gated.
 
     ``resolve_account`` is an application ACL, called even for a completed
     batch. ``buyer_agents`` optionally re-resolves API/OAuth/signed commercial
@@ -99,7 +102,7 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
     the consumer. Authentication middleware must populate trusted context.
     """
 
-    advertised_tools = {TASK}
+    advertised_tools = {TASK, "get_reporting_status"}
 
     def __init__(
         self,
@@ -107,6 +110,7 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
         *,
         resolve_account: ReceiptAccountResolver,
         buyer_agents: BuyerAgentRegistry | None = None,
+        consumer_status_enabled: bool = False,
     ) -> None:
         super().__init__()
         if not isinstance(store, ReportingReceiptBatchStore):
@@ -114,6 +118,78 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
         self.receipt_store = store
         self._receipt_account_resolver = resolve_account
         self._receipt_registry = buyer_agents
+        from adcp.reporting.feed.store import ReportingFeedStore
+
+        self.reporting_feed_store: ReportingFeedStore | None = (
+            store if isinstance(store, ReportingFeedStore) else None
+        )
+        self._feed_consumer_status_enabled = consumer_status_enabled
+
+    def advertised_tools_for_instance(self) -> set[str]:
+        return {TASK, "get_reporting_status"} if self.reporting_feed_store is not None else {TASK}
+
+    async def get_reporting_status(
+        self,
+        params: GetReportingStatusRequest | dict[str, Any],
+        context: ToolContext | None = None,
+    ) -> dict[str, Any] | NotImplementedResponse:
+        """One authenticated mount; the optional store freezes periods walks."""
+        from adcp.reporting.feed.errors import ReportingFeedError
+        from adcp.reporting.feed.request import FeedRequest
+        from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
+        from adcp.reporting.ledger.store import ReportingLedgerStore
+
+        if self.reporting_feed_store is None:
+            return self._not_supported("get_reporting_status")
+        request = (
+            params
+            if isinstance(params, dict)
+            else params.model_dump(mode="json", exclude_unset=True)
+        )
+        try:
+            if request.get("view") == "periods":
+                FeedRequest.parse(request)
+            if context is None:
+                raise ReportingFeedError("UNAUTHORIZED")
+            try:
+                consumer = await _consumer(context, self._receipt_registry)
+                account = await self._receipt_account_resolver(
+                    dict(request["account"]), context, consumer
+                )
+                if isinstance(context, RequestContext) and context.account.id != account:
+                    raise ReportingFeedError("UNAUTHORIZED")
+                caller = ReportingDeliveryPrincipal(account, consumer)
+            except (ReportingReceiptError, ReportingNotificationError, ValueError, TypeError):
+                raise ReportingFeedError("UNAUTHORIZED") from None
+            if request.get("view") == "periods":
+                return await self.reporting_feed_store.read_reporting_feed(
+                    request,
+                    caller=caller,
+                    consumer_status_enabled=self._feed_consumer_status_enabled,
+                )
+            pagination = request.get("pagination")
+            positions = (
+                request.get("changes_after"),
+                pagination.get("cursor") if isinstance(pagination, dict) else None,
+            )
+            if any(isinstance(p, str) and p.startswith("rpf1.") for p in positions):
+                # A view change cannot send a frozen position to the mutable
+                # legacy projector. Leave ordinary Core requests compatible.
+                raise ReportingFeedError("INVALID_CHECKPOINT")
+            if isinstance(self.receipt_store, ReportingLedgerStore):
+                return await ReportingStatusHandler(
+                    self.receipt_store,
+                    consumer_status_enabled=self._feed_consumer_status_enabled,
+                ).handle(request, caller=ReportingStatusCaller(account, consumer))
+            return self._not_supported("get_reporting_status")
+        except ReportingFeedError as error:
+            code, message = error.code, str(error)
+        except Exception:
+            unavailable = ReportingFeedError("REPORTING_FEED_STORAGE_UNAVAILABLE")
+            code, message = unavailable.code, str(unavailable)
+        raise ADCPTaskError(
+            operation="get_reporting_status", errors=[Error(code=code, message=message)]
+        )
 
     async def sync_reporting_receipts(
         self,

@@ -10,6 +10,7 @@ on:
       - conductor/reporting-status-notifications-1168c
       - conductor/1167b1-materializer-contracts
       - conductor/1167b2-durable-managed-reporting
+      - conductor/reporting-receipt-ingress-b22
 
 # Default @adcp/sdk runner alias for storyboard jobs. Tracks the current
 # stable @adcp/sdk release via the ``latest`` npm dist-tag.
@@ -194,6 +195,7 @@ jobs:
                  tests/conformance/reporting/ \
                  --ignore-glob='tests/conformance/reporting/test_reporting_status_*.py' \
                  --ignore-glob='tests/conformance/reporting/test_reporting_receipt_*.py' \
+                 --ignore-glob='tests/conformance/reporting/test_reporting_feed_*.py' \
                  --ignore=tests/conformance/reporting/test_reporting_materializer_rolling.py \
                  --ignore=tests/conformance/reporting/test_reporting_materializer_process.py \
                  --ignore=tests/conformance/reporting/test_reporting_materializer_migration.py \
@@ -437,6 +439,167 @@ jobs:
         with:
           name: pg-reporting-receipt-compatibility-evidence-${{ github.run_attempt }}
           path: pg-reporting-receipt-compatibility-evidence.log
+          if-no-files-found: error
+
+  pg-reporting-feed:
+    name: Frozen authorized feed and mounted isolation (Postgres 16)
+    runs-on: ubuntu-latest
+    # Crash processes and shared memory/SQL vectors have their own database
+    # and bounded suite; setup and cleanup have five minutes of headroom.
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: adcp_feed_test
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install test dependencies
+        run: pip install -e ".[dev,pg]"
+      - name: Run frozen feeds, checkpoints, mounts, transaction faults and migrations
+        shell: bash
+        timeout-minutes: 20
+        env:
+          ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_feed_test
+        run: |
+          python scripts/reporting_test_harness.py pytest \
+            tests/conformance/reporting/test_reporting_feed_contract.py \
+            tests/conformance/reporting/test_reporting_feed_positions.py \
+            tests/conformance/reporting/test_reporting_feed_history.py \
+            tests/conformance/reporting/test_reporting_feed_transports.py \
+            tests/conformance/reporting/test_reporting_feed_transactions.py \
+            tests/conformance/reporting/test_reporting_feed_migration.py \
+            tests/conformance/reporting/test_reporting_feed_process.py \
+            -v -s -ra | tee pg-reporting-feed-evidence.log
+      - name: Preserve exact public, private, restart and fault evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pg-reporting-feed-evidence-${{ github.run_attempt }}
+          path: pg-reporting-feed-evidence.log
+          if-no-files-found: error
+
+  pg-reporting-feed-compatibility:
+    name: Feed rolling compatibility (nine actual artifacts)
+    runs-on: ubuntu-latest
+    # Actual B2.1 produces the artifact and actual B2.2 mounts receipts on
+    # both sides of migration for every historical reader/writer cell.
+    timeout-minutes: 50
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: adcp_feed_rolling_test
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Fetch all nine exact approved historical artifacts
+        timeout-minutes: 2
+        run: |
+          git fetch --no-tags --depth=1 origin \
+            3e76aa54623529a3dda01cd690b8a5c287c75641 \
+            3c405a21f978ed9d3208611bb4a7a8434a056933 \
+            037de4ac822ecefb2f95d32c15c297fb4c45d683 \
+            21bf443e7d850d1800ec8a6f2e4abec1c8f85541 \
+            198d50e61c74fb82aedbf2c77e06a0e200b91db6 \
+            ea150fabd5ad90e3abf93f89729d2919f1c61798 \
+            1c91311ec28d25506d5db43f59d0c34936ecb8f7 \
+            8e18ca12b9a0c3750f80aa822058c02982ab3e52 \
+            74b338d81653f4f65bc1520e638da10225f199f3
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install test dependencies
+        run: pip install -e ".[dev,pg]"
+      - name: Run historical binaries before and after the isolated feed migration
+        shell: bash
+        timeout-minutes: 45
+        env:
+          ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_feed_rolling_test
+        run: |
+          python scripts/reporting_test_harness.py pytest \
+            tests/conformance/reporting/test_reporting_feed_rolling.py \
+            -v -s -ra | tee pg-reporting-feed-compatibility-evidence.log
+      - name: Preserve exact artifact origins, catalogs and original replay responses
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pg-reporting-feed-compatibility-evidence-${{ github.run_attempt }}
+          path: pg-reporting-feed-compatibility-evidence.log
+          if-no-files-found: error
+
+  pg-reporting-feed-installed:
+    name: Installed frozen feed (Python 3.10 VCS and sdist)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: adcp_feed_installed_test
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        id: feed-python310
+        with:
+          python-version: "3.10"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install test dependencies
+        run: pip install -e ".[dev,pg]"
+      - name: Run installed base and PostgreSQL restart cells
+        shell: bash
+        timeout-minutes: 20
+        env:
+          ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_feed_installed_test
+          ADCP_PYTHON310: ${{ steps.feed-python310.outputs.python-path }}
+        run: |
+          python scripts/reporting_test_harness.py pytest \
+            tests/conformance/reporting/test_reporting_feed_packaging.py \
+            tests/conformance/reporting/test_reporting_feed_installed_pg.py \
+            -v -s -ra | tee pg-reporting-feed-installed-evidence.log
+      - name: Preserve installed origins, SQL, strict adopter and cold page evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pg-reporting-feed-installed-evidence-${{ github.run_attempt }}
+          path: pg-reporting-feed-installed-evidence.log
           if-no-files-found: error
 
   conventional-commits:

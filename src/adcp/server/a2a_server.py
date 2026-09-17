@@ -544,7 +544,13 @@ class ADCPAgentExecutor(AgentExecutor):
             return await self._tool_callers[skill_name](params, tool_context)
 
         return await _dispatch_with_middleware(
-            self._middleware, skill_name, params, tool_context, _call_handler
+            self._middleware,
+            skill_name,
+            params,
+            tool_context,
+            _call_handler,
+            frozen_reporting_feed=skill_name == "get_reporting_status"
+            and getattr(self._handler, "reporting_feed_store", None) is not None,
         )
 
     def _build_tool_context(self, skill_name: str, request: RequestContext) -> ToolContext:
@@ -640,7 +646,13 @@ class ADCPAgentExecutor(AgentExecutor):
                         if raw is not None:
                             return "sync_reporting_receipts", raw
                     raise
-        if parsed[0] == "sync_reporting_receipts" and request is not None:
+        if request is not None and (
+            parsed[0] == "sync_reporting_receipts"
+            or (
+                parsed[0] == "get_reporting_status"
+                and getattr(self._handler, "reporting_feed_store", None) is not None
+            )
+        ):
             from adcp.reporting.receipts.transport import (
                 RAW_RECEIPT_BODY_SCOPE_KEY,
                 a2a_receipt_parameters,
@@ -649,7 +661,10 @@ class ADCPAgentExecutor(AgentExecutor):
             # The protobuf representation has already lost numeric lexemes.
             # Only the standard raw invocation can authorize the batch body.
             return parsed[0], (
-                a2a_receipt_parameters(request.scope.get(RAW_RECEIPT_BODY_SCOPE_KEY)) or {}
+                a2a_receipt_parameters(
+                    request.scope.get(RAW_RECEIPT_BODY_SCOPE_KEY), task=parsed[0]
+                )
+                or {}
             )
         return parsed
 
@@ -1508,7 +1523,8 @@ def create_a2a_server(
     # independent of whether bearer-auth middleware is configured.
     app.add_middleware(
         _A2ARequestContextMiddleware,
-        receipt_ingress="sync_reporting_receipts" in executor.supported_skills,
+        receipt_ingress="sync_reporting_receipts" in executor.supported_skills
+        or getattr(handler, "reporting_feed_store", None) is not None,
     )
 
     # Startup log lives on the create_a2a_server path (symmetric with

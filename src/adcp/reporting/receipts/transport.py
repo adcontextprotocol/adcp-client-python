@@ -105,7 +105,15 @@ def _raw_json(body: str | bytes) -> Any:
     )
 
 
-def _a2a_receipt_invocation(body: bytes | None) -> dict[str, Any] | None:
+def _parameters(params: dict[str, Any], task: str) -> dict[str, Any]:
+    if task == "get_reporting_status":
+        from adcp.reporting.feed.request import transport_parameters
+
+        return transport_parameters(params)
+    return dict(_receipt_numbers(params))
+
+
+def _a2a_receipt_invocation(body: bytes | None, *, task: str = TASK) -> dict[str, Any] | None:
     try:
         if body is None:
             return None
@@ -130,27 +138,27 @@ def _a2a_receipt_invocation(body: bytes | None) -> dict[str, Any] | None:
                     continue
             if type(data) is dict and data.get("skill"):
                 invocations.append(data)
-        if len(invocations) == 1 and invocations[0]["skill"] == TASK:
+        if len(invocations) == 1 and invocations[0]["skill"] == task:
             return dict(invocations[0])
     except (ValueError, TypeError, KeyError, RecursionError):
         pass
     return None
 
 
-def a2a_receipt_parameters(body: bytes | None) -> dict[str, Any] | None:
+def a2a_receipt_parameters(body: bytes | None, *, task: str = TASK) -> dict[str, Any] | None:
     """Distinguish an exact receipt route from invalid receipt parameters.
 
     None means no uniquely identified standard invocation. An empty dictionary
     means that invocation's parameters are invalid and must reach the ordinary
     whole-shape rejection. Neither case can authorize a domain write.
     """
-    invocation = _a2a_receipt_invocation(body)
+    invocation = _a2a_receipt_invocation(body, task=task)
     if invocation is None:
         return None
     try:
         params = invocation.get("parameters")
         if type(params) is dict:
-            return dict(_receipt_numbers(params))
+            return _parameters(params, task)
     except (ValueError, TypeError, RecursionError):
         pass
     return {}
@@ -176,7 +184,7 @@ def a2a_receipt_has_invalid_unicode(body: bytes | None) -> bool:
     return False
 
 
-def mcp_receipt_parameters(body: bytes | None) -> dict[str, Any]:
+def mcp_receipt_parameters(body: bytes | None, *, task: str = TASK) -> dict[str, Any]:
     """The already selected tools/call must match this exact receipt invocation."""
     try:
         if body is None:
@@ -186,10 +194,10 @@ def mcp_receipt_parameters(body: bytes | None) -> dict[str, Any]:
             type(envelope) is dict
             and envelope.get("jsonrpc") == "2.0"
             and envelope.get("method") == "tools/call"
-            and envelope["params"]["name"] == TASK
+            and envelope["params"]["name"] == task
             and type(envelope["params"].get("arguments")) is dict
         ):
-            return dict(_receipt_numbers(envelope["params"]["arguments"]))
+            return _parameters(envelope["params"]["arguments"], task)
     except (ValueError, TypeError, KeyError, RecursionError):
         pass
     return {}
