@@ -299,6 +299,8 @@ jobs:
       - name: Install test dependencies
         run: pip install -e ".[dev,pg]"
       - name: Run installed frozen binaries and materializer migrations
+        # Propagate pytest failures through tee while retaining evidence for upload.
+        shell: bash
         timeout-minutes: 30
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_materializer_test
