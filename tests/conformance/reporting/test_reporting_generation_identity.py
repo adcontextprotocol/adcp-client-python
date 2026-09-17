@@ -26,6 +26,7 @@ from adcp.reporting.ledger import (
     consumer_mismatch_issue_key,
 )
 from adcp.reporting.ledger.pg import PgReportingLedgerStore
+from adcp.reporting.outbox._schema import schema_objects
 from adcp.reporting.source import ReportingSourceSliceRequestV1
 from tests.conformance.reporting._generation_support import (
     END,
@@ -299,10 +300,10 @@ async def test_a_crashed_generation_is_not_starved_by_a_peer_that_keeps_releasin
 async def test_lease_fairness_migrates_onto_an_already_installed_older_schema() -> None:
     """The additive upgrade reaches an existing install and stays idempotent.
 
-    A same-name ``CREATE INDEX IF NOT EXISTS`` would not upgrade an existing
-    index, so the total order is carried by a distinctly named additive index
-    plus a defaulted column, both of which an older installation gains on the
-    next ``create_schema()``.
+    The rank lives in a private `adcp_`-prefixed table precisely so that
+    `schema_objects()` -- which enumerates every `reporting_*` table in the
+    schema -- keeps reporting the exact object set that older binaries
+    validate. So the upgrade has to be proven on an install that predates it.
     """
     async with isolated_reporting_pool() as pool:
         store = PgReportingLedgerStore(pool=pool, clock=lambda: NOW)
@@ -310,34 +311,25 @@ async def test_lease_fairness_migrates_onto_an_already_installed_older_schema() 
         async with pool.connection() as connection:
             # Reduce the install to the pre-fairness shape an older binary left.
             await connection.execute(
-                "DROP INDEX IF EXISTS reporting_configurations_lease_fairness_idx"
+                "DROP TABLE IF EXISTS adcp_reporting_configuration_lease_turns"
             )
             await connection.execute(
-                "ALTER TABLE reporting_configurations DROP COLUMN IF EXISTS lease_turn"
-            )
-            await connection.execute(
-                "DROP SEQUENCE IF EXISTS reporting_configurations_lease_turn_seq"
+                "DROP SEQUENCE IF EXISTS adcp_reporting_configuration_lease_turn_seq"
             )
         for name in ("acct_a", "acct_b"):
             await store.put_configuration(configuration(name))
-        # Repeated migration is safe and restores the durable fairness column.
+        # Repeated migration is safe and restores the durable fairness rank.
         await store.create_schema()
         await store.create_schema()
         async with pool.connection() as connection:
-            row = await (
+            ranks = await (
                 await connection.execute(
-                    "SELECT count(*) FROM information_schema.columns"
-                    " WHERE table_schema = current_schema()"
-                    "   AND table_name = 'reporting_configurations'"
-                    "   AND column_name = 'lease_turn'"
+                    "SELECT count(*) FROM adcp_reporting_configuration_lease_turns"
                 )
             ).fetchone()
-            assert row is not None and row[0] == 1
-            turns = await (
-                await connection.execute("SELECT DISTINCT lease_turn FROM reporting_configurations")
-            ).fetchall()
-        # Rows written before the upgrade rank as never leased.
-        assert [t[0] for t in turns] == [0]
+        # Generations accepted before the upgrade have no rank row at all, which
+        # is the never-leased rank rather than a privileged one.
+        assert ranks is not None and ranks[0] == 0
         worked = []
         for _ in range(2):
             lease = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
@@ -345,8 +337,8 @@ async def test_lease_fairness_migrates_onto_an_already_installed_older_schema() 
             worked.append(lease.account_id)
             await store.release_period_close(lease, worker_id="solo")
         assert worked == ["acct_a", "acct_b"]
-        # A generation accepted by an older writer that does not know the column
-        # still defaults to the never-leased rank, so it is served before the
+        # A generation accepted by an older writer that knows nothing about the
+        # private table still ranks as never leased, so it is served before the
         # generations that already took a turn rather than starved behind them.
         async with pool.connection() as connection:
             await connection.execute(
@@ -365,6 +357,126 @@ async def test_lease_fairness_migrates_onto_an_already_installed_older_schema() 
         legacy = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
         assert legacy is not None
         assert legacy.account_id == "acct_legacy"
+
+
+async def test_lease_fairness_adds_no_enumerated_reporting_catalog_object() -> None:
+    """Exact `reporting_*` object identity is the A/B+C compatibility contract.
+
+    `schema_objects()` enumerates every current-schema table whose name starts
+    with `reporting_`, plus that table's columns, constraints, indexes and
+    triggers, and the status suites compare the installed set to their
+    manifests exhaustively. The fairness rank must therefore add nothing to
+    that set -- not a column on `reporting_configurations`, and not a new
+    `reporting_*` table either.
+    """
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(pool=pool, clock=lambda: NOW)
+        await store.create_schema()
+        async with pool.connection() as connection:
+            installed = await schema_objects(connection)
+            await connection.execute(
+                "DROP TABLE IF EXISTS adcp_reporting_configuration_lease_turns"
+            )
+            await connection.execute(
+                "DROP SEQUENCE IF EXISTS adcp_reporting_configuration_lease_turn_seq"
+            )
+            without = await schema_objects(connection)
+        assert installed == without
+        assert not [k for k in installed if "lease_turn" in k or "fairness" in k]
+        # And the private objects really are the ones carrying the rank.
+        await store.create_schema()
+        for name in ("acct_a", "acct_b"):
+            await store.put_configuration(configuration(name))
+        lease = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+        assert lease is not None
+        async with pool.connection() as connection:
+            assert await schema_objects(connection) == installed
+            rows = await (
+                await connection.execute(
+                    "SELECT account_id, lease_turn" " FROM adcp_reporting_configuration_lease_turns"
+                )
+            ).fetchall()
+        assert [(r[0], r[1] > 0) for r in rows] == [("acct_a", True)]
+
+
+async def test_lease_and_its_fairness_rank_commit_or_roll_back_together() -> None:
+    """The rank lives in another table, so it must share the lease transaction.
+
+    If the two statements could commit separately, a crash between them would
+    either hand out a lease whose generation never lost its place in line, or
+    advance the rank for a lease nobody holds. The rank update is forced to fail
+    here; the acquisition must roll back with it.
+
+    The pool is deliberately autocommit: that is the mode in which an implicit
+    per-block transaction does not exist, so it is the only mode that can
+    witness the explicit transaction actually doing the work.
+    """
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        store = PgReportingLedgerStore(pool=pool, clock=lambda: NOW)
+        await store.create_schema()
+        await store.put_configuration(configuration("acct_a"))
+        async with pool.connection() as connection:
+            await connection.execute(
+                "ALTER TABLE adcp_reporting_configuration_lease_turns"
+                " ADD CONSTRAINT reject_rank CHECK (lease_turn < 0)"
+            )
+        with pytest.raises(Exception):  # noqa: B017,PT011 - driver integrity error
+            await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+        async with pool.connection() as connection:
+            held = await (
+                await connection.execute(
+                    "SELECT count(*) FROM reporting_configurations"
+                    " WHERE lease_worker_id IS NOT NULL OR lease_expires_at IS NOT NULL"
+                )
+            ).fetchone()
+            ranked = await (
+                await connection.execute(
+                    "SELECT count(*) FROM adcp_reporting_configuration_lease_turns"
+                )
+            ).fetchone()
+        # Neither half survived.
+        assert held is not None and held[0] == 0
+        assert ranked is not None and ranked[0] == 0
+        # With the rank writable again the generation is still leasable.
+        async with pool.connection() as connection:
+            await connection.execute(
+                "ALTER TABLE adcp_reporting_configuration_lease_turns DROP CONSTRAINT reject_rank"
+            )
+        lease = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+        assert lease is not None and lease.account_id == "acct_a"
+
+
+async def test_a_stale_fairness_rank_row_cannot_affect_another_generation() -> None:
+    """An orphan rank row is inert, and a re-put generation keeps its own rank.
+
+    The rank table carries no foreign key, so a generation removed by an
+    operator can leave a row behind. The lazy join only matches on the exact
+    generation key, so such a row is never consulted for anyone else, and
+    ``put_configuration`` is immutable by key, so re-accepting the same
+    generation is the same generation and legitimately keeps its place in line.
+    """
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(pool=pool, clock=lambda: NOW)
+        await store.create_schema()
+        for name in ("acct_a", "acct_b"):
+            await store.put_configuration(configuration(name))
+        async with pool.connection() as connection:
+            await connection.execute(
+                "INSERT INTO adcp_reporting_configuration_lease_turns"
+                " (account_id, delivery_config_id, delivery_config_version, lease_turn)"
+                " VALUES ('acct_vanished', 'daily', 1, 999999)"
+            )
+        worked = []
+        for _ in range(2):
+            lease = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+            assert lease is not None
+            worked.append(lease.account_id)
+            await store.release_period_close(lease, worker_id="solo")
+        assert worked == ["acct_a", "acct_b"]
+        # Re-accepting acct_a's exact generation does not reset its rank.
+        await store.put_configuration(configuration("acct_a"))
+        again = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+        assert again is not None and again.account_id == "acct_a"
 
 
 async def test_concurrent_period_closes_converge_within_each_account(
