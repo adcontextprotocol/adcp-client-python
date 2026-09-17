@@ -6,9 +6,12 @@ import importlib
 import importlib.util
 import json
 import sys
+from dataclasses import fields
 from datetime import datetime, timedelta, timezone
 from importlib.resources import files
 from pathlib import Path
+
+from pydantic import TypeAdapter
 
 
 async def main():
@@ -39,9 +42,13 @@ async def main():
         revision_content_sha256,
     )
     from adcp.reporting.materializer import (
+        InMemoryReportingMaterializerStore,
         ReportingDestinationBinding,
+        ReportingDestinationIO,
         ReportingMaterializationAttempt,
+        ReportingMaterializerService,
         ReportingObligationDeliveryRecord,
+        ReportingVerifiedDestination,
         reference_digest,
         reference_verifier,
     )
@@ -63,6 +70,8 @@ async def main():
         files("adcp.reporting.ledger").joinpath("reporting_status_selector_version.sql").is_file()
     )
     assert files("adcp.reporting.outbox").joinpath("required_status_selector_schema.json").is_file()
+    assert files("adcp.reporting.ledger").joinpath("reporting_materializer.sql").is_file()
+    assert files("adcp.reporting.materializer").joinpath("required_schema.json").is_file()
     start = datetime(2026, 9, 1, tzinfo=timezone.utc)
     schedule = ReportingScheduleSpec("PT1H", "PT1H", period_anchor=start)
     period = derive_period(schedule, account_timezone="UTC", ordinal=0)
@@ -170,9 +179,36 @@ async def main():
                 )
             )
         assert all(result.verification.row_count == count for result in results)
+        codec = TypeAdapter(ReportingVerifiedDestination)
+        assert {item.name for item in fields(results[0])} == {
+            "request",
+            "resource",
+            "verification",
+        }
+        assert set(json.loads(codec.dump_json(results[0]))) == {
+            "request",
+            "resource",
+            "verification",
+        }
+        assert codec.validate_json(codec.dump_json(results[0])) == results[0]
         assert results[0].request.external_id == results[1].request.external_id
         assert destination.writer.write_effects == 1 and not destination.writer.production_eligible
         assert destination.writer.open_count == destination.writer.close_count == 4
+        durable = InMemoryReportingMaterializerStore(notifications=False)
+        await durable.put_configuration(configuration)
+        await durable.commit_obligation(obligation)
+        await durable.put_destination_binding(binding)
+        await durable.commit_revision(revision, rows)
+        destination = example.development_destination(binding)
+        service = ReportingMaterializerService(
+            durable,
+            ReportingDestinationIO(destination.registry, destination.resolver),
+            destination.writer,
+        )
+        assert (await service.run_once()).state == "verified"
+        boundaries = await durable.read_materializer_boundaries(caller=scope.principal)
+        assert len(boundaries) == boundaries[0].sequence == boundaries[0].account_sequence == 1
+        assert durable._materializer_outbox is None
     workspace = Path(config["workspace"]).resolve()
     assert all(not Path(path).resolve().is_relative_to(workspace) for path in sys.path)
     assert all(
@@ -182,7 +218,17 @@ async def main():
         if getattr(module, "__file__", None)
     )
     assert not any(name.startswith("psycopg") for name in sys.modules)
-    print(json.dumps({"python": "3.10", "rows": [0, 501], "installed": True, "assets": actual}))
+    print(
+        json.dumps(
+            {
+                "python": "3.10",
+                "rows": [0, 501],
+                "installed": True,
+                "assets": actual,
+                "durable": True,
+            }
+        )
+    )
 
 
 asyncio.run(main())

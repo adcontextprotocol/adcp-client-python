@@ -30,6 +30,45 @@ from .test_reporting_notification_migration import CHAIN
 ROOT = Path(__file__).resolve().parents[3]
 
 
+def redacted_stage_stderr(stderr):
+    """Keep known error signatures, never arbitrary build/provider prose.
+
+    Even an unfamiliar credential format cannot escape an allowlist of fixed
+    labels. Line positions and a digest distinguish otherwise unclassified
+    traces without logging URLs, environment values or exception messages.
+    """
+    signatures = {
+        "No space left on device": "disk_full",
+        "[Errno 28]": "disk_full",
+        "PermissionError": "permission_denied",
+        "FileNotFoundError": "file_missing",
+        "ModuleNotFoundError": "module_missing",
+        "BackendUnavailable": "backend_unavailable",
+        "subprocess-exited-with-error": "subprocess_failed",
+        "No matching distribution found": "distribution_unavailable",
+        "Temporary failure in name resolution": "dns_failure",
+        "ConnectionError": "connection_failure",
+        "ReadTimeout": "read_timeout",
+        "SyntaxError": "syntax_error",
+        "AssertionError": "assertion_failed",
+    }
+    lines = stderr.splitlines()
+    trace = []
+    for position, line in enumerate(lines):
+        found = sorted({tag for marker, tag in signatures.items() if marker in line})
+        if found:
+            trace.append([position + 1, found])
+    return json.dumps(
+        {
+            "lines": len(lines),
+            "sha256": hashlib.sha256(stderr.encode()).hexdigest(),
+            "trace": trace[-8:],
+            "classification": "recognized" if trace else "unclassified",
+        },
+        separators=(",", ":"),
+    )
+
+
 def run_step(command, *, label, cwd, value=None, timeout=120):
     started = time.monotonic()
     process = subprocess.Popen(
@@ -44,7 +83,7 @@ def run_step(command, *, label, cwd, value=None, timeout=120):
     )
     print(f"notification_distribution stage={label} pid={process.pid} started", flush=True)
     try:
-        stdout, _ = process.communicate(
+        stdout, stderr = process.communicate(
             json.dumps(value) if value is not None else None,
             timeout=timeout,
         )
@@ -77,9 +116,16 @@ def run_step(command, *, label, cwd, value=None, timeout=120):
             f" pid={process.pid} exit={process.returncode} cleanup={cleanup}"
             f" elapsed_ms={int((time.monotonic() - started) * 1000)}"
             f" stdout_chars={len(stdout)} stderr_chars={len(stderr)}"
+            f" stderr={redacted_stage_stderr(stderr)}"
         ) from None
     # Do not turn package-manager/provider output into test diagnostics.
-    assert process.returncode == 0, f"notification distribution {label}: exit {process.returncode}"
+    if process.returncode != 0:
+        raise AssertionError(
+            f"notification distribution {label}: exit {process.returncode} pid={process.pid}"
+            f" elapsed_ms={int((time.monotonic() - started) * 1000)}"
+            f" stdout_chars={len(stdout)} stderr_chars={len(stderr)}"
+            f" stderr={redacted_stage_stderr(stderr)}"
+        )
     print(f"notification_distribution stage={label} passed", flush=True)
     return stdout
 
@@ -94,9 +140,39 @@ def test_distribution_subprocess_deadline_is_bounded_and_sanitized(tmp_path):
         )
 
 
+def test_distribution_failure_diagnostics_classify_without_echoing_prose(tmp_path):
+    body = (
+        "https://index-user:index-password@example.test/simple?signature=private\n"
+        "Authorization: Bearer opaque-credential\n"
+        "TOKEN_WITH_UNFAMILIAR_FORMAT=private-configuration\n"
+        "OSError: [Errno 28] No space left on device\n"
+    )
+    with pytest.raises(AssertionError) as captured:
+        run_step(
+            [
+                sys.executable,
+                "-c",
+                "import sys;sys.stderr.write(sys.stdin.read());raise SystemExit(3)",
+            ],
+            label="diagnostic_probe",
+            cwd=tmp_path,
+            value=body,
+        )
+    message = str(captured.value)
+    assert "disk_full" in message and "exit 3" in message
+    assert len(message) < 1024
+    assert all(word not in message for word in ("private", "index-user", "opaque-credential"))
+    unknown = redacted_stage_stderr("unrecognized provider body and secret configuration")
+    assert "unclassified" in unknown and "provider" not in unknown and "secret" not in unknown
+
+
 @pytest.fixture(scope="module")
-def built_distribution(tmp_path_factory):
+def built_distribution(tmp_path_factory, request):
     path = tmp_path_factory.mktemp("reporting-outbox-distribution")
+    # A module can allocate several installed environments and copied schemas.
+    # Remove only this fixture's tree after all its dependent fixtures/processes
+    # finish. Keep the optional fingerprint-checked immutable cache separately.
+    request.addfinalizer(lambda: shutil.rmtree(path))
     cache = os.environ.get("ADCP_REPORTING_DISTRIBUTION")
     sources = [
         ROOT / name
@@ -193,8 +269,12 @@ from adcp.reporting.outbox import (
     resolve_reporting_consumer,
 )
 from adcp.reporting.ledger import InMemoryReportingLedgerStore, ReportingProducer
-from adcp.reporting.ledger import ReportingStatusSnapshot, StatusProjectionInput, project_status_scope
-from adcp.reporting.outbox import ReportingStatusNotificationLifecycle, ReportingStatusService, StatusChanged
+from adcp.reporting.ledger import (
+    ReportingStatusSnapshot, StatusProjectionInput, project_status_scope,
+)
+from adcp.reporting.outbox import (
+    ReportingStatusNotificationLifecycle, ReportingStatusService, StatusChanged,
+)
 from adcp.validation.schema_loader import get_named_validator
 import inspect, sys
 
@@ -213,7 +293,9 @@ except ImportError as error:
     assert "adcp[pg]" in str(error), str(error)
 else:
     raise AssertionError("PgReportingOutbox must raise the [pg] install hint")
-from adcp.reporting.outbox import PgStatusNotificationStore, PgReportingStatusOutbox, PgReportingActivityUnionStore
+from adcp.reporting.outbox import (
+    PgStatusNotificationStore, PgReportingStatusOutbox, PgReportingActivityUnionStore,
+)
 for constructor in (lambda: PgStatusNotificationStore(None),
                     lambda: PgReportingStatusOutbox(pool=None),
                     lambda: PgReportingActivityUnionStore(None, None)):
@@ -230,7 +312,9 @@ assert files("adcp.reporting.outbox").joinpath("required_status_schema.json").is
 assert files("adcp.reporting.ledger").joinpath("reporting_status_notifications.sql").is_file()
 assert files("adcp.reporting.ledger").joinpath("reporting_status_selector_version.sql").is_file()
 assert files("adcp.reporting.outbox").joinpath("required_status_selector_schema.json").is_file()
-assert get_named_validator("core/reporting-status-changed-webhook.json", version="3.2.0-rc.3") is not None
+assert get_named_validator(
+    "core/reporting-status-changed-webhook.json", version="3.2.0-rc.3"
+) is not None
 assert get_named_validator("core/webhook-activity-record.json", version="3.2.0-rc.3") is not None
 assert (
     get_named_validator("core/reporting-ledger-changed-webhook.json", version="3.2.0-rc.3")
@@ -431,26 +515,35 @@ async def main():
         status_subscription = replace(subscription, event_types=("reporting.status_changed",))
         class StatusConfigurations:
             async def list_active(self, *, account_id, notification_type):
-                return (status_subscription,) if account_id == status_subscription.account_id else ()
+                return (
+                    (status_subscription,) if account_id == status_subscription.account_id else ()
+                )
             async def get_active(self, *, account_id, subscriber_id, notification_type):
                 return status_subscription if account_id == status_subscription.account_id else None
         status_worker = ReportingNotificationWorker(outbox=status.outbox,
-            subscriptions=StatusConfigurations(), cipher=cipher, clock=clock, activity=status.outbox)
+            subscriptions=StatusConfigurations(), cipher=cipher, clock=clock,
+            activity=status.outbox)
         assert await status_worker.expand_one(account_id="acct_a")
-        status_lease = await status.outbox.claim_delivery(account_id="acct_a", now=clock(), lease_seconds=60)
+        status_lease = await status.outbox.claim_delivery(
+            account_id="acct_a", now=clock(), lease_seconds=60)
         status_body = cipher.open(status_lease.delivery).prepared
         assert json.loads(status_body.body)["notification_type"] == "reporting.status_changed"
-        assert await status.outbox.finish_delivery(status_lease, now=clock(), state="pending", retry_at=clock())
-    async with AsyncConnectionPool(values["conninfo"], kwargs=values["kwargs"], open=False) as c_restart:
+        assert await status.outbox.finish_delivery(
+            status_lease, now=clock(), state="pending", retry_at=clock())
+    async with AsyncConnectionPool(
+        values["conninfo"], kwargs=values["kwargs"], open=False
+    ) as c_restart:
         ledger = PgReportingReconciliationStore(pool=c_restart, clock=clock, notifications=True)
         status = PgStatusNotificationStore(ledger)
         await status.create_schema()
         assert await status.baseline_ready(account_id="acct_a")
         assert not (await status.project_one(account_id="acct_a")).did_work
         assert await status.outbox.list_events(account_id="acct_a") == status_events
-        status_lease = await status.outbox.claim_delivery(account_id="acct_a", now=clock(), lease_seconds=60)
+        status_lease = await status.outbox.claim_delivery(
+            account_id="acct_a", now=clock(), lease_seconds=60)
         retry = cipher.open(status_lease.delivery).prepared
-        assert retry.body == status_body.body and retry.idempotency_key == status_body.idempotency_key
+        assert retry.body == status_body.body
+        assert retry.idempotency_key == status_body.idempotency_key
         assert await status.outbox.finish_delivery(status_lease, now=clock(), state="complete")
         assert await status.outbox.reemit(account_id="acct_a", consumer_namespace="",
             notification_id=status_events[0].notification_id, now=clock()) == 2

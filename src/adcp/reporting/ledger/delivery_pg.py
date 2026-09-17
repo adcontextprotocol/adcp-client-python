@@ -110,46 +110,57 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
         unavailable()
 
     async def _commit_record(self, record: RecordT) -> tuple[RecordT, bool]:
-        candidate = decode_record(payload(record))
+        candidate = cast(RecordT, decode_record(payload(record)))
         who = principal(candidate)
         async with self._connection() as connection:
             async with connection.transaction():
                 await self._lock_account(connection, who.account_id)
-                records = await self._records(connection, who)
-                existing = replay(candidate, records)
-                if existing is not None:
-                    return cast(RecordT, existing), False
-                context = await self._delivery_context(connection, candidate)
-                if self._clock is not None:
-                    now = self._clock()
-                else:
-                    time_row = await (
-                        await connection.execute("SELECT clock_timestamp()")
-                    ).fetchone()
-                    assert time_row is not None
-                    now = time_row[0]
-                stored = validate_transition(candidate, records, context, now)
-                await self._insert(connection, stored)
-                await self._append_reconciliation_change(connection, stored)
-                if self._notifications_enabled:
-                    from adcp.reporting.ledger.notification_events import (
-                        delivery_dirty,
-                        materialization_event,
-                    )
+                return await self._commit_record_on(connection, candidate)
 
-                    event = materialization_event(
-                        stored,
-                        records,
-                        context.obligation,
-                        context.revision,
-                        context.configuration,
-                        now,
-                    )
-                    if event is not None:
-                        await self._record_notification(connection, event)
-                    scope, reason, evidence = delivery_dirty(stored, context.obligation)
-                    await self._dirty_status(connection, scope, reason, after=evidence)
-                return cast(RecordT, stored), True
+    async def _commit_record_on(
+        self, connection: Any, record: RecordT, *, notify: bool = True
+    ) -> tuple[RecordT, bool]:
+        """Connection-bound primitive. Caller holds the account transaction lock.
+
+        Materializer finish uses this exact connection for evidence, caller
+        feed, projection dirty work and its acknowledgment.
+        No connection is acquired and no external code runs here.
+        """
+        candidate = decode_record(payload(record))
+        who = principal(candidate)
+        records = await self._records(connection, who)
+        existing = replay(candidate, records)
+        if existing is not None:
+            return cast(RecordT, existing), False
+        context = await self._delivery_context(connection, candidate)
+        if self._clock is not None:
+            now = self._clock()
+        else:
+            time_row = await (await connection.execute("SELECT clock_timestamp()")).fetchone()
+            assert time_row is not None
+            now = time_row[0]
+        stored = validate_transition(candidate, records, context, now)
+        await self._insert(connection, stored)
+        await self._append_reconciliation_change(connection, stored)
+        if notify and self._notifications_enabled:
+            from adcp.reporting.ledger.notification_events import (
+                delivery_dirty,
+                materialization_event,
+            )
+
+            event = materialization_event(
+                stored,
+                records,
+                context.obligation,
+                context.revision,
+                context.configuration,
+                now,
+            )
+            if event is not None:
+                await self._record_notification(connection, event)
+            scope, reason, evidence = delivery_dirty(stored, context.obligation)
+            await self._dirty_status(connection, scope, reason, after=evidence)
+        return cast(RecordT, stored), True
 
     async def _append_reconciliation_change(
         self, connection: Any, record: ReportingDeliveryRecord
