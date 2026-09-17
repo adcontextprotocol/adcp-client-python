@@ -74,6 +74,15 @@ async def _retained_rows(pool: AsyncConnectionPool) -> dict[str, list[Any]]:
                 )
             ).fetchall()
             result[table] = [row[0] for row in rows]
+            if table == "reporting_configurations":
+                # The durable period-close fairness turn is additive and
+                # defaulted. Dropping it only while it still holds the
+                # never-leased default keeps every byte of the pre-existing
+                # evidence under comparison: an upgrade that gave a retained
+                # generation a non-zero turn would still fail here.
+                for record in result[table]:
+                    if record.get("lease_turn") == 0:
+                        record.pop("lease_turn", None)
             if table == "reporting_obligations":
                 # #1171 adds an explicit unknown currency. This test still
                 # compares every byte of the pre-existing #1169 evidence.

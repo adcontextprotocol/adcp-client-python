@@ -1702,13 +1702,26 @@ class PgReportingLedgerStore:
         async with self._connection() as connection:
             row = await (
                 await connection.execute(
+                    # `lease_turn` is the durable fairness rank and must be
+                    # the primary ordering term. The WHERE clause has already
+                    # excluded every live lease, so among the survivors the
+                    # expiry carries no fairness information: ordering by it
+                    # first starves a crashed generation forever, because a
+                    # peer that is leased and released each turn is always NULL
+                    # and NULL sorts first. Without the turn at all, every
+                    # released generation ties and whichever tuple the scan
+                    # yields first is re-leased forever. Expiry and the
+                    # generation key only break exact turn ties, which keeps
+                    # the order total and independent of physical layout.
                     "UPDATE reporting_configurations SET lease_worker_id = %s,"
-                    " lease_expires_at = %s"
+                    " lease_expires_at = %s,"
+                    " lease_turn = nextval('reporting_configurations_lease_turn_seq')"
                     " WHERE (account_id, delivery_config_id, delivery_config_version) = ("
                     "   SELECT account_id, delivery_config_id, delivery_config_version"
                     "   FROM reporting_configurations"
                     "   WHERE lease_expires_at IS NULL OR lease_expires_at <= %s"
-                    "   ORDER BY lease_expires_at NULLS FIRST"
+                    "   ORDER BY lease_turn, lease_expires_at NULLS FIRST,"
+                    "     account_id, delivery_config_id, delivery_config_version"
                     "   FOR UPDATE SKIP LOCKED"
                     "   LIMIT 1)"
                     " RETURNING account_id, delivery_config_id, delivery_config_version",

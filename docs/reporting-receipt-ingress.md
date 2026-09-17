@@ -150,6 +150,13 @@ readiness, and argument bounds remain actionable closed errors.
    connection. The additive `reporting_receipt_ingestion.sql` and independent
    `receipts/required_schema.json` ship in both wheel distribution paths. Do not
    modify A/B/C manifests or the **187-object** B2.1 materializer manifest.
+   This migration also carries an additive Core fix: `reporting_configurations`
+   gains a defaulted `lease_turn` column, a monotonic sequence and a distinctly
+   named index that give period-close leasing a durable, total fairness order.
+   Without it a worker that releases each turn can re-lease one generation
+   forever and never close any other account's periods. Rows written by older
+   writers default to the never-leased rank, so nothing is starved and no
+   required manifest key changes.
 2. Verify `await store.receipt_ingestion_ready()` on the actual installed store.
    Empty, old, partial, disabled-trigger and mismatched schemas fail closed,
    including completed replay. The migration is transactional, repeatable and

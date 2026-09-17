@@ -58,6 +58,39 @@ CREATE INDEX IF NOT EXISTS reporting_configurations_account_idx
 CREATE INDEX IF NOT EXISTS reporting_configurations_lease_idx
     ON reporting_configurations (lease_expires_at NULLS FIRST);
 
+-- Durable round-robin fairness for period-close leasing.
+--
+-- `reporting_configurations_lease_idx` above cannot deliver the "least recently
+-- worked" order its own comment promises. `release_period_close` clears
+-- `lease_expires_at`, so every released generation ties at NULL and the winner
+-- is whichever tuple the scan happens to yield first: a worker that releases at
+-- the end of every turn re-leases the same generation forever and never closes
+-- any other account's periods. Ordering by expiry *first* is a second
+-- starvation path -- the acquisition filter has already dropped every live
+-- lease, so a peer that is released each turn is permanently NULL and outranks
+-- a generation whose worker crashed, which then stays expired forever.
+--
+-- `lease_turn` is therefore the primary fairness rank, stamped on acquisition
+-- (release only clears the lease, so there is nowhere else to record it) and
+-- persisted so it survives a worker restart. Expiry and the generation key only
+-- break exact ties, which keeps the order total.
+--
+-- Additive and defaulted: old readers never select it, and old writers that
+-- INSERT without it get 0, which is the correct "never leased" rank, so a newly
+-- accepted generation is served before any that already took a turn. The
+-- sequence only has to be monotonic, so rollback gaps are harmless, and no
+-- required manifest key changes. The index carries a distinct name rather than
+-- redefining the legacy one, because `CREATE INDEX IF NOT EXISTS` would not
+-- upgrade an existing same-name index on an already installed schema.
+CREATE SEQUENCE IF NOT EXISTS reporting_configurations_lease_turn_seq AS BIGINT;
+
+ALTER TABLE reporting_configurations
+    ADD COLUMN IF NOT EXISTS lease_turn BIGINT NOT NULL DEFAULT 0;
+
+CREATE INDEX IF NOT EXISTS reporting_configurations_lease_fairness_idx
+    ON reporting_configurations (lease_turn, lease_expires_at NULLS FIRST,
+        account_id, delivery_config_id, delivery_config_version);
+
 CREATE TABLE IF NOT EXISTS reporting_obligations (
     reporting_obligation_id TEXT COLLATE "C" NOT NULL PRIMARY KEY,
     account_id              TEXT COLLATE "C" NOT NULL,

@@ -185,6 +185,13 @@ async def test_a_worker_that_releases_each_turn_reaches_every_accounts_generatio
     always hands back the first leasable generation would close periods for one
     account forever and never reach the others -- invisible until two accounts
     share a ``delivery_config_id``, which is exactly what this change allows.
+
+    Release clears ``lease_expires_at``, so ``ORDER BY lease_expires_at NULLS
+    FIRST`` alone is not a total order and the winner is whatever plan order
+    happens to apply; CI caught nine consecutive ``acct_a`` leases this way
+    while the in-memory store, which breaks the tie on turn, stayed fair. Both
+    stores now rank on a persisted turn advanced at acquisition, so reverting
+    that ordering fails this test deterministically rather than occasionally.
     """
     accounts = ("acct_a", "acct_b", "acct_c")
     await asyncio.gather(*(store.put_configuration(configuration(name)) for name in accounts))
@@ -197,6 +204,167 @@ async def test_a_worker_that_releases_each_turn_reaches_every_accounts_generatio
         await store.release_period_close(lease, worker_id="solo")
     assert set(worked) == set(accounts)
     assert set(worked[: len(accounts)]) == set(accounts)
+
+
+async def test_lease_turn_advances_on_acquisition_so_a_crashed_worker_cannot_starve_peers(
+    store: ReportingLedgerStore,
+) -> None:
+    """Acquisition, not release, is where a generation loses its place in line.
+
+    ``release_period_close`` only clears the lease, so the turn has to be
+    recorded when the lease is taken -- otherwise a worker that crashes
+    mid-close keeps the minimum turn forever and every expiry sweep hands the
+    same generation back.
+
+    Ordering by expiry with ``NULLS FIRST`` hides that on its own: a never
+    worked generation always outranks an expired one, so the turn is only the
+    deciding term once two eligible generations share an expiry. This builds
+    exactly that state. ``acct_b`` is leased first and ``acct_a`` second, both
+    crash unreleased with the same expiry, so the generation that went longest
+    without a turn is ``acct_b`` even though ``acct_a`` sorts lower by key. A
+    store that advances the turn only on release ranks them equal and reaches
+    for ``acct_a``.
+    """
+    # Created in this order so the later-acquired generation sorts lower by key.
+    await store.put_configuration(configuration("acct_b"))
+    crashed_first = await store.lease_period_close(worker_id="crash-1", now=NOW, lease_seconds=30)
+    assert crashed_first is not None and crashed_first.account_id == "acct_b"
+    await store.put_configuration(configuration("acct_a"))
+    crashed_second = await store.lease_period_close(worker_id="crash-2", now=NOW, lease_seconds=30)
+    assert crashed_second is not None and crashed_second.account_id == "acct_a"
+    assert crashed_first.lease_expires_at == crashed_second.lease_expires_at
+    # Never worked, so it must outrank both expired generations.
+    await store.put_configuration(configuration("acct_c"))
+    later = NOW + timedelta(seconds=31)
+    swept = []
+    for _ in range(3):
+        lease = await store.lease_period_close(worker_id="solo", now=later, lease_seconds=30)
+        assert lease is not None
+        swept.append(lease.account_id)
+    assert swept == ["acct_c", "acct_b", "acct_a"]
+
+
+async def test_lease_order_is_total_and_does_not_depend_on_acceptance_order(
+    store: ReportingLedgerStore,
+) -> None:
+    """Both backends must choose the same generation, not this process's history.
+
+    Never-leased generations all share the minimum turn, so something has to
+    break the tie. Ranking on "whichever generation this store accepted first"
+    is not reproducible: the SQL store cannot express it, it differs from the
+    in-memory store, and it does not survive a restart or a second worker. The
+    generation key is part of the rank instead, so these configurations are
+    handed out in key order even though they are accepted in the reverse.
+    """
+    # Accepted in reverse key order, deliberately.
+    for name in ("acct_c", "acct_b", "acct_a"):
+        await store.put_configuration(configuration(name))
+    worked = []
+    for _ in range(3):
+        lease = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+        assert lease is not None
+        worked.append(lease.account_id)
+        await store.release_period_close(lease, worker_id="solo")
+    assert worked == ["acct_a", "acct_b", "acct_c"]
+
+
+async def test_a_crashed_generation_is_not_starved_by_a_peer_that_keeps_releasing(
+    store: ReportingLedgerStore,
+) -> None:
+    """A permanently unheld peer must not outrank a lower-turn expired generation.
+
+    The acquisition filter already drops every live lease, so among the
+    survivors the expiry carries no fairness information. If unheld sorted
+    ahead of expired, a peer that is leased and released on every turn would be
+    NULL forever and win every comparison, while the generation whose worker
+    died would stay expired and never close another period -- starvation with
+    no expiry sweep able to clear it.
+    """
+    await asyncio.gather(
+        *(store.put_configuration(configuration(name)) for name in ("acct_a", "acct_b"))
+    )
+    crashed = await store.lease_period_close(worker_id="crashes", now=NOW, lease_seconds=30)
+    assert crashed is not None and crashed.account_id == "acct_a"
+    # acct_a is still live here, so this can only take acct_b; it releases.
+    released = await store.lease_period_close(worker_id="polite", now=NOW, lease_seconds=30)
+    assert released is not None and released.account_id == "acct_b"
+    await store.release_period_close(released, worker_id="polite")
+    # Past acct_a's expiry both are leasable: acct_b unheld, acct_a expired.
+    later = NOW + timedelta(seconds=31)
+    recovered = await store.lease_period_close(worker_id="solo", now=later, lease_seconds=30)
+    assert recovered is not None
+    assert recovered.account_id == "acct_a"
+
+
+async def test_lease_fairness_migrates_onto_an_already_installed_older_schema() -> None:
+    """The additive upgrade reaches an existing install and stays idempotent.
+
+    A same-name ``CREATE INDEX IF NOT EXISTS`` would not upgrade an existing
+    index, so the total order is carried by a distinctly named additive index
+    plus a defaulted column, both of which an older installation gains on the
+    next ``create_schema()``.
+    """
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(pool=pool, clock=lambda: NOW)
+        await store.create_schema()
+        async with pool.connection() as connection:
+            # Reduce the install to the pre-fairness shape an older binary left.
+            await connection.execute(
+                "DROP INDEX IF EXISTS reporting_configurations_lease_fairness_idx"
+            )
+            await connection.execute(
+                "ALTER TABLE reporting_configurations DROP COLUMN IF EXISTS lease_turn"
+            )
+            await connection.execute(
+                "DROP SEQUENCE IF EXISTS reporting_configurations_lease_turn_seq"
+            )
+        for name in ("acct_a", "acct_b"):
+            await store.put_configuration(configuration(name))
+        # Repeated migration is safe and restores the durable fairness column.
+        await store.create_schema()
+        await store.create_schema()
+        async with pool.connection() as connection:
+            row = await (
+                await connection.execute(
+                    "SELECT count(*) FROM information_schema.columns"
+                    " WHERE table_schema = current_schema()"
+                    "   AND table_name = 'reporting_configurations'"
+                    "   AND column_name = 'lease_turn'"
+                )
+            ).fetchone()
+            assert row is not None and row[0] == 1
+            turns = await (
+                await connection.execute("SELECT DISTINCT lease_turn FROM reporting_configurations")
+            ).fetchall()
+        # Rows written before the upgrade rank as never leased.
+        assert [t[0] for t in turns] == [0]
+        worked = []
+        for _ in range(2):
+            lease = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+            assert lease is not None
+            worked.append(lease.account_id)
+            await store.release_period_close(lease, worker_id="solo")
+        assert worked == ["acct_a", "acct_b"]
+        # A generation accepted by an older writer that does not know the column
+        # still defaults to the never-leased rank, so it is served before the
+        # generations that already took a turn rather than starved behind them.
+        async with pool.connection() as connection:
+            await connection.execute(
+                "INSERT INTO reporting_configurations"
+                " (delivery_config_id, delivery_config_version, account_id,"
+                "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
+                "  account_timezone, schedule, media_buy_ids, activated_at,"
+                "  automated_recovery_seconds, status_retention_days, content_sha256)"
+                " SELECT delivery_config_id, delivery_config_version, 'acct_legacy',"
+                "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
+                "  account_timezone, schedule, media_buy_ids, activated_at,"
+                "  automated_recovery_seconds, status_retention_days, 'f' || content_sha256"
+                " FROM reporting_configurations WHERE account_id = %s",
+                ("acct_a",),
+            )
+        legacy = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+        assert legacy is not None
+        assert legacy.account_id == "acct_legacy"
 
 
 async def test_concurrent_period_closes_converge_within_each_account(

@@ -1568,26 +1568,40 @@ class InMemoryReportingLedgerStore:
 
         async with self._lock:
             moment = _utc(now)
-            # Rank leasable generations the way the SQL store's
-            # `ORDER BY lease_expires_at NULLS FIRST` does -- unheld before
-            # expired, oldest expiry first -- then break the tie by whichever
-            # generation went longest without a turn.  Without that last term a
-            # worker that releases at the end of every turn re-leases the same
-            # generation forever, and every other account's periods are never
-            # closed: starvation that only appears once two accounts can hold
-            # the same delivery_config_id.
-            ranked: list[tuple[tuple[int, float, int], ReportingConfigurationGenerationKey]] = []
+            # Rank leasable generations exactly the way the SQL store's
+            # `ORDER BY lease_turn, lease_expires_at NULLS FIRST, ...` does:
+            # whichever generation went longest without a turn goes first.
+            #
+            # The turn has to be the *primary* term. The caller's `now` has
+            # already excluded every live lease, so among the survivors the
+            # expiry carries no fairness information -- and preferring unheld
+            # over expired ahead of the turn starves a crashed generation
+            # forever: a peer that is leased and released every turn is always
+            # unheld, so it wins every comparison while the generation whose
+            # worker died stays expired and never closes another period.
+            # Expiry and the generation key only break exact turn ties, so the
+            # order stays total and never depends on physical layout.
+            ranked: list[
+                tuple[
+                    tuple[int, int, float, str, str, int],
+                    ReportingConfigurationGenerationKey,
+                ]
+            ] = []
             for key in self._configurations:
                 turn = self._lease_turns.get(key, 0)
                 held = self._leases.get(key)
+                tail = (key.account_id, key.delivery_config_id, key.delivery_config_version)
                 if held is None:
-                    ranked.append(((0, 0.0, turn), key))
+                    ranked.append(((turn, 0, 0.0, *tail), key))
                 elif _utc(held[1]) <= moment:
-                    ranked.append(((1, _utc(held[1]).timestamp(), turn), key))
+                    ranked.append(((turn, 1, _utc(held[1]).timestamp(), *tail), key))
             if not ranked:
                 return None
-            # `min` keeps the first of equal ranks, so generations that have
-            # never been leased are handed out in the order they were accepted.
+            # The generation key is part of the rank, so the order is total and
+            # both stores make the same choice. Ranking by `min` alone would
+            # fall back to whichever generation this process happened to accept
+            # first, which the SQL store cannot reproduce and no adopter can
+            # observe consistently across a restart or a second worker.
             key = min(ranked, key=lambda item: item[0])[1]
             configuration = self._configurations[key]
             expires = moment + timedelta(seconds=lease_seconds)
