@@ -1,17 +1,23 @@
 """Shared receipt-ingress vectors; production PG receipt time is database time."""
 
 from contextlib import asynccontextmanager
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import timedelta
 
 import pytest
 
-from adcp.reporting.ledger import ReportingAdjustmentRecord, ReportingControlTotalRecord
+from adcp.reporting.ledger import (
+    ReportingAdjustmentRecord,
+    ReportingControlTotalRecord,
+    ReportingDeliveryScope,
+)
 from adcp.reporting.ledger.delivery import adjustment_to_wire, receipt_to_wire
+from adcp.reporting.ledger.models import derive_period
+from adcp.reporting.ledger.producer import revision_content_sha256
 from adcp.reporting.receipts import InMemoryReportingReceiptStore
 
 from ._durable_materializer_support import DurableHarness
-from ._generation_support import END, isolated_reporting_pool
+from ._generation_support import END, configuration, isolated_reporting_pool
 from ._reconciliation_support import Clock, scenario
 
 
@@ -101,3 +107,127 @@ async def batch_state(h):
                 )
             ).fetchall()
         )
+
+
+@dataclass(frozen=True)
+class ForeignTargets:
+    """Existing, wholly VALID records that belong to a different exact target.
+
+    Nothing here is corrupt or unauthorized at the application boundary: every
+    row is a legitimate artifact for its own obligation, revision, consumer or
+    adjustment. A receipt that points at one of them from another target must
+    still be refused, and refused indistinguishably from an absent record.
+    """
+
+    obligation: object
+    revision: object
+    materialization_id: str
+    adjustment: object
+    consumer_id: str
+    consumer_materialization_id: str
+
+
+async def foreign_targets(h, s):
+    """Commit one more complete valid period and one more valid consumer."""
+    config = replace(
+        configuration(s.obligation.account_id),
+        feed_purpose=s.binding.feed_purpose,
+        required_finality=s.obligation.required_finality,
+    )
+    period = derive_period(config.schedule, account_timezone=config.account_timezone, ordinal=1)
+    obligation = replace(
+        s.obligation,
+        reporting_obligation_id="rpo_foreign",
+        period=period,
+        scope_resolved_at=period.end,
+        automated_recovery_deadline_at=period.expected_at + config.automated_recovery_window,
+    )
+    await h.store.commit_obligation(obligation)
+    scope = ReportingDeliveryScope(
+        obligation.generation_key, s.binding.consumer_id, obligation.reporting_obligation_id
+    )
+    await h.store.bind_obligation_delivery(
+        replace(s.delivery, scope=scope, resource_retained_until=period.end + timedelta(days=400))
+    )
+    rows = [
+        {
+            "media_buy_id": obligation.media_buy_ids[0],
+            "impressions": 5,
+            "spend": "12.50",
+            "currency": "EUR",
+        }
+    ]
+    revision = replace(
+        s.revision,
+        reporting_revision_id="revision-foreign",
+        reporting_obligation_id=obligation.reporting_obligation_id,
+        observed_at=period.end,
+        data_through=period.end,
+        created_at=period.end + timedelta(seconds=1),
+        finalized_at=period.end if s.revision.finality == "official" else None,
+        revision_content_sha256=revision_content_sha256(
+            reporting_revision_id="revision-foreign",
+            row_count=s.revision.row_count,
+            control_totals=s.revision.control_totals,
+            reporting_rows=rows,
+            control_total_evidence=s.revision.managed_control_totals,
+        ),
+    )
+    await h.store.commit_revision(revision, rows)
+    completed = period.end + timedelta(seconds=3)
+    await h.store.commit_materialization_attempt(
+        replace(
+            s.attempt,
+            scope=scope,
+            reporting_revision_id=revision.reporting_revision_id,
+            reporting_materialization_id="materialization-foreign",
+            created_at=period.end + timedelta(seconds=2),
+        )
+    )
+    await h.store.commit_materialization(
+        replace(
+            s.outcome,
+            scope=scope,
+            reporting_revision_id=revision.reporting_revision_id,
+            reporting_materialization_id="materialization-foreign",
+            completed_at=completed,
+            resource=replace(s.outcome.resource, expires_at=completed + timedelta(days=400)),
+            verification=replace(s.outcome.verification, verified_at=completed),
+        )
+    )
+    adjustment = ReportingAdjustmentRecord(
+        "adjustment-foreign",
+        obligation.account_id,
+        revision.reporting_revision_id,
+        "source_correction",
+        period.end,
+        period.end + timedelta(days=30),
+        (("spend", "-1.50"),),
+        period.end + timedelta(seconds=5),
+        period.end + timedelta(seconds=6),
+        managed_control_total_deltas=(
+            ReportingControlTotalRecord("spend", "-1.50", "decimal", "EUR"),
+        ),
+    )
+    await h.store.commit_adjustment(adjustment)
+    # One more valid consumer holding its own artifact for the caller's revision.
+    consumer_id = f"{s.binding.consumer_id}-foreign"
+    other = ReportingDeliveryScope(
+        s.obligation.generation_key, consumer_id, s.obligation.reporting_obligation_id
+    )
+    await h.store.put_destination_binding(replace(s.binding, consumer_id=consumer_id))
+    await h.store.bind_obligation_delivery(replace(s.delivery, scope=other))
+    await h.store.commit_materialization_attempt(
+        replace(s.attempt, scope=other, reporting_materialization_id="materialization-consumer")
+    )
+    await h.store.commit_materialization(
+        replace(s.outcome, scope=other, reporting_materialization_id="materialization-consumer")
+    )
+    return ForeignTargets(
+        obligation,
+        revision,
+        "materialization-foreign",
+        adjustment,
+        consumer_id,
+        "materialization-consumer",
+    )
