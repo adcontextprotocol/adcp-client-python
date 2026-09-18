@@ -253,6 +253,8 @@ async def test_required_unusable_index_blocks_capability_boot(flag):
             worker, reliable.store, ReportingActivityProjector(outbox)
         )
         assert await support.durable()
+        # Controlled DDL after a completed startup proof must invalidate it.
+        support.invalidate_schema_validation()
         # The task-owned PG16 admin fixture can model the catalog state left
         # by a failed concurrent index build without timing a real crash.
         async with reliable.blobs.pool.connection() as conn:

@@ -29,6 +29,7 @@ from adcp.reporting.ledger.status_snapshot import settle_snapshot_on
 from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.materializer.capture import private_snapshot
 from adcp.reporting.materializer.pg import PgReportingMaterializerStore, _now
+from adcp.reporting.receipts._diagnostics import _Boundary, _storage_failure
 from adcp.reporting.receipts.capture import ReportingReceiptBoundary, decode_receipt_boundary
 from adcp.reporting.receipts.errors import ReportingReceiptError
 from adcp.reporting.receipts.records import (
@@ -51,20 +52,26 @@ _R = TypeVar("_R")
 
 
 def _storage_errors(
-    fn: Callable[_P, Coroutine[Any, Any, _R]],
-) -> Callable[_P, Coroutine[Any, Any, _R]]:
-    @wraps(fn)
-    async def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
-        try:
-            return await fn(*args, **kwargs)
-        except ReportingReceiptError:
-            raise
-        except Exception:
-            unavailable = ReportingReceiptError("RECEIPT_STORAGE_UNAVAILABLE")
-        # Outside the driver exception scope: no SQL/provider detail in __context__.
-        raise unavailable
+    boundary: _Boundary,
+) -> Callable[[Callable[_P, Coroutine[Any, Any, _R]]], Callable[_P, Coroutine[Any, Any, _R]]]:
+    def decorate(
+        fn: Callable[_P, Coroutine[Any, Any, _R]],
+    ) -> Callable[_P, Coroutine[Any, Any, _R]]:
+        @wraps(fn)
+        async def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+            try:
+                return await fn(*args, **kwargs)
+            except ReportingReceiptError:
+                raise
+            except Exception as error:
+                _storage_failure(error, boundary=boundary)
+                unavailable = ReportingReceiptError("RECEIPT_STORAGE_UNAVAILABLE")
+            # Outside the driver exception scope: no SQL/provider detail in __context__.
+            raise unavailable
 
-    return wrapped
+        return wrapped
+
+    return decorate
 
 
 class PgReportingReceiptStore(PgReportingMaterializerStore):
@@ -75,7 +82,7 @@ class PgReportingReceiptStore(PgReportingMaterializerStore):
     public conformance clock was supplied to the inherited constructor.
     """
 
-    @_storage_errors
+    @_storage_errors("store.create_schema")
     async def create_schema(self) -> None:
         async with self._connection() as connection, connection.transaction():
             await self._create_schema_on(connection)
@@ -83,7 +90,7 @@ class PgReportingReceiptStore(PgReportingMaterializerStore):
             await connection.execute(root.joinpath("reporting_materializer.sql").read_text())
             await connection.execute(root.joinpath("reporting_receipt_ingestion.sql").read_text())
 
-    @_storage_errors
+    @_storage_errors("store.receipt_ingestion_ready")
     async def receipt_ingestion_ready(self) -> bool:
         async with self._connection() as connection:
             await validate_receipt_schema(connection, notifications=self._notifications_enabled)
@@ -265,7 +272,7 @@ class PgReportingReceiptStore(PgReportingMaterializerStore):
             raise ReportingReceiptError("RECEIPT_HISTORY_CORRUPT")
         return cast(dict[str, Any], json.loads(_json(response)))
 
-    @_storage_errors
+    @_storage_errors("store.ingest_receipt_batch")
     async def ingest_receipt_batch(
         self, request: dict[str, Any], *, caller: ReportingDeliveryPrincipal
     ) -> dict[str, Any]:
@@ -363,7 +370,7 @@ class PgReportingReceiptStore(PgReportingMaterializerStore):
             ),
         )
 
-    @_storage_errors
+    @_storage_errors("store.read_receipt_boundaries")
     async def read_receipt_boundaries(
         self, *, caller: ReportingDeliveryPrincipal, after: int = 0, limit: int = 100
     ) -> tuple[ReportingReceiptBoundary, ...]:

@@ -25,6 +25,13 @@ async def validate_status_schema(
     # separately; this manifest's activity switch validates only C objects.
     await validate_schema(connection)
     installed = await schema_objects(connection)
+    _validate_status_objects(installed, activity=activity, status=status)
+
+
+def _validate_status_objects(
+    installed: dict[str, dict[str, Any]], *, activity: bool = False, status: bool = True
+) -> None:
+    """Apply only C's contract; the caller must also prove its B foundation."""
     if not REQUIRED_STATUS_OBJECTS:
         raise ReportingNotificationError("status_schema_unready:manifest_missing")
     for key, expected in REQUIRED_STATUS_OBJECTS.items():
