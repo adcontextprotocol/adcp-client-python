@@ -109,7 +109,9 @@ For beta.14 compatibility, the four request container fields (`PackageRequest`,
 and subclassed `TargetingOverlay` instances at runtime, preserving their object
 identity. Their compatibility union tries `TargetingOverlayInput` first with
 left-to-right validation, so raw dictionaries still become mutation-input
-objects. This bridge supports existing beta.14 code; it does not promise that
+objects. The legacy arm is runtime-only: generated JSON Schema and MCP tool
+discovery still advertise only the mutation input and null. This bridge
+supports existing beta.14 code; it does not promise that
 resolved-state models substitute for other mutation variants. New subclasses
 should use `TargetingOverlayInput` for these requests and `TargetingOverlay` for
 resolved-state contexts.

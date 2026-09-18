@@ -6,6 +6,7 @@ from typing import Annotated, Any, get_args, get_origin
 
 import pytest
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, create_model
+from pydantic.json_schema import SkipJsonSchema
 
 import adcp.types
 from adcp._null_clear import preserve_explicit_nulls
@@ -188,6 +189,45 @@ def test_subclass_null_intent_survives_request_serialization(
     assert outcome.variant == "request"
 
 
+@pytest.mark.parametrize("overlay_name", ["TargetingOverlayInput", "TargetingOverlay"])
+@pytest.mark.parametrize("task,collection", _REQUEST_PATHS)
+@pytest.mark.parametrize(
+    "dimensions",
+    [
+        {"geo_regions": ["US-NY"]},
+        {"geo_regions": ["US-NY"], "geo_countries": None},
+        {},
+        {"geo_regions": ["US-NY"], "geo_countries": ["US"]},
+    ],
+    ids=["omitted-country", "null-country", "empty-overlay", "populated-country"],
+)
+def test_exact_overlay_objects_preserve_wire_intent(
+    overlay_name: str, task: str, collection: str, dimensions: dict[str, Any]
+) -> None:
+    overlay_type = getattr(adcp.types, overlay_name)
+    overlay = overlay_type.model_validate(dimensions)
+    assert type(overlay) is overlay_type
+    # Exact objects have no declared excluded extension fields. A private
+    # runtime hint must also remain off the wire; excluded subclass fields
+    # are covered separately above.
+    overlay._routing_hint = "seller-1"
+    request = _request(task, collection, overlay)
+    assert getattr(request, collection)[0].targeting_overlay is overlay
+    assert overlay._routing_hint == "seller-1"
+
+    wire = preserve_explicit_nulls(
+        request,
+        request.model_dump(mode="json", exclude_none=True),
+        task_name=task,
+        version="3.2.0-rc.3",
+    )
+
+    assert wire[collection][0]["targeting_overlay"] == dimensions
+    outcome = validate_request(task, wire, version="3.2.0-rc.3")
+    assert outcome.valid, outcome.issues
+    assert outcome.variant == "request"
+
+
 @pytest.mark.parametrize("task,collection", _REQUEST_PATHS)
 def test_raw_dict_keeps_input_materialization_in_enclosing_request(
     task: str, collection: str
@@ -203,10 +243,21 @@ def test_compatibility_union_is_explicitly_input_first_and_left_to_right(
     annotation = container.model_fields["targeting_overlay"].annotation
     assert get_origin(annotation) is Annotated
     union, field = get_args(annotation)
-    assert get_args(union) == (GeneratedInput, TargetingOverlay, type(None))
+    assert get_args(union) == (GeneratedInput, SkipJsonSchema[TargetingOverlay], type(None))
     assert any(
         getattr(metadata, "union_mode", None) == "left_to_right" for metadata in field.metadata
     )
+
+
+@pytest.mark.parametrize("container,required", _CONTAINERS)
+def test_container_json_schema_keeps_only_mutation_input_and_null(
+    container: type[BaseModel], required: dict[str, Any]
+) -> None:
+    schema = container.model_json_schema()
+    assert schema["properties"]["targeting_overlay"]["anyOf"] == [
+        {"$ref": "#/$defs/TargetingOverlayInput"},
+        {"type": "null"},
+    ]
 
 
 @pytest.mark.parametrize(

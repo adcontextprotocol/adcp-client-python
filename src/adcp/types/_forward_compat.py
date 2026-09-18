@@ -34,6 +34,7 @@ from typing import Annotated, Any, cast, get_args
 
 from pydantic import BaseModel, Field
 from pydantic.fields import FieldInfo
+from pydantic.json_schema import SkipJsonSchema
 
 from adcp.types.aliases import FormatAssetUnion, GroupFormatAssetUnion, RepeatableAssetGroup
 from adcp.types.canonical_creative import PackageRequest as PublicPackageRequest
@@ -137,11 +138,13 @@ def _patch_targeting_overlay(model: type[BaseModel]) -> None:
     # Input first is essential: raw dicts keep their rc.3 mutation wrappers,
     # while existing resolved-state instances (including subclasses) retain
     # identity and internal fields without a lossy model_dump() conversion.
+    # The legacy arm is runtime-only: advertising it would widen and duplicate
+    # the mutation schema in model_json_schema() and MCP tools/list.
     _patch_model_field(
         model,
         "targeting_overlay",
         Annotated[
-            TargetingOverlayInput | TargetingOverlay | None,
+            TargetingOverlayInput | SkipJsonSchema[TargetingOverlay] | None,
             Field(union_mode="left_to_right"),
         ],
     )
