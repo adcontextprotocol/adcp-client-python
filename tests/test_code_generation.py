@@ -1315,7 +1315,7 @@ def test_targeting_overlay_input_is_generated_and_public():
     contextual helpers such as ProductPurchaseInput and PreviewInput do not
     imply interchangeable public resolved-state types.
     """
-    import importlib
+    from importlib import import_module
 
     from pydantic import BaseModel, RootModel
 
@@ -1335,7 +1335,7 @@ def test_targeting_overlay_input_is_generated_and_public():
         "adcp.types.buyer",
         "adcp.types._eager",
     ):
-        module = importlib.import_module(name)
+        module = import_module(name)
         assert "TargetingOverlayInput" in module.__all__, name
         assert getattr(module, "TargetingOverlayInput") is TargetingOverlayInput, name
 
