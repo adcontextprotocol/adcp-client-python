@@ -614,6 +614,7 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "SyncPlansRequest",
         "SyncPlansResponse",
         "TargetingOverlay",
+        "TargetingOverlayInput",
         "TimeBasedPricingOption",
         "TimeUnit",
         "Transform",
@@ -1479,6 +1480,7 @@ __all__ = [
     "Snapshot",
     "SnapshotUnavailableReason",
     "TargetingOverlay",
+    "TargetingOverlayInput",
     "WcagLevel",
     # Status enums (for control flow)
     "CreativeStatus",
@@ -2275,6 +2277,7 @@ if TYPE_CHECKING:
         SyncReportingReceiptsRequest,
         SyncReportingReceiptsResponse,
         TargetingOverlay,
+        TargetingOverlayInput,
         TextContent,
         TimeBasedPricingOption,
         TimeUnit,
