@@ -3,7 +3,7 @@ name: PR Title Check
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
-    branches: [main, conductor/1167b2-durable-managed-reporting, conductor/reporting-receipt-ingress-b22]
+    branches: [main, conductor/1167b2-durable-managed-reporting, conductor/reporting-receipt-ingress-b22, conductor/reporting-frozen-account-feed-b23]
 
 permissions:
   contents: read

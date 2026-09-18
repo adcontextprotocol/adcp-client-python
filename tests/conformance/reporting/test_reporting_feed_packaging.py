@@ -140,3 +140,6 @@ def test_python310_feed_without_pg_exports_sql_and_strict_adopter(request, kind)
         ),
         flush=True,
     )
+    from ._hardening_packaging import installed_hardening
+
+    installed_hardening(root, python, wheels[kind], label=kind + "-base", driver_absent=True)

@@ -11,6 +11,7 @@ on:
       - conductor/1167b1-materializer-contracts
       - conductor/1167b2-durable-managed-reporting
       - conductor/reporting-receipt-ingress-b22
+      - conductor/reporting-frozen-account-feed-b23
 
 # Default @adcp/sdk runner alias for storyboard jobs. Tracks the current
 # stable @adcp/sdk release via the ``latest`` npm dist-tag.
@@ -370,6 +371,7 @@ jobs:
             tests/conformance/reporting/test_reporting_receipt_graph.py \
             tests/conformance/reporting/test_reporting_receipt_transactions.py \
             tests/conformance/reporting/test_reporting_receipt_transports.py \
+            tests/conformance/reporting/test_reporting_receipt_diagnostics.py \
             tests/conformance/reporting/test_reporting_receipt_materializer.py \
             tests/conformance/reporting/test_reporting_receipt_migration.py \
             tests/conformance/reporting/test_reporting_receipt_process.py \
@@ -555,7 +557,7 @@ jobs:
   pg-reporting-feed-installed:
     name: Installed frozen feed (Python 3.10 VCS and sdist)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 50
     services:
       postgres:
         image: postgres:16
@@ -572,6 +574,8 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v6
+      - name: Fetch the exact approved B2.3 hardening comparison artifact
+        run: git fetch --no-tags origin 50e35f0ae3540f19b40e8fc460f5870dfe018bf9
       - uses: actions/setup-python@v6
         id: feed-python310
         with:
@@ -585,21 +589,25 @@ jobs:
         run: pip install -e ".[dev,pg]"
       - name: Run installed base and PostgreSQL restart cells
         shell: bash
-        timeout-minutes: 20
+        timeout-minutes: 40
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_feed_installed_test
           ADCP_PYTHON310: ${{ steps.feed-python310.outputs.python-path }}
+          ADCP_HARDENING_EVIDENCE: ${{ runner.temp }}/hardening-installed-evidence
         run: |
           python scripts/reporting_test_harness.py pytest \
             tests/conformance/reporting/test_reporting_feed_packaging.py \
             tests/conformance/reporting/test_reporting_feed_installed_pg.py \
+            tests/conformance/reporting/test_reporting_feed_hardening_installed.py \
             -v -s -ra | tee pg-reporting-feed-installed-evidence.log
       - name: Preserve installed origins, SQL, strict adopter and cold page evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: pg-reporting-feed-installed-evidence-${{ github.run_attempt }}
-          path: pg-reporting-feed-installed-evidence.log
+          path: |
+            pg-reporting-feed-installed-evidence.log
+            ${{ runner.temp }}/hardening-installed-evidence
           if-no-files-found: error
 
   conventional-commits:

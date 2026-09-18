@@ -46,6 +46,49 @@ Absent, anonymous, inactive or conflicting identities fail closed. Two consumers
 in one account and one consumer in two accounts have independent batch keys and
 receipt visibility.
 
+## Private operator diagnostics
+
+Unexpected storage/driver failures and unexpected account-resolver or custom-store
+failures emit one structured ERROR on `adcp.reporting.receipts`. The private helper
+records the original failure at the PostgreSQL `_storage_errors` boundary before
+translation, or at the receipt handler boundary for an unexpected adopter failure.
+The handler does not log an already translated `ReportingReceiptError` again.
+
+The static message is `Receipt storage is unavailable`. Its only diagnostic
+fields are:
+
+- `code`: always `RECEIPT_STORAGE_UNAVAILABLE`.
+- `boundary`: `handler`, `store.create_schema`, `store.receipt_ingestion_ready`,
+  `store.ingest_receipt_batch`, or `store.read_receipt_boundaries`.
+- `exception_type`: the exception class name.
+- `origin_module`, `origin_function`, `origin_line`: the deepest original source
+  coordinates, with only bounded ASCII identifiers/dotted module names accepted;
+  invalid names become `unknown`, and an absent traceback has line `0`.
+
+No exception, traceback object, message, arguments, chain, frame locals or raw
+traceback path is attached to the record. No request/batch/provider body, account
+or consumer identity, receipt/idempotency/continuation identifier, SQL, bound
+parameter, DSN, authentication value or financial data is a diagnostic field.
+The helper creates a plain record without the ambient record factory or dynamic
+task/thread/process names, so serializing the entire emitted `LogRecord` retains
+this boundary. Operator handlers/filters must preserve that contract rather than
+adding request context or raw exceptions.
+If an operator logging sink raises, the buyer still receives the same safe
+error; the SDK does not retry through another logger or expose the sink failure.
+
+Expected `INVALID_REQUEST`, `UNAUTHORIZED`, `IDEMPOTENCY_CONFLICT`,
+`RECEIPT_SCHEMA_UNREADY` and `RECEIPT_HISTORY_CORRUPT` remain silent operator paths.
+Cancellation propagates unchanged and emits no operator error. The buyer receives
+the same safe code and message as before, with an actually empty exception
+cause/context; transport formatting and deliberate caller-owned `context` echo
+remain unchanged. That echo is not part of the error diagnostic.
+
+Use the static boundary, class and source coordinates to locate the failing SDK
+or adopter seam. Repair connectivity or the installed schema, re-run readiness,
+and restart using the rollout procedure below; retry the original immutable batch
+and key after recovery. Do not enable raw exception/SQL logging to diagnose this
+path or rewrite receipt history to make an error disappear.
+
 ## Wire and replay contract
 
 Requests negotiate `adcp_version: "3.2-rc.3"`. This is the wire release spelling;
