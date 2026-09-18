@@ -242,7 +242,7 @@ def test_compatibility_union_is_explicitly_input_first_and_left_to_right(
 ) -> None:
     annotation = container.model_fields["targeting_overlay"].annotation
     assert get_origin(annotation) is Annotated
-    union, field = get_args(annotation)
+    union, field, _validator = get_args(annotation)
     assert get_args(union) == (GeneratedInput, SkipJsonSchema[TargetingOverlay], type(None))
     assert any(
         getattr(metadata, "union_mode", None) == "left_to_right" for metadata in field.metadata

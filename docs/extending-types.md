@@ -104,17 +104,35 @@ The SDK client's serialization preserves that explicitly supplied null using
 the request schema, while keeping excluded internal fields off the wire.
 Calling `model_dump(exclude_none=True)` alone omits null commands.
 
-For beta.14 compatibility, the four request container fields (`PackageRequest`,
-`PackageUpdate`, `PackageControl`, and `ProductPurchaseInput`) also accept exact
-and subclassed `TargetingOverlay` instances at runtime, preserving their object
-identity. Their compatibility union tries `TargetingOverlayInput` first with
-left-to-right validation, so raw dictionaries still become mutation-input
-objects. The legacy arm is runtime-only: generated JSON Schema and MCP tool
-discovery still advertise only the mutation input and null. This bridge
-supports existing beta.14 code; it does not promise that
+For beta.14 compatibility, targeting overlays in `CreateMediaBuyRequest.packages`,
+`UpdateMediaBuyRequest.packages` and `.new_packages`,
+`ControlMediaBuyRequest.packages`, and `BuyProductsRequest.purchases` also accept
+exact and subclassed `TargetingOverlay` instances at runtime, preserving their
+object identity. These request classes are public; the nested control and
+purchase container classes are internal. Their compatibility union tries
+`TargetingOverlayInput` first with left-to-right validation, so raw dictionaries
+still become mutation-input objects. The legacy arm is runtime-only: generated
+JSON Schema and MCP tool discovery still advertise only the mutation input and
+null. Invalid targeting
+produces the input schema's errors with request-document field paths, including
+direct Pydantic `ValidationError.errors()`. The bridge's synthetic union arm
+names and duplicate legacy errors are removed at the targeting field boundary;
+unrelated union errors are unchanged. Public transport error formatters also
+omit Pydantic's input values and context. Direct Pydantic errors retain their
+usual diagnostic data, so do not send their unfiltered contents to a buyer.
+This bridge supports existing beta.14 code; it does not promise that
 resolved-state models substitute for other mutation variants. New subclasses
 should use `TargetingOverlayInput` for these requests and `TargetingOverlay` for
 resolved-state contexts.
+
+**Static typing:** runtime acceptance through `model_validate` does not widen
+every generated constructor signature. Generated request containers still
+declare the input variant, so strict mypy can reject a legacy overlay passed
+directly to those constructors. The public canonical `PackageRequest` and
+`PackageUpdate` stubs expose `targeting_overlay` readback as
+`TargetingOverlayInput | TargetingOverlay | None`; they do not infer your
+application subclass. Use `model_validate` for the runtime bridge and retain the
+original typed overlay reference for application-only attributes, as above.
 
 ### How to detect a wrong import
 

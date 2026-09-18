@@ -32,9 +32,10 @@ from __future__ import annotations
 from copy import copy
 from typing import Annotated, Any, cast, get_args
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError, ValidatorFunctionWrapHandler, WrapValidator
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import SkipJsonSchema
+from pydantic_core import InitErrorDetails
 
 from adcp.types.aliases import FormatAssetUnion, GroupFormatAssetUnion, RepeatableAssetGroup
 from adcp.types.canonical_creative import PackageRequest as PublicPackageRequest
@@ -124,6 +125,34 @@ def _patch_equivalent_model_field(
     _patch_model_field(model, field_name, canonical_annotation)
 
 
+def _validate_targeting_overlay(value: Any, handler: ValidatorFunctionWrapHandler) -> Any:
+    """Keep the runtime compatibility union out of request-document error paths."""
+    try:
+        return handler(value)
+    except ValidationError as exc:
+        # Raw request validation belongs to the Input schema. On failure the
+        # legacy arm repeats its errors, with synthetic class-name loc segments.
+        # Normalize at this field boundary so direct Pydantic errors, MCP, A2A,
+        # and CLI all agree, including callers that never run error narrowing.
+        # Only remove the leading Input arm label; nested genuine unions retain
+        # all of their locations and errors. Successful validation is unchanged.
+        input_errors: list[InitErrorDetails] = []
+        for error in exc.errors(include_url=False):
+            if error["loc"][:1] != ("TargetingOverlayInput",):
+                continue
+            detail: InitErrorDetails = {
+                "type": error["type"],
+                "loc": error["loc"][1:],
+                "input": error["input"],
+            }
+            if "ctx" in error:
+                detail["ctx"] = error["ctx"]
+            input_errors.append(detail)
+        if not input_errors:
+            raise
+        raise ValidationError.from_exception_data(exc.title, input_errors) from exc
+
+
 def _patch_targeting_overlay(model: type[BaseModel]) -> None:
     """Bridge beta.14 objects only while the generated mutation shape is unchanged."""
     field = model.model_fields.get("targeting_overlay")
@@ -146,6 +175,7 @@ def _patch_targeting_overlay(model: type[BaseModel]) -> None:
         Annotated[
             TargetingOverlayInput | SkipJsonSchema[TargetingOverlay] | None,
             Field(union_mode="left_to_right"),
+            WrapValidator(_validate_targeting_overlay),
         ],
     )
     model.model_rebuild(force=True)
