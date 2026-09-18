@@ -33,13 +33,32 @@ deliveries, pending attempts, checks and private captured inputs stay private.
 Consumer privacy applies with `consumer_status_enabled` both off and on.
 Core adjustments appear once.
 
-The first page acquires the account lock, captures Core and caller histories,
-both visible maxima and database `as_of`, and persists the **actual wire
-records** and private historical inputs on that same connection. It never
-settles an issue, acknowledges work, changes receipt replay or mutates a
-notification queue. Partial capture, insertion or page assembly rolls back
-the entire snapshot transaction. Memory follows the same unconditional rollback
-boundary, including newly initialized collections and sequence heads.
+The first page captures Core and caller histories and database `as_of` on one
+connection under the account lock. PostgreSQL releases that transaction and
+pooled connection before projecting the detached inputs, closing dependencies,
+serializing the **actual wire records** and constructing the first page in a
+worker thread. Receipt and materializer writers can commit during projection,
+even with a one-connection pool; their later writes belong to the next walk.
+Visible maxima, ownership, readability, counts and wire membership all come
+from the captured inputs.
+
+The handler rechecks the exact canonical account and consumer after projection,
+before publication. A changed account alias or revoked identity cannot publish
+that prepared snapshot. This request-local callback runs without a borrowed
+PostgreSQL connection, so the application ACL can share the same pool. A short
+second transaction inserts the completed immutable snapshot without taking the
+account writer lock. The handler also reauthorizes before returning a page,
+including continuations. An already persisted snapshot is never reconstructed.
+
+Capture, projection or page-construction failure publishes no snapshot; insert
+or commit failure rolls back its publication. Cancellation during projection
+cannot later publish a discarded result. These failures never undo another
+writer's committed work. Feed reads never settle an issue, acknowledge work,
+change receipt replay or mutate a notification queue. Memory retains its
+unconditional rollback boundary, including newly initialized collections and
+sequence heads. Call PostgreSQL feed reads outside `store.transaction()`:
+`REPORTING_FEED_TRANSACTION_UNAVAILABLE` rejects an outer transaction whose
+writer lock or uncommitted history could otherwise survive the capture phase.
 
 Ordering is `(domain_rank, sequence, record_kind, record_id)`, with Core rank 0
 and caller reconciliation rank 1. Each domain retains its original committed

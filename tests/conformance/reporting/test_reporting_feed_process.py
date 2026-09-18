@@ -53,8 +53,8 @@ async def test_process_crash_preserves_receipts_and_cold_mcp_a2a_pages(point, no
         before = without_feed(await h.image())
         async with feed_process(h, s, feed_request(s), pause=point) as child:
             boundary = await child.event(point)
-            # Observe MVCC from another connection while the child holds the
-            # account lock; no partial snapshot or receipt/history mutation leaks.
+            # Observe MVCC at each phase: captured inputs and uncommitted INSERT
+            # are invisible; no partial snapshot or receipt/history change leaks.
             async with h.pool.connection() as c:
                 count = (
                     await (

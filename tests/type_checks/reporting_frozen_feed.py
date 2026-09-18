@@ -7,6 +7,7 @@ from typing_extensions import assert_type
 from adcp.reporting.feed import (
     InMemoryReportingFeedStore,
     PgReportingFeedStore,
+    ReportingFeedError,
     ReportingFeedSnapshot,
     ReportingFeedStore,
 )
@@ -40,6 +41,16 @@ async def adopter(
     materializer = memory
     assert_type(await feed.reporting_feed_ready(), bool)
     assert_type(await feed.read_reporting_feed(request, caller=caller), dict[str, Any])
+
+    async def reauthorize() -> None:
+        account = await resolve_account(request["account"], context, caller.consumer_id)
+        if account != caller.account_id:
+            raise ReportingFeedError("UNAUTHORIZED")
+
+    assert_type(
+        await feed.read_reporting_feed(request, caller=caller, reauthorize=reauthorize),
+        dict[str, Any],
+    )
     assert_type(
         await feed.read_reporting_feed_snapshot("snapshot", caller=caller),
         ReportingFeedSnapshot | None,

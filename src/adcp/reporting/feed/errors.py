@@ -11,6 +11,7 @@ FeedErrorCode = Literal[
     "REPORTING_FEED_SCHEMA_UNREADY",
     "REPORTING_FEED_HISTORY_CORRUPT",
     "REPORTING_FEED_STORAGE_UNAVAILABLE",
+    "REPORTING_FEED_TRANSACTION_UNAVAILABLE",
 ]
 
 _MESSAGES: dict[FeedErrorCode, str] = {
@@ -21,6 +22,9 @@ _MESSAGES: dict[FeedErrorCode, str] = {
     "REPORTING_FEED_HISTORY_CORRUPT": "retained reporting feed evidence requires operator repair",
     "REPORTING_FEED_STORAGE_UNAVAILABLE": (
         "reporting feed storage is unavailable; retry the request"
+    ),
+    "REPORTING_FEED_TRANSACTION_UNAVAILABLE": (
+        "read reporting feeds outside an existing ledger transaction"
     ),
 }
 

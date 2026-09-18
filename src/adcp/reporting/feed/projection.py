@@ -84,7 +84,10 @@ def capture_feed(
     materializer_boundaries: tuple[ReportingMaterializerBoundary, ...] = (),
     receipt_boundaries: tuple[ReportingReceiptBoundary, ...] = (),
 ) -> ReportingFeedSnapshot:
-    """Caller owns the account lock and connection until persistence completes.
+    """Project detached histories captured under one account-lock boundary.
+
+    No live store, connection, mutable configuration, or current clock is read.
+    PostgreSQL releases its capture transaction before running this projection.
 
     Domain rank, original domain sequence, kind, and wire ID form the total
     order. The two sequence spaces are never compared or collapsed with max().

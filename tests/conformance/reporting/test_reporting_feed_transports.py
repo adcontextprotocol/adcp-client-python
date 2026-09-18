@@ -31,6 +31,126 @@ from ._receipt_transport import MountedReceipts, error_code
 __all__ = ["feeds"]
 
 
+@pytest.mark.parametrize(
+    "code,message",
+    [
+        ("INVALID_VIEW", "unsupported reporting status view"),
+        ("MISSING_REVISION_ID", "a revision view requires reporting_revision_id"),
+        ("LOOKUP_UNAVAILABLE", "no such revision is available to this caller"),
+        (
+            "CURSOR_SNAPSHOT_MISMATCH",
+            "this cursor belongs to a different snapshot, caller or filter set; restart the walk",
+        ),
+        ("STATUS_PROJECTION_UNAVAILABLE", "status lifecycle is pending"),
+    ],
+)
+async def test_mounted_legacy_status_domain_errors_retain_code_and_message(
+    feeds, monkeypatch, code, message
+):
+    from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
+    from adcp.reporting.ledger.store import LedgerConflictError
+
+    h = feeds
+    s, _, _ = await mixed_case(h)
+    mounted = MountedFeed(h)
+    mounted.authorize(s)
+    before = await h.image()
+    callers = []
+
+    async def domain_error(self, request, *, caller):
+        assert request["view"] == "summary"
+        callers.append(caller)
+        raise LedgerConflictError(code, message)
+
+    monkeypatch.setattr(ReportingStatusHandler, "handle", domain_error)
+    request = feed_request(s, view="summary")
+    del request["pagination"]
+    async with mounted.client() as client:
+        for call in (mounted.mcp, mounted.a2a, partial(mounted.a2a, v1=True)):
+            _, response = await call(client, request)
+            assert error_code(response) == code, response
+            assert message in json.dumps(response), response
+    with pytest.raises(ADCPTaskError) as error:
+        await mounted.handler.get_reporting_status(
+            request, ToolContext(caller_identity=s.binding.consumer_id)
+        )
+    assert (error.value.errors[0].code, error.value.errors[0].message) == (code, message)
+    assert error.value.__context__ is None
+    assert callers == [ReportingStatusCaller(s.obligation.account_id, s.binding.consumer_id)] * 4
+    assert await h.image() == before
+
+
+async def test_real_legacy_status_errors_and_unexpected_provider_errors_stay_distinct(
+    feeds, monkeypatch
+):
+    from adcp.reporting.feed.errors import ReportingFeedError
+    from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
+    from adcp.reporting.ledger.store import LedgerConflictError, encode_cursor
+
+    h = feeds
+    s, _, _ = await mixed_case(h)
+    mounted = MountedFeed(h)
+    mounted.authorize(s)
+    before = await h.image()
+    caller = ReportingStatusCaller(s.obligation.account_id, s.binding.consumer_id)
+    context = ToolContext(caller_identity=s.binding.consumer_id)
+    requests = [
+        feed_request(s, view="invalid-view"),
+        feed_request(s, view="revision"),
+        feed_request(s, view="revision", reporting_revision_id="unavailable-revision"),
+        feed_request(
+            s, view="summary", pagination={"cursor": encode_cursor({"snapshot": "other"})}
+        ),
+    ]
+    for request in requests[:3]:
+        del request["pagination"]
+    validator = Draft7Validator(feed_schema("request"), format_checker=FormatChecker())
+    async with mounted.client() as client:
+        for request in requests:
+            with pytest.raises(LedgerConflictError) as legacy:
+                await ReportingStatusHandler(h.store).handle(request, caller=caller)
+            with pytest.raises(ADCPTaskError) as mounted_error:
+                await mounted.handler.get_reporting_status(request, context)
+            assert mounted_error.value.errors[0].code == legacy.value.code
+            assert mounted_error.value.errors[0].message == str(legacy.value)
+            for call in (mounted.mcp, mounted.a2a, partial(mounted.a2a, v1=True)):
+                _, response = await call(client, request)
+                if validator.is_valid(request):
+                    assert error_code(response) == legacy.value.code, response
+                    assert str(legacy.value) in json.dumps(response)
+                else:
+                    # Invalid schema shapes are rejected before the handler.
+                    assert error_code(response) in {"INVALID_REQUEST", "VALIDATION_ERROR"}, response
+
+        assert await h.image() == before
+        secret = "provider-secret-never-on-the-wire"
+
+        async def provider_failure(*args, **kwargs):
+            raise RuntimeError(secret)
+
+        monkeypatch.setattr(ReportingStatusHandler, "handle", provider_failure)
+        for call in (mounted.mcp, mounted.a2a, partial(mounted.a2a, v1=True)):
+            request = feed_request(s, view="summary")
+            del request["pagination"]
+            _, response = await call(client, request)
+            assert error_code(response) == "REPORTING_FEED_STORAGE_UNAVAILABLE"
+            assert secret not in json.dumps(response)
+
+        async def acl_failure(*args, **kwargs):
+            raise LedgerConflictError("LOOKUP_UNAVAILABLE", secret)
+
+        monkeypatch.setattr(mounted.handler, "_receipt_account_resolver", acl_failure)
+        with pytest.raises(ADCPTaskError) as error:
+            await mounted.handler.get_reporting_status(feed_request(s), context)
+        assert error.value.errors[0].code == "REPORTING_FEED_STORAGE_UNAVAILABLE"
+        assert error.value.errors[0].message == str(
+            ReportingFeedError("REPORTING_FEED_STORAGE_UNAVAILABLE")
+        )
+        assert error.value.__context__ is None
+        assert secret not in repr(error.value)
+        assert await h.image() == before
+
+
 @pytest.fixture(autouse=True)
 def _a2a_compat_send_and_aggregate():
     # Override the repository's unit-mock adapter shim. These mounted tests

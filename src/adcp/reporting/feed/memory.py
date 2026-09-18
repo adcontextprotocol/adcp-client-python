@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import secrets
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
@@ -98,6 +99,7 @@ class InMemoryReportingFeedStore(InMemoryReportingReceiptStore):
         *,
         caller: ReportingDeliveryPrincipal,
         consumer_status_enabled: bool = False,
+        reauthorize: Callable[[], Awaitable[None]] | None = None,
     ) -> dict[str, Any]:
         parsed = FeedRequest.parse(request)
         try:
@@ -123,7 +125,11 @@ class InMemoryReportingFeedStore(InMemoryReportingReceiptStore):
                         self._capture_feed(caller, parsed, after, consumer_status_enabled),
                         secrets.token_bytes(32),
                     )
+                    if reauthorize is not None:
+                        await reauthorize()
                     self._save_feed_snapshot(stored)
+                elif reauthorize is not None:
+                    await reauthorize()
                 return inject_context(request, stored.page(offset, parsed.limit))
         except LedgerConflictError:
             raise ReportingFeedError("REPORTING_FEED_HISTORY_CORRUPT") from None

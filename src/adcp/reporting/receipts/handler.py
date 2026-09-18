@@ -137,7 +137,7 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
         from adcp.reporting.feed.errors import ReportingFeedError
         from adcp.reporting.feed.request import FeedRequest
         from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
-        from adcp.reporting.ledger.store import ReportingLedgerStore
+        from adcp.reporting.ledger.store import LedgerConflictError, ReportingLedgerStore
 
         if self.reporting_feed_store is None:
             return self._not_supported("get_reporting_status")
@@ -149,24 +149,38 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
         try:
             if request.get("view") == "periods":
                 FeedRequest.parse(request)
-            if context is None:
-                raise ReportingFeedError("UNAUTHORIZED")
-            try:
-                consumer = await _consumer(context, self._receipt_registry)
-                account = await self._receipt_account_resolver(
-                    dict(request["account"]), context, consumer
-                )
-                if isinstance(context, RequestContext) and context.account.id != account:
+
+            async def authorize() -> ReportingDeliveryPrincipal:
+                if context is None:
                     raise ReportingFeedError("UNAUTHORIZED")
-                caller = ReportingDeliveryPrincipal(account, consumer)
-            except (ReportingReceiptError, ReportingNotificationError, ValueError, TypeError):
-                raise ReportingFeedError("UNAUTHORIZED") from None
+                try:
+                    consumer = await _consumer(context, self._receipt_registry)
+                    account = await self._receipt_account_resolver(
+                        dict(request["account"]), context, consumer
+                    )
+                    if isinstance(context, RequestContext) and context.account.id != account:
+                        raise ReportingFeedError("UNAUTHORIZED")
+                    return ReportingDeliveryPrincipal(account, consumer)
+                except (ReportingReceiptError, ReportingNotificationError, ValueError, TypeError):
+                    raise ReportingFeedError("UNAUTHORIZED") from None
+
+            caller = await authorize()
             if request.get("view") == "periods":
-                return await self.reporting_feed_store.read_reporting_feed(
+
+                async def reauthorize() -> None:
+                    # A still-authorized alias must not change which account or
+                    # canonical consumer owns the already captured boundary.
+                    if await authorize() != caller:
+                        raise ReportingFeedError("UNAUTHORIZED")
+
+                response = await self.reporting_feed_store.read_reporting_feed(
                     request,
                     caller=caller,
                     consumer_status_enabled=self._feed_consumer_status_enabled,
+                    reauthorize=reauthorize,
                 )
+                await reauthorize()
+                return response
             pagination = request.get("pagination")
             positions = (
                 request.get("changes_after"),
@@ -177,11 +191,20 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
                 # legacy projector. Leave ordinary Core requests compatible.
                 raise ReportingFeedError("INVALID_CHECKPOINT")
             if isinstance(self.receipt_store, ReportingLedgerStore):
-                return await ReportingStatusHandler(
-                    self.receipt_store,
-                    consumer_status_enabled=self._feed_consumer_status_enabled,
-                ).handle(request, caller=ReportingStatusCaller(account, consumer))
-            return self._not_supported("get_reporting_status")
+                try:
+                    return await ReportingStatusHandler(
+                        self.receipt_store,
+                        consumer_status_enabled=self._feed_consumer_status_enabled,
+                    ).handle(
+                        request,
+                        caller=ReportingStatusCaller(caller.account_id, caller.consumer_id),
+                    )
+                except LedgerConflictError as error:
+                    # Only the legacy Core projector exposes its established
+                    # domain errors. ACL/provider/feed failures stay redacted.
+                    code, message = error.code, str(error)
+            else:
+                return self._not_supported("get_reporting_status")
         except ReportingFeedError as error:
             code, message = error.code, str(error)
         except Exception:
