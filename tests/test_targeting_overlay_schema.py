@@ -58,14 +58,18 @@ def test_advertised_targeting_mutations_keep_input_only_schema(tool: str) -> Non
     assert expected["anyOf"][1] == {"type": "null"}
 
     for path, node in nodes.items():
+        assert set(node) == {"anyOf", "default", "description", "title"}, (tool, path)
+        # The runtime bridge makes this field non-ref-shaped, so Pydantic adds
+        # this annotation (30 bytes/site). Pin it rather than permitting an
+        # arbitrary amount of metadata outside the mutation-only anyOf.
+        assert node["title"] == "Targeting Overlay", (tool, path)
         assert len(node["anyOf"]) == 2, (tool, path)
         assert node["anyOf"] == expected["anyOf"], (tool, path)
         assert node["default"] is None
-        # Bound the whole node, including anything placed outside anyOf.
-        # Allow field descriptions/defaults, but not the ~100 KB resolved
-        # overlay. Deriving the budget avoids a megabyte-scale snapshot or
-        # hardcoded digest that breaks when unrelated tool fields change.
+        assert isinstance(node["description"], str)
         actual_bytes = json.dumps(node, sort_keys=True).encode()
         mutation_bytes = json.dumps(expected, sort_keys=True).encode()
+        # Retain a budget for the generated description as well as pinning
+        # the exact metadata keys/title above.
         assert len(actual_bytes) <= len(mutation_bytes) + 2048, (tool, path)
         assert b'"title": "TargetingOverlay"' not in actual_bytes, (tool, path)

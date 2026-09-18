@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+import json
 from typing import Annotated, Any, get_args, get_origin
 
 import pytest
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, create_model
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    TypeAdapter,
+    ValidationError,
+    create_model,
+)
 from pydantic.json_schema import SkipJsonSchema
 
 import adcp.types
@@ -250,11 +259,84 @@ def test_compatibility_union_is_explicitly_input_first_and_left_to_right(
 
 
 @pytest.mark.parametrize("container,required", _CONTAINERS)
+@pytest.mark.parametrize(
+    "strict,bid_price,valid",
+    [(False, "1.5", True), (True, "1.5", False), (True, 1.5, True)],
+)
+def test_json_targeting_preserves_caller_strictness(
+    container: type[BaseModel],
+    required: dict[str, Any],
+    strict: bool,
+    bid_price: str | float,
+    valid: bool,
+) -> None:
+    overlay = {
+        "keyword_targets": [{"keyword": "boots", "match_type": "exact", "bid_price": bid_price}]
+    }
+    encoded = json.dumps({**required, "targeting_overlay": overlay})
+    reference = TypeAdapter(GeneratedInput | None)
+    if valid:
+        expected = reference.validate_json(json.dumps(overlay), strict=strict)
+        result = container.model_validate_json(encoded, strict=strict).targeting_overlay
+        assert type(result) is GeneratedInput
+        assert result.model_dump(mode="json") == expected.model_dump(mode="json")
+    else:
+        with pytest.raises(ValidationError) as expected_error:
+            reference.validate_json(json.dumps(overlay), strict=strict)
+        with pytest.raises(ValidationError) as actual_error:
+            container.model_validate_json(encoded, strict=strict)
+        assert actual_error.value.errors() == [
+            {**error, "loc": ("targeting_overlay", *error["loc"])}
+            for error in expected_error.value.errors()
+        ]
+
+
+@pytest.mark.parametrize("container,required", _CONTAINERS)
+@pytest.mark.parametrize("round_trip", [False, True])
+def test_bridge_serialization_keeps_objects_on_the_wire(
+    overlay_class: type[BaseModel],
+    container: type[BaseModel],
+    required: dict[str, Any],
+    round_trip: bool,
+) -> None:
+    overlay = _overlay(overlay_class, {"geo_regions": ["US-NY"], "geo_countries": None})
+    result = container.model_validate({**required, "targeting_overlay": overlay})
+    options = {
+        "exclude_none": False,
+        "serialize_as_any": False,
+        "round_trip": round_trip,
+        "warnings": "error",
+    }
+    expected = overlay.model_dump(mode="json", **options)
+    assert isinstance(expected, dict)
+    assert expected["geo_countries"] is None
+    assert result.model_dump(mode="json", **options)["targeting_overlay"] == expected
+    encoded = result.model_dump_json(**options)
+    assert json.loads(encoded)["targeting_overlay"] == expected
+    assert "route-1181" not in encoded
+    assert "seller-1" not in encoded
+
+
+@pytest.mark.parametrize("container,required", _CONTAINERS)
 def test_container_json_schema_keeps_only_mutation_input_and_null(
     container: type[BaseModel], required: dict[str, Any]
 ) -> None:
     schema = container.model_json_schema()
     assert schema["properties"]["targeting_overlay"]["anyOf"] == [
+        {"$ref": "#/$defs/TargetingOverlayInput"},
+        {"type": "null"},
+    ]
+
+
+@pytest.mark.parametrize("container,required", _CONTAINERS)
+def test_field_serialization_schema_keeps_only_mutation_input_and_null(
+    container: type[BaseModel], required: dict[str, Any]
+) -> None:
+    # Canonical parents have their own opaque wrap serializer. Check the field
+    # contract directly rather than expecting properties in that parent schema.
+    annotation = container.model_fields["targeting_overlay"].rebuild_annotation()
+    schema = TypeAdapter(annotation).json_schema(mode="serialization")
+    assert schema["anyOf"] == [
         {"$ref": "#/$defs/TargetingOverlayInput"},
         {"type": "null"},
     ]

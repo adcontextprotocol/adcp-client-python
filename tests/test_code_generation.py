@@ -1391,6 +1391,11 @@ def test_targeting_overlay_input_is_generated_and_public():
     This is deliberately a named contract, not an *Input suffix rule:
     contextual helpers such as ProductPurchaseInput and PreviewInput do not
     imply interchangeable public resolved-state types.
+
+    The independent scan validates rebuilt field annotations, not cached live
+    model validators. The six-container/five-request-path regressions in
+    test_targeting_overlay_compat.py separately prove live validation, including
+    cached parent rebuilds. Both contracts are required.
     """
     from importlib import import_module
 

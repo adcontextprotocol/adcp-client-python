@@ -129,9 +129,19 @@ def test_direct_validation_error_uses_request_document_path(
         {"geo_countries": []},
         {"keyword_targets": [{"keyword": "", "match_type": _SECRET, "bid_price": -1}]},
         {"placement_selection": {"mode": "selected", "placement_refs": [{}]}},
+        {"signal_targeting": [None]},
+        {"keyword_targets": [{"unexpected": _SECRET}]},
         _SECRET,
     ],
-    ids=["pattern-context", "length-context", "multiple-errors", "nested-union", "wrong-type"],
+    ids=[
+        "pattern-context",
+        "length-context",
+        "multiple-errors",
+        "nested-union",
+        "null-model",
+        "missing-extra-order",
+        "wrong-type",
+    ],
 )
 def test_errors_match_input_schema_including_nested_unions_and_context(
     task: str, collection: str, model: type[BaseModel], mode: str, overlay: Any
@@ -152,6 +162,59 @@ def test_errors_match_input_schema_including_nested_unions_and_context(
     prefix = (collection, 0, "targeting_overlay")
     # Compare complete raw diagnostics, not just the sanitized wire subset:
     # error codes, contexts, inputs, URLs and genuine inner arms must survive.
+    assert actual.value.errors() == [
+        {**error, "loc": (*prefix, *error["loc"])} for error in expected.value.errors()
+    ]
+
+
+@pytest.mark.parametrize("task,collection,model", _PATHS)
+@pytest.mark.parametrize("mode", ["python", "json"])
+def test_error_order_controls_primary_field_and_message(
+    task: str, collection: str, model: type[BaseModel], mode: str
+) -> None:
+    params = _payload(task, collection)
+    params[collection][0]["targeting_overlay"] = {"keyword_targets": [{"unexpected": _SECRET}]}
+    with pytest.raises(ValidationError) as raised:
+        if mode == "json":
+            model.model_validate_json(json.dumps(params))
+        else:
+            model.model_validate(params)
+    error = _validation_error_to_invalid_request(task, raised.value)
+    prefix = f"{collection}.0.targeting_overlay.keyword_targets.0"
+    if mode == "json":
+        assert error.field == f"{prefix}.unexpected"
+        assert "Extra inputs are not permitted" in error.args[0]
+        first_code = "extra_forbidden"
+    else:
+        assert error.field == f"{prefix}.keyword"
+        assert "Field required" in error.args[0]
+        first_code = "missing"
+    assert error.code == "INVALID_REQUEST"
+    details = error.details["validation_errors"]
+    assert len(details) == 3
+    assert details[0]["type"] == first_code
+    assert all(set(detail) == {"type", "loc", "msg"} for detail in details)
+    assert _SECRET not in error.args[0] + json.dumps(error.details)
+    assert "TargetingOverlay" not in error.args[0] + json.dumps(error.details)
+
+
+@pytest.mark.parametrize("task,collection,model", _PATHS[3:])
+def test_native_json_requests_preserve_repeated_key_diagnostics(
+    task: str, collection: str, model: type[BaseModel]
+) -> None:
+    # These parents retain raw JSON, unlike the canonical create/update before
+    # validators. A Python callback or round trip would collapse repeated keys
+    # and silently lose one error. Compare the complete raw Input diagnostics.
+    overlay_json = '{"keyword_targets": [{"unexpected": "first", "unexpected": "last"}]}'
+    params = _payload(task, collection)
+    params[collection][0]["targeting_overlay"] = "__raw_targeting_json__"
+    encoded = json.dumps(params).replace('"__raw_targeting_json__"', overlay_json)
+    with pytest.raises(ValidationError) as expected:
+        TypeAdapter(TargetingOverlayInput | None).validate_json(overlay_json)
+    with pytest.raises(ValidationError) as actual:
+        model.model_validate_json(encoded)
+    assert len(expected.value.errors()) == 4
+    prefix = (collection, 0, "targeting_overlay")
     assert actual.value.errors() == [
         {**error, "loc": (*prefix, *error["loc"])} for error in expected.value.errors()
     ]

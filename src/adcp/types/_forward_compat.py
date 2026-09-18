@@ -29,13 +29,23 @@ in-place. It is therefore listed in ALLOWED_FILES in test_import_layering.py.
 
 from __future__ import annotations
 
+import json
 from copy import copy
+from functools import partial
 from typing import Annotated, Any, cast, get_args
 
-from pydantic import BaseModel, Field, ValidationError, ValidatorFunctionWrapHandler, WrapValidator
+from pydantic import (
+    BaseModel,
+    Field,
+    GetCoreSchemaHandler,
+    GetPydanticSchema,
+    SerializerFunctionWrapHandler,
+    ValidationError,
+    ValidatorFunctionWrapHandler,
+)
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import SkipJsonSchema
-from pydantic_core import InitErrorDetails
+from pydantic_core import CoreSchema, InitErrorDetails, core_schema
 
 from adcp.types.aliases import FormatAssetUnion, GroupFormatAssetUnion, RepeatableAssetGroup
 from adcp.types.canonical_creative import PackageRequest as PublicPackageRequest
@@ -153,6 +163,46 @@ def _validate_targeting_overlay(value: Any, handler: ValidatorFunctionWrapHandle
         raise ValidationError.from_exception_data(exc.title, input_errors) from exc
 
 
+def _serialize_targeting_overlay(value: Any, handler: SerializerFunctionWrapHandler) -> Any:
+    """Use the compatibility union for both Python and JSON serialization."""
+    return handler(value)
+
+
+def _targeting_overlay_schema(
+    source: Any, handler: GetCoreSchemaHandler, *, materialized_json: bool
+) -> CoreSchema:
+    """Keep JSON diagnostics native while bridging legacy Python objects."""
+    input_schema = handler.generate_schema(TargetingOverlayInput | None)
+    compatibility_schema = handler(source)
+    json_schema = input_schema
+    if materialized_json:
+        # Canonical parents already materialize JSON in their before validator.
+        # Re-enter core JSON validation for just this subtree to restore native
+        # error codes and extra/missing error order. A core Json schema preserves
+        # caller strictness/context; a separate TypeAdapter call would not.
+        json_schema = core_schema.no_info_before_validator_function(
+            json.dumps,
+            core_schema.json_schema(input_schema),
+            json_schema_input_schema=input_schema,
+        )
+    return core_schema.json_or_python_schema(
+        # Native JSON parents need no Python callback or round trip. In
+        # particular, retain diagnostics for repeated keys in the raw JSON.
+        json_schema=json_schema,
+        python_schema=core_schema.no_info_wrap_validator_function(
+            _validate_targeting_overlay,
+            compatibility_schema,
+        ),
+        # json-or-python otherwise selects the Input-only JSON serializer for
+        # to_json(), which cannot serialize legacy collection representations.
+        # Keep the original union serializer and advertise only mutation input.
+        serialization=core_schema.wrap_serializer_function_ser_schema(
+            _serialize_targeting_overlay,
+            schema=compatibility_schema,
+        ),
+    )
+
+
 def _patch_targeting_overlay(model: type[BaseModel]) -> None:
     """Bridge beta.14 objects only while the generated mutation shape is unchanged."""
     field = model.model_fields.get("targeting_overlay")
@@ -175,7 +225,14 @@ def _patch_targeting_overlay(model: type[BaseModel]) -> None:
         Annotated[
             TargetingOverlayInput | SkipJsonSchema[TargetingOverlay] | None,
             Field(union_mode="left_to_right"),
-            WrapValidator(_validate_targeting_overlay),
+            GetPydanticSchema(
+                partial(
+                    _targeting_overlay_schema,
+                    materialized_json=bool(
+                        getattr(model, "__adcp_canonical_creative_model__", False)
+                    ),
+                )
+            ),
         ],
     )
     model.model_rebuild(force=True)

@@ -113,11 +113,13 @@ purchase container classes are internal. Their compatibility union tries
 `TargetingOverlayInput` first with left-to-right validation, so raw dictionaries
 still become mutation-input objects. The legacy arm is runtime-only: generated
 JSON Schema and MCP tool discovery still advertise only the mutation input and
-null. Invalid targeting
-produces the input schema's errors with request-document field paths, including
-direct Pydantic `ValidationError.errors()`. The bridge's synthetic union arm
-names and duplicate legacy errors are removed at the targeting field boundary;
-unrelated union errors are unchanged. Public transport error formatters also
+null. Invalid targeting produces the input schema's errors with request-document
+field paths, including direct Pydantic `ValidationError.errors()`. Python-mode
+validation removes the bridge's synthetic union arm names and duplicate legacy
+errors at the targeting field boundary. Direct `model_validate_json()` uses the
+Input schema's native JSON validation, preserving its error types and order
+even when a canonical parent first materializes the request as Python objects.
+Unrelated union errors are unchanged. Public transport error formatters also
 omit Pydantic's input values and context. Direct Pydantic errors retain their
 usual diagnostic data, so do not send their unfiltered contents to a buyer.
 This bridge supports existing beta.14 code; it does not promise that
