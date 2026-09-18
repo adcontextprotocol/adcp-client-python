@@ -1540,6 +1540,11 @@ def create_a2a_server(
         registered=list(executor.supported_skills),
     )
 
+    if hasattr(handler, "production"):
+        from adcp.reporting.production.service import register_production_mount
+
+        register_production_mount(handler, app, transport="a2a", dispatcher=executor)
+
     return app
 
 

@@ -33,6 +33,9 @@ class InMemoryReportingFeedStore(InMemoryReportingReceiptStore):
 
     _reporting_feed_snapshots: dict[str, tuple[bytes, str, bytes]]
 
+    def _feed_projection_options(self, caller: ReportingDeliveryPrincipal) -> dict[str, Any]:
+        return {}
+
     def _feed_snapshot(
         self, snapshot_id: str, caller: ReportingDeliveryPrincipal
     ) -> StoredFeedSnapshot | None:
@@ -90,6 +93,7 @@ class InMemoryReportingFeedStore(InMemoryReportingReceiptStore):
             receipt_boundaries=tuple(
                 b for b in getattr(self, "_receipt_boundaries", ()) if b.caller == caller
             ),
+            **self._feed_projection_options(caller),
         )
 
     @storage_errors

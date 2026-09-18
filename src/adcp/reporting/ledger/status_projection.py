@@ -11,7 +11,7 @@ import hashlib
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timedelta
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger.consumer_status import (
@@ -21,6 +21,7 @@ from adcp.reporting.ledger.consumer_status import (
     project_consumer_mismatch,
     stale_received_grace_deadline,
 )
+from adcp.reporting.ledger.delivery_models import ReportingDeliveryRecord
 from adcp.reporting.ledger.health import (
     ObligationProjection,
     aggregate_reporting_health,
@@ -46,6 +47,9 @@ from adcp.reporting.ledger.notification_models import (
     validate_scope_refinement,
 )
 from adcp.reporting.revision_selection import select_reporting_revision
+
+if TYPE_CHECKING:
+    from adcp.reporting.ledger.reconciliation_projection import ReconciliationProjection
 
 
 @dataclass(frozen=True)
@@ -85,6 +89,10 @@ class StatusProjectionInput:
     feed_purposes: tuple[str, ...] = ()
     period_start: datetime | None = None
     period_end: datetime | None = None
+    # None selects the immutable legacy C representation. Versioned callers
+    # pass the complete captured account history, even when it is empty.
+    reconciliation: tuple[ReportingDeliveryRecord, ...] | None = None
+    consumer_status_enabled: bool = True
 
 
 @dataclass(frozen=True)
@@ -93,6 +101,7 @@ class StatusObligationProjection:
     projection: ObligationProjection
     revisions: tuple[ReportingRevisionRecord, ...]
     statuses: tuple[ConsumerStatusRecord, ...]
+    reconciliation: ReconciliationProjection | None = None
 
 
 @dataclass(frozen=True)
@@ -388,7 +397,7 @@ def status_retained_from(
     return max(
         (
             (
-                max(as_of - timedelta(days=c.status_retention_days), c.activated_at)
+                max(as_of - timedelta(days=c.status_retention_days), min(c.activated_at, as_of))
                 if c.activated_at is not None
                 else as_of - timedelta(days=c.status_retention_days)
             )
@@ -463,7 +472,9 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
     intents = tuple(
         i
         for i in lifecycle_intents(snapshot)
-        if _selected(i.scope, scope) and i.scope.generation_key in generations
+        if _selected(i.scope, scope)
+        and i.scope.generation_key in generations
+        and (value.consumer_status_enabled or i.scope.consumer_id is None)
     )
     live = {i.issue_key: i for i in snapshot.lifecycles if i.live}
     issue_scopes = dict(snapshot.issue_scopes)
@@ -537,7 +548,9 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
         statuses = tuple(
             s
             for s in snapshot.statuses
-            if s.consumer_id == scope.consumer_id and status_matches_obligation(s, obligation)
+            if value.consumer_status_enabled
+            and s.consumer_id == scope.consumer_id
+            and status_matches_obligation(s, obligation)
         )
         projection = project_obligation_health(
             obligation,
@@ -568,7 +581,8 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
             projection = replace(projection, health="action_required")
         current = current_consumer_statement(statuses)
         if (
-            scope.consumer_id is not None
+            value.consumer_status_enabled
+            and scope.consumer_id is not None
             and current is None
             and (snapshot.as_of >= obligation.automated_recovery_deadline_at)
         ):
@@ -617,8 +631,55 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
                     candidates.add(
                         lifecycle.opened_at + value.escalation.consumer_mismatch_escalation
                     )
+        reconciliation = None
+        if value.reconciliation is not None:
+            from adcp.reporting.ledger.reconciliation_projection import project_reconciliation
+            from adcp.reporting.ledger.store import LedgerConflictError
+
+            try:
+                reconciliation = project_reconciliation(
+                    obligation,
+                    revisions,
+                    snapshot.adjustments,
+                    value.reconciliation,
+                    consumer_id=scope.consumer_id,
+                    as_of=snapshot.as_of,
+                )
+            except LedgerConflictError:
+                local.append(
+                    ReportingIssue(
+                        issue_id_for(
+                            "reconciliation-history-v2",
+                            snapshot.account_id,
+                            scope.consumer_id,
+                            obligation.reporting_obligation_id,
+                        ),
+                        "HISTORY_UNAVAILABLE",
+                        "action_required",
+                        "seller",
+                        "contact_seller",
+                        reporting_obligation_id=obligation.reporting_obligation_id,
+                        delivery_config_id=obligation.delivery_config_id,
+                        delivery_config_version=obligation.delivery_config_version,
+                        feed_purpose=obligation.feed_purpose,
+                    )
+                )
+                projection = replace(projection, health="action_required", satisfied=False)
+            else:
+                local.extend(reconciliation.issues)
+                candidates.update(reconciliation.deadlines)
+                if not reconciliation.satisfied:
+                    projection = replace(projection, satisfied=False)
+                    if projection.health in {"healthy", "complete"}:
+                        projection = replace(projection, health="waiting")
+                if any(i.severity == "action_required" for i in local):
+                    projection = replace(projection, health="action_required")
+                elif any(i.severity == "delayed" for i in local):
+                    projection = replace(projection, health="delayed")
         projection = replace(projection, issues=_sorted_issues(local))
-        projected.append(StatusObligationProjection(obligation, projection, revisions, statuses))
+        projected.append(
+            StatusObligationProjection(obligation, projection, revisions, statuses, reconciliation)
+        )
         issues.extend(local)
         candidates.update(
             (
@@ -631,7 +692,11 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
     # A pre-obligation missing statement remains a configuration-scoped issue.
     mismatch_keys = {mismatch_key(s) for s in snapshot.statuses}
     for status in snapshot.statuses:
-        if status.superseded or status.consumer_id != scope.consumer_id:
+        if (
+            not value.consumer_status_enabled
+            or status.superseded
+            or status.consumer_id != scope.consumer_id
+        ):
             continue
         if status.generation_key not in generations or scope.reporting_obligation_id is not None:
             continue
@@ -717,6 +782,19 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
             "period_end": value.period_end.isoformat() if value.period_end else None,
         },
     }
+    if value.reconciliation is not None:
+        canonical["version"] = 2
+        canonical["reconciliation"] = [
+            (
+                p.reconciliation.evidence_json.decode("utf-8")
+                if p.reconciliation is not None
+                else {
+                    "reporting_obligation_id": p.obligation.reporting_obligation_id,
+                    "unavailable": True,
+                }
+            )
+            for p in projected
+        ]
     fingerprint = hashlib.sha256(canonical_json_utf8_v1(canonical)).hexdigest()
     return (
         StatusProjectionResult(

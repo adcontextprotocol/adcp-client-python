@@ -1362,6 +1362,8 @@
     "ReportPlanOutcomeResponse",
     "ReportUsageRequest",
     "ReportUsageResponse",
+    "ReportingAdjustment",
+    "ReportingAdjustmentReceipt",
     "ReportingAuthoritativeParty",
     "ReportingBucket",
     "ReportingCanonicalContentDigest",

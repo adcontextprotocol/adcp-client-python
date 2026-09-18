@@ -26,6 +26,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 from adcp.reporting.currency import validate_currency, validate_currency_units
 from adcp.reporting.evidence import (
@@ -233,6 +234,33 @@ class ReportingPeriodBoundary:
             raise ValueError("expected_at cannot precede the period end")
 
 
+def _schedule_clock(
+    schedule: ReportingScheduleSpec, account_timezone: str
+) -> tuple[ZoneInfo, timedelta, datetime]:
+    zone = ZoneInfo(schedule.timezone_name(account_timezone))
+    duration = iso_duration_to_timedelta(schedule.period_duration)
+    if duration <= timedelta(0):
+        raise ValueError("period_duration must be positive")
+    anchor = (
+        _utc(schedule.period_anchor)
+        if schedule.period_anchor is not None
+        else datetime(1970, 1, 1, tzinfo=timezone.utc)
+    )
+    return zone, duration, anchor.astimezone(zone).replace(tzinfo=None)
+
+
+def _period_instants(
+    schedule: ReportingScheduleSpec, account_timezone: str, ordinal: int
+) -> tuple[datetime, datetime]:
+    zone, duration, anchor = _schedule_clock(schedule, account_timezone)
+    # Civil-time boundaries use the first occurrence of an ambiguous local
+    # time. A spring-forward gap can collapse a slot to zero elapsed time;
+    # the shared schedule iterator skips that slot, never inventing a report.
+    start = (anchor + duration * ordinal).replace(tzinfo=zone).astimezone(timezone.utc)
+    end = (anchor + duration * (ordinal + 1)).replace(tzinfo=zone).astimezone(timezone.utc)
+    return start, end
+
+
 def derive_period(
     schedule: ReportingScheduleSpec,
     *,
@@ -253,27 +281,11 @@ def derive_period(
     begins at the next boundary -- a partial first period would be reported as
     complete and understate delivery.
     """
-    from zoneinfo import ZoneInfo
-
     zone_name = schedule.timezone_name(account_timezone)
-    zone = ZoneInfo(zone_name)
-    duration = iso_duration_to_timedelta(schedule.period_duration)
-    if duration <= timedelta(0):
-        raise ValueError("period_duration must be positive")
     sla = iso_duration_to_timedelta(schedule.delivery_sla)
-
-    anchor = (
-        _utc(schedule.period_anchor)
-        if schedule.period_anchor is not None
-        else datetime(1970, 1, 1, tzinfo=timezone.utc)
-    )
     # Walk whole periods from the anchor in local wall-clock terms so a DST
     # transition shifts the instant without changing which period it is.
-    local_anchor = anchor.astimezone(zone).replace(tzinfo=None)
-    start_local = local_anchor + duration * ordinal
-    end_local = local_anchor + duration * (ordinal + 1)
-    start = start_local.replace(tzinfo=zone).astimezone(timezone.utc)
-    end = end_local.replace(tzinfo=zone).astimezone(timezone.utc)
+    start, end = _period_instants(schedule, account_timezone, ordinal)
 
     if activated_at is not None and _utc(activated_at) > start:
         raise ValueError(
@@ -299,23 +311,18 @@ def first_ordinal_after(
     A configuration activated at 00:20 with hourly aligned periods owes
     ``[01:00, 02:00)`` first, not a 40-minute stub.
     """
-    ordinal = 0
-    # Seek coarsely then step back, so a long-lived configuration does not walk
-    # every period since the epoch one at a time.
-    step = 1 << 20
-    while step:
-        candidate = derive_period(
-            schedule, account_timezone=account_timezone, ordinal=ordinal + step
-        )
-        if _utc(candidate.start) <= _utc(activated_at):
-            ordinal += step
-        else:
-            step //= 2
-    while True:
-        candidate = derive_period(schedule, account_timezone=account_timezone, ordinal=ordinal)
-        if _utc(candidate.start) >= _utc(activated_at):
-            return ordinal
+    zone, duration, anchor = _schedule_clock(schedule, account_timezone)
+    at = _utc(activated_at)
+    local = at.astimezone(zone).replace(tzinfo=None)
+    ordinal = (local - anchor) // duration
+    # Seek directly in civil time, then resolve timezone folds/gaps against
+    # instants. This also supports an explicit anchor after activation without
+    # scanning from the Unix epoch or constructing overflowing probe dates.
+    while _period_instants(schedule, account_timezone, ordinal)[0] < at:
         ordinal += 1
+    while _period_instants(schedule, account_timezone, ordinal - 1)[0] >= at:
+        ordinal -= 1
+    return ordinal
 
 
 @dataclass(frozen=True)

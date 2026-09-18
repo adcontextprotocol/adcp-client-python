@@ -1561,6 +1561,9 @@ class InMemoryReportingLedgerStore:
 
     # -- leasing ---------------------------------------------------------
 
+    def _configuration_lease_eligible(self, configuration: ReportingConfiguration) -> bool:
+        return True
+
     async def lease_period_close(
         self, *, worker_id: str, now: datetime, lease_seconds: float
     ) -> LeasedConfiguration | None:
@@ -1588,6 +1591,8 @@ class InMemoryReportingLedgerStore:
                 ]
             ] = []
             for key in self._configurations:
+                if not self._configuration_lease_eligible(self._configurations[key]):
+                    continue
                 turn = self._lease_turns.get(key, 0)
                 held = self._leases.get(key)
                 tail = (key.account_id, key.delivery_config_id, key.delivery_config_version)

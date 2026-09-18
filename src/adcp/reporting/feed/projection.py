@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any, NoReturn, cast
+from typing import Any, Literal, NoReturn, cast
 from uuid import uuid4
 
 from pydantic import TypeAdapter
@@ -39,6 +39,7 @@ from adcp.reporting.ledger.delivery_models import (
     ReportingRevisionReceiptRecord,
 )
 from adcp.reporting.ledger.notification_models import ReportingStatusScope
+from adcp.reporting.ledger.schedule import next_reporting_expectation
 from adcp.reporting.ledger.status import (
     _adjustment_to_wire,
     _consumer_status_to_wire,
@@ -83,6 +84,9 @@ def capture_feed(
     consumer_status_enabled: bool,
     materializer_boundaries: tuple[ReportingMaterializerBoundary, ...] = (),
     receipt_boundaries: tuple[ReportingReceiptBoundary, ...] = (),
+    representation_version: Literal[1, 2] = 1,
+    revision_ownership: bool = False,
+    activated_consumer_status_enabled: bool | None = None,
 ) -> ReportingFeedSnapshot:
     """Project detached histories captured under one account-lock boundary.
 
@@ -93,7 +97,15 @@ def capture_feed(
     order. The two sequence spaces are never compared or collapsed with max().
     Closure records retain their original sort keys even below changes_after.
     """
-    if core.account_id != caller.account_id:
+    if (
+        core.account_id != caller.account_id
+        or representation_version not in {1, 2}
+        or (revision_ownership and representation_version != 2)
+        or (
+            activated_consumer_status_enabled is not None
+            and activated_consumer_status_enabled != consumer_status_enabled
+        )
+    ):
         _corrupt()
     # Filter foreign statements before deriving maxima, projection or membership.
     # IDs must resolve unambiguously; scope metadata never supplies ownership.
@@ -231,13 +243,20 @@ def capture_feed(
     projection = StatusProjectionInput(
         core,
         ReportingStatusScope(
-            caller.account_id, consumer_id=caller.consumer_id if consumer_status_enabled else None
+            caller.account_id,
+            consumer_id=(
+                caller.consumer_id
+                if (representation_version == 2 or consumer_status_enabled)
+                else None
+            ),
         ),
         delivery_config_ids=tuple(scoped["delivery_config_ids"] or ()),
         media_buy_ids=tuple(scoped["media_buy_ids"] or ()),
         feed_purposes=tuple(scoped["feed_purposes"] or ()),
         period_start=_parse(scoped["period_start"]),
         period_end=_parse(scoped["period_end"]),
+        reconciliation=records if representation_version == 2 else None,
+        consumer_status_enabled=consumer_status_enabled,
     )
     scope_result = project_status_scope(projection)
     selected_owners = {p.obligation.reporting_obligation_id for p in scope_result.obligations}
@@ -292,12 +311,22 @@ def capture_feed(
                 issues=result.issues,
                 statuses=projected_obligation.statuses,
             )
+            if projected_obligation.reconciliation is not None:
+                wires[identity].update(projected_obligation.reconciliation.wire)
         elif kind == "revision":
             owner_id = record.reporting_obligation_id
             if owner_id not in owners:
                 _corrupt()
             revision_id = record_id
             wires[identity] = _revision_to_wire(record, owners[owner_id])
+            if (
+                representation_version == 2
+                and owners[owner_id].generation_key in bindings
+                and record.canonical_content_digest is not None
+            ):
+                wires[identity][
+                    "canonical_content_digest"
+                ] = record.canonical_content_digest.to_wire()
             if record.supersedes_reporting_revision_id is not None:
                 predecessor = revisions.get(record.supersedes_reporting_revision_id)
                 if predecessor is None or predecessor.reporting_obligation_id != owner_id:
@@ -310,6 +339,10 @@ def capture_feed(
                 _corrupt()
             owner_id = target.reporting_obligation_id
             wires[identity] = _adjustment_to_wire(record)
+            if representation_version == 2 and owners[owner_id].generation_key in bindings:
+                from adcp.reporting.ledger.delivery import adjustment_to_wire
+
+                wires[identity] = adjustment_to_wire(record)
         elif kind == "consumer_status":
             owner_id, revision_id = record.reporting_obligation_id, record.reporting_revision_id
             if owner_id is None and revision_id is not None:
@@ -465,8 +498,8 @@ def capture_feed(
         _corrupt()
     inputs = {
         "version": 1,
-        "projection_version": 1,
-        "ownership_mode": "absent",
+        "projection_version": representation_version,
+        "ownership_mode": "bindings" if revision_ownership else "absent",
         "consumer_status_enabled": consumer_status_enabled,
         "core": _CORE.dump_python(frozen_core, mode="json"),
         "reconciliation": [payload(r) for r in records],
@@ -501,6 +534,39 @@ def capture_feed(
         "health": scope_result.health,
         "issues": [issue.to_wire() for issue in scope_result.issues],
     }
+    if representation_version == 2:
+        configurations = tuple(
+            c
+            for c in scope_result.configurations
+            if (not finalities or c.required_finality in finalities)
+            and (
+                not healths
+                or project_status_scope(
+                    replace(
+                        projection,
+                        scope=ReportingStatusScope(
+                            c.account_id, c.generation_key, consumer_id=caller.consumer_id
+                        ),
+                    )
+                ).health
+                in healths
+            )
+        )
+        obligations = tuple(
+            p.obligation
+            for p in scope_result.obligations
+            if (not healths or p.projection.health in healths)
+            and (not finalities or p.obligation.required_finality in finalities)
+        )
+        next_expected = next_reporting_expectation(
+            configurations,
+            obligations,
+            as_of=core.as_of,
+            period_start=projection.period_start,
+            period_end=projection.period_end,
+        )
+        if next_expected is not None:
+            common["next_expected_at"] = next_expected.isoformat().replace("+00:00", "Z")
     return ReportingFeedSnapshot(
         caller,
         "rpfs_" + uuid4().hex,
@@ -514,4 +580,6 @@ def capture_feed(
             for i in sorted(selected, key=keys.__getitem__)
         ),
         canonical_json_utf8_v1(inputs),
+        representation_version,
+        "bindings" if revision_ownership else "absent",
     )

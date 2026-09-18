@@ -195,6 +195,8 @@ adcp = [
     "reporting/materializer/*.json",
     "reporting/receipts/*.json",
     "reporting/feed/*.json",
+    "reporting/projection/*.json",
+    "reporting/production/*.json",
     # PREVIEW: vendored sync_reporting_status schemas. They are the runtime
     # validator for the wire conditionals codegen cannot express, so the wheel
     # must carry them. Removed with the rest of _preview/ at rc.2.
