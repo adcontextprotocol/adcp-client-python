@@ -450,3 +450,161 @@ async def test_failing_operator_sink_cannot_replace_safe_translation(boundary, m
         assert len(emitted) == 1
         assert emitted[0].exc_info is None and emitted[0].exc_text is None
         assert all(secret not in json.dumps(emitted[0].__dict__) for secret in SECRETS)
+
+
+STORE_BOUNDARY_CASES = (
+    ("create_schema", "reporting_receipt_ingestion"),
+    ("ingest_receipt_batch", "INSERT INTO reporting_receipt_ingestion_results"),
+    ("read_receipt_boundaries", "reporting_receipt_ingestion_boundaries"),
+    # Readiness is decorated outside its validator only; a driver failure inside
+    # that validator is the deliberately silent RECEIPT_SCHEMA_UNREADY path.
+    ("receipt_ingestion_ready", None),
+)
+BOUNDARY_IDS = [case[0] for case in STORE_BOUNDARY_CASES]
+
+
+def test_store_boundary_cases_cover_every_allowlisted_store_boundary():
+    """A new decorated boundary cannot ship without its own executed regression."""
+    from adcp.reporting.receipts._diagnostics import _BOUNDARIES
+
+    covered = {f"store.{method}" for method, _ in STORE_BOUNDARY_CASES}
+    assert covered == _BOUNDARIES - {"handler"}
+
+
+def _boundary_call(h, s, request, method):
+    return {
+        "create_schema": lambda: h.store.create_schema(),
+        "ingest_receipt_batch": lambda: h.store.ingest_receipt_batch(
+            request, caller=s.binding.principal
+        ),
+        "read_receipt_boundaries": lambda: h.store.read_receipt_boundaries(
+            caller=s.binding.principal
+        ),
+        "receipt_ingestion_ready": lambda: h.store.receipt_ingestion_ready(),
+    }[method]
+
+
+@pytest.mark.parametrize("method,marker", STORE_BOUNDARY_CASES, ids=BOUNDARY_IDS)
+async def test_each_raw_store_boundary_logs_its_own_label_once(caplog, monkeypatch, method, marker):
+    """Every decorated raw boundary owns its literal label and stays payload free."""
+    caplog.set_level(logging.ERROR)
+    async with receipt_harness("postgres") as h:
+        from psycopg import AsyncConnection, OperationalError
+        from psycopg_pool import PoolTimeout
+
+        from adcp.reporting.receipts._diagnostics import _BOUNDARIES
+
+        s, request = await sensitive_case(h)
+        fired = []
+        original = AsyncConnection.execute
+
+        async def execute(connection, query, *args, **kwargs):
+            if not fired and isinstance(query, str) and marker in query:
+                fired.append(method)
+                raise OperationalError(SECRETS[7])
+            return await original(connection, query, *args, **kwargs)
+
+        def refuse(*args, **kwargs):
+            fired.append(method)
+            raise PoolTimeout(SECRETS[6])
+
+        caplog.clear()
+        with monkeypatch.context() as patch:
+            if marker is None:
+                patch.setattr(h.store._pool, "connection", refuse)
+            else:
+                patch.setattr(AsyncConnection, "execute", execute)
+            with pytest.raises(ReportingReceiptError) as caught:
+                await _boundary_call(h, s, request, method)()
+        assert fired == [method]
+        assert caught.value.code == "RECEIPT_STORAGE_UNAVAILABLE"
+        assert str(caught.value) == SAFE_MESSAGE
+        assert caught.value.__cause__ is None and caught.value.__context__ is None
+        record = assert_diagnostic(
+            caplog,
+            f"store.{method}",
+            "PoolTimeout" if marker is None else "OperationalError",
+            origin_function="refuse" if marker is None else "execute",
+        )
+        assert record.boundary in _BOUNDARIES
+
+
+@pytest.mark.parametrize("mutation", ["allowlist-omits-label", "mislabelled-decoration"])
+async def test_raw_store_boundary_label_assertion_is_load_bearing(caplog, monkeypatch, mutation):
+    """Negative control: a wrong label really is observable, so the label assertion bites.
+
+    Production is correct, so the red side is produced by mutating the label
+    contract itself rather than by a setup or marker failure. The injection must
+    still fire on an otherwise valid call, and redaction must survive the mutation.
+    """
+    caplog.set_level(logging.ERROR)
+    async with receipt_harness("postgres") as h:
+        from psycopg import AsyncConnection, OperationalError
+
+        from adcp.reporting.receipts import _diagnostics
+        from adcp.reporting.receipts import pg as receipt_pg
+
+        s, request = await sensitive_case(h)
+        fired = []
+        original = AsyncConnection.execute
+
+        async def execute(connection, query, *args, **kwargs):
+            if (
+                not fired
+                and isinstance(query, str)
+                and "reporting_receipt_ingestion_boundaries" in query
+            ):
+                fired.append("read_receipt_boundaries")
+                raise OperationalError(SECRETS[7])
+            return await original(connection, query, *args, **kwargs)
+
+        caplog.clear()
+        with monkeypatch.context() as patch:
+            patch.setattr(AsyncConnection, "execute", execute)
+            if mutation == "allowlist-omits-label":
+                # The production fallback silently reattributes an unlisted label.
+                patch.setattr(_diagnostics, "_BOUNDARIES", frozenset({"handler"}))
+                expected = "handler"
+            else:
+                undecorated = type(h.store).read_receipt_boundaries.__wrapped__
+                patch.setattr(
+                    type(h.store),
+                    "read_receipt_boundaries",
+                    receipt_pg._storage_errors("store.create_schema")(undecorated),
+                )
+                expected = "store.create_schema"
+            with pytest.raises(ReportingReceiptError) as caught:
+                await h.store.read_receipt_boundaries(caller=s.binding.principal)
+        assert fired == ["read_receipt_boundaries"]
+        assert caught.value.code == "RECEIPT_STORAGE_UNAVAILABLE"
+        assert caught.value.__cause__ is None and caught.value.__context__ is None
+        # The mutated label is emitted, so the positive assertion above would fail.
+        assert expected != "store.read_receipt_boundaries"
+        assert_diagnostic(caplog, expected, "OperationalError", origin_function="execute")
+
+
+async def test_readiness_validator_failure_stays_silent_schema_unready(caplog, monkeypatch):
+    """The documented silent RECEIPT_SCHEMA_UNREADY path must not start logging."""
+    caplog.set_level(logging.ERROR)
+    async with receipt_harness("postgres") as h:
+        from psycopg import AsyncConnection, OperationalError
+
+        await sensitive_case(h)
+        fired = []
+        original = AsyncConnection.execute
+
+        async def execute(connection, query, *args, **kwargs):
+            if not fired and isinstance(query, str) and "pg_class" in query:
+                fired.append(True)
+                raise OperationalError(SECRETS[7])
+            return await original(connection, query, *args, **kwargs)
+
+        caplog.clear()
+        with monkeypatch.context() as patch:
+            patch.setattr(AsyncConnection, "execute", execute)
+            with pytest.raises(ReportingReceiptError) as caught:
+                await h.store.receipt_ingestion_ready()
+        assert fired == [True]
+        assert caught.value.code == "RECEIPT_SCHEMA_UNREADY"
+        assert operator_errors(caplog) == []
+        assert all(secret not in caplog.text for secret in SECRETS)
