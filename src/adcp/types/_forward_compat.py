@@ -13,6 +13,9 @@ It also replaces identity-distinct bundled clones at public capability
 boundaries with their canonical public model classes. This keeps independently
 generated views of the same wire schema composable as typed Python objects.
 
+The rc.3 targeting mutation fields retain TargetingOverlayInput for raw data
+while accepting beta.14 TargetingOverlay instances as a compatibility bridge.
+
 Import order: comes after _ergonomic in types/__init__.py (alphabetical by
 underscore-preserved sort). Importing this module directly triggers import of
 adcp.types.aliases as a side effect (via ``from adcp.types.aliases import …``)
@@ -33,6 +36,8 @@ from pydantic import BaseModel, Field
 from pydantic.fields import FieldInfo
 
 from adcp.types.aliases import FormatAssetUnion, GroupFormatAssetUnion, RepeatableAssetGroup
+from adcp.types.canonical_creative import PackageRequest as PublicPackageRequest
+from adcp.types.canonical_creative import PackageUpdate as PublicPackageUpdate
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     AcceptancePolicyDiscovery as BundledAcceptancePolicyDiscovery,
 )
@@ -53,9 +58,16 @@ from adcp.types.generated_poc.core.canonical_product import PublisherDomain
 from adcp.types.generated_poc.core.creative_manifest import CreativeManifest
 from adcp.types.generated_poc.core.format import Format
 from adcp.types.generated_poc.core.media_buy_features import MediaBuyFeatures
+from adcp.types.generated_poc.core.targeting import TargetingOverlay
+from adcp.types.generated_poc.core.targeting_input import TargetingOverlayInput
 from adcp.types.generated_poc.creative.get_creative_delivery_response import (
     Creative as DeliveryCreative,
 )
+from adcp.types.generated_poc.media_buy.create_media_buy_request import CreateMediaBuyRequest
+from adcp.types.generated_poc.media_buy.package_control import PackageControl
+from adcp.types.generated_poc.media_buy.package_request import PackageRequest
+from adcp.types.generated_poc.media_buy.package_update import PackageUpdate
+from adcp.types.generated_poc.media_buy.product_purchase_input import ProductPurchaseInput
 from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
     AcceptancePolicyDiscovery,
     PrimaryCountry,
@@ -111,8 +123,49 @@ def _patch_equivalent_model_field(
     _patch_model_field(model, field_name, canonical_annotation)
 
 
+def _patch_targeting_overlay(model: type[BaseModel]) -> None:
+    """Bridge beta.14 objects only while the generated mutation shape is unchanged."""
+    field = model.model_fields.get("targeting_overlay")
+    if field is None or field.annotation != TargetingOverlayInput | None:
+        actual = None if field is None else field.annotation
+        raise RuntimeError(
+            f"forward compatibility: {model.__name__}.targeting_overlay lost its "
+            f"TargetingOverlayInput | None annotation (got {actual!r})"
+        )
+    # The implementation classes above are the exact public overlay types.
+    # Importing them through the lazy facade here would re-enter _eager.
+    # Input first is essential: raw dicts keep their rc.3 mutation wrappers,
+    # while existing resolved-state instances (including subclasses) retain
+    # identity and internal fields without a lossy model_dump() conversion.
+    _patch_model_field(
+        model,
+        "targeting_overlay",
+        Annotated[
+            TargetingOverlayInput | TargetingOverlay | None,
+            Field(union_mode="left_to_right"),
+        ],
+    )
+    model.model_rebuild(force=True)
+
+
 def _apply_forward_compat() -> None:
     """Apply open-union, capability, and public-model compatibility patches."""
+    for model in (
+        PackageRequest,
+        PackageUpdate,
+        PackageControl,
+        ProductPurchaseInput,
+        # aliases has already imported canonical_creative, whose public
+        # package facades copy FieldInfo rather than sharing generated fields.
+        PublicPackageRequest,
+        PublicPackageUpdate,
+    ):
+        _patch_targeting_overlay(model)
+
+    # _ergonomic eagerly builds this legacy parent before the targeting patch.
+    # Refresh its cached nested validator as well as the package model itself.
+    CreateMediaBuyRequest.model_rebuild(force=True)
+
     # Canonical format kinds are an open enum on consumer boundaries. Preserve
     # values introduced by a newer protocol revision instead of rejecting the
     # entire creative manifest. Known values still coerce to the StrEnum arm.

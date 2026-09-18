@@ -1308,6 +1308,109 @@ def test_generated_poc_types_can_import():
     assert generated_poc is not None
 
 
+def test_targeting_overlay_input_is_generated_and_public():
+    """Keep the rc.3 mutation variant public after regeneration (#1181).
+
+    This is deliberately a named contract, not an *Input suffix rule:
+    contextual helpers such as ProductPurchaseInput and PreviewInput do not
+    imply interchangeable public resolved-state types.
+    """
+    import importlib
+
+    from pydantic import BaseModel, RootModel
+
+    from adcp.types import _generated
+    from adcp.types.generated_poc.core.targeting_input import TargetingOverlayInput
+    from scripts.consolidate_exports import exports_for_public_consolidation
+
+    source = Path(__file__).parent.parent / "src/adcp/types/generated_poc/core/targeting_input.py"
+    assert "TargetingOverlayInput" in exports_for_public_consolidation(source)
+    assert _generated.TargetingOverlayInput is TargetingOverlayInput
+    assert issubclass(TargetingOverlayInput, BaseModel)
+    assert not issubclass(TargetingOverlayInput, RootModel)
+    for name in (
+        "adcp",
+        "adcp.types",
+        "adcp.types.media_buy",
+        "adcp.types.buyer",
+        "adcp.types._eager",
+    ):
+        module = importlib.import_module(name)
+        assert "TargetingOverlayInput" in module.__all__, name
+        assert getattr(module, "TargetingOverlayInput") is TargetingOverlayInput, name
+
+
+def test_rc3_targeting_input_has_exactly_four_generated_request_sites():
+    """Pin schema sites and pre-patch annotations, independent of runtime widening."""
+    import ast
+    import json
+
+    root = Path(__file__).parent.parent
+    schema_root = root / "schemas/cache/3.2.0-rc.3"
+    expected = {
+        "package-request": "PackageRequest",
+        "package-update": "PackageUpdate",
+        "package-control": "PackageControl",
+        "product-purchase-input": "ProductPurchaseInput",
+    }
+
+    def references(node, path=()):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "$ref" and value.endswith("/core/targeting-input.json"):
+                    yield path
+                yield from references(value, (*path, key))
+        elif isinstance(node, list):
+            for index, value in enumerate(node):
+                yield from references(value, (*path, index))
+
+    schema_sites = set()
+    for source in schema_root.rglob("*.json"):
+        relative = source.relative_to(schema_root)
+        # Bundled and MCP schemas inline the same source graph for transport
+        # validation; index.json is a schema catalog. None adds Python request
+        # composition sites.
+        if {"bundled", "mcp"} & set(relative.parts) or relative == Path("index.json"):
+            continue
+        text = source.read_text()
+        if "targeting-input.json" in text:
+            schema_sites.update(
+                (relative.as_posix(), path) for path in references(json.loads(text))
+            )
+    assert schema_sites == {
+        (f"media-buy/{stem}.json", ("properties", "targeting_overlay")) for stem in expected
+    }
+
+    generated_root = root / "src/adcp/types/generated_poc"
+    generated_sites = set()
+    for source in generated_root.rglob("*.py"):
+        text = source.read_text()
+        if "TargetingOverlayInput" not in text:
+            continue
+        for model in ast.walk(ast.parse(text)):
+            if not isinstance(model, ast.ClassDef):
+                continue
+            for field in model.body:
+                if not isinstance(field, ast.AnnAssign):
+                    continue
+                if "TargetingOverlayInput" not in ast.unparse(field.annotation):
+                    continue
+                generated_sites.add(
+                    (source.relative_to(generated_root).as_posix(), model.name, field.target.id)
+                )
+                # Assert the whole schema shape: a nested/list/wider union
+                # must not pass merely because it still contains Input.
+                assert isinstance(field.annotation, ast.Subscript)
+                assert ast.unparse(field.annotation.value) == "Annotated"
+                assert ast.unparse(field.annotation.slice.elts[0]) == (
+                    "targeting_input.TargetingOverlayInput | None"
+                )
+    assert generated_sites == {
+        (f"media_buy/{stem.replace('-', '_')}.py", name, "targeting_overlay")
+        for stem, name in expected.items()
+    }
+
+
 def test_product_type_structure():
     """Test that Product type has expected structure."""
     from adcp import Product
