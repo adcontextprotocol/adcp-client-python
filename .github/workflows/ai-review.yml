@@ -1,14 +1,19 @@
 name: AI PR Review (Ladon)
 
 # Ladon reviews every non-draft, non-dependabot PR. The engine lives in
-# adcontextprotocol/actions (ladon/), consumed here by floating major tag. This
+# adcontextprotocol/actions (ladon/), pinned to a reviewed commit. This
 # workflow handles the pull_request_target security posture (trusted base-SHA
 # checkout only; the PR head is never fetched, checked out, or executed - setup
 # reads head content via the GitHub API), the review-workflow-modification gate,
-# and invoking the composite. Reviews post as the AAO Secretariat App.
+# and invoking the composite. Reviews post as the AAO Secretariat App as
+# automated findings; human approval must be enforced separately.
 #
 # pull_request_target (not pull_request) is required on a public repo so that PRs
 # from forks can access the App token and Anthropic key.
+
+# HUMAN MERGE HOLD: this pin prevents bot approval, not author self-merge.
+# Keep older runs/approvals quarantined until the effective human gate is audited.
+# See .github/LADON-ADOPTION.md before lifting the hold or promoting actions tags.
 
 on:
   pull_request_target:
@@ -61,7 +66,7 @@ jobs:
           MODIFIED=""
           while IFS= read -r f; do
             case "$f" in
-              .github/workflows/ai-review.yml|LADON.md|scripts/retire-superseded-ladon-reviews.cjs)
+              .github/workflows/ai-review.yml|LADON.md|.github/workflows/ladon-policy.yml|.github/ladon-policy.test.cjs|.github/LADON-ADOPTION.md|scripts/retire-superseded-ladon-reviews.cjs)
                 MODIFIED="${MODIFIED}${f}"$'\n' ;;
             esac
           done <<< "$CHANGED"
@@ -95,8 +100,9 @@ jobs:
         if: steps.workflow-mod.outputs.modified != 'true'
         # Pin the shared reviewer because this step receives the Secretariat
         # private key and Anthropic API key. Update from ladon/review/v1 deliberately.
-        uses: adcontextprotocol/actions/ladon/review@48c0dfef96594f74f9606d68597c0f7062a5a337 # includes reviewer/v1.0.7
+        uses: adcontextprotocol/actions/ladon/review@d6e930d4a2a01ee0d476fd8347eaf258f85d889c
         with:
+          auto-approve: 'false'
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           app-id: ${{ secrets.SECRETARIAT_APP_ID }}
           app-private-key: ${{ secrets.SECRETARIAT_APP_PRIVATE_KEY }}
@@ -105,28 +111,3 @@ jobs:
           skip-bot-authors: dependabot[bot],renovate[bot],github-actions[bot],aao-ipr-bot[bot]
           # Optional; defaults to the review action's pinned model.
           model: claude-opus-4-8
-
-      # GitHub keeps an earlier CHANGES_REQUESTED review blocking even after
-      # the same App approves a corrected head. Retire only Ladon's own older
-      # change requests, and only when its latest review approves this head.
-      - name: Retire superseded Ladon change requests
-        if: steps.workflow-mod.outputs.modified != 'true'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          LADON_BOT_LOGIN: ${{ steps.app-token.outputs.app-slug }}[bot]
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          script: |
-            const { retireSupersededLadonReviews } = require(
-              `${process.env.GITHUB_WORKSPACE}/scripts/retire-superseded-ladon-reviews.cjs`
-            );
-            const dismissed = await retireSupersededLadonReviews({
-              github,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pullNumber: context.issue.number,
-              botLogin: process.env.LADON_BOT_LOGIN,
-              headSha: process.env.PR_HEAD_SHA,
-            });
-            core.info(`Dismissed ${dismissed.length} superseded Ladon review(s).`);
