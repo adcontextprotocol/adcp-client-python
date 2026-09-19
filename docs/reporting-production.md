@@ -266,6 +266,21 @@ migrating. Preserve pending work, immutable journals, snapshots and exact receip
 batch responses. Restart with the same admitted contracts, complete migration and
 let the owned bounded workers converge. Inspect typed closed failure codes;
 provider bodies and credential contexts are not persistence or diagnostic data.
+An unexpected owned worker failure latches the composition unready, wakes the
+shared stop signal and emits one `ERROR` record on `adcp.reporting.production`
+with code `REPORTING_PRODUCTION_WORKER_STOPPED` and a closed boundary label
+(`producer`, `materializer`, `projection`, `sweeper` or `notifications`). Route
+that logger to the operator's alert sink. Records contain no exception text,
+traceback, provider body, request identity or ambient logging context. Expected
+`ReportingNotificationError` outcomes and cancellation stop the owned loops
+without this unexpected-failure signal. A late in-flight error after an already
+requested stop does not create a second alert or turn cancellation into an
+unexpected-failure signal. Existing notification guards still
+check readiness before sampling and before dispatch; already-reserved work may
+finish under its existing transaction and deadline rules. Drain with `aclose()`,
+repair the failed component and construct fresh support to recover; the failed
+instance never silently restarts or regains its capability claim. A failing log
+sink cannot prevent the stop latch or change the safe public error.
 The [receipt ingress](reporting-receipt-ingress.md),
 [frozen feed](reporting-frozen-feed.md) and original materializer recovery
 contracts continue to apply.

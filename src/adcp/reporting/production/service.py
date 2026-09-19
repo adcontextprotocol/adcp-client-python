@@ -28,6 +28,7 @@ from adcp.reporting.materializer.reference import (
 from adcp.reporting.materializer.service import ReportingMaterializerService
 from adcp.reporting.materializer.verification import ReportingDestinationIO
 from adcp.reporting.materializer.work import MaterializerContext, verification_key_id
+from adcp.reporting.production._diagnostics import _worker_stopped, _WorkerBoundary
 from adcp.reporting.production.configuration import (
     ReportingConfigurationAdmission,
     ReportingProductionConfigurationTask,
@@ -568,18 +569,23 @@ class ReportingProductionSupport:
         self._assert_components()
 
     async def _run(self) -> None:
+        boundary: _WorkerBoundary = "producer"
         try:
             while not self._stop.is_set():
                 # Each producer leases a generation through the reviewed fair
                 # indexed acquisition path; no account enumeration is required.
                 for producer in dict.fromkeys(o.producer for o in self.offerings):
+                    boundary = "producer"
                     token = self._producer_turn.set(producer)
                     try:
                         await producer.run_worker()
                     finally:
                         self._producer_turn.reset(token)
+                boundary = "materializer"
                 await self.materializer.run_once()
+                boundary = "projection"
                 await self.projection.rebuild_one()
+                boundary = "sweeper"
                 await self.projection.sweep_one()
                 self._started.set()
                 try:
@@ -587,10 +593,14 @@ class ReportingProductionSupport:
                 except asyncio.TimeoutError:
                     pass
         except asyncio.CancelledError:
+            self._stop.set()
             raise
-        except Exception:
-            # Retain only the closed lifecycle state, never provider bodies.
+        except Exception as error:
+            already_stopping = self._stop.is_set()
             self._failed = True
+            self._stop.set()
+            if not already_stopping and not isinstance(error, ReportingNotificationError):
+                _worker_stopped(boundary=boundary)
         finally:
             self._started.set()
 
@@ -606,10 +616,14 @@ class ReportingProductionSupport:
                 except asyncio.TimeoutError:
                     pass
         except asyncio.CancelledError:
+            self._stop.set()
             raise
-        except Exception:
+        except Exception as error:
+            already_stopping = self._stop.is_set()
             self._failed = True
             self._stop.set()
+            if not already_stopping and not isinstance(error, ReportingNotificationError):
+                _worker_stopped(boundary="notifications")
         finally:
             self._notification_started.set()
 

@@ -371,6 +371,7 @@ async def production_harness(
     reconciled=False,
     feedback=False,
     identity_prefix="",
+    poll_seconds=60,
 ):
     from contextlib import AsyncExitStack
 
@@ -625,7 +626,7 @@ async def production_harness(
             ),
             resolve_account=authorize,
             notification_workers=workers,
-            poll_seconds=60,
+            poll_seconds=poll_seconds,
         )
         h.production, h.projection, h.item = support, projection, item
         h.source_clock = source_clock
