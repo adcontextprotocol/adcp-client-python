@@ -166,14 +166,14 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
                     raise ReportingFeedError("UNAUTHORIZED") from None
 
             caller = await authorize()
+
+            async def reauthorize() -> None:
+                # A still-authorized alias must not change which account or
+                # canonical consumer owns the already captured boundary.
+                if await authorize() != caller:
+                    raise ReportingFeedError("UNAUTHORIZED")
+
             if request.get("view") == "periods":
-
-                async def reauthorize() -> None:
-                    # A still-authorized alias must not change which account or
-                    # canonical consumer owns the already captured boundary.
-                    if await authorize() != caller:
-                        raise ReportingFeedError("UNAUTHORIZED")
-
                 response = await self.reporting_feed_store.read_reporting_feed(
                     request,
                     caller=caller,
@@ -193,13 +193,24 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
                 raise ReportingFeedError("INVALID_CHECKPOINT")
             if isinstance(self.receipt_store, ReportingLedgerStore):
                 try:
-                    return await ReportingStatusHandler(
-                        self.receipt_store,
-                        consumer_status_enabled=self._feed_consumer_status_enabled,
-                    ).handle(
-                        request,
-                        caller=ReportingStatusCaller(caller.account_id, caller.consumer_id),
-                    )
+                    from adcp.reporting.projection.wire import ReportingTierStatusStore
+
+                    if isinstance(self.receipt_store, ReportingTierStatusStore):
+                        response = await self.receipt_store.read_tier_status(
+                            request,
+                            caller=caller,
+                            consumer_status_enabled=self._feed_consumer_status_enabled,
+                        )
+                    else:
+                        response = await ReportingStatusHandler(
+                            self.receipt_store,
+                            consumer_status_enabled=self._feed_consumer_status_enabled,
+                        ).handle(
+                            request,
+                            caller=ReportingStatusCaller(caller.account_id, caller.consumer_id),
+                        )
+                    await reauthorize()
+                    return response
                 except LedgerConflictError as error:
                     # Only the legacy Core projector exposes its established
                     # domain errors. ACL/provider/feed failures stay redacted.

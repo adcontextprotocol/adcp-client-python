@@ -161,6 +161,81 @@ def test_root_relative_legacy_refs_resolve_from_offline_registry(
     assert not invalid.valid
 
 
+def test_schedule_correction_does_not_change_a_different_version(
+    synthetic_legacy_bundle: tuple[str, Path],
+) -> None:
+    """A similar legacy rule requires its own explicit compatibility decision."""
+    version, root = synthetic_legacy_bundle
+    pinned = _loader_mod.get_named_schema_document(
+        "media-buy/get-reporting-status-response.json", version="3.2.0-rc.3"
+    )
+    assert pinned is not None
+    schema = {"allOf": [{}, {}, pinned["allOf"][2]]}
+    file = root / "bundled" / "get-reporting-status-response.json"
+    original = json.dumps(schema).encode()
+    file.write_bytes(original)
+    value = {
+        "health": "complete",
+        "scope": {"scope_closed": True, "coverage_complete": True},
+        "next_expected_at": "2026-10-01T01:00:00Z",
+    }
+    validator = get_validator("get_reporting_status", "sync", version=version)
+    assert validator is not None and not validator.is_valid(value)
+    for load in (
+        _loader_mod.get_schema,
+        _loader_mod.get_portable_schema,
+        _loader_mod.get_mcp_schema,
+    ):
+        assert load("get_reporting_status", "sync", version=version) == schema
+    assert file.read_bytes() == original
+
+
+def test_modular_schema_without_id_resolves_its_own_fragments_offline(
+    synthetic_legacy_bundle: tuple[str, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Canonical path refs do not require $id or a network round trip."""
+    legacy_key, root = synthetic_legacy_bundle
+    child = {
+        "definitions": {"Choice": {"type": "string", "enum": ["producer_managed"]}},
+        "type": "object",
+        "properties": {"orchestration": {"$ref": "#/definitions/Choice"}},
+        "required": ["orchestration"],
+    }
+    (root / "core" / "method.json").write_text(json.dumps(child), encoding="utf-8")
+    request = {
+        "type": "object",
+        "definitions": {"Choice": {"type": "integer"}},
+        "properties": {
+            "method": {
+                "$ref": f"https://adcontextprotocol.org/schemas/{legacy_key}/core/method.json"
+            },
+            "count": {"$ref": "#/definitions/Choice"},
+        },
+        "required": ["method", "count"],
+    }
+    (root / "bundled" / "synthetic-tool-request.json").write_text(
+        json.dumps(request), encoding="utf-8"
+    )
+
+    def deny_remote(*args: object, **kwargs: object) -> None:
+        pytest.fail("validation attempted to retrieve a remote schema")
+
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        from jsonschema import RefResolver
+
+    monkeypatch.setattr(RefResolver, "resolve_remote", deny_remote)
+    valid = {"method": {"orchestration": "producer_managed"}, "count": 1}
+    assert validate_request("synthetic_tool", valid, version=legacy_key).valid
+    invalid = {"method": {"orchestration": "consumer_managed"}, "count": 1}
+    assert not validate_request("synthetic_tool", invalid, version=legacy_key).valid
+    assert not validate_request(
+        "synthetic_tool", {**valid, "count": "producer_managed"}, version=legacy_key
+    ).valid
+
+
 def test_get_validator_same_tool_different_versions_compiles_separately(
     synthetic_legacy_bundle: tuple[str, Path],
 ) -> None:

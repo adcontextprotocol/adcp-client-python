@@ -24,6 +24,7 @@ from adcp.reporting.ledger.delivery_models import (
 )
 from adcp.reporting.ledger.models import ReportingConfiguration
 from adcp.reporting.ledger.notification_events import delivery_dirty, materialization_event
+from adcp.reporting.ledger.notification_models import ReportingDomainEvent
 from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.materializer._errors import (
     ReportingMaterializerUsageError,
@@ -89,6 +90,8 @@ class _Work:
 
 
 class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
+    _materializer_writer_epoch = 0
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._materializer_candidates: dict[ReportingDeliveryScope, _Candidate] = {}
@@ -243,6 +246,9 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
         candidate.reason, candidate.due_at = reason, due
         return ReportingMaterializerTurn("parked", reason)
 
+    def _materializer_candidate_enabled(self, account_id: str) -> bool:
+        return True
+
     @materializer_errors
     async def claim_materialization(
         self,
@@ -265,7 +271,10 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
             candidates = [
                 c
                 for c in self._materializer_candidates.values()
-                if c.due_at is not None and c.due_at <= now and c.scope not in pending
+                if c.due_at is not None
+                and c.due_at <= now
+                and c.scope not in pending
+                and self._materializer_candidate_enabled(c.scope.principal.account_id)
             ]
             accounts = {w.scope.principal.account_id for w in works} | {
                 c.scope.principal.account_id for c in candidates
@@ -313,6 +322,10 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
                     return self._park(
                         candidate, "legacy_terminal" if owned is None else "operator_required"
                     )
+            try:
+                admission_epoch = self._new_admission_epoch(context, key)
+            except ReportingWriterError:
+                return self._park(candidate, "component_unavailable")
             if context.delivery is None:
                 if context.obligation.currency is None:
                     return self._park(candidate, "operator_required")
@@ -340,6 +353,7 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
                 request,
                 now,
                 self._notification_state is not None,
+                admission_epoch=admission_epoch,
             )
             self._materializer_work[self._work_key(attempt)] = work
             self._park(candidate, "ready")
@@ -351,6 +365,8 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
         keys: tuple[ReportingVerificationKey, ...],
         seconds: int,
     ) -> ReportingMaterializerLease | ReportingMaterializerTurn:
+        if work.admission_epoch > self._materializer_writer_epoch:
+            raise failure("UNSUPPORTED_VERIFICATION")
         if work.notifications_enabled != (self._notification_state is not None):
             return self._park_work(work, "component_unavailable")
         try:
@@ -382,6 +398,7 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
             work.request,
             context,
             work.notifications_enabled,
+            work.admission_epoch,
         )
 
     def _park_work(self, work: _Work, reason: MaterializerReason) -> ReportingMaterializerTurn:
@@ -404,6 +421,8 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
             or work.generation != lease.generation
             or work.notifications_enabled != lease.notifications_enabled
             or work.notifications_enabled != (self._notification_state is not None)
+            or work.admission_epoch != lease.admission_epoch
+            or work.admission_epoch > self._materializer_writer_epoch
         ):
             raise failure("BINDING_MISMATCH")
         return work
@@ -546,15 +565,7 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
                 )
                 if event is None:
                     raise failure("BINDING_MISMATCH")
-                assert self._materializer_outbox is not None
-                self._materializer_outbox.enqueue(event)
-                if (
-                    self._materializer_outbox.events.get(
-                        (event.account_id, event.consumer_namespace, event.notification_id)
-                    )
-                    != event
-                ):
-                    raise failure("BINDING_MISMATCH")
+                self._enqueue_materializer(event, lease)
             if self._held(lease) is None:
                 raise failure("LEASE_LOST")
             work.completion_token = work.token
@@ -591,6 +602,26 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
                 stored.reporting_materialization_id,
             )
 
+    def _new_admission_epoch(
+        self, context: MaterializerContext, key: ReportingVerificationKey
+    ) -> int:
+        return 0
+
+    def _enqueue_materializer(
+        self, event: ReportingDomainEvent, lease: ReportingMaterializerLease
+    ) -> None:
+        if lease.admission_epoch != 0:
+            raise failure("UNSUPPORTED_VERIFICATION")
+        assert self._materializer_outbox is not None
+        self._materializer_outbox.enqueue(event)
+        if (
+            self._materializer_outbox.events.get(
+                (event.account_id, event.consumer_namespace, event.notification_id)
+            )
+            != event
+        ):
+            raise failure("BINDING_MISMATCH")
+
     def _materializer_dirty(
         self, outcome: ReportingMaterializationRecord, context: MaterializerContext
     ) -> None:
@@ -601,11 +632,12 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
 
         core = settle_memory_snapshot(self, scope.account_id)
         core = replace(core, as_of=outcome.completed_at)
-        sequence = self._materializer_status_heads.get(outcome.scope.principal, 0) + 1
-        self._materializer_status_heads[outcome.scope.principal] = sequence
+        heads, boundaries = self._materializer_capture_collections(outcome)
+        sequence = heads.get(outcome.scope.principal, 0) + 1
+        heads[outcome.scope.principal] = sequence
         account_sequence = self._materializer_account_heads.get(scope.account_id, 0) + 1
         self._materializer_account_heads[scope.account_id] = account_sequence
-        self._materializer_boundaries.append(
+        boundaries.append(
             ReportingMaterializerBoundary(
                 outcome.scope.principal,
                 sequence,
@@ -616,6 +648,11 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
                 tuple(c.record for c in self._caller_changes(outcome.scope.principal)),
             )
         )
+
+    def _materializer_capture_collections(
+        self, outcome: ReportingMaterializationRecord
+    ) -> tuple[dict[ReportingDeliveryPrincipal, int], list[ReportingMaterializerBoundary]]:
+        return self._materializer_status_heads, self._materializer_boundaries
 
     @materializer_errors
     async def read_materializer_boundaries(

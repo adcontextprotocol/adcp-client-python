@@ -201,6 +201,7 @@ class ReportingMaterializerLease:
     request: ReportingDestinationRequest
     context: MaterializerContext
     notifications_enabled: bool
+    admission_epoch: int = 0
 
     def __post_init__(self) -> None:
         invalid = False
@@ -209,6 +210,8 @@ class ReportingMaterializerLease:
                 type(self.generation) is not int
                 or self.generation < 1
                 or type(self.notifications_enabled) is not bool
+                or type(self.admission_epoch) is not int
+                or self.admission_epoch not in {0, 2}
                 or UUID(self.token).version != 4
                 or self.attempt.scope != self.scope
                 or self.context.scope != self.scope

@@ -2571,6 +2571,10 @@ def create_mcp_server(
         )
     _install_adcp_mcp_transport_methods(mcp)
     mcp._session_manager = _create_adcp_mcp_session_manager(mcp)
+    if hasattr(handler, "production"):
+        from adcp.reporting.production.service import register_production_mount
+
+        register_production_mount(handler, mcp, transport="mcp", dispatcher=mcp)
     return mcp
 
 

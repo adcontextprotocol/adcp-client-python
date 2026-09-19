@@ -19,6 +19,8 @@ from adcp.reporting.ledger import (
 from adcp.reporting.ledger.delivery import receipt_to_wire
 from adcp.reporting.materializer import PgReportingMaterializerStore
 from adcp.reporting.outbox._schema import schema_objects
+from adcp.reporting.production.pg import PgReportingProductionStore
+from adcp.reporting.production.schema import validate_production_schema
 from adcp.reporting.receipts import PgReportingReceiptStore
 
 from ._durable_materializer_support import DurableHarness, durable_case
@@ -249,6 +251,17 @@ async def test_nine_actual_artifacts_preserve_ordinary_writes_and_frozen_b22_mou
             frozen = await feed.read_reporting_feed_snapshot(
                 first["ledger_snapshot_id"], caller=case.scope.principal
             )
+            # Final B2.4 integration: the actual old binaries below exercise
+            # their ordinary read/write contract on all new objects, before
+            # incompatible autonomous projectors are drained and activated.
+            production = PgReportingProductionStore(pool=pool, notifications=notifications)
+            await production.create_schema()
+            await production.create_schema()
+            async with pool.connection() as c:
+                production_objects = await schema_objects(c)
+                await validate_production_schema(c, notifications=notifications)
+            assert {k: production_objects[k] for k in new_objects} == new_objects
+            production_added = production_objects.keys() - new_objects.keys()
             after = await frozen_call(
                 installed_feed_history, pool, "exercise", phase="after", **kwargs
             )
@@ -313,6 +326,8 @@ async def test_nine_actual_artifacts_preserve_ordinary_writes_and_frozen_b22_mou
                         "historical_wheel_sha256": installed_feed_history[3]["wheel_sha256"],
                         "b22_wheel_sha256": approved_feed_b22[3]["wheel_sha256"],
                         "feed_objects": len(added),
+                        "b24_additive_objects": len(production_added),
+                        "b24_activation": False,
                         "page_count": len(expected[0]),
                         "quarantine_preserved": True,
                     }

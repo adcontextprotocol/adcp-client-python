@@ -336,6 +336,12 @@ class InMemoryReportingOutbox:
     async def reserve_attempt(
         self, lease: DeliveryLease, *, request: ActivityRequest, now: datetime
     ) -> WebhookAttempt | None:
+        async with self._store._lock:
+            return self._reserve_attempt_locked(lease, request=request, now=now)
+
+    def _reserve_attempt_locked(
+        self, lease: DeliveryLease, *, request: ActivityRequest, now: datetime
+    ) -> WebhookAttempt | None:
         binding = lease.delivery.binding
         consumer = canonical_consumer(binding.principal_id)
         request = ActivityRequest(request.url, request.payload_size_bytes)
@@ -346,29 +352,28 @@ class InMemoryReportingOutbox:
             binding.subscriber_id,
             binding.idempotency_key,
         )
-        async with self._store._lock:
-            item = self._state.deliveries.get(
-                (binding.account_id, binding.consumer_namespace, binding.delivery_id)
-            )
-            if (
-                item is None
-                or item[0] != lease.delivery
-                or item[1].expires_at != lease.expires_at
-                or not item[1].held(lease.token, now)
-            ):
-                return None
-            if any(
-                row.lease_token == lease.token and row.binding == binding
-                for row in self._state.activity.values()
-            ):
-                return None
-            number = self._state.activity_heads.get(key, 0) + 1
-            attempt = WebhookAttempt(
-                binding, number, lease.token, token_hex(32), aware_utc(now), request
-            )
-            self._state.activity_heads[key] = number
-            self._state.activity[(*key, number)] = attempt
-            return attempt
+        item = self._state.deliveries.get(
+            (binding.account_id, binding.consumer_namespace, binding.delivery_id)
+        )
+        if (
+            item is None
+            or item[0] != lease.delivery
+            or item[1].expires_at != lease.expires_at
+            or not item[1].held(lease.token, now)
+        ):
+            return None
+        if any(
+            row.lease_token == lease.token and row.binding == binding
+            for row in self._state.activity.values()
+        ):
+            return None
+        number = self._state.activity_heads.get(key, 0) + 1
+        attempt = WebhookAttempt(
+            binding, number, lease.token, token_hex(32), aware_utc(now), request
+        )
+        self._state.activity_heads[key] = number
+        self._state.activity[(*key, number)] = attempt
+        return attempt
 
     async def complete_attempt(
         self, attempt: WebhookAttempt, *, outcome: ActivityOutcome, now: datetime

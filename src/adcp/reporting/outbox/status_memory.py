@@ -7,8 +7,12 @@ from datetime import timedelta
 from secrets import token_hex
 from typing import Any, Literal
 
+from adcp.reporting.ledger.delivery_models import ReportingDeliveryRecord
 from adcp.reporting.ledger.models import ReportingDeliveryEscalation
-from adcp.reporting.ledger.notification_models import ReportingNotificationError
+from adcp.reporting.ledger.notification_models import (
+    ReportingDomainEvent,
+    ReportingNotificationError,
+)
 from adcp.reporting.ledger.status_projection import (
     ReportingStatusSnapshot,
     StatusProjectionInput,
@@ -42,6 +46,11 @@ class _StatusMemoryState:
 
 
 class InMemoryReportingStatusOutbox(InMemoryReportingOutbox):
+    def __init__(self, store: InMemoryReportingLedgerStore) -> None:
+        if store._status_notification_state is None:
+            raise ValueError("construct a status projection participant first")
+        self._store = store
+
     @property
     def _state(self) -> NotificationState:
         state: _StatusMemoryState = self._store._status_notification_state
@@ -92,6 +101,7 @@ class InMemoryStatusNotificationStore:
         pass
 
     def _cursor(self, account_id: str) -> int:
+        self._projection_fence(account_id)
         account = self._state.accounts.get(account_id)
         if account is None:
             raise ReportingNotificationError("status_baseline_required")
@@ -99,8 +109,16 @@ class InMemoryStatusNotificationStore:
             raise ReportingNotificationError("status_policy_conflict")
         return account[0]
 
+    def _projection_fence(self, account_id: str) -> None:
+        if (
+            account_id in getattr(self.ledger, "_projection_accounts", {})
+            and getattr(self, "_projection_version", 1) != 2
+        ):
+            raise ReportingNotificationError("status_projection_writer_fenced")
+
     async def baseline(self, *, account_id: str) -> bool:
         async with self.ledger._mutation():
+            self._projection_fence(account_id)
             if account_id in self._state.accounts:
                 if not self._needs_rebuild(account_id):
                     self._cursor(account_id)
@@ -144,6 +162,7 @@ class InMemoryStatusNotificationStore:
         )
 
     def _rebuild(self, account_id: str) -> StatusTurn:
+        self._projection_fence(account_id)
         if not self._needs_rebuild(account_id):
             return StatusTurn(False)
         if self._state.selector_accounts.get(account_id) != "transitioning":
@@ -200,8 +219,16 @@ class InMemoryStatusNotificationStore:
             return self._rebuild(account_id) if account_id is not None else StatusTurn(False)
 
     def _apply(
-        self, snapshot: ReportingStatusSnapshot, *, through: int, baseline: bool = False
+        self,
+        snapshot: ReportingStatusSnapshot,
+        *,
+        through: int,
+        baseline: bool = False,
+        reconciliation: tuple[ReportingDeliveryRecord, ...] | None = None,
+        consumer_status_enabled: bool = True,
+        enqueue: bool = True,
     ) -> int:
+        self._projection_fence(snapshot.account_id)
         snapshot = settled_replay(snapshot)
         events = 0
         scopes = {s.checkpoint_key: s for s in projection_scopes(snapshot)}
@@ -211,7 +238,15 @@ class InMemoryStatusNotificationStore:
             if c.scope.account_id == snapshot.account_id
         )
         for _, scope in sorted(scopes.items()):
-            result = project_status_scope(StatusProjectionInput(snapshot, scope, self.escalation))
+            result = project_status_scope(
+                StatusProjectionInput(
+                    snapshot,
+                    scope,
+                    self.escalation,
+                    reconciliation=reconciliation,
+                    consumer_status_enabled=consumer_status_enabled,
+                )
+            )
             checkpoint, event = advance_checkpoint(
                 self._state.checkpoints.get(scope.checkpoint_key),
                 result,
@@ -220,10 +255,13 @@ class InMemoryStatusNotificationStore:
                 baseline=baseline,
             )
             self._state.checkpoints[scope.checkpoint_key] = checkpoint
-            if event is not None:
-                self._state.outbox.enqueue(event)
+            if event is not None and enqueue:
+                self._enqueue_status(event)
                 events += 1
         return events
+
+    def _enqueue_status(self, event: ReportingDomainEvent) -> None:
+        self._state.outbox.enqueue(event)
 
     def _project(self, account_id: str) -> StatusTurn:
         cursor = self._cursor(account_id)

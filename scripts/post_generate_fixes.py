@@ -2558,6 +2558,124 @@ def fix_unchanged_literal_defaults() -> None:
         print("  No unchanged field defaults needed fixing")
 
 
+def fix_reporting_capability_defaults() -> None:
+    """Keep optional reporting promises absent in both generated model graphs.
+
+    JSON Schema ``const`` restricts a supplied value; it does not advertise a
+    capability when the property is absent. Correct the annotations/defaults,
+    not just serialization (#1180). The scoped serializer also preserves
+    omission when an ordinary Pydantic parent does not set exclude_none.
+    """
+    optional = {
+        "reliable_reporting_version",
+        "managed_delivery",
+        "reconciled_billing",
+        "configuration_task",
+        "status_task",
+        "consumer_status_task",
+        "revision_content_task",
+        "receipt_task",
+        "readiness_notification",
+        "status_notification",
+        "ledger_notification",
+        "supports_webhook_activity",
+    }
+    targets = (
+        OUTPUT_DIR / "core/reporting_delivery_capabilities.py",
+        OUTPUT_DIR / "bundled/protocol/get_adcp_capabilities_response.py",
+    )
+    for path in targets:
+        source = path.read_text()
+        lines = source.splitlines(keepends=True)
+        offsets = [0]
+        for line in lines:
+            offsets.append(offsets[-1] + len(line))
+        changes: list[tuple[int, int, str]] = []
+        classes = [
+            node
+            for node in ast.parse(source).body
+            if isinstance(node, ast.ClassDef)
+            and re.fullmatch(r"ReportingDelivery(?:Capabilities)?\d*", node.name)
+        ]
+        if not classes:
+            raise ValueError(f"reporting capability model missing from {path.name}")
+        for node in classes:
+            for field in node.body:
+                if not (
+                    isinstance(field, ast.AnnAssign)
+                    and isinstance(field.target, ast.Name)
+                    and field.target.id in optional
+                    and field.value is not None
+                ):
+                    continue
+                annotation = field.annotation
+                if (
+                    isinstance(annotation, ast.Subscript)
+                    and isinstance(annotation.value, ast.Name)
+                    and annotation.value.id == "Annotated"
+                    and isinstance(annotation.slice, ast.Tuple)
+                ):
+                    annotation = annotation.slice.elts[0]
+                text = ast.get_source_segment(source, annotation)
+                assert text is not None
+                if not any(
+                    isinstance(part, ast.Constant) and part.value is None
+                    for part in ast.walk(annotation)
+                ):
+                    changes.append(
+                        (
+                            offsets[annotation.lineno - 1] + annotation.col_offset,
+                            offsets[annotation.end_lineno - 1] + annotation.end_col_offset,
+                            text + " | None",
+                        )
+                    )
+                default = field.value
+                changes.append(
+                    (
+                        offsets[default.lineno - 1] + default.col_offset,
+                        offsets[default.end_lineno - 1] + default.end_col_offset,
+                        "None",
+                    )
+                )
+            if not any(
+                isinstance(method, ast.FunctionDef) and method.name == "_validate_reporting_tiers"
+                for method in node.body
+            ):
+                methods = f"""
+    @model_validator(mode='after')
+    def _validate_reporting_tiers(self) -> {node.name}:
+        if self.reconciled_billing is True and self.managed_delivery is not True:
+            raise ValueError('reconciled_billing requires managed_delivery')
+        if self.readiness_notification is not None and self.managed_delivery is not True:
+            raise ValueError('readiness_notification requires managed_delivery')
+        if self.receipt_task is not None and self.reconciled_billing is not True:
+            raise ValueError('receipt_task requires reconciled_billing')
+        return self
+
+    @model_serializer(mode='wrap')
+    def _omit_absent_reporting_promises(
+        self, handler: SerializerFunctionWrapHandler
+    ) -> dict[str, Any]:
+        return {{key: value for key, value in handler(self).items() if value is not None}}
+"""
+                changes.append((offsets[node.end_lineno], offsets[node.end_lineno], methods))
+        for start, end, text in sorted(changes, reverse=True):
+            source = source[:start] + text + source[end:]
+        imports = (
+            "from typing import Any\n"
+            "from pydantic import SerializerFunctionWrapHandler, model_serializer, model_validator\n"
+        )
+        if "from pydantic import SerializerFunctionWrapHandler," not in source:
+            source = source.replace(
+                "from __future__ import annotations\n",
+                "from __future__ import annotations\n\n" + imports,
+                1,
+            )
+        ast.parse(source)
+        path.write_text(source)
+        print(f"  {path.relative_to(OUTPUT_DIR)}: optional reporting promises and tier validation")
+
+
 def fix_protocol_envelope_status_default() -> None:
     """Default response envelope status to completed for ergonomic construction.
 
@@ -5899,6 +6017,7 @@ def main(argv: list[str] | None = None):
         widen_extension_point_lists_to_sequence,
         fix_canceled_literal_defaults,
         fix_unchanged_literal_defaults,
+        fix_reporting_capability_defaults,
         fix_protocol_envelope_status_default,
         fix_trusted_match_runtime_validators,
         fix_beta3_secure_url_constraints,

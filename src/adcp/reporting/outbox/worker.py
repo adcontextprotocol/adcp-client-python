@@ -7,7 +7,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 import httpx
 
@@ -60,6 +60,25 @@ class _Outcome:
 class _HttpObservation:
     reservation: WebhookAttempt | None = None
     started_ns: int = 0
+    retry_window_expired: bool = False
+    retry_deadline: datetime | None = None
+
+
+class ReportingDeliveryWindow(Protocol):
+    """Optional additive SDK admission for a durable per-key retry horizon."""
+
+    async def inspect(
+        self, lease: DeliveryLease, *, now: datetime
+    ) -> tuple[datetime | None, bool]: ...
+
+    async def reserve_attempt(
+        self,
+        activity: ReportingActivityStore,
+        lease: DeliveryLease,
+        *,
+        request: ActivityRequest,
+        now: datetime,
+    ) -> tuple[WebhookAttempt | None, datetime | None, bool]: ...
 
 
 class ReportingNotificationWorker:
@@ -85,6 +104,7 @@ class ReportingNotificationWorker:
         lease_seconds: float = 60,
         retry_seconds: float = 5,
         activity: ReportingActivityStore | None = None,
+        delivery_window: ReportingDeliveryWindow | None = None,
     ) -> None:
         if lease_seconds < 1 or retry_seconds <= 0:
             raise ValueError("positive retry and at least one second of lease are required")
@@ -99,6 +119,7 @@ class ReportingNotificationWorker:
         if activity is not None and id(activity) != id(outbox):
             raise ReportingNotificationError("activity_requires_reporting_outbox")
         self.activity = activity
+        self.delivery_window = delivery_window
 
     async def advertised_notifications(
         self,
@@ -203,16 +224,23 @@ class ReportingNotificationWorker:
         )
         if lease is None:
             return False
+        observation = _HttpObservation()
+        if self.delivery_window is not None:
+            observation.retry_deadline, observation.retry_window_expired = (
+                await self.delivery_window.inspect(lease, now=self._clock())
+            )
         try:
             opened = self.cipher.open(lease.delivery)
         except (ReportingNotificationError, ValueError, TypeError):
             outcome = _Outcome("quarantined", "integrity_failure")
         else:
-            observation = _HttpObservation()
             try:
-                outcome = await asyncio.wait_for(
-                    self._attempt(lease, opened, observation), timeout=self.lease_seconds * 0.8
-                )
+                if observation.retry_window_expired:
+                    outcome = _Outcome("suppressed", "lease_expired")
+                else:
+                    outcome = await asyncio.wait_for(
+                        self._attempt(lease, opened, observation), timeout=self.lease_seconds * 0.8
+                    )
             except (TimeoutError, asyncio.TimeoutError):
                 # Worker cancellation is not an observed HTTP timeout. A
                 # reservation remains pending until a known result is ACKed.
@@ -220,6 +248,9 @@ class ReportingNotificationWorker:
                     return True
                 outcome = _Outcome("pending", "network")
         now = self._clock()
+        retry_at = now + timedelta(seconds=self.retry_seconds)
+        if observation.retry_deadline is not None:
+            retry_at = min(retry_at, observation.retry_deadline)
         # A DB failure after HTTP acceptance is intentionally not converted to
         # success. Expiry/restart retries these exact protected body bytes/key.
         await self.outbox.finish_delivery(
@@ -227,9 +258,7 @@ class ReportingNotificationWorker:
             now=now,
             state=outcome.state,
             error_code=outcome.error,
-            retry_at=(
-                now + timedelta(seconds=self.retry_seconds) if outcome.state == "pending" else None
-            ),
+            retry_at=retry_at if outcome.state == "pending" else None,
         )
         return True
 
@@ -291,14 +320,25 @@ class ReportingNotificationWorker:
                     callback_used = True
                     if not await self.outbox.delivery_lease_current(lease, now=self._clock()):
                         return False
+                    if self.delivery_window is not None and self.activity is None:
+                        raise ReportingNotificationError("activity_requires_reporting_outbox")
                     if self.activity is not None:
                         # Signing, URL/DNS preparation, and the final fence
                         # precede this transaction. No awaitable preparation
                         # remains between reservation and starting peer I/O.
                         try:
-                            observation.reservation = await self.activity.reserve_attempt(
-                                lease, request=request, now=self._clock()
-                            )
+                            if self.delivery_window is not None:
+                                (
+                                    observation.reservation,
+                                    observation.retry_deadline,
+                                    observation.retry_window_expired,
+                                ) = await self.delivery_window.reserve_attempt(
+                                    self.activity, lease, request=request, now=self._clock()
+                                )
+                            else:
+                                observation.reservation = await self.activity.reserve_attempt(
+                                    lease, request=request, now=self._clock()
+                                )
                         except ReportingNotificationError as error:
                             if error.code == "activity_lease_expired":
                                 raise PreparedWebhookAttemptExpiredError(
@@ -315,7 +355,9 @@ class ReportingNotificationWorker:
                         sender, opened.prepared, before_attempt=current_fence
                     )
             except PreparedWebhookAttemptExpiredError:
-                return _Outcome("pending", "lease_expired")
+                return _Outcome(
+                    "suppressed" if observation.retry_window_expired else "pending", "lease_expired"
+                )
             except ReportingNotificationError:
                 # Failed/unknown reservation commit means no HTTP and no ACK.
                 raise

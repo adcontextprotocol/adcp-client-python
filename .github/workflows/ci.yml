@@ -12,6 +12,7 @@ on:
       - conductor/1167b2-durable-managed-reporting
       - conductor/reporting-receipt-ingress-b22
       - conductor/reporting-frozen-account-feed-b23
+      - conductor/reporting-schema-proof-receipt-diagnostics-hardening
 
 # Default @adcp/sdk runner alias for storyboard jobs. Tracks the current
 # stable @adcp/sdk release via the ``latest`` npm dist-tag.
@@ -106,7 +107,7 @@ jobs:
 
       - name: Run adopter type-check suite
         if: matrix.python-version == '3.12'
-        run: mypy --strict tests/type_checks/ examples/reporting_webhook_activity.py examples/reporting_status_notifications.py examples/reporting_destination_writer.py examples/reporting_durable_materializer.py examples/reporting_receipt_ingress.py
+        run: mypy --strict tests/type_checks/ examples/reporting_webhook_activity.py examples/reporting_status_notifications.py examples/reporting_destination_writer.py examples/reporting_durable_materializer.py examples/reporting_receipt_ingress.py examples/reporting_production.py
 
       - name: Enforce adopter type-check fixture contract
         if: matrix.python-version == '3.12'
@@ -197,6 +198,10 @@ jobs:
                  --ignore-glob='tests/conformance/reporting/test_reporting_status_*.py' \
                  --ignore-glob='tests/conformance/reporting/test_reporting_receipt_*.py' \
                  --ignore-glob='tests/conformance/reporting/test_reporting_feed_*.py' \
+                 --ignore-glob='tests/conformance/reporting/test_reporting_production*.py' \
+                 --ignore-glob='tests/conformance/reporting/test_reporting_projection*.py' \
+                 --ignore=tests/conformance/reporting/test_reporting_tier_projection.py \
+                 --ignore=tests/conformance/reporting/test_reporting_schedule_schema.py \
                  --ignore=tests/conformance/reporting/test_reporting_materializer_rolling.py \
                  --ignore=tests/conformance/reporting/test_reporting_materializer_process.py \
                  --ignore=tests/conformance/reporting/test_reporting_materializer_migration.py \
@@ -608,6 +613,166 @@ jobs:
           path: |
             pg-reporting-feed-installed-evidence.log
             ${{ runner.temp }}/hardening-installed-evidence
+          if-no-files-found: error
+
+  pg-reporting-production:
+    name: Production reporting status, ownership and notification contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: adcp_production_test
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install test dependencies
+        run: pip install -e ".[dev,pg]"
+      - name: Run complete production and projection conformance
+        shell: bash
+        timeout-minutes: 30
+        env:
+          ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_production_test
+        run: |
+          source_tests=()
+          for test in tests/conformance/reporting/test_reporting_production*.py; do
+            case "$test" in
+              *test_reporting_production_packaging.py|*test_reporting_production_rolling.py) continue ;;
+            esac
+            source_tests+=("$test")
+          done
+          python scripts/reporting_test_harness.py pytest \
+            "${source_tests[@]}" \
+            tests/conformance/reporting/test_reporting_projection*.py \
+            tests/conformance/reporting/test_reporting_tier_projection.py \
+            tests/conformance/reporting/test_reporting_schedule_schema.py \
+            tests/test_reporting_capability_models.py \
+            tests/test_reporting_revision_ownership.py \
+            tests/test_reporting_production_public.py \
+            tests/test_schema_datetime_formats.py \
+            -v -s -ra | tee pg-reporting-production-evidence.log
+      - name: Preserve production contract evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pg-reporting-production-evidence-${{ github.run_attempt }}
+          path: pg-reporting-production-evidence.log
+          if-no-files-found: error
+
+  pg-reporting-production-installed:
+    name: Installed production reporting (${{ matrix.cell }}, Python 3.10)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        cell: [base-vcs, base-sdist, pg-vcs, pg-sdist]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: adcp_production_installed_test
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        id: production-python310
+        with:
+          python-version: "3.10"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install test dependencies
+        run: pip install -e ".[dev,pg]"
+      - name: Run installed source-equivalent production contract
+        shell: bash
+        timeout-minutes: 35
+        env:
+          ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_production_installed_test
+          ADCP_PYTHON310: ${{ steps.production-python310.outputs.python-path }}
+          ADCP_PRODUCTION_EVIDENCE: ${{ runner.temp }}/production-installed-evidence
+          PRODUCTION_CELL: ${{ matrix.cell }}
+        run: |
+          python scripts/reporting_test_harness.py pytest \
+            tests/conformance/reporting/test_reporting_production_packaging.py \
+            -k "$PRODUCTION_CELL" -v -s -ra | tee pg-reporting-production-installed.log
+      - name: Preserve installed origins, original inner logs and exact asset hashes
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pg-reporting-production-installed-${{ matrix.cell }}-${{ github.run_attempt }}
+          path: |
+            pg-reporting-production-installed.log
+            ${{ runner.temp }}/production-installed-evidence
+          if-no-files-found: error
+
+  pg-reporting-production-compatibility:
+    name: B2.3 and hardening to installed B2.4 activation and restart
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: adcp_production_rolling_test
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Fetch both independently approved artifacts
+        run: git fetch --no-tags origin 50e35f0ae3540f19b40e8fc460f5870dfe018bf9 a09878f67ab397a4b51b3314e3e8a5e87cf96da5
+      - uses: actions/setup-python@v6
+        id: production-python310
+        with:
+          python-version: "3.10"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install test dependencies
+        run: pip install -e ".[dev,pg]"
+      - name: Run actual historical page one, activation, SIGKILL and cold continuations
+        shell: bash
+        timeout-minutes: 42
+        env:
+          ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_production_rolling_test
+          ADCP_PYTHON310: ${{ steps.production-python310.outputs.python-path }}
+          ADCP_PRODUCTION_EVIDENCE: ${{ runner.temp }}/production-rolling-evidence
+        run: |
+          python scripts/reporting_test_harness.py pytest \
+            tests/conformance/reporting/test_reporting_production_rolling.py \
+            -v -s -ra | tee pg-reporting-production-rolling.log
+      - name: Preserve exact installed historical continuity and fence evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pg-reporting-production-rolling-${{ github.run_attempt }}
+          path: |
+            pg-reporting-production-rolling.log
+            ${{ runner.temp }}/production-rolling-evidence
           if-no-files-found: error
 
   conventional-commits:
