@@ -60,6 +60,7 @@ def workflow_run(path: str, event: str, *, status: str = "completed") -> dict[st
 
 class FakeGitHub(policy.GitHub):
     def __init__(self) -> None:
+        super().__init__("fixture-token")
         checks = [
             {
                 "id": index,
