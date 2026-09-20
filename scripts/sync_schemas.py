@@ -13,8 +13,9 @@ to prove the bundle was built by the adcontextprotocol/adcp release
 workflow. Missing sidecars (e.g., `latest.tgz`, or releases that predate
 signing) fall back to checksum-only trust per the upstream client contract.
 
-The target version comes from `src/adcp/ADCP_VERSION`. If that version's
-bundle is not published, sync falls back to `latest.tgz` (the dev snapshot).
+The target version comes from `src/adcp/ADCP_VERSION`. The selected bundle is
+always fetched exactly; a missing release never falls back to `latest.tgz` or
+another version.
 
 Environment variables:
   ADCP_BASE_URL       Override the protocol host (default: https://adcontextprotocol.org).
@@ -39,8 +40,10 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -113,6 +116,13 @@ COSIGN_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
 # one-line change rather than a refactor.
 PREVIEW_VERSIONS: tuple[str, ...] = ()
 
+SCHEMA_ASSET_FETCH_ATTEMPTS = 3
+SCHEMA_ASSET_RETRY_BACKOFF_SECONDS = 1.0
+
+
+class ReleaseAssetPolicyError(RuntimeError):
+    """An immutable release asset violated exact-selection policy."""
+
 
 def get_target_adcp_version() -> str:
     """Read target AdCP version from ADCP_VERSION file (e.g. "3.0.0-rc.3")."""
@@ -124,13 +134,101 @@ def get_target_adcp_version() -> str:
 def _http_get(url: str) -> bytes:
     req = Request(url, headers={"User-Agent": USER_AGENT})
     with urlopen(req) as response:
+        final_url = response.geturl()
+        if final_url != url:
+            raise ReleaseAssetPolicyError(
+                "immutable release asset redirected; exact URL selection is required"
+            )
         return response.read()
 
 
-def _http_get_optional(url: str) -> bytes | None:
+def _safe_asset_label(url: str) -> str:
+    """Return a credential-free release asset label for CI logs."""
+    path = urlsplit(url).path
+    return path.lstrip("/") or "release asset"
+
+
+def _http_get_with_retry(
+    url: str,
+    *,
+    max_attempts: int = SCHEMA_ASSET_FETCH_ATTEMPTS,
+    backoff_base: float = SCHEMA_ASSET_RETRY_BACKOFF_SECONDS,
+) -> bytes:
+    """Fetch one immutable release asset with bounded transient retries.
+
+    Only transport failures represented by ``URLError`` and HTTP 5xx responses
+    are retried. HTTP 4xx and every integrity/authenticity check remain
+    permanent failures outside this loop.
+    """
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be at least 1")
+    if backoff_base < 0:
+        raise ValueError("backoff_base must be non-negative")
+
+    asset = _safe_asset_label(url)
+    for attempt in range(1, max_attempts + 1):
+        try:
+            data = _http_get(url)
+            if attempt > 1:
+                print(
+                    f"  ✓ Release asset fetch recovered: asset={asset} "
+                    f"attempt={attempt}/{max_attempts} classification=recovered",
+                    file=sys.stderr,
+                )
+            return data
+        except HTTPError as exc:
+            failure = exc
+            transient = 500 <= exc.code <= 599
+            category = f"http-{exc.code}"
+        except URLError as exc:
+            failure = exc
+            transient = True
+            category = "transport"
+        except ReleaseAssetPolicyError as exc:
+            failure = exc
+            transient = False
+            category = "selection-policy"
+
+        if not transient:
+            print(
+                f"  ✗ Release asset fetch failed: asset={asset} "
+                f"attempt={attempt}/{max_attempts} classification=permanent "
+                f"category={category}",
+                file=sys.stderr,
+            )
+            raise failure
+        if attempt == max_attempts:
+            print(
+                f"  ✗ Release asset fetch failed: asset={asset} "
+                f"attempt={attempt}/{max_attempts} "
+                f"classification=transport-exhausted category={category}",
+                file=sys.stderr,
+            )
+            raise failure
+
+        delay = backoff_base * (2 ** (attempt - 1))
+        print(
+            f"  ! Transient release asset fetch failure: asset={asset} "
+            f"attempt={attempt}/{max_attempts} category={category}; "
+            f"retrying in {delay:g}s",
+            file=sys.stderr,
+        )
+        time.sleep(delay)
+
+    raise AssertionError("unreachable")
+
+
+def _fetch_release_asset(url: str, version: str) -> bytes:
+    """Retry only immutable versioned assets, never the mutable latest target."""
+    if version == "latest":
+        return _http_get(url)
+    return _http_get_with_retry(url)
+
+
+def _http_get_optional(url: str, version: str) -> bytes | None:
     """GET returning None on 404 instead of raising."""
     try:
-        return _http_get(url)
+        return _fetch_release_asset(url, version)
     except HTTPError as exc:
         if exc.code == 404:
             return None
@@ -143,27 +241,10 @@ def fetch_bundle(version: str) -> tuple[bytes, str]:
     Returns:
         (tgz_bytes, expected_sha256_hex)
     """
-    tgz_bytes = _http_get(f"{BUNDLE_BASE_URL}/{version}.tgz")
-    sha_text = _http_get(f"{BUNDLE_BASE_URL}/{version}.tgz.sha256").decode()
+    tgz_bytes = _fetch_release_asset(f"{BUNDLE_BASE_URL}/{version}.tgz", version)
+    sha_text = _fetch_release_asset(f"{BUNDLE_BASE_URL}/{version}.tgz.sha256", version).decode()
     expected = sha_text.split()[0].strip().lower()
     return tgz_bytes, expected
-
-
-def fetch_bundle_with_fallback(version: str) -> tuple[bytes, str, str]:
-    """Fetch a pinned bundle; fall back to `latest` if not published yet.
-
-    Returns:
-        (tgz_bytes, expected_sha256_hex, effective_version)
-    """
-    try:
-        data, sha = fetch_bundle(version)
-        return data, sha, version
-    except HTTPError as exc:
-        if exc.code != 404 or version == "latest":
-            raise
-        print(f"  ! {version}.tgz not published yet; falling back to latest.tgz")
-        data, sha = fetch_bundle("latest")
-        return data, sha, "latest"
 
 
 def fetch_signature_sidecars(version: str) -> tuple[bytes | None, bytes | None]:
@@ -172,8 +253,8 @@ def fetch_signature_sidecars(version: str) -> tuple[bytes | None, bytes | None]:
     Returns:
         (sig_bytes, crt_bytes), or (None, None) if either sidecar is missing.
     """
-    sig = _http_get_optional(f"{BUNDLE_BASE_URL}/{version}.tgz.sig")
-    crt = _http_get_optional(f"{BUNDLE_BASE_URL}/{version}.tgz.crt")
+    sig = _http_get_optional(f"{BUNDLE_BASE_URL}/{version}.tgz.sig", version)
+    crt = _http_get_optional(f"{BUNDLE_BASE_URL}/{version}.tgz.crt", version)
     if sig is None or crt is None:
         return None, None
     return sig, crt
@@ -253,58 +334,9 @@ def _write_json(path: Path, data: dict[str, object]) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
-def normalize_latest_fallback_cache(
-    dest: Path, target_version: str, effective_version: str
-) -> None:
-    """Stamp a ``latest.tgz`` fallback cache when it already declares the target prerelease.
-
-    Fresh prerelease bundles can briefly exist only as ``latest.tgz`` while the
-    semver-named artifact is still publishing. In that case the copied schemas
-    land under the pinned bundle key, but the upstream ``schemas/index.json``
-    still identifies itself as ``latest``. CI drift checks compare that value
-    to ``src/adcp/ADCP_VERSION``, so make the cache self-consistent only when
-    the schema manifest proves this latest bundle is the requested prerelease.
-    """
-    if effective_version != "latest" or target_version == "latest":
-        return
-
-    manifest_path = dest / "manifest.json"
-    index_path = dest / "index.json"
-    if not manifest_path.exists() or not index_path.exists():
-        return
-
-    manifest = _read_json(manifest_path)
-    manifest_version = manifest.get("adcp_version")
-    if manifest_version != target_version:
-        raise RuntimeError(
-            f"latest.tgz schema manifest declares adcp_version={manifest_version!r}, "
-            f"not requested target {target_version!r}; refusing to stamp fallback cache."
-        )
-
-    index = _read_json(index_path)
-    index["adcp_version"] = target_version
-    index["baseUrl"] = f"/schemas/{target_version}"
-    versioning = index.get("versioning")
-    if isinstance(versioning, dict):
-        note = versioning.get("note")
-        if isinstance(note, str):
-            versioning["note"] = note.replace("AdCP latest", f"AdCP {target_version}").replace(
-                "/schemas/latest", f"/schemas/{target_version}"
-            )
-    _write_json(index_path, index)
-
-    schema_ref = manifest.get("$schema")
-    if isinstance(schema_ref, str):
-        manifest["$schema"] = schema_ref.replace("/schemas/latest/", f"/schemas/{target_version}/")
-        _write_json(manifest_path, manifest)
-
-
 def replace_cache_from_bundle(
     bundle_root: Path,
     bundle_key: str,
-    *,
-    target_version: str | None = None,
-    effective_version: str | None = None,
 ) -> int:
     """Extract the bundle's ``schemas/`` tree into ``CACHE_DIR/{bundle_key}/``.
 
@@ -323,8 +355,6 @@ def replace_cache_from_bundle(
         shutil.rmtree(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(schemas_src, dest)
-    if target_version is not None and effective_version is not None:
-        normalize_latest_fallback_cache(dest, target_version, effective_version)
 
     return sum(1 for _ in dest.rglob("*") if _.is_file())
 
@@ -593,15 +623,15 @@ def _sync_one(
     loud rather than silently shipping a stale cache.
 
     ``target_bundle_key``, when set, overrides ``resolve_bundle_key(target_version)``
-    — used by the primary-pin path so a ``latest.tgz`` fallback still writes
-    under the pinned target's key rather than the literal ``latest``.
+    for callers that already resolved the primary pin.
     """
     print(f"Fetching {target_version}.tgz + checksum...")
     try:
-        tgz_bytes, expected_sha, effective_version = fetch_bundle_with_fallback(target_version)
-    except (HTTPError, URLError) as exc:
+        tgz_bytes, expected_sha = fetch_bundle(target_version)
+    except (HTTPError, URLError, ReleaseAssetPolicyError) as exc:
         print(f"\n✗ Failed to download bundle: {exc}", file=sys.stderr)
         sys.exit(1)
+    effective_version = target_version
 
     actual_sha = hashlib.sha256(tgz_bytes).hexdigest()
     if actual_sha != expected_sha:
@@ -649,8 +679,6 @@ def _sync_one(
             schema_count = replace_cache_from_bundle(
                 bundle_root,
                 bundle_key,
-                target_version=target_version,
-                effective_version=effective_version,
             )
         except (OSError, shutil.Error, RuntimeError) as exc:
             print(f"\n✗ Failed to extract schemas: {exc}", file=sys.stderr)
@@ -713,12 +741,9 @@ def main() -> None:
         print(f"Skills dir:   {SKILLS_DIR}")
     print()
 
-    # Always key the primary cache by the SDK's pinned target, not the
-    # effective version. When ``effective_version == "latest"`` (fallback
-    # because the pinned bundle isn't published yet), ``resolve_bundle_key``
-    # would reject the literal string; more importantly, the loader looks
-    # up by the SDK pin, so writing latest's contents under the target's
-    # bundle key is what makes the loader find them.
+    # Key the primary cache by the SDK's exact selected version. Fetching a
+    # different version or the mutable latest snapshot as a fallback is
+    # intentionally unsupported.
     primary_bundle_key = resolve_bundle_key(target_version)
     schema_count, skill_count, effective_version, bundle_key = _sync_one(
         target_version,
@@ -752,24 +777,7 @@ def main() -> None:
             sync_skills=False,
         )
         print(f"  ✓ Synced {preview_schemas} schema files into {CACHE_DIR / preview_key}/")
-        if preview_effective != preview:
-            # Fall-back was OK for the primary pin (e.g. ``latest.tgz`` is
-            # fine when a fresh release is mid-publish), but for a
-            # preview pin a fallback means the SDK shipping a stale cache
-            # under the preview's bundle key — validator routing would
-            # serve the wrong schema for v3.1 wire traffic. Fail loud so
-            # CI catches it instead of producing a quietly-misrouted
-            # build.
-            print(
-                f"\n✗ Preview pin {preview!r} fell back to "
-                f"{preview_effective!r}; expected an exact match. The "
-                "preview bundle for this pin is not published — either "
-                "(a) wait for the upstream release to land, or "
-                "(b) remove the pin from PREVIEW_VERSIONS in "
-                "scripts/sync_schemas.py.",
-                file=sys.stderr,
-            )
-            sys.exit(1)
+        assert preview_effective == preview
 
     # Apply tracked hand-patches once, AFTER every bundle (primary +
     # previews) has been extracted into ``schemas/cache/``. Doing this in
