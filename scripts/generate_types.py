@@ -24,6 +24,11 @@ try:
 except ModuleNotFoundError:  # Imported as ``scripts.generate_types`` in tests.
     from scripts import diff_generated_types
 
+try:
+    from sync_schemas import _http_get_with_retry
+except ModuleNotFoundError:  # Imported as ``scripts.generate_types`` in tests.
+    from scripts.sync_schemas import _http_get_with_retry
+
 # Paths
 REPO_ROOT = Path(__file__).parent.parent
 
@@ -47,11 +52,13 @@ def _load_resolve_bundle_key():
 resolve_bundle_key = _load_resolve_bundle_key()
 
 _VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
-_BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())
+_ADCP_VERSION = _VERSION_FILE.read_text().strip()
+_BUNDLE_KEY = resolve_bundle_key(_ADCP_VERSION)
 
 SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY
 OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 TEMP_DIR = REPO_ROOT / ".schema_temp"
+HTTP_REF_DIR = REPO_ROOT / ".schema_http_refs"
 DELTAS_FILE = REPO_ROOT / "SCHEMA_DELTAS.md"
 
 # Bundled schemas are self-contained: each message schema inlines its entire
@@ -105,6 +112,8 @@ PRESERVE_CANONICAL_URL_REFS = {
     # against the asset directory and looks for core/enums/macro_dialect.json.
     Path("core/macro-declaration.json"),
 }
+
+_CANONICAL_SCHEMA_REF_RE = re.compile(r"^https://adcontextprotocol\.org/schemas/([^/]+)/(.+)$")
 
 
 def _normalize_schema_ref_target(
@@ -225,6 +234,107 @@ def rewrite_refs(obj, current_schema_rel_path: Path):
             rewrite_refs(item, current_schema_rel_path)
 
     return obj
+
+
+def _without_schema_ids(value):
+    """Remove release-only ``$id`` fields before trusted-cache comparison."""
+    if isinstance(value, dict):
+        return {key: _without_schema_ids(item) for key, item in value.items() if key != "$id"}
+    if isinstance(value, list):
+        return [_without_schema_ids(item) for item in value]
+    return value
+
+
+def _prefetch_canonical_refs(temp_dir: Path) -> int:
+    """Verify and mirror immutable canonical refs before code generation.
+
+    The CDN response must match the already checksum/signature-verified local
+    release cache after removing upstream ``$id`` metadata. The generator maps
+    the unchanged canonical URLs into this local mirror, preserving URL-based
+    model identity without performing its own network reads.
+    """
+    global HTTP_REF_DIR
+    HTTP_REF_DIR = temp_dir.parent / ".schema_http_refs"
+    if HTTP_REF_DIR.exists():
+        shutil.rmtree(HTTP_REF_DIR)
+    HTTP_REF_DIR.mkdir()
+    fetched: set[str] = set()
+
+    def prefetch(value) -> None:
+        if isinstance(value, dict):
+            ref = value.get("$ref")
+            if isinstance(ref, str):
+                file_part = ref.partition("#")[0]
+                match = _CANONICAL_SCHEMA_REF_RE.fullmatch(file_part)
+                if match:
+                    version, raw_target = match.groups()
+                    if version != _ADCP_VERSION:
+                        print(
+                            "  ✗ Canonical schema fetch blocked: "
+                            f"asset={version}/{raw_target} classification=selection-policy",
+                            file=sys.stderr,
+                        )
+                        raise RuntimeError(
+                            "canonical schema ref changed the selected release: "
+                            f"expected {_ADCP_VERSION!r}, found {version!r}"
+                        )
+                    normalized = posixpath.normpath(raw_target)
+                    if (
+                        normalized in {"", ".", ".."}
+                        or normalized.startswith("../")
+                        or posixpath.isabs(normalized)
+                    ):
+                        raise RuntimeError(
+                            f"canonical schema ref escapes release root: {raw_target!r}"
+                        )
+                    target = Path(normalized)
+                    local_source = SCHEMAS_DIR / target
+                    if file_part not in fetched:
+                        if not local_source.is_file():
+                            raise RuntimeError(
+                                "canonical schema release asset is absent from the exact "
+                                f"selected cache: {_ADCP_VERSION}/{target.as_posix()}"
+                            )
+                        remote = json.loads(_http_get_with_retry(file_part).decode("utf-8"))
+                        trusted = json.loads(local_source.read_text(encoding="utf-8"))
+                        if remote.get("$id") != file_part or _without_schema_ids(remote) != trusted:
+                            print(
+                                "  ✗ Canonical schema fetch failed: "
+                                f"asset={_ADCP_VERSION}/{target.as_posix()} "
+                                "classification=integrity",
+                                file=sys.stderr,
+                            )
+                            raise RuntimeError(
+                                "integrity mismatch for immutable schema release asset: "
+                                f"{_ADCP_VERSION}/{target.as_posix()}"
+                            )
+                        mirror = (
+                            HTTP_REF_DIR
+                            / "adcontextprotocol.org"
+                            / "schemas"
+                            / _ADCP_VERSION
+                            / target
+                        )
+                        mirror.parent.mkdir(parents=True, exist_ok=True)
+                        mirror.write_text(json.dumps(remote, indent=2), encoding="utf-8")
+                        fetched.add(file_part)
+                        prefetch(remote)
+            for item in value.values():
+                prefetch(item)
+        elif isinstance(value, list):
+            for item in value:
+                prefetch(item)
+
+    for schema_path in sorted(temp_dir.rglob("*.json")):
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        prefetch(schema)
+
+    if fetched:
+        print(
+            f"  Prefetched and verified {len(fetched)} immutable canonical schema assets "
+            f"for {_ADCP_VERSION}"
+        )
+    return len(fetched)
 
 
 def stabilize_inlined_core_refs(schema: dict, current_schema_rel_path: Path) -> dict:
@@ -517,6 +627,7 @@ def flatten_schemas(temp_dir: Path):
 
         print(f"  {rel_path}")
 
+    _prefetch_canonical_refs(temp_dir)
     count = len(schema_files)
     print(f"\n  Prepared {count} schema files\n")
     return temp_dir
@@ -595,7 +706,8 @@ def _run_datamodel_codegen(input_path: Path, output_path: Path) -> subprocess.Co
         "--set-default-enum-member",
         "--enum-field-as-literal",
         "one",
-        "--allow-remote-refs",
+        "--http-local-ref-path",
+        str(HTTP_REF_DIR),
     ]
 
     return subprocess.run(
