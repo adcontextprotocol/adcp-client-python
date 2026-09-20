@@ -27,7 +27,7 @@ import re
 # Release-precision versions this SDK can speak. Patch-level pinning is
 # intentionally absent — patches don't change the wire contract by
 # definition, so making them part of the pin is a category error.
-COMPATIBLE_ADCP_VERSIONS: tuple[str, ...] = ("3.0", "3.1", "3.2")
+COMPATIBLE_ADCP_VERSIONS: tuple[str, ...] = ("3.0", "3.1", "3.2-rc.3", "3.2")
 
 # Major version this SDK is built for. Cross-major pins are rejected at
 # construction. To speak a different major, install the SDK major that
@@ -165,9 +165,10 @@ def _read_packaged_version() -> str:
 def get_supported_adcp_versions() -> tuple[str, ...]:
     """Release-precision versions to advertise in capabilities.
 
-    ``COMPATIBLE_ADCP_VERSIONS`` keeps the stable release lines the SDK
-    can speak. When the packaged spec is a prerelease for one of those
-    lines, advertise the exact prerelease instead of the future stable alias
+    ``COMPATIBLE_ADCP_VERSIONS`` keeps the supported release lines, including
+    the explicit rc.3 contract for frozen reporting continuations. When the
+    packaged spec is a prerelease for one of the stable lines, advertise the
+    exact prerelease instead of the future stable alias
     so buyers can select the schema contract that actually ships with this
     wheel.
     """

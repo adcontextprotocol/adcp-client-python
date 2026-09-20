@@ -13,6 +13,7 @@ on:
       - conductor/reporting-receipt-ingress-b22
       - conductor/reporting-frozen-account-feed-b23
       - conductor/reporting-schema-proof-receipt-diagnostics-hardening
+      - conductor/reporting-production-tier-capabilities-b24
 
 # Default @adcp/sdk runner alias for storyboard jobs. Tracks the current
 # stable @adcp/sdk release via the ``latest`` npm dist-tag.
@@ -202,6 +203,7 @@ jobs:
                  --ignore-glob='tests/conformance/reporting/test_reporting_projection*.py' \
                  --ignore=tests/conformance/reporting/test_reporting_tier_projection.py \
                  --ignore=tests/conformance/reporting/test_reporting_schedule_schema.py \
+                 --ignore=tests/conformance/reporting/test_reporting_rc4_rolling.py \
                  --ignore=tests/conformance/reporting/test_reporting_materializer_rolling.py \
                  --ignore=tests/conformance/reporting/test_reporting_materializer_process.py \
                  --ignore=tests/conformance/reporting/test_reporting_materializer_migration.py \
@@ -390,12 +392,19 @@ jobs:
           path: pg-reporting-receipts-evidence.log
           if-no-files-found: error
 
-  pg-reporting-receipt-compatibility:
-    name: Receipt rolling compatibility (eight actual artifacts)
+  pg-reporting-receipt-compatibility-shard:
+    name: Receipt rolling shard (${{ matrix.artifact }})
     runs-on: ubuntu-latest
-    # Separate databases avoid shared account advisory locks. Keep five minutes
-    # outside the bounded suite for checkout, installations and cleanup.
     timeout-minutes: 35
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        artifact: [beta15, records, integration, a, b, c, b1, b21]
+    env:
+      RECEIPT_ARTIFACT: ${{ matrix.artifact }}
+      RECEIPT_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
     services:
       postgres:
         image: postgres:16
@@ -411,7 +420,43 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v6
+      # runner.temp survives checkout cleanup. Setup failures still identify the
+      # attempted shard; an incomplete artifact can never satisfy the aggregate.
+      - name: Record attempted shard identity before checkout
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          import json
+          import os
+          import re
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"]) / "receipt-rolling-evidence"
+          root.mkdir(mode=0o700)
+          fields = {
+              "source_head": "RECEIPT_SOURCE_HEAD", "event_sha": "GITHUB_SHA",
+              "event_name": "GITHUB_EVENT_NAME", "run_id": "GITHUB_RUN_ID",
+              "run_attempt": "GITHUB_RUN_ATTEMPT", "repository": "GITHUB_REPOSITORY",
+              "artifact": "RECEIPT_ARTIFACT",
+          }
+          values = {key: os.environ[value] for key, value in fields.items()}
+          valid = (
+              all(re.fullmatch(r"[0-9a-f]{40}", values[k]) for k in ("source_head", "event_sha"))
+              and all(re.fullmatch(r"[1-9][0-9]{0,19}", values[k]) for k in ("run_id", "run_attempt"))
+              and values["repository"] == "adcontextprotocol/adcp-client-python"
+              and values["event_name"] in {"pull_request", "push"}
+              and values["artifact"] in {"beta15", "records", "integration", "a", "b", "c", "b1", "b21"}
+              and (values["event_name"] != "push" or values["source_head"] == values["event_sha"])
+          )
+          if not valid:
+              raise SystemExit("invalid shard attempt identity")
+          (root / "attempted.json").write_text(json.dumps(values) + "\n")
+          PYTHON
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        timeout-minutes: 2
+        with:
+          ref: ${{ env.RECEIPT_SOURCE_HEAD }}
+          persist-credentials: false
       - name: Fetch all eight exact approved historical artifacts
         timeout-minutes: 2
         run: |
@@ -424,29 +469,71 @@ jobs:
             ea150fabd5ad90e3abf93f89729d2919f1c61798 \
             1c91311ec28d25506d5db43f59d0c34936ecb8f7 \
             8e18ca12b9a0c3750f80aa822058c02982ab3e52
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        timeout-minutes: 2
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: pyproject.toml
-      - name: Install test dependencies
-        run: pip install -e ".[dev,pg]"
-      - name: Run all historical binaries against approved parent and receipt schema
+      - name: Install test and workflow-control dependencies
+        timeout-minutes: 5
+        run: pip install -e ".[dev,pg]" "PyYAML==6.0.3"
+      # The unchanged single node includes its notification branches and all
+      # builds/migrations/recovery. Inner timeout is 15m plus <=30s cleanup;
+      # all step ceilings total 33m, below this job's unchanged 35m ceiling.
+      - name: Verify collection and run one complete historical parameter
         shell: bash
-        timeout-minutes: 30
+        timeout-minutes: 18
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_receipt_rolling_test
         run: |
-          python scripts/reporting_test_harness.py pytest \
-            tests/conformance/reporting/test_reporting_receipt_rolling.py \
-            -v -s -ra | tee pg-reporting-receipt-compatibility-evidence.log
-      - name: Preserve commands, counts, installed provenance and skip reasons
+          timeout --signal=TERM --kill-after=5s 60s python -m unittest discover -s scripts -p test_receipt_rolling_ci.py -v
+          python scripts/receipt_rolling_ci.py run
+      - name: Preserve safe partial output and exact shard result
         if: always()
-        uses: actions/upload-artifact@v7
+        timeout-minutes: 3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: pg-reporting-receipt-compatibility-evidence-${{ github.run_attempt }}
-          path: pg-reporting-receipt-compatibility-evidence.log
+          name: receipt-rolling-shard-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.artifact }}
+          path: ${{ runner.temp }}/receipt-rolling-evidence/
           if-no-files-found: error
+
+  pg-reporting-receipt-compatibility:
+    name: Receipt rolling compatibility (eight actual artifacts)
+    needs: pg-reporting-receipt-compatibility-shard
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      actions: read
+    env:
+      RECEIPT_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        timeout-minutes: 2
+        with:
+          ref: ${{ env.RECEIPT_SOURCE_HEAD }}
+          persist-credentials: false
+      - name: Download this attempt's unmerged shard directories
+        id: shard-download
+        timeout-minutes: 3
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: receipt-rolling-shard-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: receipt-rolling-aggregate
+          merge-multiple: false
+          digest-mismatch: error
+      # Hard job cancellation can prevent an always-upload step. Missing,
+      # incomplete, duplicate or mismatched evidence is deliberately fatal.
+      - name: Require every shard and verify exact run evidence
+        if: ${{ always() && !cancelled() }}
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECEIPT_MATRIX_RESULT: ${{ needs.pg-reporting-receipt-compatibility-shard.result }}
+          RECEIPT_DOWNLOAD_RESULT: ${{ steps.shard-download.outcome }}
+        run: python scripts/receipt_rolling_ci.py aggregate
 
   pg-reporting-feed:
     name: Frozen authorized feed and mounted isolation (Postgres 16)
@@ -661,6 +748,7 @@ jobs:
             tests/test_reporting_revision_ownership.py \
             tests/test_reporting_production_public.py \
             tests/test_schema_datetime_formats.py \
+            tests/test_rc4_adoption.py \
             -v -s -ra | tee pg-reporting-production-evidence.log
       - name: Preserve production contract evidence
         if: always()
@@ -741,8 +829,8 @@ jobs:
           --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v6
-      - name: Fetch both independently approved artifacts
-        run: git fetch --no-tags origin 50e35f0ae3540f19b40e8fc460f5870dfe018bf9 a09878f67ab397a4b51b3314e3e8a5e87cf96da5
+      - name: Fetch independently approved reporting artifacts
+        run: git fetch --no-tags origin 50e35f0ae3540f19b40e8fc460f5870dfe018bf9 a09878f67ab397a4b51b3314e3e8a5e87cf96da5 e3a44d281d019ebf6aec738c2cfe18f8bba97462
       - uses: actions/setup-python@v6
         id: production-python310
         with:
@@ -764,6 +852,7 @@ jobs:
         run: |
           python scripts/reporting_test_harness.py pytest \
             tests/conformance/reporting/test_reporting_production_rolling.py \
+            tests/conformance/reporting/test_reporting_rc4_rolling.py \
             -v -s -ra | tee pg-reporting-production-rolling.log
       - name: Preserve exact installed historical continuity and fence evidence
         if: always()
@@ -879,7 +968,10 @@ jobs:
               for child in schema_root.iterdir()
               if child.is_dir()
           }
-          assert packaged_versions == {"2.5", "3.0", "3.1", current_bundle}
+          # Preserve explicit rc.3 and the frozen v32 (beta.6) schemas offline.
+          assert packaged_versions == {
+              "2.5", "3.0", "3.1", "3.2.0-beta.6", "3.2.0-rc.3", current_bundle
+          }
           assert len(STANDARD_ERROR_CODES) == 120
           assert adcp_error("AUTH_MISSING", "x")["errors"][0]["recovery"] == "correctable"
           assert make_versioned_base("3.1", "ListCreativesRequest")

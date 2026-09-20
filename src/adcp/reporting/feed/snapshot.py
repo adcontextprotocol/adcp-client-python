@@ -238,7 +238,6 @@ class StoredFeedSnapshot:
         position = decoded[3]
         if (
             snapshot.caller != caller
-            or snapshot.filters_json != request.filters_json
             or decoded[1] != kind
             or decoded[2] != snapshot.snapshot_id
             or type(position) is not int
@@ -247,6 +246,15 @@ class StoredFeedSnapshot:
             or (kind == "cursor" and not 0 < position < snapshot.total_count)
             or not hmac.compare_digest(token, self.token(kind, position))
         ):
+            raise ReportingFeedError("INVALID_CHECKPOINT")
+        if snapshot.filters_json != request.filters_json:
+            # Only an authenticated, correctly signed position can disclose
+            # this actionable version boundary. Other callers/tokens retain
+            # the indistinguishable INVALID_CHECKPOINT error above.
+            if json.loads(snapshot.filters_json).get("adcp_version") != request.filters.get(
+                "adcp_version"
+            ):
+                raise ReportingFeedError("REPORTING_FEED_VERSION_MISMATCH")
             raise ReportingFeedError("INVALID_CHECKPOINT")
         return position
 

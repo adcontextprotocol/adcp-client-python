@@ -2447,7 +2447,15 @@ def get_tools_for_handler(
         input_schema = get_mcp_schema(name, "request", version=resolved_version)
         if input_schema is None:
             continue
-        definition = copy.deepcopy(tool)
+        # The current-model schemas can be large and are replaced below by
+        # the exact versioned wire schemas. Copy only retained metadata.
+        definition = copy.deepcopy(
+            {
+                key: value
+                for key, value in tool.items()
+                if key not in {"inputSchema", "outputSchema"}
+            }
+        )
         if name == "sync_reporting_receipts":
             from adcp.reporting.receipts.wire import receipt_schema
 
@@ -2779,6 +2787,10 @@ def create_tool_caller(
         method_name == "get_reporting_status"
         and getattr(handler, "reporting_feed_store", None) is not None
     )
+    pinned_reporting_status = frozen_reporting_feed or (
+        method_name == "get_reporting_status"
+        and getattr(handler, "reporting_status_handler", None) is not None
+    )
 
     # Opt-in server-side schema modes. ``None`` keeps validation off
     # entirely (zero overhead on the hot path) — the TS-port default for
@@ -2932,6 +2944,32 @@ def create_tool_caller(
             wire_version = default_unnegotiated_adcp_version
 
         ctx.resolved_adcp_version = wire_version
+
+        if pinned_reporting_status:
+            from adcp._version import is_adcp_version_at_least, resolve_adcp_version
+
+            mounted_version = default_unnegotiated_adcp_version or resolve_adcp_version(None)
+            requested_version = wire_version or resolve_adcp_version(None)
+            if is_adcp_version_at_least(mounted_version, "3.2-rc.4") != is_adcp_version_at_least(
+                requested_version, "3.2-rc.4"
+            ):
+                # Frozen rc.3 complete periods may carry next_expected_at;
+                # rc.4 forbids it. Do not return preserved old bytes under an
+                # incompatible advertised schema, even with validation off.
+                raise ADCPTaskError(
+                    operation=method_name,
+                    errors=[
+                        Error(
+                            code="VERSION_UNSUPPORTED",
+                            message=(
+                                "Pin the reporting mount and client to the same AdCP version; "
+                                "continue an existing walk on its original version, or start "
+                                "a new walk without a cursor or checkpoint after changing version."
+                            ),
+                            details={"mounted_version": mounted_version},
+                        )
+                    ],
+                )
 
         # Legacy-version routing: if the buyer claims (or shape-detected)
         # a version handled via the adapter path (e.g. ``"2.5"``),

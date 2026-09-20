@@ -372,6 +372,7 @@ async def production_harness(
     feedback=False,
     identity_prefix="",
     poll_seconds=60,
+    adcp_version=None,
 ):
     from contextlib import AsyncExitStack
 
@@ -627,6 +628,7 @@ async def production_harness(
             resolve_account=authorize,
             notification_workers=workers,
             poll_seconds=poll_seconds,
+            **({"adcp_version": adcp_version} if adcp_version is not None else {}),
         )
         h.production, h.projection, h.item = support, projection, item
         h.source_clock = source_clock

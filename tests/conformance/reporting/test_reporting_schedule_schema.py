@@ -56,7 +56,8 @@ async def deterministic_summary():
     store = InMemoryReportingLedgerStore(clock=lambda: START + timedelta(minutes=30))
     await store.put_configuration(replace(configuration(), deactivated_at=None))
     return await ReportingStatusHandler(store).handle(
-        {}, caller=ReportingStatusCaller("acct_a", "https://buyer.example.test/agent")
+        {"adcp_version": "3.2-rc.3"},
+        caller=ReportingStatusCaller("acct_a", "https://buyer.example.test/agent"),
     )
 
 

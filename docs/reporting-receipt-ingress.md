@@ -91,9 +91,11 @@ path or rewrite receipt history to make an error disappear.
 
 ## Wire and replay contract
 
-Requests negotiate `adcp_version: "3.2-rc.3"`. This is the wire release spelling;
-`3.2.0-rc.3` is the bundle's semantic-version spelling. Unnegotiated traffic keeps
-the SDK's existing AdCP 3.0 behavior; unsupported versions remain unsupported.
+The reporting handler defaults to `adcp_version: "3.2-rc.4"`, including requests
+without an explicit envelope version. `3.2.0-rc.4` is the bundle's semantic-version
+spelling. Set the handler's `adcp_version="3.2-rc.3"` and the matching client pin
+to continue retained rc.3 reporting walks. The generic server's legacy fallback
+does not override this handler's public pin; unsupported versions remain unsupported.
 Pinned, unpinned and fallback MCP inventories use an isolated schema overlay.
 Cached upstream schemas, generated models and older required protocols remain
 unchanged.

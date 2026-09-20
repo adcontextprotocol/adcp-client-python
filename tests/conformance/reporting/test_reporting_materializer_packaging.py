@@ -7,6 +7,7 @@ import shutil
 import sys
 import tarfile
 import zipfile
+from contextlib import ExitStack
 from pathlib import Path
 
 import pytest
@@ -24,12 +25,23 @@ def b1_wheels(built_distribution):
     path, sdist_wheel, source = built_distribution
     direct = path / "vcs-wheel"
     # This build starts in the actual VCS checkout, including its build hook.
-    run_step(
-        [sys.executable, "-m", "build", "--wheel", "--outdir", str(direct), str(ROOT)],
-        label="b1-vcs-wheel",
-        cwd=ROOT,
-        timeout=180,
-    )
+    with ExitStack() as resources:
+        # Independent local acceptance lanes share ROOT/build and egg-info.
+        # Their enclosing bounded harness owns this optional serialization;
+        # isolated CI workspaces need no common lock.
+        lock_path = os.environ.get("ADCP_REPORTING_BUILD_LOCK")
+        if lock_path is not None:
+            import fcntl
+
+            lock = resources.enter_context(open(lock_path, "a", encoding="utf-8"))
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            print("notification_distribution stage=vcs-build-lock acquired", flush=True)
+        run_step(
+            [sys.executable, "-m", "build", "--wheel", "--outdir", str(direct), str(ROOT)],
+            label="b1-vcs-wheel",
+            cwd=ROOT,
+            timeout=180,
+        )
     vcs_wheel = next(direct.glob("*.whl"))
     expected = {f.name: f.read_bytes() for f in ASSETS.glob("*.json")}
     with (

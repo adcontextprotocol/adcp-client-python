@@ -42,6 +42,11 @@ def main(settings):
     assert schema_root.is_relative_to(Path(sys.prefix))
     for name, expected in settings["schemas"].items():
         assert hashlib.sha256((schema_root / name).read_bytes()).hexdigest() == expected
+    current_root = schema_loader._resolve_schema_root(None).root
+    assert current_root.is_relative_to(Path(sys.prefix))
+    assert current_root.name == "3.2.0-rc.4"
+    for name, expected in settings["current_schemas"].items():
+        assert hashlib.sha256((current_root / name).read_bytes()).hexdigest() == expected
     if settings["driver_absent"]:
         assert importlib.util.find_spec("psycopg") is None
         assert importlib.util.find_spec("psycopg_pool") is None
@@ -124,6 +129,7 @@ def main(settings):
         "wheel_sha256": settings["wheel_sha256"],
         "assets": settings["assets"],
         "schemas": settings["schemas"],
+        "current_schemas": settings["current_schemas"],
         "driver_absent": settings["driver_absent"],
         "result": result,
         "adopter": {

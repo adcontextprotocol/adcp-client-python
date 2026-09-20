@@ -534,7 +534,9 @@ def capture_feed(
         "health": scope_result.health,
         "issues": [issue.to_wire() for issue in scope_result.issues],
     }
-    if representation_version == 2:
+    if representation_version == 2 and not (
+        scope_result.health == "complete" and "adcp_version" in filters
+    ):
         configurations = tuple(
             c
             for c in scope_result.configurations

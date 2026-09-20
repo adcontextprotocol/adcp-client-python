@@ -6,6 +6,12 @@ receipt ingress and frozen feed with versioned private status. Use
 typed composition and authenticated MCP/A2A lifecycle. Existing Core polling
 and eligible Core notification deployments keep their existing composition.
 
+The default protocol is AdCP 3.2.0-rc.4. Set `ReportingProductionSupport`'s
+`adcp_version="3.2-rc.3"` and the matching client pin to continue retained B2.4
+reporting walks. See [the rc.4 adoption and history boundary](protocol-3.2-rc4.md)
+for complete-summary period-start forecasting, version-aligned mounts and
+rollback limits. This protocol adoption changes no SQL manifest or stored snapshot.
+
 ## Provider and source contracts
 
 Each `ReportingProductionOffering` binds a complete public offering to one
@@ -172,18 +178,21 @@ rejection is never a materializer retry signal.
 For #1179, a generation owes only complete periods whose start is at or after
 activation and strictly before deactivation. A period already begun at
 deactivation remains owed in full, including its SLA. The producer and feed use
-this same rule. `next_expected_at` is the nearest strictly future committed
-expectation in the selected captured scope, even when current health is complete.
-The immutable Draft 7 cache for `3.2.0-rc.3` rejects that otherwise-valid response
-at `/allOf/2/then/not`. The effective Python SDK validator and advertised MCP
-schema remove only that exact known prohibition, only for this version. The
-`if` and its requirements that `scope_closed` and `coverage_complete` are both
-true remain enforced, as do types, formats and all other conditionals. A
-different version or changed rule is left intact. Cached files and generated
-status models are preserved; this is an explicit SDK correction, not a new
-upstream schema version. The executable reproduction and constraint/mounted
-regressions are in `test_reporting_schedule_schema.py`; the existing SDK issue
-is [#1179](https://github.com/adcontextprotocol/adcp-client-python/issues/1179).
+this same rule. Under rc.4, a complete summary's `next_expected_at` is the nearest
+committed period start strictly after `ledger_as_of` in the captured scope.
+Complete periods omit it; open scopes retain obligation due times. This does
+not create future obligations or change their `expected_at = period.end + SLA`.
+The authoritative rc.4 schemas validate this distinction without an SDK exception.
+
+Explicit rc.3 mounts retain the accepted due-time forecast and frozen pages.
+Their immutable Draft 7 cache rejects a complete response carrying the timestamp
+at `/allOf/2/then/not`; the effective SDK validator and advertised MCP schema
+remove only that exact known prohibition for rc.3. Both complete-scope guards,
+types, formats and other conditionals remain enforced. Cached bytes and rules
+for other versions remain unchanged. The legacy reproduction is in
+`test_reporting_schedule_schema.py`; new runtime and history-boundary cases are
+in `test_reporting_projection_rc4.py`. See the [rc.4 version boundary](protocol-3.2-rc4.md)
+and [#1179](https://github.com/adcontextprotocol/adcp-client-python/issues/1179).
 
 Cross-language compatibility remains a separate blocking dependency. Every
 selected compatible stable/skew client/server lane must successfully return

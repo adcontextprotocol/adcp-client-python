@@ -54,6 +54,10 @@ class MountedReceipts:
         self.registry = Registry() if registry_kind is not None else None
         self.sessions = {}
         self.counter = 0
+        # This corpus preserves the explicit historical rc.3 contract. A plain
+        # ``adcp_version`` attribute is not a server pin; the public getter is
+        # supported by both the frozen parent and current mount factories.
+        self.version = version or "3.2-rc.3"
         self.idempotency = IdempotencyStore(backend=ForbiddenGenericCache())
         self.handler = ReportingReceiptHandler(
             h.store, resolve_account=self.resolve_account, buyer_agents=self.registry
@@ -63,8 +67,7 @@ class MountedReceipts:
         self.handler.sync_reporting_receipts = self.idempotency.wrap(
             self.handler.sync_reporting_receipts
         )
-        if version is not None:
-            self.handler.adcp_version = version
+        self.handler.get_adcp_version = lambda: self.version
 
     def authorize(self, s, *, token="token-one"):
         account, consumer = s.obligation.account_id, s.binding.consumer_id

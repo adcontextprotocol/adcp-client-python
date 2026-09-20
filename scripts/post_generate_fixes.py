@@ -189,6 +189,41 @@ def rewrite_generated_enums_to_strenum() -> None:
     )
 
 
+def annotate_registry_track_verdict() -> None:
+    """Identify the fixed protocol verdict that Bandit mistakes for a password."""
+    path = OUTPUT_DIR / "core" / "registry_event.py"
+    if not path.exists():
+        return
+    source = path.read_text()
+    lines = source.splitlines(keepends=True)
+    for cls in ast.parse(source).body:
+        if not (
+            isinstance(cls, ast.ClassDef)
+            and cls.name == "Tracks"
+            and any(isinstance(base, ast.Name) and base.id == "StrEnum" for base in cls.bases)
+        ):
+            continue
+        for node in cls.body:
+            if (
+                isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "pass_"
+                and isinstance(node.value, ast.Constant)
+                and node.value.value == "pass"
+                and node.lineno == node.end_lineno
+                and "# nosec B105" not in lines[node.lineno - 1]
+            ):
+                lines[node.lineno - 1] = (
+                    lines[node.lineno - 1].rstrip("\r\n")
+                    + "  # nosec B105: Fixed protocol compliance track verdict.\n"
+                )
+    updated = "".join(lines)
+    if updated != source:
+        path.write_text(updated)
+        print("  registry_event.py: annotated fixed compliance track verdict")
+
+
 def fix_preview_render_self_reference():
     """Fix self-referential RootModel in preview_render.py."""
     preview_file = OUTPUT_DIR / "creative" / "preview_render.py"
@@ -6039,6 +6074,7 @@ def main(argv: list[str] | None = None):
         fix_update_rights_legacy_response_defaults,
         fix_list_creatives_format_reference_xor,
         rewrite_generated_enums_to_strenum,
+        annotate_registry_track_verdict,
         remove_unused_pydantic_field_imports,
         strip_extra_blank_lines_at_eof,
     ]

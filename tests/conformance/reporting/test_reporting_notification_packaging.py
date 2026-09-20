@@ -192,6 +192,7 @@ def built_distribution(tmp_path_factory, request):
         )
     )
     sources.extend(p for p in (ROOT / "schemas/cache").rglob("*.json"))
+    sources.extend(p for p in (ROOT / "schemas/releases").rglob("*.json"))
     digest = hashlib.sha256()
     for item in sorted(sources):
         digest.update(str(item.relative_to(ROOT)).encode())
@@ -218,10 +219,14 @@ def built_distribution(tmp_path_factory, request):
         project / "src",
         ignore=shutil.ignore_patterns("__pycache__", "*.egg-info", "_schemas"),
     )
-    for version in ("2.5", "3.0", "3.1", "3.2.0-rc.3"):
+    pin = (ROOT / "src/adcp/ADCP_VERSION").read_text().strip()
+    current = pin if "-" in pin else ".".join(pin.split(".")[:2])
+    for version in dict.fromkeys(("2.5", "3.0", "3.1", "3.2.0-beta.6", "3.2.0-rc.3", current)):
         shutil.copytree(
             ROOT / "schemas" / "cache" / version, project / "schemas" / "cache" / version
         )
+    if (ROOT / "schemas/releases").is_dir():
+        shutil.copytree(ROOT / "schemas/releases", project / "schemas/releases")
     dist = path / "dist"
     # build's default path makes an sdist, then builds the wheel FROM that sdist.
     run_step(

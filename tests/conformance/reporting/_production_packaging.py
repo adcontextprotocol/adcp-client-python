@@ -48,6 +48,11 @@ def production_modules():
     paths += [
         ROOT / "src/adcp" / name
         for name in (
+            "_version.py",
+            "server/mcp_tools.py",
+            "reporting/feed/request.py",
+            "reporting/feed/errors.py",
+            "reporting/ledger/status_server.py",
             "reporting/ledger/status.py",
             "reporting/ledger/status_snapshot.py",
             "reporting/ledger/status_projection.py",
@@ -73,6 +78,8 @@ def production_modules():
             "reporting/outbox/worker.py",
             "validation/schema_loader.py",
             "types/base.py",
+            "types/v32.py",
+            "types/versioned.py",
             "types/generated_poc/core/reporting_delivery_capabilities.py",
             "types/generated_poc/bundled/protocol/get_adcp_capabilities_response.py",
         )
@@ -103,6 +110,11 @@ def inspect_distribution(wheel, source):
         for name, raw in assets.items():
             assert archive.read("adcp/reporting/" + name) == raw
             assert sdist.extractfile(f"{prefix}/src/adcp/reporting/{name}").read() == raw
+        for path in sorted((ROOT / "src/adcp/_compliance/3.2.0-rc.4").rglob("*")):
+            if path.is_file():
+                name = path.relative_to(ROOT / "src").as_posix()
+                assert archive.read(name) == path.read_bytes()
+                assert sdist.extractfile(f"{prefix}/src/{name}").read() == path.read_bytes()
     return modules, {name: hashlib.sha256(raw).hexdigest() for name, raw in assets.items()}
 
 
@@ -234,6 +246,8 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
             "tests/test_reporting_capability_models.py",
             "tests/test_reporting_production_public.py",
             "tests/test_schema_datetime_formats.py",
+            "tests/test_rc4_adoption.py",
+            "tests/test_mcp_schema_materialization.py",
         )
     ]
     evidence = Path(os.environ.get("ADCP_PRODUCTION_EVIDENCE", str(root / "production-evidence")))
@@ -246,6 +260,12 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
         "schemas": {
             name: hashlib.sha256(
                 (ROOT / "schemas/cache/3.2.0-rc.3" / name).read_bytes()
+            ).hexdigest()
+            for name in SCHEMAS
+        },
+        "current_schemas": {
+            name: hashlib.sha256(
+                (ROOT / "schemas/cache/3.2.0-rc.4" / name).read_bytes()
             ).hexdigest()
             for name in SCHEMAS
         },

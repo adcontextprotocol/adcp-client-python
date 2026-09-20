@@ -9,9 +9,43 @@ This test suite validates that the code generation pipeline works correctly:
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 import pytest
+
+
+@pytest.mark.parametrize(
+    "class_name,base,value,annotated",
+    [
+        ("Tracks", "StrEnum", "pass", True),
+        ("Tracks", "StrEnum", "another-value", False),
+        ("Other", "StrEnum", "pass", False),
+        ("Tracks", "object", "pass", False),
+    ],
+)
+def test_registry_verdict_annotation_preserves_syntax_and_unrelated_detection(
+    tmp_path, monkeypatch, class_name, base, value, annotated
+):
+    from scripts import post_generate_fixes
+
+    target = tmp_path / "core" / "registry_event.py"
+    target.parent.mkdir()
+    source = (
+        f"class {class_name}({base}):\n"
+        f"    pass_ = {value!r}\n"
+        "    fail = 'fail'\n"
+        "unrelated_password = 'non-secret-detector-control'\n"
+    )
+    target.write_text(source)
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", tmp_path)
+    post_generate_fixes.annotate_registry_track_verdict()
+    updated = target.read_text()
+    assert ast.dump(ast.parse(updated)) == ast.dump(ast.parse(source))
+    assert updated.count("# nosec B105") == int(annotated)
+    assert updated.splitlines()[-1] == source.splitlines()[-1]
+    post_generate_fixes.annotate_registry_track_verdict()
+    assert target.read_text() == updated
 
 
 def test_flatten_schemas_uses_stable_path_order(tmp_path, monkeypatch, capsys):

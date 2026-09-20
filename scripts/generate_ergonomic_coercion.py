@@ -578,10 +578,15 @@ def generate_code() -> str:
                 lines.append("    _patch_field_annotation(")
                 lines.append(f"        {type_name},")
                 lines.append(f'        "{field}",')
-                lines.append(
-                    f"        Annotated[{target} | None, "
-                    f"BeforeValidator(coerce_to_enum({target}))],"
-                )
+                annotation = f"{target} | None, BeforeValidator(coerce_to_enum({target}))"
+                line = f"        Annotated[{annotation}],"
+                # Match the repository's 100-column generated source contract.
+                # Otherwise normal pinned formatting changes this output after
+                # generation and leaves a reproducible strict-check drift.
+                if len(line) > 100:
+                    lines.extend(["        Annotated[", f"            {annotation}", "        ],"])
+                else:
+                    lines.append(line)
                 lines.append("    )")
             elif c["type"] == "unique_enum_list":
                 target = get_symbol_name(c["target_class"])

@@ -30,26 +30,27 @@ def hour(value):
 
 
 @pytest.mark.parametrize(
-    "activation,deactivation,now,expected,closed",
+    "activation,deactivation,now,expected,rc4_expected,closed",
     [
-        (0, None, 0.5, 2, 0),  # mid-period, no obligation or coverage yet
-        (0, None, 1, 2, 1),  # closes at 01:00, due at 02:00
-        (0, None, 1.5, 2, 1),
-        (0, None, 2, 3, 2),  # strictly future expectation at the exact SLA
-        (0, None, 2.5, 3, 2),
-        (3, None, 0.5, 5, 0),  # already committed future activation
-        (0.5, None, 0.5, 3, 0),  # first full period only
-        (1, None, 1, 3, 0),
-        (0, 3, 0.5, 2, 0),  # future deactivation
-        (0, 1, 2, None, 1),  # stop exactly at the next start
-        (0, 0.5, 0.5, 2, 0),  # begun full period remains owed
-        (0, 0.5, 2, None, 1),
-        (1, 1, 0.5, None, 0),  # no committed active interval
-        (None, None, 0.5, None, 0),
+        (0, None, 0.5, 2, 1, 0),  # mid-period, no obligation or coverage yet
+        (0, None, 1, 2, 2, 1),  # closes at 01:00, due at 02:00
+        (0, None, 1.5, 2, 2, 1),
+        (0, None, 2, 3, 3, 2),  # strictly future expectation at the exact SLA
+        (0, None, 2.5, 3, 3, 2),
+        (3, None, 0.5, 5, 3, 0),  # already committed future activation
+        (0.5, None, 0.5, 3, 1, 0),  # first full period only
+        (1, None, 1, 3, 2, 0),
+        (0, 3, 0.5, 2, 1, 0),  # future deactivation
+        (0, 1, 2, None, None, 1),  # stop exactly at the next start
+        (0, 0.5, 0.5, 2, None, 0),  # begun full period remains owed
+        (0, 0.5, 2, None, None, 1),
+        (1, 1, 0.5, None, None, 0),  # no committed active interval
+        (None, None, 0.5, None, None, 0),
     ],
 )
+@pytest.mark.parametrize("version", ["3.2-rc.3", "3.2-rc.4"])
 async def test_producer_and_public_summary_share_all_activation_and_due_boundaries(
-    schedules, activation, deactivation, now, expected, closed
+    schedules, activation, deactivation, now, expected, rc4_expected, closed, version
 ):
     h = schedules
     h.clock.now = hour(now)
@@ -69,17 +70,21 @@ async def test_producer_and_public_summary_share_all_activation_and_due_boundari
     for obligation in obligations:
         revision, rows = revision_for(obligation, suffix=obligation.reporting_obligation_id)
         await h.store.commit_revision(revision, rows)
+        assert obligation.period.expected_at == obligation.period.end + timedelta(hours=1)
     handler = ReportingStatusHandler(h.store)
     for consumer in ("buyer-one", "buyer-two"):
-        raw = await handler.handle({}, caller=ReportingStatusCaller("acct_a", consumer))
+        raw = await handler.handle(
+            {"adcp_version": version}, caller=ReportingStatusCaller("acct_a", consumer)
+        )
         GetReportingStatusResponse.model_validate(raw)
-        validator = get_validator("get_reporting_status", "sync")
+        validator = get_validator("get_reporting_status", "sync", version=version)
         assert validator is not None
         validator.validate(raw)
         assert raw["health"] == "complete"
         assert raw["obligation_counts"]["total"] == closed
+        forecast = rc4_expected if version == "3.2-rc.4" else expected
         assert raw.get("next_expected_at") == (
-            hour(expected).isoformat().replace("+00:00", "Z") if expected is not None else None
+            hour(forecast).isoformat().replace("+00:00", "Z") if forecast is not None else None
         )
         if not closed:
             assert raw["coverage"]["media_buy_ids"] == []
@@ -105,11 +110,16 @@ async def test_nearest_generation_and_account_filters_use_captured_not_current_c
     caller = ReportingStatusCaller("acct_a", "buyer")
     captured = await h.store.read_status_snapshot(account_id="acct_a")
     expected = hour(1) + timedelta(minutes=10)
-    original = handler.render_snapshot({}, caller=caller, snapshot=captured)
+    original = handler.render_snapshot(
+        {"adcp_version": "3.2-rc.3"}, caller=caller, snapshot=captured
+    )
     assert original["next_expected_at"] == expected.isoformat().replace("+00:00", "Z")
     await h.store.put_configuration(replace(second, deactivated_at=hour(0)))
     h.clock.now = hour(5)
-    assert handler.render_snapshot({}, caller=caller, snapshot=captured) == original
+    assert (
+        handler.render_snapshot({"adcp_version": "3.2-rc.3"}, caller=caller, snapshot=captured)
+        == original
+    )
     for filters in (
         {"delivery_config_ids": ["absent"]},
         {"feed_purposes": ["billing"]},
@@ -117,7 +127,7 @@ async def test_nearest_generation_and_account_filters_use_captured_not_current_c
         {"period": {"start": hour(-2).isoformat(), "end": hour(0).isoformat()}},
     ):
         assert "next_expected_at" not in handler.render_snapshot(
-            filters, caller=caller, snapshot=captured
+            {"adcp_version": "3.2-rc.3", **filters}, caller=caller, snapshot=captured
         )
 
 
