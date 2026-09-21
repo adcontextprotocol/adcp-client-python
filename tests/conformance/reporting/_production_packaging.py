@@ -59,6 +59,7 @@ def production_modules():
             "reporting/ledger/reconciliation_projection.py",
             "reporting/ledger/schedule.py",
             "reporting/ledger/producer.py",
+            "reporting/ledger/pg.py",
             "reporting/ledger/producer_progress.py",
             "reporting/materializer/memory.py",
             "reporting/materializer/pg.py",
@@ -74,6 +75,7 @@ def production_modules():
             "reporting/_reconcile.py",
             "reporting/receipts/handler.py",
             "reporting/outbox/memory.py",
+            "reporting/outbox/_schema.py",
             "reporting/outbox/_activity_pg.py",
             "reporting/outbox/worker.py",
             "validation/schema_loader.py",
@@ -203,6 +205,8 @@ def source_basis(wheel, source, *, evidence, label):
 
 
 def installed_production(root, python, wheel, source, *, label, driver_absent):
+    from ._installed_progress import ProgressMonitor
+
     fixture_root = copied_fixtures(root, label)
     script = fixture_root / "run_installed.py"
     shutil.copy2(Path(__file__).with_name("_production_installed.py"), script)
@@ -235,7 +239,13 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
         p
         for p in tests
         if p.name
-        not in {"test_reporting_production_packaging.py", "test_reporting_production_rolling.py"}
+        not in {
+            "test_reporting_production_packaging.py",
+            "test_reporting_production_rolling.py",
+            # Parent-harness controls run in the existing source PG gate.
+            # Deliberate child stalls do not belong inside the installed gate.
+            "test_reporting_production_harness.py",
+        }
     ]
     tests += [
         ROOT / name
@@ -251,6 +261,7 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
         )
     ]
     evidence = Path(os.environ.get("ADCP_PRODUCTION_EVIDENCE", str(root / "production-evidence")))
+    progress = ProgressMonitor(evidence / (label + "-progress.json"))
     settings = {
         "workspace": str(ROOT),
         "fixtures": str(fixture_root),
@@ -275,6 +286,7 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
         "source_basis": source_basis(wheel, source, evidence=evidence, label=label),
         "wheel_sha256": hashlib.sha256(wheel.read_bytes()).hexdigest(),
         "evidence": str(evidence),
+        "progress": str(progress.path),
     }
     result = json.loads(
         run_step(
@@ -283,6 +295,7 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
             cwd=fixture_root,
             value=settings,
             timeout=1800,
+            progress=progress,
         )
     )
     print(json.dumps({"installed_production": label, **result}), flush=True)

@@ -192,7 +192,7 @@ async def test_startup_then_sequential_discovery_checks_catalog_and_pool_once(ac
         assert response["media_buy"]["reporting_delivery"]["supports_webhook_activity"] is True
     assert handler._platform.calls == 9
     assert (accounting.scans, accounting.checkouts) == (1, 1)
-    assert accounting.catalog_queries == queries and queries > 10
+    assert accounting.catalog_queries == queries and queries > 0
     assert_primitive_cache(support)
 
 

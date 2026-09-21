@@ -24,6 +24,9 @@ def main(settings):
     assert not (root / "adcp").exists() and not (root / "src").exists()
     sys.path.insert(0, str(root))
     from tests.conformance.reporting._hardening_installed import Results
+    from tests.conformance.reporting._installed_progress import InstalledProgress
+
+    progress = InstalledProgress(settings["progress"])
 
     origins = {}
     for name, expected in settings["modules"].items():
@@ -55,6 +58,25 @@ def main(settings):
         assert os.environ.get("ADCP_PG_TEST_URL")
     evidence = Path(settings["evidence"])
     evidence.mkdir(parents=True, exist_ok=True, mode=0o700)
+    identity = {
+        "python": sys.version,
+        "source_basis": settings["source_basis"],
+        "direct_url": json.loads(
+            importlib.metadata.distribution("adcp").read_text("direct_url.json")
+        ),
+        "origins": origins,
+        "distribution_version": importlib.metadata.version("adcp"),
+        "wheel_sha256": settings["wheel_sha256"],
+        "assets": settings["assets"],
+        "schemas": settings["schemas"],
+        "current_schemas": settings["current_schemas"],
+        "driver_absent": settings["driver_absent"],
+    }
+    # A timed-out pytest run still retains the identities verified before it.
+    # This is provenance, not a successful conformance result.
+    with (evidence / (settings["label"] + "-identity.json")).open("x") as stream:
+        json.dump(identity, stream, indent=2)
+        stream.write("\n")
     log = evidence / (settings["label"] + ".log")
     recorder = Results()
     command = [
@@ -71,12 +93,13 @@ def main(settings):
         "--deselect=tests/test_reporting_capability_models.py::test_post_generation_repair_is_idempotent_for_both_actual_model_layouts",
     ]
     started = time.monotonic()
+    progress.start("collection")
     with (
         log.open("x") as stream,
         contextlib.redirect_stdout(stream),
         contextlib.redirect_stderr(stream),
     ):
-        code = int(pytest.main(command, plugins=[recorder]))
+        code = int(pytest.main(command, plugins=[recorder, progress]))
     result = {
         "command": command,
         "pytest_exit": code,
@@ -111,27 +134,26 @@ def main(settings):
         "--no-incremental",
         str(root / "adopter.py"),
     ]
+    progress.start("typing")
     typed = subprocess.run(typing_command, cwd=root, capture_output=True, timeout=120)
     typing_log = evidence / (settings["label"] + "-adopter.log")
     typing_log.write_bytes(typed.stdout + typed.stderr)
     result["valid"] &= typed.returncode == 0
+    progress.start("origins")
     for name, module in tuple(sys.modules.items()):
         if (name == "adcp" or name.startswith("adcp.")) and getattr(module, "__file__", None):
             assert Path(module.__file__).resolve().is_relative_to(Path(sys.prefix))
+    progress.start("complete")
+    progress.close()
+    journal = progress.path.with_suffix(".jsonl")
     record = {
-        "python": sys.version,
-        "source_basis": settings["source_basis"],
-        "direct_url": json.loads(
-            importlib.metadata.distribution("adcp").read_text("direct_url.json")
-        ),
-        "origins": origins,
-        "distribution_version": importlib.metadata.version("adcp"),
-        "wheel_sha256": settings["wheel_sha256"],
-        "assets": settings["assets"],
-        "schemas": settings["schemas"],
-        "current_schemas": settings["current_schemas"],
-        "driver_absent": settings["driver_absent"],
+        **identity,
         "result": result,
+        "progress": {
+            "log": str(journal),
+            "bytes": journal.stat().st_size,
+            "sha256": hashlib.sha256(journal.read_bytes()).hexdigest(),
+        },
         "adopter": {
             "command": typing_command,
             "exit": typed.returncode,

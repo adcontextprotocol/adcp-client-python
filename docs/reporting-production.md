@@ -208,12 +208,47 @@ the 64-period maximum; durable cursors and bounded pending-acquisition queues
 advance past completed windows without an unbounded history scan. Lease
 acquisition takes the account lock before configuration rows and preserves
 turn-primary fairness and account isolation.
+All PostgreSQL writers participating in this production composition must take
+the account advisory transaction lock before locking configuration, checkpoint
+or work rows. Activation, producer lease/release, materializer claim/finish and
+receipt ingestion share this order. `SKIP LOCKED` only skips contested candidate
+rows; it cannot prevent a later trigger from waiting for an account lock.
+The shared `PgReportingLedgerStore` lease acquisition and release also take
+accounts before rows. This applies to its reconciliation, materializer, receipt,
+feed and projection subclasses, including a base-tier store sharing a database
+whose materializer trigger was installed by another participant. Older SDK
+versions took a configuration row first on these paths; drain and upgrade those
+producer processes before running them alongside account-first writers in a
+trigger-enabled database. Use `PgReportingProductionStore` for the admitted
+production producer contract.
+The shared acquisition samples at most 32 eligible configurations and uses
+account try-locks before a fenced `SKIP LOCKED` update. A standalone call may
+join a busy account's queue for a shared 50 ms wait budget, respecting a smaller
+configured `lock_timeout`. It never queues after acquiring an account, or inside
+an existing caller transaction that could already hold locks. This lets ordinary
+queued writers and producers advance without introducing another lock-order
+cycle. Timed-out waits roll back to a savepoint; cancellation propagates and the
+previous timeout setting is restored. Sampling advances past busy prefixes;
+lease eligibility and durable fairness ranks remain transactional. Release
+waits for its account and still requires the original worker and expiry fence.
+The lock-order regression keeps a frozen copy of the old row-first acquisition
+as a negative control, proves a real PostgreSQL deadlock and rollback, then proves
+both activation and a subsequent production producer turn complete. Separate
+regressions exercise the public shared-store paths without replacing SDK methods.
+Neither control adds runtime deadlock retries.
 Lease acquisition, release and recovery are bookkeeping, not new reporting
 observations or materializer targets. The production PostgreSQL path retains
 the inherited trigger and cancels only its lease-only candidate increment in
 the same account-locked transaction. It never rewrites a pending attempt's
 generation, epoch or external identity. Real configuration, revision and
 readability changes retain their original fences.
+The shared lease paths also preserve materializer generations when a lower-tier
+store shares this schema. They capture existing candidate generations under the
+account lock and restore only the one increment caused by an effective lease-only
+update. A skipped trigger or stale release never causes a blind decrement. Only
+the generation is restored; wakeups and scheduling metadata retain their existing
+behavior. Normal materializer schema validation still rejects disabled or changed
+triggers, and genuine source changes still invalidate older work.
 PostgreSQL checks at most 32 admitted configuration candidates per lease turn.
 A rejected source binding advances a separate durable probe rank so it cannot
 permanently occupy that window. Rejection does not acquire a configuration lease
@@ -290,6 +325,11 @@ finish under its existing transaction and deadline rules. Drain with `aclose()`,
 repair the failed component and construct fresh support to recover; the failed
 instance never silently restarts or regains its capability claim. A failing log
 sink cannot prevent the stop latch or change the safe public error.
+A PostgreSQL deadlock escaping an owned worker follows this same fail-stop
+policy after its transaction rolls back; there is no automatic deadlock retry.
+Investigate the competing writer's lock order, drain the failed support, and
+construct fresh support after correcting it. Retained pending work and fencing
+rules continue to govern recovery.
 The [receipt ingress](reporting-receipt-ingress.md),
 [frozen feed](reporting-frozen-feed.md) and original materializer recovery
 contracts continue to apply.

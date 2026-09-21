@@ -3,14 +3,13 @@
 import asyncio
 import json
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from types import MethodType
 
 import pytest
 
-from adcp.reporting.ledger.pg import PgReportingLedgerStore
-
 from ._generation_support import END
+from ._legacy_row_first_lease import row_first_period_close
 from ._production_support import production_harness
 
 
@@ -92,7 +91,7 @@ async def test_activation_and_producer_actual_trigger_lock_order(
                 patch.setattr(
                     store,
                     "lease_period_close",
-                    MethodType(PgReportingLedgerStore.lease_period_close, store),
+                    MethodType(row_first_period_close, store),
                 )
             activation = asyncio.create_task(support.activate(account_id=item.config.account_id))
             tasks.append(activation)
@@ -106,6 +105,17 @@ async def test_activation_and_producer_actual_trigger_lock_order(
                     turn = await asyncio.wait_for(asyncio.shield(producer), 5)
                     assert turn.leased is None
                     assert not executing.is_set()
+                print(
+                    json.dumps(
+                        {
+                            "production_lock_order": "before_checkpoint",
+                            "wrong_order_control": wrong_order,
+                            "backend_pids": pids,
+                            "at": datetime.now(timezone.utc).isoformat(),
+                        }
+                    ),
+                    flush=True,
+                )
                 release.set()
                 results = await asyncio.wait_for(
                     asyncio.gather(activation, producer, return_exceptions=True), 8
@@ -157,13 +167,12 @@ async def test_activation_and_producer_actual_trigger_lock_order(
         # incomplete phase. Its original input and epoch-zero queues persist.
         await support.activate(account_id=item.config.account_id)
         assert await support.projection.baseline_ready(account_id=item.config.account_id)
-        if not wrong_order:
-            executing.clear()
-            with monkeypatch.context() as patch:
-                patch.setattr(psycopg.AsyncConnection, "execute", observe)
-                turn = await asyncio.wait_for(source_turn(support), 5)
-            assert turn.leased is not None and executing.is_set()
-            assert turn.revisions_committed == []
+        executing.clear()
+        with monkeypatch.context() as patch:
+            patch.setattr(psycopg.AsyncConnection, "execute", observe)
+            turn = await asyncio.wait_for(source_turn(support), 5)
+        assert turn.leased is not None and executing.is_set()
+        assert turn.revisions_committed == []
         print(
             json.dumps(
                 {
@@ -171,8 +180,11 @@ async def test_activation_and_producer_actual_trigger_lock_order(
                     "actual_trigger": True,
                     "observed_trigger_wait": wrong_order,
                     "deadlocks": len(deadlocks),
+                    "backend_pids": pids,
+                    "at": datetime.now(timezone.utc).isoformat(),
                     "rollback_or_commit_verified": True,
                     "restored_acquisition": store.lease_period_close.__func__ is original_lease,
+                    "producer_progress_after_restore": turn.leased is not None,
                 }
             )
         )

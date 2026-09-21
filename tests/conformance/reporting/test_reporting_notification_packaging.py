@@ -69,8 +69,12 @@ def redacted_stage_stderr(stderr):
     )
 
 
-def run_step(command, *, label, cwd, value=None, timeout=120):
+def run_step(command, *, label, cwd, value=None, timeout=120, progress=None):
     started = time.monotonic()
+    environment = {key: item for key, item in os.environ.items() if key != "PYTHONPATH"}
+    if progress is not None:
+        environment["PGAPPNAME"] = progress.application
+        command = progress.command(command)
     process = subprocess.Popen(
         command,
         cwd=cwd,
@@ -79,15 +83,18 @@ def run_step(command, *, label, cwd, value=None, timeout=120):
         stderr=subprocess.PIPE,
         text=True,
         start_new_session=True,
-        env={key: item for key, item in os.environ.items() if key != "PYTHONPATH"},
+        env=environment,
     )
     print(f"notification_distribution stage={label} pid={process.pid} started", flush=True)
     try:
-        stdout, stderr = process.communicate(
-            json.dumps(value) if value is not None else None,
-            timeout=timeout,
-        )
+        payload = json.dumps(value) if value is not None else None
+        if progress is None:
+            stdout, stderr = process.communicate(payload, timeout=timeout)
+        else:
+            stdout, stderr = progress.communicate(process, payload, timeout)
     except subprocess.TimeoutExpired:
+        if progress is not None:
+            progress.capture(process)
         # Give only this task-owned process group a bounded graceful shutdown,
         # then escalate. A timeout is a failing gate, never an implicit retry.
         cleanup = "terminated"
@@ -95,25 +102,37 @@ def run_step(command, *, label, cwd, value=None, timeout=120):
             os.killpg(process.pid, signal.SIGTERM)
         except ProcessLookupError:
             pass
+        if progress is not None:
+            progress.signal_owned(signal.SIGTERM)
         try:
             stdout, stderr = process.communicate(timeout=5)
         except subprocess.TimeoutExpired:
             cleanup = "killed"
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+            if progress is not None:
+                progress.signal_owned(signal.SIGKILL)
+            if progress is None or not progress.supervised:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
             try:
                 stdout, stderr = process.communicate(timeout=5)
-            except subprocess.TimeoutExpired:
-                raise AssertionError(
-                    f"notification distribution {label}: cleanup_deadline pid={process.pid}"
-                ) from None
+            except subprocess.TimeoutExpired as error:
+                # Finalize ownership/database evidence even if pipe draining
+                # failed. TimeoutExpired carries bytes even in text mode.
+                cleanup = "cleanup_deadline"
+                stdout = (error.output or b"").decode(errors="replace")
+                stderr = (error.stderr or b"").decode(errors="replace")
         # Capture actionable process diagnostics without ever including child
         # prose, URLs, fixture values, provider output, or credentials.
+        phase = progress.cleaned(process, cleanup) if progress is not None else ""
+        for stream in (process.stdin, process.stdout, process.stderr):
+            if stream is not None:
+                stream.close()
         raise AssertionError(
             f"notification distribution {label}: deadline"
             f" pid={process.pid} exit={process.returncode} cleanup={cleanup}"
+            f"{phase}"
             f" elapsed_ms={int((time.monotonic() - started) * 1000)}"
             f" stdout_chars={len(stdout)} stderr_chars={len(stderr)}"
             f" stderr={redacted_stage_stderr(stderr)}"

@@ -43,54 +43,60 @@ async def schema_objects(connection: Any) -> dict[str, dict[str, Any]]:
     def remember(key: str, value: object, *, enabled: bool = True) -> None:
         result[key] = {"fingerprint": _digest(value), "enabled": enabled}
 
-    for oid, name, kind, persistence in tables:
+    names = {oid: name for oid, name, _, _ in tables}
+    for _, name, kind, persistence in tables:
         remember(f"table:{name}", (kind, persistence))
-        columns = await (
-            await connection.execute(
-                "SELECT a.attname, format_type(a.atttypid, a.atttypmod), a.attnotnull, co.collname,"
-                " replace(pg_get_expr(d.adbin, d.adrelid),"
-                " quote_ident(current_schema()) || '.', ''),"
-                " a.attidentity, a.attgenerated FROM pg_attribute a"
-                " LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum"
-                " LEFT JOIN pg_collation co ON co.oid = a.attcollation WHERE a.attrelid = %s"
-                " AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attname",
-                (oid,),
-            )
-        ).fetchall()
-        for row in columns:
-            remember(f"column:{name}.{row[0]}", row[1:])
-        constraints = await (
-            await connection.execute(
-                "SELECT conname, contype, replace(pg_get_constraintdef(oid),"
-                " quote_ident(current_schema()) || '.', ''),"
-                " convalidated, condeferrable, condeferred"
-                " FROM pg_constraint WHERE conrelid = %s ORDER BY conname",
-                (oid,),
-            )
-        ).fetchall()
-        for row in constraints:
-            remember(f"constraint:{name}.{row[0]}", row[1:], enabled=bool(row[3]))
-        indexes = await (
-            await connection.execute(
-                "SELECT c.relname, i.indisunique, i.indisvalid, i.indisready, i.indislive,"
-                " replace(pg_get_indexdef(i.indexrelid), quote_ident(current_schema()) || '.', '')"
-                " FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid"
-                " WHERE i.indrelid = %s ORDER BY c.relname",
-                (oid,),
-            )
-        ).fetchall()
-        for row in indexes:
-            remember(f"index:{name}.{row[0]}", row[1:], enabled=all(row[2:5]))
-        triggers = await (
-            await connection.execute(
-                "SELECT tgname, tgenabled, replace(pg_get_triggerdef(oid),"
-                " quote_ident(current_schema()) || '.', '') FROM pg_trigger WHERE tgrelid = %s"
-                " AND NOT tgisinternal ORDER BY tgname",
-                (oid,),
-            )
-        ).fetchall()
-        for row in triggers:
-            remember(f"trigger:{name}.{row[0]}", row[1:], enabled=row[1] != "D")
+    # Capture each object kind for the entire schema in one query. These are
+    # still fresh catalog reads on the caller's connection; no cache can hide
+    # DDL drift. Round trips no longer grow with the number of reporting tables.
+    oids = list(names)
+    columns = await (
+        await connection.execute(
+            "SELECT a.attrelid, a.attname, format_type(a.atttypid, a.atttypmod),"
+            " a.attnotnull, co.collname, replace(pg_get_expr(d.adbin, d.adrelid),"
+            " quote_ident(current_schema()) || '.', ''),"
+            " a.attidentity, a.attgenerated FROM pg_attribute a"
+            " LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum"
+            " LEFT JOIN pg_collation co ON co.oid = a.attcollation"
+            " WHERE a.attrelid = ANY(%s::oid[])"
+            " AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attrelid, a.attname",
+            (oids,),
+        )
+    ).fetchall()
+    for oid, *row in columns:
+        remember(f"column:{names[oid]}.{row[0]}", row[1:])
+    constraints = await (
+        await connection.execute(
+            "SELECT conrelid, conname, contype, replace(pg_get_constraintdef(oid),"
+            " quote_ident(current_schema()) || '.', ''),"
+            " convalidated, condeferrable, condeferred"
+            " FROM pg_constraint WHERE conrelid = ANY(%s::oid[]) ORDER BY conrelid, conname",
+            (oids,),
+        )
+    ).fetchall()
+    for oid, *row in constraints:
+        remember(f"constraint:{names[oid]}.{row[0]}", row[1:], enabled=bool(row[3]))
+    indexes = await (
+        await connection.execute(
+            "SELECT i.indrelid, c.relname, i.indisunique, i.indisvalid, i.indisready, i.indislive,"
+            " replace(pg_get_indexdef(i.indexrelid), quote_ident(current_schema()) || '.', '')"
+            " FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid"
+            " WHERE i.indrelid = ANY(%s::oid[]) ORDER BY i.indrelid, c.relname",
+            (oids,),
+        )
+    ).fetchall()
+    for oid, *row in indexes:
+        remember(f"index:{names[oid]}.{row[0]}", row[1:], enabled=all(row[2:5]))
+    triggers = await (
+        await connection.execute(
+            "SELECT tgrelid, tgname, tgenabled, replace(pg_get_triggerdef(oid),"
+            " quote_ident(current_schema()) || '.', '') FROM pg_trigger"
+            " WHERE tgrelid = ANY(%s::oid[]) AND NOT tgisinternal ORDER BY tgrelid, tgname",
+            (oids,),
+        )
+    ).fetchall()
+    for oid, *row in triggers:
+        remember(f"trigger:{names[oid]}.{row[0]}", row[1:], enabled=row[1] != "D")
     functions = await (
         await connection.execute(
             "SELECT p.proname, pg_get_function_identity_arguments(p.oid), p.prosrc,"

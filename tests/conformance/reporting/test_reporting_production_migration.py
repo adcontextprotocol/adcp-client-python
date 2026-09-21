@@ -42,6 +42,58 @@ def original_rows(image, before):
     return result
 
 
+async def test_catalog_round_trips_stay_bounded_and_still_detect_fresh_ddl():
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        store = PgReportingProductionStore(pool=pool, notifications=True)
+        await store.create_schema()
+        async with pool.connection() as connection:
+
+            class CountQueries:
+                def __init__(self):
+                    self.calls = 0
+
+                async def execute(self, *args, **kwargs):
+                    self.calls += 1
+                    return await connection.execute(*args, **kwargs)
+
+            counted = CountQueries()
+            original = await schema_objects(counted)
+            initial_queries = counted.calls
+            # Adopter tables are allowed, but must not multiply the number of
+            # catalog round trips needed by every production readiness check.
+            from psycopg import sql
+
+            for number in range(24):
+                await connection.execute(
+                    sql.SQL("CREATE TABLE {} (id integer PRIMARY KEY)").format(
+                        sql.Identifier(f"reporting_catalog_probe_{number}")
+                    )
+                )
+            # A similarly named table outside current_schema() stays excluded.
+            await connection.execute("CREATE TEMP TABLE reporting_catalog_outside (id integer)")
+            counted.calls = 0
+            async with connection.transaction():
+                await connection.execute("SET TRANSACTION READ ONLY")
+                expanded = await schema_objects(counted)
+            assert counted.calls == initial_queries <= 10
+            assert all(expanded[key] == value for key, value in original.items())
+            assert "table:reporting_catalog_probe_23" in expanded
+            assert "table:reporting_catalog_outside" not in expanded
+            await validate_production_schema(connection, notifications=True)
+            await connection.execute(
+                "ALTER TABLE reporting_production_delivery_windows"
+                " DISABLE TRIGGER reporting_production_delivery_window_immutable"
+            )
+            changed = await schema_objects(connection)
+            key = (
+                "trigger:reporting_production_delivery_windows."
+                "reporting_production_delivery_window_immutable"
+            )
+            assert original[key]["enabled"] and not changed[key]["enabled"]
+            with pytest.raises(ReportingNotificationError):
+                await validate_production_schema(connection, notifications=True)
+
+
 @pytest.mark.parametrize("notifications", [False, True])
 @pytest.mark.parametrize("autocommit", [False, True])
 async def test_populated_repeat_concurrent_migration_keeps_history_fairness_and_frozen_pages(
