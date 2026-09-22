@@ -43,12 +43,14 @@ def _semantic_numbers(value: Any) -> Any:
 
 
 def transport_parameters(params: dict[str, Any]) -> dict[str, Any]:
-    """Read ordinary JSON without rounding the raw pagination integer first.
+    """Normalize received JSON numbers without changing their semantic value.
 
     The shared transport decoder retains decimal lexemes for financial receipt
-    admission. Feed context/vendor JSON uses normal finite JSON numbers, while
-    A2A's exact 1.0 spelling of a page limit must remain distinguishable from a
-    non-integer such as 1.000000000000000000001.
+    admission. Feed context/vendor JSON permits ordinary finite fractions, but
+    conversion must not alias two different received lexemes. Integral Decimal
+    values become exact integers; fractional values must survive the ordinary
+    JSON float round trip. This cannot recover precision a client lost before
+    transmission (for example in a protobuf Struct).
     """
 
     def convert(value: Any) -> Any:
@@ -56,6 +58,14 @@ def transport_parameters(params: dict[str, Any]) -> dict[str, Any]:
             number = float(value)
             if not math.isfinite(number):
                 raise ValueError("feed parameters require finite JSON numbers")
+            if value == value.to_integral_value():
+                # The finite-float check above also bounds exponent expansion.
+                # Do not pass exact large integers through a binary float.
+                return int(value)
+            if Decimal(repr(number)) != value:
+                raise ValueError(
+                    "feed fractional parameters require an exact JSON number round trip"
+                )
             return number
         if type(value) is dict:
             return {key: convert(item) for key, item in value.items()}

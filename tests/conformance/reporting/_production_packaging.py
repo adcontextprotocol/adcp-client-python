@@ -50,6 +50,7 @@ def production_modules():
         for name in (
             "_version.py",
             "server/mcp_tools.py",
+            "server/a2a_server.py",
             "reporting/feed/request.py",
             "reporting/feed/errors.py",
             "reporting/ledger/status_server.py",
@@ -83,6 +84,8 @@ def production_modules():
             "types/v32.py",
             "types/versioned.py",
             "types/generated_poc/core/reporting_delivery_capabilities.py",
+            "types/generated_poc/core/reporting_delivery_config.py",
+            "types/generated_poc/media_buy/get_media_buy_delivery_request.py",
             "types/generated_poc/bundled/protocol/get_adcp_capabilities_response.py",
         )
     ]
@@ -254,6 +257,9 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
             "tests/conformance/reporting/test_reporting_schedule_schema.py",
             "tests/test_reporting_revision_ownership.py",
             "tests/test_reporting_capability_models.py",
+            "tests/test_reporting_scope_models.py",
+            "tests/test_reporting_exact_request_models.py",
+            "tests/test_reporting_feed_numeric_parameters.py",
             "tests/test_reporting_production_public.py",
             "tests/test_schema_datetime_formats.py",
             "tests/test_rc4_adoption.py",
