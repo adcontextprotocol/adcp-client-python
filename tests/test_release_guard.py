@@ -82,6 +82,16 @@ class FakeGitHub(policy.GitHub):
         self.data: dict[str, Any] = {
             "": {"id": 123, "full_name": policy.REPOSITORY},
             "git/ref/heads/main": {"object": {"sha": TARGET, "type": "commit"}},
+            "branches/main": {
+                "name": "main",
+                "commit": {"sha": TARGET},
+                "protection": {
+                    "required_status_checks": {
+                        "contexts": [check["name"] for check in checks],
+                        "checks": [{"context": check["name"], "app_id": 15368} for check in checks],
+                    }
+                },
+            },
             "actions/workflows/204238826": {"state": "disabled_manually"},
             "actions/workflows/204238826/runs": [],
             "rules/branches/main": [
@@ -783,6 +793,46 @@ def test_exact_artifact_acceptance(
     assert api.writes == []
 
 
+@pytest.mark.parametrize("suffix", [".whl", ".tar.gz"])
+@pytest.mark.parametrize("recovery", [False, True])
+def test_same_version_rebuild_cannot_replace_accepted_distribution_bytes(
+    context: policy.Context,
+    candidate: tuple[Path, dict[str, Any]],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    suffix: str,
+    recovery: bool,
+) -> None:
+    directory, manifest = candidate
+    name = next(name for name in manifest["files"] if name.endswith(suffix))
+    path = directory / name
+    # Another build can have the same filename, version, metadata and source
+    # inventory. It still needs its own acceptance; a version-only lookup cannot
+    # substitute its bytes, including when recovering an interrupted release.
+    if suffix == ".whl":
+        with zipfile.ZipFile(path, "a") as archive:
+            archive.comment = b"independent same-version build"
+    else:
+        path.write_bytes(gzip.compress(gzip.decompress(path.read_bytes()), mtime=1))
+    assert artifacts.inventory(path, VERSION) == manifest["files"][name]["inventory"]
+    assert artifacts.file_digest(path) != manifest["files"][name]["sha256"]
+    api = FakeGitHub()
+    run_id = 899 if recovery else context.run_id
+    monkeypatch.setenv("ARTIFACT_DIGEST", attach_artifact(api, candidate, run_id=run_id))
+    with pytest.raises(REJECTED, match="artifact hash or inventory mismatch"):
+        if recovery:
+            api.data["actions/runs/899"] = {
+                **workflow_run(policy.WORKFLOWS["publish"], "workflow_dispatch"),
+                "conclusion": "failure",
+            }
+            artifacts.recover_candidate(
+                api, replace(context, recover_from=899), tmp_path / "recovery"
+            )
+        else:
+            artifacts.verified_candidate(api, context, tmp_path / "downloaded")
+    assert api.writes == []
+
+
 @pytest.mark.parametrize(
     "case",
     [
@@ -1198,6 +1248,103 @@ def test_api_errors_and_pagination_fail_closed(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(api, "repo", forbidden)
     with pytest.raises(urllib.error.HTTPError):
         api.optional("environments/release-publish")
+
+
+@pytest.mark.parametrize("name", ["IPR Policy / Signature", "Validate conventional commit format"])
+def test_policy_check_must_belong_to_selected_main_ci_attempt(
+    context: policy.Context, name: str
+) -> None:
+    api = FakeGitHub()
+    job = next(job for job in api.data["actions/runs/800/attempts/1/jobs"] if job["name"] == name)
+    job["check_run_url"] = "https://api.github.com/repos/unrelated/run/check-runs/1"
+    with pytest.raises(REJECTED, match="selected CI attempt"):
+        policy.gate(api, context)
+
+
+@pytest.mark.parametrize(
+    ("name", "app_id", "other_name"),
+    [
+        ("check / check", 15368, "check"),
+        ("CodeQL", 57789, "Analyze (python)"),
+        ("GitGuardian Security Checks", 46505, "Security scan"),
+    ],
+)
+@pytest.mark.parametrize("case", ["valid", "missing", "wrong_name", "wrong_app", "failed", "stale"])
+def test_branch_summary_checks_are_required_in_addition_to_rulesets(
+    context: policy.Context, name: str, app_id: int, other_name: str, case: str
+) -> None:
+    api = FakeGitHub()
+    summary = api.data["branches/main"]["protection"]["required_status_checks"]
+    summary["contexts"].append(name)
+    summary["checks"].append({"context": name, "app_id": app_id})
+    check = {
+        "id": 700,
+        "name": other_name if case == "wrong_name" else name,
+        "head_sha": TARGET,
+        "app": {"id": (15368 if app_id != 15368 else 1) if case == "wrong_app" else app_id},
+        "status": "completed",
+        "conclusion": "failure" if case == "failed" else "success",
+        "completed_at": (NOW - timedelta(days=2)).isoformat() if case == "stale" else STAMP,
+    }
+    if case != "missing":
+        api.data[f"commits/{TARGET}/check-runs?filter=latest"].append(check)
+    if case == "valid":
+        policy.gate(api, context)
+    else:
+        with pytest.raises(REJECTED):
+            policy.gate(api, context)
+    assert api.writes == []
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "missing_contexts",
+        "missing_checks",
+        "unbound_context",
+        "missing_app",
+        "wrong_target",
+        "wrong_branch",
+    ],
+)
+def test_incomplete_branch_summary_cannot_be_treated_as_no_classic_protection(
+    context: policy.Context, case: str
+) -> None:
+    api = FakeGitHub()
+    branch = api.data["branches/main"]
+    summary = branch["protection"]["required_status_checks"]
+    if case == "missing_contexts":
+        summary.pop("contexts")
+    elif case == "missing_checks":
+        summary.pop("checks")
+    elif case == "unbound_context":
+        summary["contexts"].append("CodeQL")
+    elif case == "missing_app":
+        summary["checks"][0].pop("app_id")
+    elif case == "wrong_target":
+        branch["commit"]["sha"] = OTHER
+    else:
+        branch["name"] = "another-branch"
+    with pytest.raises(REJECTED):
+        policy.gate(api, context)
+    assert api.writes == []
+
+
+def test_branch_summary_permission_denial_is_not_an_empty_protection_inventory(
+    context: policy.Context, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api = FakeGitHub()
+    read = api.repo
+
+    def denied(suffix: str, method: str = "GET", body: Any = None) -> Any:
+        if suffix == "branches/main":
+            raise urllib.error.HTTPError("https://api.github.com", 403, "forbidden", {}, None)
+        return read(suffix, method, body)
+
+    monkeypatch.setattr(api, "repo", denied)
+    with pytest.raises(urllib.error.HTTPError):
+        policy.gate(api, context)
+    assert api.writes == []
 
 
 def workflow(name: str) -> dict[str, Any]:

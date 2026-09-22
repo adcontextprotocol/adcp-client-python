@@ -123,7 +123,8 @@ context-echo path.
 
 **GitHub Actions Secrets**
 - Secret names matter! Check actual secret name in repository settings
-- Common pattern: `PYPY_API_TOKEN` (not `PYPI_API_TOKEN`) for PyPI publishing
+- Guarded PyPI publishing uses environment-bound Trusted Publishing and attestations, not a static API token
+- Legacy PyPI/App credentials are retired only through the separately authorized historical-run audit in `docs/releasing.md`
 - Test locally with `python -m build` before relying on CI
 
 **Release Please Workflow**
