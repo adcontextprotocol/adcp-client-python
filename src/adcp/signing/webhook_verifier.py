@@ -24,7 +24,7 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
-from adcp.signing.canonical import _lookup, parse_signature_input_header
+from adcp.signing.canonical import _lookup, parse_signature_input_header, split_structured_field
 from adcp.signing.constants import (
     ADCP_USE_REQUEST,
     ADCP_USE_WEBHOOK,
@@ -37,6 +37,7 @@ from adcp.signing.crypto import ALLOWED_ALGS
 from adcp.signing.errors import (
     REQUEST_TO_WEBHOOK_CODE,
     WEBHOOK_SIGNATURE_COMPONENTS_INCOMPLETE,
+    WEBHOOK_SIGNATURE_HEADER_MALFORMED,
     WEBHOOK_SIGNATURE_INVALID,
     SignatureVerificationError,
 )
@@ -137,6 +138,7 @@ def verify_webhook_signature(
     code on failure. Success returns a :class:`VerifiedWebhookSender` carrying
     the identity to scope dedup state by.
     """
+    _precheck_webhook_signature_alphabet(headers, options.label)
     _precheck_webhook_has_required_components(headers)
 
     request_options = VerifyOptions(
@@ -161,6 +163,9 @@ def verify_webhook_signature(
         expected_key_origins=options.expected_key_origins,
         signing_purpose="webhook_signing",
         posture=options.posture,
+        # The rc.4 webhook-v1 corpus retains legacy Base64URL signatures.
+        # Do not inherit the stricter 3.2 *request* profile for this route.
+        signing_profile_version="3.1",
     )
 
     try:
@@ -177,6 +182,34 @@ def verify_webhook_signature(
         verified_at=signer.verified_at,
         sender_url=signer.agent_url,
     )
+
+
+def _precheck_webhook_signature_alphabet(headers: Mapping[str, str], label: str) -> None:
+    """Keep legacy decoder tolerance without accepting mixed alphabets.
+
+    Webhook-v1 emits unpadded Base64URL throughout 3.x. The shared legacy
+    decoder also tolerates standard Base64, but its URL fallback would
+    accept a mixed token. That tolerance is not conformant emission.
+    Confine this profile check to the selected webhook Signature value.
+    Content-Digest and request/JWK/JWT decoders keep their own contracts.
+    """
+    raw = _lookup(headers, "signature")
+    if raw is None:
+        return
+    for entry in split_structured_field(raw, ","):
+        name, separator, value = entry.strip().partition("=")
+        if not separator or name.strip() != label:
+            continue
+        value = value.strip()
+        if value.startswith(":") and value.endswith(":"):
+            token = value[1:-1]
+            if any(char in token for char in "+/") and any(char in token for char in "-_"):
+                raise SignatureVerificationError(
+                    WEBHOOK_SIGNATURE_HEADER_MALFORMED,
+                    step=1,
+                    message="webhook Signature must not mix Base64 alphabets",
+                )
+        return
 
 
 def _precheck_webhook_has_required_components(headers: Mapping[str, str]) -> None:
