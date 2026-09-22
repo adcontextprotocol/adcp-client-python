@@ -61,19 +61,22 @@ All other source code should import from `adcp.types` (the public API).
 
 ## ctx_metadata: write-only credentials prohibited
 
-`RequestContext.metadata` (populated from the wire request's `context` extension)
-is **echoed back into responses** per the AdCP context-echo contract. Adopters who
-treat `metadata` as a generic KV bucket and store a credential there will discover
-it round-trips to the buyer — and lands in the idempotency replay cache.
+`RequestContext.metadata` is for non-secret request hints, not credentials. The
+standard auth context factory adds framework fields and adopter-supplied principal
+metadata. Buyer wire `context` is echoed separately; the framework does not project
+it into `ToolContext.metadata`. An adopter's custom context factory or response code
+can still expose secrets if it copies credentials into metadata or response context.
 
-The dispatcher fail-closes on credential-shaped keys at `_build_request_context`.
+The dispatcher performs **best-effort key screening** at `_build_request_context`
+as defense in depth against adopter mistakes. Passing this screen does not establish
+that metadata is safe to expose or that it contains no credentials.
 If you see a `ValueError` like `ctx_metadata may not contain credential-shaped
 keys`, migrate the value to `AuthInfo.credential` or a typed credential class.
 
-**Wrong** — credential stored in metadata, round-trips into response context:
+**Wrong** — credential stored in metadata; this key is rejected at dispatch:
 
 ```python
-ctx = RequestContext(metadata={"upstream.api_token": secret})  # ValueError
+ctx = RequestContext(metadata={"upstream.api_token": secret})  # Rejected at dispatch
 ```
 
 **Right** — credential stored in the typed `AuthInfo.credential` field:
@@ -90,9 +93,13 @@ ctx = RequestContext(auth_info=auth, metadata={"correlation_id": "req_xyz"})
 
 The credential-shaped key suffix list is in
 `adcp.decisioning.dispatch._CREDENTIAL_SHAPED_KEY_SUFFIXES` and matches
-case-insensitively at any nesting depth: `credential`, `credentials`, `token`,
+case-insensitively through nested dictionaries and lists: `credential`, `credentials`, `token`,
 `secret`, `api_key`, `apikey`, `password`, `bearer`. Keys that don't match
-(`correlation_id`, `feature_flag.beta_pricing`, `trace_id`) pass through.
+(`correlation_id`, `feature_flag.beta_pricing`, `trace_id`, `tokenizer`) pass through.
+This finite suffix list misses other credential names, including plural or embedded
+forms such as `api_tokens` and `access_token_value`, and names such as `private_key`
+and `authorization`. Other containers, including tuple values, are not traversed.
+An unrecognized key or container is not permission to store a secret in metadata.
 
 For credentials the framework propagates to upstream calls (governance agents,
 signal providers, audience activations), use the typed credential classes from
