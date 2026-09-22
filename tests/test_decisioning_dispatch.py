@@ -879,6 +879,40 @@ async def test_invoke_internal_error_omits_exception_str(
     assert "eyJhbGciOiJIUzI1NiJ9" not in str(exc_info.value.details)
 
 
+def test_internal_error_details_survive_a_narrowing_failure_without_raw_values(monkeypatch):
+    from pydantic import ValidationError
+
+    from adcp.decisioning.dispatch import _internal_error_details
+    from adcp.types import error_narrowing
+
+    class _InvalidResponse(BaseModel):
+        count: int
+
+    with pytest.raises(ValidationError) as captured:
+        _InvalidResponse.model_validate({"count": "raw-input-marker"})
+    observed = []
+
+    def broken_narrowing(errors):
+        observed.extend(errors)
+        yield {"msg": "partial-narrowing-marker"}
+        raise RuntimeError("raw-narrowing-failure-marker")
+
+    monkeypatch.setattr(error_narrowing, "narrow_union_errors", broken_narrowing)
+    details = _internal_error_details(captured.value)
+    assert observed and all("input" not in item and "ctx" not in item for item in observed)
+    assert details == {"caused_by": {"type": "ValidationError"}}
+    # A partial generator result and either raw value must not enter the error
+    # response; the secondary narrowing failure must not replace the original.
+    assert all(
+        marker not in str(details)
+        for marker in (
+            "raw-input-marker",
+            "partial-narrowing-marker",
+            "raw-narrowing-failure-marker",
+        )
+    )
+
+
 @pytest.mark.asyncio
 async def test_invoke_validation_error_surfaces_narrowed_field_paths(
     executor: ThreadPoolExecutor,
