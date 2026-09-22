@@ -40,7 +40,7 @@ from .test_reporting_production_scope import assert_access_denied
 
 
 @asynccontextmanager
-async def running_server(root, schema, index, *, notifications):
+async def running_server(root, schema, index, *, notifications, live_source_observation=False):
     fixture_root = Path(__file__).resolve().parents[3]
     launcher = (
         "import sys; sys.path.insert(0,sys.argv.pop(1)); "
@@ -66,6 +66,8 @@ async def running_server(root, schema, index, *, notifications):
     ]
     if notifications:
         command.append("--notifications")
+    if live_source_observation:
+        command.append("--live-source-observation")
     with (
         (root / f"server-{index}.stdout").open("xb") as output,
         (root / f"server-{index}.stderr").open("xb") as errors,

@@ -579,6 +579,9 @@ class ReportingProducer:
         snapshot obligation.  Without it a satisfied obligation is left alone,
         because re-reading a settled period on every worker turn would burn
         upstream quota to republish bytes nobody asked for.
+
+        ``now`` freezes dispatch and the source read cutoff. Revision creation
+        uses a fresh producer clock sample after the staged objects are read.
         """
         if configuration.generation_key != obligation.generation_key:
             raise LedgerConflictError(
@@ -664,12 +667,21 @@ class ReportingProducer:
 
         manifest = self._verified_manifest(result)
         self._validate_manifest_currency(obligation, manifest)
+        rows = await self._read_rows(request, manifest)
+        # ``now`` freezes dispatch/lease/cutoff decisions, not publication.
+        # A conforming source can observe finality while acquisition is running.
+        published_at = self._clock()
+        if _utc(published_at) < _utc(now):
+            raise LedgerConflictError(
+                "PUBLICATION_TIME_INVALID",
+                "producer clock regressed during acquisition; correct the clock before retrying",
+            )
         return await self.commit_revision_from_manifest(
             obligation,
             manifest,
-            rows=await self._read_rows(request, manifest),
+            rows=rows,
             finality=finality,
-            now=now,
+            now=published_at,
             turn=turn,
         )
 
@@ -734,7 +746,9 @@ class ReportingProducer:
 
         A snapshot restatement supersedes the current snapshot leaf; there is no
         edit path.  An official close is terminal, so a later source correction
-        must arrive as an adjustment instead.
+        must arrive as an adjustment instead. ``now`` is a trusted publication
+        instant, unlike the dispatch instant accepted by ``acquire_obligation``.
+        Replaying a publication retains its original creation time and parent.
         """
         obligation = await self._stored_obligation(obligation)
         self._validate_manifest_currency(obligation, manifest)
@@ -771,6 +785,26 @@ class ReportingProducer:
 
         control_totals = tuple((total.name, total.value) for total in manifest.control_totals)
         revision_id = f"rpr_{manifest.publication_id[4:44]}"
+        prior = next((item for item in existing if item.reporting_revision_id == revision_id), None)
+        created_at = prior.created_at if prior is not None else now
+        if prior is not None:
+            # Still reconstruct and verify the supplied content below. Merely
+            # finding the ID must not bypass immutable-content validation.
+            supersedes = prior.supersedes_reporting_revision_id
+        if (
+            _utc(manifest.acquired_at) > _utc(now)
+            or _utc(manifest.observed_at) > _utc(created_at)
+            or _utc(manifest.finality_evidence.observed_at) > _utc(created_at)
+            or (
+                finality == "official"
+                and _utc(manifest.finality_evidence.observed_at) < _utc(obligation.period.end)
+            )
+        ):
+            raise LedgerConflictError(
+                "PUBLICATION_TIME_INVALID",
+                "source observation or finality is outside the publication time bounds; "
+                "check source evidence and the producer clock before retrying",
+            )
         revision = ReportingRevisionRecord(
             reporting_revision_id=revision_id,
             account_id=obligation.account_id,
@@ -786,7 +820,7 @@ class ReportingProducer:
             control_totals=control_totals,
             observed_at=manifest.observed_at,
             data_through=manifest.data_through,
-            created_at=now,
+            created_at=created_at,
             supersedes_reporting_revision_id=supersedes,
             finality_basis="source_final" if finality == "official" else None,
             finality_policy_id=(
