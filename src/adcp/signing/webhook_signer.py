@@ -1,10 +1,12 @@
 """Signer for the AdCP webhook-signing profile (adcp#2423).
 
-Same 9421 substrate as :func:`adcp.signing.signer.sign_request`, with three
-values pinned by the webhook profile:
+Same 9421 substrate as :func:`adcp.signing.signer.sign_request`, with values
+pinned by the webhook profile:
 
 * ``tag`` — ``adcp/webhook-signing/v1``
 * ``cover_content_digest`` — always ``True`` (body IS the event)
+* ``Signature`` — unpadded Base64URL throughout 3.x, independently of the
+  AdCP 3.2 request-signing migration to padded standard Base64.
 * the signing JWK MUST have ``adcp_use: "webhook-signing"`` in the sender's
   published ``adagents.json``; verifying this at publish time is out of scope
   for the signer, but callers should enforce it when registering their keyring.
@@ -39,8 +41,9 @@ def sign_webhook(
 ) -> SignedHeaders:
     """Sign an outgoing webhook POST per adcp/webhook-signing/v1.
 
-    ``cover_content_digest=True`` and ``tag=WEBHOOK_TAG`` are pinned. The
-    caller attaches ``SignedHeaders.as_dict()`` to the outgoing HTTP request.
+    ``cover_content_digest=True``, ``tag=WEBHOOK_TAG`` and unpadded Base64URL
+    Signature encoding are pinned. The caller attaches
+    ``SignedHeaders.as_dict()`` to the outgoing HTTP request.
 
     The ``method`` is normally ``"POST"`` for webhook delivery; passed through
     unchanged so callers signing a retried ``PUT`` or variant delivery verb
@@ -65,7 +68,9 @@ def sign_webhook(
         nonce=nonce,
         tag=WEBHOOK_TAG,
         label=label,
-        signing_profile_version="3.2",
+        # Webhook-v1 keeps legacy Signature encoding even on AdCP 3.2 routes.
+        # Explicit digest coverage preserves the existing Content-Digest bytes.
+        signing_profile_version="3.1",
     )
 
 
