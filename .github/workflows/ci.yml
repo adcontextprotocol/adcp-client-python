@@ -155,62 +155,45 @@ jobs:
                  tests/conformance/reporting/ \
                  -v
 
+  ipr-policy:
+    name: IPR Policy / Signature
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      pull-requests: read # Resolve the actual merged contributions and numeric PR author IDs.
+
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      # The existing PR/comment workflow records agreements. This job only
+      # reads the canonical ledger and verifies the actual included PR authors.
+      # Actions itself supplies the required App 15368 check-run provenance.
+      - name: Verify contribution agreements for the exact source
+        run: python3 -m scripts.check_main_policies ipr
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   conventional-commits:
     name: Validate conventional commit format
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
-
-      - name: Validate PR commits
-        uses: amannn/action-semantic-pull-request@v6
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Validate individual commits
-        run: |
-          # Get the base branch
-          BASE_SHA=$(git merge-base origin/${{ github.base_ref }} HEAD)
-
-          # Check each commit since the base
-          echo "Validating commits since $BASE_SHA..."
-          git log --format="%H %s" $BASE_SHA..HEAD | while read sha message; do
-            # Skip merge commits. Three GitHub/git-created shapes:
-            # - "Merge <sha> into <sha>" — the merge-queue API path
-            #   (clicking "Update branch" on a PR)
-            # - "Merge branch '<name>' [into <name>]" — `gh pr update-branch`
-            #   and `git merge <local-branch>` defaults
-            # - "Merge remote-tracking branch '<name>' [into <name>]" —
-            #   `git merge origin/<branch>` default
-            if echo "$message" | grep -qE "^Merge ([0-9a-f]+ into [0-9a-f]+|(remote-tracking )?branch '[^']+')"; then
-              echo "⊙ Skipping merge commit: $sha"
-              continue
-            fi
-
-            # Check if message matches conventional commit format
-            if ! echo "$message" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?!?: .+'; then
-              echo "❌ Commit $sha does not follow Conventional Commits format:"
-              echo "   $message"
-              echo ""
-              echo "Expected format: <type>[optional scope]: <description>"
-              echo "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
-              echo ""
-              echo "Examples:"
-              echo "  feat: add new feature"
-              echo "  fix: resolve bug in parser"
-              echo "  feat(api): add new endpoint"
-              echo "  feat!: breaking change"
-              exit 1
-            else
-              echo "✓ $sha: $message"
-            fi
-          done
-          echo ""
-          echo "✅ All commits follow Conventional Commits format"
+          persist-credentials: false
+      - name: Validate PR source or every integrated main commit and breaking footer
+        run: python3 -m scripts.check_main_policies conventional
 
   downstream-imports:
     name: Downstream import smoke (representative consumer symbols)
