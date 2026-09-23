@@ -257,6 +257,7 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
         for name in (
             "tests/conformance/reporting/test_reporting_tier_projection.py",
             "tests/conformance/reporting/test_reporting_schedule_schema.py",
+            "tests/conformance/reporting/test_reporting_materializer_progress.py",
             "tests/test_reporting_revision_ownership.py",
             "tests/test_reporting_capability_models.py",
             "tests/test_reporting_scope_models.py",
