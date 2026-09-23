@@ -109,6 +109,8 @@ jobs:
     name: Postgres conformance tests (Postgres 16, ${{ matrix.lane }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
