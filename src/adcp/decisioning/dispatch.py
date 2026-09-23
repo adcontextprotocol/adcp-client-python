@@ -700,7 +700,7 @@ def _internal_error_details(exc: BaseException) -> dict[str, Any]:
         except Exception:
             # Defensive — never let a narrowing bug 500 the wire.
             # The exception type still lets adopters triage via server logs.
-            pass
+            return details
     return details
 
 
