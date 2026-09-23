@@ -68,6 +68,74 @@ These prefixed aliases live in the flat `adcp.types` namespace, not in the curat
 
 The canonical names (`Creative`, `Package`, `MediaBuy`, `Deployment`) remain available from both `adcp` and the partial modules — use those when the bare name already resolves to the variant you want. The prefixed aliases exist for the cases where it doesn't.
 
+### Targeting mutation inputs and resolved state
+
+Subclass the exact public variant for the context where the object will be used:
+
+| Context | Public base class |
+|---|---|
+| Create, update (including `new_packages`), control, and direct-buy targeting mutations | `TargetingOverlayInput` |
+| Discovery criteria, accepted commercial terms, and media-buy/package readback | `TargetingOverlay` |
+
+AdCP 3.2.0-rc.3 intentionally separates these schemas. In `TargetingOverlayInput`,
+an omitted dimension inherits the product default on create or leaves stored
+state unchanged on update; explicit `None` suppresses the default or clears the
+dimension; a value replaces it. `TargetingOverlay` represents resolved state:
+cleared dimensions are omitted, and null commands do not belong on that wire
+shape. The variants also have different Python field types, including input
+dimensions that use Pydantic `RootModel` wrappers.
+
+Both classes are available from `adcp`, `adcp.types`, `adcp.types.media_buy`, and
+`adcp.types.buyer`. For request mutations, extend the input variant:
+
+```python
+from pydantic import Field
+from adcp.types import PackageUpdate, TargetingOverlayInput
+
+class InternalTargetingInput(TargetingOverlayInput):
+    workflow_id: str = Field(exclude=True)
+
+overlay = InternalTargetingInput(geo_countries=None, workflow_id="wf-42")
+package = PackageUpdate.model_validate({"package_id": "pkg-1", "targeting_overlay": overlay})
+assert package.targeting_overlay is overlay
+```
+
+The SDK client's serialization preserves that explicitly supplied null using
+the request schema, while keeping excluded internal fields off the wire.
+Calling `model_dump(exclude_none=True)` alone omits null commands.
+
+For beta.14 compatibility, targeting overlays in `CreateMediaBuyRequest.packages`,
+`UpdateMediaBuyRequest.packages` and `.new_packages`,
+`ControlMediaBuyRequest.packages`, and `BuyProductsRequest.purchases` also accept
+exact and subclassed `TargetingOverlay` instances at runtime, preserving their
+object identity. These request classes are public; the nested control and
+purchase container classes are internal. Their compatibility union tries
+`TargetingOverlayInput` first with left-to-right validation, so raw dictionaries
+still become mutation-input objects. The legacy arm is runtime-only: generated
+JSON Schema and MCP tool discovery still advertise only the mutation input and
+null. Invalid targeting produces the input schema's errors with request-document
+field paths, including direct Pydantic `ValidationError.errors()`. Python-mode
+validation removes the bridge's synthetic union arm names and duplicate legacy
+errors at the targeting field boundary. Direct `model_validate_json()` uses the
+Input schema's native JSON validation, preserving its error types and order
+even when a canonical parent first materializes the request as Python objects.
+Unrelated union errors are unchanged. Public transport error formatters also
+omit Pydantic's input values and context. Direct Pydantic errors retain their
+usual diagnostic data, so do not send their unfiltered contents to a buyer.
+This bridge supports existing beta.14 code; it does not promise that
+resolved-state models substitute for other mutation variants. New subclasses
+should use `TargetingOverlayInput` for these requests and `TargetingOverlay` for
+resolved-state contexts.
+
+**Static typing:** runtime acceptance through `model_validate` does not widen
+every generated constructor signature. Generated request containers still
+declare the input variant, so strict mypy can reject a legacy overlay passed
+directly to those constructors. The public canonical `PackageRequest` and
+`PackageUpdate` stubs expose `targeting_overlay` readback as
+`TargetingOverlayInput | TargetingOverlay | None`; they do not infer your
+application subclass. Use `model_validate` for the runtime bridge and retain the
+original typed overlay reference for application-only attributes, as above.
+
 ### How to detect a wrong import
 
 mypy under `--strict` will flag the override with `[assignment]` when the element type you subclassed isn't the one the parent response field declares:
