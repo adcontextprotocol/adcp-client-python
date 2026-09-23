@@ -186,15 +186,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
-    needs: pg-conformance
+    needs: [pg-conformance, pg-reporting-status]
     if: ${{ always() }}
     steps:
       - name: Require every Postgres conformance lane
         env:
           PG_RESULT: ${{ needs.pg-conformance.result }}
+          STATUS_RESULT: ${{ needs.pg-reporting-status.result }}
         run: |
-          if [ "$PG_RESULT" != "success" ]; then
+          if [ "$PG_RESULT" != "success" ] || [ "$STATUS_RESULT" != "success" ]; then
             echo "Postgres conformance matrix result: $PG_RESULT"
+            echo "Reporting status conformance result: $STATUS_RESULT"
             exit 1
           fi
           echo "All Postgres conformance lanes passed"

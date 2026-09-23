@@ -220,15 +220,23 @@ async def test_baseline_serializes_a_mutation_immediately_before_and_after_its_h
     "damage",
     [
         "DROP INDEX reporting_status_scope_due",
-        "ALTER TABLE reporting_status_notification_events DISABLE TRIGGER"
-        " reporting_status_event_guard",
-        "ALTER TABLE reporting_status_scope_checkpoints DISABLE TRIGGER"
-        " reporting_status_scope_guard",
+        (
+            "ALTER TABLE reporting_status_notification_events DISABLE TRIGGER"
+            " reporting_status_event_guard"
+        ),
+        (
+            "ALTER TABLE reporting_status_scope_checkpoints DISABLE TRIGGER"
+            " reporting_status_scope_guard"
+        ),
         "ALTER TABLE reporting_status_dirty DISABLE TRIGGER reporting_status_boundary_mark",
-        "ALTER TABLE reporting_status_boundary_writes DISABLE TRIGGER"
-        " reporting_status_boundary_capture",
-        "ALTER TABLE reporting_status_webhook_attempts DISABLE TRIGGER"
-        " reporting_status_webhook_attempt_guard",
+        (
+            "ALTER TABLE reporting_status_boundary_writes DISABLE TRIGGER"
+            " reporting_status_boundary_capture"
+        ),
+        (
+            "ALTER TABLE reporting_status_webhook_attempts DISABLE TRIGGER"
+            " reporting_status_webhook_attempt_guard"
+        ),
     ],
 )
 async def test_status_manifest_damage_fails_only_its_owned_feature(damage):
