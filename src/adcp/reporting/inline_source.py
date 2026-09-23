@@ -158,6 +158,14 @@ class InlineFetchResult:
     currency: str | None = None
     """Optional source corroboration; must match the already frozen request."""
 
+    provisional_until: datetime | None = None
+    """Source evidence that this snapshot may still change until this instant.
+
+    When present it overrides the offering's default restatement window for
+    this slice. It is retained in the manifest so a durable producer can keep
+    scheduling correctly after a restart.
+    """
+
 
 #: What an inline fetch may return.  ``None`` is "not ready".
 InlineFetchReturn: TypeAlias = "InlineFetchResult | Sequence[Mapping[str, Any]] | None | object"
@@ -655,6 +663,7 @@ class InlineReportingSource:
             row_count=len(result.rows),
             control_totals=_control_totals(request, result.rows),
             warnings=warnings,
+            provisional_until=result.provisional_until,
         )
 
         manifest_bytes = encode_source_batch_manifest_v1(manifest)
@@ -720,6 +729,7 @@ class InlineReportingSource:
         row_count: int,
         control_totals: list[SourceControlTotalV1],
         warnings: list[str],
+        provisional_until: datetime | None,
     ) -> SourceBatchManifestV1:
         available = {"present", "explicit_zero"}
 
@@ -787,6 +797,11 @@ class InlineReportingSource:
                     else "elapsed_settlement_window"
                 ),
                 observed_at=finality_at,
+                provisional_until=(
+                    provisional_until
+                    if request.publication_class == "PROVISIONAL_SNAPSHOT"
+                    else None
+                ),
             ),
             "observed_at": observed_at,
             "data_through": data_through,

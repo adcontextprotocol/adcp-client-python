@@ -68,6 +68,8 @@ __all__ = [
     "LedgerConflictError",
     "LedgerPage",
     "ReportingLedgerStore",
+    "RestatementCheckpoint",
+    "RestatementCheckpointStore",
     "ReportingRowPage",
     "decode_cursor",
     "check_issue_state_transition",
@@ -110,6 +112,44 @@ class LeasedConfiguration:
             delivery_config_id=self.delivery_config_id,
             delivery_config_version=self.delivery_config_version,
         )
+
+
+@dataclass(frozen=True)
+class RestatementCheckpoint:
+    """Durable scheduling state for successful source observations.
+
+    ``next_observation`` advances even when the source content is unchanged.
+    Without that durable ordinal the next scheduled refresh would replay the
+    same sealed source execution forever instead of making a new observation.
+    """
+
+    account_id: str
+    reporting_obligation_id: str
+    checked_at: datetime
+    next_observation: int
+    provisional_until: datetime | None = None
+
+    def __post_init__(self) -> None:
+        if self.next_observation < 1:
+            raise ValueError("next_observation must be at least one")
+        _utc(self.checked_at)
+        if self.provisional_until is not None:
+            _utc(self.provisional_until)
+
+
+@runtime_checkable
+class RestatementCheckpointStore(Protocol):
+    """Optional store extension used only by source settling policies."""
+
+    async def get_restatement_checkpoint(
+        self, *, account_id: str, reporting_obligation_id: str
+    ) -> RestatementCheckpoint | None: ...
+
+    async def record_restatement_checkpoint(
+        self, checkpoint: RestatementCheckpoint
+    ) -> RestatementCheckpoint:
+        """Persist the next source observation ordinal after a successful read."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -598,6 +638,7 @@ class InMemoryReportingLedgerStore:
         self._revisions: dict[str, ReportingRevisionRecord] = {}
         self._revision_identity: dict[str, str] = {}
         self._rows: dict[str, tuple[dict[str, Any], ...]] = {}
+        self._restatement_checkpoints: dict[str, RestatementCheckpoint] = {}
         self._adjustments: dict[str, ReportingAdjustmentRecord] = {}
         self._statuses: dict[str, ConsumerStatusRecord] = {}
         self._status_identity: dict[str, str] = {}
@@ -797,6 +838,33 @@ class InMemoryReportingLedgerStore:
             if item.account_id == account_id
             and item.reporting_obligation_id == reporting_obligation_id
         )
+
+    async def get_restatement_checkpoint(
+        self, *, account_id: str, reporting_obligation_id: str
+    ) -> RestatementCheckpoint | None:
+        checkpoint = self._restatement_checkpoints.get(reporting_obligation_id)
+        return checkpoint if checkpoint and checkpoint.account_id == account_id else None
+
+    async def record_restatement_checkpoint(
+        self, checkpoint: RestatementCheckpoint
+    ) -> RestatementCheckpoint:
+        async with self._lock:
+            obligation = self._obligations.get(checkpoint.reporting_obligation_id)
+            if obligation is None or obligation.account_id != checkpoint.account_id:
+                raise LedgerConflictError(
+                    "OBLIGATION_NOT_FOUND",
+                    "a restatement checkpoint must attach to an obligation for this account",
+                )
+            existing = self._restatement_checkpoints.get(checkpoint.reporting_obligation_id)
+            if existing is not None:
+                if checkpoint.next_observation < existing.next_observation:
+                    return existing
+                if checkpoint.next_observation == existing.next_observation and _utc(
+                    checkpoint.checked_at
+                ) <= _utc(existing.checked_at):
+                    return existing
+            self._restatement_checkpoints[checkpoint.reporting_obligation_id] = checkpoint
+            return checkpoint
 
     async def get_revision(
         self, *, account_id: str, reporting_revision_id: str

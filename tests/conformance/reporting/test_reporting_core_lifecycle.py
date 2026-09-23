@@ -111,6 +111,7 @@ _TABLES = (
     "reporting_consumer_statuses",
     "reporting_adjustments",
     "reporting_revision_rows",
+    "reporting_restatement_checkpoints",
     "reporting_revisions",
     "reporting_obligations",
     "reporting_configurations",
