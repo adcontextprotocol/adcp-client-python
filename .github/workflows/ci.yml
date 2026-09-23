@@ -182,6 +182,7 @@ jobs:
     name: Postgres conformance tests (Postgres 16)
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions: {}
     needs: pg-conformance
     if: ${{ always() }}
     steps:
