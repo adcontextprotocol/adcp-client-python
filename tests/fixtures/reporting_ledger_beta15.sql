@@ -1,10 +1,8 @@
 -- AdCP Reliable Reporting ledger — durable obligations, revisions, and status.
 --
--- Run this followed by reporting_ledger_account_generations.sql in ONE
--- transaction (psql --single-transaction -f ... -f ...), or call
--- PgReportingLedgerStore.create_schema(). CREATE TABLE IF NOT EXISTS alone
--- does not upgrade the global configuration primary key from 8.0.0-beta.15.
--- See docs/reporting-ledger-migration.md before upgrading live workers.
+-- Run this once per deployment, or call
+-- PgReportingLedgerStore.create_schema() from application code, which runs the
+-- equivalent DDL idempotently on boot.
 --
 -- COLLATE "C" on identifier columns avoids locale-dependent case folding — on
 -- some locales "Buy-A" and "buy-a" compare equal, which would collapse two
@@ -15,11 +13,6 @@
 -- transaction. That feed is what makes `changes_after` exact: a consumer that
 -- persists a checkpoint and replays from it cannot miss a record or see the
 -- same record twice under a different identity.
-
--- Serialize bootstrap/upgrade before touching catalog objects: IF NOT EXISTS
--- by itself can still race another CREATE TABLE on an empty schema. The
--- standalone account-generations migration uses the same advisory lock.
-SELECT pg_advisory_xact_lock(hashtext('adcp.reporting.schema'), hashtext(current_schema()));
 
 CREATE TABLE IF NOT EXISTS reporting_configurations (
     delivery_config_id      TEXT COLLATE "C" NOT NULL,
@@ -47,7 +40,7 @@ CREATE TABLE IF NOT EXISTS reporting_configurations (
     -- expiry instead of wedging the period forever.
     lease_worker_id         TEXT COLLATE "C",
     lease_expires_at        TIMESTAMPTZ,
-    PRIMARY KEY (account_id, delivery_config_id, delivery_config_version)
+    PRIMARY KEY (delivery_config_id, delivery_config_version)
 );
 
 CREATE INDEX IF NOT EXISTS reporting_configurations_account_idx

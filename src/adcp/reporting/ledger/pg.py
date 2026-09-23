@@ -23,9 +23,12 @@ Quickstart
 Schema bootstrap
 ----------------
 
-:meth:`create_schema` is idempotent.  The equivalent raw DDL ships at
-:file:`src/adcp/reporting/ledger/reporting_ledger.sql` for adopters using
-Alembic, Flyway, or psql.
+:meth:`create_schema` creates or upgrades the schema transactionally, including
+the account-qualified configuration primary key for beta.15 installations.
+The raw DDL ships in :file:`reporting_ledger.sql` followed by
+:file:`reporting_ledger_account_generations.sql`; run both in one transaction
+when using Alembic, Flyway, or psql. See :file:`docs/reporting-ledger-migration.md`
+for deployment and compatibility notes.
 
 Where the invariants actually live
 ----------------------------------
@@ -81,6 +84,7 @@ from adcp.reporting.ledger.models import (
     LedgerSnapshot,
     ReportingAdjustmentRecord,
     ReportingConfiguration,
+    ReportingConfigurationGenerationKey,
     ReportingDefinitionBinding,
     ReportingIssueLifecycle,
     ReportingObligationRecord,
@@ -116,6 +120,7 @@ _INSTALL_HINT = (
 )
 
 _DDL_PATH = Path(__file__).parent / "reporting_ledger.sql"
+_ACCOUNT_GENERATIONS_DDL_PATH = Path(__file__).parent / "reporting_ledger_account_generations.sql"
 
 __all__ = ["PG_AVAILABLE", "PgReportingLedgerStore"]
 
@@ -155,9 +160,16 @@ class PgReportingLedgerStore:
         self._clock = clock
 
     async def create_schema(self) -> None:
-        """Create every ledger table and index. Idempotent; safe on every boot."""
+        """Create or upgrade the ledger atomically, serializing concurrent boots.
+
+        The bootstrap takes a transaction-scoped schema lock before any DDL.
+        Keep the migration in that transaction, including with an autocommit
+        pool, so a second process cannot observe a partially upgraded schema.
+        """
         async with self._pool.connection() as connection:
-            await connection.execute(_DDL_PATH.read_text())
+            async with connection.transaction():
+                await connection.execute(_DDL_PATH.read_text())
+                await connection.execute(_ACCOUNT_GENERATIONS_DDL_PATH.read_text())
 
     # -- change feed ------------------------------------------------------
 
@@ -182,26 +194,10 @@ class PgReportingLedgerStore:
 
     async def put_configuration(self, configuration: ReportingConfiguration) -> None:
         reject_reserved_authoritative_party(configuration)
+        key = configuration.generation_key
         payload = _configuration_payload(configuration)
         digest = _fingerprint(payload)
         async with self._pool.connection() as connection:
-            row = await (
-                await connection.execute(
-                    "SELECT content_sha256 FROM reporting_configurations"
-                    " WHERE delivery_config_id = %s AND delivery_config_version = %s",
-                    (configuration.delivery_config_id, configuration.delivery_config_version),
-                )
-            ).fetchone()
-            if row is not None:
-                if row[0] != digest:
-                    raise LedgerConflictError(
-                        "CONFIGURATION_GENERATION_IMMUTABLE",
-                        f"configuration {configuration.delivery_config_id}"
-                        f"@{configuration.delivery_config_version} already exists with "
-                        "different content; publish a new version instead of editing a "
-                        "retained generation",
-                    )
-                return
             await connection.execute(
                 "INSERT INTO reporting_configurations"
                 " (delivery_config_id, delivery_config_version, account_id,"
@@ -211,11 +207,11 @@ class PgReportingLedgerStore:
                 "  authoritative_party, content_sha256)"
                 " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s,"
                 "         %s::jsonb, %s, %s)"
-                " ON CONFLICT (delivery_config_id, delivery_config_version) DO NOTHING",
+                " ON CONFLICT (account_id, delivery_config_id, delivery_config_version) DO NOTHING",
                 (
-                    configuration.delivery_config_id,
-                    configuration.delivery_config_version,
-                    configuration.account_id,
+                    key.delivery_config_id,
+                    key.delivery_config_version,
+                    key.account_id,
                     configuration.report_definition_id,
                     configuration.reporting_profile,
                     configuration.feed_purpose,
@@ -232,6 +228,25 @@ class PgReportingLedgerStore:
                     digest,
                 ),
             )
+            # Check *after* the insert. ON CONFLICT waits for a concurrent
+            # winner; a fresh READ COMMITTED statement sees its retained
+            # content. A pre-insert check followed by DO NOTHING could silently
+            # accept a different immutable generation from a losing writer.
+            row = await (
+                await connection.execute(
+                    "SELECT content_sha256 FROM reporting_configurations"
+                    " WHERE account_id = %s AND delivery_config_id = %s"
+                    " AND delivery_config_version = %s",
+                    (key.account_id, key.delivery_config_id, key.delivery_config_version),
+                )
+            ).fetchone()
+            if row is None or row[0] != digest:
+                raise LedgerConflictError(
+                    "CONFIGURATION_GENERATION_IMMUTABLE",
+                    f"configuration {key.delivery_config_id}@{key.delivery_config_version} "
+                    "already exists with different content for this account; publish a new "
+                    "version instead of editing a retained generation",
+                )
 
     async def list_configurations(
         self, *, account_id: str, delivery_config_ids: Sequence[str] | None = None
@@ -261,50 +276,55 @@ class PgReportingLedgerStore:
     async def commit_obligation(
         self, obligation: ReportingObligationRecord
     ) -> ReportingObligationRecord:
+        key = obligation.generation_key
         async with self._pool.connection() as connection:
-            await self._lock_account(connection, obligation.account_id)
-            inserted = await (
-                await connection.execute(
-                    "INSERT INTO reporting_obligations"
-                    " (reporting_obligation_id, account_id, delivery_config_id,"
-                    "  delivery_config_version, report_definition_id, reporting_profile,"
-                    "  feed_purpose, period_key, period_start, period_end, source_timezone,"
-                    "  expected_at, scope_resolved_at, automated_recovery_deadline_at,"
-                    "  required_finality, coverage_status, media_buy_ids, package_ids,"
-                    "  schedule, definition, created_at)"
-                    " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
-                    "         %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s)"
-                    " ON CONFLICT DO NOTHING"
-                    " RETURNING reporting_obligation_id",
-                    (
-                        obligation.reporting_obligation_id,
-                        obligation.account_id,
-                        obligation.delivery_config_id,
-                        obligation.delivery_config_version,
-                        obligation.report_definition_id,
-                        obligation.reporting_profile,
-                        obligation.feed_purpose,
-                        obligation.period.period_key,
-                        obligation.period.start,
-                        obligation.period.end,
-                        obligation.period.source_timezone,
-                        obligation.period.expected_at,
-                        obligation.scope_resolved_at,
-                        obligation.automated_recovery_deadline_at,
-                        obligation.required_finality,
-                        obligation.coverage_status,
-                        _json(sorted(obligation.media_buy_ids)),
-                        _json(sorted(obligation.package_ids)),
-                        _json(_schedule_payload(obligation.schedule)),
+            await self._lock_account(connection, key.account_id)
+            try:
+                inserted = await (
+                    await connection.execute(
+                        "INSERT INTO reporting_obligations"
+                        " (reporting_obligation_id, account_id, delivery_config_id,"
+                        "  delivery_config_version, report_definition_id, reporting_profile,"
+                        "  feed_purpose, period_key, period_start, period_end, source_timezone,"
+                        "  expected_at, scope_resolved_at, automated_recovery_deadline_at,"
+                        "  required_finality, coverage_status, media_buy_ids, package_ids,"
+                        "  schedule, definition, created_at)"
+                        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
+                        "         %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s)"
+                        " ON CONFLICT (account_id, delivery_config_id, delivery_config_version,"
+                        "              period_start, period_end) DO NOTHING"
+                        " RETURNING reporting_obligation_id",
                         (
-                            _json(_definition_payload(obligation.definition))
-                            if obligation.definition
-                            else None
+                            obligation.reporting_obligation_id,
+                            key.account_id,
+                            key.delivery_config_id,
+                            key.delivery_config_version,
+                            obligation.report_definition_id,
+                            obligation.reporting_profile,
+                            obligation.feed_purpose,
+                            obligation.period.period_key,
+                            obligation.period.start,
+                            obligation.period.end,
+                            obligation.period.source_timezone,
+                            obligation.period.expected_at,
+                            obligation.scope_resolved_at,
+                            obligation.automated_recovery_deadline_at,
+                            obligation.required_finality,
+                            obligation.coverage_status,
+                            _json(sorted(obligation.media_buy_ids)),
+                            _json(sorted(obligation.package_ids)),
+                            _json(_schedule_payload(obligation.schedule)),
+                            (
+                                _json(_definition_payload(obligation.definition))
+                                if obligation.definition
+                                else None
+                            ),
+                            obligation.created_at,
                         ),
-                        obligation.created_at,
-                    ),
-                )
-            ).fetchone()
+                    )
+                ).fetchone()
+            except Exception as error:
+                raise _translate_integrity_error(error) from error
             if inserted is not None:
                 await self._append_change(
                     connection,
@@ -349,6 +369,11 @@ class PgReportingLedgerStore:
         period_start: datetime,
         period_end: datetime,
     ) -> ReportingObligationRecord | None:
+        key = ReportingConfigurationGenerationKey(
+            account_id=account_id,
+            delivery_config_id=delivery_config_id,
+            delivery_config_version=delivery_config_version,
+        )
         async with self._pool.connection() as connection:
             row = await (
                 await connection.execute(
@@ -356,9 +381,9 @@ class PgReportingLedgerStore:
                     " WHERE account_id = %s AND delivery_config_id = %s"
                     " AND delivery_config_version = %s AND period_start = %s AND period_end = %s",
                     (
-                        account_id,
-                        delivery_config_id,
-                        delivery_config_version,
+                        key.account_id,
+                        key.delivery_config_id,
+                        key.delivery_config_version,
                         period_start,
                         period_end,
                     ),
@@ -471,7 +496,8 @@ class PgReportingLedgerStore:
             await connection.execute(
                 "SELECT r.reporting_revision_id,"
                 " EXISTS (SELECT 1 FROM reporting_revisions s"
-                "         WHERE s.supersedes_reporting_revision_id = r.reporting_revision_id)"
+                "         WHERE s.account_id = r.account_id"
+                "           AND s.supersedes_reporting_revision_id = r.reporting_revision_id)"
                 " FROM reporting_revisions r"
                 " WHERE r.reporting_revision_id = %s AND r.account_id = %s"
                 "   AND r.reporting_obligation_id = %s",
@@ -649,6 +675,7 @@ class PgReportingLedgerStore:
     async def record_consumer_status(
         self, status: ConsumerStatusRecord
     ) -> tuple[ConsumerStatusRecord, bool]:
+        key = status.generation_key
         digest = _fingerprint(_consumer_status_payload(status))
         async with self._pool.connection() as connection:
             replay = await self._replay(connection, status, digest)
@@ -663,10 +690,10 @@ class PgReportingLedgerStore:
                     "   AND delivery_config_version = %s AND report_definition_id = %s"
                     "   AND period_start = %s AND period_end = %s AND superseded = FALSE",
                     (
-                        status.account_id,
+                        key.account_id,
                         status.consumer_id,
-                        status.delivery_config_id,
-                        status.delivery_config_version,
+                        key.delivery_config_id,
+                        key.delivery_config_version,
                         status.report_definition_id,
                         status.period_start,
                         status.period_end,
@@ -682,8 +709,8 @@ class PgReportingLedgerStore:
                     )
                 await connection.execute(
                     "UPDATE reporting_consumer_statuses SET superseded = TRUE"
-                    " WHERE reporting_status_id = %s",
-                    (status.supersedes_reporting_status_id,),
+                    " WHERE account_id = %s AND consumer_id = %s AND reporting_status_id = %s",
+                    (key.account_id, status.consumer_id, status.supersedes_reporting_status_id),
                 )
             elif leaf is not None:
                 raise LedgerConflictError(
@@ -793,17 +820,18 @@ class PgReportingLedgerStore:
         params: list[Any] = [account_id, consumer_id]
         if reporting_obligation_ids is not None:
             clause = (
-                " AND (s.reporting_obligation_id = ANY(%s) OR EXISTS ("
+                " AND EXISTS ("
                 "   SELECT 1 FROM reporting_obligations o"
                 "   WHERE o.reporting_obligation_id = ANY(%s)"
                 "     AND o.account_id = s.account_id"
-                "     AND o.delivery_config_id = s.delivery_config_id"
+                "     AND (o.reporting_obligation_id = s.reporting_obligation_id OR ("
+                "         o.delivery_config_id = s.delivery_config_id"
                 "     AND o.delivery_config_version = s.delivery_config_version"
                 "     AND o.report_definition_id = s.report_definition_id"
                 "     AND o.period_start = s.period_start"
-                "     AND o.period_end = s.period_end))"
+                "     AND o.period_end = s.period_end)))"
             )
-            params.extend([list(reporting_obligation_ids), list(reporting_obligation_ids)])
+            params.append(list(reporting_obligation_ids))
         async with self._pool.connection() as connection:
             rows = await (
                 await connection.execute(
@@ -1089,8 +1117,8 @@ class PgReportingLedgerStore:
                 await connection.execute(
                     "UPDATE reporting_configurations SET lease_worker_id = %s,"
                     " lease_expires_at = %s"
-                    " WHERE (delivery_config_id, delivery_config_version) = ("
-                    "   SELECT delivery_config_id, delivery_config_version"
+                    " WHERE (account_id, delivery_config_id, delivery_config_version) = ("
+                    "   SELECT account_id, delivery_config_id, delivery_config_version"
                     "   FROM reporting_configurations"
                     "   WHERE lease_expires_at IS NULL OR lease_expires_at <= %s"
                     "   ORDER BY lease_expires_at NULLS FIRST"
@@ -1110,13 +1138,21 @@ class PgReportingLedgerStore:
         )
 
     async def release_period_close(self, lease: LeasedConfiguration, *, worker_id: str) -> None:
+        key = lease.generation_key
         async with self._pool.connection() as connection:
             await connection.execute(
                 "UPDATE reporting_configurations SET lease_worker_id = NULL,"
                 " lease_expires_at = NULL"
-                " WHERE delivery_config_id = %s AND delivery_config_version = %s"
-                "   AND lease_worker_id = %s",
-                (lease.delivery_config_id, lease.delivery_config_version, worker_id),
+                " WHERE account_id = %s AND delivery_config_id = %s"
+                "   AND delivery_config_version = %s AND lease_worker_id = %s"
+                "   AND lease_expires_at = %s",
+                (
+                    key.account_id,
+                    key.delivery_config_id,
+                    key.delivery_config_version,
+                    worker_id,
+                    lease.lease_expires_at,
+                ),
             )
 
 
@@ -1156,6 +1192,11 @@ def _translate_integrity_error(error: Exception) -> LedgerConflictError:
     if "reporting_obligations_period_key" in text:
         return LedgerConflictError(
             "OBLIGATION_EXISTS", "an obligation already exists for this logical period"
+        )
+    if "reporting_obligations_pkey" in text:
+        return LedgerConflictError(
+            "OBLIGATION_IDENTITY_CONFLICT",
+            "the obligation identifier already belongs to a different logical period",
         )
     return LedgerConflictError("LEDGER_WRITE_FAILED", "the ledger write violated an integrity rule")
 
