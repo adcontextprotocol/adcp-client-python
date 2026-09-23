@@ -340,7 +340,12 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
                 )
                 result = await self._claim_account_on(connection, account_id, keys, lease_seconds)
                 await self._schedule_account_on(connection, account_id)
-                return result
+            # A committed account turn moves its durable served_at rank. Start
+            # there again so continuously due peers cannot hide newly enrolled
+            # accounts behind this pre-update cursor. Lock misses above retain
+            # the continuation, allowing the next bounded page past a busy prefix.
+            self._materializer_sample_after = None
+            return result
         return ReportingMaterializerTurn("idle")
 
     async def _claim_account_on(
