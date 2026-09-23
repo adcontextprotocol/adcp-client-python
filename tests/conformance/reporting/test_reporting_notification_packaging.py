@@ -54,6 +54,7 @@ def run_step(command, *, label, cwd, value=None, timeout=120):
         try:
             os.killpg(process.pid, signal.SIGTERM)
         except ProcessLookupError:
+            # The owned group already exited; still drain its pipes and reap the child below.
             pass
         try:
             stdout, stderr = process.communicate(timeout=5)

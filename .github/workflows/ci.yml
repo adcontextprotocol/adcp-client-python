@@ -49,6 +49,9 @@ jobs:
             .github/workflows/slash-command-dispatch.yml
             .github/workflows/ai-review.yml
             .github/workflows/release-please.yml
+            .github/workflows/release-proposal.yml
+            .github/workflows/release-acceptance.yml
+            .github/workflows/release-publish.yml
           version: 1.29.0
           min-severity: high
           min-confidence: high
