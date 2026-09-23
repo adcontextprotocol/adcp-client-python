@@ -55,6 +55,7 @@ def run_step(command, *, label, cwd, value=None, timeout=120):
         try:
             os.killpg(process.pid, signal.SIGTERM)
         except ProcessLookupError:
+            # The owned group already exited; still drain its pipes and reap the child below.
             pass
         try:
             stdout, stderr = process.communicate(timeout=5)
@@ -63,6 +64,7 @@ def run_step(command, *, label, cwd, value=None, timeout=120):
             try:
                 os.killpg(process.pid, signal.SIGKILL)
             except ProcessLookupError:
+                # The owned group already exited; drain and reap it in communicate below.
                 pass
             try:
                 stdout, stderr = process.communicate(timeout=5)
@@ -374,17 +376,20 @@ async def main():
         projector = ReportingActivityProjector(outbox)
         assert await ReportingActivitySupport(worker, store, projector).durable()
         events = await outbox.list_events(account_id="acct_a")
-        assert await worker.expand_one(account_id="acct_a")
+        expanded_1 = await worker.expand_one(account_id="acct_a")
+        assert expanded_1
         lease = await outbox.claim_delivery(account_id="acct_a", now=clock(), lease_seconds=60)
         original = cipher.open(lease.delivery).prepared
         attempt = await outbox.reserve_attempt(
             lease, request=ActivityRequest(subscription.url, len(original.body)), now=clock(),
         )
         assert attempt.attempt == 1 and "SECRET" not in str(attempt.to_wire())
-        assert await outbox.complete_attempt(
+        completed_attempt_1 = await outbox.complete_attempt(
             attempt, outcome=ActivityOutcome("failed", 503, 1), now=clock(),
         )
-        assert await outbox.finish_delivery(lease, now=clock(), state="pending", retry_at=clock())
+        assert completed_attempt_1
+        finished_delivery_1 = await outbox.finish_delivery(lease, now=clock(), state="pending", retry_at=clock())
+        assert finished_delivery_1
     async with AsyncConnectionPool(
         values["conninfo"], kwargs=values["kwargs"], open=False
     ) as fresh:
@@ -394,9 +399,10 @@ async def main():
             assert await schema_objects(connection) == values["required_objects"]
         outbox = PgReportingOutbox(pool=fresh, clock=clock)
         assert len(events) == 1 and await outbox.list_events(account_id="acct_a") == events
-        assert await outbox.claim_expansion(
+        claimed_expansion_1 = await outbox.claim_expansion(
             account_id="acct_a", now=clock(), lease_seconds=60,
-        ) is None
+        )
+        assert claimed_expansion_1 is None
         lease = await outbox.claim_delivery(account_id="acct_a", now=clock(), lease_seconds=60)
         retried = cipher.open(lease.delivery).prepared
         assert retried.body == original.body and retried.idempotency_key == original.idempotency_key
@@ -404,10 +410,12 @@ async def main():
             lease, request=ActivityRequest(subscription.url, len(retried.body)), now=clock(),
         )
         assert attempt.attempt == 2
-        assert await outbox.complete_attempt(
+        completed_attempt_2 = await outbox.complete_attempt(
             attempt, outcome=ActivityOutcome("success", 200, 2), now=clock(),
         )
-        assert await outbox.finish_delivery(lease, now=clock(), state="complete")
+        assert completed_attempt_2
+        finished_delivery_2 = await outbox.finish_delivery(lease, now=clock(), state="complete")
+        assert finished_delivery_2
         rows = await outbox.list_activity(
             account_id="acct_a", consumer_id=subscription.principal_id,
         )

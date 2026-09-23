@@ -42,7 +42,8 @@ from .test_reporting_notification_packaging import run_step
 from .test_reporting_webhook_activity import prepare, reserve, rows
 
 SQL = files("adcp.reporting.ledger").joinpath("reporting_webhook_activity.sql").read_text()
-BASE = "21bf443e7d850d1800ec8a6f2e4abec1c8f85541"
+# The integrated A predecessor includes checkpoint and locale-portable readiness.
+BASE = "17ee407ae3978c8a2bb54437287afbf9dafb8130"
 ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -107,10 +108,9 @@ async def test_populated_a_to_b_migration_is_additive_repeated_and_atomic(autoco
 
 
 async def test_concurrent_and_interrupted_b_migration_visibility():
-    pytest.importorskip("psycopg_pool")
-    from psycopg_pool import AsyncConnectionPool
-
     async with isolated_reporting_pool(autocommit=True) as pool:
+        from psycopg_pool import AsyncConnectionPool
+
         await install_a(pool)
         gate = Barrier()
         async with AsyncConnectionPool(pool.conninfo, kwargs=pool.kwargs, open=False) as observer:
@@ -241,12 +241,11 @@ async def test_required_named_constraint_must_be_validated():
 
 @pytest.mark.parametrize("flag", ["indisvalid", "indisready"])
 async def test_required_unusable_index_blocks_capability_boot(flag):
-    pytest.importorskip("psycopg")
-    from psycopg import sql
-
     from adcp.reporting.outbox import ReportingActivitySupport
 
     async with reliable_factory("postgres", notifications=True) as reliable:
+        from psycopg import sql
+
         h = NotificationHarness(reliable)
         outbox, worker = await prepare(h)
         support = ReportingActivitySupport(
@@ -269,12 +268,10 @@ async def test_required_unusable_index_blocks_capability_boot(flag):
 
 
 async def test_independent_pg_workers_reserve_once_and_lock_parent_before_head(monkeypatch):
-    pytest.importorskip("psycopg")
-    pytest.importorskip("psycopg_pool")
-    from psycopg import AsyncConnection
-    from psycopg_pool import AsyncConnectionPool
-
     async with reliable_factory("postgres", notifications=True) as reliable:
+        from psycopg import AsyncConnection
+        from psycopg_pool import AsyncConnectionPool
+
         h = NotificationHarness(reliable)
         outbox, _ = await prepare(h)
         lease = await outbox.claim_delivery(
@@ -324,39 +321,39 @@ async def test_independent_pg_workers_reserve_once_and_lock_parent_before_head(m
                 attempt,
             )
             forged = replace(attempt, binding=replace(attempt.binding, principal_id="other"))
-            assert not await other.complete_attempt(
+            completed_attempt_5 = await other.complete_attempt(
                 forged, outcome=ActivityOutcome("timeout"), now=reliable.clock()
             )
-            assert await outbox.complete_attempt(
+            assert not completed_attempt_5
+            completed_attempt_6 = await outbox.complete_attempt(
                 attempt, outcome=ActivityOutcome("timeout"), now=reliable.clock()
             )
-            assert (
-                await other.purge_activity(
-                    account_id="acct_a", consumer_id="buyer", now=reliable.clock()
-                )
-                == 0
+            assert completed_attempt_6
+            purged_count_4 = await other.purge_activity(
+                account_id="acct_a", consumer_id="buyer", now=reliable.clock()
             )
+            assert purged_count_4 == 0
 
 
 @pytest.mark.parametrize("locked", ["parent", "head"])
 async def test_lock_wait_rechecks_expiry_before_reservation_and_rolls_back_counter(
     locked, monkeypatch
 ):
-    pytest.importorskip("psycopg")
-    pytest.importorskip("psycopg_pool")
-    from psycopg import AsyncConnection
-    from psycopg_pool import AsyncConnectionPool
-
     async with reliable_factory("postgres", notifications=True) as reliable:
+        from psycopg import AsyncConnection
+        from psycopg_pool import AsyncConnectionPool
+
         h = NotificationHarness(reliable)
         outbox, _ = await prepare(h)
         previous_lease, previous = await reserve(h, outbox)
-        assert await outbox.complete_attempt(
+        completed_attempt_1 = await outbox.complete_attempt(
             previous, outcome=ActivityOutcome("failed", 500, 1), now=reliable.clock()
         )
-        assert await outbox.finish_delivery(
+        assert completed_attempt_1
+        finished_delivery_1 = await outbox.finish_delivery(
             previous_lease, now=reliable.clock(), state="pending", retry_at=reliable.clock()
         )
+        assert finished_delivery_1
         lease = await outbox.claim_delivery(
             account_id="acct_a", now=reliable.clock(), lease_seconds=1
         )
@@ -413,7 +410,8 @@ async def test_lock_wait_rechecks_expiry_before_reservation_and_rolls_back_count
                 await asyncio.wait_for(blocked(), timeout=5)
                 reliable.clock.advance(timedelta(seconds=2))
             if locked == "parent":
-                assert await asyncio.wait_for(task, timeout=5) is None
+                task_result_1 = await asyncio.wait_for(task, timeout=5)
+                assert task_result_1 is None
             else:
                 with pytest.raises(ReportingNotificationError, match="activity_lease_expired"):
                     await asyncio.wait_for(task, timeout=5)
@@ -424,23 +422,21 @@ async def test_lock_wait_rechecks_expiry_before_reservation_and_rolls_back_count
 
 @pytest.mark.parametrize("mutation", ["DELETE", "RESET", "RETARGET"])
 async def test_retained_head_cannot_be_deleted_reset_or_retargeted_after_purge(mutation):
-    pytest.importorskip("psycopg")
-    import psycopg
-
     async with reliable_factory("postgres", notifications=True) as reliable:
+        import psycopg
+
         h = NotificationHarness(reliable)
         outbox, _ = await prepare(h)
         _, attempt = await reserve(h, outbox)
-        assert await outbox.complete_attempt(
+        completed_attempt_2 = await outbox.complete_attempt(
             attempt, outcome=ActivityOutcome("timeout"), now=reliable.clock()
         )
+        assert completed_attempt_2
         reliable.clock.advance(timedelta(days=31))
-        assert (
-            await outbox.purge_activity(
-                account_id="acct_a", consumer_id="buyer", now=reliable.clock()
-            )
-            == 1
+        purged_count_1 = await outbox.purge_activity(
+            account_id="acct_a", consumer_id="buyer", now=reliable.clock()
         )
+        assert purged_count_1 == 1
         commands = {
             "DELETE": "DELETE FROM reporting_webhook_attempt_heads",
             "RESET": "UPDATE reporting_webhook_attempt_heads SET last_attempt=1",
@@ -471,11 +467,10 @@ async def test_retained_head_cannot_be_deleted_reset_or_retargeted_after_purge(m
     ],
 )
 async def test_sql_rejects_mutable_identity_request_and_token(field, value):
-    pytest.importorskip("psycopg")
-    import psycopg
-    from psycopg import sql
-
     async with reliable_factory("postgres", notifications=True) as reliable:
+        import psycopg
+        from psycopg import sql
+
         h = NotificationHarness(reliable)
         outbox, _ = await prepare(h)
         _, attempt = await reserve(h, outbox)
@@ -509,23 +504,20 @@ async def test_pending_orphans_are_retained_without_parent_and_db_clock_cannot_b
                 " WHERE account_id=%s AND principal_id=%s",
                 ("acct_a", "buyer"),
             )
-        assert (
-            await outbox.purge_activity(
-                account_id="acct_a", consumer_id="buyer", now=NOW + timedelta(days=900)
-            )
-            == 0
+        purged_count_2 = await outbox.purge_activity(
+            account_id="acct_a", consumer_id="buyer", now=NOW + timedelta(days=900)
         )
-        assert await outbox.complete_attempt(
+        assert purged_count_2 == 0
+        completed_attempt_3 = await outbox.complete_attempt(
             attempt, outcome=ActivityOutcome("connection_error"), now=NOW
         )
+        assert completed_attempt_3
         completed = (await outbox.list_activity(account_id="acct_a", consumer_id="buyer"))[0]
         assert completed.completed_at >= attempt.fired_at
-        assert (
-            await outbox.purge_activity(
-                account_id="acct_a", consumer_id="buyer", now=NOW + timedelta(days=900)
-            )
-            == 0
+        purged_count_3 = await outbox.purge_activity(
+            account_id="acct_a", consumer_id="buyer", now=NOW + timedelta(days=900)
         )
+        assert purged_count_3 == 0
 
 
 @pytest.fixture(scope="module")
@@ -600,10 +592,12 @@ async def main():
         )
         advertised = await worker.advertised_notifications(ledger, account_id='acct_a')
         assert advertised['supports_webhook_activity'] is False
-        assert await worker.expand_one(account_id='acct_a')
+        expanded_1 = await worker.expand_one(account_id='acct_a')
+        assert expanded_1
         lease = await outbox.claim_delivery(account_id='acct_a', now=clock(), lease_seconds=60)
         opened = cipher.open(lease.delivery)
-        assert await outbox.finish_delivery(lease, now=clock(), state='pending', retry_at=clock())
+        finished_delivery_1 = await outbox.finish_delivery(lease, now=clock(), state='pending', retry_at=clock())
+        assert finished_delivery_1
         print(json.dumps({'body_sha256': hashlib.sha256(opened.prepared.body).hexdigest(),
                           'idempotency_key': opened.prepared.idempotency_key}))
 asyncio.run(asyncio.wait_for(main(), 30))
@@ -639,10 +633,14 @@ async def test_actual_a_binary_on_b_database_keeps_readiness_and_delivery_identi
         assert lease.attempt_count == 2 and attempt.attempt == 1
         assert attempt.binding.body_sha256 == result["body_sha256"]
         assert attempt.binding.idempotency_key == result["idempotency_key"]
-        assert await outbox.complete_attempt(
+        completed_attempt_4 = await outbox.complete_attempt(
             attempt, outcome=ActivityOutcome("success", 200, 1), now=reliable.clock()
         )
-        assert await outbox.finish_delivery(lease, state="complete", now=reliable.clock())
+        assert completed_attempt_4
+        finished_delivery_2 = await outbox.finish_delivery(
+            lease, state="complete", now=reliable.clock()
+        )
+        assert finished_delivery_2
         async with reliable.blobs.pool.connection() as conn:
             await validate_schema(conn, activity=True)
 
@@ -680,9 +678,7 @@ async def test_b_binary_on_actual_a_schema_refuses_activity_without_corrupting_w
         before = (await outbox.list_deliveries(account_id="acct_a"))[0]
         await ledger.create_schema()
         assert (await outbox.list_deliveries(account_id="acct_a"))[0] == before
-        assert (
-            await outbox.reserve_attempt(
-                lease, request=ActivityRequest("https://example.test/reporting", 1), now=NOW
-            )
-            is not None
+        reserved_attempt_1 = await outbox.reserve_attempt(
+            lease, request=ActivityRequest("https://example.test/reporting", 1), now=NOW
         )
+        assert reserved_attempt_1 is not None

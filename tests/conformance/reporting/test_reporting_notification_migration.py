@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from importlib.resources import files
 
 import pytest
@@ -24,6 +26,45 @@ CHAIN = (
     "reporting_ledger_reconciliation.sql",
     "reporting_notification_outbox.sql",
 )
+
+
+async def test_schema_fingerprints_preserve_index_keys_and_predicates_individually():
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        async with pool.connection() as conn:
+            await conn.execute(
+                'CREATE TABLE reporting_catalog_locale_probe ("Z" integer, a integer);'
+                'CREATE INDEX locale_probe_upper ON reporting_catalog_locale_probe ("Z");'
+                "CREATE INDEX locale_probe_lower ON reporting_catalog_locale_probe (a);"
+                "CREATE INDEX locale_probe_upper_predicate ON reporting_catalog_locale_probe (a)"
+                ' WHERE "Z" > 0;'
+                "CREATE INDEX locale_probe_lower_predicate ON reporting_catalog_locale_probe (a)"
+                " WHERE a > 0;"
+            )
+            # Each named index has its own digest; cross-row collation cannot
+            # alter it. Keep the independent oracle for quoted keys, predicates,
+            # and validity/readiness/liveness flags across database locales.
+            definitions = {
+                "locale_probe_upper": '("Z")',
+                "locale_probe_lower": "(a)",
+                "locale_probe_upper_predicate": '(a) WHERE ("Z" > 0)',
+                "locale_probe_lower_predicate": "(a) WHERE (a > 0)",
+            }
+            expected = {}
+            for name, definition in definitions.items():
+                value = [
+                    False,
+                    True,
+                    True,
+                    True,
+                    f"CREATE INDEX {name} ON reporting_catalog_locale_probe"
+                    f" USING btree {definition}",
+                ]
+                expected[f"index:reporting_catalog_locale_probe.{name}"] = hashlib.sha256(
+                    json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+                ).hexdigest()
+            contract = await schema_contract(conn)
+            actual = {key: value for key, value in contract.items() if key.startswith("index:")}
+            assert actual == expected
 
 
 async def foundation(pool):
@@ -118,10 +159,9 @@ async def test_direct_and_hopwise_historical_schema_chain(source, hopwise):
 
 @pytest.mark.parametrize("autocommit", [False, True])
 async def test_concurrent_repeated_install_from_independent_pools(autocommit):
-    pytest.importorskip("psycopg_pool")
-    from psycopg_pool import AsyncConnectionPool
-
     async with isolated_reporting_pool(autocommit=autocommit) as pool:
+        from psycopg_pool import AsyncConnectionPool
+
         async with AsyncConnectionPool(
             pool.conninfo, kwargs=pool.kwargs, min_size=2, max_size=6, open=False
         ) as other:
@@ -141,10 +181,9 @@ async def test_concurrent_repeated_install_from_independent_pools(autocommit):
 
 
 async def test_interrupted_autocommit_install_is_invisible_and_restart_converges():
-    pytest.importorskip("psycopg_pool")
-    from psycopg_pool import AsyncConnectionPool
-
     async with isolated_reporting_pool(autocommit=True) as pool:
+        from psycopg_pool import AsyncConnectionPool
+
         await foundation(pool)
         gate = Barrier()
         async with AsyncConnectionPool(
@@ -183,19 +222,36 @@ async def test_interrupted_autocommit_install_is_invisible_and_restart_converges
 @pytest.mark.parametrize(
     "damage",
     [
-        "ALTER TABLE reporting_notification_events"
-        " DISABLE TRIGGER reporting_notification_immutable",
+        (
+            "ALTER TABLE reporting_notification_events"
+            " DISABLE TRIGGER reporting_notification_immutable"
+        ),
         "ALTER TABLE reporting_status_dirty ALTER COLUMN cause_generation DROP NOT NULL",
         "DROP INDEX reporting_notification_deliveries_due",
         "ALTER TABLE reporting_notification_deliveries DROP COLUMN body_sha256",
-        "ALTER TABLE reporting_notification_expansions"
-        " DROP CONSTRAINT reporting_notification_expansions_account_id_consumer_namespa_fkey",
-        "ALTER TABLE reporting_reconciliation_records"
-        " DISABLE TRIGGER reporting_reconciliation_guard",
-        "ALTER TABLE reporting_configurations"
-        " DROP CONSTRAINT reporting_configurations_pkey CASCADE",
-        "CREATE OR REPLACE FUNCTION reporting_notification_immutable() RETURNS TRIGGER"
-        " LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$",
+        (
+            "ALTER TABLE reporting_notification_expansions"
+            " DROP CONSTRAINT reporting_notification_expansions_account_id_consumer_namespa_fkey"
+        ),
+        (
+            "ALTER TABLE reporting_reconciliation_records"
+            " DISABLE TRIGGER reporting_reconciliation_guard"
+        ),
+        (
+            "ALTER TABLE reporting_configurations"
+            " DROP CONSTRAINT reporting_configurations_pkey CASCADE"
+        ),
+        (
+            "CREATE OR REPLACE FUNCTION reporting_notification_immutable() RETURNS TRIGGER"
+            " LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$"
+        ),
+        "DROP TABLE reporting_restatement_checkpoints",
+        "ALTER TABLE reporting_restatement_checkpoints ALTER COLUMN next_observation DROP NOT NULL",
+        "DROP INDEX reporting_restatement_checkpoints_account_idx",
+        (
+            "ALTER TABLE reporting_restatement_checkpoints"
+            " DROP CONSTRAINT reporting_restatement_checkpoints_next_observation_check"
+        ),
     ],
 )
 async def test_readiness_validates_the_installed_chain_not_table_presence(damage):
@@ -229,10 +285,9 @@ async def test_readiness_validates_the_installed_chain_not_table_presence(damage
 
 
 async def test_malformed_outbox_upgrade_rolls_back_entire_chain():
-    pytest.importorskip("psycopg")
-    import psycopg
-
     async with isolated_reporting_pool(autocommit=True) as pool:
+        import psycopg
+
         async with pool.connection() as conn:
             await conn.execute((FIXTURES / "reporting_ledger_beta15.sql").read_text())
             await conn.execute("CREATE TABLE reporting_notification_events (adopter_marker text)")

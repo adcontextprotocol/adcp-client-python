@@ -49,6 +49,9 @@ jobs:
             .github/workflows/slash-command-dispatch.yml
             .github/workflows/ai-review.yml
             .github/workflows/release-please.yml
+            .github/workflows/release-proposal.yml
+            .github/workflows/release-acceptance.yml
+            .github/workflows/release-publish.yml
           version: 1.29.0
           min-severity: high
           min-confidence: high
@@ -103,17 +106,15 @@ jobs:
         run: pytest tests/ -v --cov=src/adcp --cov-report=term-missing
 
   pg-conformance:
-    name: Postgres conformance tests (Postgres 16)
+    name: Postgres conformance tests (Postgres 16, ${{ matrix.lane }})
     runs-on: ubuntu-latest
-    # 15 minutes no longer covers this job. Pinning the cluster to C collation
-    # made the frozen-A rolling tests do their real subprocess work instead of
-    # failing fast on a locale mismatch, and that budget had to also absorb
-    # checkout, the A baseline fetch, Python setup and a [dev,pg] install before
-    # the suite even starts. Exact-head local execution is 1,486 passed in
-    # 9m49s, so 30 minutes (already this workflow's matrix-job budget) leaves
-    # real headroom for runner variance instead of trading a growing serial
-    # matrix for flaky timing.
-    timeout-minutes: 30
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [core, process]
     services:
       postgres:
         # CI-local ephemeral database. POSTGRES_HOST_AUTH_METHOD=trust
@@ -141,7 +142,7 @@ jobs:
 
       - name: Fetch reviewed reporting baseline for rolling binary tests
         timeout-minutes: 1
-        run: git fetch --no-tags --depth=1 origin 21bf443e7d850d1800ec8a6f2e4abec1c8f85541
+        run: git fetch --no-tags --depth=1 origin 17ee407ae3978c8a2bb54437287afbf9dafb8130
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6
@@ -156,21 +157,51 @@ jobs:
           pip install -e ".[dev,pg]"
 
       - name: Run Postgres conformance tests
-        # Bound the suite itself below the job budget so a genuine hang is
-        # reported against this step rather than consuming the whole job.
-        timeout-minutes: 25
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_test
+          PG_LANE: ${{ matrix.lane }}
         run: |
-          pytest tests/conformance/signing/test_pg_replay_store.py \
-                 tests/conformance/signing/test_pg_replay_store_e2e.py \
-                 tests/conformance/decisioning/test_pg_buyer_agent_registry.py \
-                 tests/conformance/decisioning/test_pg_idempotency_backend.py \
-                 tests/conformance/decisioning/test_pg_task_webhook_outbox.py \
-                 tests/conformance/decisioning/test_pg_reference_workflow_queue.py \
-                 tests/conformance/reporting/ \
-                 --ignore-glob='tests/conformance/reporting/test_reporting_status_*.py' \
-                 -v
+          # Keep every case and its deadline. Separate process-crash controls
+          # so setup and teardown also fit inside each unchanged job budget.
+          case "$PG_LANE" in
+            core)
+              pytest tests/conformance/signing/test_pg_replay_store.py \
+                     tests/conformance/signing/test_pg_replay_store_e2e.py \
+                     tests/conformance/decisioning/test_pg_buyer_agent_registry.py \
+                     tests/conformance/decisioning/test_pg_idempotency_backend.py \
+                     tests/conformance/decisioning/test_pg_task_webhook_outbox.py \
+                     tests/conformance/decisioning/test_pg_reference_workflow_queue.py \
+                     tests/conformance/reporting/ \
+                     --ignore=tests/conformance/reporting/test_reporting_notification_process_matrix.py \
+                     --ignore-glob='tests/conformance/reporting/test_reporting_status_*.py' \
+                     -v
+              ;;
+            process)
+              pytest tests/conformance/reporting/test_reporting_notification_process_matrix.py -v
+              ;;
+            *)
+              echo "Unknown Postgres conformance lane"
+              exit 1
+              ;;
+          esac
+
+  pg-conformance-required-gate:
+    name: Postgres conformance tests (Postgres 16)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    needs: pg-conformance
+    if: ${{ always() }}
+    steps:
+      - name: Require every Postgres conformance lane
+        env:
+          PG_RESULT: ${{ needs.pg-conformance.result }}
+        run: |
+          if [ "$PG_RESULT" != "success" ]; then
+            echo "Postgres conformance matrix result: $PG_RESULT"
+            exit 1
+          fi
+          echo "All Postgres conformance lanes passed"
 
   pg-reporting-status:
     name: Reporting status conformance (Postgres 16)
