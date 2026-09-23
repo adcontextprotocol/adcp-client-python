@@ -98,11 +98,13 @@ def sparse_fetch(request: ReportingSourceSliceRequestV1) -> InlineFetchResult:
 
 
 async def commit_records(harness: ReliableHarness, records: PublishedRecords) -> None:
-    assert await harness.store.commit_materialization_attempt(records.attempt) == (
+    committed_attempt = await harness.store.commit_materialization_attempt(records.attempt)
+    assert committed_attempt == (
         records.attempt,
         True,
     )
-    assert await harness.store.commit_materialization(records.outcome) == (records.outcome, True)
+    committed_outcome = await harness.store.commit_materialization(records.outcome)
+    assert committed_outcome == (records.outcome, True)
     account = records.attempt.scope.principal.account_id
     revision_id = records.attempt.reporting_revision_id
     payload = await harness.destination.read(account, revision_id)
@@ -118,7 +120,8 @@ async def commit_records(harness: ReliableHarness, records: PublishedRecords) ->
     )
     retained, created = await harness.store.record_revision_receipt(records.receipt)
     assert created and retained.received_at == harness.clock()
-    assert await harness.store.record_revision_receipt(records.receipt) == (retained, False)
+    replayed_receipt = await harness.store.record_revision_receipt(records.receipt)
+    assert replayed_receipt == (retained, False)
     if harness.blobs.pool is not None:
         async with harness.blobs.pool.connection() as connection:
             committed = await (
@@ -1063,7 +1066,8 @@ async def main(data):
         cancel = asyncio.Event()
         result = await h.source(changed).execute(request, cancel=cancel)
         cancel.set()
-        assert await h.source(changed).execute(request, cancel=cancel) == result
+        replayed_result = await h.source(changed).execute(request, cancel=cancel)
+        assert replayed_result == result
         manifest = verified(result)
         revision = await h.store.get_revision(
             account_id='eur', reporting_revision_id=data['revision_id']

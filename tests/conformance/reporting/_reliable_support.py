@@ -267,7 +267,8 @@ class _Staging:
         else:
             ref = f"{source_execution_key}.{ordinal}"
             digest = hashlib.sha256(payload).hexdigest()
-            assert await self.blobs.put("stage", account_id, ref, payload, digest) == payload
+            staged_payload = await self.blobs.put("stage", account_id, ref, payload, digest)
+            assert staged_payload == payload
             result = ref, digest
         await self.failures.hit("stage.after")
         return result
