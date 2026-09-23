@@ -108,7 +108,8 @@ async def test_config_obligation_collisions_siblings_and_broad_issue_fanout(stat
         first.generation_key,
         other.generation_key,
     }
-    assert not (await h.status.project_one(account_id="acct_a")).did_work
+    status_operation_1 = await h.status.project_one(account_id="acct_a")
+    assert not (status_operation_1).did_work
 
 
 async def test_baseline_serializes_a_mutation_immediately_before_and_after_its_highwater(
@@ -194,12 +195,14 @@ async def test_baseline_serializes_a_mutation_immediately_before_and_after_its_h
             gate.release()
             await asyncio.wait_for(asyncio.gather(baseline, mutation), 10)
         assert not await status.outbox.list_events(account_id="acct_a")
-        assert (await status.project_one(account_id="acct_a")).events == 2
+        status_operation_2 = await status.project_one(account_id="acct_a")
+        assert (status_operation_2).events == 2
         assert {
             (e.cause.previous_health, e.cause.health)
             for e in await status.outbox.list_events(account_id="acct_a")
         } == {("action_required", "complete")}
-        assert not (await status.project_one(account_id="acct_a")).did_work
+        status_operation_3 = await status.project_one(account_id="acct_a")
+        assert not (status_operation_3).did_work
         async with pool.connection() as conn:
             captured = await (
                 await conn.execute(

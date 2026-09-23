@@ -431,7 +431,8 @@ async def main():
         await status.baseline(account_id="acct_a")
         await status_ledger.set_revision_readable(account_id="acct_a",
             reporting_revision_id=values["revision"]["reporting_revision_id"], readable=False)
-        assert (await status.project_one(account_id="acct_a")).events == 2
+        status_operation_1 = await status.project_one(account_id="acct_a")
+        assert (status_operation_1).events == 2
         status_events = await status.outbox.list_events(account_id="acct_a")
         status_subscription = replace(subscription, event_types=("reporting.status_changed",))
         class StatusConfigurations:
@@ -441,24 +442,29 @@ async def main():
                 return status_subscription if account_id == status_subscription.account_id else None
         status_worker = ReportingNotificationWorker(outbox=status.outbox,
             subscriptions=StatusConfigurations(), cipher=cipher, clock=clock, activity=status.outbox)
-        assert await status_worker.expand_one(account_id="acct_a")
+        status_operation_2 = await status_worker.expand_one(account_id="acct_a")
+        assert status_operation_2
         status_lease = await status.outbox.claim_delivery(account_id="acct_a", now=clock(), lease_seconds=60)
         status_body = cipher.open(status_lease.delivery).prepared
         assert json.loads(status_body.body)["notification_type"] == "reporting.status_changed"
-        assert await status.outbox.finish_delivery(status_lease, now=clock(), state="pending", retry_at=clock())
+        status_operation_3 = await status.outbox.finish_delivery(status_lease, now=clock(), state="pending", retry_at=clock())
+        assert status_operation_3
     async with AsyncConnectionPool(values["conninfo"], kwargs=values["kwargs"], open=False) as c_restart:
         ledger = PgReportingReconciliationStore(pool=c_restart, clock=clock, notifications=True)
         status = PgStatusNotificationStore(ledger)
         await status.create_schema()
         assert await status.baseline_ready(account_id="acct_a")
-        assert not (await status.project_one(account_id="acct_a")).did_work
+        status_operation_4 = await status.project_one(account_id="acct_a")
+        assert not (status_operation_4).did_work
         assert await status.outbox.list_events(account_id="acct_a") == status_events
         status_lease = await status.outbox.claim_delivery(account_id="acct_a", now=clock(), lease_seconds=60)
         retry = cipher.open(status_lease.delivery).prepared
         assert retry.body == status_body.body and retry.idempotency_key == status_body.idempotency_key
-        assert await status.outbox.finish_delivery(status_lease, now=clock(), state="complete")
-        assert await status.outbox.reemit(account_id="acct_a", consumer_namespace="",
-            notification_id=status_events[0].notification_id, now=clock()) == 2
+        status_operation_5 = await status.outbox.finish_delivery(status_lease, now=clock(), state="complete")
+        assert status_operation_5
+        status_operation_6 = await status.outbox.reemit(account_id="acct_a", consumer_namespace="",
+            notification_id=status_events[0].notification_id, now=clock())
+        assert status_operation_6 == 2
         assert await status.outbox.list_events(account_id="acct_a") == status_events
     print("installed-pg-restart-ok")
 

@@ -145,15 +145,13 @@ async def test_default_off_pre_outbox_lifecycle_remains_usable_until_scope_migra
         await ledger.record_consumer_status(first)
         opened = await ledger.get_issue(account_id="acct_a", issue_key=mismatch_key(first))
         assert opened is not None and opened.opened_at == NOW
-        assert (
-            await ledger.ensure_issue_opened(
-                account_id="acct_a",
-                consumer_id="buyer",
-                issue_key=opened.issue_key,
-                observed_at=NOW,
-            )
-            == opened
+        status_operation_1 = await ledger.ensure_issue_opened(
+            account_id="acct_a",
+            consumer_id="buyer",
+            issue_key=opened.issue_key,
+            observed_at=NOW,
         )
+        assert status_operation_1 == opened
         await ledger.set_issue_state(
             account_id="acct_a", issue_key=opened.issue_key, state="waived", at=NOW
         )
@@ -268,8 +266,10 @@ async def test_concurrent_interrupted_c_migration_is_atomic_and_baseline_is_rest
             await asyncio.wait_for(asyncio.gather(*(migrate(p) for p in (pool, observer) * 2)), 25)
             status = PgStatusNotificationStore(ledger)
             assert not await status.baseline_ready(account_id="acct_a")
-            assert await status.baseline(account_id="acct_a")
-            assert not await status.baseline(account_id="acct_a")
+            status_operation_3 = await status.baseline(account_id="acct_a")
+            assert status_operation_3
+            status_operation_4 = await status.baseline(account_id="acct_a")
+            assert not status_operation_4
             assert await status.baseline_ready(account_id="acct_a")
             assert not await status.outbox.list_events(account_id="acct_a")
 
@@ -338,7 +338,8 @@ async def test_baseline_repairs_actual_b_status_without_issue_using_ingest_obser
         assert all(
             c.snapshot["issues"][0]["opened_at"] == record.recorded_at.isoformat() for c in private
         )
-        assert not (await status.project_one(account_id="acct_a")).did_work
+        status_operation_2 = await status.project_one(account_id="acct_a")
+        assert not (status_operation_2).did_work
 
 
 @case_deadline
@@ -383,7 +384,8 @@ async def test_live_reviewed_a_b_workers_never_claim_or_touch_pending_c_queues(
                 # A is already running too, so both old pools span the upgrade.
                 await old_b.send(action="turn")
                 await status.create_schema()
-                assert (await old_b.event("old_turn"))["did_work"]
+                status_operation_7 = await old_b.event("old_turn")
+                assert (status_operation_7)["did_work"]
                 await receiver.event("http_accepted")
                 await status.baseline(account_id="acct_a")
                 await ledger.set_revision_readable(
@@ -391,7 +393,8 @@ async def test_live_reviewed_a_b_workers_never_claim_or_touch_pending_c_queues(
                     reporting_revision_id=revision.reporting_revision_id,
                     readable=False,
                 )
-                assert (await status.project_one(account_id="acct_a")).events == 2
+                status_operation_8 = await status.project_one(account_id="acct_a")
+                assert (status_operation_8).events == 2
                 failures = FailurePlan()
                 subscriptions = ScriptedSubscriptions(failures)
                 subscriptions.put(notification_subscription(events=("reporting.status_changed",)))
@@ -409,20 +412,23 @@ async def test_live_reviewed_a_b_workers_never_claim_or_touch_pending_c_queues(
                     account_id="acct_a", now=now, lease_seconds=60
                 )
                 assert lease is not None
-                assert await status.outbox.reserve_attempt(
+                status_operation_9 = await status.outbox.reserve_attempt(
                     lease,
                     request=ActivityRequest("https://receiver.example.test/reporting", 1),
                     now=now,
                 )
-                assert await status.outbox.finish_delivery(
+                assert status_operation_9
+                status_operation_10 = await status.outbox.finish_delivery(
                     lease, state="pending", retry_at=now, now=now
                 )
+                assert status_operation_10
                 pending = await physical_rows(pool)
                 assert all(pending.values())  # Include attempt and retained head rows.
                 # Guarantee the actual A decoder and HTTP sender also execute,
                 # then let both old processes compete for the remaining event.
                 await old_a.send(action="turn")
-                assert (await old_a.event("old_turn"))["did_work"]
+                status_operation_11 = await old_a.event("old_turn")
+                assert (status_operation_11)["did_work"]
                 assert await physical_rows(pool) == pending
                 await old_a.send(action="core_write")
                 await old_a.event("old_core_write")
@@ -479,23 +485,24 @@ async def test_live_reviewed_a_b_workers_never_claim_or_touch_pending_c_queues(
                     await child.finish()
             # A fresh C process replays the old writer's grouped, captured input.
             async with service_process(pool, "status_projector", turns=3) as child:
-                assert (await child.event("done"))["did_work"]
+                status_operation_12 = await child.event("done")
+                assert (status_operation_12)["did_work"]
                 await child.finish()
             status = PgStatusNotificationStore(ledger)
-            assert not (await status.project_one(account_id="acct_a")).did_work
+            status_operation_5 = await status.project_one(account_id="acct_a")
+            assert not (status_operation_5).did_work
             events = await status.outbox.list_events(account_id="acct_a")
             assert len(events) == 6 and {e.cause_generation for e in events} == {1, 2, 3}
-            assert (
-                await status.outbox.reemit(
-                    account_id="acct_a",
-                    consumer_namespace="",
-                    notification_id=events[0].notification_id,
-                    now=datetime.now(timezone.utc),
-                )
-                == 2
+            status_operation_6 = await status.outbox.reemit(
+                account_id="acct_a",
+                consumer_namespace="",
+                notification_id=events[0].notification_id,
+                now=datetime.now(timezone.utc),
             )
+            assert status_operation_6 == 2
             async with service_process(pool, "status_http_worker", **network) as child:
-                assert (await child.event("done"))["did_work"]
+                status_operation_13 = await child.event("done")
+                assert (status_operation_13)["did_work"]
                 await child.finish()
             deliveries = await status.outbox.list_deliveries(account_id="acct_a")
             assert len(deliveries) == 7 and {r.state for r in deliveries} == {"complete"}

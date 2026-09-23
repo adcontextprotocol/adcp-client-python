@@ -187,7 +187,8 @@ async def test_every_bound_column_swap_fails_before_any_external_effect(
         )
     changed = replace(original, binding=replace(original.binding, **{column: value}))
     await replace_stored(h, original, changed)
-    assert await h.worker().deliver_one(account_id=changed.binding.account_id)
+    status_operation_1 = await h.worker().deliver_one(account_id=changed.binding.account_id)
+    assert status_operation_1
     (retained,) = await h.outbox.list_deliveries(account_id=changed.binding.account_id)
     assert retained.state == "quarantined" and retained.error_code == "integrity_failure"
     assert not h.subscriptions.gets and not h.signing.calls

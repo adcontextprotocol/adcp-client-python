@@ -129,8 +129,10 @@ async def test_issue_refinement_never_broadens_or_retargets_across_recurrence(st
         issue_key="opaque-condition", account_id="acct_a", consumer_id=BUYER, observed_at=h.clock()
     )
     first = await h.ledger.ensure_issue_opened(**arguments, status_scope=base)
-    assert await h.ledger.ensure_issue_opened(**arguments, status_scope=config) == first
-    assert await h.ledger.ensure_issue_opened(**arguments, status_scope=precise) == first
+    status_operation_1 = await h.ledger.ensure_issue_opened(**arguments, status_scope=config)
+    assert status_operation_1 == first
+    status_operation_2 = await h.ledger.ensure_issue_opened(**arguments, status_scope=precise)
+    assert status_operation_2 == first
     for invalid in (
         base,
         config,
@@ -185,7 +187,8 @@ async def test_url_principals_roundtrip_reconciliation_with_colliding_record_ids
             restarted = PgReportingReconciliationStore(pool=restarted_pool, clock=clock)
             for item, page in zip(scenarios, pages):
                 assert await restarted.get_receipt(item.receipt.key) == item.receipt
-                assert await restarted.record_revision_receipt(item.receipt) == (
+                status_operation_4 = await restarted.record_revision_receipt(item.receipt)
+                assert status_operation_4 == (
                     item.receipt,
                     False,
                 )
@@ -200,4 +203,5 @@ async def test_url_principals_roundtrip_reconciliation_with_colliding_record_ids
     else:
         for item in scenarios:
             assert await store.get_receipt(item.receipt.key) == item.receipt
-            assert await store.record_revision_receipt(item.receipt) == (item.receipt, False)
+            status_operation_3 = await store.record_revision_receipt(item.receipt)
+            assert status_operation_3 == (item.receipt, False)
