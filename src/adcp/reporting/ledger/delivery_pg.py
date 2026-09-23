@@ -150,8 +150,8 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
         await connection.execute(
             "INSERT INTO reporting_reconciliation_changes"
             " (account_id, consumer_id, seq, namespace, record_id, record_kind,"
-            " change_id, content_sha256)"
-            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+            " change_id, content_sha256, committed_at)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, COALESCE(%s, clock_timestamp()))",
             (
                 who.account_id,
                 who.consumer_id,
@@ -160,6 +160,7 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
                 record.kind,
                 change_id(record),
                 fingerprint(record),
+                self._clock() if self._clock is not None else None,
             ),
         )
 

@@ -163,7 +163,7 @@ class PgReportingLedgerStore:
         if not PG_AVAILABLE:
             raise ImportError(_INSTALL_HINT)
         self._pool = pool
-        # The snapshot observation boundary. Defaults to the *database* clock,
+        # Change timestamps and the snapshot boundary default to the *database* clock,
         # which is what makes two readers of one snapshot agree even across
         # application hosts with drifting clocks -- do not override it in
         # production for that reason. Overriding is for replay, backfill, and
@@ -191,10 +191,11 @@ class PgReportingLedgerStore:
         self, connection: Any, account_id: str, kind: LedgerRecordKind, record_id: str
     ) -> None:
         await connection.execute(
-            "INSERT INTO reporting_ledger_changes (account_id, record_kind, record_id)"
-            " VALUES (%s, %s, %s)"
+            "INSERT INTO reporting_ledger_changes"
+            " (account_id, record_kind, record_id, committed_at)"
+            " VALUES (%s, %s, %s, COALESCE(%s, now()))"
             " ON CONFLICT (account_id, record_kind, record_id) DO NOTHING",
-            (account_id, kind, record_id),
+            (account_id, kind, record_id, self._clock() if self._clock is not None else None),
         )
 
     @staticmethod
