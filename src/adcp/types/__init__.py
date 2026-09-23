@@ -593,6 +593,7 @@ __all__ = [
     "SyncReportingStatusResponse",
     "Tags",
     "TargetingOverlay",
+    "TargetingOverlayInput",
     "Transform",
     "VenueBreakdownItem",
     # Pricing types
@@ -1979,6 +1980,7 @@ if TYPE_CHECKING:
         SyncReportingStatusResponse,
         Tags,
         TargetingOverlay,
+        TargetingOverlayInput,
         TaskResult,
         TasksListSort,
         TaskType,

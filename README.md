@@ -478,10 +478,15 @@ if media_buy.status == MediaBuyStatus.active:
 ```
 
 **Exported from main package:**
-- **Core domain types**: `BrandReference`, `Creative`, `CreativeManifest`, `MediaBuy`, `Package`, `PackageRequest`, `TargetingOverlay`
+- **Core domain types**: `BrandReference`, `Creative`, `CreativeManifest`, `MediaBuy`, `Package`, `PackageRequest`, `TargetingOverlayInput`, `TargetingOverlay`
 - **AdCP status enums**: `CreativeStatus`, `DeliveryStatus`, `MediaBuyStatus`, `PricingModel`
 - **All 9 pricing options**: `CpcPricingOption`, `CpmFixedRatePricingOption`, `VcpmAuctionPricingOption`, etc.
 - **Request/Response types**: All 16 operations with full request/response types
+
+Use `TargetingOverlayInput` for create/update/control/direct-buy targeting mutations
+(per dimension: omit to inherit or retain, null to clear, value to replace). Use `TargetingOverlay`
+for resolved targeting in discovery, commercial terms, and readback. Subclass the
+variant for that context; see [Extending types](docs/extending-types.md#targeting-mutation-inputs-and-resolved-state).
 
 For types not on the top-level surface, import from `adcp.types` (e.g., `from adcp.types import AssetStatus`), or from one of the curated partial modules that group the types by domain:
 
