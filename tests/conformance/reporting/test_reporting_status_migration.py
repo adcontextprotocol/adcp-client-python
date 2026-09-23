@@ -29,10 +29,10 @@ from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS, validat
 from . import test_reporting_notification_process_matrix as _process
 from ._generation_support import (
     NOW,
-    assert_c_collated_rolling_database,
     configuration,
     isolated_reporting_pool,
     obligation_for,
+    require_rolling_database,
     revision_for,
 )
 from ._reliable_support import (
@@ -50,8 +50,8 @@ ROOT = Path(__file__).resolve().parents[3]
 case_deadline = _process.case_deadline
 certificate = _process.certificate
 ARTIFACTS = {
-    "a": "21bf443e7d850d1800ec8a6f2e4abec1c8f85541",
-    "b": "198d50e61c74fb82aedbf2c77e06a0e200b91db6",
+    "a": "17ee407ae3978c8a2bb54437287afbf9dafb8130",
+    "b": "0f34c666ac1961e9832fce43ef0ef6937b3c1dde",
 }
 SQL = files("adcp.reporting.ledger").joinpath("reporting_status_notifications.sql").read_text()
 C_QUEUES = (
@@ -65,7 +65,7 @@ C_QUEUES = (
 
 @pytest.fixture(scope="module")
 def actual_sources(tmp_path_factory):
-    assert_c_collated_rolling_database()
+    require_rolling_database()
     targets = {}
     try:
         for release, sha in ARTIFACTS.items():
@@ -528,12 +528,10 @@ async def test_live_reviewed_a_b_workers_never_claim_or_touch_pending_c_queues(
 def test_required_manifests_stay_per_object_so_readiness_ignores_the_locale():
     """No manifest entry may aggregate several catalog rows in sort order.
 
-    The reviewed A artifact hashed each table's constraints as a single
-    aggregate ordered by ``pg_get_constraintdef()`` -- a ``text`` expression
-    sorted under the *database* default collation. That is why actual A's
-    readiness only reproduces on a C-collated database (see
-    ``assert_c_collated_rolling_database``). B and C must stay strictly
-    per-object, so a deployment's locale can never change readiness.
+    Earlier A snapshots sorted aggregate constraint rows under the database
+    locale; the integrated A artifact pins that order to C. B and C instead
+    hash named objects individually, so cross-row order cannot affect a digest.
+    Keep that structure without requiring a particular deployment locale.
     """
     prefixes = ("table:", "column:", "constraint:", "index:", "trigger:", "function:")
     for name, manifest in (

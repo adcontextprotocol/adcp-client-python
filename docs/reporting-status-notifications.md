@@ -255,32 +255,28 @@ A/B work while pending C queue rows remain byte/state-identical. Repeated old
 `create_schema()` leaves C catalog and data intact. Old B writes are captured as
 grouped C source boundaries and C restart converges once.
 
-There is a narrow readiness limit: reviewed A (`21bf443e`) hashes the entire dirty
+The actual-binary controls pin integrated A `17ee407a` and integrated B
+`0f34c666`. A includes the checkpoint-schema inventory and explicit byte ordering
+for aggregate catalog fingerprints; B uses the per-object required manifest.
+No compatibility artifact is patched by the tests. Rolling compatibility with
+pre-`17ee407a` A and pre-`0f34c666` B snapshots is untested and unclaimed here.
+In particular, the earlier `21bf443e` A snapshot has locale-dependent fingerprints;
+these controls do not qualify it by forcing the database locale to C.
+
+There is a separate readiness limit: integrated A hashes the entire dirty
 trigger set, so C's additive boundary trigger makes **A notification startup
 readiness fail closed**. Default-off/core A writes and already-running A workers
-remain compatible with the isolated queues. Reviewed B (`198d50e6`) has subset
-validation and remains notification/activity-ready. This release does not claim
-that an unmodified A worker can restart with notification readiness green on C.
-Deploy B or C for restarts that need that readiness check. No A/B compatibility
-artifact is patched by the tests.
+remain compatible with the isolated queues. Integrated B has subset validation
+and remains notification/activity-ready. This release does not claim that an
+unmodified A worker can restart with notification readiness green on C. Deploy B
+or C for restarts that need that readiness check.
 
-That readiness limit has a second, pre-existing cause worth stating plainly:
-reviewed A digests each table's constraints as one aggregate ordered by
-`pg_get_constraintdef()`, a `text` expression sorted under the **database
-default collation**. On any non-`C`-collated database A's bundled contract does
-not reproduce even against A's own freshly created schema, so A notification
-readiness is already closed there before C migrates anything. That is A's
-behaviour, not a C regression — C cannot patch a frozen artifact — but it means
-"old A stays ready until C" is only true on a `C`-collated database. Every SDK
-identity column is `TEXT COLLATE "C"`, so `C` is the deployment contract; B and
-C readiness is per-object and therefore locale-independent, which a manifest
-shape regression pins. Every CI job that executes a frozen artifact -- both
-the status job and the general PostgreSQL conformance job, which runs the B
-activity rolling tests -- initialises its cluster with
-`--encoding=UTF8 --lc-collate=C --lc-ctype=C`, and every frozen-artifact
-fixture calls one shared `assert_c_collated_rolling_database()` precondition
-that fails with an actionable message rather than silently measuring the locale
-instead of the upgrade.
+The rolling jobs use the database service's ordinary locale. SDK identity columns
+remain `TEXT COLLATE "C"`; that column-level identity rule does not require a
+C-collated database. B and C fingerprints remain per-object, and A's integrated
+inspector pins aggregate ordering explicitly. The optional test precondition
+checks only for a PostgreSQL test environment and drivers, without restricting
+the locale or weakening any readiness comparison.
 
 Every writer in the advertised status account surface must enable the durable
 dirty journal. Compatibility of default-off core writes does not make those

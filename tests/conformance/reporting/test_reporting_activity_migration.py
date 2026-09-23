@@ -25,10 +25,10 @@ from adcp.reporting.outbox._schema import REQUIRED_OBJECTS, schema_objects, vali
 
 from ._generation_support import (
     NOW,
-    assert_c_collated_rolling_database,
     configuration,
     isolated_reporting_pool,
     obligation_for,
+    require_rolling_database,
     revision_for,
 )
 from ._reliable_support import (
@@ -522,7 +522,7 @@ async def test_pending_orphans_are_retained_without_parent_and_db_clock_cannot_b
 
 @pytest.fixture(scope="module")
 def actual_a_source(tmp_path_factory):
-    assert_c_collated_rolling_database()
+    require_rolling_database()
     target = tmp_path_factory.mktemp("reporting-1168a-source") / "worktree"
     checkout = subprocess.run(
         ["git", "worktree", "add", "--detach", str(target), BASE],
