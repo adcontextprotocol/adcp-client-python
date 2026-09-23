@@ -118,9 +118,9 @@ async def test_direct_and_hopwise_historical_schema_chain(source, hopwise):
 
 @pytest.mark.parametrize("autocommit", [False, True])
 async def test_concurrent_repeated_install_from_independent_pools(autocommit):
-    from psycopg_pool import AsyncConnectionPool
-
     async with isolated_reporting_pool(autocommit=autocommit) as pool:
+        from psycopg_pool import AsyncConnectionPool
+
         async with AsyncConnectionPool(
             pool.conninfo, kwargs=pool.kwargs, min_size=2, max_size=6, open=False
         ) as other:
@@ -140,9 +140,9 @@ async def test_concurrent_repeated_install_from_independent_pools(autocommit):
 
 
 async def test_interrupted_autocommit_install_is_invisible_and_restart_converges():
-    from psycopg_pool import AsyncConnectionPool
-
     async with isolated_reporting_pool(autocommit=True) as pool:
+        from psycopg_pool import AsyncConnectionPool
+
         await foundation(pool)
         gate = Barrier()
         async with AsyncConnectionPool(
@@ -194,6 +194,13 @@ async def test_interrupted_autocommit_install_is_invisible_and_restart_converges
         " DROP CONSTRAINT reporting_configurations_pkey CASCADE",
         "CREATE OR REPLACE FUNCTION reporting_notification_immutable() RETURNS TRIGGER"
         " LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$",
+        "DROP TABLE reporting_restatement_checkpoints",
+        "ALTER TABLE reporting_restatement_checkpoints ALTER COLUMN next_observation DROP NOT NULL",
+        "DROP INDEX reporting_restatement_checkpoints_account_idx",
+        (
+            "ALTER TABLE reporting_restatement_checkpoints"
+            " DROP CONSTRAINT reporting_restatement_checkpoints_next_observation_check"
+        ),
     ],
 )
 async def test_readiness_validates_the_installed_chain_not_table_presence(damage):
@@ -227,9 +234,9 @@ async def test_readiness_validates_the_installed_chain_not_table_presence(damage
 
 
 async def test_malformed_outbox_upgrade_rolls_back_entire_chain():
-    import psycopg
-
     async with isolated_reporting_pool(autocommit=True) as pool:
+        import psycopg
+
         async with pool.connection() as conn:
             await conn.execute((FIXTURES / "reporting_ledger_beta15.sql").read_text())
             await conn.execute("CREATE TABLE reporting_notification_events (adopter_marker text)")

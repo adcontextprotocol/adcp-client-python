@@ -341,9 +341,9 @@ async def test_event_enqueue_failure_rolls_back_revision_and_rows(
 
 
 async def test_postgres_precommit_invisibility_from_distinct_autocommit_pool(monkeypatch):
-    from psycopg_pool import AsyncConnectionPool
-
     async with reliable_factory("postgres", notifications=True, autocommit=True) as reliable:
+        from psycopg_pool import AsyncConnectionPool
+
         h = NotificationHarness(reliable)
         mutation = await prepare(h, "revision")
         before = await h.outbox.list_events(account_id="acct_a")

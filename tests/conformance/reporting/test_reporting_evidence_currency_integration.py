@@ -817,9 +817,8 @@ async def test_retry_and_store_restart_preserve_original_currency_and_exact_evid
         )
         == first
     )
-    assert (
-        await h.source(replacement.sync).execute(request, cancel=cancel)
-    ).manifest_bytes == first.manifest_bytes
+    replayed_result = await h.source(replacement.sync).execute(request, cancel=cancel)
+    assert replayed_result.manifest_bytes == first.manifest_bytes
     assert replacement.requests == []
 
 

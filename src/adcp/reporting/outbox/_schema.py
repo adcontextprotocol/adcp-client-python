@@ -14,8 +14,9 @@ from typing import Any
 
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 
-# Generated from the bundled five-step chain. Deliberate schema changes must
-# update this contract and exercise both fresh and populated upgrade paths.
+# Generated from the bundled five-step chain, including restatement checkpoints.
+# Deliberate schema changes must update this contract and exercise both fresh
+# and populated upgrade paths.
 SCHEMA_CONTRACT: dict[str, str] = {
     "function:reporting_adjustment_evidence_immutable()": (
         "6435361e1fcbbf1926ee1e11f13897fb" "9a660ccc5e5f4bbe93114077c1bea636"
@@ -250,6 +251,18 @@ SCHEMA_CONTRACT: dict[str, str] = {
     ),
     "reporting_reconciliation_records:triggers": (
         "7fc917df860adedda86f1cbd68cccbf9" "f51b5d34d0eacb35c8bd645c8e230007"
+    ),
+    "reporting_restatement_checkpoints:columns": (
+        "7b5173aa00d054200f90bcbf11c78433" "62a762501190f0e6e85bc406a8cd448f"
+    ),
+    "reporting_restatement_checkpoints:constraints": (
+        "57182b0f5e1efde00e31cb86dc70752" "213ec9583863e82c015d7355677be4962"
+    ),
+    "reporting_restatement_checkpoints:indexes": (
+        "a068d9f7e766c82e817be79025cac9b7" "657489a4592c82c79a317d6ceac97411"
+    ),
+    "reporting_restatement_checkpoints:triggers": (
+        "4f53cda18c2baa0c0354bb5f9a3ecbe5" "ed12ab4d8e11ba873c2f11161202b945"
     ),
     "reporting_revision_rows:columns": (
         "133e7beac71a52ea7c25a71b4f296297" "ecde85780eb6a28f4ff6d9847785861b"
