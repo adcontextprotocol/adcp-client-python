@@ -42,7 +42,8 @@ from .test_reporting_notification_packaging import run_step
 from .test_reporting_webhook_activity import prepare, reserve, rows
 
 SQL = files("adcp.reporting.ledger").joinpath("reporting_webhook_activity.sql").read_text()
-BASE = "21bf443e7d850d1800ec8a6f2e4abec1c8f85541"
+# The integrated A predecessor includes checkpoint and locale-portable readiness.
+BASE = "17ee407ae3978c8a2bb54437287afbf9dafb8130"
 ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -107,9 +108,9 @@ async def test_populated_a_to_b_migration_is_additive_repeated_and_atomic(autoco
 
 
 async def test_concurrent_and_interrupted_b_migration_visibility():
-    from psycopg_pool import AsyncConnectionPool
-
     async with isolated_reporting_pool(autocommit=True) as pool:
+        from psycopg_pool import AsyncConnectionPool
+
         await install_a(pool)
         gate = Barrier()
         async with AsyncConnectionPool(pool.conninfo, kwargs=pool.kwargs, open=False) as observer:
@@ -240,11 +241,11 @@ async def test_required_named_constraint_must_be_validated():
 
 @pytest.mark.parametrize("flag", ["indisvalid", "indisready"])
 async def test_required_unusable_index_blocks_capability_boot(flag):
-    from psycopg import sql
-
     from adcp.reporting.outbox import ReportingActivitySupport
 
     async with reliable_factory("postgres", notifications=True) as reliable:
+        from psycopg import sql
+
         h = NotificationHarness(reliable)
         outbox, worker = await prepare(h)
         support = ReportingActivitySupport(
@@ -267,10 +268,10 @@ async def test_required_unusable_index_blocks_capability_boot(flag):
 
 
 async def test_independent_pg_workers_reserve_once_and_lock_parent_before_head(monkeypatch):
-    from psycopg import AsyncConnection
-    from psycopg_pool import AsyncConnectionPool
-
     async with reliable_factory("postgres", notifications=True) as reliable:
+        from psycopg import AsyncConnection
+        from psycopg_pool import AsyncConnectionPool
+
         h = NotificationHarness(reliable)
         outbox, _ = await prepare(h)
         lease = await outbox.claim_delivery(
@@ -338,10 +339,10 @@ async def test_independent_pg_workers_reserve_once_and_lock_parent_before_head(m
 async def test_lock_wait_rechecks_expiry_before_reservation_and_rolls_back_counter(
     locked, monkeypatch
 ):
-    from psycopg import AsyncConnection
-    from psycopg_pool import AsyncConnectionPool
-
     async with reliable_factory("postgres", notifications=True) as reliable:
+        from psycopg import AsyncConnection
+        from psycopg_pool import AsyncConnectionPool
+
         h = NotificationHarness(reliable)
         outbox, _ = await prepare(h)
         previous_lease, previous = await reserve(h, outbox)
@@ -418,9 +419,9 @@ async def test_lock_wait_rechecks_expiry_before_reservation_and_rolls_back_count
 
 @pytest.mark.parametrize("mutation", ["DELETE", "RESET", "RETARGET"])
 async def test_retained_head_cannot_be_deleted_reset_or_retargeted_after_purge(mutation):
-    import psycopg
-
     async with reliable_factory("postgres", notifications=True) as reliable:
+        import psycopg
+
         h = NotificationHarness(reliable)
         outbox, _ = await prepare(h)
         _, attempt = await reserve(h, outbox)
@@ -464,10 +465,10 @@ async def test_retained_head_cannot_be_deleted_reset_or_retargeted_after_purge(m
     ],
 )
 async def test_sql_rejects_mutable_identity_request_and_token(field, value):
-    import psycopg
-    from psycopg import sql
-
     async with reliable_factory("postgres", notifications=True) as reliable:
+        import psycopg
+        from psycopg import sql
+
         h = NotificationHarness(reliable)
         outbox, _ = await prepare(h)
         _, attempt = await reserve(h, outbox)

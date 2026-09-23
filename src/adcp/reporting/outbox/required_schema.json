@@ -695,6 +695,26 @@
     "enabled": true,
     "fingerprint": "85b88fb407e112399f25b5dc8830dfdcb2a8271ecf00e70b662f6917b4a002cd"
   },
+  "column:reporting_restatement_checkpoints.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_restatement_checkpoints.checked_at": {
+    "enabled": true,
+    "fingerprint": "1cac4e73af11a8ecafd646ef6a0ff6ecb087d46f150408dcfebc630fe1bf5e1e"
+  },
+  "column:reporting_restatement_checkpoints.next_observation": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_restatement_checkpoints.provisional_until": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
+  "column:reporting_restatement_checkpoints.reporting_obligation_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
   "column:reporting_revision_rows.ordinal": {
     "enabled": true,
     "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
@@ -1203,6 +1223,18 @@
     "enabled": true,
     "fingerprint": "7fb2d5772f19e9e102db16010fd4202fb7407d334a60cfbdf0d7bac4344f9788"
   },
+  "constraint:reporting_restatement_checkpoints.reporting_restatement_checkpoints_next_observation_check": {
+    "enabled": true,
+    "fingerprint": "73653a8ce9b807e164c709b5f435570f33b2c7cb0c572f474fb02e5aa2b244e0"
+  },
+  "constraint:reporting_restatement_checkpoints.reporting_restatement_checkpoints_pkey": {
+    "enabled": true,
+    "fingerprint": "bb4f6ac8f57972cf428329ac480aeceef314f15cb01d4905ba8e330acdb1cb86"
+  },
+  "constraint:reporting_restatement_checkpoints.reporting_restatement_checkpoints_reporting_obligation_id_fkey": {
+    "enabled": true,
+    "fingerprint": "52080b2461e9d04a0fc27011d8aa726299ff01b18975d49f00c9644137b78b06"
+  },
   "constraint:reporting_revision_rows.reporting_revision_rows_pkey": {
     "enabled": true,
     "fingerprint": "692fea7e282c2d0fbebecc2b97751399d8d736412e5cf9e371ebcf31702dd403"
@@ -1587,6 +1619,14 @@
     "enabled": true,
     "fingerprint": "497709a0cc3e043ba4bf3840516a9ba136dba4ef9429c7e7d3c79bfa7f188730"
   },
+  "index:reporting_restatement_checkpoints.reporting_restatement_checkpoints_account_idx": {
+    "enabled": true,
+    "fingerprint": "83598ed430f624be6b8714f2e9835b938d52da0c1a0a45a815038fb3fbdc8150"
+  },
+  "index:reporting_restatement_checkpoints.reporting_restatement_checkpoints_pkey": {
+    "enabled": true,
+    "fingerprint": "92c832de2a092bf62d130b5063fb48cf66df260a6971689439241d86dfb44c97"
+  },
   "index:reporting_revision_rows.reporting_revision_rows_pkey": {
     "enabled": true,
     "fingerprint": "7b76e15e30c1656c95f5253558e1ba2edb375f984c53f25e6f22754d74e8182e"
@@ -1704,6 +1744,10 @@
     "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
   },
   "table:reporting_reconciliation_records": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_restatement_checkpoints": {
     "enabled": true,
     "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
   },

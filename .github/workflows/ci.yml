@@ -132,7 +132,7 @@ jobs:
 
       - name: Fetch reviewed reporting baseline for rolling binary tests
         timeout-minutes: 1
-        run: git fetch --no-tags --depth=1 origin 21bf443e7d850d1800ec8a6f2e4abec1c8f85541
+        run: git fetch --no-tags --depth=1 origin 17ee407ae3978c8a2bb54437287afbf9dafb8130
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6
