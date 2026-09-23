@@ -146,10 +146,39 @@ return InlineFetchResult.all_present(rows, data_through=watermark)
 
 This uses the constituent defaults: constituents with rows are present and
 covered constituents without rows are observed zeros. Bare `[]` still means
-an observed zero; `None` still means not ready. Existing positional
+an observed zero; `None` still means not ready. The first six positional
 `InlineFetchResult` arguments retain their meaning, and so do their control
 totals -- only an explicitly declared cell withdraws one, under the
 [withdrawal invariant](#the-withdrawal-invariant).
+
+### Migrating positional result construction
+
+`InlineFetchResult` accepts these six positional arguments, in order: `rows`,
+`data_through`, `covered_constituent_ids`, `unavailable_constituents`,
+`unavailable_status`, and `warnings`. The remaining fields -- `currency`,
+`provisional_until`, and `cell_availability` -- are keyword-only.
+
+If your adapter previously passed `currency` or `provisional_until` as the
+seventh or eighth positional argument, move them to explicit keywords:
+
+```python
+return InlineFetchResult(
+    rows,
+    data_through,
+    covered_constituent_ids,
+    unavailable_constituents,
+    unavailable_status,
+    warnings,
+    currency="USD",
+    provisional_until=settles_at,
+)
+```
+
+Passing either value positionally now raises `TypeError`. This constructor
+change prevents a currency value from silently binding to settling evidence.
+Existing keyword calls retain their behavior.
+
+### Bulk availability helpers
 
 Bulk helpers return maps to pass to `cell_availability`, leaving the result's
 other options available:
