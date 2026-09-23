@@ -881,7 +881,7 @@ class PgReportingLedgerStore:
     async def get_restatement_checkpoint(
         self, *, account_id: str, reporting_obligation_id: str
     ) -> RestatementCheckpoint | None:
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             row = await (
                 await connection.execute(
                     "SELECT account_id, reporting_obligation_id, checked_at,"
@@ -904,7 +904,7 @@ class PgReportingLedgerStore:
     async def record_restatement_checkpoint(
         self, checkpoint: RestatementCheckpoint
     ) -> RestatementCheckpoint:
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             obligation = await (
                 await connection.execute(
                     "SELECT 1 FROM reporting_obligations"

@@ -1043,7 +1043,7 @@ class InMemoryReportingLedgerStore:
     async def record_restatement_checkpoint(
         self, checkpoint: RestatementCheckpoint
     ) -> RestatementCheckpoint:
-        async with self._lock:
+        async with self._mutation():
             obligation = self._obligations.get(checkpoint.reporting_obligation_id)
             if obligation is None or obligation.account_id != checkpoint.account_id:
                 raise LedgerConflictError(
