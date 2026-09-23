@@ -1,7 +1,7 @@
 -- AdCP Reliable Reporting ledger — durable obligations, revisions, and status.
 --
 -- Run this followed by reporting_ledger_account_generations.sql and
--- reporting_ledger_obligation_currency.sql and reporting_ledger_reconciliation.sql in ONE
+-- reporting_ledger_obligation_currency.sql in ONE
 -- transaction (psql --single-transaction -f ... -f ...), or call
 -- PgReportingLedgerStore.create_schema(). CREATE TABLE IF NOT EXISTS alone
 -- does not upgrade the global configuration primary key from 8.0.0-beta.15.
@@ -139,21 +139,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS reporting_revisions_one_successor
 
 CREATE INDEX IF NOT EXISTS reporting_revisions_obligation_idx
     ON reporting_revisions (account_id, reporting_obligation_id);
-
--- Scheduler metadata for successful source observations. This is deliberately
--- separate from immutable revisions: an unchanged refresh must advance the
--- execution ordinal and cadence clock without publishing duplicate bytes.
-CREATE TABLE IF NOT EXISTS reporting_restatement_checkpoints (
-    reporting_obligation_id TEXT COLLATE "C" NOT NULL PRIMARY KEY
-        REFERENCES reporting_obligations (reporting_obligation_id),
-    account_id              TEXT COLLATE "C" NOT NULL,
-    checked_at              TIMESTAMPTZ      NOT NULL,
-    next_observation        BIGINT           NOT NULL CHECK (next_observation >= 1),
-    provisional_until       TIMESTAMPTZ
-);
-
-CREATE INDEX IF NOT EXISTS reporting_restatement_checkpoints_account_idx
-    ON reporting_restatement_checkpoints (account_id, checked_at);
 
 CREATE TABLE IF NOT EXISTS reporting_revision_rows (
     reporting_revision_id TEXT COLLATE "C" NOT NULL

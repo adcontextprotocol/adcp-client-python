@@ -49,26 +49,33 @@ obligation IDs, the named obligations must exist in the requested account.
    mixing old and new workers is unsafe once accounts reuse a config ID.
 2. With the upgraded SDK, run `await store.create_schema()` before starting
    reporting work. It creates missing tables and applies the bundled
-   `reporting_ledger_account_generations.sql` and
-   `reporting_ledger_obligation_currency.sql` migrations in one transaction.
+   `reporting_ledger_account_generations.sql`,
+   `reporting_ledger_obligation_currency.sql`, and
+   `reporting_ledger_reconciliation.sql` migrations in one transaction.
 3. Restart reporting work with the upgraded SDK on every instance.
 
 For deployments managed by a migration tool, the standalone migration is
 [`reporting_ledger_account_generations.sql`](../src/adcp/reporting/ledger/reporting_ledger_account_generations.sql).
 It upgrades an existing beta.15 ledger by itself, including in autocommit mode.
-For a combined bootstrap and upgrade, run all three bundled files in one transaction:
+For a combined bootstrap and upgrade, run all four bundled files in one transaction:
 
 ```sh
 psql "$REPORTING_DATABASE_URL" --set=ON_ERROR_STOP=1 --single-transaction \
   -f src/adcp/reporting/ledger/reporting_ledger.sql \
   -f src/adcp/reporting/ledger/reporting_ledger_account_generations.sql \
-  -f src/adcp/reporting/ledger/reporting_ledger_obligation_currency.sql
+  -f src/adcp/reporting/ledger/reporting_ledger_obligation_currency.sql \
+  -f src/adcp/reporting/ledger/reporting_ledger_reconciliation.sql
 ```
 
-Use the ledger's existing `search_path` and a role that owns its tables. Both
+Use the ledger's existing `search_path` and a role that owns its tables. All
 SQL migrations are also included as resources in the installed SDK's
 `adcp.reporting.ledger` package. Running only `CREATE TABLE IF NOT EXISTS`
 leaves the old primary key in place and does not perform this upgrade.
+
+The reconciliation migration adds empty optional evidence tables and nullable,
+immutable managed digest/total evidence on revisions and adjustments. It does not infer historical
+evidence or enable a delivery tier. See the [storage contract](reporting-reconciliation-storage.md)
+for the records, migration invariants, and deferred writer/handler work.
 
 The migration inspects the primary-key columns under an exclusive table lock
 and replaces the beta.15 global primary key with the account-qualified key.

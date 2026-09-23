@@ -59,11 +59,14 @@ See that module for what turning it on commits you to.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from adcp.reporting.currency import (
     ReportingCurrencyError,
     require_single_currency,
     validate_currency,
 )
+from adcp.reporting.evidence import ReportingCanonicalDigest
 from adcp.reporting.ledger.consumer_status import (
     ConsumerMismatch,
     ConsumerStatusDisabledError,
@@ -73,6 +76,49 @@ from adcp.reporting.ledger.consumer_status import (
     current_consumer_statement,
     project_consumer_mismatch,
     stale_received_grace_deadline,
+)
+from adcp.reporting.ledger.delivery import (
+    InMemoryReportingReconciliationStore,
+    ReportingDestinationStore,
+    ReportingMaterializationStore,
+    ReportingMaterializationView,
+    ReportingReceiptStore,
+    ReportingReconciliationSnapshot,
+    ReportingReconciliationStore,
+    adjustment_to_wire,
+    materialization_to_wire,
+    receipt_to_wire,
+    revision_to_wire,
+)
+from adcp.reporting.ledger.delivery_changes import (
+    ReportingReconciliationChange,
+    ReportingReconciliationChangeStore,
+    ReportingReconciliationCheckpoint,
+    ReportingReconciliationCursor,
+    ReportingReconciliationFeedStore,
+    ReportingReconciliationFilter,
+    ReportingReconciliationPage,
+    ReportingReconciliationSnapshotToken,
+)
+from adcp.reporting.ledger.delivery_models import (
+    ReportingAdjustmentReceiptRecord,
+    ReportingControlTotalRecord,
+    ReportingDeliveryPrincipal,
+    ReportingDeliveryRecord,
+    ReportingDeliveryScope,
+    ReportingDestinationBinding,
+    ReportingMaterializationAttempt,
+    ReportingMaterializationCheck,
+    ReportingMaterializationKey,
+    ReportingMaterializationRecord,
+    ReportingObligationDeliveryRecord,
+    ReportingPhysicalChecksum,
+    ReportingReceiptKey,
+    ReportingReceiptRecord,
+    ReportingReconciliationRecordKind,
+    ReportingResourceRecord,
+    ReportingRevisionReceiptRecord,
+    ReportingVerificationRecord,
 )
 from adcp.reporting.ledger.health import (
     ObligationProjection,
@@ -133,6 +179,10 @@ from adcp.reporting.ledger.store import (
     reject_reserved_authoritative_party,
 )
 
+if TYPE_CHECKING:
+    from adcp.reporting.ledger.delivery_pg import PgReportingReconciliationStore
+    from adcp.reporting.ledger.pg import PgReportingLedgerStore
+
 __all__ = [
     "ConsumerMismatch",
     "ConsumerStatusDisabledError",
@@ -142,6 +192,7 @@ __all__ = [
     "CurrencyResolver",
     "FixedCurrencyResolver",
     "InMemoryReportingLedgerStore",
+    "InMemoryReportingReconciliationStore",
     "LeasedConfiguration",
     "LedgerChange",
     "LedgerConflictError",
@@ -149,24 +200,57 @@ __all__ = [
     "LedgerSnapshot",
     "ObligationProjection",
     "PgReportingLedgerStore",
+    "PgReportingReconciliationStore",
     "ProducerOfferings",
+    "ReportingAdjustmentReceiptRecord",
     "ReportingAdjustmentRecord",
+    "ReportingCanonicalDigest",
     "ReportingConfiguration",
     "ReportingConfigurationGenerationKey",
+    "ReportingControlTotalRecord",
     "ReportingCurrencyError",
     "ReportingDefinitionBinding",
     "ReportingDeliveryEscalation",
+    "ReportingDeliveryPrincipal",
+    "ReportingDeliveryRecord",
+    "ReportingDeliveryScope",
+    "ReportingDestinationBinding",
+    "ReportingDestinationStore",
     "ReportingFinality",
     "ReportingHealth",
     "ReportingIssue",
     "ReportingIssueLifecycle",
     "ReportingIssueStateValue",
     "ReportingLedgerStore",
+    "ReportingMaterializationAttempt",
+    "ReportingMaterializationCheck",
+    "ReportingMaterializationKey",
+    "ReportingMaterializationRecord",
+    "ReportingMaterializationStore",
+    "ReportingMaterializationView",
     "ReportingMismatchCode",
+    "ReportingObligationDeliveryRecord",
     "ReportingObligationRecord",
     "ReportingPeriodBoundary",
+    "ReportingPhysicalChecksum",
     "ReportingProducer",
     "ReportingProductionStatus",
+    "ReportingReceiptKey",
+    "ReportingReceiptRecord",
+    "ReportingReceiptStore",
+    "ReportingReconciliationSnapshot",
+    "ReportingReconciliationChange",
+    "ReportingReconciliationChangeStore",
+    "ReportingReconciliationCheckpoint",
+    "ReportingReconciliationCursor",
+    "ReportingReconciliationFeedStore",
+    "ReportingReconciliationFilter",
+    "ReportingReconciliationPage",
+    "ReportingReconciliationSnapshotToken",
+    "ReportingReconciliationRecordKind",
+    "ReportingReconciliationStore",
+    "ReportingResourceRecord",
+    "ReportingRevisionReceiptRecord",
     "ReportingRevisionRecord",
     "ReportingRowPage",
     "RestatementCheckpoint",
@@ -175,7 +259,9 @@ __all__ = [
     "ReportingStatusCaller",
     "ReportingStatusHandler",
     "ReportingStatusView",
+    "ReportingVerificationRecord",
     "WorkerTurn",
+    "adjustment_to_wire",
     "aggregate_reporting_health",
     "derive_period",
     "check_issue_state_transition",
@@ -187,11 +273,14 @@ __all__ = [
     "issue_id_for",
     "issue_is_retirable",
     "issue_id_for_occurrence",
+    "materialization_to_wire",
     "project_consumer_mismatch",
     "project_obligation_health",
+    "receipt_to_wire",
     "reject_reserved_authoritative_party",
     "require_single_currency",
     "revision_content_sha256",
+    "revision_to_wire",
     "stale_received_grace_deadline",
     "validate_currency",
 ]
@@ -203,4 +292,8 @@ def __getattr__(name: str) -> object:
         from adcp.reporting.ledger.pg import PgReportingLedgerStore
 
         return PgReportingLedgerStore
+    if name == "PgReportingReconciliationStore":
+        from adcp.reporting.ledger.delivery_pg import PgReportingReconciliationStore
+
+        return PgReportingReconciliationStore
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
