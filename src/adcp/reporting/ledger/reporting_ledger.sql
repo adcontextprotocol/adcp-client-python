@@ -140,6 +140,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS reporting_revisions_one_successor
 CREATE INDEX IF NOT EXISTS reporting_revisions_obligation_idx
     ON reporting_revisions (account_id, reporting_obligation_id);
 
+-- Scheduler metadata for successful source observations. This is deliberately
+-- separate from immutable revisions: an unchanged refresh must advance the
+-- execution ordinal and cadence clock without publishing duplicate bytes.
+CREATE TABLE IF NOT EXISTS reporting_restatement_checkpoints (
+    reporting_obligation_id TEXT COLLATE "C" NOT NULL PRIMARY KEY
+        REFERENCES reporting_obligations (reporting_obligation_id),
+    account_id              TEXT COLLATE "C" NOT NULL,
+    checked_at              TIMESTAMPTZ      NOT NULL,
+    next_observation        BIGINT           NOT NULL CHECK (next_observation >= 1),
+    provisional_until       TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS reporting_restatement_checkpoints_account_idx
+    ON reporting_restatement_checkpoints (account_id, checked_at);
+
 CREATE TABLE IF NOT EXISTS reporting_revision_rows (
     reporting_revision_id TEXT COLLATE "C" NOT NULL
         REFERENCES reporting_revisions (reporting_revision_id),
