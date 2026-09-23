@@ -89,6 +89,7 @@ async def _work(
             try:
                 await asyncio.wait_for(stop.wait(), timeout=1)
             except asyncio.TimeoutError:
+                # The poll interval elapsed; check for work or shutdown on the next turn.
                 pass
 
 
