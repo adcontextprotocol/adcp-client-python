@@ -1145,6 +1145,7 @@ class ServiceProcess:
             try:
                 self.process.kill()
             except ProcessLookupError:
+                # The child exited during the kill race; still close stdin and reap it below.
                 pass
         if self.process.stdin is not None:
             self.process.stdin.close()

@@ -181,19 +181,29 @@ async def test_interrupted_autocommit_install_is_invisible_and_restart_converges
 @pytest.mark.parametrize(
     "damage",
     [
-        "ALTER TABLE reporting_notification_events"
-        " DISABLE TRIGGER reporting_notification_immutable",
+        (
+            "ALTER TABLE reporting_notification_events"
+            " DISABLE TRIGGER reporting_notification_immutable"
+        ),
         "ALTER TABLE reporting_status_dirty ALTER COLUMN cause_generation DROP NOT NULL",
         "DROP INDEX reporting_notification_deliveries_due",
         "ALTER TABLE reporting_notification_deliveries DROP COLUMN body_sha256",
-        "ALTER TABLE reporting_notification_expansions"
-        " DROP CONSTRAINT reporting_notification_expansions_account_id_consumer_namespa_fkey",
-        "ALTER TABLE reporting_reconciliation_records"
-        " DISABLE TRIGGER reporting_reconciliation_guard",
-        "ALTER TABLE reporting_configurations"
-        " DROP CONSTRAINT reporting_configurations_pkey CASCADE",
-        "CREATE OR REPLACE FUNCTION reporting_notification_immutable() RETURNS TRIGGER"
-        " LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$",
+        (
+            "ALTER TABLE reporting_notification_expansions"
+            " DROP CONSTRAINT reporting_notification_expansions_account_id_consumer_namespa_fkey"
+        ),
+        (
+            "ALTER TABLE reporting_reconciliation_records"
+            " DISABLE TRIGGER reporting_reconciliation_guard"
+        ),
+        (
+            "ALTER TABLE reporting_configurations"
+            " DROP CONSTRAINT reporting_configurations_pkey CASCADE"
+        ),
+        (
+            "CREATE OR REPLACE FUNCTION reporting_notification_immutable() RETURNS TRIGGER"
+            " LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$"
+        ),
         "DROP TABLE reporting_restatement_checkpoints",
         "ALTER TABLE reporting_restatement_checkpoints ALTER COLUMN next_observation DROP NOT NULL",
         "DROP INDEX reporting_restatement_checkpoints_account_idx",

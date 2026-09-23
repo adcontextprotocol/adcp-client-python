@@ -256,7 +256,7 @@ SCHEMA_CONTRACT: dict[str, str] = {
         "7b5173aa00d054200f90bcbf11c78433" "62a762501190f0e6e85bc406a8cd448f"
     ),
     "reporting_restatement_checkpoints:constraints": (
-        "57182b0f5e1efde00e31cb86dc70752" "213ec9583863e82c015d7355677be4962"
+        "57182b0f5e1efde00e31cb86dc707522" "13ec9583863e82c015d7355677be4962"
     ),
     "reporting_restatement_checkpoints:indexes": (
         "a068d9f7e766c82e817be79025cac9b7" "657489a4592c82c79a317d6ceac97411"
