@@ -378,6 +378,14 @@ def _validate_manifest_against_request(
                 f"({actual!r} != {expected!r})",
             )
 
+    for total in manifest.control_totals:
+        # Other monetary names need the ledger's trusted definition binding;
+        # a three-letter unit alone does not establish monetary semantics.
+        if total.unit is not None and total.name == "spend" and total.unit != request.currency:
+            raise _fail(
+                "MANIFEST_MISMATCH", "monetary control total unit contradicts frozen currency"
+            )
+
     requested_metrics = set(request.requested_metrics)
     requested_constituents = {item.constituent_id for item in request.coverage.constituents}
     declared = {metric.name: metric for metric in offering.metrics}

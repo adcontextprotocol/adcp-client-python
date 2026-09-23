@@ -27,6 +27,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
+from adcp.reporting.currency import validate_currency, validate_currency_units
+
 __all__ = [
     "ConsumerStatusRecord",
     "ConsumerStatusValue",
@@ -149,6 +151,28 @@ class ReportingDefinitionBinding:
     schema_sha256: str
     schema_dialect: str = "https://json-schema.org/draft/2020-12/schema"
     schema_ref_policy: str = "local_fragment_only"
+    # Trusted projections of the content-addressed definition, not adapter or
+    # buyer context. Tuples keep these declarations immutable after acceptance.
+    monetary_metric_units: tuple[tuple[str, str], ...] = ()
+    monetary_control_total_units: tuple[tuple[str, str], ...] = ()
+
+    def __post_init__(self) -> None:
+        for field_name in ("monetary_metric_units", "monetary_control_total_units"):
+            units = tuple(
+                (name, validate_currency(unit)) for name, unit in getattr(self, field_name)
+            )
+            if len(dict(units)) != len(units):
+                raise ValueError(f"duplicate names in {field_name}")
+            object.__setattr__(self, field_name, units)
+
+    def to_storage(self) -> dict[str, Any]:
+        """Retain monetary semantics without changing AdCP wire records or old hashes."""
+        payload = self.to_wire()
+        if self.monetary_metric_units:
+            payload["monetary_metric_units"] = list(self.monetary_metric_units)
+        if self.monetary_control_total_units:
+            payload["monetary_control_total_units"] = list(self.monetary_control_total_units)
+        return payload
 
     def to_wire(self) -> dict[str, Any]:
         return {
@@ -370,6 +394,9 @@ class ReportingObligationRecord:
     package_ids: tuple[str, ...] = ()
     definition: ReportingDefinitionBinding | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    # None describes legacy evidence only. New writes must freeze a currency;
+    # neither a restart nor a source response may fill an unknown historical one.
+    currency: str | None = None
 
     @property
     def generation_key(self) -> ReportingConfigurationGenerationKey:
@@ -380,6 +407,16 @@ class ReportingObligationRecord:
         )
 
     def __post_init__(self) -> None:
+        if self.currency is not None:
+            validate_currency(self.currency)
+            if self.definition is not None:
+                validate_currency_units(
+                    self.currency,
+                    (
+                        *self.definition.monetary_metric_units,
+                        *self.definition.monetary_control_total_units,
+                    ),
+                )
         if _utc(self.scope_resolved_at) != _utc(self.period.end):
             raise ValueError(
                 "scope_resolved_at must equal the period end; the denominator froze there "

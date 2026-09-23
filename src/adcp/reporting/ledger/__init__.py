@@ -59,6 +59,11 @@ See that module for what turning it on commits you to.
 
 from __future__ import annotations
 
+from adcp.reporting.currency import (
+    ReportingCurrencyError,
+    require_single_currency,
+    validate_currency,
+)
 from adcp.reporting.ledger.consumer_status import (
     ConsumerMismatch,
     ConsumerStatusDisabledError,
@@ -102,6 +107,8 @@ from adcp.reporting.ledger.models import (
     iso_duration_to_timedelta,
 )
 from adcp.reporting.ledger.producer import (
+    CurrencyResolver,
+    FixedCurrencyResolver,
     ProducerOfferings,
     ReportingProducer,
     WorkerTurn,
@@ -130,6 +137,8 @@ __all__ = [
     "ConsumerStatusIngest",
     "ConsumerStatusRecord",
     "ConsumerStatusValue",
+    "CurrencyResolver",
+    "FixedCurrencyResolver",
     "InMemoryReportingLedgerStore",
     "LeasedConfiguration",
     "LedgerChange",
@@ -142,6 +151,7 @@ __all__ = [
     "ReportingAdjustmentRecord",
     "ReportingConfiguration",
     "ReportingConfigurationGenerationKey",
+    "ReportingCurrencyError",
     "ReportingDefinitionBinding",
     "ReportingDeliveryEscalation",
     "ReportingFinality",
@@ -176,8 +186,10 @@ __all__ = [
     "project_consumer_mismatch",
     "project_obligation_health",
     "reject_reserved_authoritative_party",
+    "require_single_currency",
     "revision_content_sha256",
     "stale_received_grace_deadline",
+    "validate_currency",
 ]
 
 

@@ -12,6 +12,7 @@ This README serves both sides of an AdCP integration. Jump to what you're doing:
 
 - **Connect as a buyer** → [Quick Start: Test Helpers](#quick-start-test-helpers) and [Quick Start: Distributed Operations](#quick-start-distributed-operations). Entry point: `from adcp import ADCPClient, AgentConfig`; start with the `client.simple.*` API.
 - **Build a seller / agent** → [Building an AdCP Agent](#building-an-adcp-agent). Entry point: `from adcp.server import ADCPHandler, serve`; use the [production seller path](docs/production-seller.md) when adding tenants, durable tasks, and webhooks.
+- **Run Reliable Reporting** → [Account currencies](docs/reporting-currency.md) and [ledger migrations](docs/reporting-ledger-migration.md).
 - **Understand the type system & imports** → [Type Safety](#type-safety) (import surface, partial modules, cold-start note).
 - **Test against reference agents** → [Quick Start: Test Helpers](#quick-start-test-helpers) and [Test Helpers](#test-helpers). Entry point: `from adcp.testing import test_agent, creative_agent`.
 

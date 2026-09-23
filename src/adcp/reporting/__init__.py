@@ -71,13 +71,14 @@ from adcp.reporting._reconcile import (
 if TYPE_CHECKING:
     from adcp.reporting import canonical_json as canonical_json
     from adcp.reporting import conformance as conformance
+    from adcp.reporting import currency as currency
     from adcp.reporting import fixtures as fixtures
     from adcp.reporting import inline_source as inline_source
     from adcp.reporting import ledger as ledger
     from adcp.reporting import source as source
 
 _LAZY_SUBMODULES = frozenset(
-    {"canonical_json", "conformance", "fixtures", "inline_source", "ledger", "source"}
+    {"canonical_json", "conformance", "currency", "fixtures", "inline_source", "ledger", "source"}
 )
 
 

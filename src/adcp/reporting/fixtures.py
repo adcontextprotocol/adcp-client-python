@@ -68,6 +68,7 @@ __all__ = [
     "redacted_capabilities",
     "redacted_completed_result",
     "redacted_contract_identity",
+    "redacted_multi_currency_requests",
     "redacted_snapshot_request",
 ]
 
@@ -211,17 +212,31 @@ _CONSTITUENT = MediaBuyConstituentV1(
 )
 
 
+def redacted_multi_currency_requests() -> tuple[ReportingSourceSliceRequestV1, ...]:
+    """Two frozen account scopes for adopters testing a shared USD/EUR adapter."""
+    return tuple(
+        redacted_snapshot_request(
+            account_id=f"account-{currency.lower()}",
+            currency=currency,
+            source_execution_key=f"currency-{currency.lower()}-001",
+        )
+        for currency in ("USD", "EUR")
+    )
+
+
 def redacted_snapshot_request(
     *,
     source_execution_key: str = "snapshot-execution-001",
     run_id: str = "run-redacted-1",
     source_read_cutoff_at: datetime | None = None,
     trigger: str = "scheduled_poll",
+    currency: str = "USD",
+    account_id: str = "account-redacted",
 ) -> ReportingSourceSliceRequestV1:
     """A frozen ``PROVISIONAL_SNAPSHOT`` slice over one media-buy constituent."""
     return ReportingSourceSliceRequestV1(
         identity=ReportingSourceIdentityV1(
-            account_id="account-redacted",
+            account_id=account_id,
             delivery_config_id="config-redacted",
             delivery_config_version=1,
             report_definition_id="PAID_MEDIA_DAILY_V1",
@@ -257,7 +272,7 @@ def redacted_snapshot_request(
         ),
         requested_metrics=["impressions", "spend"],
         requested_dimensions=["campaign_id"],
-        currency="USD",
+        currency=currency,
         deadline_at=datetime(2099, 11, 2, 10, 0, tzinfo=timezone.utc),
     )
 
