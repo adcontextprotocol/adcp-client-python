@@ -33,6 +33,7 @@ from adcp.reporting.production import (
 )
 from adcp.reporting.projection import PgReportingStatusProjection
 from adcp.reporting.receipts import ReportingReceiptError
+from adcp.reporting.source import parse_verified_source_batch_manifest_v1
 from adcp.server import serve
 from adcp.server.auth import BearerTokenAuth, Principal, auth_context_factory
 from adcp.types import ReportingDeliveryOffering
@@ -41,6 +42,39 @@ from ._generation_support import END, START
 from ._late_account_support import ACCOUNTS, AccountSource, CurrencyDestination, verifier_for
 
 CONSUMERS = {"usd": "urn:buyer:usd", "eur": "urn:buyer:eur"}
+
+
+class LiveAccountSource(AccountSource):
+    """Record the public source boundary, without changing its returned evidence."""
+
+    async def execute(self, request, *, cancel, heartbeat=None):
+        result = await super().execute(request, cancel=cancel, heartbeat=heartbeat)
+        if result.ok:
+            manifest = parse_verified_source_batch_manifest_v1(
+                result.response.manifest, result.manifest_bytes
+            )
+            with self.observation_log.open("a") as output:
+                output.write(
+                    json.dumps(
+                        {
+                            "account": request.identity.account_id,
+                            "period": {
+                                "start": request.period.start.isoformat(),
+                                "end": request.period.end.isoformat(),
+                            },
+                            "source_read_cutoff_at": (
+                                request.period.source_read_cutoff_at.isoformat()
+                            ),
+                            "observed_at": manifest.observed_at.isoformat(),
+                            "acquired_at": manifest.acquired_at.isoformat(),
+                            "finalized_at": manifest.finality_evidence.observed_at.isoformat(),
+                            "data_through": manifest.data_through.isoformat(),
+                            "publication_id": manifest.publication_id,
+                        }
+                    )
+                    + "\n"
+                )
+        return result
 
 
 class WireCapture:
@@ -91,6 +125,7 @@ def main():
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--schema", required=True)
     parser.add_argument("--notifications", action="store_true")
+    parser.add_argument("--live-source-observation", action="store_true")
     args = parser.parse_args()
     root = args.root
     pool = AsyncConnectionPool(
@@ -121,18 +156,25 @@ def main():
     )
     registry = ReportingRevisionVerifierRegistry(tuple(verifiers.values()))
     sources, producers, offerings = {}, {}, {}
-    # This adopter exposes an immutable historical dataset observed before
-    # startup. Its source observation remains that timestamp on every fetch;
-    # production turns and PostgreSQL lease scheduling use their real clocks.
+    # The runtime fairness test keeps a historical source observation. The
+    # separate publication-time test selects a real UTC sample after fetch.
+    # Production turns and PostgreSQL lease scheduling always use real clocks.
     source_observed_at = datetime.now(timezone.utc)
     for currency, verifier in verifiers.items():
         key = verifier.key
-        source = AccountSource(
+        source_class = LiveAccountSource if args.live_source_observation else AccountSource
+        source = source_class(
             key,
             root / ("source-" + currency),
-            clock=lambda: source_observed_at,
+            clock=(
+                (lambda: datetime.now(timezone.utc))
+                if args.live_source_observation
+                else (lambda: source_observed_at)
+            ),
             official=True,
         )
+        if args.live_source_observation:
+            source.observation_log = root / "source-observations.jsonl"
         producer = ReportingProducer(
             source=source,
             store=store,
@@ -342,7 +384,10 @@ def main():
                     "templates": templates,
                     "initial_configurations": initial[0],
                     "pool_size": 1,
-                    "source_observed_at": source_observed_at.isoformat(),
+                    "source_observed_at": (
+                        None if args.live_source_observation else source_observed_at.isoformat()
+                    ),
+                    "live_source_observation": args.live_source_observation,
                     "python": __import__("sys").version,
                     "adcp_file": adcp.__file__,
                     "pydantic": importlib.metadata.version("pydantic"),
