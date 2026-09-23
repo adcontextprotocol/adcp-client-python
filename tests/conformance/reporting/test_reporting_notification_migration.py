@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from importlib.resources import files
 
 import pytest
@@ -24,6 +26,32 @@ CHAIN = (
     "reporting_ledger_reconciliation.sql",
     "reporting_notification_outbox.sql",
 )
+
+
+async def test_schema_fingerprint_uses_byte_order_for_index_keys_and_predicates():
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        async with pool.connection() as conn:
+            await conn.execute(
+                'CREATE TABLE reporting_catalog_locale_probe ("Z" integer, a integer);'
+                'CREATE INDEX locale_probe_upper ON reporting_catalog_locale_probe ("Z");'
+                "CREATE INDEX locale_probe_lower ON reporting_catalog_locale_probe (a);"
+                "CREATE INDEX locale_probe_upper_predicate ON reporting_catalog_locale_probe (a)"
+                ' WHERE "Z" > 0;'
+                "CREATE INDEX locale_probe_lower_predicate ON reporting_catalog_locale_probe (a)"
+                " WHERE a > 0;"
+            )
+            # ASCII byte order: quoted Z before a, then predicates before NULL.
+            expected = [
+                [False, True, True, ['"Z"'], None],
+                [False, True, True, ["a"], '("Z" > 0)'],
+                [False, True, True, ["a"], "(a > 0)"],
+                [False, True, True, ["a"], None],
+            ]
+            expected_digest = hashlib.sha256(
+                json.dumps(expected, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+            contract = await schema_contract(conn)
+            assert contract["reporting_catalog_locale_probe:indexes"] == expected_digest
 
 
 async def foundation(pool):

@@ -350,7 +350,7 @@ async def schema_contract(connection: Any) -> dict[str, str]:
         constraints = await (
             await connection.execute(
                 "SELECT contype, pg_get_constraintdef(oid), convalidated FROM pg_constraint"
-                " WHERE conrelid = %s ORDER BY contype, pg_get_constraintdef(oid)",
+                ' WHERE conrelid = %s ORDER BY contype, pg_get_constraintdef(oid) COLLATE "C"',
                 (oid,),
             )
         ).fetchall()
@@ -358,7 +358,8 @@ async def schema_contract(connection: Any) -> dict[str, str]:
             await connection.execute(
                 "SELECT i.indisunique, i.indisvalid, i.indisready,"
                 " ARRAY(SELECT pg_get_indexdef(i.indexrelid, k, true)"
-                " FROM generate_series(1, i.indnatts) k), pg_get_expr(i.indpred, i.indrelid)"
+                ' FROM generate_series(1, i.indnatts) k) COLLATE "C",'
+                ' pg_get_expr(i.indpred, i.indrelid) COLLATE "C"'
                 " FROM pg_index i WHERE i.indrelid = %s ORDER BY 1, 4, 5",
                 (oid,),
             )
@@ -371,6 +372,8 @@ async def schema_contract(connection: Any) -> dict[str, str]:
                 (oid,),
             )
         ).fetchall()
+        # Pin text and text-array sort keys to byte order before hashing rows;
+        # an adopter's database collation must not change the frozen contract.
         # Keep a separate hash for each layer so diagnosis is local and static,
         # without exposing DDL, tenant data, or arbitrary database diagnostics.
         for kind, value in (
