@@ -99,6 +99,7 @@ from adcp.reporting.ledger.store import (
     LedgerConflictError,
     LedgerPage,
     ReportingRowPage,
+    RestatementCheckpoint,
     check_issue_state_transition,
     decode_cursor,
     encode_cursor,
@@ -553,6 +554,92 @@ class PgReportingLedgerStore:
                 )
             ).fetchall()
         return tuple(_revision_from_row(row) for row in rows)
+
+    async def get_restatement_checkpoint(
+        self, *, account_id: str, reporting_obligation_id: str
+    ) -> RestatementCheckpoint | None:
+        async with self._pool.connection() as connection:
+            row = await (
+                await connection.execute(
+                    "SELECT account_id, reporting_obligation_id, checked_at,"
+                    " next_observation, provisional_until"
+                    " FROM reporting_restatement_checkpoints"
+                    " WHERE account_id = %s AND reporting_obligation_id = %s",
+                    (account_id, reporting_obligation_id),
+                )
+            ).fetchone()
+        if row is None:
+            return None
+        return RestatementCheckpoint(
+            account_id=row[0],
+            reporting_obligation_id=row[1],
+            checked_at=_utc(row[2]),
+            next_observation=int(row[3]),
+            provisional_until=_utc(row[4]) if row[4] else None,
+        )
+
+    async def record_restatement_checkpoint(
+        self, checkpoint: RestatementCheckpoint
+    ) -> RestatementCheckpoint:
+        async with self._pool.connection() as connection:
+            obligation = await (
+                await connection.execute(
+                    "SELECT 1 FROM reporting_obligations"
+                    " WHERE reporting_obligation_id = %s AND account_id = %s",
+                    (checkpoint.reporting_obligation_id, checkpoint.account_id),
+                )
+            ).fetchone()
+            if obligation is None:
+                raise LedgerConflictError(
+                    "OBLIGATION_NOT_FOUND",
+                    "a restatement checkpoint must attach to an obligation for this account",
+                )
+            row = await (
+                await connection.execute(
+                    "INSERT INTO reporting_restatement_checkpoints"
+                    " (account_id, reporting_obligation_id, checked_at, next_observation,"
+                    "  provisional_until)"
+                    " VALUES (%s, %s, %s, %s, %s)"
+                    " ON CONFLICT (reporting_obligation_id) DO UPDATE SET"
+                    " checked_at = EXCLUDED.checked_at,"
+                    " next_observation = EXCLUDED.next_observation,"
+                    " provisional_until = EXCLUDED.provisional_until"
+                    " WHERE reporting_restatement_checkpoints.account_id = EXCLUDED.account_id"
+                    "   AND (reporting_restatement_checkpoints.next_observation"
+                    "        < EXCLUDED.next_observation"
+                    "     OR (reporting_restatement_checkpoints.next_observation"
+                    "         = EXCLUDED.next_observation"
+                    "         AND reporting_restatement_checkpoints.checked_at"
+                    "             < EXCLUDED.checked_at))"
+                    " RETURNING account_id, reporting_obligation_id, checked_at,"
+                    " next_observation, provisional_until",
+                    (
+                        checkpoint.account_id,
+                        checkpoint.reporting_obligation_id,
+                        checkpoint.checked_at,
+                        checkpoint.next_observation,
+                        checkpoint.provisional_until,
+                    ),
+                )
+            ).fetchone()
+        if row is None:
+            stored = await self.get_restatement_checkpoint(
+                account_id=checkpoint.account_id,
+                reporting_obligation_id=checkpoint.reporting_obligation_id,
+            )
+            if stored is None:
+                raise LedgerConflictError(
+                    "OBLIGATION_NOT_FOUND",
+                    "a restatement checkpoint must attach to an obligation for this account",
+                )
+            return stored
+        return RestatementCheckpoint(
+            account_id=row[0],
+            reporting_obligation_id=row[1],
+            checked_at=_utc(row[2]),
+            next_observation=int(row[3]),
+            provisional_until=_utc(row[4]) if row[4] else None,
+        )
 
     async def get_revision(
         self, *, account_id: str, reporting_revision_id: str

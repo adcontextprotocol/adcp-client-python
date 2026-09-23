@@ -50,14 +50,18 @@ from adcp.reporting.ledger.models import (
     ReportingPeriodBoundary,
     ReportingRevisionRecord,
     derive_period,
+    iso_duration_to_timedelta,
 )
 from adcp.reporting.ledger.store import (
     LeasedConfiguration,
     LedgerConflictError,
     ReportingLedgerStore,
+    RestatementCheckpoint,
+    RestatementCheckpointStore,
 )
 from adcp.reporting.source import (
     MediaBuyConstituentV1,
+    ProvisionalSnapshotOfferingV1,
     ReportingConstituent,
     ReportingContractIdentityV1,
     ReportingPublicationClass,
@@ -70,6 +74,7 @@ from adcp.reporting.source import (
     ReportingSourceStagedObjectReader,
     SourceBatchManifestV1,
     coverage_denominator_fingerprint_v1,
+    iso_duration_milliseconds_v1,
     parse_verified_source_batch_manifest_v1,
 )
 
@@ -151,9 +156,10 @@ def revision_content_sha256(
 class ProducerOfferings:
     """Which source offering serves which finality for one configuration.
 
-    A snapshot offering and an official offering are different obligations even
-    over the same window, so the producer needs both named explicitly rather
-    than inferring one from the other.
+    Snapshot and official source publications use different offerings. A
+    source-declared settling policy may use them sequentially for one ledger
+    obligation, so the producer needs both named explicitly rather than
+    inferring one from the other.
     """
 
     snapshot_offering_id: str | None = None
@@ -192,6 +198,13 @@ class WorkerTurn:
             or self.slices_failed
             or self.escalated
         )
+
+
+@dataclass(frozen=True)
+class _SettlingPolicy:
+    restatement_window: timedelta
+    restatement_cadence: timedelta
+    official_close_lag: timedelta | None
 
 
 class ReportingProducer:
@@ -465,7 +478,17 @@ class ReportingProducer:
             if obligation is None:
                 continue
             try:
-                await self.acquire_obligation(configuration, obligation, turn=turn, now=now)
+                policy = self._settling_policy(configuration, obligation)
+                if policy is None:
+                    await self.acquire_obligation(configuration, obligation, turn=turn, now=now)
+                else:
+                    await self._acquire_with_settling_policy(
+                        configuration,
+                        obligation,
+                        policy=policy,
+                        turn=turn,
+                        now=now,
+                    )
             except ReportingCurrencyError as error:
                 # One obligation whose money cannot be interpreted -- a legacy
                 # period with no retained currency, or a source contradicting
@@ -480,6 +503,115 @@ class ReportingProducer:
                 turn.slices_failed.append(obligation.reporting_obligation_id)
                 self._note_escalation(obligation, turn, now=now)
 
+    def _settling_policy(
+        self,
+        configuration: ReportingConfiguration,
+        obligation: ReportingObligationRecord,
+    ) -> _SettlingPolicy | None:
+        """Resolve the optional source-declared policy for a snapshot obligation."""
+        offering_id = self._offerings.snapshot_offering_id
+        if obligation.required_finality != "snapshot" or offering_id is None:
+            return None
+        offering = self._source.capabilities.offering(offering_id)
+        if not isinstance(offering, ProvisionalSnapshotOfferingV1):
+            return None
+        if offering.restatement_window is None:
+            return None
+
+        if offering.restatement_cadence is not None:
+            cadence = timedelta(
+                milliseconds=iso_duration_milliseconds_v1(offering.restatement_cadence)
+            )
+        else:
+            cadence = max(
+                iso_duration_to_timedelta(configuration.schedule.period_duration),
+                timedelta(milliseconds=iso_duration_milliseconds_v1(offering.fastest_safe_cadence)),
+            )
+        close_lag = (
+            timedelta(milliseconds=iso_duration_milliseconds_v1(offering.official_close_lag))
+            if offering.official_close_lag is not None
+            else None
+        )
+        return _SettlingPolicy(
+            restatement_window=timedelta(
+                milliseconds=iso_duration_milliseconds_v1(offering.restatement_window)
+            ),
+            restatement_cadence=cadence,
+            official_close_lag=close_lag,
+        )
+
+    async def _acquire_with_settling_policy(
+        self,
+        configuration: ReportingConfiguration,
+        obligation: ReportingObligationRecord,
+        *,
+        policy: _SettlingPolicy,
+        turn: WorkerTurn,
+        now: datetime,
+    ) -> None:
+        checkpoint_store = self._restatement_store()
+        revisions = await self._store.list_revisions(
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+        )
+        if any(item.finality == "official" for item in revisions):
+            return
+        if not revisions:
+            await self.acquire_obligation(
+                configuration,
+                obligation,
+                turn=turn,
+                now=now,
+                target_finality="snapshot",
+                track_settling=True,
+            )
+            return
+
+        checkpoint = await checkpoint_store.get_restatement_checkpoint(
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+        )
+        declared_until = _utc(obligation.period.end) + policy.restatement_window
+        settles_at = (
+            _utc(checkpoint.provisional_until)
+            if checkpoint is not None and checkpoint.provisional_until is not None
+            else declared_until
+        )
+        if _utc(now) < settles_at:
+            last_checked = (
+                checkpoint.checked_at
+                if checkpoint is not None
+                else max(revisions, key=lambda item: _utc(item.created_at)).created_at
+            )
+            if _utc(now) >= _utc(last_checked) + policy.restatement_cadence:
+                await self.acquire_obligation(
+                    configuration,
+                    obligation,
+                    restate=True,
+                    turn=turn,
+                    now=now,
+                    target_finality="snapshot",
+                    track_settling=True,
+                )
+            return
+
+        if policy.official_close_lag is None or self._offerings.official_offering_id is None:
+            return
+        closes_at = max(
+            settles_at,
+            _utc(obligation.period.end) + policy.official_close_lag,
+        )
+        if _utc(now) >= closes_at:
+            await self.acquire_obligation(
+                configuration,
+                obligation,
+                restate=True,
+                turn=turn,
+                now=now,
+                target_finality="official",
+                track_settling=True,
+            )
+
     async def acquire_obligation(
         self,
         configuration: ReportingConfiguration,
@@ -488,6 +620,8 @@ class ReportingProducer:
         restate: bool = False,
         turn: WorkerTurn | None = None,
         now: datetime | None = None,
+        target_finality: str | None = None,
+        track_settling: bool = False,
     ) -> ReportingRevisionRecord | None:
         """Drive one obligation from its source and commit what comes back.
 
@@ -524,7 +658,7 @@ class ReportingProducer:
         # the no-op it already was instead of becoming an error on every turn.
         require_frozen_currency(obligation.currency)
 
-        finality = obligation.required_finality
+        finality = target_finality or obligation.required_finality
         offering_id = self._offerings.offering_for(finality)
         if offering_id is None:
             raise LedgerConflictError(
@@ -532,8 +666,23 @@ class ReportingProducer:
                 f"this producer declares no source offering for {finality} reporting",
             )
 
+        checkpoint_store = self._restatement_store() if track_settling else None
+        checkpoint = (
+            await checkpoint_store.get_restatement_checkpoint(
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+            )
+            if checkpoint_store is not None
+            else None
+        )
+        observation = checkpoint.next_observation if checkpoint is not None else len(revisions)
         request = self._build_slice(
-            configuration, obligation, offering_id, now=now, observation=len(revisions)
+            configuration,
+            obligation,
+            offering_id,
+            finality=finality,
+            now=now,
+            observation=observation,
         )
         cancel = asyncio.Event()
         try:
@@ -562,13 +711,69 @@ class ReportingProducer:
 
         manifest = self._verified_manifest(result)
         self._validate_manifest_currency(obligation, manifest)
-        return await self.commit_revision_from_manifest(
+        rows = await self._read_rows(request, manifest)
+        fingerprint = manifest.content_fingerprint.split(":", 1)[-1]
+        current_snapshot = self._current_snapshot(revisions)
+        if (
+            track_settling
+            and finality == "snapshot"
+            and current_snapshot is not None
+            and current_snapshot.source_manifest_sha256 == fingerprint
+        ):
+            assert checkpoint_store is not None
+            await self._record_restatement_checkpoint(
+                checkpoint_store,
+                obligation,
+                manifest,
+                checked_at=now,
+                next_observation=observation + 1,
+            )
+            return None
+
+        committed = await self.commit_revision_from_manifest(
             obligation,
             manifest,
-            rows=await self._read_rows(request, manifest),
+            rows=rows,
             finality=finality,
             now=now,
             turn=turn,
+        )
+        if checkpoint_store is not None:
+            await self._record_restatement_checkpoint(
+                checkpoint_store,
+                obligation,
+                manifest,
+                checked_at=now,
+                next_observation=observation + 1,
+            )
+        return committed
+
+    def _restatement_store(self) -> RestatementCheckpointStore:
+        if not isinstance(self._store, RestatementCheckpointStore):
+            raise LedgerConflictError(
+                "RESTATEMENT_CHECKPOINTS_NOT_SUPPORTED",
+                "a source settling window requires a ledger store with durable restatement "
+                "checkpoints",
+            )
+        return self._store
+
+    async def _record_restatement_checkpoint(
+        self,
+        store: RestatementCheckpointStore,
+        obligation: ReportingObligationRecord,
+        manifest: SourceBatchManifestV1,
+        *,
+        checked_at: datetime,
+        next_observation: int,
+    ) -> None:
+        await store.record_restatement_checkpoint(
+            RestatementCheckpoint(
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+                checked_at=max(_utc(checked_at), _utc(manifest.acquired_at)),
+                next_observation=next_observation,
+                provisional_until=manifest.finality_evidence.provisional_until,
+            )
         )
 
     def _note_escalation(
@@ -665,7 +870,15 @@ class ReportingProducer:
             data_through=manifest.data_through,
             created_at=now,
             supersedes_reporting_revision_id=supersedes,
-            finality_basis="source_final" if finality == "official" else None,
+            finality_basis=(
+                (
+                    "stabilized"
+                    if manifest.finality_evidence.basis == "elapsed_settlement_window"
+                    else "source_final"
+                )
+                if finality == "official"
+                else None
+            ),
             finality_policy_id=(
                 f"{obligation.report_definition_id}:{manifest.offering_id}"
                 if finality == "official"
@@ -746,6 +959,13 @@ class ReportingProducer:
 
     @staticmethod
     def _current_snapshot_leaf(revisions: Sequence[ReportingRevisionRecord]) -> str | None:
+        current = ReportingProducer._current_snapshot(revisions)
+        return current.reporting_revision_id if current is not None else None
+
+    @staticmethod
+    def _current_snapshot(
+        revisions: Sequence[ReportingRevisionRecord],
+    ) -> ReportingRevisionRecord | None:
         snapshots = [item for item in revisions if item.finality == "snapshot"]
         if not snapshots:
             return None
@@ -757,9 +977,7 @@ class ReportingProducer:
         leaves = [item for item in snapshots if item.reporting_revision_id not in superseded]
         if not leaves:
             return None
-        return max(
-            leaves, key=lambda item: (_utc(item.created_at), item.reporting_revision_id)
-        ).reporting_revision_id
+        return max(leaves, key=lambda item: (_utc(item.created_at), item.reporting_revision_id))
 
     # -- slice construction ----------------------------------------------
 
@@ -769,22 +987,25 @@ class ReportingProducer:
         obligation: ReportingObligationRecord,
         offering_id: str,
         *,
+        finality: str | None = None,
         now: datetime,
         observation: int = 0,
     ) -> ReportingSourceSliceRequestV1:
         """Freeze one slice request from the obligation.
 
         ``source_execution_key`` is derived from the obligation, the offering,
-        and the **observation ordinal** -- the number of revisions already
-        committed for this obligation.
+        and the **observation ordinal**. Without a settling policy the ordinal
+        is the number of revisions already committed. With one it comes from a
+        durable checkpoint that also advances after an unchanged source read.
 
         That last term is what makes both behaviors correct at once. A *retry*
         of a failed acquisition commits nothing, so the ordinal is unchanged,
         the key is unchanged, and the source replays its sealed publication
         rather than minting a second one. A *restatement* follows a committed
-        revision, so the ordinal advances and the source is genuinely re-read
-        as a new immutable observation. The ordinal comes from durable state,
-        not from the clock, so neither behavior depends on wall time.
+        revision (or a successful unchanged check), so the ordinal advances
+        and the source is genuinely re-read as a new immutable observation.
+        The ordinal comes from durable state, not from the clock, so neither
+        behavior depends on wall time.
         """
         offering = self._source.capabilities.offering(offering_id)
         constituents: list[ReportingConstituent] = [
@@ -809,10 +1030,9 @@ class ReportingProducer:
                 )
             ).hexdigest()[:40]
         )
+        resolved_finality = finality or obligation.required_finality
         publication_class: ReportingPublicationClass = (
-            "AUTHORITATIVE"
-            if obligation.required_finality == "official"
-            else "PROVISIONAL_SNAPSHOT"
+            "AUTHORITATIVE" if resolved_finality == "official" else "PROVISIONAL_SNAPSHOT"
         )
         return ReportingSourceSliceRequestV1(
             identity=ReportingSourceIdentityV1(

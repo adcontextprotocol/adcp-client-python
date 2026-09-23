@@ -24,12 +24,12 @@ so executably.
 Two publication classes
 -----------------------
 
-``PROVISIONAL_SNAPSHOT`` and ``AUTHORITATIVE`` are *different offerings* and
-*different obligations*, even when they cover the same media buy and window.  A
-snapshot is replaceable current-state evidence; an authoritative publication is
-official-close evidence whose later corrections are explicit, immutable
-adjustments.  Never relabel a later authoritative fetch as a fresh first
-official publication.
+``PROVISIONAL_SNAPSHOT`` and ``AUTHORITATIVE`` are *different offerings*, even
+when they cover the same media buy and window. A declared settling policy may
+use them sequentially for one ledger obligation: a snapshot is replaceable
+current-state evidence; an authoritative publication is official-close
+evidence whose later corrections are explicit, immutable adjustments. Never
+relabel a later authoritative fetch as a fresh first official publication.
 
 Two manifest strictness levels
 ------------------------------
@@ -663,6 +663,13 @@ class ProvisionalSnapshotOfferingV1(_OfferingBase):
     SLA and not an invitation to poll faster.  Declaring a 15-minute cadence
     without upstream evidence that the account tolerates it is how a source
     gets itself rate-limited into ``action_required``.
+
+    ``restatement_window`` opts into automatic re-reads after period close.
+    ``restatement_cadence`` defaults to the configured reporting period (and
+    is never allowed to beat ``fastest_safe_cadence``). ``official_close_lag``
+    asks a producer that also has an authoritative offering to publish a
+    terminal official revision after the source settles. Omitting the window
+    preserves the original one-shot behavior.
     """
 
     publication_class: Literal["PROVISIONAL_SNAPSHOT"] = "PROVISIONAL_SNAPSHOT"
@@ -671,10 +678,29 @@ class ProvisionalSnapshotOfferingV1(_OfferingBase):
     expected_availability_lag: IsoDuration
     worst_case_availability_lag: IsoDuration
     revision_semantics: Literal["provisional_replaceable"] = "provisional_replaceable"
+    restatement_window: IsoDuration | None = None
+    restatement_cadence: IsoDuration | None = None
+    official_close_lag: IsoDuration | None = None
 
     @model_validator(mode="after")
     def _lag_range_is_ordered(self) -> ProvisionalSnapshotOfferingV1:
         _validate_lag_range(self.expected_availability_lag, self.worst_case_availability_lag)
+        if self.restatement_window is None:
+            if self.restatement_cadence is not None or self.official_close_lag is not None:
+                raise ValueError(
+                    "restatement_cadence and official_close_lag require restatement_window"
+                )
+            return self
+
+        iso_duration_milliseconds_v1(self.restatement_window)
+        if self.restatement_cadence is not None:
+            cadence_ms = iso_duration_milliseconds_v1(self.restatement_cadence)
+            if cadence_ms <= 0:
+                raise ValueError("restatement_cadence must be greater than zero")
+            if cadence_ms < iso_duration_milliseconds_v1(self.fastest_safe_cadence):
+                raise ValueError("restatement_cadence must not be faster than fastest_safe_cadence")
+        if self.official_close_lag is not None:
+            iso_duration_milliseconds_v1(self.official_close_lag)
         return self
 
 
@@ -965,6 +991,19 @@ class ReportingFinalityEvidenceV1(_Frozen):
     ]
     observed_at: datetime
     evidence_ref: ExternalId | None = None
+    provisional_until: datetime | None = None
+
+    @model_validator(mode="after")
+    def _provisional_signal_matches_basis(self) -> ReportingFinalityEvidenceV1:
+        if self.provisional_until is None:
+            return self
+        if self.basis != "provisional_observation":
+            raise ValueError("provisional_until belongs only to provisional observations")
+        if _aware(self.provisional_until, "provisional_until") < _aware(
+            self.observed_at, "observed_at"
+        ):
+            raise ValueError("provisional_until must not predate the source observation")
+        return self
 
 
 class ReportingConstituentCoverageV1(_Frozen):
@@ -1633,10 +1672,9 @@ def publication_content_fingerprint_v1(manifest: SourceBatchManifestV1 | Mapping
 
     Deliberately excludes acquisition timing, staged object references, and
     run identity: two fetches of an unchanged quiet campaign produce equal
-    content fingerprints, which lets a producer reuse the immutable payload
-    bytes while still committing a new observation revision carrying advanced
-    freshness evidence.  That is what stops a quiet campaign from looking stale
-    forever without inventing a second copy of identical rows.
+    content fingerprints, which lets a producer record the successful refresh
+    without committing a duplicate revision. A later changed observation still
+    receives its own immutable publication and supersedes the prior snapshot.
     """
     raw = (
         manifest.model_dump(mode="json", exclude_none=True)
