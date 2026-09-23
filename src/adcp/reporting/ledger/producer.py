@@ -355,6 +355,28 @@ class ReportingProducer:
             await self._store.release_period_close(leased, worker_id=self._worker_id)
         return turn
 
+    async def run_configuration(
+        self,
+        configuration: ReportingConfiguration,
+        *,
+        now: datetime | None = None,
+    ) -> WorkerTurn:
+        """Run one turn for an already-routed configuration generation.
+
+        High-level orchestrators use this entry point after freezing adapter,
+        currency, and source scope for a specific generation. The orchestrator
+        owns cross-process scheduling; obligation and revision writes remain
+        convergent and immutable in the ledger store.
+
+        Most adopters should continue using :meth:`run_worker`, whose store
+        lease chooses a configuration automatically.
+        """
+        boundary = now or self._clock()
+        turn = WorkerTurn()
+        await self._close_elapsed_periods(configuration, turn, now=boundary)
+        await self._acquire_pending(configuration, turn, now=boundary)
+        return turn
+
     # -- step 1: obligations before reports ------------------------------
 
     async def close_elapsed_periods(
