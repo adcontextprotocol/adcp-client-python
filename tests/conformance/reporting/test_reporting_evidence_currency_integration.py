@@ -1115,7 +1115,7 @@ asyncio.run(main(json.load(sys.stdin)))
         assert {row["currency"] for row in result["rows"]} == {"EUR"}
 
 
-def test_inline_result_retains_six_positional_arguments_and_both_additions_are_keyword_only() -> (
+def test_inline_result_retains_six_positional_arguments_and_all_additions_are_keyword_only() -> (
     None
 ):
     parameters = inspect.signature(InlineFetchResult).parameters
@@ -1134,6 +1134,7 @@ def test_inline_result_retains_six_positional_arguments_and_both_additions_are_k
     assert (
         parameters["currency"].kind
         == parameters["cell_availability"].kind
+        == parameters["provisional_until"].kind
         == inspect.Parameter.KEYWORD_ONLY
     )
     with pytest.raises(TypeError):

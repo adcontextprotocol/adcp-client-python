@@ -266,7 +266,7 @@ class InlineFetchResult:
     currency: str | None = field(default=None, kw_only=True)
     """Optional source corroboration; must match the already frozen request."""
 
-    provisional_until: datetime | None = None
+    provisional_until: datetime | None = field(default=None, kw_only=True)
     """Source evidence that this snapshot may still change until this instant.
 
     When present it overrides the offering's default restatement window for
