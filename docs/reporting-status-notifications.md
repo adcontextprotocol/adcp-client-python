@@ -218,6 +218,15 @@ All queue, cipher/AAD, re-emission, delivery and attempt identities carry the
 canonical consumer namespace.
 
 Filtered reads bind exact period, feed and media selection into their cursor.
+Incremental continuations also retain their `changes_after` lower bound: callers
+may omit it when following the cursor, but an explicitly different bound is
+rejected. Older cursors without that binding require a fresh walk. As before,
+an intervening account write can invalidate a cursor; the reader rejects mixed
+ledger boundaries rather than promising progress under continuous writes.
+Custom stores without the optional status participant replay retained immutable
+records from their real `open_snapshot`/`read_page` boundary when it advances.
+Consumers deduplicate that permitted replay by record identity; no synthetic
+per-record sequence or durable notification readiness is inferred for the fallback.
 Media-filtered responses include `scope.media_buy_ids`. Absent `next_expected_at`,
 `previous_health` and `issue_ids` are omitted, never JSON null. An empty closed
 selected horizon is complete, with full vacuous coverage, empty sets, no next
