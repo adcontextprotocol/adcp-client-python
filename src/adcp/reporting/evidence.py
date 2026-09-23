@@ -62,6 +62,7 @@ def _encoded_credential(value: str) -> bool:
             if b":" in base64.b64decode(match[1], validate=True):
                 return True
         except (ValueError, binascii.Error):
+            # Invalid base64 is not a decoded Basic credential; inspect other matches.
             pass
     return False
 

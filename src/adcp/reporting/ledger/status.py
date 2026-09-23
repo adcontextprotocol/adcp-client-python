@@ -599,6 +599,7 @@ def _parse(value: Any) -> datetime | None:
         if result.tzinfo is not None and result.utcoffset() is not None:
             return _utc(result)
     except (TypeError, ValueError):
+        # Raise the closed timestamp error below, after parser context has cleared.
         pass
     raise LedgerConflictError("INVALID_PERIOD", "status timestamps must include a timezone")
 

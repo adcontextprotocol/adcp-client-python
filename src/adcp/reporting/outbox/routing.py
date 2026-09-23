@@ -120,6 +120,7 @@ class ReportingNotificationSubscription:
                 raise ValueError
             object.__setattr__(self, "url", canonical)
         except (ValueError, TypeError, httpx.InvalidURL):
+            # Clear parser context before raising the closed configuration error below.
             pass
         else:
             return
