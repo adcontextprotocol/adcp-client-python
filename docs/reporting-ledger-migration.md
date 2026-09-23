@@ -50,21 +50,23 @@ obligation IDs, the named obligations must exist in the requested account.
 2. With the upgraded SDK, run `await store.create_schema()` before starting
    reporting work. It creates missing tables and applies the bundled
    `reporting_ledger_account_generations.sql`,
-   `reporting_ledger_obligation_currency.sql`, and
-   `reporting_ledger_reconciliation.sql` migrations in one transaction.
+   `reporting_ledger_obligation_currency.sql`,
+   `reporting_ledger_reconciliation.sql`, and
+   `reporting_notification_outbox.sql` migrations in one transaction.
 3. Restart reporting work with the upgraded SDK on every instance.
 
 For deployments managed by a migration tool, the standalone migration is
 [`reporting_ledger_account_generations.sql`](../src/adcp/reporting/ledger/reporting_ledger_account_generations.sql).
 It upgrades an existing beta.15 ledger by itself, including in autocommit mode.
-For a combined bootstrap and upgrade, run all four bundled files in one transaction:
+For a combined bootstrap and upgrade, run all five bundled files in one transaction:
 
 ```sh
 psql "$REPORTING_DATABASE_URL" --set=ON_ERROR_STOP=1 --single-transaction \
   -f src/adcp/reporting/ledger/reporting_ledger.sql \
   -f src/adcp/reporting/ledger/reporting_ledger_account_generations.sql \
   -f src/adcp/reporting/ledger/reporting_ledger_obligation_currency.sql \
-  -f src/adcp/reporting/ledger/reporting_ledger_reconciliation.sql
+  -f src/adcp/reporting/ledger/reporting_ledger_reconciliation.sql \
+  -f src/adcp/reporting/ledger/reporting_notification_outbox.sql
 ```
 
 Use the ledger's existing `search_path` and a role that owns its tables. All
@@ -74,8 +76,21 @@ leaves the old primary key in place and does not perform this upgrade.
 
 The reconciliation migration adds empty optional evidence tables and nullable,
 immutable managed digest/total evidence on revisions and adjustments. It does not infer historical
-evidence or enable a delivery tier. See the [storage contract](reporting-reconciliation-storage.md)
+evidence or enable a delivery tier. Re-running it also replaces the
+`reporting_reconciliation_reference_immutable()` guard function in place, so
+that a referenced configuration generation keeps its published content
+immutable while still accepting the rc.3 lifecycle columns (`activated_at`,
+`deactivated_at`, `automated_recovery_seconds`, `status_retention_days`). It
+rewrites no rows. See the [storage contract](reporting-reconciliation-storage.md)
 for the records, migration invariants, and deferred writer/handler work.
+
+The outbox migration adds empty event, delivery, and ordered status-dirty tables.
+It preserves existing ledger rows and does not backfill historical events.
+Notification enqueue remains disabled until the store is constructed with
+`notifications=True`. Opted-in schema readiness checks the complete installed chain,
+including constraints, indexes, and immutable-record guards. See the
+[notification outbox contract](reporting-notification-outbox.md) for trusted
+subscription wiring, retention, and the deferred status projector.
 
 The migration inspects the primary-key columns under an exclusive table lock
 and replaces the beta.15 global primary key with the account-qualified key.
@@ -167,7 +182,7 @@ large tables; production-sized lock time has not been benchmarked. Unexpected
 adopter column types/defaults fail and roll back rather than silently adapting.
 
 Stop and drain **all** beta.15 and #1169-only reporting writers before upgrading;
-they do not supply frozen currency. Run `create_schema()` or the three-file SQL
+they do not supply frozen currency. Run `create_schema()` or the bundled SQL
 command above, then start upgraded writers. If #1169 is already installed, its
 primary-key migration recognizes the account-qualified key without rebuilding
 it. The standalone currency SQL also runs atomically on an installed #1169

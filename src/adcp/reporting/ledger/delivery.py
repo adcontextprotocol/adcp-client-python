@@ -406,7 +406,7 @@ class InMemoryReportingReconciliationStore(InMemoryReportingLedgerStore, _Reconc
     async def _commit(self, record: RecordT) -> tuple[RecordT, bool]:
         candidate = decode_record(payload(record))
         who = principal(candidate)
-        async with self._lock:
+        async with self._mutation():
             records = tuple(item.record for item in self._caller_changes(who))
             existing = replay(candidate, records)
             if existing is not None:
@@ -414,6 +414,24 @@ class InMemoryReportingReconciliationStore(InMemoryReportingLedgerStore, _Reconc
             context = self._delivery_context(candidate)
             stored = validate_transition(candidate, records, context, self._clock())
             self._append_reconciliation_change(stored)
+            if self._notification_state is not None:
+                from adcp.reporting.ledger.notification_events import (
+                    delivery_dirty,
+                    materialization_event,
+                )
+
+                event = materialization_event(
+                    stored,
+                    records,
+                    context.obligation,
+                    context.revision,
+                    context.configuration,
+                    self._clock(),
+                )
+                if event is not None:
+                    self._record_notification(event)
+                scope, reason, evidence = delivery_dirty(stored, context.obligation)
+                self._dirty_status(scope, reason, after=evidence)
             return cast(RecordT, stored), True
 
     def _append_reconciliation_change(self, record: ReportingDeliveryRecord) -> None:
@@ -461,6 +479,7 @@ class InMemoryReportingReconciliationStore(InMemoryReportingLedgerStore, _Reconc
             revision_id = record.adjusts_reporting_revision_id
         revision = self._revisions.get(revision_id) if revision_id is not None else None
         return DeliveryContext(
+            configuration=self._configurations.get(record.scope.generation_key),
             obligation=obligation,
             revision=revision,
             adjustment=(

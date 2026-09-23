@@ -711,17 +711,26 @@ BEGIN
         previous JSONB := to_jsonb(OLD);
         proposed JSONB := to_jsonb(NEW);
         referenced BOOLEAN;
+        -- Period-close leasing plus the rc.3 lifecycle state that evolves over
+        -- one immutable generation: reporting-delivery-config-state.json moves
+        -- the same generation through ready -> inactive, requiring
+        -- deactivated_at, and its operational recovery/retention windows are
+        -- likewise state rather than published content. Reconciliation records
+        -- bind the generation key and its content, none of which these carry.
+        mutable TEXT[] := ARRAY['lease_worker_id', 'lease_expires_at', 'activated_at',
+                                'deactivated_at', 'automated_recovery_seconds',
+                                'status_retention_days'];
     BEGIN
         IF proposed = previous
            OR (TG_TABLE_NAME = 'reporting_configurations' AND
-               proposed - 'lease_worker_id' - 'lease_expires_at' = previous - 'lease_worker_id' - 'lease_expires_at')
+               proposed - mutable = previous - mutable)
            OR (TG_TABLE_NAME = 'reporting_revisions' AND proposed - 'readable' = previous - 'readable') THEN
             RETURN NEW;
         END IF;
         PERFORM pg_advisory_xact_lock(hashtext('adcp.reporting:' || OLD.account_id));
         IF TG_TABLE_NAME = 'reporting_configurations' THEN
-            previous := previous - 'lease_worker_id' - 'lease_expires_at';
-            proposed := proposed - 'lease_worker_id' - 'lease_expires_at';
+            previous := previous - mutable;
+            proposed := proposed - mutable;
             SELECT EXISTS (SELECT 1 FROM reporting_reconciliation_records r
                 WHERE r.account_id = OLD.account_id AND r.delivery_config_id = OLD.delivery_config_id
                     AND r.delivery_config_version = OLD.delivery_config_version) INTO referenced;
