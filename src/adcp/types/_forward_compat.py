@@ -13,6 +13,9 @@ It also replaces identity-distinct bundled clones at public capability
 boundaries with their canonical public model classes. This keeps independently
 generated views of the same wire schema composable as typed Python objects.
 
+The rc.3 targeting mutation fields retain TargetingOverlayInput for raw data
+while accepting beta.14 TargetingOverlay instances as a compatibility bridge.
+
 Import order: comes after _ergonomic in types/__init__.py (alphabetical by
 underscore-preserved sort). Importing this module directly triggers import of
 adcp.types.aliases as a side effect (via ``from adcp.types.aliases import …``)
@@ -26,13 +29,27 @@ in-place. It is therefore listed in ALLOWED_FILES in test_import_layering.py.
 
 from __future__ import annotations
 
+import json
 from copy import copy
+from functools import partial
 from typing import Annotated, Any, cast, get_args
 
-from pydantic import BaseModel, Field
+from pydantic import (
+    BaseModel,
+    Field,
+    GetCoreSchemaHandler,
+    GetPydanticSchema,
+    SerializerFunctionWrapHandler,
+    ValidationError,
+    ValidatorFunctionWrapHandler,
+)
 from pydantic.fields import FieldInfo
+from pydantic.json_schema import SkipJsonSchema
+from pydantic_core import CoreSchema, InitErrorDetails, core_schema
 
 from adcp.types.aliases import FormatAssetUnion, GroupFormatAssetUnion, RepeatableAssetGroup
+from adcp.types.canonical_creative import PackageRequest as PublicPackageRequest
+from adcp.types.canonical_creative import PackageUpdate as PublicPackageUpdate
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     AcceptancePolicyDiscovery as BundledAcceptancePolicyDiscovery,
 )
@@ -53,9 +70,16 @@ from adcp.types.generated_poc.core.canonical_product import PublisherDomain
 from adcp.types.generated_poc.core.creative_manifest import CreativeManifest
 from adcp.types.generated_poc.core.format import Format
 from adcp.types.generated_poc.core.media_buy_features import MediaBuyFeatures
+from adcp.types.generated_poc.core.targeting import TargetingOverlay
+from adcp.types.generated_poc.core.targeting_input import TargetingOverlayInput
 from adcp.types.generated_poc.creative.get_creative_delivery_response import (
     Creative as DeliveryCreative,
 )
+from adcp.types.generated_poc.media_buy.create_media_buy_request import CreateMediaBuyRequest
+from adcp.types.generated_poc.media_buy.package_control import PackageControl
+from adcp.types.generated_poc.media_buy.package_request import PackageRequest
+from adcp.types.generated_poc.media_buy.package_update import PackageUpdate
+from adcp.types.generated_poc.media_buy.product_purchase_input import ProductPurchaseInput
 from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
     AcceptancePolicyDiscovery,
     PrimaryCountry,
@@ -111,8 +135,127 @@ def _patch_equivalent_model_field(
     _patch_model_field(model, field_name, canonical_annotation)
 
 
+def _validate_targeting_overlay(value: Any, handler: ValidatorFunctionWrapHandler) -> Any:
+    """Keep the runtime compatibility union out of request-document error paths."""
+    try:
+        return handler(value)
+    except ValidationError as exc:
+        # Raw request validation belongs to the Input schema. On failure the
+        # legacy arm repeats its errors, with synthetic class-name loc segments.
+        # Normalize at this field boundary so direct Pydantic errors, MCP, A2A,
+        # and CLI all agree, including callers that never run error narrowing.
+        # Only remove the leading Input arm label; nested genuine unions retain
+        # all of their locations and errors. Successful validation is unchanged.
+        input_errors: list[InitErrorDetails] = []
+        for error in exc.errors(include_url=False):
+            if error["loc"][:1] != ("TargetingOverlayInput",):
+                continue
+            detail: InitErrorDetails = {
+                "type": error["type"],
+                "loc": error["loc"][1:],
+                "input": error["input"],
+            }
+            if "ctx" in error:
+                detail["ctx"] = error["ctx"]
+            input_errors.append(detail)
+        if not input_errors:
+            raise
+        raise ValidationError.from_exception_data(exc.title, input_errors) from exc
+
+
+def _serialize_targeting_overlay(value: Any, handler: SerializerFunctionWrapHandler) -> Any:
+    """Use the compatibility union for both Python and JSON serialization."""
+    return handler(value)
+
+
+def _targeting_overlay_schema(
+    source: Any, handler: GetCoreSchemaHandler, *, materialized_json: bool
+) -> CoreSchema:
+    """Keep JSON diagnostics native while bridging legacy Python objects."""
+    input_schema = handler.generate_schema(TargetingOverlayInput | None)
+    compatibility_schema = handler(source)
+    json_schema = input_schema
+    if materialized_json:
+        # Canonical parents already materialize JSON in their before validator.
+        # Re-enter core JSON validation for just this subtree to restore native
+        # error codes and extra/missing error order. A core Json schema preserves
+        # caller strictness/context; a separate TypeAdapter call would not.
+        json_schema = core_schema.no_info_before_validator_function(
+            json.dumps,
+            core_schema.json_schema(input_schema),
+            json_schema_input_schema=input_schema,
+        )
+    return core_schema.json_or_python_schema(
+        # Native JSON parents need no Python callback or round trip. In
+        # particular, retain diagnostics for repeated keys in the raw JSON.
+        json_schema=json_schema,
+        python_schema=core_schema.no_info_wrap_validator_function(
+            _validate_targeting_overlay,
+            compatibility_schema,
+        ),
+        # json-or-python otherwise selects the Input-only JSON serializer for
+        # to_json(), which cannot serialize legacy collection representations.
+        # Keep the original union serializer and advertise only mutation input.
+        serialization=core_schema.wrap_serializer_function_ser_schema(
+            _serialize_targeting_overlay,
+            schema=compatibility_schema,
+        ),
+    )
+
+
+def _patch_targeting_overlay(model: type[BaseModel]) -> None:
+    """Bridge beta.14 objects only while the generated mutation shape is unchanged."""
+    field = model.model_fields.get("targeting_overlay")
+    if field is None or field.annotation != TargetingOverlayInput | None:
+        actual = None if field is None else field.annotation
+        raise RuntimeError(
+            f"forward compatibility: {model.__name__}.targeting_overlay lost its "
+            f"TargetingOverlayInput | None annotation (got {actual!r})"
+        )
+    # The implementation classes above are the exact public overlay types.
+    # Importing them through the lazy facade here would re-enter _eager.
+    # Input first is essential: raw dicts keep their rc.3 mutation wrappers,
+    # while existing resolved-state instances (including subclasses) retain
+    # identity and internal fields without a lossy model_dump() conversion.
+    # The legacy arm is runtime-only: advertising it would widen and duplicate
+    # the mutation schema in model_json_schema() and MCP tools/list.
+    _patch_model_field(
+        model,
+        "targeting_overlay",
+        Annotated[
+            TargetingOverlayInput | SkipJsonSchema[TargetingOverlay] | None,
+            Field(union_mode="left_to_right"),
+            GetPydanticSchema(
+                partial(
+                    _targeting_overlay_schema,
+                    materialized_json=bool(
+                        getattr(model, "__adcp_canonical_creative_model__", False)
+                    ),
+                )
+            ),
+        ],
+    )
+    model.model_rebuild(force=True)
+
+
 def _apply_forward_compat() -> None:
     """Apply open-union, capability, and public-model compatibility patches."""
+    for model in (
+        PackageRequest,
+        PackageUpdate,
+        PackageControl,
+        ProductPurchaseInput,
+        # aliases has already imported canonical_creative, whose public
+        # package facades copy FieldInfo rather than sharing generated fields.
+        PublicPackageRequest,
+        PublicPackageUpdate,
+    ):
+        _patch_targeting_overlay(model)
+
+    # _ergonomic eagerly builds this legacy parent before the targeting patch.
+    # Refresh its cached nested validator as well as the package model itself.
+    CreateMediaBuyRequest.model_rebuild(force=True)
+
     # Canonical format kinds are an open enum on consumer boundaries. Preserve
     # values introduced by a newer protocol revision instead of rejecting the
     # entire creative manifest. Known values still coerce to the StrEnum arm.

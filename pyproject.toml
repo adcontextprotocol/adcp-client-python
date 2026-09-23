@@ -42,7 +42,11 @@ dependencies = [
     # ``\"union_tag_not_found\"`` and CamelCase variant names interleaved
     # in ``err[\"loc\"]``). Pydantic 3 has no API guarantee on these
     # internals; bump only after porting the narrowing heuristics.
-    "pydantic>=2.0.0,<3",
+    # SkipJsonSchema is unavailable in 2.0, and MCP 2 already requires 2.12.
+    # All installable 2.12 releases fail public type imports while resolving
+    # generated __pydantic_extra__ annotations (NameError: Dict). 2.13.0 is the first
+    # supported release; the targeting import/runtime regressions cover it.
+    "pydantic>=2.13.0,<3",
     "typing-extensions>=4.5.0",
     # A2A protocol v1.0 (protobuf types, ProtoJSON on the wire). We run
     # on the v1.0 Python SDK with ``enable_v0_3_compat=True`` on the
