@@ -12,6 +12,7 @@ from adcp.reporting.outbox.memory import InMemoryReportingOutbox
 from adcp.reporting.outbox.routing import ReportingEnvelopeCipher, ReportingNotificationSubscription
 
 if TYPE_CHECKING:
+    from adcp.reporting.outbox.activity import ReportingActivityProjector
     from adcp.reporting.outbox.worker import ReportingNotificationWorker
 
 
@@ -21,6 +22,7 @@ async def advertised_notifications(
     *,
     account_id: str,
     ready_scope: ReportingDeliveryScope | None,
+    activity_projector: ReportingActivityProjector | None = None,
 ) -> dict[str, str | bool]:
     from adcp.reporting.outbox.worker import ReportingNotificationWorker
 
@@ -83,6 +85,12 @@ async def advertised_notifications(
         "ledger_notification": "reporting.ledger_changed",
         "supports_webhook_activity": False,
     }
+    if activity_projector is not None:
+        from adcp.reporting.outbox.support import ReportingActivitySupport
+
+        result["supports_webhook_activity"] = await ReportingActivitySupport(
+            worker, ledger, activity_projector
+        ).durable()
     if ready_scope is not None:
         if ready_scope.principal.account_id != account_id:
             raise ReportingNotificationError("notification_chain_unready")

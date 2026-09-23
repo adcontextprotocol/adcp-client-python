@@ -25,6 +25,7 @@ from adcp.reporting.ledger.notification_models import (
     event_storage,
     validate_notification_payload,
 )
+from adcp.reporting.outbox.identity import canonical_consumer
 from adcp.reporting.outbox.models import DeliveryBinding, StoredDelivery
 from adcp.signing.crypto import ALG_ED25519, ALG_ES256, ALLOWED_ALGS, PrivateKey
 from adcp.webhook_sender import PreparedWebhook
@@ -73,7 +74,7 @@ class ReportingNotificationSubscription:
     def __post_init__(self) -> None:
         try:
             principal_reference(self.account_id)
-            principal_reference(self.principal_id)
+            canonical_consumer(self.principal_id)
             reporting_identifier(self.subscriber_id, maximum=64)
             for value in (
                 self.configuration_revision,
@@ -101,20 +102,29 @@ class ReportingNotificationSubscription:
                 and type(self.authentication) is not ReportingLegacyAuthentication
             ):
                 raise ValueError
-            if type(self.url) is not str or not self.url.isprintable():
+            if type(self.url) is not str or not self.url.isprintable() or len(self.url) > 8192:
                 raise ValueError
             parsed = httpx.URL(self.url)
+            # Percent-encoding expands the canonical form, so the bound has to
+            # hold on the value that is actually stored, sanitized for activity
+            # and length-checked in SQL. Rejecting it here keeps a deterministic
+            # failure at registration instead of quarantining every expansion.
+            canonical = str(parsed)
             if (
                 parsed.scheme != "https"
                 or not parsed.host
                 or parsed.userinfo
                 or parsed.fragment
                 or parsed.port not in (None, 443)
+                or len(canonical) > 8192
             ):
                 raise ValueError
-            object.__setattr__(self, "url", str(parsed))
+            object.__setattr__(self, "url", canonical)
         except (ValueError, TypeError, httpx.InvalidURL):
-            raise ReportingNotificationError("invalid_configuration") from None
+            pass
+        else:
+            return
+        raise ReportingNotificationError("invalid_configuration")
 
     @property
     def auth_mode(self) -> str:

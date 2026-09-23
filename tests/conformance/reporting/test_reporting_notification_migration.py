@@ -28,7 +28,7 @@ CHAIN = (
 )
 
 
-async def test_schema_fingerprint_uses_byte_order_for_index_keys_and_predicates():
+async def test_schema_fingerprints_preserve_index_keys_and_predicates_individually():
     async with isolated_reporting_pool(autocommit=True) as pool:
         async with pool.connection() as conn:
             await conn.execute(
@@ -40,18 +40,31 @@ async def test_schema_fingerprint_uses_byte_order_for_index_keys_and_predicates(
                 "CREATE INDEX locale_probe_lower_predicate ON reporting_catalog_locale_probe (a)"
                 " WHERE a > 0;"
             )
-            # ASCII byte order: quoted Z before a, then predicates before NULL.
-            expected = [
-                [False, True, True, ['"Z"'], None],
-                [False, True, True, ["a"], '("Z" > 0)'],
-                [False, True, True, ["a"], "(a > 0)"],
-                [False, True, True, ["a"], None],
-            ]
-            expected_digest = hashlib.sha256(
-                json.dumps(expected, sort_keys=True, separators=(",", ":")).encode()
-            ).hexdigest()
+            # Each named index has its own digest; cross-row collation cannot
+            # alter it. Keep the independent oracle for quoted keys, predicates,
+            # and validity/readiness/liveness flags across database locales.
+            definitions = {
+                "locale_probe_upper": '("Z")',
+                "locale_probe_lower": "(a)",
+                "locale_probe_upper_predicate": '(a) WHERE ("Z" > 0)',
+                "locale_probe_lower_predicate": "(a) WHERE (a > 0)",
+            }
+            expected = {}
+            for name, definition in definitions.items():
+                value = [
+                    False,
+                    True,
+                    True,
+                    True,
+                    f"CREATE INDEX {name} ON reporting_catalog_locale_probe"
+                    f" USING btree {definition}",
+                ]
+                expected[f"index:reporting_catalog_locale_probe.{name}"] = hashlib.sha256(
+                    json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+                ).hexdigest()
             contract = await schema_contract(conn)
-            assert contract["reporting_catalog_locale_probe:indexes"] == expected_digest
+            actual = {key: value for key, value in contract.items() if key.startswith("index:")}
+            assert actual == expected
 
 
 async def foundation(pool):
@@ -315,8 +328,9 @@ async def test_default_off_upgrade_preserves_adopter_index_and_opt_in_checks_rea
                 ).fetchone()
             )[0]
             assert retained == original
-        # Enabling the outbox invokes the full conservative SDK chain check.
+        # B validates the required subset: an unrelated index remains compatible.
         from adcp.reporting.outbox import PgReportingOutbox
 
-        with pytest.raises(ReportingNotificationError, match="notification_schema_unready"):
-            await PgReportingOutbox(pool=pool).create_schema()
+        await PgReportingOutbox(pool=pool).create_schema()
+        async with pool.connection() as conn:
+            await validate_schema(conn, activity=True)

@@ -147,6 +147,7 @@ _ACCOUNT_GENERATIONS_DDL_PATH = Path(__file__).parent / "reporting_ledger_accoun
 _CURRENCY_DDL_PATH = Path(__file__).parent / "reporting_ledger_obligation_currency.sql"
 _RECONCILIATION_DDL_PATH = Path(__file__).parent / "reporting_ledger_reconciliation.sql"
 _NOTIFICATIONS_DDL_PATH = Path(__file__).parent / "reporting_notification_outbox.sql"
+_ACTIVITY_DDL_PATH = Path(__file__).parent / "reporting_webhook_activity.sql"
 
 __all__ = ["PG_AVAILABLE", "PgReportingLedgerStore"]
 
@@ -201,6 +202,7 @@ class PgReportingLedgerStore:
                 await connection.execute(_CURRENCY_DDL_PATH.read_text())
                 await connection.execute(_RECONCILIATION_DDL_PATH.read_text())
                 await connection.execute(_NOTIFICATIONS_DDL_PATH.read_text())
+                await connection.execute(_ACTIVITY_DDL_PATH.read_text())
                 if self._notifications_enabled:
                     from adcp.reporting.outbox._schema import validate_schema
 
