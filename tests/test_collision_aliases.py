@@ -142,8 +142,8 @@ COLLISION_ALIASES: list[tuple[str, str, str]] = [
     # TmpxMacro — 2 variants
     ("IdentityMatchTmpxMacro", "trusted_match.identity_match_response", "TmpxMacro"),
     ("ProviderRegistrationTmpxMacro", "trusted_match.provider_registration", "TmpxMacro"),
-    # Unit — 4 variants
-    ("DurationUnit", "core.duration", "Unit"),
+    # Unit — 3 remaining inline variants. DurationUnit has a dedicated
+    # compatibility test because its schema source can be inline or shared.
     ("OverlayUnit", "core.overlay", "Unit"),
     ("RealEstateUnit", "core.real_estate_item", "Unit"),
     ("VehicleUnit", "core.vehicle_item", "Unit"),
@@ -153,6 +153,16 @@ COLLISION_ALIASES: list[tuple[str, str, str]] = [
 def _source_class(module_suffix: str, base_name: str) -> type:
     module = importlib.import_module(f"adcp.types.generated_poc.{module_suffix}")
     return getattr(module, base_name)
+
+
+def _duration_unit_source_class() -> type:
+    try:
+        module = importlib.import_module("adcp.types.generated_poc.enums.duration_unit")
+        return module.DurationUnit
+    except ModuleNotFoundError as exc:
+        if exc.name != "adcp.types.generated_poc.enums.duration_unit":
+            raise
+        return _source_class("core.duration", "Unit")
 
 
 @pytest.mark.parametrize(("alias_name", "module_suffix", "base_name"), COLLISION_ALIASES)
@@ -191,6 +201,18 @@ def test_alias_in_aliases_all(alias_name: str, module_suffix: str, base_name: st
     from adcp.types import aliases
 
     assert alias_name in aliases.__all__, f"{alias_name} missing from aliases.__all__"
+
+
+def test_duration_unit_alias_survives_shared_enum_extraction() -> None:
+    """The public alias follows either supported generated schema layout."""
+    import adcp.types as types_module
+    from adcp.types import aliases
+
+    expected = _duration_unit_source_class()
+    assert aliases.DurationUnit is expected
+    assert types_module.DurationUnit is expected
+    assert "DurationUnit" in aliases.__all__
+    assert "DurationUnit" in types_module.__all__
 
 
 def test_alias_set_is_internally_consistent() -> None:
