@@ -284,7 +284,7 @@ def _ensure_state(version: str | None = None) -> _LoaderState | None:
 
 
 def _load_schema_registry(state: _LoaderState) -> None:
-    """Register every modular schema by canonical ``$id``.
+    """Register every modular schema by canonical path and optional ``$id``.
 
     Older bundles mostly referenced files under ``core/``, so loading only
     that directory was sufficient. AdCP 3.2.0-beta.4 introduced canonical
@@ -305,6 +305,14 @@ def _load_schema_registry(state: _LoaderState) -> None:
         except (OSError, json.JSONDecodeError) as exc:
             logger.warning("Failed to load core schema %s: %s", file, exc)
             continue
+        # A modular schema need not declare an $id. Canonical references to
+        # its bundle path must still resolve locally (for example rc.6's
+        # core/version-envelope.json), without relying on CDN availability.
+        canonical_path = f"/schemas/{state.bundle_key}/{relative.as_posix()}"
+        state.registry[f"https://adcontextprotocol.org{canonical_path}"] = schema
+        state.registry[canonical_path] = schema
+        state.registry[f"file://{canonical_path}"] = schema
+        state.registry[file.resolve().as_uri()] = schema
         schema_id = schema.get("$id")
         if isinstance(schema_id, str):
             state.registry[schema_id] = schema
@@ -351,7 +359,16 @@ def _make_ref_resolver(state: _LoaderState, base_file: Path, schema: dict[str, A
 
         _load_schema_registry(state)
         base_uri = base_file.resolve().parent.as_uri() + "/"
-        return RefResolver(base_uri=base_uri, referrer=schema, store=dict(state.registry))
+
+        def missing_local_reference(uri: str) -> Any:
+            raise ValueError(f"schema reference is not in bundle {state.bundle_key}: {uri}")
+
+        return RefResolver(
+            base_uri=base_uri,
+            referrer=schema,
+            store=dict(state.registry),
+            handlers={"http": missing_local_reference, "https": missing_local_reference},
+        )
 
 
 def _reachable_schema_store(
@@ -782,6 +799,11 @@ def _self_contained_schema(
                 rewritten["$ref"] = f"#/$defs/{pointer_segment(current_key)}{parsed.fragment}"
             return rewritten
         target_file = _reference_file(state, current_file, reference).resolve()
+        if target_file == file.resolve():
+            # An absolute self-reference still points into the root document.
+            # Re-importing that document duplicates its entire definition graph.
+            rewritten["$ref"] = f"#{parsed.fragment}"
+            return rewritten
         key = definition_key(target_file)
         ensure_definition(target_file, key)
         rewritten["$ref"] = f"#/$defs/{pointer_segment(key)}{parsed.fragment}"

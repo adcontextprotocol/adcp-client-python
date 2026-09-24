@@ -36,6 +36,7 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
+from adcp.reporting.ledger.consumer_status import condition_after_waiver
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ReportingAdjustmentRecord,
@@ -129,7 +130,9 @@ class ReportingStatusHandler:
         )
         configurations = await self._store.list_configurations(account_id=caller.account_id)
         obligations: list[ReportingObligationRecord] = []
+        revisions: list[ReportingRevisionRecord] = []
         adjustments: list[ReportingAdjustmentRecord] = []
+        statuses: list[ConsumerStatusRecord] = []
         offset = 0
         changes: list[tuple[int, str, str, str]] = []
         while True:
@@ -143,46 +146,46 @@ class ReportingStatusHandler:
                 changes_after_sequence=None,
             )
             obligations.extend(page.obligations)
+            revisions.extend(page.revisions)
             adjustments.extend(page.adjustments)
+            statuses.extend(page.consumer_statuses)
             if not page.has_more:
                 break
             offset += self._page_size
-        revisions_list: list[ReportingRevisionRecord] = []
-        for o in obligations:
-            revisions_list.extend(
-                await self._store.list_revisions(
-                    account_id=caller.account_id, reporting_obligation_id=o.reporting_obligation_id
-                )
-            )
-        revisions = tuple(revisions_list)
-        statuses = (
-            await self._store.list_consumer_statuses(
-                account_id=caller.account_id, consumer_id=caller.consumer_id
-            )
-            if self._consumer_status_enabled
-            else ()
-        )
         lifecycles = []
         for key in sorted({mismatch_key(s) for s in statuses}):
-            issue = await self._store.get_issue(account_id=caller.account_id, issue_key=key)
-            if issue is not None:
+            seen: set[str] = set()
+            while (
+                issue := await self._store.get_issue(account_id=caller.account_id, issue_key=key)
+            ) is not None:
+                if issue.issue_id in seen or issue.issue_key != key:
+                    raise LedgerConflictError(
+                        "STATUS_PROJECTION_UNAVAILABLE", "invalid waiver chain"
+                    )
+                seen.add(issue.issue_id)
                 lifecycles.append(issue)
+                if issue.issue_state != "waived":
+                    break
+                key = condition_after_waiver(issue)
         for kind, records, attribute in (
             ("obligation", obligations, "reporting_obligation_id"),
             ("revision", revisions, "reporting_revision_id"),
             ("adjustment", adjustments, "reporting_adjustment_id"),
             ("consumer_status", statuses, "reporting_status_id"),
         ):
+            # The legacy page API has a durable boundary but no per-record
+            # ordinals. Replay its retained records when that boundary advances;
+            # incremental_repair permits identity-deduplicated over-inclusion.
+            # Positional ordinals would instead omit later records after rebuilds.
             changes.extend(
-                (len(changes) + i + 1, kind, getattr(record, attribute), "")
-                for i, record in enumerate(records)
+                (boundary.max_sequence, kind, getattr(record, attribute), "") for record in records
             )
         snapshot = ReportingStatusSnapshot(
             caller.account_id,
             boundary.ledger_as_of,
             tuple(configurations),
             tuple(obligations),
-            revisions,
+            tuple(revisions),
             tuple(statuses),
             tuple(lifecycles),
             adjustments=tuple(adjustments),
@@ -240,6 +243,7 @@ class ReportingStatusHandler:
             )[:32]
         )
         offset = 0
+        lower = _checkpoint_sequence(request.get("changes_after")) or 0
         cursor = (request.get("pagination") or {}).get("cursor")
         if cursor:
             decoded = decode_cursor(cursor)
@@ -249,6 +253,18 @@ class ReportingStatusHandler:
                     "this cursor belongs to a different snapshot, caller or filter set;"
                     " restart the walk",
                 )
+            cursor_lower = decoded.get("lower")
+            if not isinstance(cursor_lower, int):
+                raise LedgerConflictError(
+                    "CURSOR_SNAPSHOT_MISMATCH",
+                    "this cursor does not retain its incremental lower bound; restart the walk",
+                )
+            if "changes_after" in request and lower != cursor_lower:
+                raise LedgerConflictError(
+                    "CURSOR_SNAPSHOT_MISMATCH",
+                    "this cursor belongs to a different incremental lower bound; restart the walk",
+                )
+            lower = cursor_lower
             offset = int(decoded.get("offset", 0))
             if "as_of" in decoded:
                 snapshot = replace(snapshot, as_of=datetime.fromisoformat(decoded["as_of"]))
@@ -359,7 +375,6 @@ class ReportingStatusHandler:
                     ):
                         continue
                     records[("consumer_status", s.reporting_status_id)] = s
-        lower = _checkpoint_sequence(request.get("changes_after")) or 0
         selected = [
             (kind, records[(kind, record_id)])
             for seq, kind, record_id, _ in sorted(snapshot.changes)
@@ -408,6 +423,7 @@ class ReportingStatusHandler:
                             {
                                 "snapshot": snapshot_id,
                                 "offset": offset + self._page_size,
+                                "lower": lower,
                                 "as_of": snapshot.as_of.isoformat(),
                             }
                         )
@@ -599,6 +615,7 @@ def _parse(value: Any) -> datetime | None:
         if result.tzinfo is not None and result.utcoffset() is not None:
             return _utc(result)
     except (TypeError, ValueError):
+        # Raise the closed timestamp error below, after parser context has cleared.
         pass
     raise LedgerConflictError("INVALID_PERIOD", "status timestamps must include a timezone")
 

@@ -134,7 +134,7 @@ class TestUpdateRightsA2A:
         # idempotency_key survives round-trip
         assert params["idempotency_key"] == req.idempotency_key
 
-        assert result.success is True
+        assert result.success is True, result.error
         assert result.idempotency_key == req.idempotency_key
 
     @pytest.mark.asyncio
@@ -159,7 +159,7 @@ class TestUpdateRightsA2A:
         with patch.object(client.adapter, "_get_a2a_client", return_value=mock_client):
             result = await client.update_rights(req)
 
-        assert result.success is True
+        assert result.success is True, result.error
         assert result.data is not None
         # Data is a concrete variant of the Union (UpdateRightsResponse1 or 2).
         import typing as _t

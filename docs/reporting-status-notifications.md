@@ -242,12 +242,26 @@ Scope refinement only fills missing generation, obligation and feed coordinates
 after checking ownership. It never changes a known coordinate or consumer.
 `obligation_missing` starts as a private configuration issue using ingest
 `opened_at`, and attaches when the seller obligation appears. An agreeing status
-retires the mismatch. A waiver removes that occurrence from health and public
-issues, while continuing to suppress the same unresolved occurrence. Agreement
-then rearms the chain so recurrence has a fresh issue ID and logical notification.
-This is the explicit waiver interpretation of this release: the old rc.3 prose
-about a hidden waived mismatch continuing to degrade would contradict the public
-issue invariant. The handler and webhook both use the same schema-valid recovery.
+retires an open mismatch. AdCP 3.2.0-rc.6 permits a waiver only after explicit
+bilateral agreement for the exact caller/account issue, causing statement and
+diagnosed conflict. The adopter must obtain that agreement and retain its private
+consent audit before calling `set_issue_state(state="waived")`; `external_ref`
+remains inert correlation text and is never accepted as proof of consent.
+
+The store captures the immutable statement ID and a private conflict fingerprint
+under the same transaction as the waiver. PostgreSQL retains this binding in a
+separate additive table, preserving older workers' lifecycle-column fingerprints.
+That exact waiver removes the public
+issue and restores underlying seller health while retaining the consumer
+statement. Advertised recovery notifications follow the readable projection and
+carry no issue IDs when the last impairment clears. Other impairments remain.
+A later statement or different diagnosed conflict gets a new issue, even if the
+clock has not advanced. The terminal waiver is never overwritten as `resolved`.
+Its successor has a separate private condition key so existing uniqueness guards
+and the original audit row remain intact. Operators use the selected occurrence's
+private key; they must not reconstruct it from a period or reuse an old waiver key.
+Historical waivers without an exact binding are retained but cannot silently
+suppress a newly projected disagreement. No consumer evidence is rewritten.
 
 Every delayed/action-required projection includes an authoritative published
 issue of matching severity. `REPORTING_COVERAGE_INCOMPLETE` represents partial,
@@ -269,6 +283,15 @@ All queue, cipher/AAD, re-emission, delivery and attempt identities carry the
 canonical consumer namespace.
 
 Filtered reads bind exact period, feed and media selection into their cursor.
+Incremental continuations also retain their `changes_after` lower bound: callers
+may omit it when following the cursor, but an explicitly different bound is
+rejected. Older cursors without that binding require a fresh walk. As before,
+an intervening account write can invalidate a cursor; the reader rejects mixed
+ledger boundaries rather than promising progress under continuous writes.
+Custom stores without the optional status participant replay retained immutable
+records from their real `open_snapshot`/`read_page` boundary when it advances.
+Consumers deduplicate that permitted replay by record identity; no synthetic
+per-record sequence or durable notification readiness is inferred for the fallback.
 Media-filtered responses include `scope.media_buy_ids`. Absent `next_expected_at`,
 `previous_health` and `issue_ids` are omitted, never JSON null. An empty closed
 selected horizon is complete, with full vacuous coverage, empty sets, no next
@@ -306,32 +329,28 @@ A/B work while pending C queue rows remain byte/state-identical. Repeated old
 `create_schema()` leaves C catalog and data intact. Old B writes are captured as
 grouped C source boundaries and C restart converges once.
 
-There is a narrow readiness limit: reviewed A (`21bf443e`) hashes the entire dirty
+The actual-binary controls pin integrated A `17ee407a` and integrated B
+`0f34c666`. A includes the checkpoint-schema inventory and explicit byte ordering
+for aggregate catalog fingerprints; B uses the per-object required manifest.
+No compatibility artifact is patched by the tests. Rolling compatibility with
+pre-`17ee407a` A and pre-`0f34c666` B snapshots is untested and unclaimed here.
+In particular, the earlier `21bf443e` A snapshot has locale-dependent fingerprints;
+these controls do not qualify it by forcing the database locale to C.
+
+There is a separate readiness limit: integrated A hashes the entire dirty
 trigger set, so C's additive boundary trigger makes **A notification startup
 readiness fail closed**. Default-off/core A writes and already-running A workers
-remain compatible with the isolated queues. Reviewed B (`198d50e6`) has subset
-validation and remains notification/activity-ready. This release does not claim
-that an unmodified A worker can restart with notification readiness green on C.
-Deploy B or C for restarts that need that readiness check. No A/B compatibility
-artifact is patched by the tests.
+remain compatible with the isolated queues. Integrated B has subset validation
+and remains notification/activity-ready. This release does not claim that an
+unmodified A worker can restart with notification readiness green on C. Deploy B
+or C for restarts that need that readiness check.
 
-That readiness limit has a second, pre-existing cause worth stating plainly:
-reviewed A digests each table's constraints as one aggregate ordered by
-`pg_get_constraintdef()`, a `text` expression sorted under the **database
-default collation**. On any non-`C`-collated database A's bundled contract does
-not reproduce even against A's own freshly created schema, so A notification
-readiness is already closed there before C migrates anything. That is A's
-behaviour, not a C regression — C cannot patch a frozen artifact — but it means
-"old A stays ready until C" is only true on a `C`-collated database. Every SDK
-identity column is `TEXT COLLATE "C"`, so `C` is the deployment contract; B and
-C readiness is per-object and therefore locale-independent, which a manifest
-shape regression pins. Every CI job that executes a frozen artifact -- both
-the status job and the general PostgreSQL conformance job, which runs the B
-activity rolling tests -- initialises its cluster with
-`--encoding=UTF8 --lc-collate=C --lc-ctype=C`, and every frozen-artifact
-fixture calls one shared `assert_c_collated_rolling_database()` precondition
-that fails with an actionable message rather than silently measuring the locale
-instead of the upgrade.
+The rolling jobs use the database service's ordinary locale. SDK identity columns
+remain `TEXT COLLATE "C"`; that column-level identity rule does not require a
+C-collated database. B and C fingerprints remain per-object, and A's integrated
+inspector pins aggregate ordering explicitly. The optional test precondition
+checks only for a PostgreSQL test environment and drivers, without restricting
+the locale or weakening any readiness comparison.
 
 Every writer in the advertised status account surface must enable the durable
 dirty journal. Compatibility of default-off core writes does not make those
