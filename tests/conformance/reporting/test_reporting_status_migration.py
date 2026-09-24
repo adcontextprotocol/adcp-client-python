@@ -152,7 +152,7 @@ async def test_default_off_pre_outbox_lifecycle_remains_usable_until_scope_migra
             observed_at=NOW,
         )
         assert status_operation_1 == opened
-        await ledger.set_issue_state(
+        waived = await ledger.set_issue_state(
             account_id="acct_a", issue_key=opened.issue_key, state="waived", at=NOW
         )
         agreeing = replace(
@@ -163,7 +163,7 @@ async def test_default_off_pre_outbox_lifecycle_remains_usable_until_scope_migra
             reporting_revision_id=revision.reporting_revision_id,
         )
         await ledger.record_consumer_status(agreeing)
-        assert await ledger.get_issue(account_id="acct_a", issue_key=opened.issue_key) is None
+        assert await ledger.get_issue(account_id="acct_a", issue_key=opened.issue_key) == waived
         recurring = replace(
             first,
             reporting_status_id="recurring",
@@ -172,9 +172,10 @@ async def test_default_off_pre_outbox_lifecycle_remains_usable_until_scope_migra
         await ledger.record_consumer_status(recurring)
         snapshot = await ledger.read_status_snapshot(account_id="acct_a")
         assert not lifecycle_intents(snapshot)
-        current = await ledger.get_issue(account_id="acct_a", issue_key=opened.issue_key)
-        assert current is not None and current.generation == opened.generation + 1
+        current = next(i for i in snapshot.lifecycles if i.issue_state == "open")
+        assert (current.issue_key, current.generation) != (opened.issue_key, opened.generation)
         assert current.issue_id != opened.issue_id
+        assert waived in snapshot.lifecycles
         assert dict(snapshot.issue_scopes)[current.issue_id].generation_key == config.generation_key
         enabled = PgReportingReconciliationStore(pool=pool, clock=lambda: NOW, notifications=True)
         with pytest.raises(ReportingNotificationError, match="notification_schema_unready"):

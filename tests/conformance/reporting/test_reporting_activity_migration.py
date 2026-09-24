@@ -37,7 +37,7 @@ from ._reliable_support import (
     notification_subscription,
     reliable_factory,
 )
-from .test_reporting_notification_migration import CHAIN, retained_physical_rows
+from .test_reporting_notification_migration import CHAIN, WAIVER_OBJECTS, retained_physical_rows
 from .test_reporting_notification_packaging import run_step
 from .test_reporting_webhook_activity import prepare, reserve, rows
 
@@ -67,10 +67,12 @@ async def test_required_manifest_is_identical_across_random_schemas_and_repeated
                 await store.create_schema()
                 async with pool.connection() as conn:
                     objects = await schema_objects(conn)
-                    assert objects == REQUIRED_OBJECTS
+                    assert len(WAIVER_OBJECTS) == 10
+                    assert objects == {**REQUIRED_OBJECTS, **WAIVER_OBJECTS}
                     # Regenerating unchanged SQL must have byte-for-byte zero
                     # diff, including all function security/search_path flags.
-                    assert json.dumps(objects, indent=2, sort_keys=True) + "\n" == manifest
+                    required = {key: objects[key] for key in REQUIRED_OBJECTS}
+                    assert json.dumps(required, indent=2, sort_keys=True) + "\n" == manifest
                     snapshots.append(objects)
             async with pool.connection() as conn:
                 identities.append(
@@ -596,7 +598,9 @@ async def main():
         assert expanded_1
         lease = await outbox.claim_delivery(account_id='acct_a', now=clock(), lease_seconds=60)
         opened = cipher.open(lease.delivery)
-        finished_delivery_1 = await outbox.finish_delivery(lease, now=clock(), state='pending', retry_at=clock())
+        finished_delivery_1 = await outbox.finish_delivery(
+            lease, now=clock(), state='pending', retry_at=clock()
+        )
         assert finished_delivery_1
         print(json.dumps({'body_sha256': hashlib.sha256(opened.prepared.body).hexdigest(),
                           'idempotency_key': opened.prepared.idempotency_key}))

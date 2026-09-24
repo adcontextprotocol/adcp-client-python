@@ -191,12 +191,26 @@ Scope refinement only fills missing generation, obligation and feed coordinates
 after checking ownership. It never changes a known coordinate or consumer.
 `obligation_missing` starts as a private configuration issue using ingest
 `opened_at`, and attaches when the seller obligation appears. An agreeing status
-retires the mismatch. A waiver removes that occurrence from health and public
-issues, while continuing to suppress the same unresolved occurrence. Agreement
-then rearms the chain so recurrence has a fresh issue ID and logical notification.
-This is the explicit waiver interpretation of this release: the old rc.3 prose
-about a hidden waived mismatch continuing to degrade would contradict the public
-issue invariant. The handler and webhook both use the same schema-valid recovery.
+retires an open mismatch. AdCP 3.2.0-rc.6 permits a waiver only after explicit
+bilateral agreement for the exact caller/account issue, causing statement and
+diagnosed conflict. The adopter must obtain that agreement and retain its private
+consent audit before calling `set_issue_state(state="waived")`; `external_ref`
+remains inert correlation text and is never accepted as proof of consent.
+
+The store captures the immutable statement ID and a private conflict fingerprint
+under the same transaction as the waiver. PostgreSQL retains this binding in a
+separate additive table, preserving older workers' lifecycle-column fingerprints.
+That exact waiver removes the public
+issue and restores underlying seller health while retaining the consumer
+statement. Advertised recovery notifications follow the readable projection and
+carry no issue IDs when the last impairment clears. Other impairments remain.
+A later statement or different diagnosed conflict gets a new issue, even if the
+clock has not advanced. The terminal waiver is never overwritten as `resolved`.
+Its successor has a separate private condition key so existing uniqueness guards
+and the original audit row remain intact. Operators use the selected occurrence's
+private key; they must not reconstruct it from a period or reuse an old waiver key.
+Historical waivers without an exact binding are retained but cannot silently
+suppress a newly projected disagreement. No consumer evidence is rewritten.
 
 Every delayed/action-required projection includes an authoritative published
 issue of matching severity. `REPORTING_COVERAGE_INCOMPLETE` represents partial,

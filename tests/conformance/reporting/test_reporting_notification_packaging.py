@@ -25,7 +25,7 @@ from ._generation_support import (
     obligation_for,
     revision_for,
 )
-from .test_reporting_notification_migration import CHAIN
+from .test_reporting_notification_migration import CHAIN, WAIVER_OBJECTS
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -140,7 +140,8 @@ def built_distribution(tmp_path_factory):
         project / "src",
         ignore=shutil.ignore_patterns("__pycache__", "*.egg-info", "_schemas"),
     )
-    for version in ("2.5", "3.0", "3.1", "3.2.0-rc.3"):
+    pinned = (ROOT / "src" / "adcp" / "ADCP_VERSION").read_text().strip()
+    for version in ("2.5", "3.0", "3.1", pinned):
         shutil.copytree(
             ROOT / "schemas" / "cache" / version, project / "schemas" / "cache" / version
         )
@@ -230,10 +231,11 @@ assert files("adcp.reporting.ledger").joinpath("reporting_webhook_activity.sql")
 assert files("adcp.reporting.outbox").joinpath("required_schema.json").is_file()
 assert files("adcp.reporting.outbox").joinpath("required_status_schema.json").is_file()
 assert files("adcp.reporting.ledger").joinpath("reporting_status_notifications.sql").is_file()
-assert get_named_validator("core/reporting-status-changed-webhook.json", version="3.2.0-rc.3") is not None
-assert get_named_validator("core/webhook-activity-record.json", version="3.2.0-rc.3") is not None
+version = files("adcp").joinpath("ADCP_VERSION").read_text().strip()
+assert get_named_validator("core/reporting-status-changed-webhook.json", version=version) is not None
+assert get_named_validator("core/webhook-activity-record.json", version=version) is not None
 assert (
-    get_named_validator("core/reporting-ledger-changed-webhook.json", version="3.2.0-rc.3")
+    get_named_validator("core/reporting-ledger-changed-webhook.json", version=version)
     is not None
 )
 print("base-import-without-pg-ok")
@@ -296,6 +298,7 @@ async def test_installed_pg_extra_migrates_commits_and_restarts(installed_distri
             "required_objects": json.loads(
                 (ROOT / "src/adcp/reporting/outbox/required_schema.json").read_text()
             ),
+            "waiver_objects": WAIVER_OBJECTS,
         }
         for name, record in (
             ("config", config),
@@ -325,6 +328,8 @@ from adcp.reporting.outbox import (
 from adcp.reporting.outbox._schema import schema_objects
 
 values = json.load(sys.stdin)
+assert len(values["waiver_objects"]) == 10
+expected_objects = {**values["required_objects"], **values["waiver_objects"]}
 
 
 async def main():
@@ -354,8 +359,9 @@ async def main():
         await store.create_schema()
         async with pool.connection() as connection:
             objects = await schema_objects(connection)
-            assert objects == values["required_objects"]
-            assert json.dumps(objects, indent=2, sort_keys=True) + "\n" == files(
+            assert objects == expected_objects
+            required = {key: objects[key] for key in values["required_objects"]}
+            assert json.dumps(required, indent=2, sort_keys=True) + "\n" == files(
                 "adcp.reporting.outbox"
             ).joinpath("required_schema.json").read_text()
         await store.put_configuration(
@@ -396,7 +402,7 @@ async def main():
         await fresh.wait(timeout=10)
         await PgReportingReconciliationStore(pool=fresh).create_schema()
         async with fresh.connection() as connection:
-            assert await schema_objects(connection) == values["required_objects"]
+            assert await schema_objects(connection) == expected_objects
         outbox = PgReportingOutbox(pool=fresh, clock=clock)
         assert len(events) == 1 and await outbox.list_events(account_id="acct_a") == events
         claimed_expansion_1 = await outbox.claim_expansion(

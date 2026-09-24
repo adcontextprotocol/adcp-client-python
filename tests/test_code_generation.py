@@ -1524,13 +1524,14 @@ def test_targeting_public_surface_guard_accepts_a_compatible_new_clone(monkeypat
     test_targeting_overlay_input_is_generated_and_public()
 
 
-def test_rc3_targeting_input_has_exactly_four_generated_request_sites():
+def test_current_targeting_input_has_exactly_four_generated_request_sites():
     """Pin schema sites and pre-patch annotations, independent of runtime widening."""
     import ast
     import json
 
     root = Path(__file__).parent.parent
-    schema_root = root / "schemas/cache/3.2.0-rc.3"
+    pinned = (root / "src/adcp/ADCP_VERSION").read_text().strip()
+    schema_root = root / "schemas/cache" / pinned
     expected = {
         "package-request": "PackageRequest",
         "package-update": "PackageUpdate",

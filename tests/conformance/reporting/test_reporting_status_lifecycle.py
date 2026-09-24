@@ -377,7 +377,7 @@ async def test_waiver_recovers_and_agreement_rearms_a_new_occurrence(status_harn
         status_as_of=h.clock(),
     )
     await h.ledger.record_consumer_status(agreeing)
-    assert await h.ledger.get_issue(account_id="acct_a", issue_key=mismatch_key(status)) is None
+    assert await h.ledger.get_issue(account_id="acct_a", issue_key=mismatch_key(status)) == old
     h.clock.advance()
     recur = replace(
         status,
@@ -388,8 +388,13 @@ async def test_waiver_recovers_and_agreement_rearms_a_new_occurrence(status_harn
     )
     await h.ledger.record_consumer_status(recur)
     await h.drain()
-    new = await h.ledger.get_issue(account_id="acct_a", issue_key=mismatch_key(status))
-    assert new.issue_id != old.issue_id and new.generation == old.generation + 1
+    snapshot = await h.ledger.read_status_snapshot(account_id="acct_a")
+    new_id = (await h.events(consumer="buyer"))[-1].cause.issue_ids[0]
+    new = next(i for i in snapshot.lifecycles if i.issue_id == new_id)
+    assert new.issue_id != old.issue_id
+    assert (new.issue_key, new.generation) != (old.issue_key, old.generation)
+    assert new.opened_at == h.clock() and new.issue_state == "open"
+    assert next(i for i in snapshot.lifecycles if i.issue_id == old.issue_id) == old
     assert (await h.events(consumer="buyer"))[-1].cause.issue_ids == (new.issue_id,)
     assert await h.status.baseline_ready(account_id="acct_a")
 

@@ -36,6 +36,7 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
+from adcp.reporting.ledger.consumer_status import condition_after_waiver
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ReportingAdjustmentRecord,
@@ -153,9 +154,19 @@ class ReportingStatusHandler:
             offset += self._page_size
         lifecycles = []
         for key in sorted({mismatch_key(s) for s in statuses}):
-            issue = await self._store.get_issue(account_id=caller.account_id, issue_key=key)
-            if issue is not None:
+            seen: set[str] = set()
+            while (
+                issue := await self._store.get_issue(account_id=caller.account_id, issue_key=key)
+            ) is not None:
+                if issue.issue_id in seen or issue.issue_key != key:
+                    raise LedgerConflictError(
+                        "STATUS_PROJECTION_UNAVAILABLE", "invalid waiver chain"
+                    )
+                seen.add(issue.issue_id)
                 lifecycles.append(issue)
+                if issue.issue_state != "waived":
+                    break
+                key = condition_after_waiver(issue)
         for kind, records, attribute in (
             ("obligation", obligations, "reporting_obligation_id"),
             ("revision", revisions, "reporting_revision_id"),

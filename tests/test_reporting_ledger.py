@@ -1612,7 +1612,7 @@ async def test_an_unrelated_seller_problem_does_not_reset_the_escalation_clock()
     assert again["opened_at"] == opened["opened_at"]
 
 
-async def test_agreement_retires_a_waiver_and_rearms_the_condition() -> None:
+async def test_agreement_preserves_the_terminal_waiver_record() -> None:
     store, obligation, issue_key = await _open_mismatch_issue()
     handler = ReportingStatusHandler(store, consumer_status_enabled=True)
     await handler.handle({"view": "summary"}, caller=CALLER)
@@ -1643,11 +1643,11 @@ async def test_agreement_retires_a_waiver_and_rearms_the_condition() -> None:
         consumer_id="buyer_1",
     )
     await handler.handle({"view": "summary"}, caller=CALLER)
-    # Only an agreeing observation rearms a waived condition; repeated reads
-    # of the same disagreement remain waived and do not create occurrences.
+    # Agreement must not rewrite the terminal bilateral waiver as resolved.
+    # A later disagreement receives a separate occurrence (conformance cases).
     async with store._lock:
         stored = store._issues[(ACCOUNT, issue_key)]
-    assert stored.issue_state == "resolved"
+    assert stored.issue_state == "waived"
 
 
 # -- ingest identity resolution ---------------------------------------------

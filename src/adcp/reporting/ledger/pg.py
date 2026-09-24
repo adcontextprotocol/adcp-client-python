@@ -1514,13 +1514,38 @@ class PgReportingLedgerStore:
                     "reopened, and a recurrence gets a new occurrence",
                 )
             check_issue_state_transition(live.issue_state, state)
+            if state == "waived" and live.issue_state != "waived":
+                from adcp.reporting.ledger.status_projection import bind_mismatch_waiver
+                from adcp.reporting.ledger.status_snapshot import read_snapshot_on
+
+                snapshot = await read_snapshot_on(
+                    connection,
+                    account_id=account_id,
+                    as_of=_utc(at),
+                    include_issue_scopes=await self._issue_scope_storage_on(connection),
+                )
+                live = bind_mismatch_waiver(snapshot, live)
+                await _save_waiver_binding(connection, live)
+            waived_at = (
+                live.retired_at
+                if live.waived_reporting_status_id is not None and live.retired_at is not None
+                else _utc(at)
+            )
             await connection.execute(
                 "UPDATE reporting_issue_lifecycle"
                 " SET issue_state = %s,"
                 "     external_ref = COALESCE(%s, external_ref),"
                 "     retired_at = CASE WHEN %s = 'waived' THEN %s ELSE retired_at END"
                 " WHERE account_id = %s AND issue_key = %s AND generation = %s",
-                (state, external_ref, state, _utc(at), account_id, issue_key, live.generation),
+                (
+                    state,
+                    external_ref,
+                    state,
+                    waived_at,
+                    account_id,
+                    issue_key,
+                    live.generation,
+                ),
             )
             refreshed = await self._issue_row(connection, issue_key, account_id, live.generation)
             assert refreshed is not None
@@ -1558,10 +1583,9 @@ class PgReportingLedgerStore:
         at: datetime,
         status_scope: ReportingStatusScope | None = None,
         enqueue: bool = True,
-        agreeing: bool = False,
     ) -> ReportingIssueLifecycle | None:
         live = await self._live_issue(connection, issue_key, account_id)
-        if live is None or (not issue_is_retirable(live.issue_state) and not agreeing):
+        if live is None or not issue_is_retirable(live.issue_state):
             return None
         if live.issue_state != "waived":
             check_issue_state_transition(live.issue_state, "resolved")
@@ -1591,7 +1615,7 @@ class PgReportingLedgerStore:
                 (account_id, issue_key),
             )
         ).fetchone()
-        return _issue_from_row(row) if row else None
+        return await _with_waiver_binding(connection, _issue_from_row(row)) if row else None
 
     @staticmethod
     async def _issue_row(
@@ -1604,7 +1628,7 @@ class PgReportingLedgerStore:
                 (account_id, issue_key, generation),
             )
         ).fetchone()
-        return _issue_from_row(row) if row else None
+        return await _with_waiver_binding(connection, _issue_from_row(row)) if row else None
 
     # -- snapshots --------------------------------------------------------
 
@@ -1925,7 +1949,63 @@ def _issue_from_row(row: Sequence[Any]) -> ReportingIssueLifecycle:
         issue_state=row[6],
         external_ref=row[7],
         retired_at=_utc(row[8]) if row[8] else None,
+        waived_reporting_status_id=row[9] if len(row) > 9 else None,
+        waived_conflict_sha256=row[10] if len(row) > 10 else None,
     )
+
+
+async def _waiver_storage_on(connection: Any) -> bool:
+    row = await (
+        await connection.execute(
+            "SELECT to_regclass(format('%I.reporting_issue_waiver_bindings', current_schema()))"
+            " IS NOT NULL"
+        )
+    ).fetchone()
+    return bool(row[0])
+
+
+async def _with_waiver_binding(
+    connection: Any, issue: ReportingIssueLifecycle
+) -> ReportingIssueLifecycle:
+    if issue.issue_state != "waived" or not await _waiver_storage_on(connection):
+        return issue
+    row = await (
+        await connection.execute(
+            "SELECT reporting_status_id, conflict_sha256 FROM reporting_issue_waiver_bindings"
+            " WHERE account_id=%s AND issue_key=%s AND generation=%s",
+            (issue.account_id, issue.issue_key, issue.generation),
+        )
+    ).fetchone()
+    return (
+        replace(issue, waived_reporting_status_id=row[0], waived_conflict_sha256=row[1])
+        if row
+        else issue
+    )
+
+
+async def _save_waiver_binding(connection: Any, issue: ReportingIssueLifecycle) -> None:
+    if issue.waived_reporting_status_id is None:
+        return
+    if not await _waiver_storage_on(connection):
+        raise LedgerConflictError("WAIVER_SCHEMA_UNAVAILABLE", "migrate before recording a waiver")
+    await connection.execute(
+        "INSERT INTO reporting_issue_waiver_bindings"
+        " (account_id,issue_key,generation,reporting_status_id,conflict_sha256)"
+        " VALUES (%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+        (
+            issue.account_id,
+            issue.issue_key,
+            issue.generation,
+            issue.waived_reporting_status_id,
+            issue.waived_conflict_sha256,
+        ),
+    )
+    stored = await _with_waiver_binding(connection, replace(issue, issue_state="waived"))
+    if (stored.waived_reporting_status_id, stored.waived_conflict_sha256) != (
+        issue.waived_reporting_status_id,
+        issue.waived_conflict_sha256,
+    ):
+        raise LedgerConflictError("WAIVER_BINDING_IMMUTABLE", "a recorded waiver cannot be rebound")
 
 
 def _schedule_payload(schedule: ReportingScheduleSpec) -> dict[str, Any]:

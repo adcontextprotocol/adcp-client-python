@@ -432,9 +432,13 @@ class ReportingLedgerStore(Protocol):
         disagreement, which is the one outcome this separately attributed loop
         exists to prevent.
 
-        ``waived`` *is* an operator action: it records an off-protocol
-        agreement to stop acting. It removes the issue from ``issues[]`` and
-        still leaves the caller's view degraded.
+        ``waived`` requires explicit off-protocol agreement by this consumer
+        and seller for the exact issue, causing statement and diagnosed
+        conflict. The adopter must retain its private consent audit before
+        calling this method; ``external_ref`` is inert correlation, not proof.
+        Rc.6 removes that issue and restores underlying seller health, without
+        changing the consumer statement. Later statements or different
+        conflicts are evaluated independently, never covered by this waiver.
         """
         ...
 
@@ -1389,12 +1393,26 @@ class InMemoryReportingLedgerStore:
                     "reopened, and a recurrence gets a new occurrence",
                 )
             check_issue_state_transition(live.issue_state, state)
+            if state == "waived" and live.issue_state != "waived":
+                from adcp.reporting.ledger.status_projection import bind_mismatch_waiver
+                from adcp.reporting.ledger.status_snapshot import memory_snapshot
+
+                live = bind_mismatch_waiver(memory_snapshot(self, account_id), live)
             updated = replace(
                 live,
                 issue_state=state,
                 external_ref=external_ref or live.external_ref,
                 # Set on the way into a retired state and never cleared.
-                retired_at=_utc(at) if state == "waived" else live.retired_at,
+                retired_at=(
+                    (
+                        live.retired_at
+                        if live.waived_reporting_status_id is not None
+                        and live.retired_at is not None
+                        else _utc(at)
+                    )
+                    if state == "waived"
+                    else live.retired_at
+                ),
             )
             self._resolve_issue_scope(
                 account_id=account_id,

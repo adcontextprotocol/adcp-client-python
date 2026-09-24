@@ -527,6 +527,6 @@ def validate_notification_payload(value: object) -> None:
         scan(value)
     except ValueError:
         raise ReportingNotificationError("invalid_payload") from None
-    validator = get_named_validator(path, version="3.2.0-rc.3")
+    validator = get_named_validator(path)
     if validator is None or not validator.is_valid(value):
         raise ReportingNotificationError("invalid_payload")

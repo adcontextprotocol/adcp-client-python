@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
@@ -168,6 +169,7 @@ _TABLES = {
     "revisions": "reporting_revisions",
     "statuses": "reporting_consumer_statuses",
     "lifecycles": "reporting_issue_lifecycle",
+    "waivers": "reporting_issue_waiver_bindings",
     "issue_scopes": "reporting_issue_status_scopes",
     "adjustments": "reporting_adjustments",
     "changes": "reporting_ledger_changes",
@@ -183,12 +185,15 @@ async def read_snapshot_on(
     as_of: datetime | None = None,
     include_issue_scopes: bool = True,
 ) -> ReportingStatusSnapshot:
+    from adcp.reporting.ledger.pg import _waiver_storage_on
     from adcp.reporting.outbox.pg import database_now
 
     at = as_of or await database_now(connection, clock)
     raw: dict[str, Any] = {"account_id": account_id, "as_of": at.isoformat()}
     for key, table in _TABLES.items():
         if key == "issue_scopes" and not include_issue_scopes:
+            continue
+        if key == "waivers" and not await _waiver_storage_on(connection):
             continue
         # Table names are the closed SDK constants above. Parameters are bound.
         rows = await (
@@ -266,7 +271,26 @@ def snapshot_from_storage(raw: dict[str, Any]) -> ReportingStatusSnapshot:
         _configuration_from_row,
     )
     statuses = decode("statuses", _STATUS_COLUMNS_BARE, _status_from_row)
-    lifecycles = decode("lifecycles", _ISSUE_COLUMNS, _issue_from_row)
+    lifecycles = decode(
+        "lifecycles",
+        _ISSUE_COLUMNS + ", waived_reporting_status_id, waived_conflict_sha256",
+        _issue_from_row,
+    )
+    waivers = {
+        (w["account_id"], w["issue_key"], w["generation"]): w for w in raw.get("waivers", [])
+    }
+    lifecycles = tuple(
+        (
+            replace(
+                issue,
+                waived_reporting_status_id=binding["reporting_status_id"],
+                waived_conflict_sha256=binding["conflict_sha256"],
+            )
+            if (binding := waivers.get((issue.account_id, issue.issue_key, issue.generation)))
+            else issue
+        )
+        for issue in lifecycles
+    )
     consumers = {row["consumer_id"] for row in raw.get("consumers", [])}
     consumers.update(s.consumer_id for s in statuses)
     consumers.update(i.consumer_id for i in lifecycles if i.consumer_id is not None)
@@ -315,7 +339,6 @@ async def apply_intents_on(
                 at=issue.retired_at,
                 status_scope=intent.scope,
                 enqueue=False,
-                agreeing=True,
             )
         else:
             await store._dirty_issue(connection, issue, intent.scope, enqueue=False)
@@ -330,6 +353,8 @@ async def persist_replay_lifecycles_on(
     rows used by polling, including repairs for an old writer's interrupted
     status/issue pair. The enclosing account lock fences concurrent ingestion.
     """
+    from adcp.reporting.ledger.pg import _save_waiver_binding
+
     scopes = dict(snapshot.issue_scopes)
     for issue in sorted(snapshot.lifecycles, key=lambda i: (i.issue_key, i.generation)):
         await connection.execute(
@@ -349,12 +374,13 @@ async def persist_replay_lifecycles_on(
                 issue.retired_at,
             ),
         )
+        await _save_waiver_binding(connection, issue)
         if issue.issue_state != "open":
             await connection.execute(
                 "UPDATE reporting_issue_lifecycle SET issue_state=%s, external_ref=%s,"
-                " retired_at=%s WHERE account_id=%s AND issue_key=%s AND generation=%s"
-                " AND (issue_state IN ('open','acknowledged')"
-                " OR (issue_state='waived' AND %s='resolved'))",
+                " retired_at=%s"
+                " WHERE account_id=%s AND issue_key=%s AND generation=%s"
+                " AND issue_state IN ('open','acknowledged')",
                 (
                     issue.issue_state,
                     issue.external_ref,
@@ -362,7 +388,6 @@ async def persist_replay_lifecycles_on(
                     issue.account_id,
                     issue.issue_key,
                     issue.generation,
-                    issue.issue_state,
                 ),
             )
         scope = scopes.get(issue.issue_id)
