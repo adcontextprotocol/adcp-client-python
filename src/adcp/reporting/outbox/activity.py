@@ -173,13 +173,25 @@ class WebhookAttempt:
         # must be absent, rather than null, when the source has none.
         if self.binding.notification_id:
             row["notification_id"] = self.binding.notification_id
-        validator = get_named_validator("core/webhook-activity-record.json", version="3.2.0-rc.3")
+        validator = get_named_validator("core/webhook-activity-record.json")
         if validator is None or not validator.is_valid(row):
             raise ReportingNotificationError("invalid_activity_record")
         return row
 
 
-class ReportingActivityStore(Protocol):
+class ReportingActivityReader(Protocol):
+    """Optional read/purge projection, including the closed B+C activity union."""
+
+    async def list_activity(
+        self, *, account_id: str, consumer_id: str, limit: int = 50
+    ) -> tuple[WebhookAttempt, ...]: ...
+
+    async def purge_activity(
+        self, *, account_id: str, consumer_id: str, now: datetime, retention_days: int = 30
+    ) -> int: ...
+
+
+class ReportingActivityStore(ReportingActivityReader, Protocol):
     async def reserve_attempt(
         self, lease: DeliveryLease, *, request: ActivityRequest, now: datetime
     ) -> WebhookAttempt | None: ...
@@ -222,7 +234,7 @@ class ReportingActivityProjector:
     Memory stores support conformance but cannot justify durable capabilities.
     """
 
-    def __init__(self, store: ReportingActivityStore) -> None:
+    def __init__(self, store: ReportingActivityReader) -> None:
         self.store = store
 
     async def for_account(

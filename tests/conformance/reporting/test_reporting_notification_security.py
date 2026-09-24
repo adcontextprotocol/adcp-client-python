@@ -72,8 +72,16 @@ async def test_process_receiver_fixture_verifies_both_rotation_keys():
 async def replace_stored(h, old, changed):
     if isinstance(h.reliable.store, InMemoryReportingLedgerStore):
         state = h.reliable.store._notification_state
-        _, work = state.deliveries.pop((old.binding.account_id, old.binding.delivery_id))
-        state.deliveries[(changed.binding.account_id, changed.binding.delivery_id)] = (
+        _, work = state.deliveries.pop(
+            (old.binding.account_id, old.binding.consumer_namespace, old.binding.delivery_id)
+        )
+        state.deliveries[
+            (
+                changed.binding.account_id,
+                changed.binding.consumer_namespace,
+                changed.binding.delivery_id,
+            )
+        ] = (
             changed,
             work,
         )
@@ -179,7 +187,8 @@ async def test_every_bound_column_swap_fails_before_any_external_effect(
         )
     changed = replace(original, binding=replace(original.binding, **{column: value}))
     await replace_stored(h, original, changed)
-    assert await h.worker().deliver_one(account_id=changed.binding.account_id)
+    status_operation_1 = await h.worker().deliver_one(account_id=changed.binding.account_id)
+    assert status_operation_1
     (retained,) = await h.outbox.list_deliveries(account_id=changed.binding.account_id)
     assert retained.state == "quarantined" and retained.error_code == "integrity_failure"
     assert not h.subscriptions.gets and not h.signing.calls

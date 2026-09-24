@@ -1,0 +1,998 @@
+{
+  "column:reporting_issue_waiver_bindings.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_issue_waiver_bindings.conflict_sha256": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_issue_waiver_bindings.generation": {
+    "enabled": true,
+    "fingerprint": "64be57437fdc0a07a97985c2aa058031f8082db7251bdb4d5afa1a9b088de97a"
+  },
+  "column:reporting_issue_waiver_bindings.issue_key": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_issue_waiver_bindings.reporting_status_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_accounts.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_accounts.baseline_at": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
+  "column:reporting_status_accounts.baseline_complete": {
+    "enabled": true,
+    "fingerprint": "981e469ff869d932309f9e6aab9b07ff394c7439fe2431281320e25b41c4198d"
+  },
+  "column:reporting_status_accounts.baseline_highwater": {
+    "enabled": true,
+    "fingerprint": "42202005517b72e082eb22c9eceb2ac0252815e5df700c83eb50c54cfeb46297"
+  },
+  "column:reporting_status_accounts.dirty_sequence": {
+    "enabled": true,
+    "fingerprint": "42202005517b72e082eb22c9eceb2ac0252815e5df700c83eb50c54cfeb46297"
+  },
+  "column:reporting_status_accounts.policy": {
+    "enabled": true,
+    "fingerprint": "e01033d3fd711e647883a41d4b652659bf3ed2f570894a3ec51bed0e3e94cd44"
+  },
+  "column:reporting_status_accounts.replay_lifecycles": {
+    "enabled": true,
+    "fingerprint": "3cddda27b283bb6e5a335e88170dc75ed50ded8194e1c9e52a73c024e4f90cd3"
+  },
+  "column:reporting_status_boundaries.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_boundaries.as_of": {
+    "enabled": true,
+    "fingerprint": "1cac4e73af11a8ecafd646ef6a0ff6ecb087d46f150408dcfebc630fe1bf5e1e"
+  },
+  "column:reporting_status_boundaries.first_sequence": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_status_boundaries.input": {
+    "enabled": true,
+    "fingerprint": "ac355fc16c02b70cb0a24afee8214cdce5f5cbfdc7fd1630786d5101932ecfa4"
+  },
+  "column:reporting_status_boundaries.through": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_status_boundaries.transaction_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_boundary_writes.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_boundary_writes.as_of": {
+    "enabled": true,
+    "fingerprint": "1cac4e73af11a8ecafd646ef6a0ff6ecb087d46f150408dcfebc630fe1bf5e1e"
+  },
+  "column:reporting_status_boundary_writes.first_sequence": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_status_boundary_writes.through": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_status_boundary_writes.transaction_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_deliveries.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_deliveries.auth_mode": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:reporting_status_notification_deliveries.body_sha256": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:reporting_status_notification_deliveries.cause_generation": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_status_notification_deliveries.cause_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_deliveries.cause_kind": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_deliveries.claim_count": {
+    "enabled": true,
+    "fingerprint": "42202005517b72e082eb22c9eceb2ac0252815e5df700c83eb50c54cfeb46297"
+  },
+  "column:reporting_status_notification_deliveries.consumer_namespace": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_deliveries.delivery_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_deliveries.destination_sha256": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:reporting_status_notification_deliveries.due_at": {
+    "enabled": true,
+    "fingerprint": "1cac4e73af11a8ecafd646ef6a0ff6ecb087d46f150408dcfebc630fe1bf5e1e"
+  },
+  "column:reporting_status_notification_deliveries.emission_generation": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_status_notification_deliveries.envelope": {
+    "enabled": true,
+    "fingerprint": "554c34e416bd4546469b42d5773bc7c59b2104366ffa5259a2838c64cd826e57"
+  },
+  "column:reporting_status_notification_deliveries.envelope_version": {
+    "enabled": true,
+    "fingerprint": "64be57437fdc0a07a97985c2aa058031f8082db7251bdb4d5afa1a9b088de97a"
+  },
+  "column:reporting_status_notification_deliveries.error_code": {
+    "enabled": true,
+    "fingerprint": "5b92595d0b54d473a3a3818455845f1fe0dc20b48cfe0faf63061a82d1a3cb02"
+  },
+  "column:reporting_status_notification_deliveries.idempotency_key": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_deliveries.key_version": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_deliveries.lease_expires_at": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
+  "column:reporting_status_notification_deliveries.lease_token": {
+    "enabled": true,
+    "fingerprint": "5b92595d0b54d473a3a3818455845f1fe0dc20b48cfe0faf63061a82d1a3cb02"
+  },
+  "column:reporting_status_notification_deliveries.notification_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_deliveries.notification_type": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_deliveries.principal_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_deliveries.signing_scope_id": {
+    "enabled": true,
+    "fingerprint": "85b88fb407e112399f25b5dc8830dfdcb2a8271ecf00e70b662f6917b4a002cd"
+  },
+  "column:reporting_status_notification_deliveries.state": {
+    "enabled": true,
+    "fingerprint": "1a1ab7c892bfef3ca42f00cf764453bc5e0578b3a82ecf81da90b56816df493f"
+  },
+  "column:reporting_status_notification_deliveries.subscriber_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_deliveries.subscription_fingerprint": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:reporting_status_notification_events.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_events.cause_generation": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_status_notification_events.cause_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_events.cause_kind": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_events.consumer_namespace": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_events.delivery_config_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_events.fingerprint": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:reporting_status_notification_events.fired_at": {
+    "enabled": true,
+    "fingerprint": "1cac4e73af11a8ecafd646ef6a0ff6ecb087d46f150408dcfebc630fe1bf5e1e"
+  },
+  "column:reporting_status_notification_events.notification_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_events.notification_type": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_events.obligation_namespace": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_events.scope_kind": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_events.snapshot": {
+    "enabled": true,
+    "fingerprint": "ac355fc16c02b70cb0a24afee8214cdce5f5cbfdc7fd1630786d5101932ecfa4"
+  },
+  "column:reporting_status_notification_events.version": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_status_notification_expansions.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_expansions.claim_count": {
+    "enabled": true,
+    "fingerprint": "42202005517b72e082eb22c9eceb2ac0252815e5df700c83eb50c54cfeb46297"
+  },
+  "column:reporting_status_notification_expansions.consumer_namespace": {
+    "enabled": true,
+    "fingerprint": "128b66e02f14946100273f112c144af7605d626124d20fe16c1ba30c6b19ae3a"
+  },
+  "column:reporting_status_notification_expansions.due_at": {
+    "enabled": true,
+    "fingerprint": "1cac4e73af11a8ecafd646ef6a0ff6ecb087d46f150408dcfebc630fe1bf5e1e"
+  },
+  "column:reporting_status_notification_expansions.emission_generation": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_status_notification_expansions.error_code": {
+    "enabled": true,
+    "fingerprint": "5b92595d0b54d473a3a3818455845f1fe0dc20b48cfe0faf63061a82d1a3cb02"
+  },
+  "column:reporting_status_notification_expansions.lease_expires_at": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
+  "column:reporting_status_notification_expansions.lease_token": {
+    "enabled": true,
+    "fingerprint": "5b92595d0b54d473a3a3818455845f1fe0dc20b48cfe0faf63061a82d1a3cb02"
+  },
+  "column:reporting_status_notification_expansions.notification_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_notification_expansions.state": {
+    "enabled": true,
+    "fingerprint": "1a1ab7c892bfef3ca42f00cf764453bc5e0578b3a82ecf81da90b56816df493f"
+  },
+  "column:reporting_status_scope_checkpoints.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_scope_checkpoints.baseline": {
+    "enabled": true,
+    "fingerprint": "1abe3a1c570fbe885784dab5d979307c373d50f567ff4481ce3996869bf58fed"
+  },
+  "column:reporting_status_scope_checkpoints.consumer_namespace": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_scope_checkpoints.delivery_config_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_scope_checkpoints.fingerprint": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:reporting_status_scope_checkpoints.generation": {
+    "enabled": true,
+    "fingerprint": "42202005517b72e082eb22c9eceb2ac0252815e5df700c83eb50c54cfeb46297"
+  },
+  "column:reporting_status_scope_checkpoints.initialized": {
+    "enabled": true,
+    "fingerprint": "981e469ff869d932309f9e6aab9b07ff394c7439fe2431281320e25b41c4198d"
+  },
+  "column:reporting_status_scope_checkpoints.lease_expires_at": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
+  "column:reporting_status_scope_checkpoints.lease_token": {
+    "enabled": true,
+    "fingerprint": "5b92595d0b54d473a3a3818455845f1fe0dc20b48cfe0faf63061a82d1a3cb02"
+  },
+  "column:reporting_status_scope_checkpoints.next_due_at": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
+  "column:reporting_status_scope_checkpoints.obligation_namespace": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_scope_checkpoints.publishable": {
+    "enabled": true,
+    "fingerprint": "1abe3a1c570fbe885784dab5d979307c373d50f567ff4481ce3996869bf58fed"
+  },
+  "column:reporting_status_scope_checkpoints.scope": {
+    "enabled": true,
+    "fingerprint": "ac355fc16c02b70cb0a24afee8214cdce5f5cbfdc7fd1630786d5101932ecfa4"
+  },
+  "column:reporting_status_scope_checkpoints.scope_kind": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_scope_checkpoints.snapshot": {
+    "enabled": true,
+    "fingerprint": "ac355fc16c02b70cb0a24afee8214cdce5f5cbfdc7fd1630786d5101932ecfa4"
+  },
+  "column:reporting_status_scope_checkpoints.source_sequence": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_status_scope_checkpoints.version": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_status_webhook_attempt_heads.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_webhook_attempt_heads.consumer_namespace": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_webhook_attempt_heads.idempotency_key": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_webhook_attempt_heads.last_attempt": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_status_webhook_attempt_heads.principal_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_webhook_attempt_heads.subscriber_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_webhook_attempts.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_webhook_attempts.attempt": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_status_webhook_attempts.binding": {
+    "enabled": true,
+    "fingerprint": "ac355fc16c02b70cb0a24afee8214cdce5f5cbfdc7fd1630786d5101932ecfa4"
+  },
+  "column:reporting_status_webhook_attempts.completed_at": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
+  "column:reporting_status_webhook_attempts.consumer_namespace": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_webhook_attempts.delivery_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_webhook_attempts.fired_at": {
+    "enabled": true,
+    "fingerprint": "1cac4e73af11a8ecafd646ef6a0ff6ecb087d46f150408dcfebc630fe1bf5e1e"
+  },
+  "column:reporting_status_webhook_attempts.http_status_code": {
+    "enabled": true,
+    "fingerprint": "4340876cb26818ac55a8d51cfbc7047e90fc4d7e44f570ee454b4552beb351a1"
+  },
+  "column:reporting_status_webhook_attempts.idempotency_key": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_webhook_attempts.lease_token": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:reporting_status_webhook_attempts.notification_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_webhook_attempts.payload_size_bytes": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_status_webhook_attempts.principal_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_webhook_attempts.reservation_token": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:reporting_status_webhook_attempts.response_time_ms": {
+    "enabled": true,
+    "fingerprint": "992336704a95e12ec6e959825c59fa2e51cddc5f1568af6bebaf12f03ac5655f"
+  },
+  "column:reporting_status_webhook_attempts.status": {
+    "enabled": true,
+    "fingerprint": "1a1ab7c892bfef3ca42f00cf764453bc5e0578b3a82ecf81da90b56816df493f"
+  },
+  "column:reporting_status_webhook_attempts.subscriber_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_status_webhook_attempts.url": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "constraint:reporting_issue_waiver_bindings.reporting_issue_waiver_bindin_account_id_issue_key_generat_fkey": {
+    "enabled": true,
+    "fingerprint": "164fd16c873a2299c01ea356768df191815e9e3c6b5015f8a76ff1c0164e89c9"
+  },
+  "constraint:reporting_issue_waiver_bindings.reporting_issue_waiver_bindings_conflict_sha256_check": {
+    "enabled": true,
+    "fingerprint": "f53eebfa2f790fe53323b5bc01df1b012a5d0515a9dabc7b4c6428bc8c1db65e"
+  },
+  "constraint:reporting_issue_waiver_bindings.reporting_issue_waiver_bindings_pkey": {
+    "enabled": true,
+    "fingerprint": "358e0f239c456cd9b50f8948e3834dd7219d3cb1449d3afd45939763bcfa4bd4"
+  },
+  "constraint:reporting_status_accounts.reporting_status_accounts_baseline_highwater_check": {
+    "enabled": true,
+    "fingerprint": "3f3e1ebafb331107544910c537f7a051349338e089330ad0564ca81d8af225ff"
+  },
+  "constraint:reporting_status_accounts.reporting_status_accounts_check": {
+    "enabled": true,
+    "fingerprint": "c0aaebcb4d2696abdc3ad598f76ba241696e2c71e9442035755657a125c6af9f"
+  },
+  "constraint:reporting_status_accounts.reporting_status_accounts_pkey": {
+    "enabled": true,
+    "fingerprint": "e65d70e61c89a93d66c4c4f4c59ef755d0ff526b0fcdd1d9ae6d830d2abea913"
+  },
+  "constraint:reporting_status_boundaries.reporting_status_boundaries_account_id_through_key": {
+    "enabled": true,
+    "fingerprint": "a2939992e9afcdafc0acb5f61e82f376bd1b7554fecf28e70222586e4494513d"
+  },
+  "constraint:reporting_status_boundaries.reporting_status_boundaries_account_id_transaction_id_fkey": {
+    "enabled": true,
+    "fingerprint": "7586f5d757f7f9e1934e86a38e5ae4f0a2c05f3c8eade6bf13bad2127a37344e"
+  },
+  "constraint:reporting_status_boundaries.reporting_status_boundaries_pkey": {
+    "enabled": true,
+    "fingerprint": "4d672603e38a33518c9c2166994348a7ec73c90f7b0c1f2afc73155bb6afdbc6"
+  },
+  "constraint:reporting_status_boundary_writes.reporting_status_boundary_capture": {
+    "enabled": true,
+    "fingerprint": "20ed755d29980bfc007ba63a8f0b50277c734a0703525b0c3ebeb1ebdc466162"
+  },
+  "constraint:reporting_status_boundary_writes.reporting_status_boundary_writes_check": {
+    "enabled": true,
+    "fingerprint": "6571d9d1ca565662f8fcc5b267863ce013b9b5ad85c7daebc321d66eb3a3f3b0"
+  },
+  "constraint:reporting_status_boundary_writes.reporting_status_boundary_writes_first_sequence_check": {
+    "enabled": true,
+    "fingerprint": "818b93a1bd130d143f4cc205744d027e0dcdb99ac4a5872b08124ccaf4cf0d8f"
+  },
+  "constraint:reporting_status_boundary_writes.reporting_status_boundary_writes_pkey": {
+    "enabled": true,
+    "fingerprint": "4d672603e38a33518c9c2166994348a7ec73c90f7b0c1f2afc73155bb6afdbc6"
+  },
+  "constraint:reporting_status_notification_deliveries.reporting_status_notificatio_account_id_consumer_namespac_fkey2": {
+    "enabled": true,
+    "fingerprint": "1dcfad0fabcb0e113ed88267eaf2a15d22c9a19fe8811e6f0c5dbfdd18a5c069"
+  },
+  "constraint:reporting_status_notification_deliveries.reporting_status_notificatio_account_id_consumer_namespac_fkey3": {
+    "enabled": true,
+    "fingerprint": "121f556e5aa61241d4eabe519fa55963a5b6d91aa279512a123c32a87ea83e69"
+  },
+  "constraint:reporting_status_notification_deliveries.reporting_status_notification_account_id_consumer_namespac_key3": {
+    "enabled": true,
+    "fingerprint": "91982910079d78e1b6162e69e1e40d0f98ab055b811726cd8a9357c4aa9cfd22"
+  },
+  "constraint:reporting_status_notification_deliveries.reporting_status_notification_account_id_consumer_namespac_key4": {
+    "enabled": true,
+    "fingerprint": "bece3b7de1c22f3a600c89c175f942f83ecff078142418072b1bc1b42a670c18"
+  },
+  "constraint:reporting_status_notification_deliveries.reporting_status_notification_deliver_emission_generation_check": {
+    "enabled": true,
+    "fingerprint": "5b7b2793bd710c7eef8c02003fd8adb1df91d7c10659364fe37d7f6351d4bf5e"
+  },
+  "constraint:reporting_status_notification_deliveries.reporting_status_notification_deliverie_notification_type_check": {
+    "enabled": true,
+    "fingerprint": "ee42647bcbefde76d58a6b7231c68bc1c4ef047e2523f779b4c28bcd9792eb47"
+  },
+  "constraint:reporting_status_notification_deliveries.reporting_status_notification_deliveries_cause_generation_check": {
+    "enabled": true,
+    "fingerprint": "d93961696665129cf254c93dae4377741c5cef5fe9d373c6a5cb36226e5a69e2"
+  },
+  "constraint:reporting_status_notification_deliveries.reporting_status_notification_deliveries_cause_kind_check": {
+    "enabled": true,
+    "fingerprint": "10f7027028f807d2ac122ae119f6de51d5c3b54217dcf78d0371b7d92ac4e942"
+  },
+  "constraint:reporting_status_notification_deliveries.reporting_status_notification_deliveries_check": {
+    "enabled": true,
+    "fingerprint": "a61e7698dd266b3a4abee2c2716b00919f047e85bcd888a90c1a5bc5350c4d6e"
+  },
+  "constraint:reporting_status_notification_deliveries.reporting_status_notification_deliveries_error_code_check": {
+    "enabled": true,
+    "fingerprint": "502085808cda7e7ec1e45e3d88257a660bdc65b59a71727b473303a362b9cf9d"
+  },
+  "constraint:reporting_status_notification_deliveries.reporting_status_notification_deliveries_pkey": {
+    "enabled": true,
+    "fingerprint": "126da0131155e9b09e48d24466c5f61b7b6dc1540a68c465c52b59769637820d"
+  },
+  "constraint:reporting_status_notification_deliveries.reporting_status_notification_deliveries_state_check": {
+    "enabled": true,
+    "fingerprint": "12b7a569e49f4bf374d5dade9ec0a0d812e4dea251366467c95bcd58bee90b9d"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_account_id_consumer_namespac_fkey": {
+    "enabled": true,
+    "fingerprint": "ee26a73f446c794ba69fc056f5fb1b8e094b25ae48743fe5e23045749e84f1c2"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_account_id_consumer_namespac_key1": {
+    "enabled": true,
+    "fingerprint": "7156cd6623f45f181906d2886b53dfba82bfdfc6cdcbdd0017c1f1cd7ceae407"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_account_id_consumer_namespac_key2": {
+    "enabled": true,
+    "fingerprint": "1d1f2cee412feec063fd1340b0d7773adfc55cad1f740e21bb45f75acf185b8c"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_account_id_consumer_namespace_key": {
+    "enabled": true,
+    "fingerprint": "a21acc6c4e405fcbf7711fe5a82c55206c994c6c969b498f9afe35af859ed206"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_cause_generation_check": {
+    "enabled": true,
+    "fingerprint": "d93961696665129cf254c93dae4377741c5cef5fe9d373c6a5cb36226e5a69e2"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_cause_id_check": {
+    "enabled": true,
+    "fingerprint": "e86db06c50f414ddc137693ad14cc7faaf8c3805591871c6d001cc5438d31a71"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_cause_kind_check": {
+    "enabled": true,
+    "fingerprint": "10f7027028f807d2ac122ae119f6de51d5c3b54217dcf78d0371b7d92ac4e942"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_check": {
+    "enabled": true,
+    "fingerprint": "efada5fd861f242458a8c57b2bf1c97280cd3c266d285050679afb2bbff363cb"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_check1": {
+    "enabled": true,
+    "fingerprint": "36694052bb1b576de628eee965d5821ab01923e563295220ca21252603c2aa7a"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_check10": {
+    "enabled": true,
+    "fingerprint": "627584412b64b780790cab6c0ca3a8f6e11a2b954eda505f58b709264a301956"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_check11": {
+    "enabled": true,
+    "fingerprint": "1c4273a87391e21a4156104e7c9a556a70ddafaaca8810533b75335b14fa93bf"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_check12": {
+    "enabled": true,
+    "fingerprint": "5cf1645ef1880c0fd61275e271b8ebfe33e12b4aa79646d82a1aef609c333b64"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_check2": {
+    "enabled": true,
+    "fingerprint": "dc119dbfe2444526e08b41cedd271ea31deab1082f55816cc6d4257aa088f9d8"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_check3": {
+    "enabled": true,
+    "fingerprint": "ffe54c1b8d166fbbfe66ebbf70dbd5ee8c8a61b09fdc57bbf2d5c9ccea8ad806"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_check4": {
+    "enabled": true,
+    "fingerprint": "a2d30638b070f0f9f83bfaf782cc1a36cc89b2de31471a589f9568c174b8f7a1"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_check5": {
+    "enabled": true,
+    "fingerprint": "7e8ae7f4e2f6d5b320600b088f0f7c9f31520fb499cfc8504a46b5fda4aa1180"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_check6": {
+    "enabled": true,
+    "fingerprint": "49a10f7157a0b18ad541d7bf95ba43d28849ab45892d592d87bd720816325780"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_check7": {
+    "enabled": true,
+    "fingerprint": "b7666e96be91fe368c981a8e7e0c3017823e34f97354428dd3d29c5a08a9c6a8"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_check8": {
+    "enabled": true,
+    "fingerprint": "25fa4df322afde24dad3652593dffe4e696ceb9ab60b364f13d848839fea91f5"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_check9": {
+    "enabled": true,
+    "fingerprint": "dafe7fb15d13195b1d2a6a1b4f62287d70b42543bc9ac156e32b1bce4f9c3c15"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_fingerprint_check": {
+    "enabled": true,
+    "fingerprint": "e6f7fe9bd1925eb05eeab481da0229b0180558dd2448eda9e51e98faf31d6497"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_notification_type_check": {
+    "enabled": true,
+    "fingerprint": "ee42647bcbefde76d58a6b7231c68bc1c4ef047e2523f779b4c28bcd9792eb47"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_pkey": {
+    "enabled": true,
+    "fingerprint": "e8d63f44b25700915bcb3cb69e2e24b98cf21fd304f36a2e9c2992236309309d"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_scope_kind_check": {
+    "enabled": true,
+    "fingerprint": "990e8c59c76274efb82c87d70135717b5b47f7edbf86b52cdde0377a3f85194f"
+  },
+  "constraint:reporting_status_notification_events.reporting_status_notification_events_version_check": {
+    "enabled": true,
+    "fingerprint": "e7b1e199b6f69994a833033a7770c2b6fcbf1b3ba77251b5df6bea466b0ee4b9"
+  },
+  "constraint:reporting_status_notification_expansions.reporting_status_notificatio_account_id_consumer_namespac_fkey1": {
+    "enabled": true,
+    "fingerprint": "9e90b5f4f838bd0578dc43b5beb296add15fff0894ca60e9db65b1a030f24f42"
+  },
+  "constraint:reporting_status_notification_expansions.reporting_status_notification_expansi_emission_generation_check": {
+    "enabled": true,
+    "fingerprint": "5b7b2793bd710c7eef8c02003fd8adb1df91d7c10659364fe37d7f6351d4bf5e"
+  },
+  "constraint:reporting_status_notification_expansions.reporting_status_notification_expansions_error_code_check": {
+    "enabled": true,
+    "fingerprint": "502085808cda7e7ec1e45e3d88257a660bdc65b59a71727b473303a362b9cf9d"
+  },
+  "constraint:reporting_status_notification_expansions.reporting_status_notification_expansions_pkey": {
+    "enabled": true,
+    "fingerprint": "8ac920e8e1ed5a59417d5d1ffb9bea608bbeb64dbcd1a431240370fe555fe6f0"
+  },
+  "constraint:reporting_status_notification_expansions.reporting_status_notification_expansions_state_check": {
+    "enabled": true,
+    "fingerprint": "12b7a569e49f4bf374d5dade9ec0a0d812e4dea251366467c95bcd58bee90b9d"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkp_account_id_delivery_config_i_fkey": {
+    "enabled": true,
+    "fingerprint": "28f145dbe690094950f93a3966caf6c2de6d4b340e2c00356d509ca87c9a5160"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_account_id_fkey": {
+    "enabled": true,
+    "fingerprint": "b5d2dccd1371a3885ddd1eea403915a5571b631c238a6e2bd65bba562bded98f"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_check": {
+    "enabled": true,
+    "fingerprint": "efada5fd861f242458a8c57b2bf1c97280cd3c266d285050679afb2bbff363cb"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_check1": {
+    "enabled": true,
+    "fingerprint": "707afeb7c295270186fe2cbf8a98bfc926a6a1250928129bba768c34994e6333"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_check2": {
+    "enabled": true,
+    "fingerprint": "4c70bdbc6bf819d21d6f258d838a84984e0f38bdacb8849d7692e16b1a7a97ea"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_check3": {
+    "enabled": true,
+    "fingerprint": "f1a12ccbc0696ba298e2e0367e20095c3bfe853785ce9198764b5d10896de4da"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_check4": {
+    "enabled": true,
+    "fingerprint": "fc1d14a0a9e65d6c4df4f4df642df598537899c4d2796ccc523891c9ab97a82a"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_check5": {
+    "enabled": true,
+    "fingerprint": "1b7ee66c4fc62945364daa418015e8290a605a73aa44454f7ee4a9a74ff925e4"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_check6": {
+    "enabled": true,
+    "fingerprint": "2ec06b35353c509e8661b2c977cca2f81c6b3dd7ce1522a7ceeb74ff5a681474"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_check7": {
+    "enabled": true,
+    "fingerprint": "adf05a849b922f322098129966cd3aebddf38ae77445af0d1153df8011f76b0c"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_fingerprint_check": {
+    "enabled": true,
+    "fingerprint": "e6f7fe9bd1925eb05eeab481da0229b0180558dd2448eda9e51e98faf31d6497"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_generation_check": {
+    "enabled": true,
+    "fingerprint": "90a4cf92e02d8d38334792956867fc8308bbc6fb142e7b0a07b6e21a47855f0d"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_pkey": {
+    "enabled": true,
+    "fingerprint": "9248b24cf88bd9d81f5c44079431cbd72714f7922600c4dd6a99f9a7a190436b"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_scope_kind_check": {
+    "enabled": true,
+    "fingerprint": "990e8c59c76274efb82c87d70135717b5b47f7edbf86b52cdde0377a3f85194f"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_snapshot_check": {
+    "enabled": true,
+    "fingerprint": "ec4d9211cd65ce7ca0b02c3f2211e0aa6c9c2816360c7a720d421c57f2aeaf2a"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_source_sequence_check": {
+    "enabled": true,
+    "fingerprint": "16a37823d2213f61da44d06e599195d99f664168c4b3af82f7f23791c7e81f0d"
+  },
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_version_check": {
+    "enabled": true,
+    "fingerprint": "e7b1e199b6f69994a833033a7770c2b6fcbf1b3ba77251b5df6bea466b0ee4b9"
+  },
+  "constraint:reporting_status_webhook_attempt_heads.reporting_status_webhook_attempt_heads_last_attempt_check": {
+    "enabled": true,
+    "fingerprint": "5bf9c354d680faec2bf3155f8c9b27323d7893564b30688a039ba19fc8b8d5d3"
+  },
+  "constraint:reporting_status_webhook_attempt_heads.reporting_status_webhook_attempt_heads_pkey": {
+    "enabled": true,
+    "fingerprint": "490860c80b1129b15ab44f458a1a967382fc8b073f694ac959bf938282a74af5"
+  },
+  "constraint:reporting_status_webhook_attempt_heads.reporting_status_webhook_attempt_heads_principal_id_check": {
+    "enabled": true,
+    "fingerprint": "bfc70b4b01cc74b9c93c630928d7cde9b0134c3d6614e2cbb326604c865c2cac"
+  },
+  "constraint:reporting_status_webhook_attempts.reporting_status_webhook_att_account_id_consumer_namespac_fkey1": {
+    "enabled": true,
+    "fingerprint": "b3801b0301a44d24a3b66b0caf178f8fed66d67feef440d2b5e8b732b123fe12"
+  },
+  "constraint:reporting_status_webhook_attempts.reporting_status_webhook_atte_account_id_consumer_namespac_fkey": {
+    "enabled": true,
+    "fingerprint": "9fdb90142d0960da43323a0ebf5d625228df297705c809c22713d6d33b230834"
+  },
+  "constraint:reporting_status_webhook_attempts.reporting_status_webhook_atte_account_id_consumer_namespace_key": {
+    "enabled": true,
+    "fingerprint": "b8546a68def520db0e6139c898e3e2a76318e05548a3de1b6e568fbf3a75ee63"
+  },
+  "constraint:reporting_status_webhook_attempts.reporting_status_webhook_attempts_attempt_check": {
+    "enabled": true,
+    "fingerprint": "e05925f8a9fe41263902b6b2a72bca02958627e079787e99987820a52cb47d71"
+  },
+  "constraint:reporting_status_webhook_attempts.reporting_status_webhook_attempts_payload_size_bytes_check": {
+    "enabled": true,
+    "fingerprint": "95548ff5519cec8b0ff110ad66f7b77d77e6015ef8c54a52e09cd4d7d80a7118"
+  },
+  "constraint:reporting_status_webhook_attempts.reporting_status_webhook_attempts_pkey": {
+    "enabled": true,
+    "fingerprint": "5580d4f19f5ba257093ef71127d72dbba9669ac2db9b2f116f246d7f760522b4"
+  },
+  "constraint:reporting_status_webhook_attempts.reporting_status_webhook_attempts_response_time_ms_check": {
+    "enabled": true,
+    "fingerprint": "6698890e9bba25670f73e3a5a7a7a7f9b664ab2571637eba582f22863c92db4d"
+  },
+  "constraint:reporting_status_webhook_attempts.reporting_status_webhook_attempts_status_check": {
+    "enabled": true,
+    "fingerprint": "1c821d6bf41e5137a6263eae308d0a8648b7f0c95154724e5430e8c630aec30e"
+  },
+  "constraint:reporting_status_webhook_attempts.reporting_status_webhook_completion": {
+    "enabled": true,
+    "fingerprint": "adc02762a63dcbf72330ca318884e6236fb2418cb7e1111f861ee74f98b53316"
+  },
+  "constraint:reporting_status_webhook_attempts.reporting_status_webhook_identity": {
+    "enabled": true,
+    "fingerprint": "1e3f9725baa47d118c5b2efeeafbd5a2429400c1f667188fd14c4f2795114bf8"
+  },
+  "constraint:reporting_status_webhook_attempts.reporting_status_webhook_outcome": {
+    "enabled": true,
+    "fingerprint": "cc0cc61f029bb3b28629e12a42c6f6ddbfd943156e1b90e5eeb2346aed678e00"
+  },
+  "constraint:reporting_status_webhook_attempts.reporting_status_webhook_timestamps": {
+    "enabled": true,
+    "fingerprint": "0175d921479ed64020d88874f3b6ac822a9979f3ec8c3780d89bb9e0e3e3556c"
+  },
+  "constraint:reporting_status_webhook_attempts.reporting_status_webhook_url_safe": {
+    "enabled": true,
+    "fingerprint": "3dd08bbc446317552434fb91bebd96e2a534395454b436910450f909ce2ab88e"
+  },
+  "function:reporting_status_boundary_capture()": {
+    "enabled": true,
+    "fingerprint": "9d6d19dc7b3ad1d77c28c39c81478e5a1c5ff13db95a71de6c167201790100dd"
+  },
+  "function:reporting_status_boundary_mark()": {
+    "enabled": true,
+    "fingerprint": "f1e1d4508dd320a08dc766ccf96ae024041b635ea62469a44b26e7aea3b030c8"
+  },
+  "function:reporting_status_event_guard()": {
+    "enabled": true,
+    "fingerprint": "e56d1d9017667282bc1a046656fc2833a97252af37dd2c632a8e0e686b5fb175"
+  },
+  "function:reporting_status_projection_input(owner text, at_time timestamp with time zone)": {
+    "enabled": true,
+    "fingerprint": "ebe6d03b585fdb63975649a86ea5ea481a81c83b1a62d833ebf5fe755fc485c4"
+  },
+  "function:reporting_status_scope_guard()": {
+    "enabled": true,
+    "fingerprint": "af6587bce7bb86b2e65acd2afb323de795fe43549584c1e227dfc751407b5068"
+  },
+  "function:reporting_status_webhook_attempt_guard()": {
+    "enabled": true,
+    "fingerprint": "d77cce2574ab10889cdd0f7753f3fb4a4b6fdbee0884335f7e7bbe7c328c0bf8"
+  },
+  "function:reporting_status_webhook_head_guard()": {
+    "enabled": true,
+    "fingerprint": "4e448e0df3d56a5b04bc01ca41a4c5afbb8e601a4699d2e6dd0e3922ed2f0bf8"
+  },
+  "index:reporting_issue_waiver_bindings.reporting_issue_waiver_bindings_pkey": {
+    "enabled": true,
+    "fingerprint": "c887f627533d44fe82a7f0dbd1c40f439b694998e745c8a3089ad36b828e1996"
+  },
+  "index:reporting_status_accounts.reporting_status_accounts_pkey": {
+    "enabled": true,
+    "fingerprint": "6afd04355f261f7e792a366a2a0dbf60a77a892978121c3b56fc0bcabccc42a3"
+  },
+  "index:reporting_status_boundaries.reporting_status_boundaries_account_id_through_key": {
+    "enabled": true,
+    "fingerprint": "e58f8000f8e03479c1f0039bd2995eec79e5bb7ff49ad7a83286db6cf8a8e6ae"
+  },
+  "index:reporting_status_boundaries.reporting_status_boundaries_pkey": {
+    "enabled": true,
+    "fingerprint": "9e16de86cf3594c2055b7770ac0c0e7d801ea0aec3097ca975fced0d1a4ca64f"
+  },
+  "index:reporting_status_boundary_writes.reporting_status_boundary_writes_pkey": {
+    "enabled": true,
+    "fingerprint": "b3a5744825994ba825c3de8a3e16fb6a6121a04dddea6993e1418de7520f04b2"
+  },
+  "index:reporting_status_notification_deliveries.reporting_status_notification_account_id_consumer_namespac_key3": {
+    "enabled": true,
+    "fingerprint": "8c09d8d9edc42c1c510bd794ab5fd284cc59e07949c5df97e9682fec257be602"
+  },
+  "index:reporting_status_notification_deliveries.reporting_status_notification_account_id_consumer_namespac_key4": {
+    "enabled": true,
+    "fingerprint": "654dd50387a6321bb535d83cec1383bf2168c62ca18416cf5c00ecb6dfa5988c"
+  },
+  "index:reporting_status_notification_deliveries.reporting_status_notification_deliveries_due": {
+    "enabled": true,
+    "fingerprint": "83090b33c143251acbf7c1ede81c05f3f5d3f8533860b0941b6e284e80b89744"
+  },
+  "index:reporting_status_notification_deliveries.reporting_status_notification_deliveries_pkey": {
+    "enabled": true,
+    "fingerprint": "7f507a50525349cc7578af4112ce93da18ee81f5c0100f33c10235bff1823f1c"
+  },
+  "index:reporting_status_notification_events.reporting_status_notification_account_id_consumer_namespac_key1": {
+    "enabled": true,
+    "fingerprint": "9dae125ee012bed7992f46107da389326a8809b8e7a1c8a8889be45638fe64b1"
+  },
+  "index:reporting_status_notification_events.reporting_status_notification_account_id_consumer_namespac_key2": {
+    "enabled": true,
+    "fingerprint": "b9ec9bba19eb0a61b8399142106aedfceed9c420dbf73cfb75961ac8ff8e579b"
+  },
+  "index:reporting_status_notification_events.reporting_status_notification_account_id_consumer_namespace_key": {
+    "enabled": true,
+    "fingerprint": "1c8d9302d57b13d6ffed87ad1ed7ed3199119151ef68a5c28b6a075b01157e3a"
+  },
+  "index:reporting_status_notification_events.reporting_status_notification_events_pkey": {
+    "enabled": true,
+    "fingerprint": "77988482ea793b3f46fd8a9bfff0d04e5cb4895ae8a45fc8eb8972e44475b408"
+  },
+  "index:reporting_status_notification_expansions.reporting_status_notification_expansions_due": {
+    "enabled": true,
+    "fingerprint": "2a1e4503d9fddd29d09b5950196f4ff19d6c3be00505c01b419b79966601bd75"
+  },
+  "index:reporting_status_notification_expansions.reporting_status_notification_expansions_pkey": {
+    "enabled": true,
+    "fingerprint": "50aef2aa98654cfb980bd941a582d58c3862cd3bb01a6f57deb9ca207eeb2805"
+  },
+  "index:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_pkey": {
+    "enabled": true,
+    "fingerprint": "83b2cc13fef08e3cb5751d0182ff7b6b3b0aab04f7396a233d8a8f85cccd4a99"
+  },
+  "index:reporting_status_scope_checkpoints.reporting_status_scope_due": {
+    "enabled": true,
+    "fingerprint": "6748c83acff0adcbe843e621d1df7471d7ade29b903d0a6924127b02229cf7e0"
+  },
+  "index:reporting_status_webhook_attempt_heads.reporting_status_webhook_attempt_heads_pkey": {
+    "enabled": true,
+    "fingerprint": "29ba26bfbcb548ffffbaafabbdf90b0af678bf0a9712f9942c56ea23067cc3ee"
+  },
+  "index:reporting_status_webhook_attempts.reporting_status_webhook_activity_newest": {
+    "enabled": true,
+    "fingerprint": "5a1b4fb0eac55b7f9b76e01ce4514673206cce1ef20b4c35c1068f7ea0583faa"
+  },
+  "index:reporting_status_webhook_attempts.reporting_status_webhook_activity_retention": {
+    "enabled": true,
+    "fingerprint": "1d11c502de1b525bb114f82e7f0e695f4afaae4a2af74857306060b48d7fcae2"
+  },
+  "index:reporting_status_webhook_attempts.reporting_status_webhook_atte_account_id_consumer_namespace_key": {
+    "enabled": true,
+    "fingerprint": "1215868eae7a6cc4c5d9a7041ca8222eaded87a62a2969ee03e2f303627fca9d"
+  },
+  "index:reporting_status_webhook_attempts.reporting_status_webhook_attempts_pkey": {
+    "enabled": true,
+    "fingerprint": "39f694e19189b87c9ccbc9f9aafd3ef57064677d6d7b06b28f948e8f543bbbe2"
+  },
+  "table:reporting_issue_waiver_bindings": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_status_accounts": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_status_boundaries": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_status_boundary_writes": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_status_notification_deliveries": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_status_notification_events": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_status_notification_expansions": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_status_scope_checkpoints": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_status_webhook_attempt_heads": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_status_webhook_attempts": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "trigger:reporting_status_boundaries.reporting_status_boundary_immutable": {
+    "enabled": true,
+    "fingerprint": "a257043c10a5cda64598391d832b9224930ffc24223f773588dd5c8982679fcb"
+  },
+  "trigger:reporting_status_boundary_writes.reporting_status_boundary_capture": {
+    "enabled": true,
+    "fingerprint": "44b8875c25d5c856e95428043e6d553802ca5581d8d4abf01bcb3abc6c5f2c82"
+  },
+  "trigger:reporting_status_dirty.reporting_status_boundary_mark": {
+    "enabled": true,
+    "fingerprint": "249de5ec900378f3d865465dfae3c63f5ee481c3100e92c384357370850d7708"
+  },
+  "trigger:reporting_status_notification_events.reporting_status_event_guard": {
+    "enabled": true,
+    "fingerprint": "1f9daee3c20f4e42e64105fee2fcfa16abc810e3caa40ee4922076e8bc616603"
+  },
+  "trigger:reporting_status_notification_events.reporting_status_event_immutable": {
+    "enabled": true,
+    "fingerprint": "8ab2e3a3f02b0c25b3d52f9ec2d4b67651df9b2fb00540ef5369a0c9ef856b67"
+  },
+  "trigger:reporting_status_scope_checkpoints.reporting_status_scope_guard": {
+    "enabled": true,
+    "fingerprint": "1c65603ddc2746e10b2aa6b6d646961da799fab6dfcb79a4586a742589c780a1"
+  },
+  "trigger:reporting_status_webhook_attempt_heads.reporting_status_webhook_head_guard": {
+    "enabled": true,
+    "fingerprint": "a61295cb1bf55fbd8863286c71902a0a4c80edcdc33f3f5ba2b5f9fad342c8d6"
+  },
+  "trigger:reporting_status_webhook_attempts.reporting_status_webhook_attempt_guard": {
+    "enabled": true,
+    "fingerprint": "c709acb114b2c39853e18fb23a5fb02bc6be089577f7794982d152648f99dfa7"
+  }
+}

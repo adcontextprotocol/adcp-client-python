@@ -112,7 +112,7 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
     async def _commit_record(self, record: RecordT) -> tuple[RecordT, bool]:
         candidate = decode_record(payload(record))
         who = principal(candidate)
-        async with self._pool.connection() as connection:
+        async with self._connection() as connection:
             async with connection.transaction():
                 await self._lock_account(connection, who.account_id)
                 records = await self._records(connection, who)
@@ -370,7 +370,7 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
         boundary: ReportingReconciliationSnapshotToken | None = None,
     ) -> ReportingReconciliationSnapshot:
         requested = boundary is not None
-        async with self._pool.connection() as connection, connection.transaction():
+        async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, caller.account_id)
             maximum, now = await self._validate_feed(connection, caller)
             if boundary is None:
@@ -404,7 +404,7 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
         filters: ReportingReconciliationFilter = ReportingReconciliationFilter(),
     ) -> ReportingReconciliationPage:
         after, boundary, last_key = read_position(caller, changes_after, cursor, limit, filters)
-        async with self._pool.connection() as connection, connection.transaction():
+        async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, caller.account_id)
             maximum, now = await self._validate_feed(connection, caller)
             if boundary is None:

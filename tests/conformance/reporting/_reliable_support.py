@@ -1124,7 +1124,17 @@ class ServiceProcess:
             # arbitrary tracebacks are also inappropriate diagnostics.
             raise AssertionError(self.diagnostic(f"eof_before:{point}"))
         value: dict[str, Any] = json.loads(raw)
-        allowed = {"point", "classification", "stage", "attempt", "backend_pid", "port", "did_work"}
+        allowed = {
+            "point",
+            "classification",
+            "stage",
+            "attempt",
+            "backend_pid",
+            "port",
+            "did_work",
+            "module_origin",
+            "source_sha",
+        }
         assert set(value).issubset(allowed), self.diagnostic("invalid_child_protocol")
         self.last_point = value["point"]
         self.trace(f"received:{self.last_point}")
@@ -1173,7 +1183,11 @@ async def service_process(
         asyncio.create_subprocess_exec(
             sys.executable,
             "-m",
-            "tests.conformance.reporting._reliable_process",
+            (
+                "tests.conformance.reporting._status_old_process"
+                if role.startswith("old_")
+                else "tests.conformance.reporting._reliable_process"
+            ),
             role,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,

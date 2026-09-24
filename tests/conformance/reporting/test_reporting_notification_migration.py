@@ -12,6 +12,7 @@ import pytest
 from adcp.reporting.ledger import PgReportingReconciliationStore
 from adcp.reporting.outbox import PgReportingOutbox, ReportingNotificationError
 from adcp.reporting.outbox._schema import SCHEMA_CONTRACT, schema_contract, validate_schema
+from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS
 
 from ._generation_support import NOW, isolated_reporting_pool, revision_for
 from ._reconciliation_support import scenario
@@ -26,6 +27,13 @@ CHAIN = (
     "reporting_ledger_reconciliation.sql",
     "reporting_notification_outbox.sql",
 )
+# The additive waiver table is installed with the ledger, but is required only
+# by C status readiness. A/B's frozen required-object subset remains unchanged.
+WAIVER_OBJECTS = {
+    key: value
+    for key, value in REQUIRED_STATUS_OBJECTS.items()
+    if "reporting_issue_waiver_bindings" in key
+}
 
 
 async def test_schema_fingerprints_preserve_index_keys_and_predicates_individually():
@@ -153,7 +161,10 @@ async def test_direct_and_hopwise_historical_schema_chain(source, hopwise):
                     await conn.execute(RESOURCES.joinpath(name).read_text())
         await PgReportingReconciliationStore(pool=pool).create_schema()
         async with pool.connection() as conn:
-            assert await schema_contract(conn) == SCHEMA_CONTRACT
+            assert await schema_contract(conn) == {
+                **SCHEMA_CONTRACT,
+                **{key: value["fingerprint"] for key, value in WAIVER_OBJECTS.items()},
+            }
         assert await PgReportingOutbox(pool=pool).list_events(account_id="acct_a") == ()
 
 

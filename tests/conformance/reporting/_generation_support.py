@@ -68,6 +68,18 @@ async def isolated_reporting_pool(
             await admin.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))
 
 
+def require_rolling_database() -> None:
+    """Skip optional binary controls before checkout when PostgreSQL is unavailable.
+
+    The integrated A/B artifacts validate their catalogs independently of the
+    database locale. A locale pin would hide portability regressions here.
+    """
+    if not os.environ.get("ADCP_PG_TEST_URL"):
+        pytest.skip("actual A/B compatibility requires real PostgreSQL")
+    pytest.importorskip("psycopg")
+    pytest.importorskip("psycopg_pool")
+
+
 def configuration(account_id: str = "acct_a") -> ReportingConfiguration:
     return ReportingConfiguration(
         delivery_config_id="daily",

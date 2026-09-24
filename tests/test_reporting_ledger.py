@@ -403,7 +403,8 @@ async def test_recommitting_a_revision_id_with_new_content_is_a_conflict() -> No
     obligation = await store.commit_obligation(_obligation(configuration))
     first, rows = _revision(obligation)
     await store.commit_revision(first, rows)
-    assert (await store.commit_revision(first, rows)).reporting_revision_id == "rpr_1"
+    status_operation_1 = await store.commit_revision(first, rows)
+    assert (status_operation_1).reporting_revision_id == "rpr_1"
 
     changed, changed_rows = _revision(
         obligation, rows=[{"media_buy_id": "mb_1", "impressions": 99}]
@@ -1309,11 +1310,8 @@ async def test_pending_is_absent_when_the_task_is_not_advertised() -> None:
     assert "consumer_status_pending" not in payload["obligation_counts"]
 
 
-async def test_a_waived_mismatch_leaves_the_view_degraded_without_publishing_it() -> None:
-    # Waiving records an off-protocol agreement to stop acting, not a finding
-    # that the reporting is fine. If it returned the period to healthy a seller
-    # could unilaterally erase a buyer-attributed disagreement, which is the
-    # one outcome this separately attributed loop exists to prevent.
+async def test_a_waived_mismatch_recovers_without_publishing_a_hidden_issue() -> None:
+    # C applies the published-issue invariant to the authoritative read itself.
     store, obligation = await _seeded()
     await store.commit_revision(*_revision(obligation))
     await ConsumerStatusIngest(store, enabled=True, clock=store._clock).handle(
@@ -1339,7 +1337,7 @@ async def test_a_waived_mismatch_leaves_the_view_degraded_without_publishing_it(
         external_ref="OPS-1234",
     )
     after = await handler.handle({"view": "summary"}, caller=CALLER)
-    assert after["health"] == "action_required"
+    assert after["health"] == "complete"
     assert [item for item in after["issues"] if item["code"] == "CONSUMER_STATUS_MISMATCH"] == []
 
 
@@ -1614,7 +1612,7 @@ async def test_an_unrelated_seller_problem_does_not_reset_the_escalation_clock()
     assert again["opened_at"] == opened["opened_at"]
 
 
-async def test_a_waived_issue_is_never_moved_to_resolved_by_the_projection() -> None:
+async def test_agreement_preserves_the_terminal_waiver_record() -> None:
     store, obligation, issue_key = await _open_mismatch_issue()
     handler = ReportingStatusHandler(store, consumer_status_enabled=True)
     await handler.handle({"view": "summary"}, caller=CALLER)
@@ -1645,9 +1643,8 @@ async def test_a_waived_issue_is_never_moved_to_resolved_by_the_projection() -> 
         consumer_id="buyer_1",
     )
     await handler.handle({"view": "summary"}, caller=CALLER)
-    # Waived stays waived: overwriting it with `resolved` would replace one
-    # readable act with a different one, and the forward-only lifecycle forbids
-    # the edge anyway.
+    # Agreement must not rewrite the terminal bilateral waiver as resolved.
+    # A later disagreement receives a separate occurrence (conformance cases).
     async with store._lock:
         stored = store._issues[(ACCOUNT, issue_key)]
     assert stored.issue_state == "waived"
@@ -1935,9 +1932,10 @@ async def test_reusing_a_status_id_with_changed_content_is_still_a_conflict() ->
             ]
         }
 
-    assert (await ingest.handle(payload("metric_missing"), account_id=ACCOUNT, consumer_id="b"))[
-        "results"
-    ][0]["result"] == "recorded"
+    status_operation_2 = await ingest.handle(
+        payload("metric_missing"), account_id=ACCOUNT, consumer_id="b"
+    )
+    assert (status_operation_2)["results"][0]["result"] == "recorded"
     changed = await ingest.handle(payload("currency_mismatch"), account_id=ACCOUNT, consumer_id="b")
     assert changed["results"][0]["errors"][0]["code"] == "STATUS_IDENTITY_CONFLICT"
 
@@ -1950,18 +1948,20 @@ async def test_retire_issue_refuses_to_overwrite_a_waiver() -> None:
     await store.set_issue_state(
         issue_key=issue_key, account_id=ACCOUNT, state="waived", at=_utc_at(2026, 9, 30)
     )
-    assert (
-        await store.retire_issue(issue_key=issue_key, account_id=ACCOUNT, at=_utc_at(2026, 9, 30))
-        is None
+    status_operation_3 = await store.retire_issue(
+        issue_key=issue_key, account_id=ACCOUNT, at=_utc_at(2026, 9, 30)
     )
+    assert status_operation_3 is None
     async with store._lock:
         assert store._issues[(ACCOUNT, issue_key)].issue_state == "waived"
 
     # An open occurrence still retires, and repeating it is convergent.
     store2, _o2, key2 = await _open_mismatch_issue()
-    assert (
-        await store2.retire_issue(issue_key=key2, account_id=ACCOUNT, at=_utc_at(2026, 9, 30))
-    ) is not None
-    assert (
-        await store2.retire_issue(issue_key=key2, account_id=ACCOUNT, at=_utc_at(2026, 9, 30))
-    ) is None
+    status_operation_4 = await store2.retire_issue(
+        issue_key=key2, account_id=ACCOUNT, at=_utc_at(2026, 9, 30)
+    )
+    assert (status_operation_4) is not None
+    status_operation_5 = await store2.retire_issue(
+        issue_key=key2, account_id=ACCOUNT, at=_utc_at(2026, 9, 30)
+    )
+    assert (status_operation_5) is None

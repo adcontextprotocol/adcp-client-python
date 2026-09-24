@@ -51,9 +51,14 @@ class _PgReportingActivity:
     _clock: Callable[[], datetime] | None
 
     @asynccontextmanager
+    async def _connection(self) -> AsyncIterator[Any]:
+        async with self._pool.connection() as connection:
+            yield connection
+
+    @asynccontextmanager
     async def _activity_transaction(self) -> AsyncIterator[Any]:
         try:
-            async with self._pool.connection() as conn, conn.transaction():
+            async with self._connection() as conn, conn.transaction():
                 yield conn
         except ReportingNotificationError:
             raise
@@ -112,25 +117,14 @@ class _PgReportingActivity:
             duplicate = await (
                 await conn.execute(
                     "SELECT 1 FROM reporting_webhook_attempts WHERE account_id = %s"
-                    " AND principal_id = %s AND delivery_id = %s AND lease_token = %s",
-                    (b.account_id, consumer, b.delivery_id, lease.token),
+                    " AND principal_id = %s AND consumer_namespace = %s"
+                    " AND delivery_id = %s AND lease_token = %s",
+                    (b.account_id, consumer, b.consumer_namespace, b.delivery_id, lease.token),
                 )
             ).fetchone()
             if duplicate is not None:
                 return None
-            row = await (
-                await conn.execute(
-                    "INSERT INTO reporting_webhook_attempt_heads (account_id, principal_id,"
-                    " subscriber_id, idempotency_key, last_attempt)"
-                    " VALUES (%s,%s,%s,%s,1) ON CONFLICT"
-                    " (account_id, principal_id, subscriber_id, idempotency_key)"
-                    " DO UPDATE SET last_attempt = reporting_webhook_attempt_heads.last_attempt + 1"
-                    " WHERE reporting_webhook_attempt_heads.account_id = %s"
-                    " AND reporting_webhook_attempt_heads.principal_id = %s RETURNING last_attempt",
-                    (*key, b.account_id, consumer),
-                )
-            ).fetchone()
-            assert row is not None
+            number = await self._next_attempt_on(conn, b)
             at = await database_now(conn, self._clock)
             # The row stays locked from the fence through this commit. A later
             # reclaim can never mutate this reservation, including after purge.
@@ -146,7 +140,7 @@ class _PgReportingActivity:
                 (
                     *key,
                     b.notification_id,
-                    row[0],
+                    number,
                     b.delivery_id,
                     b.consumer_namespace,
                     lease.token,
@@ -157,7 +151,31 @@ class _PgReportingActivity:
                     request.payload_size_bytes,
                 ),
             )
-            return WebhookAttempt(b, row[0], lease.token, reservation, at, request)
+            return WebhookAttempt(b, number, lease.token, reservation, at, request)
+
+    async def _next_attempt_on(self, conn: Any, binding: DeliveryBinding) -> int:
+        b = binding
+        row = await (
+            await conn.execute(
+                "INSERT INTO reporting_webhook_attempt_heads (account_id, principal_id,"
+                " subscriber_id, idempotency_key, last_attempt)"
+                " VALUES (%s,%s,%s,%s,1) ON CONFLICT"
+                " (account_id, principal_id, subscriber_id, idempotency_key)"
+                " DO UPDATE SET last_attempt = reporting_webhook_attempt_heads.last_attempt + 1"
+                " WHERE reporting_webhook_attempt_heads.account_id = %s"
+                " AND reporting_webhook_attempt_heads.principal_id = %s RETURNING last_attempt",
+                (
+                    b.account_id,
+                    b.principal_id,
+                    b.subscriber_id,
+                    b.idempotency_key,
+                    b.account_id,
+                    b.principal_id,
+                ),
+            )
+        ).fetchone()
+        assert row is not None
+        return int(row[0])
 
     async def complete_attempt(
         self, attempt: WebhookAttempt, *, outcome: ActivityOutcome, now: datetime

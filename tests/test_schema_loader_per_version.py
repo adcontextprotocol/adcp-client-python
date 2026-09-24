@@ -161,6 +161,41 @@ def test_root_relative_legacy_refs_resolve_from_offline_registry(
     assert not invalid.valid
 
 
+@pytest.mark.parametrize("scheme", ["https", "http"])
+def test_canonical_reference_without_id_resolves_offline_or_fails_closed(
+    synthetic_legacy_bundle: tuple[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+    scheme: str,
+) -> None:
+    legacy_key, root = synthetic_legacy_bundle
+    target = root / "core" / "without-id.json"
+    target.write_text(json.dumps({"type": "integer", "minimum": 1}), encoding="utf-8")
+    reference = f"{scheme}://adcontextprotocol.org/schemas/{legacy_key}/core/without-id.json"
+    request = root / "bundled" / "synthetic-tool-request.json"
+    request.write_text(json.dumps({"$ref": reference}), encoding="utf-8")
+    network_calls: list[str] = []
+
+    def unexpected_network(uri: str, **kwargs: object) -> None:
+        network_calls.append(uri)
+        raise AssertionError("validation attempted a network request")
+
+    monkeypatch.setattr("requests.get", unexpected_network)
+    validator = get_validator("synthetic_tool", "request", version=legacy_key)
+    assert validator is not None
+    if scheme == "https":
+        # Canonical HTTPS paths resolve even when the target has no $id.
+        assert validator.is_valid(1)
+        assert not validator.is_valid(0)
+        target.unlink()
+        _reset_for_tests()
+        validator = get_validator("synthetic_tool", "request", version=legacy_key)
+        assert validator is not None
+    # An absent canonical target or unregistered HTTP URL must fail closed.
+    with pytest.raises(Exception, match="schema reference is not in bundle"):
+        validator.is_valid(1)
+    assert network_calls == []
+
+
 def test_get_validator_same_tool_different_versions_compiles_separately(
     synthetic_legacy_bundle: tuple[str, Path],
 ) -> None:

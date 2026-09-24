@@ -259,6 +259,7 @@ if TYPE_CHECKING:
     from adcp.decisioning.task_registry import TaskRegistry
     from adcp.decisioning.types import Account
     from adcp.reporting.outbox.activity import ReportingActivityProjector
+    from adcp.reporting.outbox.status_support import ReportingStatusSupport
     from adcp.reporting.outbox.support import ReportingActivitySupport
     from adcp.webhook_sender import WebhookSender
     from adcp.webhook_supervisor import WebhookDeliverySupervisor
@@ -490,6 +491,11 @@ SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
     "sales-broadcast-tv": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     "sales-dooh": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     "sales-social": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-exchange": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-streaming-tv": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-retail-media": (
+        _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS | _CATALOG_ADVERTISED_TOOLS
+    ),
     "sales-catalog-driven": (
         _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS | _CATALOG_ADVERTISED_TOOLS
     ),
@@ -548,6 +554,9 @@ SPECIALISM_TO_PROTOCOLS: dict[str, frozenset[str]] = {
     "sales-broadcast-tv": frozenset({"media_buy"}),
     "sales-dooh": frozenset({"media_buy"}),
     "sales-social": frozenset({"media_buy"}),
+    "sales-exchange": frozenset({"media_buy"}),
+    "sales-streaming-tv": frozenset({"media_buy"}),
+    "sales-retail-media": frozenset({"media_buy"}),
     "sales-catalog-driven": frozenset({"media_buy"}),
     "sales-proposal-mode": frozenset({"media_buy"}),
     # Creative — generative / template / transformers / ad-server all expose creative
@@ -1425,6 +1434,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         adcp_version: str | None = None,
         account_activity: ReportingActivityProjector | None = None,
         reporting_activity: ReportingActivitySupport | None = None,
+        reporting_status: ReportingStatusSupport | None = None,
     ) -> None:
         super().__init__()
         # ``None`` resolves to the protocol version bundled with this SDK, so
@@ -1434,6 +1444,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._platform = platform
         self._account_activity = account_activity
         self._reporting_activity = reporting_activity
+        self._reporting_status = reporting_status
         self._executor = executor
         self._registry = registry
         self._state_reader = state_reader
@@ -1933,6 +1944,12 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             response["account"] = caps.account.model_dump(mode="json", exclude_none=True)
         if caps.media_buy is not None:
             media_buy = caps.media_buy.model_dump(mode="json", exclude_none=True)
+            reporting_model = getattr(caps.media_buy, "reporting_delivery", None)
+            if reporting_model is not None:
+                # Generated defaults are not evidence of mounted features.
+                media_buy["reporting_delivery"] = reporting_model.model_dump(
+                    mode="json", exclude_none=True, exclude_unset=True
+                )
             execution_model = getattr(caps.media_buy, "execution", None)
             targeting_model = getattr(execution_model, "targeting", None)
             geo_postal_areas = getattr(targeting_model, "geo_postal_areas", None)
@@ -2057,7 +2074,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             adcp_version=(context.resolved_adcp_version if context is not None else None),
         )
 
+        from adcp.reporting.outbox.status_support import validate_status_claims
         from adcp.reporting.outbox.support import validate_activity_claims
+
+        await validate_status_claims(response, support=self._reporting_status, handler=self)
 
         await validate_activity_claims(
             response,

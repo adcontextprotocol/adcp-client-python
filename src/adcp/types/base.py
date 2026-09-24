@@ -13,7 +13,8 @@ import os
 from collections.abc import Callable
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, SerializerFunctionWrapHandler, model_serializer
+from pydantic_core import PydanticSerializationError
 
 # Type alias to shorten long type annotations
 MessageFormatter = Callable[[Any], str]
@@ -273,6 +274,54 @@ class AdCPBaseModel(BaseModel):
     # the handful of models actually used are paid for.
     model_config = ConfigDict(extra=_EXTRA_POLICY, defer_build=True)
 
+    @model_serializer(mode="wrap")
+    def _explicit_reporting_wire_defaults(self, handler: SerializerFunctionWrapHandler) -> Any:
+        """Do not synthesize conditional reporting promises from generated defaults.
+
+        The generated classes remain untouched. This wrapper also runs for
+        nested account notification configs and model_dump_json, without
+        mutating the adopter's model or its fields-set information.
+        """
+        value = handler(self)
+        if not isinstance(value, dict):
+            return value
+        # Bundled schemas can rename or inline the same wire shape. Match its
+        # declared fields rather than generated class/module names; supplied
+        # values still come exclusively from this instance's fields-set.
+        fields = type(self).model_fields
+        if {"subscriber_id", "url", "event_types", "product_payload_view"} <= fields.keys():
+            events = getattr(self, "event_types", ())
+            if "product_payload_view" not in self.model_fields_set and not any(
+                str(getattr(e, "value", e)).startswith("product.") for e in events
+            ):
+                value.pop("product_payload_view", None)
+        elif {
+            "supported",
+            "reliable_reporting_version",
+            "managed_delivery",
+            "reconciled_billing",
+            "offerings",
+            "automated_recovery_window_seconds",
+            "status_retention_days",
+        } <= fields.keys():
+            for field in (
+                "reliable_reporting_version",
+                "managed_delivery",
+                "reconciled_billing",
+                "configuration_task",
+                "status_task",
+                "consumer_status_task",
+                "revision_content_task",
+                "receipt_task",
+                "readiness_notification",
+                "status_notification",
+                "ledger_notification",
+                "supports_webhook_activity",
+            ):
+                if field not in self.model_fields_set:
+                    value.pop(field, None)
+        return value
+
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:
         # ``serialize_as_any=True`` makes Pydantic dispatch on the runtime type of
         # nested values rather than the declared schema, so subclass
@@ -287,7 +336,7 @@ class AdCPBaseModel(BaseModel):
             kwargs["serialize_as_any"] = True
         try:
             return super().model_dump(**kwargs)
-        except TypeError as exc:
+        except (TypeError, PydanticSerializationError) as exc:
             if "MockValSer" not in str(exc):
                 raise
             _build_deferred_serializers(self, set())
@@ -300,7 +349,7 @@ class AdCPBaseModel(BaseModel):
             kwargs["serialize_as_any"] = True
         try:
             return super().model_dump_json(**kwargs)
-        except TypeError as exc:
+        except (TypeError, PydanticSerializationError) as exc:
             if "MockValSer" not in str(exc):
                 raise
             _build_deferred_serializers(self, set())

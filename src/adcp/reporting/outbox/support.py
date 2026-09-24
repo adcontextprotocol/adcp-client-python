@@ -10,6 +10,7 @@ from adcp.reporting.outbox.activity import ReportingActivityProjector
 
 if TYPE_CHECKING:
     from adcp.reporting.ledger.store import ReportingLedgerStore
+    from adcp.reporting.outbox.status_support import ReportingStatusSupport
     from adcp.reporting.outbox.worker import ReportingNotificationWorker
 
 
@@ -26,6 +27,7 @@ class ReportingActivitySupport:
     worker: ReportingNotificationWorker
     ledger: ReportingLedgerStore
     projector: ReportingActivityProjector | None = None
+    status: ReportingStatusSupport | None = None
 
     async def durable(self) -> bool:
         from adcp.reporting.ledger.delivery import InMemoryReportingReconciliationStore
@@ -36,6 +38,8 @@ class ReportingActivitySupport:
 
         if self.projector is None or self.worker.activity is None:
             return False
+        if self.status is not None:
+            return await self._composite_durable()
         if (
             type(self.worker) is not ReportingNotificationWorker
             or type(self.worker.cipher) is not ReportingEnvelopeCipher
@@ -69,6 +73,49 @@ class ReportingActivitySupport:
             raise ReportingNotificationError("activity_chain_unready")
         async with self.ledger._pool.connection() as connection:
             await validate_schema(connection, activity=True)
+        return True
+
+    async def _composite_durable(self) -> bool:
+        """Only the closed B+C read/purge union may replace the original B reader."""
+        assert self.status is not None
+        if not self.status.scheduled:
+            return False
+        from adcp.reporting.outbox._schema import validate_schema
+        from adcp.reporting.outbox.pg import PgReportingOutbox
+        from adcp.reporting.outbox.routing import ReportingEnvelopeCipher
+        from adcp.reporting.outbox.status_activity_pg import PgReportingActivityUnionStore
+        from adcp.reporting.outbox.status_pg import PgStatusNotificationStore
+        from adcp.reporting.outbox.status_schema import validate_status_schema
+        from adcp.reporting.outbox.worker import ReportingNotificationWorker
+
+        store = self.status.store
+        if not isinstance(store, PgStatusNotificationStore):
+            return False
+        reader = self.projector.store if self.projector is not None else None
+        if (
+            type(self.worker) is not ReportingNotificationWorker
+            or type(self.worker.outbox) is not PgReportingOutbox
+            or not isinstance(self.worker.outbox, PgReportingOutbox)
+            or type(self.worker.cipher) is not ReportingEnvelopeCipher
+            or type(self.status.worker) is not ReportingNotificationWorker
+            or type(self.projector) is not ReportingActivityProjector
+            or type(reader) is not PgReportingActivityUnionStore
+            or not isinstance(reader, PgReportingActivityUnionStore)
+            or reader.b_outbox is not self.worker.outbox
+            or reader.status_outbox is not store.outbox
+            or self.worker.activity is not self.worker.outbox
+            or self.status.worker.activity is not store.outbox
+            or self.status.worker.outbox is not store.outbox
+            or self.ledger is not store.ledger
+            or self.worker.outbox._pool is not store.ledger._pool
+            or self.worker.cipher is not self.status.worker.cipher
+            or self.worker.subscriptions is not self.status.worker.subscriptions
+            or self.worker.signing is not self.status.worker.signing
+        ):
+            raise ReportingNotificationError("activity_chain_unready")
+        async with store.ledger._pool.connection() as connection:
+            await validate_schema(connection, activity=True)
+            await validate_status_schema(connection, activity=True, status=False)
         return True
 
     async def capability_flags(

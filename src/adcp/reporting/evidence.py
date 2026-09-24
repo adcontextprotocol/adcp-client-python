@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -35,9 +38,36 @@ _UNSAFE_SHAPE = re.compile(
 )
 _AWS_KEY_ID = re.compile(r"(?:^|[^A-Za-z0-9])(?:AKIA|ASIA)[A-Z0-9]{16}\b")
 _JWT = re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+")
+_JOSE = re.compile(r"(?<![A-Za-z0-9_-])([A-Za-z0-9_-]{8,})\.[A-Za-z0-9_.-]+\.[A-Za-z0-9_-]+")
+_PROVIDER_CREDENTIAL = re.compile(
+    r"(?:\bgh[pousr]_[A-Za-z0-9]{20,}|\bgithub_pat_[A-Za-z0-9_]{20,}|"
+    r"\bxox[baprs]-[A-Za-z0-9-]{12,}|\bsk_(?:live|test)_[A-Za-z0-9]{12,})"
+)
+_BASIC = re.compile(r"(?i)\bbasic\s+([A-Za-z0-9+/]{8,}={0,2})")
 
 
-def _public_text(value: str, *, maximum: int) -> str:
+def _encoded_credential(value: str) -> bool:
+    # JWT/JWE protected headers can use whitespace and alternate member order;
+    # checking only the familiar eyJ prefix misses valid credential forms.
+    for match in _JOSE.finditer(value):
+        encoded = match[1]
+        try:
+            header = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
+        except (ValueError, UnicodeDecodeError, binascii.Error):
+            continue
+        if isinstance(header, dict) and ("alg" in header or "enc" in header):
+            return True
+    for match in _BASIC.finditer(value):
+        try:
+            if b":" in base64.b64decode(match[1], validate=True):
+                return True
+        except (ValueError, binascii.Error):
+            # Invalid base64 is not a decoded Basic credential; inspect other matches.
+            pass
+    return False
+
+
+def _public_text(value: str, *, maximum: int, consumer_url: bool = False) -> str:
     """Reject recognizable credentials without normalizing a provider's identity.
 
     Provenance still belongs to the trusted adapter: no syntax check can decide
@@ -53,15 +83,33 @@ def _public_text(value: str, *, maximum: int) -> str:
         raise ValueError("reporting metadata requires non-secret public text")
     inspected = value
     while True:
+        malformed = False
+        try:
+            url = urlsplit(inspected) if consumer_url else None
+        except ValueError:
+            malformed, url = True, None
+        if malformed:
+            raise ValueError("reporting metadata requires non-secret public text")
+        safe_url = bool(
+            url is not None
+            and url.scheme == "https"
+            and url.hostname
+            and not url.username
+            and not url.password
+            and not url.query
+            and not url.fragment
+        )
         if (
             not inspected.isprintable()
-            or "://" in inspected
+            or ("://" in inspected and not safe_url)
             or inspected.startswith("//")
-            or _UNSAFE_SHAPE.search(inspected)
+            or _UNSAFE_SHAPE.search(inspected.removeprefix("https:") if safe_url else inspected)
             or _CREDENTIAL_ASSIGNMENT.search(inspected)
             or _QUERY_PARAMETER.search(inspected)
             or _AWS_KEY_ID.search(inspected)
             or _JWT.search(inspected)
+            or _PROVIDER_CREDENTIAL.search(inspected)
+            or _encoded_credential(inspected)
         ):
             raise ValueError("reporting metadata requires non-secret public text")
         decoded = unquote(inspected)
@@ -82,6 +130,15 @@ def reporting_identifier(value: str, *, maximum: int = 255) -> str:
 def principal_reference(value: str) -> str:
     """Trusted public account/consumer identity, not a protocol entity ID."""
     return _public_text(value, maximum=255)
+
+
+def consumer_reference(value: str) -> str:
+    """Trusted opaque principal or BuyerAgent HTTPS URL, with credential screens.
+
+    Identity is never normalized here. Middleware must resolve aliases before
+    crossing this boundary. Inspect every percent-decoded form before storage.
+    """
+    return _public_text(value, maximum=2048, consumer_url=True)
 
 
 def destination_reference(value: str) -> str:

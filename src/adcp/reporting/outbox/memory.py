@@ -39,6 +39,7 @@ from adcp.reporting.outbox.models import (
 
 if TYPE_CHECKING:
     from adcp.reporting.ledger.store import InMemoryReportingLedgerStore
+    from adcp.reporting.outbox.status import StatusBoundary
 
 
 @dataclass
@@ -76,27 +77,37 @@ class _Work:
 
 @dataclass
 class NotificationState:
-    events: dict[tuple[str, str], ReportingDomainEvent] = field(default_factory=dict)
+    events: dict[tuple[str, str, str], ReportingDomainEvent] = field(default_factory=dict)
     causes: dict[tuple[str, str, str, str, str, int], str] = field(default_factory=dict)
-    expansions: dict[tuple[str, str, int], _Work] = field(default_factory=dict)
-    deliveries: dict[tuple[str, str], tuple[StoredDelivery, _Work]] = field(default_factory=dict)
-    emissions: set[tuple[str, str, int, str]] = field(default_factory=set)
+    expansions: dict[tuple[str, str, str, int], _Work] = field(default_factory=dict)
+    deliveries: dict[tuple[str, str, str], tuple[StoredDelivery, _Work]] = field(
+        default_factory=dict
+    )
+    emissions: set[tuple[str, str, str, int, str]] = field(default_factory=set)
     dirty: list[ReportingStatusDirty] = field(default_factory=list)
+    boundaries: list[StatusBoundary] = field(default_factory=list)
     checkpoints: dict[tuple[str, str], int] = field(default_factory=dict)
     issue_scopes: dict[tuple[str, str], ReportingStatusScope] = field(default_factory=dict)
-    activity_heads: dict[tuple[str, str, str, str], int] = field(default_factory=dict)
-    activity: dict[tuple[str, str, str, str, int], WebhookAttempt] = field(default_factory=dict)
+    activity_heads: dict[tuple[str, str, str, str, str], int] = field(default_factory=dict)
+    activity: dict[tuple[str, str, str, str, str, int], WebhookAttempt] = field(
+        default_factory=dict
+    )
 
     def enqueue(self, event: ReportingDomainEvent) -> None:
         """Internal synchronous participant; caller owns the ledger transaction."""
         existing_id = self.causes.get(event.causal_key)
         if existing_id is not None:
-            if self.events[(event.account_id, existing_id)].cause != event.cause:
+            if (
+                self.events[(event.account_id, event.consumer_namespace, existing_id)].cause
+                != event.cause
+            ):
                 raise ReportingNotificationError("event_identity_conflict")
             return
-        self.events[(event.account_id, event.notification_id)] = event
+        self.events[(event.account_id, event.consumer_namespace, event.notification_id)] = event
         self.causes[event.causal_key] = event.notification_id
-        self.expansions[(event.account_id, event.notification_id, 1)] = _Work(event.fired_at)
+        self.expansions[(event.account_id, event.consumer_namespace, event.notification_id, 1)] = (
+            _Work(event.fired_at)
+        )
 
     def mark_dirty(
         self,
@@ -167,7 +178,7 @@ class InMemoryReportingOutbox:
     async def list_events(self, *, account_id: str) -> tuple[ReportingDomainEvent, ...]:
         async with self._store._lock:
             return tuple(
-                event for (owner, _), event in self._state.events.items() if owner == account_id
+                event for (owner, _, _), event in self._state.events.items() if owner == account_id
             )
 
     async def claim_expansion(
@@ -175,10 +186,10 @@ class InMemoryReportingOutbox:
     ) -> ExpansionLease | None:
         now = aware_utc(now)
         async with self._store._lock:
-            for (owner, notification, generation), work in self._state.expansions.items():
+            for (owner, consumer, notification, generation), work in self._state.expansions.items():
                 if owner == account_id and work.available(now):
                     token, expires = work.claim(now, lease_seconds)
-                    event = self._state.events[(owner, notification)]
+                    event = self._state.events[(owner, consumer, notification)]
                     return ExpansionLease(
                         owner,
                         notification,
@@ -196,7 +207,12 @@ class InMemoryReportingOutbox:
     ) -> bool:
         async with self._store._mutation():
             work = self._state.expansions.get(
-                (lease.account_id, lease.notification_id, lease.emission_generation)
+                (
+                    lease.account_id,
+                    lease.consumer_namespace,
+                    lease.notification_id,
+                    lease.emission_generation,
+                )
             )
             if work is None or not work.held(lease.token, now):
                 return False
@@ -211,12 +227,15 @@ class InMemoryReportingOutbox:
                     raise ReportingNotificationError("invalid_configuration")
                 key = (
                     binding.account_id,
+                    binding.consumer_namespace,
                     binding.notification_id,
                     binding.emission_generation,
                     binding.subscriber_id,
                 )
                 if key not in self._state.emissions:
-                    self._state.deliveries[(binding.account_id, binding.delivery_id)] = (
+                    self._state.deliveries[
+                        (binding.account_id, binding.consumer_namespace, binding.delivery_id)
+                    ] = (
                         delivery,
                         _Work(now),
                     )
@@ -236,26 +255,43 @@ class InMemoryReportingOutbox:
         validate_finish(state, error_code)
         async with self._store._lock:
             work = self._state.expansions.get(
-                (lease.account_id, lease.notification_id, lease.emission_generation)
+                (
+                    lease.account_id,
+                    lease.consumer_namespace,
+                    lease.notification_id,
+                    lease.emission_generation,
+                )
             )
             if work is None or not work.held(lease.token, now):
                 return False
             _finish(work, now=now, state=state, error_code=error_code, retry_at=retry_at)
             return True
 
-    async def reemit(self, *, account_id: str, notification_id: str, now: datetime) -> int:
+    async def reemit(
+        self,
+        *,
+        account_id: str,
+        notification_id: str,
+        now: datetime,
+        consumer_namespace: str | None = None,
+    ) -> int:
         async with self._store._lock:
-            if (account_id, notification_id) not in self._state.events:
+            consumers = [
+                c
+                for a, c, n in self._state.events
+                if a == account_id
+                and n == notification_id
+                and (consumer_namespace is None or c == consumer_namespace)
+            ]
+            if len(consumers) != 1:
                 raise ReportingNotificationError("event_unavailable")
-            generation = (
-                max(
-                    g
-                    for a, n, g in self._state.expansions
-                    if a == account_id and n == notification_id
-                )
-                + 1
+            consumer = consumers[0]
+            generation = 1 + max(
+                g
+                for a, c, n, g in self._state.expansions
+                if (a, c, n) == (account_id, consumer, notification_id)
             )
-            self._state.expansions[(account_id, notification_id, generation)] = _Work(now)
+            self._state.expansions[(account_id, consumer, notification_id, generation)] = _Work(now)
             return generation
 
     async def claim_delivery(
@@ -263,7 +299,7 @@ class InMemoryReportingOutbox:
     ) -> DeliveryLease | None:
         now = aware_utc(now)
         async with self._store._lock:
-            for (owner, _), (delivery, work) in self._state.deliveries.items():
+            for (owner, _, _), (delivery, work) in self._state.deliveries.items():
                 if owner == account_id and work.available(now):
                     token, expires = work.claim(now, lease_seconds)
                     return DeliveryLease(delivery, token, expires, work.attempts)
@@ -272,7 +308,9 @@ class InMemoryReportingOutbox:
     async def delivery_lease_current(self, lease: DeliveryLease, *, now: datetime) -> bool:
         async with self._store._lock:
             binding = lease.delivery.binding
-            item = self._state.deliveries.get((binding.account_id, binding.delivery_id))
+            item = self._state.deliveries.get(
+                (binding.account_id, binding.consumer_namespace, binding.delivery_id)
+            )
             return item is not None and item[0] == lease.delivery and item[1].held(lease.token, now)
 
     async def finish_delivery(
@@ -287,7 +325,9 @@ class InMemoryReportingOutbox:
         validate_finish(state, error_code)
         async with self._store._lock:
             binding = lease.delivery.binding
-            item = self._state.deliveries.get((binding.account_id, binding.delivery_id))
+            item = self._state.deliveries.get(
+                (binding.account_id, binding.consumer_namespace, binding.delivery_id)
+            )
             if item is None or item[0] != lease.delivery or not item[1].held(lease.token, now):
                 return False
             _finish(item[1], now=now, state=state, error_code=error_code, retry_at=retry_at)
@@ -302,11 +342,14 @@ class InMemoryReportingOutbox:
         key = (
             binding.account_id,
             consumer,
+            binding.consumer_namespace,
             binding.subscriber_id,
             binding.idempotency_key,
         )
         async with self._store._lock:
-            item = self._state.deliveries.get((binding.account_id, binding.delivery_id))
+            item = self._state.deliveries.get(
+                (binding.account_id, binding.consumer_namespace, binding.delivery_id)
+            )
             if (
                 item is None
                 or item[0] != lease.delivery
@@ -336,6 +379,7 @@ class InMemoryReportingOutbox:
         key = (
             binding.account_id,
             consumer,
+            binding.consumer_namespace,
             binding.subscriber_id,
             binding.idempotency_key,
             attempt.attempt,
@@ -399,7 +443,7 @@ class InMemoryReportingOutbox:
         async with self._store._lock:
             return tuple(
                 DeliveryStatus(delivery, work.state, work.attempts, work.due_at, work.error_code)
-                for (owner, _), (delivery, work) in self._state.deliveries.items()
+                for (owner, _, _), (delivery, work) in self._state.deliveries.items()
                 if owner == account_id
             )
 

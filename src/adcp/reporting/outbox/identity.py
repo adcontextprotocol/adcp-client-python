@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from adcp.reporting.evidence import consumer_reference
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 
 if TYPE_CHECKING:
@@ -30,12 +31,12 @@ def canonical_consumer(principal: str | None) -> str:
             raise ValueError
         if principal != principal.strip() or not principal.isprintable() or len(principal) > 2048:
             raise ValueError
-        # Auth identities are opaque and include canonical BuyerAgent URLs.
-        # The reporting evidence helper intentionally rejects URLs and is not
-        # appropriate for this authentication boundary. Never normalize here.
+        consumer_reference(principal)
+        return principal
     except (ValueError, TypeError):
-        raise ReportingNotificationError("activity_identity_required") from None
-    return principal
+        pass
+    # Raise outside the parser exception scope: even __context__ is secret-free.
+    raise ReportingNotificationError("activity_identity_required")
 
 
 def resolve_reporting_consumer(

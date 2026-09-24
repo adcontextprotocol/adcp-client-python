@@ -39,7 +39,7 @@ _PATHS = [
 
 def _payload(task: str, collection: str) -> dict[str, Any]:
     params: dict[str, Any] = {
-        "adcp_version": "3.2-rc.3",
+        "adcp_version": "3.2-rc.6",
         "idempotency_key": "targeting-error-1181",
         "account": {"account_id": "account-1"},
     }

@@ -88,7 +88,8 @@ async def command(*, stage="command"):
 
 async def barrier(point, **data):
     emit(point, **data)
-    assert (await command(stage=f"barrier:{point}"))["continue"] == point
+    status_operation_1 = await command(stage=f"barrier:{point}")
+    assert (status_operation_1)["continue"] == point
 
 
 def install_test_socket(settings, clock):
@@ -220,6 +221,19 @@ async def main():
     global _DEADLINES
     settings, role = await command(), sys.argv[1]
     _DEADLINES = settings.get("deadlines", {})
+    if role.startswith("status_"):
+        from ._status_process import run_status_role
+
+        await run_status_role(
+            role,
+            settings,
+            barrier=barrier,
+            emit=emit,
+            bounded=bounded,
+            receiver=receiver,
+            install_test_socket=install_test_socket,
+        )
+        return
     clock = ManualClock()
     clock.advance(timedelta(seconds=settings.get("advance_seconds", 0)))
     pause = settings.get("pause")

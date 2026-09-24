@@ -18,7 +18,6 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.evidence import principal_reference, reporting_identifier
 from adcp.reporting.ledger.notification_models import (
-    MaterializationReady,
     ReportingDomainEvent,
     ReportingNotificationError,
     decode_event,
@@ -121,6 +120,7 @@ class ReportingNotificationSubscription:
                 raise ValueError
             object.__setattr__(self, "url", canonical)
         except (ValueError, TypeError, httpx.InvalidURL):
+            # Clear parser context before raising the closed configuration error below.
             pass
         else:
             return
@@ -141,10 +141,7 @@ class ReportingNotificationSubscription:
             and self.proof_valid
             and self.account_id == event.account_id
             and event.notification_type in self.event_types
-            and (
-                not isinstance(event.cause, MaterializationReady)
-                or self.principal_id == event.cause.consumer_id
-            )
+            and (not event.consumer_namespace or self.principal_id == event.consumer_namespace)
         )
 
 
@@ -277,9 +274,7 @@ class ReportingEnvelopeCipher:
             cause_kind=event.cause.kind,
             cause_id=event.cause_id,
             cause_generation=event.cause_generation,
-            consumer_namespace=(
-                event.cause.consumer_id if isinstance(event.cause, MaterializationReady) else ""
-            ),
+            consumer_namespace=event.consumer_namespace,
             auth_mode=subscription.auth_mode,
             body_sha256=hashlib.sha256(body).hexdigest(),
             envelope_version=1,
@@ -336,10 +331,7 @@ class ReportingEnvelopeCipher:
                 or event.cause.kind != binding.cause_kind
                 or event.cause_id != binding.cause_id
                 or event.cause_generation != binding.cause_generation
-                or (
-                    event.cause.consumer_id if isinstance(event.cause, MaterializationReady) else ""
-                )
-                != binding.consumer_namespace
+                or event.consumer_namespace != binding.consumer_namespace
                 or hashlib.sha256(body).hexdigest() != binding.body_sha256
                 or body
                 != event.body(

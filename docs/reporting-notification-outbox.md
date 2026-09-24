@@ -3,7 +3,7 @@
 The optional reporting outbox commits a typed logical event in the ledger's
 transaction, then expands subscribers and delivers HTTP in separate phases.
 This implements the ledger and Managed readiness slice of [#1168](https://github.com/adcontextprotocol/adcp-client-python/issues/1168).
-It retains a durable status-dirty handoff for the later complete status projector.
+It retains the durable status-dirty input for the optional [C status projector](reporting-status-notifications.md).
 
 | Committed change | Retained notification work |
 | --- | --- |
@@ -12,11 +12,13 @@ It retains a durable status-dirty handoff for the later complete status projecto
 | Managed destination/reconciliation change | Consumer-scoped status-dirty evidence |
 | Verified materialization with its frozen Managed binding | `reporting.delivery_ready`, scoped to the reconciliation consumer |
 
-There is no `reporting.status_changed` emitter. Clock sweeps and complete status
-fingerprint deduplication belong to #1168C. The optional
+This A outbox does not emit `reporting.status_changed`. The separate
+[#1168C status lifecycle](reporting-status-notifications.md) provides that emitter,
+clock sweeps and complete semantic fingerprinting in isolated queues. The optional
 [#1168B activity layer](reporting-webhook-activity.md) adds durable HTTP reservations
-and a list-accounts projection. Without that mounted layer the capability helper
-omits `status_notification` and sets `supports_webhook_activity=false`.
+and a list-accounts projection. Status and activity gates remain independent;
+the A-only capability helper omits `status_notification` and sets
+`supports_webhook_activity=false`.
 
 ## Optional wiring
 

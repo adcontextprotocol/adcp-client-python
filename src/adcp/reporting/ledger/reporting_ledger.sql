@@ -286,6 +286,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS reporting_issue_lifecycle_one_live
 CREATE UNIQUE INDEX IF NOT EXISTS reporting_issue_lifecycle_issue_id
     ON reporting_issue_lifecycle (issue_id);
 
+-- Rc.6 binds a bilateral waiver to one immutable statement and diagnosed
+-- conflict. A separate table preserves older binaries' column fingerprints;
+-- historical waivers are never backfilled with invented agreement evidence.
+CREATE TABLE IF NOT EXISTS reporting_issue_waiver_bindings (
+    account_id TEXT COLLATE "C" NOT NULL,
+    issue_key TEXT COLLATE "C" NOT NULL,
+    generation INTEGER NOT NULL,
+    reporting_status_id TEXT COLLATE "C" NOT NULL,
+    conflict_sha256 TEXT COLLATE "C" NOT NULL CHECK (conflict_sha256 ~ '^[0-9a-f]{64}$'),
+    PRIMARY KEY (account_id, issue_key, generation),
+    FOREIGN KEY (account_id, issue_key, generation)
+        REFERENCES reporting_issue_lifecycle (account_id, issue_key, generation)
+);
+
 -- The per-account change feed. `seq` orders every immutable record across
 -- kinds so `changes_after` is exact.
 --

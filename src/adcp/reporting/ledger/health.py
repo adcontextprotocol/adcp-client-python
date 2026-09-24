@@ -144,8 +144,7 @@ def project_obligation_health(
             current_revision=current,
         )
 
-    readable = [revision for revision in qualifying if revision.readable]
-    if readable:
+    if current is not None and current.readable:
         return ObligationProjection(
             health="complete" if scope_closed else "healthy",
             production_status="published",
@@ -154,18 +153,13 @@ def project_obligation_health(
             current_revision=current,
         )
 
-    if qualifying:
+    if current is not None:
         # A qualifying revision exists but nothing is readable. Core's promise
         # is retained readability, so this is a seller repair, not a wait.
-        ordered = sorted(
-            qualifying, key=lambda item: (_utc(item.created_at), item.reporting_revision_id)
-        )
-        once_readable = [item for item in ordered if item.readable_at_commit]
-        opening = once_readable[-1] if once_readable else ordered[0]
         return ObligationProjection(
             health="action_required",
             production_status="published",
-            issues=(_unreadable_issue(obligation, opening.reporting_revision_id),),
+            issues=(_unreadable_issue(obligation, current.reporting_revision_id),),
             satisfied=False,
             current_revision=current,
         )
@@ -321,7 +315,7 @@ def aggregate_reporting_health(
         return "action_required"
     if "delayed" in values:
         return "delayed"
-    if scope_closed and values and all(value == "complete" for value in values):
+    if scope_closed and all(value == "complete" for value in values):
         return "complete"
     if any(value in {"healthy", "complete"} for value in values):
         return "healthy"

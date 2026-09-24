@@ -90,6 +90,7 @@ SPEC_WEBHOOK_TASK_TYPES: frozenset[str] = frozenset(
         "sync_accounts",
         "get_account_financials",
         "get_creative_delivery",
+        "get_creative_features",
         "sync_event_sources",
         "sync_audiences",
         "sync_catalogs",

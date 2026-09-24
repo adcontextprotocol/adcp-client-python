@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, python-adcp-sdk-setup]
   pull_request:
-    branches: [main]
+    branches: [main, conductor/reporting-webhook-activity-1168b]
 
 # Default @adcp/sdk runner alias for storyboard jobs. Tracks the current
 # stable @adcp/sdk release via the ``latest`` npm dist-tag.
@@ -91,7 +91,7 @@ jobs:
 
       - name: Run adopter type-check suite
         if: matrix.python-version == '3.12'
-        run: mypy --strict tests/type_checks/ examples/reporting_webhook_activity.py
+        run: mypy --strict tests/type_checks/ examples/reporting_webhook_activity.py examples/reporting_status_notifications.py
 
       - name: Enforce adopter type-check fixture contract
         if: matrix.python-version == '3.12'
@@ -169,6 +169,7 @@ jobs:
                      tests/conformance/decisioning/test_pg_reference_workflow_queue.py \
                      tests/conformance/reporting/ \
                      --ignore=tests/conformance/reporting/test_reporting_notification_process_matrix.py \
+                     --ignore-glob='tests/conformance/reporting/test_reporting_status_*.py' \
                      -v
               ;;
             process)
@@ -185,18 +186,66 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
-    needs: pg-conformance
+    needs: [pg-conformance, pg-reporting-status]
     if: ${{ always() }}
     steps:
       - name: Require every Postgres conformance lane
         env:
           PG_RESULT: ${{ needs.pg-conformance.result }}
+          STATUS_RESULT: ${{ needs.pg-reporting-status.result }}
         run: |
-          if [ "$PG_RESULT" != "success" ]; then
+          if [ "$PG_RESULT" != "success" ] || [ "$STATUS_RESULT" != "success" ]; then
             echo "Postgres conformance matrix result: $PG_RESULT"
+            echo "Reporting status conformance result: $STATUS_RESULT"
             exit 1
           fi
           echo "All Postgres conformance lanes passed"
+
+  pg-reporting-status:
+    name: Reporting status conformance (Postgres 16)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: adcp_status_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Fetch exact reviewed A and B compatibility artifacts
+        timeout-minutes: 1
+        run: |
+          git fetch --no-tags --depth=1 origin \
+            17ee407ae3978c8a2bb54437287afbf9dafb8130 \
+            0f34c666ac1961e9832fce43ef0ef6937b3c1dde
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies (with [pg] extra)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,pg]"
+
+      - name: Run status semantics, transaction, clock/process and rolling gates
+        env:
+          ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_status_test
+        run: pytest tests/conformance/reporting/test_reporting_status_*.py -v
 
   conventional-commits:
     name: Validate conventional commit format
@@ -283,6 +332,7 @@ jobs:
         working-directory: /tmp
         run: |
           python - <<'PY'
+          import json
           from importlib.resources import files
 
           from adcp import get_adcp_spec_version
@@ -303,7 +353,11 @@ jobs:
               if child.is_dir()
           }
           assert packaged_versions == {"2.5", "3.0", "3.1", current_bundle}
-          assert len(STANDARD_ERROR_CODES) == 120
+          error_schema = json.loads(
+              (schema_root / current_bundle / "enums/error-code.json").read_text(encoding="utf-8")
+          )
+          # NOT_SUPPORTED is the SDK's explicit extension to the pinned vocabulary.
+          assert set(STANDARD_ERROR_CODES) == {*error_schema["enum"], "NOT_SUPPORTED"}
           assert adcp_error("AUTH_MISSING", "x")["errors"][0]["recovery"] == "correctable"
           assert make_versioned_base("3.1", "ListCreativesRequest")
           assert ReportingCapabilities.__name__ == "ReportingCapabilities"

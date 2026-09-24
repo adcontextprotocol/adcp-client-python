@@ -72,6 +72,7 @@ from adcp.reporting.ledger.health import current_required_revision, issue_id_for
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ConsumerStatusValue,
+    ReportingConfiguration,
     ReportingConfigurationGenerationKey,
     ReportingDeliveryEscalation,
     ReportingHealth,
@@ -199,11 +200,19 @@ class ConsumerStatusIngest:
                     results.append({"result": "unchanged", "consumer_status": _to_wire(replay)})
                     continue
                 await self._validate_against_configuration(record)
-                stored, recorded = await self.store.record_consumer_status(record)
+                from adcp.reporting.ledger.status_snapshot import ReportingStatusParticipant
+
+                atomic = isinstance(self.store, ReportingStatusParticipant)
+                if atomic and isinstance(self.store, ReportingStatusParticipant):
+                    stored, recorded = await self.store.record_consumer_status_with_lifecycle(
+                        record
+                    )
+                else:
+                    stored, recorded = await self.store.record_consumer_status(record)
             except LedgerConflictError as error:
                 results.append(_failed(status_id, error.code, str(error)))
                 continue
-            if recorded:
+            if recorded and not atomic:
                 await self._open_issue_on_first_observation(stored)
             results.append(
                 {
@@ -248,16 +257,27 @@ class ConsumerStatusIngest:
             current=stored, current_revision=current, revisions=revisions
         ):
             return
+        key = consumer_mismatch_issue_key(
+            account_id=stored.account_id,
+            consumer_id=stored.consumer_id,
+            delivery_config_id=stored.delivery_config_id,
+            delivery_config_version=stored.delivery_config_version,
+            report_definition_id=stored.report_definition_id,
+            period_start=stored.period_start,
+            period_end=stored.period_end,
+        )
+        seen: set[str] = set()
+        while (
+            issue := await self.store.get_issue(account_id=stored.account_id, issue_key=key)
+        ) is not None and issue.issue_state == "waived":
+            if issue.issue_id in seen or issue.issue_key != key:
+                raise LedgerConflictError("STATUS_PROJECTION_UNAVAILABLE", "invalid waiver chain")
+            seen.add(issue.issue_id)
+            if waiver_covers_mismatch(issue, stored, obligation, current):
+                return
+            key = condition_after_waiver(issue)
         await self.store.ensure_issue_opened(
-            issue_key=consumer_mismatch_issue_key(
-                account_id=stored.account_id,
-                consumer_id=stored.consumer_id,
-                delivery_config_id=stored.delivery_config_id,
-                delivery_config_version=stored.delivery_config_version,
-                report_definition_id=stored.report_definition_id,
-                period_start=stored.period_start,
-                period_end=stored.period_end,
-            ),
+            issue_key=key,
             account_id=stored.account_id,
             consumer_id=stored.consumer_id,
             observed_at=stored.recorded_at,
@@ -306,6 +326,7 @@ class ConsumerStatusIngest:
                 "not at all",
             )
         await self._resolve_named_records(record)
+        validate_consumer_status_timing(record, generation, as_of=self._now())
 
     async def _resolve_named_records(self, record: ConsumerStatusRecord) -> None:
         """Resolve the optional obligation and revision ids the caller supplied.
@@ -424,6 +445,75 @@ class ConsumerStatusIngest:
         )
 
 
+def validate_consumer_status_timing(
+    record: ConsumerStatusRecord, generation: ReportingConfiguration, *, as_of: datetime
+) -> None:
+    """Validate a statement's derived calendar and observation at the locked boundary."""
+    from zoneinfo import ZoneInfo
+
+    from adcp.reporting.ledger.models import derive_period, iso_duration_to_timedelta
+
+    stamps = (
+        record.period_start,
+        record.period_end,
+        record.status_as_of,
+        record.recorded_at,
+        as_of,
+    )
+    if any(t.tzinfo is None or t.utcoffset() is None for t in stamps):
+        raise LedgerConflictError(
+            "INVALID_STATUS_TIME", "status timestamps must include a timezone"
+        )
+    if record.status_as_of > as_of or record.status_as_of < record.period_start:
+        raise LedgerConflictError(
+            "INVALID_STATUS_TIME", "status observation is outside its valid time range"
+        )
+    zone_name = generation.schedule.timezone_name(generation.account_timezone)
+    if record.period_source_timezone != zone_name:
+        raise LedgerConflictError(
+            "INVALID_STATUS_PERIOD", "status timezone differs from the accepted schedule"
+        )
+    zone = ZoneInfo(zone_name)
+    anchor = generation.schedule.period_anchor or datetime(1970, 1, 1, tzinfo=timezone.utc)
+    delta = record.period_start.astimezone(zone).replace(tzinfo=None) - anchor.astimezone(
+        zone
+    ).replace(tzinfo=None)
+    duration = iso_duration_to_timedelta(generation.schedule.period_duration)
+    if duration <= timedelta(0) or delta % duration:
+        raise LedgerConflictError(
+            "INVALID_STATUS_PERIOD", "status period is not a scheduled boundary"
+        )
+    try:
+        period = derive_period(
+            generation.schedule,
+            account_timezone=generation.account_timezone,
+            ordinal=delta // duration,
+            activated_at=generation.activated_at,
+        )
+    except ValueError:
+        raise LedgerConflictError(
+            "INVALID_STATUS_PERIOD", "status period is outside the accepted generation"
+        ) from None
+    if (
+        period.start != record.period_start
+        or period.end != record.period_end
+        or (
+            generation.deactivated_at is not None
+            and record.period_start >= generation.deactivated_at
+        )
+    ):
+        raise LedgerConflictError(
+            "INVALID_STATUS_PERIOD", "status period is outside the accepted generation"
+        )
+    if (
+        record.consumer_status in {"obligation_missing", "revision_missing"}
+        and record.status_as_of < period.expected_at
+    ):
+        raise LedgerConflictError(
+            "STATUS_NOT_DUE", "a missing report cannot be asserted before its expected time"
+        )
+
+
 def _narrow_recorded_status(value: str) -> ConsumerStatusValue:
     """Narrow a schema ``consumer_status`` to the values this ledger records.
 
@@ -494,10 +584,9 @@ class ConsumerMismatch:
 
     issue: ReportingIssue
     severity: Literal["delayed", "action_required"]
-    #: ``False`` once a seller has waived the statement. The view still
-    #: degrades -- waiving is an agreement to stop *acting*, not a finding that
-    #: the reporting is fine -- but a waived issue is not published in
-    #: ``issues[]``.
+    #: Only published occurrences contribute health. A waived occurrence is
+    #: omitted only while its exact statement and diagnosed conflict match
+    #: the recorded bilateral waiver. Later disagreements are independent.
     published: bool = True
 
 
@@ -579,6 +668,66 @@ def current_consumer_statement(
 ) -> ConsumerStatusRecord | None:
     """This caller's one unsuperseded leaf, or ``None`` for an empty chain."""
     return next((item for item in statuses if not item.superseded), None)
+
+
+def mismatch_conflict_fingerprint(
+    status: ConsumerStatusRecord,
+    obligation: ReportingObligationRecord | None,
+    current_revision: ReportingRevisionRecord | None,
+) -> str:
+    """Private identity of the diagnosed conflict, separate from escalation.
+
+    Time/severity changes do not create a different disagreement. A changed
+    seller revision does when the diagnosis compares against that revision.
+    The immutable consumer statement is bound separately by its record ID.
+    """
+    required = (
+        current_revision.reporting_revision_id
+        if current_revision is not None
+        and status.consumer_status in {"received", "revision_missing", "content_mismatch"}
+        else None
+    )
+    return hashlib.sha256(
+        canonical_json_utf8_v1(
+            [
+                "consumer-mismatch-waiver-v1",
+                status.account_id,
+                status.consumer_id,
+                status.consumer_status,
+                status.reporting_revision_id,
+                status.failure_code,
+                status.mismatch_code,
+                obligation.reporting_obligation_id if obligation else None,
+                required,
+            ]
+        )
+    ).hexdigest()
+
+
+def waiver_covers_mismatch(
+    lifecycle: ReportingIssueLifecycle,
+    status: ConsumerStatusRecord,
+    obligation: ReportingObligationRecord | None,
+    current_revision: ReportingRevisionRecord | None,
+) -> bool:
+    return (
+        lifecycle.issue_state == "waived"
+        and lifecycle.account_id == status.account_id
+        and lifecycle.consumer_id == status.consumer_id
+        and lifecycle.waived_reporting_status_id == status.reporting_status_id
+        and lifecycle.waived_conflict_sha256
+        == mismatch_conflict_fingerprint(status, obligation, current_revision)
+    )
+
+
+def condition_after_waiver(lifecycle: ReportingIssueLifecycle) -> str:
+    """A new occurrence namespace without changing the terminal waiver row."""
+    return (
+        "rpik_"
+        + hashlib.sha256(
+            canonical_json_utf8_v1(["after-exact-waiver-v1", lifecycle.issue_id])
+        ).hexdigest()[:40]
+    )
 
 
 def consumer_statement_conflicts(
@@ -716,6 +865,12 @@ def project_consumer_mismatch(
     current = current_consumer_statement(statuses)
     if current is None:
         return None
+    if lifecycle is not None and lifecycle.issue_state == "waived":
+        if waiver_covers_mismatch(lifecycle, current, obligation, current_revision):
+            return None
+        # A caller must settle the new occurrence before publishing. Never
+        # treat a legacy/unrelated waiver as permission to clear this health.
+        lifecycle = None
     if not consumer_statement_conflicts(
         current=current, current_revision=current_revision, revisions=revisions
     ):

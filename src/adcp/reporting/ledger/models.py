@@ -31,6 +31,7 @@ from adcp.reporting.currency import validate_currency, validate_currency_units
 from adcp.reporting.evidence import (
     ReportingCanonicalDigest,
     ReportingControlTotalRecord,
+    consumer_reference,
     freeze_control_totals,
 )
 
@@ -579,6 +580,9 @@ class ConsumerStatusRecord:
     seller_ledger_as_of: datetime | None = None
     superseded: bool = False
 
+    def __post_init__(self) -> None:
+        consumer_reference(self.consumer_id)
+
     @property
     def generation_key(self) -> ReportingConfigurationGenerationKey:
         return ReportingConfigurationGenerationKey(
@@ -690,9 +694,10 @@ class ReportingIssueLifecycle:
     on each poll and an unattended mismatch would never escalate.
 
     ``issue_key`` identifies the *condition*; ``issue_id`` identifies one
-    *occurrence* of it.  Retirement bumps ``generation``, so a recurrence after
-    ``resolved`` or ``waived`` gets a new ``issue_id`` and a new ``opened_at``
-    exactly as the spec requires, while an unresolved condition keeps both
+    *occurrence* of it. Resolution bumps ``generation`` on recurrence; an
+    exact bilateral waiver preserves its terminal row and a later disagreement
+    uses a new private condition key. Both receive a new ``issue_id`` and
+    ``opened_at`` as the spec requires, while an unresolved condition keeps both
     across a severity change from ``delayed`` to ``action_required``.
     """
 
@@ -707,18 +712,25 @@ class ReportingIssueLifecycle:
     consumer_id: str | None = None
     external_ref: str | None = None
     retired_at: datetime | None = None
+    #: Private rc.6 waiver binding, captured under the source transaction.
+    #: A legacy waiver without this evidence cannot suppress a new projection.
+    waived_reporting_status_id: str | None = None
+    waived_conflict_sha256: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.consumer_id is not None:
+            consumer_reference(self.consumer_id)
 
     @property
     def live(self) -> bool:
         """Whether this occurrence still stands, publishable or not.
 
-        ``waived`` counts as live.  Waiving records an agreement to stop
-        *acting*, not a finding that the reporting is fine, so the occurrence
-        must keep blocking a new one -- otherwise the next poll would open a
-        fresh occurrence and republish the issue the parties just agreed to
-        stop acting on, and the waiver would mean nothing.
+        ``waived`` retains its terminal record and suppresses only its exact
+        statement/conflict binding. A later disagreement uses a new private
+        condition key, leaving this audit record and the one-live-row constraint
+        intact. Agreement never rewrites a waiver as ``resolved``.
 
-        Only ``resolved`` frees the condition to recur under a new
+        ``resolved`` frees the condition to recur under a new
         ``issue_id``, and only the projection can set it (see
         :meth:`~adcp.reporting.ledger.store.ReportingLedgerStore.retire_issue`).
         """
@@ -731,8 +743,7 @@ class ReportingIssueLifecycle:
         Only ``open`` and ``acknowledged``.  Retiring an issue removes it from
         the projection rather than publishing it in a terminal state, so a
         reader that treats a nonempty ``issues[]`` as degradation stays
-        correct.  The converse does not hold: a waived mismatch degrades the
-        caller's view with no published issue.
+        correct. Waived occurrences contribute neither an issue nor degradation.
         """
         return self.issue_state in {"open", "acknowledged"}
 
@@ -770,6 +781,11 @@ class ReportingDeliveryEscalation:
             and self.consumer_mismatch_escalation.total_seconds() < 0
         ):
             raise ValueError("consumer_mismatch_escalation cannot be negative")
+        if (
+            self.consumer_mismatch_escalation is not None
+            and self.consumer_mismatch_escalation.total_seconds() % 1
+        ):
+            raise ValueError("consumer_mismatch_escalation requires integral seconds")
         if self.operations_contact_url is not None and not self.operations_contact_url.startswith(
             "https://"
         ):
