@@ -117,6 +117,13 @@ async def validate_schema(connection: Any, *, activity: bool = False) -> None:
         raise ReportingNotificationError(
             "notification_schema_unready:catalog_unavailable"
         ) from None
+    _validate_schema_objects(installed, activity=activity)
+
+
+def _validate_schema_objects(
+    installed: dict[str, dict[str, Any]], *, activity: bool = False
+) -> None:
+    """Apply the packaged B contract to an already captured catalog."""
     if not REQUIRED_OBJECTS:
         raise ReportingNotificationError("notification_schema_unready:manifest_missing")
     for key, expected in REQUIRED_OBJECTS.items():

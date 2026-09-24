@@ -11,6 +11,7 @@ from adcp.exceptions import ADCPTaskError
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.outbox.identity import canonical_consumer, resolve_reporting_consumer
+from adcp.reporting.receipts._diagnostics import _storage_failure
 from adcp.reporting.receipts.errors import ReportingReceiptError
 from adcp.reporting.receipts.store import ReportingReceiptBatchStore
 from adcp.reporting.receipts.wire import TASK, validate_receipt_request
@@ -241,9 +242,10 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
             return await self.receipt_store.ingest_receipt_batch(request, caller=caller)
         except ReportingReceiptError as error:
             code, message = error.code, str(error)
-        except Exception:
+        except Exception as error:
+            _storage_failure(error, boundary="handler")
             unavailable = ReportingReceiptError("RECEIPT_STORAGE_UNAVAILABLE")
             code, message = unavailable.code, str(unavailable)
         # Leave the exception scope before translating. Credential/ACL adapters
-        # may raise provider errors; neither logs nor exception chains retain them.
+        # may raise provider errors; only safe origin coordinates were logged.
         raise ADCPTaskError(operation=TASK, errors=[Error(code=code, message=message)])

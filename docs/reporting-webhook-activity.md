@@ -53,6 +53,47 @@ Relationship notification support is independent and supplies no evidence for
 either flag. The memory implementation supports shared conformance vectors; it
 cannot justify a durable claim.
 
+## Schema proof lifetime and readiness recovery
+
+`ReportingActivitySupport` remains a frozen public composition value. Its private
+cache holds only a completed **positive schema proof**, scoped to that one support
+instance, the exact B or B+C wiring identities, and the packaged required-object
+manifest contracts. Separate support instances never share proof, even on the
+same pool. Each pool must retain its deployment's database/search-path configuration;
+do not change session search paths behind a serving support instance.
+
+Cold concurrent discovery calls share one catalog scan and one pool checkout.
+Composite B+C activity validates both required contracts once against that capture.
+After success, discovery needs no catalog checkout, including when the pool is
+busy. Only primitive proof state survives completion: synchronous startup
+validation using `asyncio.run` can be followed by discovery on another event loop.
+An overlapping cold validator on a different loop fails closed; finish startup
+before serving. Canceling a discovery waiter does not cancel other waiters' scan.
+False results, failed/canceled scans and exceptions never become positive proof.
+The next call retries after repair.
+
+Every request still recomputes its capability response and checks its claims,
+exact component types, object identity, pool wiring, notification enablement,
+B+C scheduling/union wiring, and account-listing/projector topology. A false
+request claim does not warm the cache. Schema evidence grants no additional
+materializer, status or higher-tier readiness and does not cache authorization.
+
+For deployment changes, stop admission, drain workers and requests, migrate with
+the deployment connection and `await ledger.create_schema()`, construct a fresh
+support/server, validate readiness, then resume serving. Manifest validation is
+read-only; it does not install schema or private fairness-bootstrap objects.
+On readiness failure, keep admission closed, repair the required migration/object,
+and retry validation. Preserve existing immutable history and pending-effect
+recovery rules throughout rollback or restart.
+
+For controlled BYO DDL/tests on an existing composition, drain callers, call
+`support.invalidate_schema_validation()` **before** the DDL, complete the change,
+then validate before admitting new work. Invalidation advances an epoch: a
+previous in-flight scan cannot publish into the new epoch. A scan already in
+progress may finish, but its caller cannot use that invalidated proof. Arbitrary
+out-of-band DDL while serving is unsupported without this procedure or a fresh
+support after drain/migrate/restart; discovery does not automatically detect it.
+
 ## Canonical consumer and account visibility
 
 Call `resolve_reporting_consumer(auth_info=..., agent=...)` when registering a
