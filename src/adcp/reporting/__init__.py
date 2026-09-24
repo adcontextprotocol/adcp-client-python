@@ -77,7 +77,30 @@ if TYPE_CHECKING:
     from adcp.reporting import ledger as ledger
     from adcp.reporting import materializer as materializer
     from adcp.reporting import revision_selection as revision_selection
+    from adcp.reporting import service as service
     from adcp.reporting import source as source
+    from adcp.reporting import testing as testing
+    from adcp.reporting.service import (
+        ReliableReportingConfigurationError as ReliableReportingConfigurationError,
+    )
+    from adcp.reporting.service import (
+        ReliableReportingService as ReliableReportingService,
+    )
+    from adcp.reporting.service import (
+        ReportingAccountContext as ReportingAccountContext,
+    )
+    from adcp.reporting.service import (
+        ReportingAdapter as ReportingAdapter,
+    )
+    from adcp.reporting.testing import (
+        DeterministicReportingClock as DeterministicReportingClock,
+    )
+    from adcp.reporting.testing import (
+        ScriptedReportingAdapter as ScriptedReportingAdapter,
+    )
+    from adcp.reporting.testing import (
+        run_reporting_adapter_conformance as run_reporting_adapter_conformance,
+    )
 
 _LAZY_SUBMODULES = frozenset(
     {
@@ -89,12 +112,30 @@ _LAZY_SUBMODULES = frozenset(
         "ledger",
         "materializer",
         "revision_selection",
+        "service",
         "source",
+        "testing",
     }
 )
 
+_LAZY_EXPORTS = {
+    "ReliableReportingConfigurationError": ("service", "ReliableReportingConfigurationError"),
+    "ReliableReportingService": ("service", "ReliableReportingService"),
+    "ReportingAccountContext": ("service", "ReportingAccountContext"),
+    "ReportingAdapter": ("service", "ReportingAdapter"),
+    "DeterministicReportingClock": ("testing", "DeterministicReportingClock"),
+    "ScriptedReportingAdapter": ("testing", "ScriptedReportingAdapter"),
+    "run_reporting_adapter_conformance": ("testing", "run_reporting_adapter_conformance"),
+}
+
 
 def __getattr__(name: str) -> Any:
+    lazy_export = _LAZY_EXPORTS.get(name)
+    if lazy_export is not None:
+        import importlib
+
+        module_name, attribute = lazy_export
+        return getattr(importlib.import_module(f"{__name__}.{module_name}"), attribute)
     if name in _LAZY_SUBMODULES:
         import importlib
 
@@ -118,6 +159,13 @@ __all__ = [
     "ReportingReconciliationResult",
     "ReportingStatusClient",
     "ReportingTier",
+    "ReliableReportingConfigurationError",
+    "ReliableReportingService",
+    "ReportingAccountContext",
+    "ReportingAdapter",
+    "DeterministicReportingClock",
+    "ScriptedReportingAdapter",
+    "run_reporting_adapter_conformance",
     "build_reporting_receipt",
     "evaluate_reporting_ledger",
     "load_reporting_ledger",

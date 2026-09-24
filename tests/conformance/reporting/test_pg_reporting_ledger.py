@@ -52,6 +52,7 @@ from adcp.reporting.ledger import (  # noqa: E402
     ReportingScheduleSpec,
     ReportingStatusCaller,
     ReportingStatusHandler,
+    RestatementCheckpoint,
     derive_period,
     revision_content_sha256,
 )
@@ -66,6 +67,7 @@ _TABLES = (
     "reporting_consumer_statuses",
     "reporting_adjustments",
     "reporting_revision_rows",
+    "reporting_restatement_checkpoints",
     "reporting_revisions",
     "reporting_obligations",
     "reporting_configurations",
@@ -232,6 +234,44 @@ async def test_obligations_are_account_scoped(store: PgReportingLedgerStore) -> 
             reporting_obligation_id=obligation.reporting_obligation_id,
         )
         is None
+    )
+
+
+async def test_restatement_checkpoint_round_trips_and_advances_monotonically(
+    store: PgReportingLedgerStore,
+) -> None:
+    await store.put_configuration(_configuration())
+    obligation = await store.commit_obligation(_obligation(_configuration()))
+    first = RestatementCheckpoint(
+        account_id=ACCOUNT,
+        reporting_obligation_id=obligation.reporting_obligation_id,
+        checked_at=obligation.period.end,
+        next_observation=1,
+        provisional_until=obligation.period.end + timedelta(days=3),
+    )
+    assert await store.record_restatement_checkpoint(first) == first
+
+    stale = RestatementCheckpoint(
+        account_id=ACCOUNT,
+        reporting_obligation_id=obligation.reporting_obligation_id,
+        checked_at=obligation.period.end - timedelta(minutes=1),
+        next_observation=1,
+    )
+    assert await store.record_restatement_checkpoint(stale) == first
+
+    second = RestatementCheckpoint(
+        account_id=ACCOUNT,
+        reporting_obligation_id=obligation.reporting_obligation_id,
+        checked_at=obligation.period.end + timedelta(hours=1),
+        next_observation=2,
+    )
+    assert await store.record_restatement_checkpoint(second) == second
+    assert (
+        await store.get_restatement_checkpoint(
+            account_id=ACCOUNT,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+        )
+        == second
     )
 
 

@@ -68,38 +68,16 @@ async def isolated_reporting_pool(
             await admin.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))
 
 
-def assert_c_collated_rolling_database() -> None:
-    """Frozen-artifact readiness is only measurable on a C-collated database.
+def require_rolling_database() -> None:
+    """Skip optional binary controls before checkout when PostgreSQL is unavailable.
 
-    Reviewed A digests each table's constraints as one aggregate ordered by
-    ``pg_get_constraintdef()`` -- a ``text`` expression sorted under the
-    *database* default collation. Under any other default collation A's bundled
-    contract does not reproduce even against A's own freshly created schema, so
-    A readiness is already closed before anything is migrated and a rolling
-    assertion would measure the locale instead of the upgrade. Every SDK
-    identity column is ``TEXT COLLATE "C"``, so C is the contract.
-
-    Every fixture that executes a frozen A/B artifact must call this, and every
-    CI job that runs one must initialise its cluster with
-    ``--encoding=UTF8 --lc-collate=C --lc-ctype=C``. Fail loudly rather than
-    weaken or skip the artifact assertions.
+    The integrated A/B artifacts validate their catalogs independently of the
+    database locale. A locale pin would hide portability regressions here.
     """
-    url = os.environ.get("ADCP_PG_TEST_URL")
-    if not url:
+    if not os.environ.get("ADCP_PG_TEST_URL"):
         pytest.skip("actual A/B compatibility requires real PostgreSQL")
-    psycopg = pytest.importorskip("psycopg")
-    with psycopg.connect(url, autocommit=True) as connection:
-        row = connection.execute(
-            "SELECT datcollate, datlocprovider, daticulocale FROM pg_database"
-            " WHERE datname = current_database()"
-        ).fetchone()
-    assert row is not None
-    collate, provider, icu = row
-    assert collate == "C" and (provider != "i" or icu in {None, "C"}), (
-        "the frozen A/B rolling gates require a C-collated database"
-        f" (found datcollate={collate!r} provider={provider!r} icu={icu!r});"
-        " create the cluster with initdb --encoding=UTF8 --lc-collate=C --lc-ctype=C"
-    )
+    pytest.importorskip("psycopg")
+    pytest.importorskip("psycopg_pool")
 
 
 def configuration(account_id: str = "acct_a") -> ReportingConfiguration:

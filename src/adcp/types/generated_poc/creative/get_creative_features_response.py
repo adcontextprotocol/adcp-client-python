@@ -4,45 +4,46 @@
 
 from __future__ import annotations
 
-from typing import Annotated, TypeAlias
+from typing import Annotated, Literal, TypeAlias
 
-from pydantic import AnyUrl, ConfigDict, Field, StringConstraints
+from pydantic import ConfigDict, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
-from . import audit_observation as audit_observation_1
-from . import creative_feature_result as creative_feature_result_1
 from ..core import context as context_1
-from ..core import creative_consumption as creative_consumption_1
 from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core.protocol_envelope import ProtocolEnvelope
+from ..enums import task_status as task_status_1
 
 
 class GetCreativeFeaturesResponse1(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
-    results: list[creative_feature_result_1.CreativeFeatureResult]
-    detail_url: AnyUrl | None = None
-    audit_observations: list[audit_observation_1.CreativeAuditObservation] | None = None
-    pricing_option_id: str | None = None
-    vendor_cost: Annotated[float, Field(ge=0)] | None = None
-    currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None = None
-    consumption: creative_consumption_1.CreativeConsumption | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
 
 
 class GetCreativeFeaturesResponse2(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(extra='allow')
+    evaluation_id: Annotated[str, StringConstraints(min_length=1)] | None = None
     errors: list[error_1.Error]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
 
 
-GetCreativeFeaturesResponse: TypeAlias = GetCreativeFeaturesResponse1 | GetCreativeFeaturesResponse2
+class GetCreativeFeaturesResponse3(AdcpVersionEnvelope, ProtocolEnvelope):
+    model_config = ConfigDict(extra='allow', validate_default=True)
+    status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
+    task_id: Annotated[str, StringConstraints(min_length=1)]
+    evaluation_id: Annotated[str, StringConstraints(min_length=1)] | None = None
+    message: Annotated[str, StringConstraints(max_length=2000)] | None = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+
+
+GetCreativeFeaturesResponse: TypeAlias = GetCreativeFeaturesResponse1 | GetCreativeFeaturesResponse2 | GetCreativeFeaturesResponse3
 
 
 __all__ = [
     'GetCreativeFeaturesResponse',
     'GetCreativeFeaturesResponse1',
     'GetCreativeFeaturesResponse2',
+    'GetCreativeFeaturesResponse3',
 ]

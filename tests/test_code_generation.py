@@ -1308,6 +1308,294 @@ def test_generated_poc_types_can_import():
     assert generated_poc is not None
 
 
+def _public_targeting_mutation_fields():
+    """Discover exported and field-reachable models without a patch-target list.
+
+    Roots are the top-level/lazy/eager facades and every public type module
+    declaring __all__. Follow aliases, collection items, and model fields, not
+    inheritance: an unexported private base is not a supported composition
+    boundary. Internal generated modules are not public roots, but generated
+    classes reached from public fields ARE checked. No public model is exempt.
+    """
+    import ast
+    from importlib import import_module
+    from types import ModuleType
+    from typing import Annotated, get_args, get_origin
+
+    from pydantic import BaseModel
+
+    from adcp.types import TargetingOverlayInput
+
+    def annotation_models(annotation):
+        if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+            yield annotation
+        elif get_origin(annotation) is Annotated:
+            yield from annotation_models(get_args(annotation)[0])
+        else:
+            for arg in get_args(annotation):
+                yield from annotation_models(arg)
+
+    modules = {"adcp", "adcp.types", "adcp.types._eager"}
+    type_root = Path(__file__).parent.parent / "src/adcp/types"
+    for source in type_root.glob("*.py"):
+        if source.stem.startswith("_"):
+            continue
+        # Do not import optional implementation modules such as mypy_plugin;
+        # a declared public export list makes a module a discovery root.
+        tree = ast.parse(source.read_text())
+        if any(isinstance(node, ast.Name) and node.id == "__all__" for node in ast.walk(tree)):
+            modules.add(f"adcp.types.{source.stem}")
+    pending = [(name, import_module(name)) for name in sorted(modules)]
+    seen_modules = set()
+    seen_models = set()
+    found = {}
+    while pending:
+        path, value = pending.pop()
+        if isinstance(value, ModuleType):
+            if value.__name__ in seen_modules:
+                continue
+            seen_modules.add(value.__name__)
+            # The deprecated `generated` module alias exposes internals, not
+            # a supported facade. _eager is an explicit root for the facades.
+            if value.__name__ not in modules:
+                continue
+            exported = set(value.__all__)
+            # Backward-compatible lazy names can be importable without being
+            # in __all__. Resolve those too, rather than only cached globals.
+            if value.__name__ == "adcp":
+                exported.update(value._LAZY)
+            elif value.__name__ == "adcp.types":
+                exported.update(value._RESOLVABLE)
+            pending.extend(
+                (f"{path}.{name}", getattr(value, name))
+                for name in sorted(exported)
+                if not name.startswith("_")
+            )
+            continue
+        for model in annotation_models(value):
+            if model in seen_models:
+                continue
+            seen_models.add(model)
+            for name, field in model.model_fields.items():
+                pending.append((f"{path}.{name}", field.annotation))
+                if name == "targeting_overlay" and TargetingOverlayInput in annotation_models(
+                    field.annotation
+                ):
+                    found[model] = (path, field)
+    return found
+
+
+def test_targeting_overlay_input_is_generated_and_public():
+    """Keep the rc.3 mutation variant public after regeneration (#1181).
+
+    This is deliberately a named contract, not an *Input suffix rule:
+    contextual helpers such as ProductPurchaseInput and PreviewInput do not
+    imply interchangeable public resolved-state types.
+
+    The independent scan validates rebuilt field annotations, not cached live
+    model validators. The six-container/five-request-path regressions in
+    test_targeting_overlay_compat.py separately prove live validation, including
+    cached parent rebuilds. Both contracts are required.
+    """
+    from importlib import import_module
+
+    from pydantic import BaseModel, RootModel, TypeAdapter, ValidationError
+
+    from adcp.types import TargetingOverlay, _generated
+    from adcp.types.generated_poc.core.targeting_input import TargetingOverlayInput
+    from scripts.consolidate_exports import exports_for_public_consolidation
+
+    source = Path(__file__).parent.parent / "src/adcp/types/generated_poc/core/targeting_input.py"
+    assert "TargetingOverlayInput" in exports_for_public_consolidation(source)
+    assert _generated.TargetingOverlayInput is TargetingOverlayInput
+    assert issubclass(TargetingOverlayInput, BaseModel)
+    assert not issubclass(TargetingOverlayInput, RootModel)
+    for name in (
+        "adcp",
+        "adcp.types",
+        "adcp.types.media_buy",
+        "adcp.types.buyer",
+        "adcp.types._eager",
+    ):
+        module = import_module(name)
+        assert "TargetingOverlayInput" in module.__all__, name
+        assert getattr(module, "TargetingOverlayInput") is TargetingOverlayInput, name
+
+    # Discover composition boundaries independently of _forward_compat's
+    # explicit patch targets. A new exported canonical copy cannot silently
+    # keep the pre-patch annotation, even when only reached through an alias.
+    mutation_fields = _public_targeting_mutation_fields()
+    assert mutation_fields, "No public targeting mutation fields discovered"
+    legacy = TargetingOverlay()
+    for model, (path, field) in mutation_fields.items():
+        context = f"{model.__name__}.targeting_overlay (reachable from {path})"
+        adapter = TypeAdapter(field.rebuild_annotation())
+        try:
+            result = adapter.validate_python(legacy)
+        except ValidationError as exc:
+            raise AssertionError(f"{context} rejects beta.14 objects; missing bridge") from exc
+        assert result is legacy, context
+        assert type(adapter.validate_python({})) is TargetingOverlayInput, context
+
+
+@pytest.mark.parametrize(
+    "surface",
+    [
+        "adcp",
+        "adcp.types",
+        "adcp.types._eager",
+        "adcp.types.media_buy",
+        "adcp.types.buyer",
+        "adcp.types.creative",
+        "adcp.types.signals",
+        "adcp.types.protocol",
+        "adcp.types.seller",
+        "adcp.types.canonical_creative",
+        "adcp.types.aliases",
+    ],
+)
+@pytest.mark.parametrize("nested", [False, True], ids=["direct", "nested-alias"])
+def test_targeting_public_surface_guard_rejects_new_public_clone(monkeypatch, surface, nested):
+    """A seventh public clone must fail the guard even if it is only reachable."""
+    from importlib import import_module
+    from typing import Annotated
+
+    from pydantic import Field, create_model
+
+    from adcp.types.canonical_creative import _canonical_clone, _PackageRequestBase
+
+    # This private base still has the generated, pre-patch FieldInfo. Merely
+    # existing privately is fine; exporting a fresh copy is the regression.
+    clone = _canonical_clone("UnpatchedTargetingPackage", _PackageRequestBase)
+    value = clone
+    if nested:
+        request = create_model("FutureRequest", packages=(list[clone], ...))
+        value = Annotated[request | None, Field(description="Future public alias")]
+    module = import_module(surface)
+    monkeypatch.setattr(module, "FutureTargetingRequest", value, raising=False)
+    monkeypatch.setattr(module, "__all__", [*module.__all__, "FutureTargetingRequest"])
+
+    with pytest.raises(AssertionError, match="UnpatchedTargetingPackage.targeting_overlay"):
+        test_targeting_overlay_input_is_generated_and_public()
+
+
+@pytest.mark.parametrize("surface", ["adcp", "adcp.types"])
+def test_targeting_public_surface_guard_resolves_uncached_lazy_exports(monkeypatch, surface):
+    """New resolver entries must be checked even without a cached attribute."""
+    import sys
+    from importlib import import_module
+    from types import ModuleType
+
+    from adcp.types import _eager
+    from adcp.types.canonical_creative import _canonical_clone, _PackageRequestBase
+
+    clone = _canonical_clone("UnpatchedTargetingPackage", _PackageRequestBase)
+    module = import_module(surface)
+    name = "FutureLazyTargetingRequest"
+    assert name not in vars(module)
+    if surface == "adcp":
+        provider = ModuleType("adcp._future_targeting_test")
+        setattr(provider, name, clone)
+        monkeypatch.setitem(sys.modules, provider.__name__, provider)
+        monkeypatch.setattr(module, "_LAZY", {**module._LAZY, name: provider.__name__})
+    else:
+        monkeypatch.setattr(_eager, name, clone, raising=False)
+        monkeypatch.setattr(module, "_RESOLVABLE", module._RESOLVABLE | {name})
+    try:
+        with pytest.raises(AssertionError, match="UnpatchedTargetingPackage.targeting_overlay"):
+            test_targeting_overlay_input_is_generated_and_public()
+    finally:
+        # __getattr__ caches a successful resolution outside monkeypatch.
+        vars(module).pop(name, None)
+
+
+def test_targeting_public_surface_guard_accepts_a_compatible_new_clone(monkeypatch):
+    """Discover a seventh model by export, while leaving private bases alone."""
+    from adcp.types import canonical_creative
+
+    clone = canonical_creative._canonical_clone("FuturePackage", canonical_creative.PackageRequest)
+    monkeypatch.setattr(canonical_creative, "FuturePackage", clone, raising=False)
+    monkeypatch.setattr(
+        canonical_creative, "__all__", [*canonical_creative.__all__, "FuturePackage"]
+    )
+    discovered = _public_targeting_mutation_fields()
+    assert clone in discovered
+    assert canonical_creative._PackageRequestBase not in discovered
+    test_targeting_overlay_input_is_generated_and_public()
+
+
+def test_current_targeting_input_has_exactly_four_generated_request_sites():
+    """Pin schema sites and pre-patch annotations, independent of runtime widening."""
+    import ast
+    import json
+
+    root = Path(__file__).parent.parent
+    pinned = (root / "src/adcp/ADCP_VERSION").read_text().strip()
+    schema_root = root / "schemas/cache" / pinned
+    expected = {
+        "package-request": "PackageRequest",
+        "package-update": "PackageUpdate",
+        "package-control": "PackageControl",
+        "product-purchase-input": "ProductPurchaseInput",
+    }
+
+    def references(node, path=()):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "$ref" and value.endswith("/core/targeting-input.json"):
+                    yield path
+                yield from references(value, (*path, key))
+        elif isinstance(node, list):
+            for index, value in enumerate(node):
+                yield from references(value, (*path, index))
+
+    schema_sites = set()
+    for source in schema_root.rglob("*.json"):
+        relative = source.relative_to(schema_root)
+        # Bundled and MCP schemas inline the same source graph for transport
+        # validation; index.json is a schema catalog. None adds Python request
+        # composition sites.
+        if {"bundled", "mcp"} & set(relative.parts) or relative == Path("index.json"):
+            continue
+        text = source.read_text()
+        if "targeting-input.json" in text:
+            schema_sites.update(
+                (relative.as_posix(), path) for path in references(json.loads(text))
+            )
+    assert schema_sites == {
+        (f"media-buy/{stem}.json", ("properties", "targeting_overlay")) for stem in expected
+    }
+
+    generated_root = root / "src/adcp/types/generated_poc"
+    generated_sites = set()
+    for source in generated_root.rglob("*.py"):
+        text = source.read_text()
+        if "TargetingOverlayInput" not in text:
+            continue
+        for model in ast.walk(ast.parse(text)):
+            if not isinstance(model, ast.ClassDef):
+                continue
+            for field in model.body:
+                if not isinstance(field, ast.AnnAssign):
+                    continue
+                if "TargetingOverlayInput" not in ast.unparse(field.annotation):
+                    continue
+                generated_sites.add(
+                    (source.relative_to(generated_root).as_posix(), model.name, field.target.id)
+                )
+                # Assert the whole schema shape: a nested/list/wider union
+                # must not pass merely because it still contains Input.
+                assert isinstance(field.annotation, ast.Subscript)
+                assert ast.unparse(field.annotation.value) == "Annotated"
+                assert ast.unparse(field.annotation.slice.elts[0]) == (
+                    "targeting_input.TargetingOverlayInput | None"
+                )
+    assert generated_sites == {
+        (f"media_buy/{stem.replace('-', '_')}.py", name, "targeting_overlay")
+        for stem, name in expected.items()
+    }
+
+
 def test_product_type_structure():
     """Test that Product type has expected structure."""
     from adcp import Product

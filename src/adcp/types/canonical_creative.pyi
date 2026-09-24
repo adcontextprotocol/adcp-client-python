@@ -5,6 +5,8 @@ from typing import Any, ClassVar, Literal, TypeAlias, TypeVar
 from adcp.types.base import AdCPBaseModel
 from adcp.types.generated_poc.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.generated_poc.core.protocol_envelope import ProtocolEnvelope
+from adcp.types.generated_poc.core.targeting import TargetingOverlay
+from adcp.types.generated_poc.core.targeting_input import TargetingOverlayInput
 from adcp.types.generated_poc.core.version_envelope import AdcpVersionEnvelope
 from adcp.types.generated_poc.enums.task_status import TaskStatus
 from adcp.types.legacy import LegacyFormatId
@@ -101,11 +103,13 @@ class PackageRequest(AdcpVersionEnvelope, CanonicalBoundaryModel):
     product_id: str
     format_option_refs: list[Any] | None
     creatives: list[CreativeAsset] | None
+    targeting_overlay: TargetingOverlayInput | TargetingOverlay | None = ...
 
 class PackageUpdate(CanonicalBoundaryModel):
     package_id: str
     format_option_refs: list[Any] | None
     creatives: list[CreativeAsset] | None
+    targeting_overlay: TargetingOverlayInput | TargetingOverlay | None = ...
 
 class Package(CanonicalBoundaryModel):
     package_id: str

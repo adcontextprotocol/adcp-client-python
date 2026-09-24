@@ -286,7 +286,8 @@ class _Staging:
         else:
             ref = f"{source_execution_key}.{ordinal}"
             digest = hashlib.sha256(payload).hexdigest()
-            assert await self.blobs.put("stage", account_id, ref, payload, digest) == payload
+            staged_payload = await self.blobs.put("stage", account_id, ref, payload, digest)
+            assert staged_payload == payload
             result = ref, digest
         await self.failures.hit("stage.after")
         return result
@@ -1171,6 +1172,7 @@ class ServiceProcess:
             try:
                 self.process.kill()
             except ProcessLookupError:
+                # The child exited during the kill race; still close stdin and reap it below.
                 pass
         if self.process.stdin is not None:
             self.process.stdin.close()

@@ -15,15 +15,19 @@ from typing import Any, Literal, cast
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger.consumer_status import (
+    condition_after_waiver,
     consumer_mismatch_issue_key,
     consumer_statement_conflicts,
     current_consumer_statement,
+    mismatch_conflict_fingerprint,
     project_consumer_mismatch,
     stale_received_grace_deadline,
+    waiver_covers_mismatch,
 )
 from adcp.reporting.ledger.health import (
     ObligationProjection,
     aggregate_reporting_health,
+    current_required_revision,
     issue_id_for,
     issue_id_for_occurrence,
     project_obligation_health,
@@ -152,6 +156,60 @@ def mismatch_key(status: ConsumerStatusRecord) -> str:
     )
 
 
+def mismatch_occurrence(
+    status: ConsumerStatusRecord,
+    obligation: ReportingObligationRecord | None,
+    required: ReportingRevisionRecord | None,
+    latest: dict[str, ReportingIssueLifecycle],
+) -> tuple[str, ReportingIssueLifecycle | None]:
+    """Follow terminal exact waivers; keep an unwaived occurrence stable."""
+    key = mismatch_key(status)
+    seen: set[str] = set()
+    while (previous := latest.get(key)) is not None and previous.issue_state == "waived":
+        if key in seen:
+            raise ReportingNotificationError("invalid_waiver_chain")
+        seen.add(key)
+        if waiver_covers_mismatch(previous, status, obligation, required):
+            return key, previous
+        key = condition_after_waiver(previous)
+    return key, latest.get(key)
+
+
+def bind_mismatch_waiver(
+    snapshot: ReportingStatusSnapshot, issue: ReportingIssueLifecycle
+) -> ReportingIssueLifecycle:
+    """Capture the exact current statement/diagnosis before the operator move.
+
+    Bilateral consent and its private audit are the adopter's prerequisite for
+    calling set_issue_state(waived); external_ref is never interpreted as proof.
+    """
+    if issue.issue_state == "waived":
+        return issue
+    latest = {i.issue_key: i for i in sorted(snapshot.lifecycles, key=lambda i: i.generation)}
+    for status in snapshot.statuses:
+        if status.superseded or status.consumer_id != issue.consumer_id:
+            continue
+        owner = next(
+            (o for o in snapshot.obligations if status_matches_obligation(status, o)), None
+        )
+        revisions = tuple(
+            r
+            for r in snapshot.revisions
+            if owner is not None and r.reporting_obligation_id == owner.reporting_obligation_id
+        )
+        required = current_required_revision(owner, revisions) if owner else None
+        key, _ = mismatch_occurrence(status, owner, required, latest)
+        if key == issue.issue_key and consumer_statement_conflicts(
+            current=status, current_revision=required, revisions=revisions
+        ):
+            return replace(
+                issue,
+                waived_reporting_status_id=status.reporting_status_id,
+                waived_conflict_sha256=mismatch_conflict_fingerprint(status, owner, required),
+            )
+    return issue
+
+
 def lifecycle_intents(snapshot: ReportingStatusSnapshot) -> tuple[StatusLifecycleIntent, ...]:
     """Plan lifecycle from current chains, including pre-obligation statements.
 
@@ -204,8 +262,7 @@ def lifecycle_intents(snapshot: ReportingStatusSnapshot) -> tuple[StatusLifecycl
             status.consumer_id,
             cast(Literal["pacing", "analytics", "billing"], configuration.feed_purpose),
         )
-        key = mismatch_key(status)
-        previous = latest.get(key)
+        key, previous = mismatch_occurrence(status, owner, required, latest)
         live = previous if previous is not None and previous.live else None
         if live is not None:
             existing_scope = scopes.get(live.issue_id)
@@ -213,7 +270,7 @@ def lifecycle_intents(snapshot: ReportingStatusSnapshot) -> tuple[StatusLifecycl
             if existing_scope != scope:
                 result.append(StatusLifecycleIntent("refine_scope", live, scope))
         if not conflicts:
-            if live is not None:
+            if live is not None and live.issue_state != "waived":
                 result.append(
                     StatusLifecycleIntent(
                         "retire_mismatch",
@@ -235,6 +292,19 @@ def lifecycle_intents(snapshot: ReportingStatusSnapshot) -> tuple[StatusLifecycl
             observed_at = max(observed_at, min(superseders))
         if previous is not None and previous.retired_at is not None:
             observed_at = max(observed_at, previous.retired_at)
+        waived_parent = next(
+            (
+                i
+                for i in latest.values()
+                if i.issue_state == "waived" and condition_after_waiver(i) == key
+            ),
+            None,
+        )
+        if waived_parent is not None:
+            # A distinct post-waiver diagnosis is observed at this source
+            # boundary, not when the earlier immutable statement was filed.
+            # Replayed boundaries retain their original as_of timestamp.
+            observed_at = max(observed_at, snapshot.as_of)
         result.append(
             StatusLifecycleIntent(
                 "ensure_mismatch",
@@ -284,8 +354,18 @@ def with_replay_lifecycles(
     for issue in snapshot.lifecycles:
         key = (issue.issue_key, issue.generation)
         old = issues.get(key)
-        if old is None or (
-            rank[issue.issue_state] >= rank[old.issue_state] and old.issue_state != "resolved"
+        if (
+            old is None
+            or (
+                rank[issue.issue_state] >= rank[old.issue_state]
+                and old.issue_state not in {"resolved", "waived"}
+            )
+            or (
+                old.issue_state == issue.issue_state == "waived"
+                and old.waived_reporting_status_id == issue.waived_reporting_status_id
+                and old.waived_conflict_sha256 == issue.waived_conflict_sha256
+                and old.retired_at == issue.retired_at
+            )
         ):
             issues[key] = issue
     scopes = dict(prior.issue_scopes)
@@ -583,7 +663,9 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
             else obligation.automated_recovery_deadline_at - obligation.period.expected_at
         )
         if current is not None:
-            lifecycle = live.get(mismatch_key(current))
+            _, lifecycle = mismatch_occurrence(
+                current, obligation, projection.current_revision, live
+            )
             mismatch = project_consumer_mismatch(
                 obligation=obligation,
                 current_revision=projection.current_revision,
@@ -630,6 +712,15 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
 
     # A pre-obligation missing statement remains a configuration-scoped issue.
     mismatch_keys = {mismatch_key(s) for s in snapshot.statuses}
+    for initial in tuple(mismatch_keys):
+        condition_key = initial
+        while (
+            previous := live.get(condition_key)
+        ) is not None and previous.issue_state == "waived":
+            condition_key = condition_after_waiver(previous)
+            if condition_key in mismatch_keys:
+                break
+            mismatch_keys.add(condition_key)
     for status in snapshot.statuses:
         if status.superseded or status.consumer_id != scope.consumer_id:
             continue
@@ -641,7 +732,7 @@ def _project(value: StatusProjectionInput) -> tuple[StatusProjectionResult, set[
             continue
         if any(status_matches_obligation(status, o) for o in snapshot.obligations):
             continue
-        lifecycle = live.get(mismatch_key(status))
+        _, lifecycle = mismatch_occurrence(status, None, None, live)
         if lifecycle is not None and lifecycle.published:
             issues.append(
                 ReportingIssue(
