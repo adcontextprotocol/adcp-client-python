@@ -48,6 +48,7 @@ from adcp.reporting.outbox.status import (
     StatusCheckpoint,
     StatusDueLease,
     StatusNotificationStore,
+    StatusSelectorRebuildStore,
     StatusTurn,
 )
 from adcp.reporting.outbox.status_memory import (
@@ -78,6 +79,7 @@ __all__ = [
     "StatusCheckpoint",
     "StatusDueLease",
     "StatusNotificationStore",
+    "StatusSelectorRebuildStore",
     "StatusTurn",
     "ReportingStatusProjector",
     "ReportingStatusSweeper",

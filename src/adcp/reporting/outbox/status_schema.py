@@ -12,6 +12,9 @@ from adcp.reporting.outbox._schema import schema_objects, validate_schema
 REQUIRED_STATUS_OBJECTS: dict[str, dict[str, Any]] = json.loads(
     files("adcp.reporting.outbox").joinpath("required_status_schema.json").read_text()
 )
+REQUIRED_STATUS_SELECTOR_OBJECTS: dict[str, dict[str, Any]] = json.loads(
+    files("adcp.reporting.outbox").joinpath("required_status_selector_schema.json").read_text()
+)
 
 
 async def validate_status_schema(
@@ -46,3 +49,9 @@ async def validate_status_schema(
         else:
             continue
         raise ReportingNotificationError(f"status_schema_unready:{reason}:{key}")
+    if status:
+        if not REQUIRED_STATUS_SELECTOR_OBJECTS:
+            raise ReportingNotificationError("status_selector_schema_unready:manifest_missing")
+        for key, expected in REQUIRED_STATUS_SELECTOR_OBJECTS.items():
+            if installed.get(key) != expected:
+                raise ReportingNotificationError(f"status_selector_schema_unready:{key}")

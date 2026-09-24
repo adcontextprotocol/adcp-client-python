@@ -719,10 +719,27 @@ async def publication_records(
     )
     await harness.store.put_destination_binding(binding)
     await harness.store.bind_obligation_delivery(delivery)
-    rows = await harness.store.read_revision_rows(
-        account_id=obligation.account_id, reporting_revision_id=revision.reporting_revision_id
-    )
-    payload = b"".join(canonical_json_utf8_v1(row) + b"\n" for row in rows.rows)
+    all_rows = []
+    cursor = None
+    seen = set()
+    while True:
+        page = await harness.store.read_revision_rows(
+            account_id=obligation.account_id,
+            reporting_revision_id=revision.reporting_revision_id,
+            cursor=cursor,
+            limit=500,
+        )
+        assert page.reporting_revision_id == revision.reporting_revision_id
+        assert page.total_count == revision.row_count
+        assert page.has_more == (page.cursor is not None)
+        all_rows.extend(page.rows)
+        if not page.has_more:
+            break
+        assert page.rows and page.cursor not in seen
+        seen.add(page.cursor)
+        cursor = page.cursor
+    assert len(all_rows) == revision.row_count
+    payload = b"".join(canonical_json_utf8_v1(row) + b"\n" for row in all_rows)
     digest = await harness.destination.write(
         obligation.account_id, revision.reporting_revision_id, payload
     )

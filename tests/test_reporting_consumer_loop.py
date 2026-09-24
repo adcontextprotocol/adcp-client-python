@@ -774,7 +774,27 @@ def test_an_obligation_with_a_revision_and_no_reading_refuses_to_guess() -> None
             [_obligation(revision_count=1)],
             now=EXPECTED_AT + RECOVERY,
             automated_recovery_window=RECOVERY,
+            obligation_revisions={"rpo_1": [_revision()]},
         )
+
+
+@pytest.mark.parametrize(
+    "history,count",
+    [(None, 1), ([], 1), ([_revision()], 2), ([_revision(), _revision()], 2)],
+)
+def test_an_incomplete_obligation_partition_names_obligation_revisions(history, count) -> None:
+    # The missing input is the obligation's retained history, not a reading:
+    # a message that says "reading" sends the adopter to fix the wrong
+    # argument and fail again on the next turn.
+    with pytest.raises(ConsumerStatusPlanError, match="obligation_revisions") as caught:
+        plan_consumer_statuses(
+            [_obligation(revision_count=count)],
+            now=EXPECTED_AT + RECOVERY,
+            automated_recovery_window=RECOVERY,
+            obligation_revisions=None if history is None else {"rpo_1": history},
+        )
+    assert "rpo_1" in str(caught.value)
+    assert "no reading was supplied" not in str(caught.value)
 
 
 def test_required_finality_decides_whether_a_revision_counts() -> None:

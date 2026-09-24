@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
-from adcp.reporting.outbox.status import StatusTurn
+from adcp.reporting.outbox.status import StatusSelectorRebuildStore, StatusTurn
 from adcp.reporting.outbox.status_support import ReportingStatusSupport
 
 
@@ -68,6 +68,14 @@ class ReportingStatusService:
             raise ReportingNotificationError("status_projector_unavailable")
         return await self.support.projector.run_once(account_id=account_id)
 
+    async def rebuild_selector_once(self) -> StatusTurn:
+        """Indexed C cutover, including retained accounts outside current registrations."""
+        self._open()
+        store = self.support.store
+        if not isinstance(store, StatusSelectorRebuildStore):
+            return StatusTurn(False)  # Existing custom lifecycle protocols stay compatible.
+        return await store.rebuild_one()
+
     async def sweep_due_once(self, *, account_id: str) -> StatusTurn:
         self._open(account_id)
         if self.support.sweeper is None:
@@ -87,7 +95,7 @@ class ReportingStatusService:
         if max_turns < 1:
             raise ValueError("max_turns must be positive")
         for turn in range(max_turns):
-            worked = False
+            worked = (await self.rebuild_selector_once()).did_work
             for account_id in sorted(set(self.support.account_ids)):
                 worked = (await self.project_dirty_once(account_id=account_id)).did_work or worked
                 worked = (await self.sweep_due_once(account_id=account_id)).did_work or worked

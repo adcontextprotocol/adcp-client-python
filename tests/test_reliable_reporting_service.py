@@ -226,9 +226,12 @@ async def test_install_preserves_handlers_and_intercepts_only_exact_reads() -> N
     assert {"get_products", "get_reporting_status", "get_media_buy_delivery"} <= tools
 
 
-async def test_capability_block_is_schema_valid_and_only_advertises_installed_tiers() -> None:
+@pytest.mark.parametrize("consumer_status_enabled", [False, True])
+async def test_capability_block_is_schema_valid_and_only_advertises_installed_tiers(
+    consumer_status_enabled: bool,
+) -> None:
     service = ReliableReportingService.memory(
-        account_context=_account_context, consumer_status_enabled=True
+        account_context=_account_context, consumer_status_enabled=consumer_status_enabled
     )
     service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), [_rows(1)]))
     await service.configure(_configuration())
@@ -236,7 +239,11 @@ async def test_capability_block_is_schema_valid_and_only_advertises_installed_ti
 
     assert block["managed_delivery"] is False
     assert block["reconciled_billing"] is False
-    assert block["consumer_status_task"] == "sync_reporting_status"
+    assert "receipt_task" not in block
+    if consumer_status_enabled:
+        assert block["consumer_status_task"] == "sync_reporting_status"
+    else:
+        assert "consumer_status_task" not in block
     validator = get_named_validator("core/reporting-delivery-capabilities.json")
     assert validator is not None
     assert list(validator.iter_errors(block)) == []

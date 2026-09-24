@@ -75,6 +75,8 @@ if TYPE_CHECKING:
     from adcp.reporting import fixtures as fixtures
     from adcp.reporting import inline_source as inline_source
     from adcp.reporting import ledger as ledger
+    from adcp.reporting import materializer as materializer
+    from adcp.reporting import revision_selection as revision_selection
     from adcp.reporting import service as service
     from adcp.reporting import source as source
     from adcp.reporting import testing as testing
@@ -108,6 +110,8 @@ _LAZY_SUBMODULES = frozenset(
         "fixtures",
         "inline_source",
         "ledger",
+        "materializer",
+        "revision_selection",
         "service",
         "source",
         "testing",

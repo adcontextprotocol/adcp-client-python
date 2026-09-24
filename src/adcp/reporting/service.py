@@ -781,21 +781,21 @@ class ReliableReportingService:
             offerings[offering_id] = offering
         configurations = [binding.configuration for binding in self._bindings.values()]
         first = next(iter(self._bindings.values())).producer
-        extra: dict[str, Any] = {
-            "managed_delivery": self._materialization_worker is not None,
-            "reconciled_billing": self._reconciled_billing,
-        }
-        if self._reconciled_billing:
-            extra["receipt_task"] = "sync_reporting_receipts"
-        return first.advertised_reporting_delivery(
+        payload = first.advertised_reporting_delivery(
             consumer_status_task=self._consumer_status_enabled,
             offerings=[offerings[key] for key in sorted(offerings)],
             automated_recovery_window=max(
                 item.automated_recovery_window for item in configurations
             ),
             status_retention_days=min(item.status_retention_days for item in configurations),
-            extra=extra,
         )
+        # The service owns these installed-component declarations; they are not
+        # caller-provided producer extensions.
+        payload["managed_delivery"] = self._materialization_worker is not None
+        payload["reconciled_billing"] = self._reconciled_billing
+        if self._reconciled_billing:
+            payload["receipt_task"] = "sync_reporting_receipts"
+        return payload
 
     def inject_capabilities(self, response: Any) -> dict[str, Any]:
         """Merge the truthful reporting block into a base capability response."""

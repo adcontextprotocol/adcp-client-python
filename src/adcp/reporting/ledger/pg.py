@@ -125,7 +125,6 @@ from adcp.reporting.ledger.store import (
     RestatementCheckpoint,
     check_issue_state_transition,
     configuration_lifecycle,
-    decode_cursor,
     encode_cursor,
     issue_is_retirable,
     managed_revision_metadata,
@@ -985,7 +984,9 @@ class PgReportingLedgerStore:
         cursor: str | None = None,
         limit: int = 500,
     ) -> ReportingRowPage:
-        offset = int(decode_cursor(cursor).get("offset", 0)) if cursor else 0
+        from adcp.reporting.ledger.store import revision_row_offset
+
+        offset = revision_row_offset(cursor, reporting_revision_id, limit)
         async with self._connection() as connection:
             owned = await (
                 await connection.execute(
@@ -1007,6 +1008,7 @@ class PgReportingLedgerStore:
         total = int(owned[0])
         has_more = offset + limit < total
         return ReportingRowPage(
+            reporting_revision_id=reporting_revision_id,
             rows=tuple(row[0] for row in rows),
             total_count=total,
             has_more=has_more,

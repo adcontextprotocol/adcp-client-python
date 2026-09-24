@@ -24,7 +24,11 @@ from adcp.reporting.outbox import (
     ReportingNotificationWorker,
 )
 from adcp.reporting.outbox._schema import REQUIRED_OBJECTS, schema_objects, validate_schema
-from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS, validate_status_schema
+from adcp.reporting.outbox.status_schema import (
+    REQUIRED_STATUS_OBJECTS,
+    REQUIRED_STATUS_SELECTOR_OBJECTS,
+    validate_status_schema,
+)
 
 from . import test_reporting_notification_process_matrix as _process
 from ._generation_support import (
@@ -205,9 +209,10 @@ async def test_populated_repeated_c_manifest_preserves_every_a_b_object_and_row(
             async with pool.connection() as conn:
                 objects = await schema_objects(conn)
                 assert {k: objects[k] for k in REQUIRED_OBJECTS} == REQUIRED_OBJECTS
-                assert {
-                    k: v for k, v in objects.items() if k not in REQUIRED_OBJECTS
-                } == REQUIRED_STATUS_OBJECTS
+                assert {k: v for k, v in objects.items() if k not in REQUIRED_OBJECTS} == {
+                    **REQUIRED_STATUS_OBJECTS,
+                    **REQUIRED_STATUS_SELECTOR_OBJECTS,
+                }
                 assert (
                     json.dumps(REQUIRED_STATUS_OBJECTS, sort_keys=True, indent=2) + "\n"
                     == files("adcp.reporting.outbox")

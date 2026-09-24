@@ -206,6 +206,7 @@ class ReportingRowPage:
     total_count: int
     has_more: bool
     cursor: str | None
+    reporting_revision_id: str | None = None
 
 
 def encode_cursor(payload: dict[str, Any]) -> str:
@@ -222,15 +223,44 @@ def encode_cursor(payload: dict[str, Any]) -> str:
 
 def decode_cursor(cursor: str) -> dict[str, Any]:
     padded = cursor + "=" * (-len(cursor) % 4)
+
+    def unique_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate cursor member")
+            result[key] = value
+        return result
+
     try:
-        payload = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")))
-    except Exception as error:
-        raise LedgerConflictError(
-            "INVALID_CURSOR", "the pagination cursor is not readable"
-        ) from error
+        payload = json.loads(
+            base64.urlsafe_b64decode(padded.encode("ascii")), object_pairs_hook=unique_pairs
+        )
+    except Exception:
+        payload = None
     if not isinstance(payload, dict):
         raise LedgerConflictError("INVALID_CURSOR", "the pagination cursor is not readable")
     return payload
+
+
+def revision_row_offset(cursor: str | None, revision_id: str, limit: int) -> int:
+    """Reject another revision's cursor and invalid count types before a row read."""
+    if type(limit) is not int or not 1 <= limit <= 500:
+        raise LedgerConflictError("INVALID_PAGE_SIZE", "row page size must be between 1 and 500")
+    if cursor is None:
+        return 0
+    if type(cursor) is not str or len(cursor) > 2048:
+        raise LedgerConflictError("INVALID_CURSOR", "the cursor does not bind this revision")
+    payload = decode_cursor(cursor)
+    offset = payload.get("offset")
+    if (
+        set(payload) != {"revision", "offset"}
+        or payload["revision"] != revision_id
+        or type(offset) is not int
+        or offset < 0
+    ):
+        raise LedgerConflictError("INVALID_CURSOR", "the cursor does not bind this revision")
+    return offset
 
 
 @runtime_checkable
@@ -1085,10 +1115,11 @@ class InMemoryReportingLedgerStore:
         if revision is None:
             raise LedgerConflictError("REVISION_NOT_FOUND", "no such revision for this account")
         rows = self._rows.get(reporting_revision_id, ())
-        offset = int(decode_cursor(cursor).get("offset", 0)) if cursor else 0
+        offset = revision_row_offset(cursor, reporting_revision_id, limit)
         window = rows[offset : offset + limit]
         has_more = offset + limit < len(rows)
         return ReportingRowPage(
+            reporting_revision_id=reporting_revision_id,
             rows=tuple(deepcopy(row) for row in window),
             total_count=len(rows),
             has_more=has_more,

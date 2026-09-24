@@ -60,6 +60,7 @@ from adcp.reporting.ledger.store import (
     RestatementCheckpoint,
     RestatementCheckpointStore,
 )
+from adcp.reporting.revision_selection import select_reporting_revision
 from adcp.reporting.source import (
     MediaBuyConstituentV1,
     ProvisionalSnapshotOfferingV1,
@@ -317,6 +318,20 @@ class ReportingProducer:
             payload["consumer_status_task"] = "sync_reporting_status"
         payload.update(self._escalation.to_wire())
         if extra:
+            reserved = {
+                *payload,
+                "consumer_status_task",
+                "managed_delivery",
+                "reconciled_billing",
+                "reporting.delivery_ready",
+                "ledger_notification",
+                "readiness_notification",
+                "status_notification",
+                "supports_webhook_activity",
+                "receipt_task",
+            }
+            if any(key in reserved or key.endswith(("_task", "_notification")) for key in extra):
+                raise ValueError("extra cannot override SDK-owned reporting capabilities")
             payload.update(extra)
         return payload
 
@@ -679,11 +694,20 @@ class ReportingProducer:
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
         )
-        if any(item.finality == "official" for item in revisions):
+        selection = select_reporting_revision(
+            revisions,
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+            required_finality=obligation.required_finality,
+        )
+        if selection.kind == "corrupt":
+            raise LedgerConflictError("HISTORY_UNAVAILABLE", "the revision history requires repair")
+        current = selection.revision if selection.kind == "selected" else None
+        if current is not None and current.finality == "official":
             # An official close is terminal. A later source correction is an
             # adjustment, never another acquisition.
             return None
-        satisfied = any(item.readable for item in revisions)
+        satisfied = current is not None and current.readable
         if satisfied and not restate:
             return None
         # Everything below needs the frozen code: the slice request carries it,
@@ -881,9 +905,30 @@ class ReportingProducer:
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
         )
-        supersedes = None
-        if finality == "snapshot":
-            supersedes = self._current_snapshot_leaf(existing)
+        selection = select_reporting_revision(
+            existing,
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+            required_finality="snapshot",
+        )
+        # A retained official close coexists with the snapshot chain and wins
+        # whole-history selection outright, so it is never the snapshot leaf.
+        # Reading it as one would root a restatement at ``None`` and split the
+        # obligation into two snapshot roots -- a permanently corrupt history
+        # over immutable rows, with no repair path.
+        leaf = select_reporting_revision(
+            tuple(item for item in existing if item.finality == "snapshot"),
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+            required_finality="snapshot",
+        )
+        if selection.kind == "corrupt" or leaf.kind == "corrupt":
+            raise LedgerConflictError("HISTORY_UNAVAILABLE", "the revision history requires repair")
+        supersedes = (
+            leaf.revision.reporting_revision_id
+            if finality == "snapshot" and leaf.kind == "selected"
+            else None
+        )
 
         control_totals = tuple((total.name, total.value) for total in manifest.control_totals)
         revision_id = f"rpr_{manifest.publication_id[4:44]}"

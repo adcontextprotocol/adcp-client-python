@@ -14,7 +14,9 @@ from adcp.reporting.ledger.status_projection import (
     StatusLifecycleIntent,
     apply_intents_to_snapshot,
     lifecycle_intents,
+    status_matches_obligation,
 )
+from adcp.reporting.revision_selection import select_reporting_revision
 
 if TYPE_CHECKING:
     from adcp.reporting.ledger.pg import PgReportingLedgerStore
@@ -41,7 +43,6 @@ def validate_status_evidence(
     consume only already captured evidence and never acquire a connection.
     """
     from adcp.reporting.ledger.consumer_status import validate_consumer_status_timing
-    from adcp.reporting.ledger.health import current_required_revision
     from adcp.reporting.ledger.store import LedgerConflictError
 
     generation = next(
@@ -58,11 +59,7 @@ def validate_status_evidence(
             "SELLER_SNAPSHOT_EVIDENCE_INCOMPLETE", "seller snapshot evidence is incomplete"
         )
     obligation = next(
-        (
-            o
-            for o in snapshot.obligations
-            if o.reporting_obligation_id == status.reporting_obligation_id
-        ),
+        (o for o in snapshot.obligations if status_matches_obligation(status, o)),
         None,
     )
     if status.reporting_obligation_id is not None:
@@ -80,6 +77,23 @@ def validate_status_evidence(
         ):
             raise LedgerConflictError("OBLIGATION_IDENTITY_MISMATCH", "status evidence differs")
     validate_consumer_status_timing(status, generation, as_of=snapshot.as_of)
+    required = None
+    if obligation is not None:
+        revisions = tuple(
+            r
+            for r in snapshot.revisions
+            if r.reporting_obligation_id == obligation.reporting_obligation_id
+        )
+        selection = select_reporting_revision(
+            revisions,
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+            required_finality=obligation.required_finality,
+        )
+        if selection.kind == "corrupt":
+            raise LedgerConflictError("HISTORY_UNAVAILABLE", "the revision history requires repair")
+        if selection.kind == "selected":
+            required = selection.revision
     if status.reporting_revision_id is None:
         return
     revision = next(
@@ -92,12 +106,6 @@ def validate_status_evidence(
     ):
         raise LedgerConflictError("LOOKUP_UNAVAILABLE", "status evidence is unavailable")
     if status.consumer_status == "content_mismatch" and obligation is not None:
-        revisions = tuple(
-            r
-            for r in snapshot.revisions
-            if r.reporting_obligation_id == obligation.reporting_obligation_id
-        )
-        required = current_required_revision(obligation, revisions)
         if required is None or required.reporting_revision_id != status.reporting_revision_id:
             raise LedgerConflictError(
                 "REVISION_NOT_CURRENTLY_REQUIRED", "status revision is no longer required"

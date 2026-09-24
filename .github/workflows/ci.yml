@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, python-adcp-sdk-setup]
   pull_request:
-    branches: [main, conductor/reporting-webhook-activity-1168b]
+    branches: [main, conductor/reporting-webhook-activity-1168b, conductor/reporting-status-notifications-1168c]
 
 # Default @adcp/sdk runner alias for storyboard jobs. Tracks the current
 # stable @adcp/sdk release via the ``latest`` npm dist-tag.
@@ -61,7 +61,18 @@ jobs:
   test:
     name: Test Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The job ceiling is not the suite's budget: it also has to absorb
+    # checkout, Python setup, the editable [dev] install and, on 3.12 only,
+    # ruff/mypy/mypy --strict/the type-ignore contract before pytest starts,
+    # then post-job cleanup after it ends. On an ubuntu-latest runner that
+    # pre-test work is ~1m30s and the plain suite is ~16m, but 3.12 adds
+    # coverage tracing on ~9.4k tests: at 30 minutes that leg was cancelled
+    # mid-run at 99% with no failing test, which reports as a red matrix and
+    # hides real signal. Bound the suite itself below (so a hang fails one
+    # named step with its own message instead of silently taking the job), and
+    # leave the job enough room that step bound plus setup and cleanup still
+    # fit with margin for runner variance.
+    timeout-minutes: 60
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
@@ -91,18 +102,24 @@ jobs:
 
       - name: Run adopter type-check suite
         if: matrix.python-version == '3.12'
-        run: mypy --strict tests/type_checks/ examples/reporting_webhook_activity.py examples/reporting_status_notifications.py
+        run: mypy --strict tests/type_checks/ examples/reporting_webhook_activity.py examples/reporting_status_notifications.py examples/reporting_destination_writer.py
 
       - name: Enforce adopter type-check fixture contract
         if: matrix.python-version == '3.12'
         run: python scripts/check_type_ignore_contract.py
 
+      # Bounded well above the observed ~16m (plain) and ~30m (coverage) runs
+      # so ordinary variance never trips it, and well below the job ceiling so
+      # a genuinely stuck suite still fails *this* step with a timeout rather
+      # than being cancelled as a whole job.
       - name: Run tests
         if: matrix.python-version != '3.12'
+        timeout-minutes: 45
         run: pytest tests/ -v
 
       - name: Run tests with coverage
         if: matrix.python-version == '3.12'
+        timeout-minutes: 45
         run: pytest tests/ -v --cov=src/adcp --cov-report=term-missing
 
   pg-conformance:
@@ -223,12 +240,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Fetch exact reviewed A and B compatibility artifacts
+      - name: Fetch exact reviewed A, B and C compatibility artifacts
         timeout-minutes: 1
         run: |
           git fetch --no-tags --depth=1 origin \
             17ee407ae3978c8a2bb54437287afbf9dafb8130 \
-            0f34c666ac1961e9832fce43ef0ef6937b3c1dde
+            0f34c666ac1961e9832fce43ef0ef6937b3c1dde \
+            967b6e286301d7e5d089aea6fdbb90bea8ee5a16
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6

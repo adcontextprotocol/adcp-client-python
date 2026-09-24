@@ -231,6 +231,8 @@ assert files("adcp.reporting.ledger").joinpath("reporting_webhook_activity.sql")
 assert files("adcp.reporting.outbox").joinpath("required_schema.json").is_file()
 assert files("adcp.reporting.outbox").joinpath("required_status_schema.json").is_file()
 assert files("adcp.reporting.ledger").joinpath("reporting_status_notifications.sql").is_file()
+assert files("adcp.reporting.ledger").joinpath("reporting_status_selector_version.sql").is_file()
+assert files("adcp.reporting.outbox").joinpath("required_status_selector_schema.json").is_file()
 version = files("adcp").joinpath("ADCP_VERSION").read_text().strip()
 assert get_named_validator("core/reporting-status-changed-webhook.json", version=version) is not None
 assert get_named_validator("core/webhook-activity-record.json", version=version) is not None
@@ -255,6 +257,7 @@ def test_wheel_and_sdist_contain_exact_complete_sql_chain(built_distribution):
             *CHAIN,
             "reporting_webhook_activity.sql",
             "reporting_status_notifications.sql",
+            "reporting_status_selector_version.sql",
         ):
             expected = (ROOT / "src" / "adcp" / "reporting" / "ledger" / name).read_bytes()
             assert archive.read(f"adcp/reporting/ledger/{name}") == expected
