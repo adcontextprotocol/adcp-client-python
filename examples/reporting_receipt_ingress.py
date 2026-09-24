@@ -2,7 +2,7 @@
 
 Install migrations during deployment, drain legacy materialization writers, and
 supply the application's token validator and fresh account ACL. Receipt traffic
-negotiates AdCP 3.2-rc.3. This composition does not activate production tier claims.
+negotiates AdCP 3.2-rc.6. This composition does not activate production tier claims.
 """
 
 from __future__ import annotations

@@ -89,7 +89,7 @@ async def test_protobuf_integer_spellings_preserve_whole_request_identity_and_ti
 ):
     h = receipts
     s = await receipt_case(h)
-    mount = MountedReceipts(h, hydrated=True, version="3.2-rc.3")
+    mount = MountedReceipts(h, hydrated=True, version="3.2-rc.6")
     mount.authorize(s)
     request = request_for(
         s,
@@ -103,7 +103,7 @@ async def test_protobuf_integer_spellings_preserve_whole_request_identity_and_ti
     protobuf_request = MessageToDict(proto)
     assert type(protobuf_request["receipts"][0]["observed_row_count"]) is float
     assert type(protobuf_request["context"]["integer"]) is float
-    assert Draft7Validator(receipt_schema("request", version="3.2-rc.3")).is_valid(protobuf_request)
+    assert Draft7Validator(receipt_schema("request", version="3.2-rc.6")).is_valid(protobuf_request)
     requests = {"mcp": request, "a2a": protobuf_request}
     other = "a2a" if first_route == "mcp" else "mcp"
     async with mount.client() as client:
@@ -286,7 +286,7 @@ async def test_actual_mount_shape_failure_is_task_invalid_request_with_no_writes
         assert mount.auth_calls == []
 
 
-@pytest.mark.parametrize("version", [None, "3.2-rc.3"])
+@pytest.mark.parametrize("version", [None, "3.2-rc.6"])
 @pytest.mark.parametrize("fallback", [False, True])
 async def test_pinned_unpinned_and_fallback_mcp_schemas_keep_combined_and_received_rules(
     version, fallback, monkeypatch
@@ -421,7 +421,7 @@ async def test_real_raw_strict_json_and_numeric_admission_fail_before_batch_muta
 ):
     h = receipts
     s = await receipt_case(h)
-    mount = MountedReceipts(h, version="3.2-rc.3")
+    mount = MountedReceipts(h, version="3.2-rc.6")
     mount.authorize(s)
     request = request_for(s)
     mutations = {
@@ -482,7 +482,7 @@ async def test_real_raw_strict_json_and_numeric_admission_fail_before_batch_muta
 async def test_malformed_numeric_token_is_rejected_by_the_actual_json_decoder(receipts, route):
     h = receipts
     s = await receipt_case(h)
-    mount = MountedReceipts(h, version="3.2-rc.3")
+    mount = MountedReceipts(h, version="3.2-rc.6")
     mount.authorize(s)
     request = request_for(s)
     before = await h.image()

@@ -393,14 +393,8 @@ jobs:
           ADCP_PYTHON310: ${{ steps.receipt-python310.outputs.python-path }}
         run: |
           python scripts/reporting_test_harness.py pytest \
-            tests/conformance/reporting/test_reporting_receipt_batches.py \
-            tests/conformance/reporting/test_reporting_receipt_graph.py \
-            tests/conformance/reporting/test_reporting_receipt_transactions.py \
-            tests/conformance/reporting/test_reporting_receipt_transports.py \
-            tests/conformance/reporting/test_reporting_receipt_materializer.py \
-            tests/conformance/reporting/test_reporting_receipt_migration.py \
-            tests/conformance/reporting/test_reporting_receipt_process.py \
-            tests/conformance/reporting/test_reporting_receipt_installed_pg.py \
+            tests/conformance/reporting/test_reporting_receipt_*.py \
+            --ignore=tests/conformance/reporting/test_reporting_receipt_rolling.py \
             -v -s -ra | tee pg-reporting-receipts-evidence.log
       - name: Preserve commands, counts, installed provenance and skip reasons
         if: always()
