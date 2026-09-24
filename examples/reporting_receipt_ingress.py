@@ -8,6 +8,7 @@ negotiates AdCP 3.2-rc.6. This composition does not activate production tier cla
 from __future__ import annotations
 
 from adcp.decisioning.registry import BuyerAgentRegistry
+from adcp.reporting.feed import ReportingFeedStore
 from adcp.reporting.receipts import (
     PgReportingReceiptStore,
     ReceiptAccountResolver,
@@ -36,6 +37,11 @@ async def compose_receipt_ingress(
     switch is needed. Schema installation is an explicit deployment operation.
     """
     await store.receipt_ingestion_ready()
+    # PgReportingFeedStore is an additive subtype of the same receipt and
+    # materializer store. Its actual schema enables the periods read route;
+    # no adopter-maintained capability boolean or second facade is needed.
+    if isinstance(store, ReportingFeedStore):
+        await store.reporting_feed_ready()
     return ReportingReceiptHandler(
         store, resolve_account=resolve_account, buyer_agents=buyer_agents
     )

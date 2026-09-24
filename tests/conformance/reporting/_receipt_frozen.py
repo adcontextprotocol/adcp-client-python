@@ -33,7 +33,11 @@ async def main(settings):
     async with AsyncConnectionPool(
         settings["conninfo"], kwargs=settings["kwargs"], min_size=1, max_size=2, open=False
     ) as pool:
-        if settings["artifact"] == "b21":
+        if settings["artifact"] == "b22":
+            from adcp.reporting.receipts import PgReportingReceiptStore
+
+            store_type = PgReportingReceiptStore
+        elif settings["artifact"] == "b21":
             from adcp.reporting.materializer import PgReportingMaterializerStore
 
             store_type = PgReportingMaterializerStore
@@ -59,7 +63,8 @@ async def main(settings):
             await PgStatusNotificationStore(
                 ledger.PgReportingReconciliationStore(pool=pool, notifications=True)
             ).create_schema()
-            assert await store.materializer_ready()
+            feed_operation_1 = await store.materializer_ready()
+            assert feed_operation_1
             manifest = json.loads(
                 files("adcp.reporting.materializer").joinpath("required_schema.json").read_text()
             )
@@ -77,7 +82,7 @@ async def main(settings):
         )
         assert len(revisions) == 1 and revisions[0].finality == "official"
         status, projector_turns = None, 0
-        if settings["notifications"] and settings["artifact"] in {"c", "b1", "b21"}:
+        if settings["notifications"] and settings["artifact"] in {"c", "b1", "b21", "b22"}:
             from adcp.reporting.outbox import PgStatusNotificationStore
 
             status = PgStatusNotificationStore(
@@ -152,7 +157,7 @@ async def main(settings):
             ordinary_materializer = True
             await project_ordinary_status()
         readiness = None
-        if settings["artifact"] in {"a", "b", "c", "b1", "b21"}:
+        if settings["artifact"] in {"a", "b", "c", "b1", "b21", "b22"}:
             from adcp.reporting.ledger.notification_models import ReportingNotificationError
             from adcp.reporting.outbox._schema import validate_schema
 
@@ -164,8 +169,9 @@ async def main(settings):
                     readiness = False
             assert readiness == (settings["artifact"] != "a")
         materializer = None
-        if settings["artifact"] == "b21":
-            assert await store.materializer_ready()
+        if settings["artifact"] in {"b21", "b22"}:
+            feed_operation_2 = await store.materializer_ready()
+            assert feed_operation_2
             boundaries = await store.read_materializer_boundaries(caller=caller)
             assert len(boundaries) == 1
             assert boundaries[0].to_storage()["version"] == 1

@@ -519,6 +519,8 @@ async def _dispatch_with_middleware(
     params: dict[str, Any],
     context: ToolContext,
     call_handler: Callable[[], Awaitable[Any]],
+    *,
+    frozen_reporting_feed: bool = False,
 ) -> Any:
     """Run ``call_handler`` wrapped in the supplied middleware chain.
 
@@ -586,6 +588,14 @@ async def _dispatch_with_middleware(
             return await _step(0)
         finally:
             _RECEIPT_BATCH_DISPATCH.reset(token)
+    if frozen_reporting_feed:
+        from adcp.server.idempotency.store import _FROZEN_FEED_DISPATCH
+
+        token = _FROZEN_FEED_DISPATCH.set(True)
+        try:
+            return await _step(0)
+        finally:
+            _FROZEN_FEED_DISPATCH.reset(token)
     return await _step(0)
 
 
@@ -2788,11 +2798,12 @@ def _register_tool(
         build_mcp_error_result,
     )
 
-    if name == "sync_reporting_receipts":
+    frozen_reporting_feed = getattr(caller, "_adcp_frozen_reporting_feed", False)
+    if name == "sync_reporting_receipts" or frozen_reporting_feed:
         object.__setattr__(mcp, "_adcp_receipt_ingress", True)
 
     async def fn(**kwargs: Any) -> dict[str, Any]:
-        if name == "sync_reporting_receipts":
+        if name == "sync_reporting_receipts" or frozen_reporting_feed:
             request_context = _get_starlette_request_for_dispatch()
             if request_context is not None:
                 from adcp.reporting.receipts.transport import (
@@ -2801,7 +2812,7 @@ def _register_tool(
                 )
 
                 kwargs = mcp_receipt_parameters(
-                    request_context.scope.get(RAW_RECEIPT_BODY_SCOPE_KEY)
+                    request_context.scope.get(RAW_RECEIPT_BODY_SCOPE_KEY), task=name
                 )
         # Caller identity: FastMCP does not expose an authenticated principal
         # at the SDK level (``Context.client_id`` is a session hint, not an
@@ -2846,7 +2857,12 @@ def _register_tool(
                 # via ``context`` closed over by _call_handler.
                 mw_context = context if context is not None else ToolContext()
                 result = await _dispatch_with_middleware(
-                    middleware, name, kwargs, mw_context, _call_handler
+                    middleware,
+                    name,
+                    kwargs,
+                    mw_context,
+                    _call_handler,
+                    frozen_reporting_feed=frozen_reporting_feed,
                 )
             else:
                 result = await _call_handler()
