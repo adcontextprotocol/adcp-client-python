@@ -469,7 +469,8 @@ async def main():
             clock=clock,
         )
         projector = ReportingActivityProjector(outbox)
-        assert await ReportingActivitySupport(worker, store, projector).durable()
+        materializer_operation_1 = await ReportingActivitySupport(worker, store, projector).durable()
+        assert materializer_operation_1
         events = await outbox.list_events(account_id="acct_a")
         expanded_1 = await worker.expand_one(account_id="acct_a")
         assert expanded_1

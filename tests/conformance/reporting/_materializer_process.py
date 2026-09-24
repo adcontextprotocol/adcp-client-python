@@ -63,6 +63,7 @@ async def main():
             try:
                 await store.materializer_ready()
             except LedgerConflictError:
+                # An empty schema must reject readiness before installation.
                 pass
             else:
                 raise AssertionError("empty schema must be unready")
@@ -75,7 +76,8 @@ async def main():
     async def hit(point):
         if point == settings.get("pause"):
             emit(point)
-            assert (await read())["continue"]
+            materializer_operation_1 = await read()
+            assert (materializer_operation_1)["continue"]
 
     class Connection(AsyncConnection):
         async def execute(self, query, params=None, **kwargs):

@@ -58,4 +58,5 @@ async def run_materializer(service: ReportingMaterializerService, stop: asyncio.
             try:
                 await asyncio.wait_for(stop.wait(), timeout=1)
             except asyncio.TimeoutError:
+                # The poll interval elapsed; check for work or shutdown again.
                 pass

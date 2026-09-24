@@ -46,6 +46,7 @@ class _LeaseHeartbeat:
                 await asyncio.wait_for(self.stopped.wait(), self.seconds / 3)
                 return
             except asyncio.TimeoutError:
+                # The heartbeat interval elapsed; renew the owned lease below.
                 pass
             held = False
             try:
