@@ -1050,7 +1050,7 @@ jobs:
           # sqlalchemy + asyncpg + httpx-respx but those aren't in the
           # SDK's [dev] extras. Install them inline rather than adding
           # a separate optional-dependencies group for a single example.
-          pip install "sqlalchemy>=2.0" "asyncpg>=0.29" "respx>=0.20"
+          pip install "sqlalchemy[asyncio]>=2.0" "asyncpg>=0.29" "respx>=0.20"
 
       - name: Run translator-pattern tests
         # The tests respx-mock the JS mock-server upstream so we don't
@@ -1117,7 +1117,7 @@ jobs:
           # sqlalchemy + asyncpg (async Postgres driver) which aren't
           # in the SDK's [dev,pg] extras. Install inline rather than
           # adding an example-only optional-dependencies group.
-          pip install "sqlalchemy>=2.0" "asyncpg>=0.29" "respx>=0.20"
+          pip install "sqlalchemy[asyncio]>=2.0" "asyncpg>=0.29" "respx>=0.20"
 
       - name: Pre-install @adcp/sdk (once, then call binary directly)
         # See the comment on the storyboard job's install step for the
