@@ -332,6 +332,7 @@ jobs:
         working-directory: /tmp
         run: |
           python - <<'PY'
+          import json
           from importlib.resources import files
 
           from adcp import get_adcp_spec_version
@@ -352,7 +353,11 @@ jobs:
               if child.is_dir()
           }
           assert packaged_versions == {"2.5", "3.0", "3.1", current_bundle}
-          assert len(STANDARD_ERROR_CODES) == 120
+          error_schema = json.loads(
+              (schema_root / current_bundle / "enums/error-code.json").read_text(encoding="utf-8")
+          )
+          # NOT_SUPPORTED is the SDK's explicit extension to the pinned vocabulary.
+          assert set(STANDARD_ERROR_CODES) == {*error_schema["enum"], "NOT_SUPPORTED"}
           assert adcp_error("AUTH_MISSING", "x")["errors"][0]["recovery"] == "correctable"
           assert make_versioned_base("3.1", "ListCreativesRequest")
           assert ReportingCapabilities.__name__ == "ReportingCapabilities"

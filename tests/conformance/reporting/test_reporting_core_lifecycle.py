@@ -1159,7 +1159,7 @@ async def test_reserved_authoritative_party_is_refused_before_install(
 async def test_create_schema_upgrades_an_rc2_database_in_place(
     ledger: PgReportingLedgerStore,
 ) -> None:
-    """An adopter on the rc.2 schema gets the rc.3 columns on the next boot.
+    """An adopter on the rc.2 schema gets the current columns and tables on boot.
 
     The ledger fixture already ran ``create_schema()``, so this drops back to
     the rc.2 shape and re-runs it -- proving the DDL is an upgrade path and not
@@ -1173,6 +1173,8 @@ async def test_create_schema_upgrades_an_rc2_database_in_place(
         await connection.execute(
             "ALTER TABLE reporting_configurations DROP COLUMN authoritative_party"
         )
+        # Neither table existed in rc.2; remove the dependent binding table first.
+        await connection.execute("DROP TABLE reporting_issue_waiver_bindings")
         await connection.execute("DROP TABLE reporting_issue_lifecycle")
 
     await ledger.create_schema()
@@ -1194,11 +1196,21 @@ async def test_create_schema_upgrades_an_rc2_database_in_place(
             for row in await (
                 await connection.execute(
                     "SELECT table_name FROM information_schema.tables"
-                    " WHERE table_name = 'reporting_issue_lifecycle'"
+                    " WHERE table_name IN"
+                    "   ('reporting_issue_lifecycle', 'reporting_issue_waiver_bindings')"
                 )
             ).fetchall()
         }
-        assert tables == {"reporting_issue_lifecycle"}
+        assert tables == {"reporting_issue_lifecycle", "reporting_issue_waiver_bindings"}
+        foreign_keys = await (
+            await connection.execute(
+                "SELECT confrelid = 'reporting_issue_lifecycle'::regclass, convalidated"
+                " FROM pg_constraint"
+                " WHERE conrelid = 'reporting_issue_waiver_bindings'::regclass"
+                " AND contype = 'f'"
+            )
+        ).fetchall()
+        assert foreign_keys == [(True, True)]
 
     # And the upgraded database actually works, not just has the columns.
     await ledger.put_configuration(_configuration())
