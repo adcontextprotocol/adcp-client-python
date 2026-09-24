@@ -248,7 +248,14 @@ integrated artifacts remove those dependencies; a C-only cluster would hide
 portability regressions, so the gates require URL and drivers without a locale
 pin. The pre-`17ee407a` A, pre-`0f34c666` B, pre-`967b6e28` C, pre-`5487f2bd` B1
 and pre-`3fd62121` B2.1 rolling exclusions must accompany release notes.
+
 A's notification-readiness closure after C is compared on both sides and does
 not excuse new regressions. Optional notifications may stay explicitly disabled;
 complete polling still depends on the later B2.3/B2.4 components. Full buyer
 adjustment automation and `client.reporting` remain named downstream #1172 work.
+
+The schema-proof and receipt-diagnostic hardening comparison uses integrated
+B2.3 commit `2d777ace`. It checks the unchanged safe buyer error and frozen-feed
+restart boundary against that binary, while separately demonstrating its repeated
+catalog work and absent operator diagnostics. It does not qualify earlier B2.3
+snapshots; this pre-`2d777ace` comparison limit must also accompany release notes.
