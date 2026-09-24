@@ -10,6 +10,7 @@ import pytest
 from adcp.reporting.ledger import LedgerConflictError, PgReportingReconciliationStore, derive_period
 from adcp.reporting.materializer import PgReportingMaterializerStore
 from adcp.reporting.outbox._schema import REQUIRED_OBJECTS, schema_objects, validate_schema
+from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS
 
 from ._durable_materializer_support import durable_case, durable_harness
 from ._generation_support import isolated_reporting_pool, obligation_for
@@ -45,7 +46,21 @@ async def test_populated_repeated_and_concurrent_install_preserves_all_old_objec
             assert await new.materializer_ready()
             async with pool.connection() as c:
                 actual = await schema_objects(c)
-                assert {key: actual[key] for key in original} == original == REQUIRED_OBJECTS
+                # The populated rc.6 case also installs its exact waiver-binding objects.
+                waiver_objects = {
+                    key: value
+                    for key, value in REQUIRED_STATUS_OBJECTS.items()
+                    if "reporting_issue_waiver_bindings" in key
+                }
+                assert len(waiver_objects) == 10
+                assert (
+                    {key: actual[key] for key in original}
+                    == original
+                    == {
+                        **REQUIRED_OBJECTS,
+                        **waiver_objects,
+                    }
+                )
                 assert {
                     key: value for key, value in actual.items() if "reporting_materializer_" in key
                 } == MANIFEST
