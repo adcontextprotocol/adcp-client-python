@@ -20,6 +20,11 @@ binding never advertises `managed_delivery`, `reconciled_billing`, or
 claim until B2 can prove a complete durable materializer. The producer's `extra`
 argument rejects SDK-owned task, tier and notification keys.
 
+The additive [B2.1 durable materializer](reporting-durable-materializer.md) now
+implements reservation, recovery and verified atomic finish. Production tier
+and delivery activation remain gated on the later B2 slices; the development
+writer and the B1 contracts above are unchanged.
+
 ## Trusted contracts and lifecycle
 
 `ReportingDestinationRequest` includes the exact account and canonical consumer

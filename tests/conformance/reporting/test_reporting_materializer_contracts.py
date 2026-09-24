@@ -227,7 +227,7 @@ async def test_service_heartbeat_is_a_checkpoint_only_and_fences_before_source_r
     assert calls == 1 and case.writer.open_count == 0
 
 
-def test_curated_all_exports_resolve_and_do_not_add_materializer_sql():
+def test_curated_all_exports_resolve_with_the_isolated_optional_materializer():
     for name in (
         "adcp.reporting.materializer",
         "adcp.reporting.revision_selection",
@@ -239,9 +239,13 @@ def test_curated_all_exports_resolve_and_do_not_add_materializer_sql():
         for public in module.__all__:
             assert getattr(module, public) is not None
     module = importlib.import_module("adcp.reporting.materializer")
-    assert not any(
-        name.endswith(("Coordinator", "Service", "Lease", "WorkQueue")) for name in module.__all__
-    )
+    # B1 deliberately stopped before orchestration. B2.1 adds only this optional
+    # service/lease surface; it does not promote the reference writer or tiers.
+    assert {
+        name
+        for name in module.__all__
+        if name.endswith(("Coordinator", "Service", "Lease", "WorkQueue"))
+    } == {"ReportingMaterializerService", "ReportingMaterializerLease"}
     assert inspect.isclass(module.ReportingDestinationSession)
     assert get_type_hints(module.ReportingDestinationSession.write)["content"] is (
         module.ReportingPreparedRevision

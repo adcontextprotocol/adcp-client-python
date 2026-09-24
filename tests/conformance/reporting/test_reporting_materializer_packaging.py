@@ -45,15 +45,14 @@ def b1_wheels(built_distribution):
         for relative in (
             "ledger/reporting_status_selector_version.sql",
             "outbox/required_status_selector_schema.json",
+            "ledger/reporting_materializer.sql",
+            "materializer/required_schema.json",
         ):
             assert (
                 vcs.read(f"adcp/reporting/{relative}")
                 == wheel.read(f"adcp/reporting/{relative}")
                 == (ROOT / "src/adcp/reporting" / relative).read_bytes()
             )
-        assert not any(
-            "reporting_materializer_" in name and name.endswith(".sql") for name in vcs.namelist()
-        )
     return (
         path,
         {"vcs": vcs_wheel, "sdist": sdist_wheel},
@@ -95,6 +94,10 @@ def test_python310_installed_wheel_exports_verifier_reference_and_strict_adopter
     shutil.copy2(Path(__file__).with_name("_materializer_installed.py"), smoke)
     shutil.copy2(ROOT / "examples/reporting_destination_writer.py", example)
     shutil.copy2(ROOT / "tests/type_checks/reporting_destination_writer.py", adopter)
+    durable_example = path / f"durable_example_{kind}.py"
+    durable_adopter = path / f"durable_adopter_{kind}.py"
+    shutil.copy2(ROOT / "examples/reporting_durable_materializer.py", durable_example)
+    shutil.copy2(ROOT / "tests/type_checks/reporting_durable_materializer.py", durable_adopter)
     result = json.loads(
         run_step(
             [str(python), "-I", str(smoke)],
@@ -104,7 +107,13 @@ def test_python310_installed_wheel_exports_verifier_reference_and_strict_adopter
             timeout=120,
         )
     )
-    assert result == {"python": "3.10", "rows": [0, 501], "installed": True, "assets": hashes}
+    assert result == {
+        "python": "3.10",
+        "rows": [0, 501],
+        "installed": True,
+        "assets": hashes,
+        "durable": True,
+    }
     config = path / "mypy.ini"
     config.write_text(
         "[mypy]\npython_version = 3.10\nstrict = True\n"
@@ -122,6 +131,8 @@ def test_python310_installed_wheel_exports_verifier_reference_and_strict_adopter
             "--no-incremental",
             str(adopter),
             str(example),
+            str(durable_adopter),
+            str(durable_example),
         ],
         label=f"b1-{kind}-installed-adopter-types",
         cwd=path,

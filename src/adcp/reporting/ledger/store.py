@@ -724,26 +724,18 @@ class InMemoryReportingLedgerStore:
     async def _mutation(self) -> AsyncIterator[None]:
         """Publish domain changes and notifications under one rollback boundary.
 
-        Default-off stores retain their original lock cost. The reference
-        in-memory transaction copies retained values only when opted in.
+        Rollback also applies with notifications disabled. Newly initialized
+        collections and sequence heads belong to the transaction too.
         """
         owner = (id(self), asyncio.current_task())
         if _MEMORY_TRANSACTION.get() == owner:
             yield
             return
         async with self._lock:
-            token = _MEMORY_TRANSACTION.set(owner)
-            before = (
-                deepcopy(
-                    {
-                        key: value
-                        for key, value in vars(self).items()
-                        if key not in {"_lock", "_clock"}
-                    }
-                )
-                if self._notification_state is not None
-                else None
+            before = deepcopy(
+                {key: value for key, value in vars(self).items() if key not in {"_lock", "_clock"}}
             )
+            token = _MEMORY_TRANSACTION.set(owner)
             try:
                 dirty_start = len(self._notification_state.dirty) if self._notification_state else 0
                 yield
@@ -765,8 +757,9 @@ class InMemoryReportingLedgerStore:
                             )
                         )
             except BaseException:
-                if before is not None:
-                    vars(self).update(before)
+                for key in set(vars(self)) - {"_lock", "_clock"} - set(before):
+                    del vars(self)[key]
+                vars(self).update(before)
                 raise
             finally:
                 _MEMORY_TRANSACTION.reset(token)

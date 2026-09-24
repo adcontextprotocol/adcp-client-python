@@ -146,7 +146,8 @@ async def database_seed(pool, case="expected", *, baseline=True):
             await c.execute(
                 "UPDATE reporting_status_accounts SET baseline_complete=TRUE,"
                 " baseline_highwater=%s, dirty_sequence=%s, baseline_at=%s,"
-                " replay_lifecycles=%s::jsonb, selector_target_version=2, selector_transition='complete' WHERE account_id='acct_a'",
+                " replay_lifecycles=%s::jsonb, selector_target_version=2,"
+                " selector_transition='complete' WHERE account_id='acct_a'",
                 (through, through, snapshot.as_of, _replay_storage(snapshot)),
             )
     return ledger, status, at, escalation

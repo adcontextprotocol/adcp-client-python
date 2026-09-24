@@ -1,0 +1,750 @@
+{
+  "column:reporting_materializer_accounts.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_accounts.captured_sequence": {
+    "enabled": true,
+    "fingerprint": "42202005517b72e082eb22c9eceb2ac0252815e5df700c83eb50c54cfeb46297"
+  },
+  "column:reporting_materializer_accounts.due_at": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
+  "column:reporting_materializer_accounts.served_at": {
+    "enabled": true,
+    "fingerprint": "ff6b592f18aa2fe4a2d7393bd4976409093f2650300d7073f5f485bed633309c"
+  },
+  "column:reporting_materializer_candidates.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_candidates.consumer_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_candidates.delivery_config_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_candidates.delivery_config_version": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_materializer_candidates.due_at": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
+  "column:reporting_materializer_candidates.generation": {
+    "enabled": true,
+    "fingerprint": "69ade56844c40f1606daf51b6a1de9e07d8b838db8f35a89e7ef1576035794be"
+  },
+  "column:reporting_materializer_candidates.reason": {
+    "enabled": true,
+    "fingerprint": "806b02ec486fb1a02f57be76cf01aba1287baf2d669233d70849bcb0df7c558c"
+  },
+  "column:reporting_materializer_candidates.reporting_obligation_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_candidates.served_at": {
+    "enabled": true,
+    "fingerprint": "ff6b592f18aa2fe4a2d7393bd4976409093f2650300d7073f5f485bed633309c"
+  },
+  "column:reporting_materializer_discovery.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_discovery.after_obligation_id": {
+    "enabled": true,
+    "fingerprint": "128b66e02f14946100273f112c144af7605d626124d20fe16c1ba30c6b19ae3a"
+  },
+  "column:reporting_materializer_discovery.complete": {
+    "enabled": true,
+    "fingerprint": "981e469ff869d932309f9e6aab9b07ff394c7439fe2431281320e25b41c4198d"
+  },
+  "column:reporting_materializer_discovery.consumer_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_discovery.delivery_config_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_discovery.delivery_config_version": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_materializer_notification_events.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_notification_events.admission_epoch": {
+    "enabled": true,
+    "fingerprint": "42202005517b72e082eb22c9eceb2ac0252815e5df700c83eb50c54cfeb46297"
+  },
+  "column:reporting_materializer_notification_events.cause_generation": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_materializer_notification_events.cause_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_notification_events.cause_kind": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_notification_events.consumer_namespace": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_notification_events.fired_at": {
+    "enabled": true,
+    "fingerprint": "1cac4e73af11a8ecafd646ef6a0ff6ecb087d46f150408dcfebc630fe1bf5e1e"
+  },
+  "column:reporting_materializer_notification_events.notification_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_notification_events.notification_type": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_notification_events.reporting_materialization_id": {
+    "enabled": true,
+    "fingerprint": "a0d17631e6e95ba976e4615a034020bc089fa63601fb91205ebb35798a39c0de"
+  },
+  "column:reporting_materializer_notification_events.snapshot": {
+    "enabled": true,
+    "fingerprint": "ac355fc16c02b70cb0a24afee8214cdce5f5cbfdc7fd1630786d5101932ecfa4"
+  },
+  "column:reporting_materializer_notification_expansions.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_notification_expansions.claim_count": {
+    "enabled": true,
+    "fingerprint": "42202005517b72e082eb22c9eceb2ac0252815e5df700c83eb50c54cfeb46297"
+  },
+  "column:reporting_materializer_notification_expansions.consumer_namespace": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_notification_expansions.due_at": {
+    "enabled": true,
+    "fingerprint": "1cac4e73af11a8ecafd646ef6a0ff6ecb087d46f150408dcfebc630fe1bf5e1e"
+  },
+  "column:reporting_materializer_notification_expansions.emission_generation": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_materializer_notification_expansions.error_code": {
+    "enabled": true,
+    "fingerprint": "5b92595d0b54d473a3a3818455845f1fe0dc20b48cfe0faf63061a82d1a3cb02"
+  },
+  "column:reporting_materializer_notification_expansions.lease_expires_at": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
+  "column:reporting_materializer_notification_expansions.lease_token": {
+    "enabled": true,
+    "fingerprint": "5b92595d0b54d473a3a3818455845f1fe0dc20b48cfe0faf63061a82d1a3cb02"
+  },
+  "column:reporting_materializer_notification_expansions.notification_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_notification_expansions.state": {
+    "enabled": true,
+    "fingerprint": "a1ea96aa09ee40a7801ee346ca59f35c6ceccd207397a2b7bfd70d130d159091"
+  },
+  "column:reporting_materializer_status_boundaries.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_status_boundaries.account_sequence": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_materializer_status_boundaries.as_of": {
+    "enabled": true,
+    "fingerprint": "1cac4e73af11a8ecafd646ef6a0ff6ecb087d46f150408dcfebc630fe1bf5e1e"
+  },
+  "column:reporting_materializer_status_boundaries.consumer_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_status_boundaries.content_sha256": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_status_boundaries.input": {
+    "enabled": true,
+    "fingerprint": "ac355fc16c02b70cb0a24afee8214cdce5f5cbfdc7fd1630786d5101932ecfa4"
+  },
+  "column:reporting_materializer_status_boundaries.outcome_namespace": {
+    "enabled": true,
+    "fingerprint": "37f064bd049ffa20c99bccfcb2ddd77b4e7b65fc6471d7683087ed0beec2098e"
+  },
+  "column:reporting_materializer_status_boundaries.reporting_materialization_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_status_boundaries.sequence": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_materializer_status_heads.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_status_heads.consumer_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_status_heads.max_sequence": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_materializer_work.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_work.acknowledged_at": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
+  "column:reporting_materializer_work.admission_epoch": {
+    "enabled": true,
+    "fingerprint": "42202005517b72e082eb22c9eceb2ac0252815e5df700c83eb50c54cfeb46297"
+  },
+  "column:reporting_materializer_work.attempt_namespace": {
+    "enabled": true,
+    "fingerprint": "48602ba37bcbee2d9c8104042cc7868262df4d288eaf1543e387b9a059a08117"
+  },
+  "column:reporting_materializer_work.binding_sha256": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_work.completion_token": {
+    "enabled": true,
+    "fingerprint": "88223bccb5aae7ddfe4b3feacd193586f6699cbfaa3507ae6c21250775392e25"
+  },
+  "column:reporting_materializer_work.consumer_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_work.created_at": {
+    "enabled": true,
+    "fingerprint": "336df3243b293695d8321965e92f26d3f132e11514ed9678fb5e64e0015fa580"
+  },
+  "column:reporting_materializer_work.delivery_config_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_work.delivery_config_version": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_materializer_work.due_at": {
+    "enabled": true,
+    "fingerprint": "336df3243b293695d8321965e92f26d3f132e11514ed9678fb5e64e0015fa580"
+  },
+  "column:reporting_materializer_work.external_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_work.generation": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_materializer_work.imported": {
+    "enabled": true,
+    "fingerprint": "981e469ff869d932309f9e6aab9b07ff394c7439fe2431281320e25b41c4198d"
+  },
+  "column:reporting_materializer_work.lease_token": {
+    "enabled": true,
+    "fingerprint": "88223bccb5aae7ddfe4b3feacd193586f6699cbfaa3507ae6c21250775392e25"
+  },
+  "column:reporting_materializer_work.lease_until": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
+  "column:reporting_materializer_work.notifications_enabled": {
+    "enabled": true,
+    "fingerprint": "1abe3a1c570fbe885784dab5d979307c373d50f567ff4481ce3996869bf58fed"
+  },
+  "column:reporting_materializer_work.reason": {
+    "enabled": true,
+    "fingerprint": "806b02ec486fb1a02f57be76cf01aba1287baf2d669233d70849bcb0df7c558c"
+  },
+  "column:reporting_materializer_work.reporting_materialization_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_work.reporting_obligation_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_work.reporting_revision_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_materializer_work.retry_allowed": {
+    "enabled": true,
+    "fingerprint": "981e469ff869d932309f9e6aab9b07ff394c7439fe2431281320e25b41c4198d"
+  },
+  "column:reporting_materializer_work.state": {
+    "enabled": true,
+    "fingerprint": "675d9766cc6787c63f91ee16167a1de38069be7ad44f6d8362bd498885ae1355"
+  },
+  "column:reporting_materializer_work.verification_key_sha256": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "constraint:reporting_materializer_accounts.reporting_materializer_accounts_captured_sequence_check": {
+    "enabled": true,
+    "fingerprint": "1d2836d91f73454d02a4299e43a4ed52d0df6f60d4a1c62358b213b1e2f184b5"
+  },
+  "constraint:reporting_materializer_accounts.reporting_materializer_accounts_pkey": {
+    "enabled": true,
+    "fingerprint": "e65d70e61c89a93d66c4c4f4c59ef755d0ff526b0fcdd1d9ae6d830d2abea913"
+  },
+  "constraint:reporting_materializer_candidates.reporting_materializer_candid_account_id_delivery_config_i_fkey": {
+    "enabled": true,
+    "fingerprint": "f2fd7665f778fae1bec63184c8468e0212256b25009a44659abd7284bc54b8a7"
+  },
+  "constraint:reporting_materializer_candidates.reporting_materializer_candidates_account_id_fkey": {
+    "enabled": true,
+    "fingerprint": "56b5c2865d458269356ade49fde975a0ebaf0a1338a80846132d5ec172dcddf5"
+  },
+  "constraint:reporting_materializer_candidates.reporting_materializer_candidates_delivery_config_version_check": {
+    "enabled": true,
+    "fingerprint": "aa64b81d15585376b0e6a0904344e39bc5010257097cee5c8118967efdac4d34"
+  },
+  "constraint:reporting_materializer_candidates.reporting_materializer_candidates_generation_check": {
+    "enabled": true,
+    "fingerprint": "04ce269eb45cc51febf8cbf44b760185b1eb2fd4b1935d6b53ecae063496539e"
+  },
+  "constraint:reporting_materializer_candidates.reporting_materializer_candidates_pkey": {
+    "enabled": true,
+    "fingerprint": "eeabaa92e67458b97f1288ad0ca744a7a6b2bdcf24bed3511258141cf0635498"
+  },
+  "constraint:reporting_materializer_candidates.reporting_materializer_candidates_reason_check": {
+    "enabled": true,
+    "fingerprint": "d2dc21e781a468c735dd8b305b5405e779c85c27657683c19570cb1ba4b94aa7"
+  },
+  "constraint:reporting_materializer_discovery.reporting_materializer_discov_account_id_delivery_config_i_fkey": {
+    "enabled": true,
+    "fingerprint": "4761471309c35947c8d3928dce4595b4d455e7de6166aeb78a5de220465cb64a"
+  },
+  "constraint:reporting_materializer_discovery.reporting_materializer_discovery_delivery_config_version_check": {
+    "enabled": true,
+    "fingerprint": "aa64b81d15585376b0e6a0904344e39bc5010257097cee5c8118967efdac4d34"
+  },
+  "constraint:reporting_materializer_discovery.reporting_materializer_discovery_pkey": {
+    "enabled": true,
+    "fingerprint": "cb0658b07aa5249a6934cca6248293967db4ab1a848d706c3d5310fa98f08785"
+  },
+  "constraint:reporting_materializer_notification_events.reporting_materializer_notifi_account_id_consumer_namespac_fkey": {
+    "enabled": true,
+    "fingerprint": "9274f47b408013aa1d44c57310026f2178212e0e3ec823f2a61d21cc08efd2f1"
+  },
+  "constraint:reporting_materializer_notification_events.reporting_materializer_notifi_account_id_consumer_namespace_key": {
+    "enabled": true,
+    "fingerprint": "7156cd6623f45f181906d2886b53dfba82bfdfc6cdcbdd0017c1f1cd7ceae407"
+  },
+  "constraint:reporting_materializer_notification_events.reporting_materializer_notification_ev_consumer_namespace_check": {
+    "enabled": true,
+    "fingerprint": "69951e411156e1739417ca750e81d5d806b2fcccea7e1914674f730ca6433b58"
+  },
+  "constraint:reporting_materializer_notification_events.reporting_materializer_notification_eve_notification_type_check": {
+    "enabled": true,
+    "fingerprint": "4dc2b2e5d5fe003a3b98e1832dd453c9115cc3d03d59d3cb23258e90605548e3"
+  },
+  "constraint:reporting_materializer_notification_events.reporting_materializer_notification_even_cause_generation_check": {
+    "enabled": true,
+    "fingerprint": "b43ce8b2f74254027bcc0d382aa0bda21801bd6539f4ea3365679718c5cd80ba"
+  },
+  "constraint:reporting_materializer_notification_events.reporting_materializer_notification_event_admission_epoch_check": {
+    "enabled": true,
+    "fingerprint": "abd3e698b241244e9e751e940838ef5bcecdd79d21aab371f4b595818b5b1f95"
+  },
+  "constraint:reporting_materializer_notification_events.reporting_materializer_notification_events_cause_kind_check": {
+    "enabled": true,
+    "fingerprint": "4d213a62ba48d8d428c2811ddc5039b1349d3a41943509a85062b43235ab669d"
+  },
+  "constraint:reporting_materializer_notification_events.reporting_materializer_notification_events_check": {
+    "enabled": true,
+    "fingerprint": "bc5fdbb84edccb22f49869598e550f0f72ee45323f0852be3438c8c5d5a387fc"
+  },
+  "constraint:reporting_materializer_notification_events.reporting_materializer_notification_events_check1": {
+    "enabled": true,
+    "fingerprint": "3d95e12acbdfe40cfd7c36ea0c4cceddc8106395e3165b6c8034dd14783ba596"
+  },
+  "constraint:reporting_materializer_notification_events.reporting_materializer_notification_events_check2": {
+    "enabled": true,
+    "fingerprint": "abcd49a900cec31d6a71175389de38cf44ffe6d16fa9083e45fe82967313db78"
+  },
+  "constraint:reporting_materializer_notification_events.reporting_materializer_notification_events_check3": {
+    "enabled": true,
+    "fingerprint": "66bffc213553425f6a34852e7394536bdd550304c09cdb472a70223bcadb9f7b"
+  },
+  "constraint:reporting_materializer_notification_events.reporting_materializer_notification_events_pkey": {
+    "enabled": true,
+    "fingerprint": "e8d63f44b25700915bcb3cb69e2e24b98cf21fd304f36a2e9c2992236309309d"
+  },
+  "constraint:reporting_materializer_notification_expansions.reporting_materializer_notif_account_id_consumer_namespac_fkey1": {
+    "enabled": true,
+    "fingerprint": "6819542fa33be0e7a42bead23f6729b2dfb82d447b59543aaa96071054d56289"
+  },
+  "constraint:reporting_materializer_notification_expansions.reporting_materializer_notification_e_emission_generation_check": {
+    "enabled": true,
+    "fingerprint": "5b7b2793bd710c7eef8c02003fd8adb1df91d7c10659364fe37d7f6351d4bf5e"
+  },
+  "constraint:reporting_materializer_notification_expansions.reporting_materializer_notification_expansions_error_code_check": {
+    "enabled": true,
+    "fingerprint": "502085808cda7e7ec1e45e3d88257a660bdc65b59a71727b473303a362b9cf9d"
+  },
+  "constraint:reporting_materializer_notification_expansions.reporting_materializer_notification_expansions_pkey": {
+    "enabled": true,
+    "fingerprint": "8ac920e8e1ed5a59417d5d1ffb9bea608bbeb64dbcd1a431240370fe555fe6f0"
+  },
+  "constraint:reporting_materializer_notification_expansions.reporting_materializer_notification_expansions_state_check": {
+    "enabled": true,
+    "fingerprint": "12b7a569e49f4bf374d5dade9ec0a0d812e4dea251366467c95bcd58bee90b9d"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_account_id_consumer_id_outco_fkey": {
+    "enabled": true,
+    "fingerprint": "e3e10c3f3d574511ee5944b8bade5d927099809b0a45539ce8502caa9ebb05bf"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_account_id_consumer_id_repor_fkey": {
+    "enabled": true,
+    "fingerprint": "837c9aa80214bc7b0b25cd299aec9cad71de4bb616eefd0960ae5ca57efb1683"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_account_id_consumer_id_report_key": {
+    "enabled": true,
+    "fingerprint": "72945097549e77da2940c9cc5e54db645c12c0d5ef3bed0d4d7e7ba5cc93ffc1"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_b_account_id_account_sequence_key": {
+    "enabled": true,
+    "fingerprint": "460b11d8840751c3e894245e33c24e704407f4b3ca42bbd9e832cb48a0c3b24d"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_boundarie_outcome_namespace_check": {
+    "enabled": true,
+    "fingerprint": "60e879d7d85bbf368a4f30d08481dd59f5aa1d92eb6943b0e60a8e8e219c2ff2"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_boundaries_account_sequence_check": {
+    "enabled": true,
+    "fingerprint": "1a64697a81e3b39433d851f9916df1964cbbc260aa54dd6fee4076c7e805c70e"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_boundaries_check": {
+    "enabled": true,
+    "fingerprint": "6db9e761fce16f6deaabe04581b3813f3495382b5edf905c2c01a772151eed89"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_boundaries_check1": {
+    "enabled": true,
+    "fingerprint": "6c5865ad0c28d00ec74194418def9d764ddf85b230f1dfb6d14c6e505eda3737"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_boundaries_check2": {
+    "enabled": true,
+    "fingerprint": "307105bea1a76e214540a207ab8dddcffb26853845a89236454a6e9ecb0508d3"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_boundaries_check3": {
+    "enabled": true,
+    "fingerprint": "65d0dca50d7ca308123252fcc784fb427fd857d8bf3092bd85fc8fff5787d7ec"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_boundaries_check4": {
+    "enabled": true,
+    "fingerprint": "0d806a2b956a1e8947dcc43c634352ed52c1c3f158235145b2fe5a96db5fb379"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_boundaries_check5": {
+    "enabled": true,
+    "fingerprint": "b330c171bc0bb87ac12aa97aca4d4ae7167e0c07d7b61b3b688c63df9588d927"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_boundaries_check6": {
+    "enabled": true,
+    "fingerprint": "9b7f5755a4d4093ab3618e85ff78ea92e931d1895d601ee48f781dcbca07155d"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_boundaries_content_sha256_check": {
+    "enabled": true,
+    "fingerprint": "2afe58d90df96e397cb8e6a941e52fcf8e01b7835024dd3b4ba67141a3578505"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_boundaries_input_check": {
+    "enabled": true,
+    "fingerprint": "1403f246fdde17015118d212847ed5d8169df3adc0364598cbd5e82be066e1bf"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_boundaries_input_check1": {
+    "enabled": true,
+    "fingerprint": "fadd88bcfddae6b78d4fc68c90018f5c21ba800b5beb4ddfb2d5805da7703a2b"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_boundaries_pkey": {
+    "enabled": true,
+    "fingerprint": "00dd5f9ba4e0d0face7ab27fe5e52ffa9c4101943c95afb8ec1badb401c7010d"
+  },
+  "constraint:reporting_materializer_status_boundaries.reporting_materializer_status_boundaries_sequence_check": {
+    "enabled": true,
+    "fingerprint": "554d491362648e795a6567528a6244977d5df276216297f35e26e4750f869dcf"
+  },
+  "constraint:reporting_materializer_status_heads.reporting_materializer_status_heads_max_sequence_check": {
+    "enabled": true,
+    "fingerprint": "ee47acec8d450eed7f99b637596847d21bc449a12317a605fd6b6cb0fad6aa79"
+  },
+  "constraint:reporting_materializer_status_heads.reporting_materializer_status_heads_pkey": {
+    "enabled": true,
+    "fingerprint": "4d853add149814edf9eadd3f752bf43f1f7164cba2bd079f0349d4d540a7f20c"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_account_id_consumer_id_attempt_fkey": {
+    "enabled": true,
+    "fingerprint": "e3a1d24fef8da0fbe5587a7f7887a4cb9adf0133071070a09c950db1474304c8"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_account_id_consumer_id_deliver_fkey": {
+    "enabled": true,
+    "fingerprint": "9390df97c6b965e9f16f700a4bd4e90392e60f89a15b6a9840d05682cdcc532f"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_account_id_consumer_id_external_key": {
+    "enabled": true,
+    "fingerprint": "78641c1ca086a76ec1a81540664d98811ffb2adb51d5dc27db4d307f428bd8cd"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_account_id_reporting_obligatio_fkey": {
+    "enabled": true,
+    "fingerprint": "a0dca2cc4a27c9d4380eadb1513d30fe6383849657fc5e0d0f93c4b4c4ed4c08"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_admission_epoch_check": {
+    "enabled": true,
+    "fingerprint": "abd3e698b241244e9e751e940838ef5bcecdd79d21aab371f4b595818b5b1f95"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_attempt_namespace_check": {
+    "enabled": true,
+    "fingerprint": "639b8bfe70df1945046d65f693e67c45a4015e0e318356d77a97f5e4b3a7b629"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_binding_sha256_check": {
+    "enabled": true,
+    "fingerprint": "c9db9bf2eca41364cec2fc19983d43e23fedf6711e5c4deb5f1d80aed317fd2b"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_check": {
+    "enabled": true,
+    "fingerprint": "a6826ba06594c4200bda46be2704e03cb9d234d36538780211c04c2b2392e61b"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_check1": {
+    "enabled": true,
+    "fingerprint": "311f8f3d7b44fd93e0b4ed5945b86997d4c6fd3beea28eca693b1e506466676d"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_check2": {
+    "enabled": true,
+    "fingerprint": "3b94ebc10b0f1c882069a518c6496ff87db17e6b3405aecdb2f9aca7b158c644"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_check3": {
+    "enabled": true,
+    "fingerprint": "fc30826fbb5c547751d5b430e90d54631bc537ca3af856785d68bb4a350cf9cb"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_check4": {
+    "enabled": true,
+    "fingerprint": "50525da46b6ed71b60656e35fbba42e4fcbb45719c4d2032c2eccf35b971fafc"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_external_id_check": {
+    "enabled": true,
+    "fingerprint": "df053aff1b660dec5635dbcc1043c90a9b338c3d871b72d4ed26ec60d465d278"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_generation_check": {
+    "enabled": true,
+    "fingerprint": "04ce269eb45cc51febf8cbf44b760185b1eb2fd4b1935d6b53ecae063496539e"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_pkey": {
+    "enabled": true,
+    "fingerprint": "fb2ee6241427fec8a9ae91d2940abe9e20b25f47554bd2d0a7c4046eb7704c41"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_reason_check": {
+    "enabled": true,
+    "fingerprint": "d2dc21e781a468c735dd8b305b5405e779c85c27657683c19570cb1ba4b94aa7"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_state_check": {
+    "enabled": true,
+    "fingerprint": "2e00e4b40728462003ac3d7f891ca8354aaeee6e19d808f7809030ff4db7758a"
+  },
+  "constraint:reporting_materializer_work.reporting_materializer_work_verification_key_sha256_check": {
+    "enabled": true,
+    "fingerprint": "5442191b821cf162c8dfe50da9181b02acbf254eeb477c27b98e69d1fd26134b"
+  },
+  "function:reporting_materializer_binding_dirty()": {
+    "enabled": true,
+    "fingerprint": "eea2454f1ded0e1bc966fac4cb567e43520182595e9961cd6052c6b7f5cf94e3"
+  },
+  "function:reporting_materializer_dirty(a text, c text, d text, v bigint, o text)": {
+    "enabled": true,
+    "fingerprint": "bbcf34da712e0fae850148f133223786b751f6b03bc71c4c6d4f3f55bb78586b"
+  },
+  "function:reporting_materializer_expansion_guard()": {
+    "enabled": true,
+    "fingerprint": "cb98dadaf9c1932f1ff1671b4cd2a7509488c6f00eacbeacb6b7cf069ea72356"
+  },
+  "function:reporting_materializer_retained_guard()": {
+    "enabled": true,
+    "fingerprint": "f3a494b6d28a4e5340a3f4707da937a765122016eb68d93572ca05c982bae49b"
+  },
+  "function:reporting_materializer_source_dirty()": {
+    "enabled": true,
+    "fingerprint": "49bb0040dd74ba1af0f4f0ecf7b308cff4d8f6cad76be064dbe7ea46e71aee3e"
+  },
+  "function:reporting_materializer_wake(a text)": {
+    "enabled": true,
+    "fingerprint": "c0487a973b7faba9ee0766ebd845b67f44486f5e31cdb2cacb85fd7805a636e7"
+  },
+  "function:reporting_materializer_work_guard()": {
+    "enabled": true,
+    "fingerprint": "53beb6d2d06c61acbdbd6963c9f4869421d98af3842ee4b574c885061ddcd955"
+  },
+  "index:reporting_materializer_accounts.reporting_materializer_account_due": {
+    "enabled": true,
+    "fingerprint": "aa5282c87c241a1fb4231aedf5c2729ed8b7e4d72c5f6fddd93001fba5edf4b3"
+  },
+  "index:reporting_materializer_accounts.reporting_materializer_account_wakeup": {
+    "enabled": true,
+    "fingerprint": "fd3be523100f148ee3d372fe749107f426ea21c1c5e22062c77329c8b3e5404d"
+  },
+  "index:reporting_materializer_accounts.reporting_materializer_accounts_pkey": {
+    "enabled": true,
+    "fingerprint": "8b2d5d80f629b4f7a049604a72b947d79d365ab67ba4caaebc48d0ea8163167b"
+  },
+  "index:reporting_materializer_candidates.reporting_materializer_candidate_due": {
+    "enabled": true,
+    "fingerprint": "3be6530dbb55b15eaada3576100fac5fc4d2b9852e848b3163cef3e2bc66ba48"
+  },
+  "index:reporting_materializer_candidates.reporting_materializer_candidate_publication": {
+    "enabled": true,
+    "fingerprint": "999e962294bc6d17632cf79252bfa9be4a1cff222238b55ed920cad9a0eb24c3"
+  },
+  "index:reporting_materializer_candidates.reporting_materializer_candidates_pkey": {
+    "enabled": true,
+    "fingerprint": "851a791d7161fb93f6d3e0001fb59d46ecf58b96c3df1f9cfad8983b59b7699b"
+  },
+  "index:reporting_materializer_discovery.reporting_materializer_discovery_pending": {
+    "enabled": true,
+    "fingerprint": "be5e169a272b75f8ff83ccffb7ef1af3b629456a405c4170f5f4f40611a14860"
+  },
+  "index:reporting_materializer_discovery.reporting_materializer_discovery_pkey": {
+    "enabled": true,
+    "fingerprint": "b6b8787db0e681f9bee61e99514097d8d0c150fcb78102e439a92c0483521f62"
+  },
+  "index:reporting_materializer_notification_events.reporting_materializer_notifi_account_id_consumer_namespace_key": {
+    "enabled": true,
+    "fingerprint": "8d588106a4322296872f083deffc88263341ba7b62217919ce1cb64ba5c7175b"
+  },
+  "index:reporting_materializer_notification_events.reporting_materializer_notification_events_pkey": {
+    "enabled": true,
+    "fingerprint": "d9a07bc15c257dc9c5f0832be98dca66e6fd908f12c4f739ff294a8a95ceb736"
+  },
+  "index:reporting_materializer_notification_expansions.reporting_materializer_notification_due": {
+    "enabled": true,
+    "fingerprint": "b5ce1d459ed7406b956d3c9144b95693791ce956229e62aa419ca9dc92d91b03"
+  },
+  "index:reporting_materializer_notification_expansions.reporting_materializer_notification_expansions_pkey": {
+    "enabled": true,
+    "fingerprint": "d58d479e1ce11640e782f92435570967ae778f19e3ae38e5c1d7d1c819123920"
+  },
+  "index:reporting_materializer_status_boundaries.reporting_materializer_status_account_id_consumer_id_report_key": {
+    "enabled": true,
+    "fingerprint": "9608f9409e9efd9d58e70c1d3e6bb814b3e61bdd50c51dc8680fd4376520ca1c"
+  },
+  "index:reporting_materializer_status_boundaries.reporting_materializer_status_b_account_id_account_sequence_key": {
+    "enabled": true,
+    "fingerprint": "da68c1f5003f093b5cf98c7ea057638c0c4690884972298b529433c3c457633d"
+  },
+  "index:reporting_materializer_status_boundaries.reporting_materializer_status_boundaries_pkey": {
+    "enabled": true,
+    "fingerprint": "1862208bb1b96147d96b83f2f772208eb62dc39470d6eca03431b76f5ec07c6b"
+  },
+  "index:reporting_materializer_status_heads.reporting_materializer_status_heads_pkey": {
+    "enabled": true,
+    "fingerprint": "6f3fd3013e95dc10388625b673ae88b6aac381066f81981825039dfaf913f412"
+  },
+  "index:reporting_materializer_work.reporting_materializer_one_pending": {
+    "enabled": true,
+    "fingerprint": "c8fca3e3da79cc0c5488f1b7003b93169c727337b0fbf5e4b472878d1002aa14"
+  },
+  "index:reporting_materializer_work.reporting_materializer_work_account_id_consumer_id_external_key": {
+    "enabled": true,
+    "fingerprint": "ab5fd65a6f6e47fff0b4d35473a7e6d05973d83721ba412722ae2d5dea03f4c6"
+  },
+  "index:reporting_materializer_work.reporting_materializer_work_due": {
+    "enabled": true,
+    "fingerprint": "86ca449c8a2ab3161dad3dc6cfcca8e7fe45e01d3ac73472be058917463f865b"
+  },
+  "index:reporting_materializer_work.reporting_materializer_work_pkey": {
+    "enabled": true,
+    "fingerprint": "a36b975739037fdb8f2eefa757f3265be6c06afe19ec8340fd8fa32669cf6220"
+  },
+  "index:reporting_obligations.reporting_materializer_obligation_discovery": {
+    "enabled": true,
+    "fingerprint": "e715e2c28cbb6c25f9bb78d7c53422884ef9fa83c3740b4d1859bee1800c6855"
+  },
+  "index:reporting_reconciliation_records.reporting_materializer_binding_discovery": {
+    "enabled": true,
+    "fingerprint": "c09880d92551983d9aec30e6a7cb34058db7f473849d8cc6d8a194baee1707a0"
+  },
+  "table:reporting_materializer_accounts": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_materializer_candidates": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_materializer_discovery": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_materializer_notification_events": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_materializer_notification_expansions": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_materializer_status_boundaries": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_materializer_status_heads": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_materializer_work": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "trigger:reporting_configurations.reporting_materializer_configuration": {
+    "enabled": true,
+    "fingerprint": "68c28dd89618041f28c1e1fb5e833d1af17b14224cbe54cde4f0b3a62dc13407"
+  },
+  "trigger:reporting_materializer_notification_events.reporting_materializer_event_immutable": {
+    "enabled": true,
+    "fingerprint": "faf323248f4100b2d93324789dcf1435eddfc55aa970b04e08cb1ef8705e1062"
+  },
+  "trigger:reporting_materializer_notification_expansions.reporting_materializer_pre_activation_guard": {
+    "enabled": true,
+    "fingerprint": "f3132d843dd232dca85cb174aaf3d398a959d26bcfbcfd622e6e93be932fc23e"
+  },
+  "trigger:reporting_materializer_status_boundaries.reporting_materializer_boundary_immutable": {
+    "enabled": true,
+    "fingerprint": "54cabb176a7b94c44c16c1e420d948dd8cf8462807ae41ac9d1f8fd3cfa391da"
+  },
+  "trigger:reporting_materializer_work.reporting_materializer_guard": {
+    "enabled": true,
+    "fingerprint": "c157e0d74d41e71eaf8b1c5c391ff40231a6c909ddcdc891f3e046c76152d219"
+  },
+  "trigger:reporting_obligations.reporting_materializer_obligation": {
+    "enabled": true,
+    "fingerprint": "cbea44a53e0542a797454a9af681915c5933dd92e3e00520b64a8f2849937234"
+  },
+  "trigger:reporting_reconciliation_records.reporting_materializer_binding": {
+    "enabled": true,
+    "fingerprint": "45497bd65d22b5709f9ed2e3f863e3585ffc1d54a211e1fa76306237824612da"
+  },
+  "trigger:reporting_revisions.reporting_materializer_publication": {
+    "enabled": true,
+    "fingerprint": "8afe04a8f60e5f863981505f688b55295a42694e6835951c30750470b1162b5b"
+  }
+}

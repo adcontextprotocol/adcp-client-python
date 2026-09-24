@@ -4,7 +4,11 @@ on:
   push:
     branches: [main, python-adcp-sdk-setup]
   pull_request:
-    branches: [main, conductor/reporting-webhook-activity-1168b, conductor/reporting-status-notifications-1168c]
+    branches:
+      - main
+      - conductor/reporting-webhook-activity-1168b
+      - conductor/reporting-status-notifications-1168c
+      - conductor/1167b1-materializer-contracts
 
 # Default @adcp/sdk runner alias for storyboard jobs. Tracks the current
 # stable @adcp/sdk release via the ``latest`` npm dist-tag.
@@ -102,7 +106,7 @@ jobs:
 
       - name: Run adopter type-check suite
         if: matrix.python-version == '3.12'
-        run: mypy --strict tests/type_checks/ examples/reporting_webhook_activity.py examples/reporting_status_notifications.py examples/reporting_destination_writer.py
+        run: mypy --strict tests/type_checks/ examples/reporting_webhook_activity.py examples/reporting_status_notifications.py examples/reporting_destination_writer.py examples/reporting_durable_materializer.py
 
       - name: Enforce adopter type-check fixture contract
         if: matrix.python-version == '3.12'
@@ -187,6 +191,10 @@ jobs:
                      tests/conformance/reporting/ \
                      --ignore=tests/conformance/reporting/test_reporting_notification_process_matrix.py \
                      --ignore-glob='tests/conformance/reporting/test_reporting_status_*.py' \
+                     --ignore=tests/conformance/reporting/test_reporting_materializer_rolling.py \
+                     --ignore=tests/conformance/reporting/test_reporting_materializer_process.py \
+                     --ignore=tests/conformance/reporting/test_reporting_materializer_migration.py \
+                     --ignore=tests/conformance/reporting/test_reporting_materializer_installed_pg.py \
                      -v
               ;;
             process)
@@ -203,17 +211,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
-    needs: [pg-conformance, pg-reporting-status]
+    needs: [pg-conformance, pg-reporting-status, pg-reporting-materializer]
     if: ${{ always() }}
     steps:
       - name: Require every Postgres conformance lane
         env:
           PG_RESULT: ${{ needs.pg-conformance.result }}
           STATUS_RESULT: ${{ needs.pg-reporting-status.result }}
+          MATERIALIZER_RESULT: ${{ needs.pg-reporting-materializer.result }}
         run: |
-          if [ "$PG_RESULT" != "success" ] || [ "$STATUS_RESULT" != "success" ]; then
+          if [ "$PG_RESULT" != "success" ] || [ "$STATUS_RESULT" != "success" ] || [ "$MATERIALIZER_RESULT" != "success" ]; then
             echo "Postgres conformance matrix result: $PG_RESULT"
             echo "Reporting status conformance result: $STATUS_RESULT"
+            echo "Durable materializer conformance result: $MATERIALIZER_RESULT"
             exit 1
           fi
           echo "All Postgres conformance lanes passed"
@@ -264,6 +274,75 @@ jobs:
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_status_test
         run: pytest tests/conformance/reporting/test_reporting_status_*.py -v
+
+  pg-reporting-materializer:
+    name: Durable materializer and frozen artifacts (Postgres 16)
+    runs-on: ubuntu-latest
+    # Actual wheel builds/installations plus isolated worker processes are a
+    # separate bounded job; do not consume the existing conformance headroom.
+    # Seven real installations plus process/crash and Python 3.10 distribution
+    # cells approach twenty minutes locally; allow runner variance and retain
+    # five minutes outside the suite for setup and cleanup.
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: adcp_materializer_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Fetch exact frozen reporting artifacts
+        timeout-minutes: 2
+        run: |
+          git fetch --no-tags --depth=1 origin \
+            3e76aa54623529a3dda01cd690b8a5c287c75641 \
+            3c405a21f978ed9d3208611bb4a7a8434a056933 \
+            037de4ac822ecefb2f95d32c15c297fb4c45d683 \
+            17ee407ae3978c8a2bb54437287afbf9dafb8130 \
+            0f34c666ac1961e9832fce43ef0ef6937b3c1dde \
+            967b6e286301d7e5d089aea6fdbb90bea8ee5a16 \
+            5487f2bdef23c5102118b305be9e868228f6ce61
+      - uses: actions/setup-python@v6
+        id: materializer-python310
+        with:
+          python-version: "3.10"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install test dependencies
+        run: pip install -e ".[dev,pg]"
+      - name: Run installed frozen binaries and materializer migrations
+        # Propagate pytest failures through tee while retaining evidence for upload.
+        shell: bash
+        timeout-minutes: 30
+        env:
+          ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_materializer_test
+          ADCP_PYTHON310: ${{ steps.materializer-python310.outputs.python-path }}
+        run: |
+          pytest tests/conformance/reporting/test_reporting_materializer_rolling.py \
+            tests/conformance/reporting/test_reporting_materializer_migration.py \
+            tests/conformance/reporting/test_reporting_materializer_process.py \
+            tests/conformance/reporting/test_reporting_materializer_installed_pg.py \
+            -v -s | tee materializer-evidence.log
+      - name: Preserve installed module and worker evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: materializer-evidence-${{ github.run_attempt }}
+          path: materializer-evidence.log
+          if-no-files-found: error
 
   conventional-commits:
     name: Validate conventional commit format

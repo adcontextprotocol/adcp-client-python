@@ -10,10 +10,13 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
+import hmac
+import json
 import re
+import secrets
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field, replace
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, localcontext
 from typing import Any, Protocol, cast
@@ -63,6 +66,8 @@ from adcp.reporting.materializer.contracts import (
 )
 from adcp.reporting.revision_selection import select_reporting_revision
 
+_VERIFICATION_SEAL_KEY = secrets.token_bytes(32)
+
 
 class ReportingRevisionRowReader(Protocol):
     async def read_revision_rows(
@@ -75,8 +80,14 @@ class ReportingRevisionRowReader(Protocol):
     ) -> ReportingRowPage: ...
 
 
+class _VerifiedProvenance(_ClosedValue):
+    # Non-dataclass slots deliberately stay out of B1's three-field constructor,
+    # dataclasses.fields/asdict, Pydantic schemas and serialized observations.
+    __slots__ = ("_sdk_seal", "_materializer_fence")
+
+
 @dataclass(frozen=True, slots=True)
-class ReportingVerifiedDestination(_ClosedValue):
+class ReportingVerifiedDestination(_VerifiedProvenance):
     """Immutable SDK observations. B2 alone owns atomic publication/readiness."""
 
     request: ReportingDestinationRequest
@@ -85,6 +96,43 @@ class ReportingVerifiedDestination(_ClosedValue):
 
     def __post_init__(self) -> None:
         _freeze_fields(self)
+        object.__setattr__(self, "_sdk_seal", b"")
+        object.__setattr__(self, "_materializer_fence", None)
+
+
+def _verification_seal(value: ReportingVerifiedDestination) -> bytes:
+    from adcp.reporting.canonical_json import canonical_json_utf8_v1
+
+    content = json.loads(
+        json.dumps(
+            [
+                asdict(value.request),
+                asdict(value.resource),
+                asdict(value.verification),
+                getattr(value, "_materializer_fence", None),
+            ],
+            default=lambda at: at.isoformat(),
+        )
+    )
+    return hmac.digest(_VERIFICATION_SEAL_KEY, canonical_json_utf8_v1(content), "sha256")
+
+
+def validate_verified_destination(
+    value: ReportingVerifiedDestination, request: ReportingDestinationRequest, *, token: str
+) -> None:
+    """Require unmodified evidence minted by this process's SDK readback.
+
+    A public value constructor remains source compatible with B1. Constructed,
+    copied or restored claims cannot authorize B2 finish: restart repeats the
+    actual readback. The seal is never a persisted destination credential.
+    """
+    if (
+        type(value) is not ReportingVerifiedDestination
+        or value.request != request
+        or getattr(value, "_materializer_fence", None) != token
+        or not hmac.compare_digest(getattr(value, "_sdk_seal", b""), _verification_seal(value))
+    ):
+        raise failure("DESTINATION_CORRUPT")
 
 
 def validate_materialization_target(
@@ -925,9 +973,17 @@ async def _verify_destination(
         native_observed_through=native.verification_path if native else None,
         verified_format=cap.format,
     )
-    return ReportingVerifiedDestination(
+    result = ReportingVerifiedDestination(
         prepared.request, replace(resource, manifest_sha256=manifest_digest), verification
     )
+    # Only the service-owned heartbeat binds readback to its reservation. B1
+    # standalone verification remains available without conferring B2 authority.
+    from adcp.reporting.materializer.service import _LeaseHeartbeat
+
+    if type(context.heartbeat) is _LeaseHeartbeat:
+        object.__setattr__(result, "_materializer_fence", context.heartbeat.lease.token)
+    object.__setattr__(result, "_sdk_seal", _verification_seal(result))
+    return result
 
 
 def _native(
