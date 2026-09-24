@@ -208,7 +208,8 @@ async def main():
             ReportingDestinationIO(destination.registry, destination.resolver),
             destination.writer,
         )
-        assert (await service.run_once()).state == "verified"
+        materializer_operation_1 = await service.run_once()
+        assert (materializer_operation_1).state == "verified"
         boundaries = await durable.read_materializer_boundaries(caller=scope.principal)
         assert len(boundaries) == boundaries[0].sequence == boundaries[0].account_sequence == 1
         assert durable._materializer_outbox is None

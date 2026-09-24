@@ -1,4 +1,24 @@
 {
+  "column:reporting_issue_waiver_bindings.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_issue_waiver_bindings.conflict_sha256": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_issue_waiver_bindings.generation": {
+    "enabled": true,
+    "fingerprint": "64be57437fdc0a07a97985c2aa058031f8082db7251bdb4d5afa1a9b088de97a"
+  },
+  "column:reporting_issue_waiver_bindings.issue_key": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_issue_waiver_bindings.reporting_status_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
   "column:reporting_status_accounts.account_id": {
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
@@ -435,6 +455,18 @@
     "enabled": true,
     "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
   },
+  "constraint:reporting_issue_waiver_bindings.reporting_issue_waiver_bindin_account_id_issue_key_generat_fkey": {
+    "enabled": true,
+    "fingerprint": "164fd16c873a2299c01ea356768df191815e9e3c6b5015f8a76ff1c0164e89c9"
+  },
+  "constraint:reporting_issue_waiver_bindings.reporting_issue_waiver_bindings_conflict_sha256_check": {
+    "enabled": true,
+    "fingerprint": "f53eebfa2f790fe53323b5bc01df1b012a5d0515a9dabc7b4c6428bc8c1db65e"
+  },
+  "constraint:reporting_issue_waiver_bindings.reporting_issue_waiver_bindings_pkey": {
+    "enabled": true,
+    "fingerprint": "358e0f239c456cd9b50f8948e3834dd7219d3cb1449d3afd45939763bcfa4bd4"
+  },
   "constraint:reporting_status_accounts.reporting_status_accounts_baseline_highwater_check": {
     "enabled": true,
     "fingerprint": "3f3e1ebafb331107544910c537f7a051349338e089330ad0564ca81d8af225ff"
@@ -789,7 +821,7 @@
   },
   "function:reporting_status_projection_input(owner text, at_time timestamp with time zone)": {
     "enabled": true,
-    "fingerprint": "89797f0126b7a9afd13b0a2b7b67e1f3a1a18a46191e3de4622244b391891e6a"
+    "fingerprint": "ebe6d03b585fdb63975649a86ea5ea481a81c83b1a62d833ebf5fe755fc485c4"
   },
   "function:reporting_status_scope_guard()": {
     "enabled": true,
@@ -802,6 +834,10 @@
   "function:reporting_status_webhook_head_guard()": {
     "enabled": true,
     "fingerprint": "4e448e0df3d56a5b04bc01ca41a4c5afbb8e601a4699d2e6dd0e3922ed2f0bf8"
+  },
+  "index:reporting_issue_waiver_bindings.reporting_issue_waiver_bindings_pkey": {
+    "enabled": true,
+    "fingerprint": "c887f627533d44fe82a7f0dbd1c40f439b694998e745c8a3089ad36b828e1996"
   },
   "index:reporting_status_accounts.reporting_status_accounts_pkey": {
     "enabled": true,
@@ -886,6 +922,10 @@
   "index:reporting_status_webhook_attempts.reporting_status_webhook_attempts_pkey": {
     "enabled": true,
     "fingerprint": "39f694e19189b87c9ccbc9f9aafd3ef57064677d6d7b06b28f948e8f543bbbe2"
+  },
+  "table:reporting_issue_waiver_bindings": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
   },
   "table:reporting_status_accounts": {
     "enabled": true,

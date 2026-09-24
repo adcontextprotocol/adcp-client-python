@@ -30,9 +30,10 @@ async def test_exact_source_replay_does_not_dirty_an_inflight_generation(backend
             readable=True,
         )
         prepared, evidence = await case.verified(lease)
-        assert (
-            await h.store.finish_materialization(lease, prepared=prepared, verified=evidence)
-        ).state == "verified"
+        materializer_operation_1 = await h.store.finish_materialization(
+            lease, prepared=prepared, verified=evidence
+        )
+        assert (materializer_operation_1).state == "verified"
 
 
 async def test_selected_official_never_uses_snapshot_artifact_and_preserves_both_histories(backend):
@@ -48,7 +49,8 @@ async def test_selected_official_never_uses_snapshot_artifact_and_preserves_both
             reporting_revision_id=official.reporting_revision_id,
             readable=False,
         )
-        assert (await case.claim()).reason == "revision_unreadable"
+        materializer_operation_2 = await case.claim()
+        assert (materializer_operation_2).reason == "revision_unreadable"
         assert await case.outcomes() == original
         await h.store.set_revision_readable(
             account_id="acct_a", reporting_revision_id=official.reporting_revision_id, readable=True
@@ -108,8 +110,10 @@ async def test_corrupt_topology_parks_without_attempt_or_hot_loop(backend, corru
             method = "_materializer_context_on"
         with monkeypatch.context() as patch:
             patch.setattr(cls, method, read)
-            assert (await case.claim()).reason == "history_corrupt"
-            assert (await case.claim()).state == "idle"
+            materializer_operation_14 = await case.claim()
+            assert (materializer_operation_14).reason == "history_corrupt"
+            materializer_operation_15 = await case.claim()
+            assert (materializer_operation_15).state == "idle"
         assert not await h.works() and await h.queue() == ((), ())
 
 
@@ -117,10 +121,12 @@ async def test_inactive_late_binding_waits_for_activation_without_allocating_his
     async with durable_harness(backend) as h:
         case = await durable_case(h.store, active=False, binding=False)
         await h.store.put_destination_binding(case.binding)
-        assert (await case.claim()).reason == "inactive"
+        materializer_operation_3 = await case.claim()
+        assert (materializer_operation_3).reason == "inactive"
         assert not await h.works()
         await h.store.put_configuration(replace(case.config, deactivated_at=None))
-        assert (await case.claim()).attempt.attempt == 1
+        materializer_operation_4 = await case.claim()
+        assert (materializer_operation_4).attempt.attempt == 1
 
 
 async def test_private_consumer_boundaries_keep_a_durable_account_order(backend):
@@ -160,7 +166,8 @@ async def test_private_consumer_boundaries_keep_a_durable_account_order(backend)
 async def test_rejected_consumer_receipt_does_not_dirty_materializer_or_allocate_retry(backend):
     async with durable_harness(backend, notifications=True) as h:
         case = await durable_case(h.store, reconciliation_mode="consumer_receipt")
-        assert (await case.service().run_once()).state == "verified"
+        materializer_operation_5 = await case.service().run_once()
+        assert (materializer_operation_5).state == "verified"
         outcome = (await case.outcomes())[0]
         before = await h.works()
         await h.store.record_revision_receipt(
@@ -177,7 +184,8 @@ async def test_rejected_consumer_receipt_does_not_dirty_materializer_or_allocate
                 rejection_codes=("ROW_COUNT_MISMATCH",),
             )
         )
-        assert (await case.claim()).state in {"idle", "discovered"}
+        materializer_operation_6 = await case.claim()
+        assert (materializer_operation_6).state in {"idle", "discovered"}
         assert await h.works() == before
 
 
@@ -211,7 +219,8 @@ async def test_publication_does_not_bypass_legacy_pending_on_an_older_revision(b
         )
         await h.store.commit_materialization_attempt(legacy)
         official = await case.publish()
-        assert (await case.claim()).reason == "legacy_pending"
+        materializer_operation_7 = await case.claim()
+        assert (materializer_operation_7).reason == "legacy_pending"
         assert not await h.works()
         identity = ReportingDestinationRequest.from_binding(
             case.binding, legacy, case.verifier.key
@@ -224,7 +233,8 @@ async def test_publication_does_not_bypass_legacy_pending_on_an_older_revision(b
         )
         # Exact recovery concludes the obsolete attempt safely before the
         # current official gets its own first attempt; no old artifact is reused.
-        assert (await case.service().run_once()).state == "failed"
+        materializer_operation_8 = await case.service().run_once()
+        assert (materializer_operation_8).state == "failed"
         assert case.writer.write_effects == 0
         current = await case.claim()
         assert current.attempt.reporting_revision_id == official.reporting_revision_id
@@ -247,8 +257,10 @@ async def test_external_terminal_write_parks_owned_pending_history_without_a_hot
             )
         )
         await h.expire()
-        assert (await case.claim()).reason == "history_corrupt"
-        assert (await case.claim()).state == "idle"
+        materializer_operation_9 = await case.claim()
+        assert (materializer_operation_9).reason == "history_corrupt"
+        materializer_operation_10 = await case.claim()
+        assert (materializer_operation_10).state == "idle"
         assert len(await h.works()) == 1
         assert not await h.store.read_materializer_boundaries(caller=case.scope.principal)
         assert await h.queue() == ((), ())
@@ -295,9 +307,10 @@ async def test_reserved_attempt_keeps_the_finish_transaction_as_the_only_dirty_w
         lease = await case.claim()
         assert (await h.dirty())[len(before) :] == ()
         prepared, verified = await case.verified(lease)
-        assert (
-            await h.store.finish_materialization(lease, prepared=prepared, verified=verified)
-        ).state == "verified"
+        materializer_operation_11 = await h.store.finish_materialization(
+            lease, prepared=prepared, verified=verified
+        )
+        assert (materializer_operation_11).state == "verified"
         assert [reason for reason, _ in (await h.dirty())[len(before) :]] == ["materialization"]
 
 
@@ -306,8 +319,10 @@ async def test_restored_exact_component_can_explicitly_resume_parked_identity(ba
         case = await durable_case(h.store)
         lease = await case.claim()
         await h.expire()
-        assert (await h.store.claim_materialization(keys=())).reason == "component_unavailable"
-        assert (await case.claim()).state == "idle"
+        materializer_operation_12 = await h.store.claim_materialization(keys=())
+        assert (materializer_operation_12).reason == "component_unavailable"
+        materializer_operation_13 = await case.claim()
+        assert (materializer_operation_13).state == "idle"
         await h.store.import_pending_materialization(
             scope=case.scope,
             reporting_materialization_id=lease.attempt.reporting_materialization_id,

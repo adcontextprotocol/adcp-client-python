@@ -114,7 +114,10 @@ async def test_colliding_notification_ids_isolate_reemit_fanout_delivery_restart
     h.status = cls(h.ledger)
     worker = status_worker(h, n)
     for state in ("complete", "pending", "suppressed", "quarantined"):
-        assert not await h.status.outbox.finish_delivery(stale, now=h.clock(), state=state)
+        status_operation_2 = await h.status.outbox.finish_delivery(
+            stale, now=h.clock(), state=state
+        )
+        assert not status_operation_2
     # Retry the same body and idempotency key after a real SDK HTTP failure.
     n.receiver.responses["buyer"].append(503)
     await drain_http(h, worker)
@@ -129,15 +132,13 @@ async def test_colliding_notification_ids_isolate_reemit_fanout_delivery_restart
         ]
         assert bodies and len(set(bodies)) == 1
     for consumer in ("buyer", "auditor"):
-        assert (
-            await h.status.outbox.reemit(
-                account_id="acct_a",
-                consumer_namespace=consumer,
-                notification_id="collision-obligation",
-                now=h.clock(),
-            )
-            == 2
+        status_operation_3 = await h.status.outbox.reemit(
+            account_id="acct_a",
+            consumer_namespace=consumer,
+            notification_id="collision-obligation",
+            now=h.clock(),
         )
+        assert status_operation_3 == 2
     await drain_http(h, worker)
     deliveries = await h.status.outbox.list_deliveries(account_id="acct_a")
     assert len(deliveries) == 10
@@ -285,5 +286,8 @@ async def test_closed_activity_union_orders_before_limit_and_preserves_b_path(
         b_worker, h.ledger, ReportingActivityProjector(b_worker.outbox)
     ).durable()
     h.clock.advance(timedelta(days=31))
-    assert await union.purge_activity(account_id="acct_a", consumer_id="buyer", now=h.clock()) == 3
+    status_operation_1 = await union.purge_activity(
+        account_id="acct_a", consumer_id="buyer", now=h.clock()
+    )
+    assert status_operation_1 == 3
     assert not await union.list_activity(account_id="acct_a", consumer_id="buyer")

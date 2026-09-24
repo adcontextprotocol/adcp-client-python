@@ -98,6 +98,7 @@ def decode_materializer_boundary(value: dict[str, Any]) -> ReportingMaterializer
                 tuple(decode_record(r) for r in value["reconciliation"]),
             )
     except (ValueError, TypeError, KeyError, ValidationError):
+        # Convert malformed persisted input to the closed protocol error below.
         pass
     if result is None or result.to_storage() != value:
         raise ReportingNotificationError("materializer_boundary_invalid")

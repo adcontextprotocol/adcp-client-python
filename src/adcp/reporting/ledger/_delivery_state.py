@@ -70,6 +70,8 @@ def decode_record(value: object) -> ReportingDeliveryRecord:
     try:
         result = _ADAPTER.validate_python(value)
     except (ValidationError, ValueError, TypeError):
+        # Classify after leaving the handler so validation details do not become
+        # the public error's exception context.
         pass
     if result is None:
         fail("INVALID_REPORTING_RECORD")

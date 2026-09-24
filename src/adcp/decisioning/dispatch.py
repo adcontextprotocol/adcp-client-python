@@ -160,10 +160,13 @@ SPEC_SPECIALISM_ENUM: frozenset[str] = frozenset(
         "sales-broadcast-tv",
         "sales-catalog-driven",
         "sales-dooh",
+        "sales-exchange",
         "sales-guaranteed",
         "sales-non-guaranteed",
         "sales-proposal-mode",
+        "sales-retail-media",
         "sales-social",
+        "sales-streaming-tv",
         "signal-marketplace",
         "signal-owned",
         "signed-requests",
@@ -243,6 +246,35 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
             "update_media_buy",
             "sync_creatives",
             "get_media_buy_delivery",
+        }
+    ),
+    "sales-exchange": frozenset(
+        {
+            "get_products",
+            "create_media_buy",
+            "update_media_buy",
+            "sync_creatives",
+            "get_media_buy_delivery",
+        }
+    ),
+    "sales-streaming-tv": frozenset(
+        {
+            "get_products",
+            "create_media_buy",
+            "update_media_buy",
+            "sync_creatives",
+            "get_media_buy_delivery",
+        }
+    ),
+    # Retail media's preview contract includes the catalog-sync phase.
+    "sales-retail-media": frozenset(
+        {
+            "get_products",
+            "create_media_buy",
+            "update_media_buy",
+            "sync_creatives",
+            "get_media_buy_delivery",
+            "sync_catalogs",
         }
     ),
     "sales-proposal-mode": frozenset(
@@ -450,6 +482,9 @@ RECOMMENDED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
     "sales-broadcast-tv": _SALES_RECOMMENDED,
     "sales-dooh": _SALES_RECOMMENDED,
     "sales-social": _SALES_RECOMMENDED,
+    "sales-exchange": _SALES_RECOMMENDED,
+    "sales-streaming-tv": _SALES_RECOMMENDED,
+    "sales-retail-media": _SALES_RECOMMENDED,
     "sales-proposal-mode": _SALES_RECOMMENDED,
     "sales-catalog-driven": _SALES_RECOMMENDED,
 }
@@ -702,7 +737,7 @@ def _internal_error_details(exc: BaseException) -> dict[str, Any]:
         except Exception:
             # Defensive — never let a narrowing bug 500 the wire.
             # The exception type still lets adopters triage via server logs.
-            pass
+            return details
     return details
 
 

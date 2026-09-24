@@ -132,7 +132,8 @@ async def test_deterministic_stores_replay_after_commit_failure_and_keep_account
     assert await store.read("eur", "colliding-revision") == b'{"currency":"EUR"}\n'
     assert await store.read("usd", "colliding-revision") == b'{"currency":"USD"}\n'
     assert await store.read("outsider", "colliding-revision") is None
-    assert await store.write("eur", "colliding-revision", b'{"currency":"EUR"}\n') == digest
+    replayed_digest = await store.write("eur", "colliding-revision", b'{"currency":"EUR"}\n')
+    assert replayed_digest == digest
 
 
 def test_manual_clock_requires_aware_monotonic_time() -> None:

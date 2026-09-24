@@ -77,7 +77,8 @@ async def test_all_visible_accounts_must_be_baselined_and_body_context_cannot_se
     await h.ledger.put_configuration(configuration("acct_b"))
     _, support = await support_for(h, ("acct_a", "acct_b"))
     await h.status.baseline(account_id="acct_a")
-    assert not await support.durable()
+    status_operation_1 = await support.durable()
+    assert not status_operation_1
     claim = {
         "media_buy": {
             "reporting_delivery": {
@@ -90,8 +91,10 @@ async def test_all_visible_accounts_must_be_baselined_and_body_context_cannot_se
     with pytest.raises(ReportingNotificationError):
         await validate_status_claims(claim, support=support)
     await h.status.baseline(account_id="acct_b")
-    assert await support.durable() is (not isinstance(h.ledger, InMemoryReportingLedgerStore))
-    assert not await replace(support, account_surface_complete=False).durable()
+    status_operation_2 = await support.durable()
+    assert status_operation_2 is (not isinstance(h.ledger, InMemoryReportingLedgerStore))
+    status_operation_3 = await replace(support, account_surface_complete=False).durable()
+    assert not status_operation_3
 
 
 async def test_waiver_recovers_without_withdrawing_capability_and_agreement_rearms(status_harness):
@@ -113,7 +116,8 @@ async def test_waiver_recovers_without_withdrawing_capability_and_agreement_rear
         account_id="acct_a", issue_key=issue.issue_key, state="waived", at=h.clock()
     )
     await h.drain()
-    assert await support.advertised_notifications() == advertised
+    status_operation_4 = await support.advertised_notifications()
+    assert status_operation_4 == advertised
     context = ToolContext(caller_identity="buyer")
     response = await support.handler.get_reporting_status({"view": "summary"}, context)
     validate_read(response)
@@ -144,7 +148,8 @@ async def test_waiver_recovers_without_withdrawing_capability_and_agreement_rear
     assert last.notification_id != first.notification_id
     assert last.cause.issue_ids != (issue.issue_id,)
     assert last.cause.issue_ids == tuple(sorted(i["issue_id"] for i in response["issues"]))
-    assert await support.advertised_notifications() == advertised
+    status_operation_5 = await support.advertised_notifications()
+    assert status_operation_5 == advertised
 
 
 async def test_status_and_b_c_activity_cartesian_matrix_preserves_original_b_gate(
@@ -164,7 +169,8 @@ async def test_status_and_b_c_activity_cartesian_matrix_preserves_original_b_gat
         b_worker.activity = b_worker.outbox if b_activity else None
         base.worker.activity = base.worker.outbox if c_activity else None
         support = replace(base, projector=base.projector if status_on else None)
-        assert await support.durable() is status_on
+        status_operation_19 = await support.durable()
+        assert status_operation_19 is status_on
         composed = ReportingActivitySupport(b_worker, h.ledger, activity, support)
         try:
             flags = await composed.capability_flags(account_activity=activity if listing else None)
@@ -176,14 +182,16 @@ async def test_status_and_b_c_activity_cartesian_matrix_preserves_original_b_gat
             "account_notifications": b_activity and c_activity and listing,
         }
     b_worker.activity = b_worker.outbox
-    assert await ReportingActivitySupport(
+    status_operation_6 = await ReportingActivitySupport(
         b_worker, h.ledger, ReportingActivityProjector(b_worker.outbox)
     ).durable()
+    assert status_operation_6
     async with h.reliable.blobs.pool.connection() as connection:
         await connection.execute(
             "ALTER TABLE reporting_webhook_attempts DISABLE TRIGGER reporting_webhook_attempt_guard"
         )
-    assert await base.durable()  # C logging does not require B activity storage.
+    status_operation_7 = await base.durable()
+    assert status_operation_7  # C logging does not require B activity storage.
     with pytest.raises(ReportingNotificationError, match="notification_schema_unready"):
         await ReportingActivitySupport(
             b_worker, h.ledger, ReportingActivityProjector(b_worker.outbox)
@@ -197,12 +205,15 @@ async def test_status_and_b_c_activity_cartesian_matrix_preserves_original_b_gat
     async with h.reliable.blobs.pool.connection() as connection:
         await connection.execute("DROP TABLE reporting_status_webhook_attempts")
     base.worker.activity = base.worker.outbox
-    assert not await base.durable()
+    status_operation_8 = await base.durable()
+    assert not status_operation_8
     base.worker.activity = None
-    assert await base.durable()
-    assert await ReportingActivitySupport(
+    status_operation_9 = await base.durable()
+    assert status_operation_9
+    status_operation_10 = await ReportingActivitySupport(
         b_worker, h.ledger, ReportingActivityProjector(b_worker.outbox)
     ).durable()
+    assert status_operation_10
     n.receiver.install(monkeypatch)
     await h.ledger.set_revision_readable(
         account_id="acct_a", reporting_revision_id=revision.reporting_revision_id, readable=False
@@ -368,14 +379,21 @@ async def test_optional_service_turn_order_and_close(status_harness, monkeypatch
     await service.migrate()
     await h.seed(readable=True)
     await service.baseline()
-    assert await service.ready() is (not isinstance(h.ledger, InMemoryReportingLedgerStore))
-    assert not (await service.project_dirty_once(account_id="acct_a")).did_work
-    assert not (await service.sweep_due_once(account_id="acct_a")).did_work
-    assert not await service.expand_once(account_id="acct_a")
-    assert not await service.deliver_once(account_id="acct_a")
-    assert await service.drain() == 0
+    status_operation_11 = await service.ready()
+    assert status_operation_11 is (not isinstance(h.ledger, InMemoryReportingLedgerStore))
+    status_operation_12 = await service.project_dirty_once(account_id="acct_a")
+    assert not (status_operation_12).did_work
+    status_operation_13 = await service.sweep_due_once(account_id="acct_a")
+    assert not (status_operation_13).did_work
+    status_operation_14 = await service.expand_once(account_id="acct_a")
+    assert not status_operation_14
+    status_operation_15 = await service.deliver_once(account_id="acct_a")
+    assert not status_operation_15
+    status_operation_16 = await service.drain()
+    assert status_operation_16 == 0
     await service.aclose()
-    assert not await service.ready()
+    status_operation_17 = await service.ready()
+    assert not status_operation_17
     with pytest.raises(ReportingNotificationError, match="status_service_closed"):
         await service.project_dirty_once(account_id="acct_a")
 
@@ -388,7 +406,8 @@ async def test_managed_destination_scopes_wait_for_d_clock_semantics(status_harn
     await h.status.baseline(account_id="acct_a")
     _, support = await support_for(h)
     assert await h.status.baseline_ready(account_id="acct_a")
-    assert await support.advertised_notifications() == {}
+    status_operation_18 = await support.advertised_notifications()
+    assert status_operation_18 == {}
     with pytest.raises(
         ReportingNotificationError, match="status_capability_requires_durable_reporting"
     ):

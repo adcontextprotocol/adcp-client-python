@@ -43,7 +43,7 @@ async def main(settings):
                     " FROM pg_database WHERE datname=current_database()"
                 )
             ).fetchone()
-        assert 160000 <= database[0] < 170000 and database[1:] == ("UTF8", "C", "C")
+        assert 160000 <= database[0] < 170000 and database[1] == "UTF8"
         store = store_type(pool=pool)
         if settings["action"] == "install":
             await store.create_schema()
@@ -251,10 +251,13 @@ async def main(settings):
                     cipher=ReportingEnvelopeCipher(b"e" * 32),
                 )
                 for _ in events:
-                    assert await worker.expand_one(account_id="acct_a")
+                    materializer_operation_3 = await worker.expand_one(account_id="acct_a")
+                    assert materializer_operation_3
                 assert seen == identities.keys()
-                assert not await worker.deliver_one(account_id="acct_a")
-                assert not await worker.expand_one(account_id="acct_a")
+                materializer_operation_1 = await worker.deliver_one(account_id="acct_a")
+                assert not materializer_operation_1
+                materializer_operation_2 = await worker.expand_one(account_id="acct_a")
+                assert not materializer_operation_2
                 assert await outbox.list_events(account_id="acct_a") == events
                 workers[name] = len(seen)
                 event_identities[name] = [

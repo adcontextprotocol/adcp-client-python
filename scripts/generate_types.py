@@ -570,7 +570,13 @@ def fix_forward_references(output_dir: Path = OUTPUT_DIR):
 
 
 def _run_datamodel_codegen(input_path: Path, output_path: Path) -> subprocess.CompletedProcess[str]:
-    """Run datamodel-code-generator for one input path."""
+    """Generate from the pinned cache, including canonical HTTP references.
+
+    A few nested asset references retain canonical URLs to prevent the
+    generator from rebasing them against their caller. Resolve those URLs
+    from the same cache rather than downloading a second copy from the CDN.
+    Missing references fail locally; there is no network fallback.
+    """
     args = [
         sys.executable,  # Use same Python as running this script
         "-m",
@@ -598,11 +604,15 @@ def _run_datamodel_codegen(input_path: Path, output_path: Path) -> subprocess.Co
         "--allow-remote-refs",
     ]
 
-    return subprocess.run(
-        args,
-        capture_output=True,
-        text=True,
-    )
+    with tempfile.TemporaryDirectory(prefix="adcp-codegen-refs-") as mirror:
+        cached = Path(mirror) / "adcontextprotocol.org" / "schemas" / _BUNDLE_KEY
+        shutil.copytree(SCHEMAS_DIR, cached)
+        args.extend(["--http-local-ref-path", mirror])
+        return subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+        )
 
 
 def _print_codegen_output(result: subprocess.CompletedProcess[str]) -> None:

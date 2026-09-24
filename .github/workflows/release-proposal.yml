@@ -1,0 +1,102 @@
+name: Release proposal
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: Full current-main commit SHA to accept before proposing
+        required: true
+        type: string
+      ci_run_id:
+        description: Successful main-push CI run for exactly target_sha
+        required: true
+        type: string
+      ci_run_attempt:
+        description: Exact successful CI attempt
+        required: true
+        default: '1'
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: adcp-release-main
+  cancel-in-progress: false
+
+jobs:
+  acceptance:
+    permissions:
+      contents: read
+      actions: read # Inspect exact runs, attempts, artifacts and environment policy.
+      checks: read # Verify current protected check results and App identities.
+      pull-requests: read # Verify the release PR and its exact merge commit.
+    uses: ./.github/workflows/release-acceptance.yml
+    with:
+      target_sha: ${{ inputs.target_sha }}
+      ci_run_id: ${{ inputs.ci_run_id }}
+      ci_run_attempt: ${{ inputs.ci_run_attempt }}
+      operation: proposal
+
+  propose:
+    name: Propose the accepted release
+    needs: acceptance
+    if: >-
+      github.run_attempt == 1 && github.ref == 'refs/heads/main' &&
+      github.sha == inputs.target_sha && github.workflow_sha == inputs.target_sha
+    environment: release-proposal
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read # Inspect exact runs, attempts, artifacts and environment policy.
+      checks: read # Verify current protected check results and App identities.
+      pull-requests: read # Verify the release PR and its exact merge commit.
+    env:
+      TARGET_SHA: ${{ inputs.target_sha }}
+      CI_RUN_ID: ${{ inputs.ci_run_id }}
+      CI_RUN_ATTEMPT: ${{ inputs.ci_run_attempt }}
+      OPERATION: proposal
+      MAIN_FREEZE_ATTESTATION: ${{ vars.RELEASE_MAIN_FREEZE }}
+      ARTIFACT_ID: ${{ needs.acceptance.outputs.artifact_id }}
+      ARTIFACT_DIGEST: ${{ needs.acceptance.outputs.artifact_digest }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Reapply acceptance after environment approval
+        run: python3 -m scripts.release_artifacts verify accepted-candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+      # A dedicated environment-scoped key, never the legacy IPR key. An App
+      # token is necessary so the proposed branch triggers protected PR CI.
+      - name: Mint release PR App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.RELEASE_PROPOSAL_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PROPOSAL_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: adcp-client-python
+          permission-contents: write # Write the normal release PR branch.
+          permission-pull-requests: write # Create/update its PR and pending label.
+      - name: Recheck immediately before the proposal
+        run: python3 -m scripts.release_gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Create or update the normal release PR
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          target-branch: main
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          skip-github-release: true
+          skip-github-pull-request: false
+      - name: Normalize the proposed PEP 440 version
+        run: python3 -m scripts.release_gate --normalize-proposal
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROPOSAL_TOKEN: ${{ steps.app-token.outputs.token }}
+          PROPOSAL_PRS: ${{ steps.release.outputs.prs }}

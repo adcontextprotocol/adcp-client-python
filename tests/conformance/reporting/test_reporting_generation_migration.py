@@ -119,11 +119,15 @@ async def _other_constraints(pool: AsyncConnectionPool) -> list[Any]:
     async with pool.connection() as connection:
         constraints = await (
             await connection.execute(
-                "SELECT oid, conname, pg_get_constraintdef(oid) FROM pg_constraint"
+                "SELECT pg_constraint.oid, conname, pg_get_constraintdef(pg_constraint.oid)"
+                " FROM pg_constraint"
+                " JOIN pg_class ON pg_class.oid = conrelid"
                 " WHERE connamespace = current_schema()::regnamespace"
+                " AND relname = ANY(%s)"
                 " AND NOT (conrelid = 'reporting_configurations'::regclass AND contype = 'p')"
                 " AND conname <> 'reporting_obligations_currency_code'"
-                " ORDER BY oid"
+                " ORDER BY pg_constraint.oid",
+                (list(_TABLES),),
             )
         ).fetchall()
         indexes = await (
@@ -131,8 +135,10 @@ async def _other_constraints(pool: AsyncConnectionPool) -> list[Any]:
                 "SELECT indexrelid, pg_get_indexdef(indexrelid) FROM pg_index"
                 " JOIN pg_class ON pg_class.oid = indrelid"
                 " WHERE relnamespace = current_schema()::regnamespace"
+                " AND relname = ANY(%s)"
                 " AND NOT (indrelid = 'reporting_configurations'::regclass AND indisprimary)"
-                " ORDER BY indexrelid"
+                " ORDER BY indexrelid",
+                (list(_TABLES),),
             )
         ).fetchall()
     return [constraints, indexes]

@@ -84,8 +84,10 @@ async def status_harness(request):
 async def test_baseline_previous_health_and_ordered_readability_cycles(status_harness):
     h = status_harness
     _, revision, _ = await h.seed(readable=True)
-    assert await h.status.baseline(account_id="acct_a")
-    assert not await h.status.baseline(account_id="acct_a")
+    status_operation_1 = await h.status.baseline(account_id="acct_a")
+    assert status_operation_1
+    status_operation_2 = await h.status.baseline(account_id="acct_a")
+    assert not status_operation_2
     assert await h.status.baseline_ready(account_id="acct_a")
     assert not await h.status.outbox.list_events(account_id="acct_a")
     for readable in (False, True, False, True):
@@ -133,7 +135,8 @@ async def test_one_source_transaction_never_exposes_intermediate_rows(status_har
             )
     turn = await h.status.project_one(account_id="acct_a")
     assert turn.did_work and turn.events == 0
-    assert not (await h.status.project_one(account_id="acct_a")).did_work
+    status_operation_3 = await h.status.project_one(account_id="acct_a")
+    assert not (status_operation_3).did_work
     assert not await h.events()
 
 
@@ -152,10 +155,13 @@ async def test_exact_expected_recovery_and_second_turn_idle(
     h.clock.now = obligation.period.expected_at - timedelta(microseconds=1)
     await h.status.baseline(account_id="acct_a")
     sweepers = (ReportingStatusSweeper(h.status), ReportingStatusSweeper(h.status))
-    assert not (await sweepers[0].run_once(account_id="acct_a")).did_work
+    status_operation_4 = await sweepers[0].run_once(account_id="acct_a")
+    assert not (status_operation_4).did_work
     h.clock.now = obligation.period.expected_at
-    assert (await sweepers[0].run_once(account_id="acct_a")).did_work
-    assert not (await sweepers[1].run_once(account_id="acct_a")).did_work
+    status_operation_5 = await sweepers[0].run_once(account_id="acct_a")
+    assert (status_operation_5).did_work
+    status_operation_6 = await sweepers[1].run_once(account_id="acct_a")
+    assert not (status_operation_6).did_work
     first = (await h.events())[0]
     assert first.cause.previous_health == "waiting"
     assert first.cause.health == ("action_required" if zero_recovery else "delayed")
@@ -165,10 +171,12 @@ async def test_exact_expected_recovery_and_second_turn_idle(
     assert [e.cause.health for e in await h.events()] == (
         ["action_required"] if zero_recovery else ["delayed", "action_required"]
     )
-    assert not (await sweepers[0].run_once(account_id="acct_a")).did_work
+    status_operation_7 = await sweepers[0].run_once(account_id="acct_a")
+    assert not (status_operation_7).did_work
     assert all(c.next_due_at is None for c in await h.status.checkpoints(account_id="acct_a"))
     h.clock.now += timedelta(microseconds=1)
-    assert not (await sweepers[1].run_once(account_id="acct_a")).did_work
+    status_operation_8 = await sweepers[1].run_once(account_id="acct_a")
+    assert not (status_operation_8).did_work
 
 
 async def test_new_scope_initial_fire_is_distinct_from_migration_baseline(status_harness):
