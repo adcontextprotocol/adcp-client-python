@@ -219,7 +219,7 @@ def _purchase_request(product_id: str) -> dict[str, Any]:
 
 @pytest.mark.asyncio
 async def test_compact_route_crosses_real_client_adapter_and_server_boundary() -> None:
-    handler = _LifecycleHandler("3.2.0-rc.3")
+    handler = _LifecycleHandler("3.2.0-rc.6")
     client, tools = _client_and_tools(handler)
 
     # Explicit established handlers stay natively available on a compact
@@ -234,7 +234,7 @@ async def test_compact_route_crosses_real_client_adapter_and_server_boundary() -
         _purchase_request(listing.products[0]["product_id"]),
     )
 
-    assert lifecycle.negotiated_version == "3.2-rc.3"
+    assert lifecycle.negotiated_version == "3.2-rc.6"
     assert listing.compatibility.lifecycle is MediaBuyLifecycle.COMPACT
     assert purchase.success
     sent_buy = next(payload for name, payload in handler.calls if name == "buy_products")
@@ -245,7 +245,7 @@ async def test_compact_route_crosses_real_client_adapter_and_server_boundary() -
     legacy_read = await client.get_products_legacy(
         LegacyGetProductsRequest.model_validate(
             {
-                "adcp_version": "3.2-rc.3",
+                "adcp_version": "3.2-rc.6",
                 "adcp_major_version": 3,
                 "buying_mode": "wholesale",
                 "account": {"account_id": "account-acme"},
@@ -266,7 +266,7 @@ async def test_compact_route_crosses_real_client_adapter_and_server_boundary() -
     legacy_create = await client.create_media_buy_legacy(
         LegacyCreateMediaBuyRequest.model_validate(
             {
-                "adcp_version": "3.2-rc.3",
+                "adcp_version": "3.2-rc.6",
                 "adcp_major_version": 3,
                 "idempotency_key": "compact-legacy-create-0001",
                 "account": {"account_id": "account-acme"},

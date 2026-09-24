@@ -180,6 +180,30 @@ def test_schema_symbol_triggers_build() -> None:
     assert out == "True"
 
 
+@pytest.mark.parametrize(
+    "module", ("adcp", "adcp.types", "adcp.types.media_buy", "adcp.types.buyer")
+)
+def test_targeting_input_resolves_lazily_with_canonical_identity(module: str) -> None:
+    """Each supported first import exposes the same input class and patches the graph."""
+    code = f"""
+import importlib
+import sys
+
+module = importlib.import_module({module!r})
+assert 'adcp.types._eager' not in sys.modules
+assert 'adcp.types._generated' not in sys.modules
+assert 'TargetingOverlayInput' in module.__all__
+assert 'TargetingOverlayInput' in dir(module)
+from {module} import TargetingOverlayInput
+from adcp.types import _eager, _generated
+assert TargetingOverlayInput is _generated.TargetingOverlayInput
+assert TargetingOverlayInput is _eager.TargetingOverlayInput
+assert module.TargetingOverlayInput is TargetingOverlayInput
+assert vars(module)['TargetingOverlayInput'] is TargetingOverlayInput
+"""
+    _run(code)
+
+
 # --------------------------------------------------------------------------- #
 # Surface equivalence (lazy facade == eager realization)
 # --------------------------------------------------------------------------- #

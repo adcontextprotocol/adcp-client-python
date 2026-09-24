@@ -44,7 +44,8 @@ async def prepare(h, *, account="acct_a"):
     await seed(h, account=account)
     outbox = h.outbox
     worker = worker_for(h, outbox)
-    assert await worker.expand_one(account_id=account)
+    expanded_1 = await worker.expand_one(account_id=account)
+    assert expanded_1
     return outbox, worker
 
 
@@ -94,7 +95,8 @@ async def test_http_outcomes_are_independent_of_parent_retry_policy(
     h = notification_harness
     outbox, worker = await prepare(h)
     h.receiver.responses["buyer"].append(code)
-    assert await worker.deliver_one(account_id="acct_a")
+    delivered_1 = await worker.deliver_one(account_id="acct_a")
+    assert delivered_1
     (row,) = await rows(outbox)
     assert row["status"] == ("success" if 200 <= code < 300 else "failed")
     assert row["attempt"] == 1 and row["http_status_code"] == code
@@ -106,7 +108,8 @@ async def test_http_outcomes_are_independent_of_parent_retry_policy(
     assert not {"lease_token", "reservation_token", "state", "principal_id"} & row.keys()
     h.reliable.clock.advance(timedelta(seconds=10))
     if parent != "pending":
-        assert not await worker.deliver_one(account_id="acct_a")
+        delivered_3 = await worker.deliver_one(account_id="acct_a")
+        assert not delivered_3
         assert len(await rows(outbox)) == 1
 
 
@@ -186,13 +189,16 @@ async def test_callback_is_single_use_and_claims_do_not_count_as_http(
     h = notification_harness
     outbox, worker = await prepare(h)
     for _ in range(3):
-        assert await outbox.claim_delivery(
+        claimed_delivery_1 = await outbox.claim_delivery(
             account_id="acct_a", now=h.reliable.clock(), lease_seconds=1
         )
+        assert claimed_delivery_1
         h.reliable.clock.advance(timedelta(seconds=2))
 
     async def twice(sender, prepared, *, before_attempt=None):
-        assert before_attempt is not None and await before_attempt()
+        assert before_attempt is not None
+        attempt_prepared_1 = await before_attempt()
+        assert attempt_prepared_1
         with pytest.raises(PreparedWebhookAttemptExpiredError):
             await before_attempt()
         raise SimulatedCrash
@@ -279,7 +285,8 @@ async def test_cancellation_and_worker_deadline_leave_unknown_pending(
     task = asyncio.create_task(worker.deliver_one(account_id="acct_a"))
     await barrier.wait()
     if deadline:
-        assert await asyncio.wait_for(task, timeout=3)
+        task_result_1 = await asyncio.wait_for(task, timeout=3)
+        assert task_result_1
     else:
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
@@ -295,18 +302,24 @@ async def test_late_completion_only_updates_its_token_after_parent_reclaim(notif
     h.reliable.clock.advance(timedelta(seconds=61))
     current_lease, current = await reserve(h, outbox)
     assert current.attempt == 2
-    assert await outbox.complete_attempt(
+    completed_attempt_1 = await outbox.complete_attempt(
         old, outcome=ActivityOutcome("success", 200, 61_000), now=h.reliable.clock()
     )
-    assert not await outbox.complete_attempt(
+    assert completed_attempt_1
+    completed_attempt_2 = await outbox.complete_attempt(
         old, outcome=ActivityOutcome("failed", 500, 1), now=h.reliable.clock()
     )
-    assert not await outbox.complete_attempt(
+    assert not completed_attempt_2
+    completed_attempt_3 = await outbox.complete_attempt(
         replace(current, reservation_token=old.reservation_token),
         outcome=ActivityOutcome("timeout"),
         now=h.reliable.clock(),
     )
-    assert not await outbox.finish_delivery(old_lease, state="complete", now=h.reliable.clock())
+    assert not completed_attempt_3
+    finished_delivery_1 = await outbox.finish_delivery(
+        old_lease, state="complete", now=h.reliable.clock()
+    )
+    assert not finished_delivery_1
     assert await outbox.delivery_lease_current(current_lease, now=h.reliable.clock())
     assert [(r["attempt"], r["status"]) for r in await rows(outbox)] == [
         (2, "pending"),
@@ -321,9 +334,10 @@ async def test_exact_completed_at_retention_floor_never_deletes_pending(notifica
     h.reliable.clock.advance(timedelta(days=5))
     _, completed = await reserve(h, outbox)
     h.reliable.clock.advance(timedelta(seconds=1))
-    assert await outbox.complete_attempt(
+    completed_attempt_4 = await outbox.complete_attempt(
         completed, outcome=ActivityOutcome("timeout"), now=h.reliable.clock()
     )
+    assert completed_attempt_4
     for days in (0, 29, True):
         with pytest.raises(ReportingNotificationError, match="30_days"):
             await outbox.purge_activity(
@@ -333,29 +347,23 @@ async def test_exact_completed_at_retention_floor_never_deletes_pending(notifica
                 retention_days=days,
             )
     h.reliable.clock.advance(timedelta(days=30))
-    assert (
-        await outbox.purge_activity(
-            account_id="acct_a", consumer_id="buyer", now=h.reliable.clock()
-        )
-        == 0
+    purged_count_1 = await outbox.purge_activity(
+        account_id="acct_a", consumer_id="buyer", now=h.reliable.clock()
     )
+    assert purged_count_1 == 0
     h.reliable.clock.advance(timedelta(microseconds=1))
-    assert (
-        await outbox.purge_activity(
-            account_id="acct_a", consumer_id="other", now=h.reliable.clock()
-        )
-        == 0
+    purged_count_2 = await outbox.purge_activity(
+        account_id="acct_a", consumer_id="other", now=h.reliable.clock()
     )
-    assert (
-        await outbox.purge_activity(account_id="other", consumer_id="buyer", now=h.reliable.clock())
-        == 0
+    assert purged_count_2 == 0
+    purged_count_3 = await outbox.purge_activity(
+        account_id="other", consumer_id="buyer", now=h.reliable.clock()
     )
-    assert (
-        await outbox.purge_activity(
-            account_id="acct_a", consumer_id="buyer", now=h.reliable.clock()
-        )
-        == 1
+    assert purged_count_3 == 0
+    purged_count_4 = await outbox.purge_activity(
+        account_id="acct_a", consumer_id="buyer", now=h.reliable.clock()
     )
+    assert purged_count_4 == 1
     assert (await outbox.list_activity(account_id="acct_a", consumer_id="buyer")) == (pending,)
 
 
@@ -368,12 +376,10 @@ async def test_purged_terminal_history_cannot_reset_a_retryable_delivery_counter
     await worker.deliver_one(account_id="acct_a")
     first = (await rows(outbox))[0]
     h.reliable.clock.advance(timedelta(days=31))
-    assert (
-        await outbox.purge_activity(
-            account_id="acct_a", consumer_id="buyer", now=h.reliable.clock()
-        )
-        == 1
+    purged_count_5 = await outbox.purge_activity(
+        account_id="acct_a", consumer_id="buyer", now=h.reliable.clock()
     )
+    assert purged_count_5 == 1
     assert await rows(outbox) == []
     await worker_for(h, outbox).deliver_one(account_id="acct_a")
     (second,) = await rows(outbox)
@@ -410,7 +416,8 @@ async def test_canonical_url_bound_is_registration_closed_on_both_stores(notific
     host = "https://receiver.example.test/"
     h.subscriptions.put(notification_subscription(url=host + "a" * (8192 - len(host))))
     outbox, worker = await prepare(h)
-    assert await worker.deliver_one(account_id="acct_a")
+    delivered_2 = await worker.deliver_one(account_id="acct_a")
+    assert delivered_2
     (row,) = await rows(outbox)
     # The rejected registration left the store working, and the maximal
     # in-bound canonical URL delivers and projects its sanitized form.
@@ -446,9 +453,10 @@ async def test_account_principal_write_read_isolation_and_deterministic_ties(not
     assert await rows(outbox, account="acct_a", consumer="other") == []
     # Both predicates must hold for completion, even with another attempt's token.
     forged = replace(own[0], binding=replace(own[0].binding, principal_id="auditor"))
-    assert not await outbox.complete_attempt(
+    completed_attempt_5 = await outbox.complete_attempt(
         forged, outcome=ActivityOutcome("timeout"), now=h.reliable.clock()
     )
+    assert not completed_attempt_5
     # Re-emissions get new keys at the same timestamp; limiting is per principal.
     notification = own[0].binding.notification_id
     for _ in range(4):
@@ -497,14 +505,12 @@ async def test_reservation_cannot_rebind_authenticated_parent(notification_harne
             lease.delivery, binding=replace(lease.delivery.binding, **{change: "foreign"})
         ),
     )
-    assert (
-        await outbox.reserve_attempt(
-            forged,
-            request=ActivityRequest("https://example.test/reporting", 1),
-            now=h.reliable.clock(),
-        )
-        is None
+    reserved_attempt_1 = await outbox.reserve_attempt(
+        forged,
+        request=ActivityRequest("https://example.test/reporting", 1),
+        now=h.reliable.clock(),
     )
+    assert reserved_attempt_1 is None
     assert await rows(outbox) == []
 
 
@@ -518,11 +524,12 @@ async def test_completion_cannot_rebind_reservation_snapshot(notification_harnes
         if field == "lease_token"
         else replace(attempt, binding=replace(attempt.binding, **{field: "foreign"}))
     )
-    assert not await outbox.complete_attempt(
+    completed_attempt_6 = await outbox.complete_attempt(
         forged,
         outcome=ActivityOutcome("timeout"),
         now=h.reliable.clock(),
     )
+    assert not completed_attempt_6
     assert await outbox.list_activity(account_id="acct_a", consumer_id="buyer") == (attempt,)
 
 

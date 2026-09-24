@@ -155,7 +155,8 @@ async def test_consumer_status_pre_lifecycle_crash_rolls_back_both_and_self_dirt
     assert len(after) == len(before) + 1  # Lifecycle application creates no self-dirty row.
     await h.drain()
     assert await outbox.read_status_dirty(account_id="acct_a") == after
-    assert not (await h.status.project_one(account_id="acct_a")).did_work
+    status_operation_1 = await h.status.project_one(account_id="acct_a")
+    assert not (status_operation_1).did_work
 
 
 async def test_fanout_failure_cannot_advance_half_a_source_transaction(status_harness, monkeypatch):
@@ -197,8 +198,10 @@ async def test_fanout_failure_cannot_advance_half_a_source_transaction(status_ha
     cls = type(h.status)
     await h.reliable.restart()
     h.status = cls(h.ledger)
-    assert (await h.status.project_one(account_id="acct_a")).events == 6
-    assert not (await h.status.project_one(account_id="acct_a")).did_work
+    status_operation_2 = await h.status.project_one(account_id="acct_a")
+    assert (status_operation_2).events == 6
+    status_operation_3 = await h.status.project_one(account_id="acct_a")
+    assert not (status_operation_3).did_work
     assert {c.generation for c in await h.status.checkpoints(account_id="acct_a")} == {1}
 
 
@@ -224,11 +227,14 @@ async def test_expiry_during_checkpoint_event_work_rolls_back_the_entire_turn(
     with monkeypatch.context() as patch:
         patch.setattr(status_pg, "advance_checkpoint", expire)
         patch.setattr(status_memory, "advance_checkpoint", expire)
-        assert not (await h.status.complete_due(lease)).did_work
+        status_operation_6 = await h.status.complete_due(lease)
+        assert not (status_operation_6).did_work
     assert not await h.status.outbox.list_events(account_id="acct_a")
     assert all(c.generation == 0 for c in await h.status.checkpoints(account_id="acct_a"))
-    assert (await ReportingStatusSweeper(h.status).run_once(account_id="acct_a")).events == 2
-    assert not (await ReportingStatusSweeper(h.status).run_once(account_id="acct_a")).did_work
+    status_operation_4 = await ReportingStatusSweeper(h.status).run_once(account_id="acct_a")
+    assert (status_operation_4).events == 2
+    status_operation_5 = await ReportingStatusSweeper(h.status).run_once(account_id="acct_a")
+    assert not (status_operation_5).did_work
 
 
 async def test_database_clock_exact_expiry_reclaims_but_never_acknowledges():
@@ -291,9 +297,11 @@ async def test_database_clock_exact_expiry_reclaims_but_never_acknowledges():
             reclaimed = await status.claim_due(account_id="acct_a", lease_seconds=60)
             assert reclaimed is not None
             assert reclaimed.scope == first.scope and reclaimed.token != first.token
-            assert not await status.release_due(first)
+            status_operation_7 = await status.release_due(first)
+            assert not status_operation_7
             fence = reclaimed
-            assert not await status.release_due(reclaimed)
+            status_operation_8 = await status.release_due(reclaimed)
+            assert not status_operation_8
             checkpoint = next(
                 c
                 for c in await status.checkpoints(account_id="acct_a")
@@ -302,5 +310,7 @@ async def test_database_clock_exact_expiry_reclaims_but_never_acknowledges():
             assert checkpoint.lease_token == reclaimed.token
             assert checkpoint.lease_expires_at == captured[-1]
             assert len(captured) == 2 and captured[0] <= captured[1]
-            assert (await ReportingStatusSweeper(status).run_once(account_id="acct_a")).events == 2
-            assert not (await ReportingStatusSweeper(status).run_once(account_id="acct_a")).did_work
+            status_operation_9 = await ReportingStatusSweeper(status).run_once(account_id="acct_a")
+            assert (status_operation_9).events == 2
+            status_operation_10 = await ReportingStatusSweeper(status).run_once(account_id="acct_a")
+            assert not (status_operation_10).did_work

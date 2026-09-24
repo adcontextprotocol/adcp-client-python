@@ -24,7 +24,7 @@ from ._generation_support import END, isolated_reporting_pool
 from .test_reporting_materializer_process import worker
 from .test_reporting_materializer_rolling import ARTIFACTS, build_frozen, frozen_call
 
-B21 = "8e18ca12b9a0c3750f80aa822058c02982ab3e52"
+B21 = "3fd62121c96a074e3ea458c30c5224d6a586f169"
 
 
 def receipt_probe(artifact):
@@ -108,7 +108,8 @@ async def test_actual_old_readers_and_writers_before_and_after_receipt_migration
             ) as child:
                 produced = await child.event("done")
                 assert produced["state"] == "verified", produced
-                assert await asyncio.wait_for(child.process.wait(), 5) == 0
+                receipt_operation_2 = await asyncio.wait_for(child.process.wait(), 5)
+                assert receipt_operation_2 == 0
             outcome = (await case.outcomes())[0]
             assert outcome.verification is not None
             kwargs = {
@@ -171,7 +172,7 @@ async def test_actual_old_readers_and_writers_before_and_after_receipt_migration
                 observed_canonical_content_digest=verification.canonical_content_digest,
             )
             request = {
-                "adcp_version": "3.2-rc.3",
+                "adcp_version": "3.2-rc.6",
                 "account": {"account_id": case.config.account_id},
                 "idempotency_key": "historical-mixed-receipts",
                 "receipts": [receipt_to_wire(receipt)],
@@ -206,9 +207,10 @@ async def test_actual_old_readers_and_writers_before_and_after_receipt_migration
                 == after["ordinary_materializer"]
                 == (artifact != "beta15")
             )
-            assert (
-                await store.ingest_receipt_batch(request, caller=case.scope.principal) == response
+            receipt_operation_1 = await store.ingest_receipt_batch(
+                request, caller=case.scope.principal
             )
+            assert receipt_operation_1 == response
             assert await store.read_receipt_boundaries(caller=case.scope.principal) == captured
             assert len(captured) == 2 and captured[0].account_sequence > 1
             assert await h.queue() == queue

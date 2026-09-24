@@ -205,10 +205,9 @@ async def test_migration_preserves_evidence_and_quarantines_unknown_currency(
 
 
 async def test_currency_constraints_and_immutability_cover_direct_sql() -> None:
-    pytest.importorskip("psycopg")
-    from psycopg.errors import CheckViolation
-
     async with isolated_reporting_pool() as pool:
+        from psycopg.errors import CheckViolation
+
         store = PgReportingLedgerStore(pool=pool, clock=lambda: NOW)
         await store.create_schema()
         producer = ReportingProducer(
@@ -247,10 +246,9 @@ async def test_currency_constraints_and_immutability_cover_direct_sql() -> None:
 
 
 async def test_unexpected_default_rolls_back_without_rewriting_evidence() -> None:
-    pytest.importorskip("psycopg")
-    from psycopg.errors import RaiseException
-
     async with isolated_reporting_pool() as pool:
+        from psycopg.errors import RaiseException
+
         async with pool.connection() as connection:
             await connection.execute((FIXTURES / "reporting_ledger_beta15.sql").read_text())
             await connection.execute((FIXTURES / "reporting_ledger_beta15_data.sql").read_text())

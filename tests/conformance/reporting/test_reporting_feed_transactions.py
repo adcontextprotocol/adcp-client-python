@@ -159,7 +159,8 @@ async def test_postgres_writers_commit_while_projection_is_paused_and_stay_out_o
             assert len(changes["periods"]) == len(changes["revisions"]) == 1
             if writer_kind == "receipt":
                 assert changes["receipts"] == [result["results"][0]["receipt"]]
-                assert await fresh.ingest_receipt_batch(request_for(s), caller=caller) == result
+                feed_operation_8 = await fresh.ingest_receipt_batch(request_for(s), caller=caller)
+                assert feed_operation_8 == result
             else:
                 assert len(changes["materializations"]) == 1
                 assert changes["receipts"] == []
@@ -269,7 +270,8 @@ async def test_postgres_projection_failure_or_cancellation_cannot_undo_concurren
                 await asyncio.gather(reader, return_exceptions=True)
         assert await h.image() == written
         await restart(h)
-        assert await h.store.ingest_receipt_batch(request_for(s), caller=caller) == response
+        feed_operation_7 = await h.store.ingest_receipt_batch(request_for(s), caller=caller)
+        assert feed_operation_7 == response
         assert await h.image() == written
 
 
@@ -323,7 +325,8 @@ async def test_failed_reauthorization_leaves_no_snapshot_or_changed_history(feed
         assert "private-" not in repr(error.value)
     assert await h.image() == before
     await restart(h)
-    assert await h.store.ingest_receipt_batch(request, caller=s.binding.principal) == response
+    feed_operation_1 = await h.store.ingest_receipt_batch(request, caller=s.binding.principal)
+    assert feed_operation_1 == response
     assert await h.image() == before
 
 
@@ -341,7 +344,8 @@ async def test_snapshot_identity_collision_cannot_replace_an_open_walk(feeds, mo
         await h.store.read_reporting_feed(req, caller=s.binding.principal)
     assert error.value.code == "REPORTING_FEED_STORAGE_UNAVAILABLE"
     assert await h.image() == before
-    assert await walk(h.store, req, s.binding.principal, first=first) == expected
+    feed_operation_2 = await walk(h.store, req, s.binding.principal, first=first)
+    assert feed_operation_2 == expected
 
 
 @pytest.mark.parametrize("damage", ["missing", "record-kind", "signature"])
@@ -454,10 +458,10 @@ async def test_every_snapshot_fault_rolls_back_all_collections_heads_and_upstrea
     assert await h.image() == before
     monkeypatch.undo()
     await restart(h)
-    assert await h.store.ingest_receipt_batch(request, caller=s.binding.principal) == response
-    assert (await walk(h.store, feed_request(s), s.binding.principal))[0][-1]["pagination"][
-        "total_count"
-    ] == 6
+    feed_operation_3 = await h.store.ingest_receipt_batch(request, caller=s.binding.principal)
+    assert feed_operation_3 == response
+    feed_operation_4 = await walk(h.store, feed_request(s), s.binding.principal)
+    assert (feed_operation_4)[0][-1]["pagination"]["total_count"] == 6
     assert without_feed(await h.image()) == without_feed(before)
 
 
@@ -511,7 +515,8 @@ async def test_missing_references_fail_new_snapshot_but_never_rebuild_persisted_
             await c.execute(query, (value,))
     store = await restart(h)
     before = await h.image()
-    assert await walk(store, request, s.binding.principal, first=first) == expected
+    feed_operation_5 = await walk(store, request, s.binding.principal, first=first)
+    assert feed_operation_5 == expected
     with pytest.raises(ReportingFeedError) as error:
         await store.read_reporting_feed(request, caller=s.binding.principal)
     assert error.value.code == "REPORTING_FEED_HISTORY_CORRUPT"
@@ -523,7 +528,8 @@ async def test_verified_finish_capture_and_epoch_zero_queue_are_frozen_without_r
 ):
     h = feeds
     case = await durable_case(h.store, count=3)
-    assert (await case.service().run_once()).state == "verified"
+    feed_operation_6 = await case.service().run_once()
+    assert (feed_operation_6).state == "verified"
     boundaries = await h.store.read_materializer_boundaries(caller=case.scope.principal)
     assert len(boundaries) == 1
     request = {

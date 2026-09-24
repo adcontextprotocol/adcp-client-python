@@ -13,7 +13,7 @@ import pytest
 from adcp.reporting.materializer import PgReportingMaterializerStore
 
 from ._durable_materializer_support import DurableHarness, durable_case
-from ._generation_support import assert_c_collated_rolling_database, isolated_reporting_pool
+from ._generation_support import isolated_reporting_pool, require_rolling_database
 from .test_reporting_materializer_packaging import ROOT, b1_wheels, built_distribution, run_step
 from .test_reporting_materializer_process import worker
 
@@ -24,7 +24,7 @@ __all__ = ["b1_wheels", "built_distribution"]
 
 @pytest.fixture(scope="module", params=["vcs", "sdist"])
 def installed_materializer(request):
-    assert_c_collated_rolling_database()
+    require_rolling_database()
     b1_wheels = request.getfixturevalue("b1_wheels")
     path, wheels, _ = b1_wheels
     interpreter = os.environ.get("ADCP_PYTHON310") or sys.executable
@@ -105,7 +105,8 @@ async def test_installed_sql_and_process_restart_preserve_original_effect(
         async with worker(h, case, tmp_path, **options) as child:
             done = await child.event("done")
             assert done["state"] == "verified" and done["origins"] == result["origins"]
-            assert await asyncio.wait_for(child.process.wait(), 5) == 0
+            materializer_operation_1 = await asyncio.wait_for(child.process.wait(), 5)
+            assert materializer_operation_1 == 0
         after = await h.works()
         assert len(after) == 1 and after[0][0] == before[0][0] and after[0][1] == "acked"
         assert len(tuple(tmp_path.glob("rwm_*"))) == 1

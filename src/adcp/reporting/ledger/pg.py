@@ -122,6 +122,7 @@ from adcp.reporting.ledger.store import (
     LedgerConflictError,
     LedgerPage,
     ReportingRowPage,
+    RestatementCheckpoint,
     check_issue_state_transition,
     configuration_lifecycle,
     encode_cursor,
@@ -876,6 +877,92 @@ class PgReportingLedgerStore:
             ).fetchall()
         return tuple(_revision_from_row(row) for row in rows)
 
+    async def get_restatement_checkpoint(
+        self, *, account_id: str, reporting_obligation_id: str
+    ) -> RestatementCheckpoint | None:
+        async with self._connection() as connection:
+            row = await (
+                await connection.execute(
+                    "SELECT account_id, reporting_obligation_id, checked_at,"
+                    " next_observation, provisional_until"
+                    " FROM reporting_restatement_checkpoints"
+                    " WHERE account_id = %s AND reporting_obligation_id = %s",
+                    (account_id, reporting_obligation_id),
+                )
+            ).fetchone()
+        if row is None:
+            return None
+        return RestatementCheckpoint(
+            account_id=row[0],
+            reporting_obligation_id=row[1],
+            checked_at=_utc(row[2]),
+            next_observation=int(row[3]),
+            provisional_until=_utc(row[4]) if row[4] else None,
+        )
+
+    async def record_restatement_checkpoint(
+        self, checkpoint: RestatementCheckpoint
+    ) -> RestatementCheckpoint:
+        async with self._connection() as connection:
+            obligation = await (
+                await connection.execute(
+                    "SELECT 1 FROM reporting_obligations"
+                    " WHERE reporting_obligation_id = %s AND account_id = %s",
+                    (checkpoint.reporting_obligation_id, checkpoint.account_id),
+                )
+            ).fetchone()
+            if obligation is None:
+                raise LedgerConflictError(
+                    "OBLIGATION_NOT_FOUND",
+                    "a restatement checkpoint must attach to an obligation for this account",
+                )
+            row = await (
+                await connection.execute(
+                    "INSERT INTO reporting_restatement_checkpoints"
+                    " (account_id, reporting_obligation_id, checked_at, next_observation,"
+                    "  provisional_until)"
+                    " VALUES (%s, %s, %s, %s, %s)"
+                    " ON CONFLICT (reporting_obligation_id) DO UPDATE SET"
+                    " checked_at = EXCLUDED.checked_at,"
+                    " next_observation = EXCLUDED.next_observation,"
+                    " provisional_until = EXCLUDED.provisional_until"
+                    " WHERE reporting_restatement_checkpoints.account_id = EXCLUDED.account_id"
+                    "   AND (reporting_restatement_checkpoints.next_observation"
+                    "        < EXCLUDED.next_observation"
+                    "     OR (reporting_restatement_checkpoints.next_observation"
+                    "         = EXCLUDED.next_observation"
+                    "         AND reporting_restatement_checkpoints.checked_at"
+                    "             < EXCLUDED.checked_at))"
+                    " RETURNING account_id, reporting_obligation_id, checked_at,"
+                    " next_observation, provisional_until",
+                    (
+                        checkpoint.account_id,
+                        checkpoint.reporting_obligation_id,
+                        checkpoint.checked_at,
+                        checkpoint.next_observation,
+                        checkpoint.provisional_until,
+                    ),
+                )
+            ).fetchone()
+        if row is None:
+            stored = await self.get_restatement_checkpoint(
+                account_id=checkpoint.account_id,
+                reporting_obligation_id=checkpoint.reporting_obligation_id,
+            )
+            if stored is None:
+                raise LedgerConflictError(
+                    "OBLIGATION_NOT_FOUND",
+                    "a restatement checkpoint must attach to an obligation for this account",
+                )
+            return stored
+        return RestatementCheckpoint(
+            account_id=row[0],
+            reporting_obligation_id=row[1],
+            checked_at=_utc(row[2]),
+            next_observation=int(row[3]),
+            provisional_until=_utc(row[4]) if row[4] else None,
+        )
+
     async def get_revision(
         self, *, account_id: str, reporting_revision_id: str
     ) -> ReportingRevisionRecord | None:
@@ -1429,13 +1516,38 @@ class PgReportingLedgerStore:
                     "reopened, and a recurrence gets a new occurrence",
                 )
             check_issue_state_transition(live.issue_state, state)
+            if state == "waived" and live.issue_state != "waived":
+                from adcp.reporting.ledger.status_projection import bind_mismatch_waiver
+                from adcp.reporting.ledger.status_snapshot import read_snapshot_on
+
+                snapshot = await read_snapshot_on(
+                    connection,
+                    account_id=account_id,
+                    as_of=_utc(at),
+                    include_issue_scopes=await self._issue_scope_storage_on(connection),
+                )
+                live = bind_mismatch_waiver(snapshot, live)
+                await _save_waiver_binding(connection, live)
+            waived_at = (
+                live.retired_at
+                if live.waived_reporting_status_id is not None and live.retired_at is not None
+                else _utc(at)
+            )
             await connection.execute(
                 "UPDATE reporting_issue_lifecycle"
                 " SET issue_state = %s,"
                 "     external_ref = COALESCE(%s, external_ref),"
                 "     retired_at = CASE WHEN %s = 'waived' THEN %s ELSE retired_at END"
                 " WHERE account_id = %s AND issue_key = %s AND generation = %s",
-                (state, external_ref, state, _utc(at), account_id, issue_key, live.generation),
+                (
+                    state,
+                    external_ref,
+                    state,
+                    waived_at,
+                    account_id,
+                    issue_key,
+                    live.generation,
+                ),
             )
             refreshed = await self._issue_row(connection, issue_key, account_id, live.generation)
             assert refreshed is not None
@@ -1473,10 +1585,9 @@ class PgReportingLedgerStore:
         at: datetime,
         status_scope: ReportingStatusScope | None = None,
         enqueue: bool = True,
-        agreeing: bool = False,
     ) -> ReportingIssueLifecycle | None:
         live = await self._live_issue(connection, issue_key, account_id)
-        if live is None or (not issue_is_retirable(live.issue_state) and not agreeing):
+        if live is None or not issue_is_retirable(live.issue_state):
             return None
         if live.issue_state != "waived":
             check_issue_state_transition(live.issue_state, "resolved")
@@ -1506,7 +1617,7 @@ class PgReportingLedgerStore:
                 (account_id, issue_key),
             )
         ).fetchone()
-        return _issue_from_row(row) if row else None
+        return await _with_waiver_binding(connection, _issue_from_row(row)) if row else None
 
     @staticmethod
     async def _issue_row(
@@ -1519,7 +1630,7 @@ class PgReportingLedgerStore:
                 (account_id, issue_key, generation),
             )
         ).fetchone()
-        return _issue_from_row(row) if row else None
+        return await _with_waiver_binding(connection, _issue_from_row(row)) if row else None
 
     # -- snapshots --------------------------------------------------------
 
@@ -1873,7 +1984,63 @@ def _issue_from_row(row: Sequence[Any]) -> ReportingIssueLifecycle:
         issue_state=row[6],
         external_ref=row[7],
         retired_at=_utc(row[8]) if row[8] else None,
+        waived_reporting_status_id=row[9] if len(row) > 9 else None,
+        waived_conflict_sha256=row[10] if len(row) > 10 else None,
     )
+
+
+async def _waiver_storage_on(connection: Any) -> bool:
+    row = await (
+        await connection.execute(
+            "SELECT to_regclass(format('%I.reporting_issue_waiver_bindings', current_schema()))"
+            " IS NOT NULL"
+        )
+    ).fetchone()
+    return bool(row[0])
+
+
+async def _with_waiver_binding(
+    connection: Any, issue: ReportingIssueLifecycle
+) -> ReportingIssueLifecycle:
+    if issue.issue_state != "waived" or not await _waiver_storage_on(connection):
+        return issue
+    row = await (
+        await connection.execute(
+            "SELECT reporting_status_id, conflict_sha256 FROM reporting_issue_waiver_bindings"
+            " WHERE account_id=%s AND issue_key=%s AND generation=%s",
+            (issue.account_id, issue.issue_key, issue.generation),
+        )
+    ).fetchone()
+    return (
+        replace(issue, waived_reporting_status_id=row[0], waived_conflict_sha256=row[1])
+        if row
+        else issue
+    )
+
+
+async def _save_waiver_binding(connection: Any, issue: ReportingIssueLifecycle) -> None:
+    if issue.waived_reporting_status_id is None:
+        return
+    if not await _waiver_storage_on(connection):
+        raise LedgerConflictError("WAIVER_SCHEMA_UNAVAILABLE", "migrate before recording a waiver")
+    await connection.execute(
+        "INSERT INTO reporting_issue_waiver_bindings"
+        " (account_id,issue_key,generation,reporting_status_id,conflict_sha256)"
+        " VALUES (%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+        (
+            issue.account_id,
+            issue.issue_key,
+            issue.generation,
+            issue.waived_reporting_status_id,
+            issue.waived_conflict_sha256,
+        ),
+    )
+    stored = await _with_waiver_binding(connection, replace(issue, issue_state="waived"))
+    if (stored.waived_reporting_status_id, stored.waived_conflict_sha256) != (
+        issue.waived_reporting_status_id,
+        issue.waived_conflict_sha256,
+    ):
+        raise LedgerConflictError("WAIVER_BINDING_IMMUTABLE", "a recorded waiver cannot be rebound")
 
 
 def _schedule_payload(schedule: ReportingScheduleSpec) -> dict[str, Any]:

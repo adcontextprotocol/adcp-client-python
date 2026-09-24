@@ -87,13 +87,17 @@ async def test_process_crash_resumes_original_ordinals_and_final_response(point,
         original = await h.store.get_receipt(s.receipt.key)
         async with worker(h, s, request) as resumed:
             response = (await resumed.event("done"))["result"]
-            assert await asyncio.wait_for(resumed.process.wait(), 5) == 0
+            receipt_operation_2 = await asyncio.wait_for(resumed.process.wait(), 5)
+            assert receipt_operation_2 == 0
         assert [r["result"] for r in response["results"]] == ["recorded", "recorded"]
         if original is not None:
             from adcp.reporting.ledger.delivery import receipt_to_wire
 
             assert response["results"][0]["receipt"] == receipt_to_wire(original)
-        assert await h.store.ingest_receipt_batch(request, caller=s.binding.principal) == response
+        receipt_operation_1 = await h.store.ingest_receipt_batch(
+            request, caller=s.binding.principal
+        )
+        assert receipt_operation_1 == response
         assert await batch_state(h) == ((2, True),)
         assert len(await h.store.read_receipt_boundaries(caller=s.binding.principal)) == 2
         assert await h.queue() == ((), ())
@@ -113,5 +117,7 @@ async def test_two_processes_serialize_with_size_one_pools_and_keep_original_rec
                 a = (await first.event("done"))["result"]
                 b = (await asyncio.wait_for(pending, 30))["result"]
                 assert a == b and a["results"][0]["result"] == "recorded"
-                assert await asyncio.wait_for(second.process.wait(), 5) == 0
-            assert await asyncio.wait_for(first.process.wait(), 5) == 0
+                receipt_operation_4 = await asyncio.wait_for(second.process.wait(), 5)
+                assert receipt_operation_4 == 0
+            receipt_operation_3 = await asyncio.wait_for(first.process.wait(), 5)
+            assert receipt_operation_3 == 0

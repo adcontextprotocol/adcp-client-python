@@ -701,9 +701,10 @@ class ReportingIssueLifecycle:
     on each poll and an unattended mismatch would never escalate.
 
     ``issue_key`` identifies the *condition*; ``issue_id`` identifies one
-    *occurrence* of it.  Retirement bumps ``generation``, so a recurrence after
-    ``resolved`` or ``waived`` gets a new ``issue_id`` and a new ``opened_at``
-    exactly as the spec requires, while an unresolved condition keeps both
+    *occurrence* of it. Resolution bumps ``generation`` on recurrence; an
+    exact bilateral waiver preserves its terminal row and a later disagreement
+    uses a new private condition key. Both receive a new ``issue_id`` and
+    ``opened_at`` as the spec requires, while an unresolved condition keeps both
     across a severity change from ``delayed`` to ``action_required``.
     """
 
@@ -718,6 +719,10 @@ class ReportingIssueLifecycle:
     consumer_id: str | None = None
     external_ref: str | None = None
     retired_at: datetime | None = None
+    #: Private rc.6 waiver binding, captured under the source transaction.
+    #: A legacy waiver without this evidence cannot suppress a new projection.
+    waived_reporting_status_id: str | None = None
+    waived_conflict_sha256: str | None = None
 
     def __post_init__(self) -> None:
         if self.consumer_id is not None:
@@ -727,10 +732,10 @@ class ReportingIssueLifecycle:
     def live(self) -> bool:
         """Whether this occurrence still stands, publishable or not.
 
-        ``waived`` blocks a new occurrence while the same disagreement remains,
-        but contributes neither health degradation nor a public issue. An
-        agreeing statement lets the pure projection retire it; a subsequent
-        disagreement receives a new occurrence and notification.
+        ``waived`` retains its terminal record and suppresses only its exact
+        statement/conflict binding. A later disagreement uses a new private
+        condition key, leaving this audit record and the one-live-row constraint
+        intact. Agreement never rewrites a waiver as ``resolved``.
 
         ``resolved`` frees the condition to recur under a new
         ``issue_id``, and only the projection can set it (see

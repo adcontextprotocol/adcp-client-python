@@ -491,6 +491,11 @@ SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
     "sales-broadcast-tv": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     "sales-dooh": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     "sales-social": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-exchange": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-streaming-tv": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-retail-media": (
+        _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS | _CATALOG_ADVERTISED_TOOLS
+    ),
     "sales-catalog-driven": (
         _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS | _CATALOG_ADVERTISED_TOOLS
     ),
@@ -549,6 +554,9 @@ SPECIALISM_TO_PROTOCOLS: dict[str, frozenset[str]] = {
     "sales-broadcast-tv": frozenset({"media_buy"}),
     "sales-dooh": frozenset({"media_buy"}),
     "sales-social": frozenset({"media_buy"}),
+    "sales-exchange": frozenset({"media_buy"}),
+    "sales-streaming-tv": frozenset({"media_buy"}),
+    "sales-retail-media": frozenset({"media_buy"}),
     "sales-catalog-driven": frozenset({"media_buy"}),
     "sales-proposal-mode": frozenset({"media_buy"}),
     # Creative — generative / template / transformers / ad-server all expose creative

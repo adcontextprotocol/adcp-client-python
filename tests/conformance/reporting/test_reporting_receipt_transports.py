@@ -89,7 +89,7 @@ async def test_protobuf_integer_spellings_preserve_whole_request_identity_and_ti
 ):
     h = receipts
     s = await receipt_case(h)
-    mount = MountedReceipts(h, hydrated=True, version="3.2-rc.3")
+    mount = MountedReceipts(h, hydrated=True, version="3.2-rc.6")
     mount.authorize(s)
     request = request_for(
         s,
@@ -103,7 +103,7 @@ async def test_protobuf_integer_spellings_preserve_whole_request_identity_and_ti
     protobuf_request = MessageToDict(proto)
     assert type(protobuf_request["receipts"][0]["observed_row_count"]) is float
     assert type(protobuf_request["context"]["integer"]) is float
-    assert Draft7Validator(receipt_schema("request", version="3.2-rc.3")).is_valid(protobuf_request)
+    assert Draft7Validator(receipt_schema("request", version="3.2-rc.6")).is_valid(protobuf_request)
     requests = {"mcp": request, "a2a": protobuf_request}
     other = "a2a" if first_route == "mcp" else "mcp"
     async with mount.client() as client:
@@ -152,7 +152,8 @@ async def test_request_bound_capture_preserves_chunked_bytes_and_read_ahead_over
     async with mount.client() as client:
         _, first = await mount.a2a(client, request, mutate_wire=chunked)
         assert first["results"][0]["result"] == "recorded", first
-        assert (await mount.mcp(client, request))[1] == first
+        receipt_operation_1 = await mount.mcp(client, request)
+        assert (receipt_operation_1)[1] == first
         assert len(mount.auth_calls) == 2
 
 
@@ -285,7 +286,7 @@ async def test_actual_mount_shape_failure_is_task_invalid_request_with_no_writes
         assert mount.auth_calls == []
 
 
-@pytest.mark.parametrize("version", [None, "3.2-rc.3"])
+@pytest.mark.parametrize("version", [None, "3.2-rc.6"])
 @pytest.mark.parametrize("fallback", [False, True])
 async def test_pinned_unpinned_and_fallback_mcp_schemas_keep_combined_and_received_rules(
     version, fallback, monkeypatch
@@ -420,7 +421,7 @@ async def test_real_raw_strict_json_and_numeric_admission_fail_before_batch_muta
 ):
     h = receipts
     s = await receipt_case(h)
-    mount = MountedReceipts(h, version="3.2-rc.3")
+    mount = MountedReceipts(h, version="3.2-rc.6")
     mount.authorize(s)
     request = request_for(s)
     mutations = {
@@ -481,7 +482,7 @@ async def test_real_raw_strict_json_and_numeric_admission_fail_before_batch_muta
 async def test_malformed_numeric_token_is_rejected_by_the_actual_json_decoder(receipts, route):
     h = receipts
     s = await receipt_case(h)
-    mount = MountedReceipts(h, version="3.2-rc.3")
+    mount = MountedReceipts(h, version="3.2-rc.6")
     mount.authorize(s)
     request = request_for(s)
     before = await h.image()
@@ -527,7 +528,8 @@ async def test_raw_capture_cannot_supply_auth_or_cross_request_body_or_override_
                 # Avoid a fresh initialize in this helper: the authenticated
                 # tool request itself must reject a forged token.
                 mount.sessions["forged"] = mount.sessions["token-one"]
-            assert (await call(client, request, token="forged"))[0] == 401
+            receipt_operation_6 = await call(client, request, token="forged")
+            assert (receipt_operation_6)[0] == 401
             assert await h.image() == before
 
 
@@ -597,13 +599,14 @@ async def test_raw_mounted_requests_do_not_alias_account_consumer_pairs_or_cache
         _, b = await mount.a2a(client, request_for(second), token="token-two")
         assert a["results"][0]["result"] == b["results"][0]["result"] == "recorded"
         assert a != b
-        assert (await mount.a2a(client, request_for(first)))[1] == a
-        assert (await mount.mcp(client, request_for(second), token="token-two"))[1] == b
+        receipt_operation_2 = await mount.a2a(client, request_for(first))
+        assert (receipt_operation_2)[1] == a
+        receipt_operation_3 = await mount.mcp(client, request_for(second), token="token-two")
+        assert (receipt_operation_3)[1] == b
         before = await h.image()
-        assert error_code((await mount.a2a(client, request_for(second)))[1]) == "UNAUTHORIZED"
-        assert (
-            error_code((await mount.mcp(client, request_for(first), token="token-two"))[1])
-            == "UNAUTHORIZED"
-        )
+        receipt_operation_4 = await mount.a2a(client, request_for(second))
+        assert error_code((receipt_operation_4)[1]) == "UNAUTHORIZED"
+        receipt_operation_5 = await mount.mcp(client, request_for(first), token="token-two")
+        assert error_code((receipt_operation_5)[1]) == "UNAUTHORIZED"
         assert await h.image() == before
     assert len({c.caller_identity for c in mount.contexts}) == 1

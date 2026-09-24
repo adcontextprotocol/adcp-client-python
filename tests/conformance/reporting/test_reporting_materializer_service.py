@@ -46,7 +46,8 @@ async def test_cancellation_and_restart_never_allocate_a_new_external_identity(
         assert not list(tmp_path.iterdir())
         assert not (set(asyncio.all_tasks()) - before)
         await h.expire()
-        assert (await case.service().run_once()).state == "verified"
+        materializer_operation_1 = await case.service().run_once()
+        assert (materializer_operation_1).state == "verified"
         works = await h.works()
         assert len(works) == 1 and works[0][0] == initial[0][0]
         assert case.writer.write_effects == 1
@@ -88,11 +89,13 @@ async def test_service_heartbeat_keeps_long_io_alive_with_size_one_postgres_pool
             await asyncio.wait_for(owner.entered.wait(), 10)
             await asyncio.wait_for(renewed.wait(), 10)  # Four DB-time heartbeats > one whole lease.
             assert all(turns) and len(turns) >= 4
-            assert not hasattr(
-                await store.claim_materialization(keys=case.keys, lease_seconds=3), "attempt"
+            materializer_operation_7 = await store.claim_materialization(
+                keys=case.keys, lease_seconds=3
             )
+            assert not hasattr(materializer_operation_7, "attempt")
             owner.release.set()
-            assert (await asyncio.wait_for(task, 10)).state == "verified"
+            materializer_operation_8 = await asyncio.wait_for(task, 10)
+            assert (materializer_operation_8).state == "verified"
             assert case.writer.write_effects == 1
             assert case.writer.open_count == case.writer.close_count == 2
 
@@ -135,7 +138,8 @@ async def test_write_to_readback_window_reauthorizes_exact_principal_and_current
 async def test_later_health_loss_never_resets_or_retries_successful_history(backend, state):
     async with durable_harness(backend) as h:
         case = await durable_case(h.store)
-        assert (await case.service().run_once()).state == "verified"
+        materializer_operation_2 = await case.service().run_once()
+        assert (materializer_operation_2).state == "verified"
         outcome = (await case.outcomes())[0]
         await h.store.record_materialization_check(
             ReportingMaterializationCheck(
@@ -148,7 +152,8 @@ async def test_later_health_loss_never_resets_or_retries_successful_history(back
         )
         result = await case.claim()
         assert result.reason == "operator_required"
-        assert (await case.claim()).state == "idle"
+        materializer_operation_3 = await case.claim()
+        assert (materializer_operation_3).state == "idle"
         assert len(await h.works()) == 1
         assert await case.outcomes() == (outcome,)
 
@@ -190,7 +195,8 @@ async def test_public_next_attempt_is_still_permitted_after_any_terminal_outcome
             r.attempt for r in snapshot.records if isinstance(r, ReportingMaterializationAttempt)
         ] == [1, 2]
         await h.expire()
-        assert not hasattr(await case.claim(), "attempt")
+        materializer_operation_4 = await case.claim()
+        assert not hasattr(materializer_operation_4, "attempt")
         assert len(await h.works()) == 1
 
 
@@ -268,14 +274,16 @@ async def test_timeout_or_cleanup_failure_after_effect_resumes_original_identity
             case.writer,
             io_timeout_seconds=1 if cause == "timeout" else 30,
         )
-        assert (await asyncio.wait_for(service.run_once(), 10)).state == "pending"
+        materializer_operation_5 = await asyncio.wait_for(service.run_once(), 10)
+        assert (materializer_operation_5).state == "pending"
         before = await h.works()
         assert not await case.outcomes() and await h.queue() == ((), ())
         assert case.writer.write_effects == 1
         assert all(s._closed and s._credential is None for s in owner.sessions)
         assert not tuple(tmp_path.iterdir()) and SECRET not in caplog.text
         await h.expire()
-        assert (await case.service().run_once()).state == "verified"
+        materializer_operation_6 = await case.service().run_once()
+        assert (materializer_operation_6).state == "verified"
         assert (await h.works())[0][0] == before[0][0]
         assert case.writer.write_effects == 1
 
@@ -296,14 +304,16 @@ async def test_heartbeat_cancels_io_after_expiry_and_competing_worker_steals_fen
             before = await h.works()
             await h.expire()
             winner = await case.claim()
-            assert (await asyncio.wait_for(task, 10)).state == "pending"
+            materializer_operation_9 = await asyncio.wait_for(task, 10)
+            assert (materializer_operation_9).state == "pending"
             assert all(s._closed and s._credential is None for s in owner.sessions)
             assert not tuple(tmp_path.iterdir())
             assert not await case.outcomes() and await h.queue() == ((), ())
             prepared, evidence = await case.verified(winner)
-            assert (
-                await h.store.finish_materialization(winner, prepared=prepared, verified=evidence)
-            ).state == "verified"
+            materializer_operation_10 = await h.store.finish_materialization(
+                winner, prepared=prepared, verified=evidence
+            )
+            assert (materializer_operation_10).state == "verified"
             assert (await h.works())[0][0] == before[0][0]
             assert case.writer.write_effects == 1
         finally:

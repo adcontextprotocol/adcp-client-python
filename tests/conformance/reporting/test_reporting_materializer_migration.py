@@ -10,6 +10,7 @@ import pytest
 from adcp.reporting.ledger import LedgerConflictError, PgReportingReconciliationStore, derive_period
 from adcp.reporting.materializer import PgReportingMaterializerStore
 from adcp.reporting.outbox._schema import REQUIRED_OBJECTS, schema_objects, validate_schema
+from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS
 
 from ._durable_materializer_support import durable_case, durable_harness
 from ._generation_support import isolated_reporting_pool, obligation_for
@@ -45,7 +46,21 @@ async def test_populated_repeated_and_concurrent_install_preserves_all_old_objec
             assert await new.materializer_ready()
             async with pool.connection() as c:
                 actual = await schema_objects(c)
-                assert {key: actual[key] for key in original} == original == REQUIRED_OBJECTS
+                # The populated rc.6 case also installs its exact waiver-binding objects.
+                waiver_objects = {
+                    key: value
+                    for key, value in REQUIRED_STATUS_OBJECTS.items()
+                    if "reporting_issue_waiver_bindings" in key
+                }
+                assert len(waiver_objects) == 10
+                assert (
+                    {key: actual[key] for key in original}
+                    == original
+                    == {
+                        **REQUIRED_OBJECTS,
+                        **waiver_objects,
+                    }
+                )
                 assert {
                     key: value for key, value in actual.items() if "reporting_materializer_" in key
                 } == MANIFEST
@@ -60,7 +75,8 @@ async def test_populated_repeated_and_concurrent_install_preserves_all_old_objec
                 )
                 await validate_schema(c, activity=True)
         case.store = new
-        assert (await case.service().run_once()).state == "verified"
+        materializer_operation_1 = await case.service().run_once()
+        assert (materializer_operation_1).state == "verified"
         # Discovery is persisted, and reinstall cannot invalidate leased generations.
         before = await new.read_reconciliation_snapshot(caller=case.scope.principal)
         await new.create_schema()
@@ -104,11 +120,15 @@ async def test_interrupted_migration_is_invisible_and_restart_converges():
         "DROP INDEX reporting_materializer_work_due",
         "ALTER TABLE reporting_materializer_work DISABLE TRIGGER reporting_materializer_guard",
         "ALTER TABLE reporting_materializer_work ALTER COLUMN generation DROP NOT NULL",
-        "ALTER TABLE reporting_materializer_notification_expansions"
-        " ALTER COLUMN state SET DEFAULT 'pending'",
+        (
+            "ALTER TABLE reporting_materializer_notification_expansions"
+            " ALTER COLUMN state SET DEFAULT 'pending'"
+        ),
         "DROP TABLE reporting_materializer_status_boundaries CASCADE",
-        "ALTER TABLE reporting_reconciliation_records"
-        " DISABLE TRIGGER reporting_reconciliation_guard",
+        (
+            "ALTER TABLE reporting_reconciliation_records"
+            " DISABLE TRIGGER reporting_reconciliation_guard"
+        ),
     ],
 )
 @pytest.mark.parametrize("notifications", [False, True])
@@ -220,7 +240,8 @@ async def test_bounded_sampling_walks_past_a_full_page_of_busy_account_locks():
         async with h.pool.connection() as connection, connection.transaction():
             for account in busy:
                 await h.store._lock_account(connection, account)
-            assert (await available.claim()).state == "idle"
+            materializer_operation_3 = await available.claim()
+            assert (materializer_operation_3).state == "idle"
             selected = await available.claim()
             assert selected.scope.principal.account_id == "zz-available"
             assert len(await h.works()) == 1
@@ -232,7 +253,8 @@ async def test_pre_activation_event_never_promotes_and_old_outbox_cannot_claim_i
 
     async with durable_harness("postgres", notifications=True) as h:
         case = await durable_case(h.store)
-        assert (await case.service().run_once()).state == "verified"
+        materializer_operation_2 = await case.service().run_once()
+        assert (materializer_operation_2).state == "verified"
         before = await h.queue()
         # Remove only the ordinary Core event's pending expansion via its own
         # worker protocol. Materializer records remain in their isolated queue.

@@ -188,7 +188,8 @@ async def test_finish_rolls_back_terminal_capture_ack_and_all_initialized_heads(
                 with pytest.raises(ReportingWriterError):
                     await finish()
         assert await h.image() == before
-        assert (await finish()).state == "verified"
+        materializer_operation_1 = await finish()
+        assert (materializer_operation_1).state == "verified"
         assert len(await case.outcomes()) == 1
         assert len(await h.store.read_materializer_boundaries(caller=case.scope.principal)) == 1
 
@@ -239,7 +240,8 @@ async def test_enabled_logical_enqueue_failure_never_downgrades_to_polling(
                     await finish()
         assert await h.image() == before
         assert await h.queue() == ((), ())
-        assert (await finish()).state == "verified"
+        materializer_operation_2 = await finish()
+        assert (materializer_operation_2).state == "verified"
         events, work = await h.queue()
         assert len(events) == 1 and work == ("quarantined",)
 
@@ -307,6 +309,7 @@ async def test_expiry_inside_finish_rolls_back_outcome_capture_event_and_ack(
                 await h.store.finish_materialization(lease, prepared=prepared, verified=evidence)
         assert await h.image() == before and await h.queue() == ((), ())
         await h.expire()
-        assert (await case.service().run_once()).state == "verified"
+        materializer_operation_3 = await case.service().run_once()
+        assert (materializer_operation_3).state == "verified"
         assert case.writer.write_effects == 1
         assert len(await h.works()) == 1

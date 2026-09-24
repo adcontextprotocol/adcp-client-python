@@ -284,11 +284,11 @@ class AdCPBaseModel(BaseModel):
         value = handler(self)
         if not isinstance(value, dict):
             return value
-        wire_bases = {(base.__module__, base.__name__) for base in type(self).__mro__}
-        if any(
-            name == "NotificationConfig" and module.endswith(".core.notification_config")
-            for module, name in wire_bases
-        ):
+        # Bundled schemas can rename or inline the same wire shape. Match its
+        # declared fields rather than generated class/module names; supplied
+        # values still come exclusively from this instance's fields-set.
+        fields = type(self).model_fields
+        if {"subscriber_id", "url", "event_types", "product_payload_view"} <= fields.keys():
             events = getattr(self, "event_types", ())
             if "product_payload_view" not in self.model_fields_set and not any(
                 str(getattr(e, "value", e)).startswith("product.") for e in events

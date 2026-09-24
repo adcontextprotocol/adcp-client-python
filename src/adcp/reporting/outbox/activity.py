@@ -173,7 +173,7 @@ class WebhookAttempt:
         # must be absent, rather than null, when the source has none.
         if self.binding.notification_id:
             row["notification_id"] = self.binding.notification_id
-        validator = get_named_validator("core/webhook-activity-record.json", version="3.2.0-rc.3")
+        validator = get_named_validator("core/webhook-activity-record.json")
         if validator is None or not validator.is_valid(row):
             raise ReportingNotificationError("invalid_activity_record")
         return row

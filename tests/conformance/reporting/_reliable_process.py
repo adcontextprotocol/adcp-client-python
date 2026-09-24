@@ -88,7 +88,8 @@ async def command(*, stage="command"):
 
 async def barrier(point, **data):
     emit(point, **data)
-    assert (await command(stage=f"barrier:{point}"))["continue"] == point
+    status_operation_1 = await command(stage=f"barrier:{point}")
+    assert (status_operation_1)["continue"] == point
 
 
 def install_test_socket(settings, clock):

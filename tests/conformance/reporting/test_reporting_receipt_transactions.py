@@ -267,9 +267,10 @@ async def test_ordinary_status_dirty_insert_failure_rolls_back_receipt_and_ordin
             await h.store.ingest_receipt_batch(request_for(s), caller=s.binding.principal)
         monkeypatch.undo()
         assert await h.image() == before
-        assert (await h.store.ingest_receipt_batch(request_for(s), caller=s.binding.principal))[
-            "results"
-        ][0]["result"] == "recorded"
+        receipt_operation_1 = await h.store.ingest_receipt_batch(
+            request_for(s), caller=s.binding.principal
+        )
+        assert (receipt_operation_1)["results"][0]["result"] == "recorded"
 
 
 @pytest.mark.parametrize("damage", ["id", "kind", "outcome", "received_at", "ordinal"])

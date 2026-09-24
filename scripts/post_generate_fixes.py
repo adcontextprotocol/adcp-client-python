@@ -5956,6 +5956,22 @@ def enforce_change_term_runtime_constraints() -> None:
             print("  media_buy/commercial_terms.py: restored change-term set invariants")
 
 
+def annotate_registry_track_verdict() -> None:
+    """Identify the canonical pass/fail verdict as data, not a credential."""
+    path = OUTPUT_DIR / "core" / "registry_event.py"
+    if not path.exists():
+        return
+    original = path.read_text()
+    marker = "class Tracks(StrEnum):\n    pass_ = 'pass'\n"
+    replacement = (
+        "class Tracks(StrEnum):\n"
+        "    pass_ = 'pass'  # nosec B105 - protocol verdict enum, not a credential\n"
+    )
+    updated = original.replace(marker, replacement)
+    if updated != original:
+        path.write_text(updated)
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -6039,6 +6055,7 @@ def main(argv: list[str] | None = None):
         fix_update_rights_legacy_response_defaults,
         fix_list_creatives_format_reference_xor,
         rewrite_generated_enums_to_strenum,
+        annotate_registry_track_verdict,
         remove_unused_pydantic_field_imports,
         strip_extra_blank_lines_at_eof,
     ]
