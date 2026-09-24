@@ -247,7 +247,7 @@ async def main():
             observed_canonical_content_digest=verification.canonical_content_digest,
         )
         request = {
-            "adcp_version": "3.2-rc.3",
+            "adcp_version": "3.2-rc.6",
             "account": {"account_id": configuration.account_id},
             "idempotency_key": "installed-batch-0001",
             "receipts": [receipt_to_wire(receipt)],
