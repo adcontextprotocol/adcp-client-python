@@ -18,7 +18,7 @@ from adcp.reporting.ledger.status_projection import mismatch_key
 
 from ._durable_materializer_support import DurableHarness
 from ._feed_support import feed_request, mixed_case, second_consumer, walk, without_feed
-from ._generation_support import assert_c_collated_rolling_database, isolated_reporting_pool
+from ._generation_support import isolated_reporting_pool, require_rolling_database
 from ._reconciliation_support import Clock
 from .test_reporting_feed_packaging import (
     ROOT,
@@ -36,7 +36,7 @@ __all__ = ["b1_wheels", "built_distribution", "feed_wheels"]
 
 @pytest.fixture(scope="module", params=["vcs", "sdist"])
 def installed_feed(request):
-    assert_c_collated_rolling_database()
+    require_rolling_database()
     root, wheels, assets = request.getfixturevalue("feed_wheels")
     interpreter = os.environ.get("ADCP_PYTHON310") or sys.executable
     environment = root / f"feed-pg-{request.param}"
@@ -195,7 +195,8 @@ async def test_installed_python310_cold_continuation_freezes_mutable_history_and
                 h, s, continuation, action="walk", transport="a2a", v1=v1, feedback=True, **options
             ) as child:
                 done = await child.event("done")
-                assert await asyncio.wait_for(child.process.wait(), 5) == 0
+                feed_operation_2 = await asyncio.wait_for(child.process.wait(), 5)
+                assert feed_operation_2 == 0
             assert done["result"]["pages"] == expected[0][1:]
             assert done["result"]["binding"] == original.binding
             assert done["result"]["version"] == 1 and done["result"]["ownership_mode"] == "absent"
@@ -206,10 +207,10 @@ async def test_installed_python310_cold_continuation_freezes_mutable_history_and
             )
             == original
         )
-        assert (
-            await h.store.ingest_receipt_batch(receipt_request, caller=s.binding.principal)
-            == receipt_response
+        feed_operation_1 = await h.store.ingest_receipt_batch(
+            receipt_request, caller=s.binding.principal
         )
+        assert feed_operation_1 == receipt_response
         assert without_feed(await h.image()) == before
         print(
             json.dumps(

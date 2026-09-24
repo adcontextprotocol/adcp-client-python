@@ -64,13 +64,15 @@ async def test_process_crash_preserves_receipts_and_cold_mcp_a2a_pages(point, no
             assert count == int(point == "committed")
             await child.kill()
         assert without_feed(await h.image()) == before
-        assert await h.store.ingest_receipt_batch(request, caller=s.binding.principal) == response
+        feed_operation_1 = await h.store.ingest_receipt_batch(request, caller=s.binding.principal)
+        assert feed_operation_1 == response
         if point == "committed":
             first = boundary["result"]
         else:
             async with feed_process(h, s, feed_request(s)) as child:
                 first = (await child.event("done"))["result"]["pages"][0]
-                assert await asyncio.wait_for(child.process.wait(), 5) == 0
+                feed_operation_2 = await asyncio.wait_for(child.process.wait(), 5)
+                assert feed_operation_2 == 0
         expected = await walk(h.store, feed_request(s), s.binding.principal, first=first)
         continuation = feed_request(
             s, pagination={"max_results": 1, "cursor": first["pagination"]["cursor"]}
@@ -80,7 +82,8 @@ async def test_process_crash_preserves_receipts_and_cold_mcp_a2a_pages(point, no
                 h, s, continuation, action="walk", transport="a2a", v1=v1, feedback=True
             ) as child:
                 result = (await child.event("done"))["result"]
-                assert await asyncio.wait_for(child.process.wait(), 5) == 0
+                feed_operation_3 = await asyncio.wait_for(child.process.wait(), 5)
+                assert feed_operation_3 == 0
             assert result["pages"] == expected[0][1:]
             assert result["version"] == 1 and result["ownership_mode"] == "absent"
         assert without_feed(await h.image()) == before
