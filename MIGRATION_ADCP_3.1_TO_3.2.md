@@ -292,3 +292,31 @@ At minimum, exercise these rows independently:
 Keep legacy and compact tests against the same business implementation where
 possible. This catches accidental divergence between compatibility facades and
 the new task-specific contracts.
+
+## Reporting status notifications in rc.6
+
+AdCP 3.2.0-rc.6 permits a consumer-mismatch waiver only after explicit bilateral agreement for
+the exact caller/account issue, causing statement and diagnosed conflict. Obtain that consent
+and retain its private audit before calling `set_issue_state(state="waived")`. `external_ref`
+remains untrusted correlation text, not proof of agreement.
+
+The SDK binds the waiver to that immutable statement and conflict. It removes the waived issue
+from the public response and restores underlying seller health; unrelated impairments remain. A
+later statement or different diagnosed conflict is evaluated independently and receives a new
+occurrence. The original waiver and consumer statement are retained. Advertised status recovery
+sends an empty/absent issue-ID list when the final impairment clears.
+
+Apply the additive ledger and status schema migration before enabling status notifications.
+PostgreSQL records waiver bindings in a separate table, preserving the existing 464-object
+delivery/outbox contract. Status readiness also requires those binding objects and the updated
+status snapshot function. Historical waivers without an exact binding remain in the audit
+history and do not silently suppress a current disagreement; no consent evidence is invented or
+backfilled.
+
+Rolling controls use the delivery/outbox baseline `17ee407ae3978c8a2bb54437287afbf9dafb8130` and
+webhook-activity baseline `0f34c666ac1961e9832fce43ef0ef6937b3c1dde`. Compatibility with earlier
+binaries is untested and unclaimed. In particular, the earlier `21bf443e` snapshot uses
+collation-dependent fingerprints. Whole-schema startup validation by the delivery/outbox
+baseline after status activation is intentionally unsupported; the webhook-activity baseline's
+subset readiness is the supported restart path. Drain old workers before status activation as
+described in [reporting status notifications](docs/reporting-status-notifications.md).

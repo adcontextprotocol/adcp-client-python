@@ -58,6 +58,7 @@ def receipt_record(
         adapter = _REVISION_RECEIPT if kind == "revision_receipt" else _ADJUSTMENT_RECEIPT
         value = adapter.validate_python(body)
     except (ValueError, TypeError, ValidationError):
+        # Reject the record below without attaching private validation details as context.
         pass
     if value is None:
         fail("INVALID_REPORTING_RECORD")

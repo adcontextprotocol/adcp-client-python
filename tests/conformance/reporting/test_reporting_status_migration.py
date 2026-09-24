@@ -33,10 +33,10 @@ from adcp.reporting.outbox.status_schema import (
 from . import test_reporting_notification_process_matrix as _process
 from ._generation_support import (
     NOW,
-    assert_c_collated_rolling_database,
     configuration,
     isolated_reporting_pool,
     obligation_for,
+    require_rolling_database,
     revision_for,
 )
 from ._reliable_support import (
@@ -54,8 +54,8 @@ ROOT = Path(__file__).resolve().parents[3]
 case_deadline = _process.case_deadline
 certificate = _process.certificate
 ARTIFACTS = {
-    "a": "21bf443e7d850d1800ec8a6f2e4abec1c8f85541",
-    "b": "198d50e61c74fb82aedbf2c77e06a0e200b91db6",
+    "a": "17ee407ae3978c8a2bb54437287afbf9dafb8130",
+    "b": "0f34c666ac1961e9832fce43ef0ef6937b3c1dde",
 }
 SQL = files("adcp.reporting.ledger").joinpath("reporting_status_notifications.sql").read_text()
 C_QUEUES = (
@@ -69,7 +69,7 @@ C_QUEUES = (
 
 @pytest.fixture(scope="module")
 def actual_sources(tmp_path_factory):
-    assert_c_collated_rolling_database()
+    require_rolling_database()
     targets = {}
     try:
         for release, sha in ARTIFACTS.items():
@@ -149,16 +149,14 @@ async def test_default_off_pre_outbox_lifecycle_remains_usable_until_scope_migra
         await ledger.record_consumer_status(first)
         opened = await ledger.get_issue(account_id="acct_a", issue_key=mismatch_key(first))
         assert opened is not None and opened.opened_at == NOW
-        assert (
-            await ledger.ensure_issue_opened(
-                account_id="acct_a",
-                consumer_id="buyer",
-                issue_key=opened.issue_key,
-                observed_at=NOW,
-            )
-            == opened
+        status_operation_1 = await ledger.ensure_issue_opened(
+            account_id="acct_a",
+            consumer_id="buyer",
+            issue_key=opened.issue_key,
+            observed_at=NOW,
         )
-        await ledger.set_issue_state(
+        assert status_operation_1 == opened
+        waived = await ledger.set_issue_state(
             account_id="acct_a", issue_key=opened.issue_key, state="waived", at=NOW
         )
         agreeing = replace(
@@ -169,7 +167,7 @@ async def test_default_off_pre_outbox_lifecycle_remains_usable_until_scope_migra
             reporting_revision_id=revision.reporting_revision_id,
         )
         await ledger.record_consumer_status(agreeing)
-        assert await ledger.get_issue(account_id="acct_a", issue_key=opened.issue_key) is None
+        assert await ledger.get_issue(account_id="acct_a", issue_key=opened.issue_key) == waived
         recurring = replace(
             first,
             reporting_status_id="recurring",
@@ -178,9 +176,10 @@ async def test_default_off_pre_outbox_lifecycle_remains_usable_until_scope_migra
         await ledger.record_consumer_status(recurring)
         snapshot = await ledger.read_status_snapshot(account_id="acct_a")
         assert not lifecycle_intents(snapshot)
-        current = await ledger.get_issue(account_id="acct_a", issue_key=opened.issue_key)
-        assert current is not None and current.generation == opened.generation + 1
+        current = next(i for i in snapshot.lifecycles if i.issue_state == "open")
+        assert (current.issue_key, current.generation) != (opened.issue_key, opened.generation)
         assert current.issue_id != opened.issue_id
+        assert waived in snapshot.lifecycles
         assert dict(snapshot.issue_scopes)[current.issue_id].generation_key == config.generation_key
         enabled = PgReportingReconciliationStore(pool=pool, clock=lambda: NOW, notifications=True)
         with pytest.raises(ReportingNotificationError, match="notification_schema_unready"):
@@ -273,8 +272,10 @@ async def test_concurrent_interrupted_c_migration_is_atomic_and_baseline_is_rest
             await asyncio.wait_for(asyncio.gather(*(migrate(p) for p in (pool, observer) * 2)), 25)
             status = PgStatusNotificationStore(ledger)
             assert not await status.baseline_ready(account_id="acct_a")
-            assert await status.baseline(account_id="acct_a")
-            assert not await status.baseline(account_id="acct_a")
+            status_operation_3 = await status.baseline(account_id="acct_a")
+            assert status_operation_3
+            status_operation_4 = await status.baseline(account_id="acct_a")
+            assert not status_operation_4
             assert await status.baseline_ready(account_id="acct_a")
             assert not await status.outbox.list_events(account_id="acct_a")
 
@@ -343,7 +344,8 @@ async def test_baseline_repairs_actual_b_status_without_issue_using_ingest_obser
         assert all(
             c.snapshot["issues"][0]["opened_at"] == record.recorded_at.isoformat() for c in private
         )
-        assert not (await status.project_one(account_id="acct_a")).did_work
+        status_operation_2 = await status.project_one(account_id="acct_a")
+        assert not (status_operation_2).did_work
 
 
 @case_deadline
@@ -388,7 +390,8 @@ async def test_live_reviewed_a_b_workers_never_claim_or_touch_pending_c_queues(
                 # A is already running too, so both old pools span the upgrade.
                 await old_b.send(action="turn")
                 await status.create_schema()
-                assert (await old_b.event("old_turn"))["did_work"]
+                status_operation_7 = await old_b.event("old_turn")
+                assert (status_operation_7)["did_work"]
                 await receiver.event("http_accepted")
                 await status.baseline(account_id="acct_a")
                 await ledger.set_revision_readable(
@@ -396,7 +399,8 @@ async def test_live_reviewed_a_b_workers_never_claim_or_touch_pending_c_queues(
                     reporting_revision_id=revision.reporting_revision_id,
                     readable=False,
                 )
-                assert (await status.project_one(account_id="acct_a")).events == 2
+                status_operation_8 = await status.project_one(account_id="acct_a")
+                assert (status_operation_8).events == 2
                 failures = FailurePlan()
                 subscriptions = ScriptedSubscriptions(failures)
                 subscriptions.put(notification_subscription(events=("reporting.status_changed",)))
@@ -414,20 +418,23 @@ async def test_live_reviewed_a_b_workers_never_claim_or_touch_pending_c_queues(
                     account_id="acct_a", now=now, lease_seconds=60
                 )
                 assert lease is not None
-                assert await status.outbox.reserve_attempt(
+                status_operation_9 = await status.outbox.reserve_attempt(
                     lease,
                     request=ActivityRequest("https://receiver.example.test/reporting", 1),
                     now=now,
                 )
-                assert await status.outbox.finish_delivery(
+                assert status_operation_9
+                status_operation_10 = await status.outbox.finish_delivery(
                     lease, state="pending", retry_at=now, now=now
                 )
+                assert status_operation_10
                 pending = await physical_rows(pool)
                 assert all(pending.values())  # Include attempt and retained head rows.
                 # Guarantee the actual A decoder and HTTP sender also execute,
                 # then let both old processes compete for the remaining event.
                 await old_a.send(action="turn")
-                assert (await old_a.event("old_turn"))["did_work"]
+                status_operation_11 = await old_a.event("old_turn")
+                assert (status_operation_11)["did_work"]
                 assert await physical_rows(pool) == pending
                 await old_a.send(action="core_write")
                 await old_a.event("old_core_write")
@@ -484,23 +491,24 @@ async def test_live_reviewed_a_b_workers_never_claim_or_touch_pending_c_queues(
                     await child.finish()
             # A fresh C process replays the old writer's grouped, captured input.
             async with service_process(pool, "status_projector", turns=3) as child:
-                assert (await child.event("done"))["did_work"]
+                status_operation_12 = await child.event("done")
+                assert (status_operation_12)["did_work"]
                 await child.finish()
             status = PgStatusNotificationStore(ledger)
-            assert not (await status.project_one(account_id="acct_a")).did_work
+            status_operation_5 = await status.project_one(account_id="acct_a")
+            assert not (status_operation_5).did_work
             events = await status.outbox.list_events(account_id="acct_a")
             assert len(events) == 6 and {e.cause_generation for e in events} == {1, 2, 3}
-            assert (
-                await status.outbox.reemit(
-                    account_id="acct_a",
-                    consumer_namespace="",
-                    notification_id=events[0].notification_id,
-                    now=datetime.now(timezone.utc),
-                )
-                == 2
+            status_operation_6 = await status.outbox.reemit(
+                account_id="acct_a",
+                consumer_namespace="",
+                notification_id=events[0].notification_id,
+                now=datetime.now(timezone.utc),
             )
+            assert status_operation_6 == 2
             async with service_process(pool, "status_http_worker", **network) as child:
-                assert (await child.event("done"))["did_work"]
+                status_operation_13 = await child.event("done")
+                assert (status_operation_13)["did_work"]
                 await child.finish()
             deliveries = await status.outbox.list_deliveries(account_id="acct_a")
             assert len(deliveries) == 7 and {r.state for r in deliveries} == {"complete"}
@@ -533,12 +541,10 @@ async def test_live_reviewed_a_b_workers_never_claim_or_touch_pending_c_queues(
 def test_required_manifests_stay_per_object_so_readiness_ignores_the_locale():
     """No manifest entry may aggregate several catalog rows in sort order.
 
-    The reviewed A artifact hashed each table's constraints as a single
-    aggregate ordered by ``pg_get_constraintdef()`` -- a ``text`` expression
-    sorted under the *database* default collation. That is why actual A's
-    readiness only reproduces on a C-collated database (see
-    ``assert_c_collated_rolling_database``). B and C must stay strictly
-    per-object, so a deployment's locale can never change readiness.
+    Earlier A snapshots sorted aggregate constraint rows under the database
+    locale; the integrated A artifact pins that order to C. B and C instead
+    hash named objects individually, so cross-row order cannot affect a digest.
+    Keep that structure without requiring a particular deployment locale.
     """
     prefixes = ("table:", "column:", "constraint:", "index:", "trigger:", "function:")
     for name, manifest in (

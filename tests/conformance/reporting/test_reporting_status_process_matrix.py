@@ -215,7 +215,8 @@ async def test_two_real_database_clock_sweepers_at_every_exact_deadline(case, pr
         assert {(e.cause.previous_health, e.cause.health) for e in events} == {(previous, health)}
         assert all(e.fired_at >= at for e in events)
         assert len({e.notification_id for e in events}) == 2
-        assert not (await ReportingStatusSweeper(status).run_once(account_id="acct_a")).did_work
+        status_operation_1 = await ReportingStatusSweeper(status).run_once(account_id="acct_a")
+        assert not (status_operation_1).did_work
 
 
 @pytest.mark.parametrize(
@@ -251,7 +252,8 @@ async def test_real_clock_checkpoint_event_crash_restart_converges_once(crash):
         assert len(after) == 2
         if before:
             assert after == before
-        assert not (await ReportingStatusSweeper(status).run_once(account_id="acct_a")).did_work
+        status_operation_2 = await ReportingStatusSweeper(status).run_once(account_id="acct_a")
+        assert not (status_operation_2).did_work
 
 
 @case_deadline
@@ -289,4 +291,5 @@ async def test_consumer_process_crash_before_lifecycle_and_baseline_pre_highwate
             await child.finish()
         assert await status.baseline_ready(account_id="acct_a")
         assert not await status.outbox.list_events(account_id="acct_a")
-        assert not (await status.project_one(account_id="acct_a")).did_work
+        status_operation_3 = await status.project_one(account_id="acct_a")
+        assert not (status_operation_3).did_work

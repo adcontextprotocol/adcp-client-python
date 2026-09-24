@@ -35,7 +35,8 @@ async def main():
     async def pause(point):
         if settings.get("pause") == point:
             print(json.dumps({"point": point}), flush=True)
-            assert json.loads(await asyncio.to_thread(sys.stdin.readline))["continue"]
+            receipt_operation_1 = await asyncio.to_thread(sys.stdin.readline)
+            assert json.loads(receipt_operation_1)["continue"]
 
     class Connection(AsyncConnection):
         async def execute(self, query, params=None, **kwargs):

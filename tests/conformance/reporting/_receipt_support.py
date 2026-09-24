@@ -54,7 +54,7 @@ async def receipt_case(h, **kwargs):
 
 def request_for(s, *, key="receipt-batch-0001", **changes):
     return {
-        "adcp_version": "3.2-rc.3",
+        "adcp_version": "3.2-rc.6",
         "account": {"account_id": s.obligation.account_id},
         "idempotency_key": key,
         "receipts": [receipt_to_wire(s.receipt)],

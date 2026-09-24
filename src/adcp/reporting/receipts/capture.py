@@ -87,6 +87,7 @@ def decode_receipt_boundary(value: dict[str, Any]) -> ReportingReceiptBoundary:
                 tuple(decode_record(r) for r in value["reconciliation"]),
             )
     except (ValueError, TypeError, KeyError, ValidationError):
+        # Raise the closed history error below without exposing decoder exception context.
         pass
     if result is None or result.to_storage() != value:
         raise ReportingReceiptError("RECEIPT_HISTORY_CORRUPT")
