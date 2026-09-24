@@ -578,10 +578,11 @@ def generate_code() -> str:
                 lines.append("    _patch_field_annotation(")
                 lines.append(f"        {type_name},")
                 lines.append(f'        "{field}",')
-                lines.append(
-                    f"        Annotated[{target} | None, "
-                    f"BeforeValidator(coerce_to_enum({target}))],"
-                )
+                annotation = f"{target} | None, BeforeValidator(coerce_to_enum({target}))"
+                if len(f"        Annotated[{annotation}],") > 100:
+                    lines.extend(["        Annotated[", f"            {annotation}", "        ],"])
+                else:
+                    lines.append(f"        Annotated[{annotation}],")
                 lines.append("    )")
             elif c["type"] == "unique_enum_list":
                 target = get_symbol_name(c["target_class"])

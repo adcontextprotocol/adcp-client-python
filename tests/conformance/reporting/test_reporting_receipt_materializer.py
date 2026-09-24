@@ -39,9 +39,10 @@ async def test_receipt_store_atomic_finish_capture_ack_and_enabled_enqueue(backe
             await h.store.finish_materialization(lease, prepared=prepared, verified=verified)
         monkeypatch.undo()
         assert await h.image() == before
-        assert (
-            await h.store.finish_materialization(lease, prepared=prepared, verified=verified)
-        ).state == "verified"
+        receipt_operation_1 = await h.store.finish_materialization(
+            lease, prepared=prepared, verified=verified
+        )
+        assert (receipt_operation_1).state == "verified"
         captured = await h.store.read_materializer_boundaries(caller=case.scope.principal)
         assert len(captured) == 1 and captured[0].account_sequence == 1
         assert (await h.queue())[1] == ("quarantined",)

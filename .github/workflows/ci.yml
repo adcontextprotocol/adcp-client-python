@@ -55,6 +55,9 @@ jobs:
             .github/workflows/slash-command-dispatch.yml
             .github/workflows/ai-review.yml
             .github/workflows/release-please.yml
+            .github/workflows/release-proposal.yml
+            .github/workflows/release-acceptance.yml
+            .github/workflows/release-publish.yml
           version: 1.29.0
           min-severity: high
           min-confidence: high
@@ -126,17 +129,15 @@ jobs:
         run: python scripts/reporting_test_harness.py pytest tests/ -v -ra --cov=src/adcp --cov-report=term-missing
 
   pg-conformance:
-    name: Postgres conformance tests (Postgres 16)
+    name: Postgres conformance tests (Postgres 16, ${{ matrix.lane }})
     runs-on: ubuntu-latest
-    # 15 minutes no longer covers this job. Pinning the cluster to C collation
-    # made the frozen-A rolling tests do their real subprocess work instead of
-    # failing fast on a locale mismatch, and that budget had to also absorb
-    # checkout, the A baseline fetch, Python setup and a [dev,pg] install before
-    # the suite even starts. Exact-head local execution is 1,486 passed in
-    # 9m49s, so 30 minutes (already this workflow's matrix-job budget) leaves
-    # real headroom for runner variance instead of trading a growing serial
-    # matrix for flaky timing.
-    timeout-minutes: 30
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [core, process]
     services:
       postgres:
         # CI-local ephemeral database. POSTGRES_HOST_AUTH_METHOD=trust
@@ -147,10 +148,6 @@ jobs:
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: adcp_test
-          # This job runs frozen-A readiness too (reporting activity rolling
-          # tests), and A's readiness digest is collation-sensitive. Keep this
-          # in step with pg-reporting-status: see assert_c_collated_rolling_database.
-          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
         ports:
           - 5432:5432
         options: >-
@@ -164,7 +161,7 @@ jobs:
 
       - name: Fetch reviewed reporting baseline for rolling binary tests
         timeout-minutes: 1
-        run: git fetch --no-tags --depth=1 origin 21bf443e7d850d1800ec8a6f2e4abec1c8f85541
+        run: git fetch --no-tags --depth=1 origin 17ee407ae3978c8a2bb54437287afbf9dafb8130
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6
@@ -179,48 +176,84 @@ jobs:
           pip install -e ".[dev,pg]"
 
       - name: Run Postgres conformance tests
-        # Bound the suite itself below the job budget so a genuine hang is
-        # reported against this step rather than consuming the whole job.
-        timeout-minutes: 25
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_test
+          PG_LANE: ${{ matrix.lane }}
         run: |
-          python scripts/reporting_test_harness.py pytest \
-                 tests/conformance/signing/test_pg_replay_store.py \
-                 tests/conformance/signing/test_pg_replay_store_e2e.py \
-                 tests/conformance/decisioning/test_pg_buyer_agent_registry.py \
-                 tests/conformance/decisioning/test_pg_idempotency_backend.py \
-                 tests/conformance/decisioning/test_pg_task_webhook_outbox.py \
-                 tests/conformance/decisioning/test_pg_reference_workflow_queue.py \
-                 tests/conformance/reporting/ \
-                 --ignore-glob='tests/conformance/reporting/test_reporting_status_*.py' \
-                 --ignore-glob='tests/conformance/reporting/test_reporting_receipt_*.py' \
-                 --ignore-glob='tests/conformance/reporting/test_reporting_feed_*.py' \
-                 --ignore=tests/conformance/reporting/test_reporting_materializer_rolling.py \
-                 --ignore=tests/conformance/reporting/test_reporting_materializer_process.py \
-                 --ignore=tests/conformance/reporting/test_reporting_materializer_migration.py \
-                 --ignore=tests/conformance/reporting/test_reporting_materializer_installed_pg.py \
-                 -v -ra
+          # Keep every case and its deadline. Separate process-crash controls
+          # so setup and teardown also fit inside each unchanged job budget.
+          case "$PG_LANE" in
+            core)
+              python scripts/reporting_test_harness.py pytest tests/conformance/signing/test_pg_replay_store.py \
+                     tests/conformance/signing/test_pg_replay_store_e2e.py \
+                     tests/conformance/decisioning/test_pg_buyer_agent_registry.py \
+                     tests/conformance/decisioning/test_pg_idempotency_backend.py \
+                     tests/conformance/decisioning/test_pg_task_webhook_outbox.py \
+                     tests/conformance/decisioning/test_pg_reference_workflow_queue.py \
+                     tests/conformance/reporting/ \
+                     --ignore=tests/conformance/reporting/test_reporting_notification_process_matrix.py \
+                     --ignore-glob='tests/conformance/reporting/test_reporting_status_*.py' \
+                     --ignore=tests/conformance/reporting/test_reporting_materializer_rolling.py \
+                     --ignore=tests/conformance/reporting/test_reporting_materializer_process.py \
+                     --ignore=tests/conformance/reporting/test_reporting_materializer_migration.py \
+                     --ignore=tests/conformance/reporting/test_reporting_materializer_installed_pg.py \
+                     --ignore-glob='tests/conformance/reporting/test_reporting_receipt_*.py' \
+                     --ignore-glob='tests/conformance/reporting/test_reporting_feed_*.py' \
+                     -v -ra
+              ;;
+            process)
+              python scripts/reporting_test_harness.py pytest tests/conformance/reporting/test_reporting_notification_process_matrix.py -v -ra
+              ;;
+            *)
+              echo "Unknown Postgres conformance lane"
+              exit 1
+              ;;
+          esac
+
+  pg-conformance-required-gate:
+    name: Postgres conformance tests (Postgres 16)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    needs: [pg-conformance, pg-reporting-status, pg-reporting-materializer, pg-reporting-receipts, pg-reporting-receipt-compatibility, pg-reporting-feed, pg-reporting-feed-compatibility, pg-reporting-feed-installed]
+    if: ${{ always() }}
+    steps:
+      - name: Require every Postgres conformance lane
+        env:
+          PG_RESULT: ${{ needs.pg-conformance.result }}
+          STATUS_RESULT: ${{ needs.pg-reporting-status.result }}
+          MATERIALIZER_RESULT: ${{ needs.pg-reporting-materializer.result }}
+          RECEIPTS_RESULT: ${{ needs.pg-reporting-receipts.result }}
+          RECEIPT_COMPATIBILITY_RESULT: ${{ needs.pg-reporting-receipt-compatibility.result }}
+          FEED_RESULT: ${{ needs.pg-reporting-feed.result }}
+          FEED_COMPATIBILITY_RESULT: ${{ needs.pg-reporting-feed-compatibility.result }}
+          FEED_INSTALLED_RESULT: ${{ needs.pg-reporting-feed-installed.result }}
+        run: |
+          if [ "$PG_RESULT" != "success" ] || [ "$STATUS_RESULT" != "success" ] || [ "$MATERIALIZER_RESULT" != "success" ] || [ "$RECEIPTS_RESULT" != "success" ] || [ "$RECEIPT_COMPATIBILITY_RESULT" != "success" ] || [ "$FEED_RESULT" != "success" ] || [ "$FEED_COMPATIBILITY_RESULT" != "success" ] || [ "$FEED_INSTALLED_RESULT" != "success" ]; then
+            echo "Postgres conformance matrix result: $PG_RESULT"
+            echo "Reporting status conformance result: $STATUS_RESULT"
+            echo "Durable materializer conformance result: $MATERIALIZER_RESULT"
+            echo "Authenticated receipt conformance result: $RECEIPTS_RESULT"
+            echo "Receipt rolling compatibility result: $RECEIPT_COMPATIBILITY_RESULT"
+            echo "Frozen feed conformance result: $FEED_RESULT"
+            echo "Feed rolling compatibility result: $FEED_COMPATIBILITY_RESULT"
+            echo "Installed frozen feed result: $FEED_INSTALLED_RESULT"
+            exit 1
+          fi
+          echo "All Postgres conformance lanes passed"
 
   pg-reporting-status:
     name: Reporting status conformance (Postgres 16)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: adcp_status_test
-          # Every job that executes a frozen A/B artifact must pin this. A's
-          # readiness digest aggregates pg_get_constraintdef() text ordered
-          # under the database's default collation, so A's own manifest only
-          # reproduces on a C-collated database; the image otherwise initdb's
-          # en_US.utf8 and old A mis-classifies before any migration. Every SDK
-          # identity column is TEXT COLLATE "C", so C is the contract.
-          # --encoding is required: a bare C locale would default to SQL_ASCII.
-          # assert_c_collated_rolling_database fails loudly on workflow drift.
-          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
         ports:
           - 5432:5432
         options: >-
@@ -235,9 +268,9 @@ jobs:
         timeout-minutes: 1
         run: |
           git fetch --no-tags --depth=1 origin \
-            21bf443e7d850d1800ec8a6f2e4abec1c8f85541 \
-            198d50e61c74fb82aedbf2c77e06a0e200b91db6 \
-            ea150fabd5ad90e3abf93f89729d2919f1c61798
+            17ee407ae3978c8a2bb54437287afbf9dafb8130 \
+            0f34c666ac1961e9832fce43ef0ef6937b3c1dde \
+            967b6e286301d7e5d089aea6fdbb90bea8ee5a16
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6
@@ -265,13 +298,14 @@ jobs:
     # cells approach twenty minutes locally; allow runner variance and retain
     # five minutes outside the suite for setup and cleanup.
     timeout-minutes: 35
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: adcp_materializer_test
-          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
         ports:
           - 5432:5432
         options: >-
@@ -288,10 +322,10 @@ jobs:
             3e76aa54623529a3dda01cd690b8a5c287c75641 \
             3c405a21f978ed9d3208611bb4a7a8434a056933 \
             037de4ac822ecefb2f95d32c15c297fb4c45d683 \
-            21bf443e7d850d1800ec8a6f2e4abec1c8f85541 \
-            198d50e61c74fb82aedbf2c77e06a0e200b91db6 \
-            ea150fabd5ad90e3abf93f89729d2919f1c61798 \
-            1c91311ec28d25506d5db43f59d0c34936ecb8f7
+            17ee407ae3978c8a2bb54437287afbf9dafb8130 \
+            0f34c666ac1961e9832fce43ef0ef6937b3c1dde \
+            967b6e286301d7e5d089aea6fdbb90bea8ee5a16 \
+            5487f2bdef23c5102118b305be9e868228f6ce61
       - uses: actions/setup-python@v6
         id: materializer-python310
         with:
@@ -331,13 +365,14 @@ jobs:
     # Separate databases avoid shared account advisory locks. Keep five minutes
     # outside the bounded suite for checkout, installations and cleanup.
     timeout-minutes: 35
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: adcp_receipts_test
-          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
         ports:
           - 5432:5432
         options: >-
@@ -365,15 +400,20 @@ jobs:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_receipts_test
           ADCP_PYTHON310: ${{ steps.receipt-python310.outputs.python-path }}
         run: |
+          # Explicit pytest paths bypass --ignore; exclude rolling before invocation.
+          shopt -s nullglob
+          receipt_tests=()
+          for test_file in tests/conformance/reporting/test_reporting_receipt_*.py; do
+            if [[ "$test_file" != tests/conformance/reporting/test_reporting_receipt_rolling.py ]]; then
+              receipt_tests+=("$test_file")
+            fi
+          done
+          if (( ${#receipt_tests[@]} == 0 )); then
+            echo "No receipt test files selected" >&2
+            exit 1
+          fi
           python scripts/reporting_test_harness.py pytest \
-            tests/conformance/reporting/test_reporting_receipt_batches.py \
-            tests/conformance/reporting/test_reporting_receipt_graph.py \
-            tests/conformance/reporting/test_reporting_receipt_transactions.py \
-            tests/conformance/reporting/test_reporting_receipt_transports.py \
-            tests/conformance/reporting/test_reporting_receipt_materializer.py \
-            tests/conformance/reporting/test_reporting_receipt_migration.py \
-            tests/conformance/reporting/test_reporting_receipt_process.py \
-            tests/conformance/reporting/test_reporting_receipt_installed_pg.py \
+            "${receipt_tests[@]}" \
             -v -s -ra | tee pg-reporting-receipts-evidence.log
       - name: Preserve commands, counts, installed provenance and skip reasons
         if: always()
@@ -389,13 +429,14 @@ jobs:
     # Separate databases avoid shared account advisory locks. Keep five minutes
     # outside the bounded suite for checkout, installations and cleanup.
     timeout-minutes: 35
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: adcp_receipt_rolling_test
-          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
         ports:
           - 5432:5432
         options: >-
@@ -412,11 +453,11 @@ jobs:
             3e76aa54623529a3dda01cd690b8a5c287c75641 \
             3c405a21f978ed9d3208611bb4a7a8434a056933 \
             037de4ac822ecefb2f95d32c15c297fb4c45d683 \
-            21bf443e7d850d1800ec8a6f2e4abec1c8f85541 \
-            198d50e61c74fb82aedbf2c77e06a0e200b91db6 \
-            ea150fabd5ad90e3abf93f89729d2919f1c61798 \
-            1c91311ec28d25506d5db43f59d0c34936ecb8f7 \
-            8e18ca12b9a0c3750f80aa822058c02982ab3e52
+            17ee407ae3978c8a2bb54437287afbf9dafb8130 \
+            0f34c666ac1961e9832fce43ef0ef6937b3c1dde \
+            967b6e286301d7e5d089aea6fdbb90bea8ee5a16 \
+            5487f2bdef23c5102118b305be9e868228f6ce61 \
+            3fd62121c96a074e3ea458c30c5224d6a586f169
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -687,6 +728,7 @@ jobs:
         working-directory: /tmp
         run: |
           python - <<'PY'
+          import json
           from importlib.resources import files
 
           from adcp import get_adcp_spec_version
@@ -707,7 +749,11 @@ jobs:
               if child.is_dir()
           }
           assert packaged_versions == {"2.5", "3.0", "3.1", current_bundle}
-          assert len(STANDARD_ERROR_CODES) == 120
+          error_schema = json.loads(
+              (schema_root / current_bundle / "enums/error-code.json").read_text(encoding="utf-8")
+          )
+          # NOT_SUPPORTED is the SDK's explicit extension to the pinned vocabulary.
+          assert set(STANDARD_ERROR_CODES) == {*error_schema["enum"], "NOT_SUPPORTED"}
           assert adcp_error("AUTH_MISSING", "x")["errors"][0]["recovery"] == "correctable"
           assert make_versioned_base("3.1", "ListCreativesRequest")
           assert ReportingCapabilities.__name__ == "ReportingCapabilities"

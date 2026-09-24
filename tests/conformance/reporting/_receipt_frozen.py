@@ -147,8 +147,10 @@ async def main(settings):
                 failure_code="WRITE_FAILED",
                 completed_at=now,
             )
-            assert (await store.commit_materialization(outcome))[1]
-            assert not (await store.commit_materialization(outcome))[1]
+            receipt_operation_1 = await store.commit_materialization(outcome)
+            assert (receipt_operation_1)[1]
+            receipt_operation_2 = await store.commit_materialization(outcome)
+            assert not (receipt_operation_2)[1]
             read = await store.get_materialization(outcome.key)
             assert read is not None and read.outcome == outcome
             ordinary_materializer = True
@@ -245,7 +247,8 @@ async def main(settings):
                 )
                 while await worker.expand_one(account_id=account):
                     assert len(seen) <= len(events)
-                assert not await worker.deliver_one(account_id=account)
+                receipt_operation_3 = await worker.deliver_one(account_id=account)
+                assert not receipt_operation_3
                 assert await outbox.list_events(account_id=account) == events
                 workers[name] = len(seen)
             if settings["phase"] == "before":

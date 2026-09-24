@@ -286,7 +286,7 @@ def test_mcp_tools_list_uses_pinned_31_schemas() -> None:
 
 
 def test_mcp_tools_list_uses_pinned_32_schemas() -> None:
-    tools = _tool_map("3.2-rc.3")
+    tools = _tool_map("3.2-rc.6")
     properties = tools["list_creatives"]["inputSchema"]["properties"]
 
     assert "assignment_projection" in properties
@@ -309,9 +309,41 @@ def test_mcp_tools_list_keeps_non_bundled_tools() -> None:
 def test_mcp_32_uses_compact_transport_schemas() -> None:
     import json
 
-    tools = _tool_map("3.2-rc.3")
+    tools = _tool_map("3.2-rc.6")
     encoded = json.dumps(tools["list_creatives"])
     assert len(encoded) < 300_000
+
+
+def test_absolute_self_reference_keeps_one_root_and_recursive_validation(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    from adcp.validation.schema_loader import _self_contained_schema
+
+    reference = "https://adcontextprotocol.org/schemas/3.2.0-rc.6/probe.json#/$defs/node"
+    schema = {
+        "type": "object",
+        "properties": {"head": {"$ref": reference}},
+        "$defs": {
+            "node": {
+                "type": "object",
+                "properties": {
+                    "value": {"type": "integer"},
+                    "next": {"anyOf": [{"type": "null"}, {"$ref": reference}]},
+                },
+                "required": ["value"],
+                "additionalProperties": False,
+            }
+        },
+    }
+    source = tmp_path / "probe.json"
+    source.write_text(json.dumps(schema))
+    state = SimpleNamespace(root=SimpleNamespace(root=tmp_path))
+    portable = _self_contained_schema(state, source, schema)
+    assert set(portable["$defs"]) == {"node"}
+    assert portable["properties"]["head"]["$ref"] == "#/$defs/node"
+    validator = validator_for(portable)(portable)
+    assert not list(validator.iter_errors({"head": {"value": 1, "next": {"value": 2}}}))
+    assert list(validator.iter_errors({"head": {"value": 1, "next": {"value": "bad"}}}))
 
 
 def _contains_nonlocal_ref(value: object) -> bool:
@@ -327,7 +359,7 @@ def _contains_nonlocal_ref(value: object) -> bool:
     return False
 
 
-@pytest.mark.parametrize("version", ["3.0", "3.1", "3.2-beta.4"])
+@pytest.mark.parametrize("version", ["3.0", "3.1", "3.2-beta.4", "3.2.0-rc.6"])
 def test_pinned_mcp_inventory_is_portable_and_context_bounded(version: str) -> None:
     tools = get_tools_for_handler(ADCPHandler, advertise_all=True, adcp_version=version)
     assert not _contains_nonlocal_ref(tools)
@@ -337,15 +369,16 @@ def test_pinned_mcp_inventory_is_portable_and_context_bounded(version: str) -> N
     validator_for(schema).check_schema(schema)
 
 
-def test_mcp_compaction_preserves_deep_validation() -> None:
+@pytest.mark.parametrize("version", ["3.1", "3.2.0-rc.6"])
+def test_mcp_compaction_preserves_deep_validation(version: str) -> None:
     payload = {
         "account": {
             "brand": {"domain": 123},
             "operator": "agency.example",
         }
     }
-    canonical = get_validator("list_accounts", "request", version="3.1")
-    mcp_schema = get_mcp_schema("list_accounts", "request", version="3.1")
+    canonical = get_validator("list_accounts", "request", version=version)
+    mcp_schema = get_mcp_schema("list_accounts", "request", version=version)
     assert canonical is not None and mcp_schema is not None
     mcp_validator = validator_for(mcp_schema)(mcp_schema)
     assert list(canonical.iter_errors(payload))

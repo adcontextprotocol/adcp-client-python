@@ -120,10 +120,10 @@ async def test_installed_receipt_sql_crash_and_mounted_replay(installed_receipts
         )
         assert done["result"]["results"][0]["receipt"] == receipt_to_wire(original)
         assert done["origins"] == ready["origins"]
-        assert (
-            await h.store.ingest_receipt_batch(request, caller=s.binding.principal)
-            == done["result"]
+        receipt_operation_1 = await h.store.ingest_receipt_batch(
+            request, caller=s.binding.principal
         )
+        assert receipt_operation_1 == done["result"]
         assert len(await h.store.read_receipt_boundaries(caller=s.binding.principal)) == 2
         assert await h.queue() == ((), ())
         print(

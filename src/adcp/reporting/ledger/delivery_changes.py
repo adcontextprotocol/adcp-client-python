@@ -141,6 +141,7 @@ def _decode_position(
         if type(value) is str and 0 < len(value) <= 4096:
             decoded = decode_cursor(value)
     except (LedgerConflictError, TypeError, ValueError):
+        # Reject below without retaining the decoder's exception context.
         pass
     if (
         decoded is None
@@ -197,6 +198,7 @@ def validate_boundary(
             )
             valid = boundary == expected and boundary.max_sequence <= maximum
     except (ValueError, TypeError, LedgerConflictError):
+        # Keep the boundary invalid and classify outside the exception handler.
         pass
     if not valid:
         raise LedgerConflictError("INVALID_CHECKPOINT", "reconciliation boundary is unavailable")
@@ -256,6 +258,7 @@ def read_position(
                 filters=filters,
             )
         except (ValueError, LedgerConflictError):
+            # Reject below without exposing the parse or validation exception.
             pass
     if boundary is None or position["snapshot"] != boundary.snapshot_id:
         raise LedgerConflictError("INVALID_CHECKPOINT", "invalid reconciliation boundary")

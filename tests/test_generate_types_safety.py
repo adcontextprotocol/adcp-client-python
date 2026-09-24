@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from collections.abc import Callable
@@ -10,6 +11,41 @@ from pathlib import Path
 import pytest
 
 from scripts import generate_types
+
+
+@pytest.mark.parametrize("present", [True, False])
+def test_canonical_references_use_only_the_pinned_cache(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, present: bool
+) -> None:
+    """Canonical refs work without a published CDN and fail closed on a cache miss."""
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    if present:
+        (cache / "choice.json").write_text(json.dumps({"type": "string", "enum": ["local"]}))
+    monkeypatch.setattr(generate_types, "SCHEMAS_DIR", cache)
+    monkeypatch.setattr(generate_types, "_BUNDLE_KEY", "3.2.0-rc.6")
+    source = tmp_path / "request.json"
+    source.write_text(
+        json.dumps(
+            {
+                "title": "Request",
+                "type": "object",
+                "properties": {
+                    "choice": {
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.0-rc.6/choice.json"
+                    }
+                },
+            }
+        )
+    )
+    output = tmp_path / "request.py"
+    result = generate_types._run_datamodel_codegen(source, output)
+    if present:
+        assert result.returncode == 0, result.stderr
+        assert "local" in output.read_text()
+    else:
+        assert result.returncode != 0
+        assert "$ref local file not found" in result.stderr
 
 
 def test_restore_unchanged_file_preserves_prior_generated_timestamp(tmp_path: Path) -> None:

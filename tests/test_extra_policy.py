@@ -252,13 +252,21 @@ class TestGeneratedCodeMatchesSchemas:
     """CI guard: generated extra='allow' must be backed by schema open-payload policy."""
 
     @staticmethod
-    def _schema_allows_extra(obj: Any, all_schemas: dict[str, Any]) -> bool:
+    def _schema_allows_extra(
+        obj: Any, all_schemas: dict[str, Any], seen: set[int] | None = None
+    ) -> bool:
         """Check if a schema allows extra fields, following $ref chains.
 
         Recursively walks the full schema tree. This is safe because
         non-structural keys (description, title, examples) contain strings
         or simple arrays, never dicts with additionalProperties.
         """
+        if seen is None:
+            seen = set()
+        if isinstance(obj, (dict, list)):
+            if id(obj) in seen:
+                return False
+            seen.add(id(obj))
         if isinstance(obj, dict):
             open_payload = obj.get("x-adcp-open-payload")
             if open_payload is False:
@@ -285,17 +293,17 @@ class TestGeneratedCodeMatchesSchemas:
                         or key.endswith("/" + ref_stripped)
                     ):
                         if TestGeneratedCodeMatchesSchemas._schema_allows_extra(
-                            all_schemas[key], all_schemas
+                            all_schemas[key], all_schemas, seen
                         ):
                             return True
             return any(
-                TestGeneratedCodeMatchesSchemas._schema_allows_extra(v, all_schemas)
+                TestGeneratedCodeMatchesSchemas._schema_allows_extra(v, all_schemas, seen)
                 for k, v in obj.items()
                 if k != "$schema"
             )
         if isinstance(obj, list):
             return any(
-                TestGeneratedCodeMatchesSchemas._schema_allows_extra(item, all_schemas)
+                TestGeneratedCodeMatchesSchemas._schema_allows_extra(item, all_schemas, seen)
                 for item in obj
             )
         return False
@@ -344,6 +352,15 @@ class TestGeneratedCodeMatchesSchemas:
     def test_open_payload_true_allows_extra_even_without_additional_properties(self) -> None:
         """x-adcp-open-payload is an authoritative open-payload signal."""
         assert self._schema_allows_extra({"x-adcp-open-payload": True}, {})
+
+    def test_recursive_references_do_not_hide_reachable_open_payloads(self) -> None:
+        schemas = {
+            "a.json": {"$ref": "b.json"},
+            "b.json": {"$ref": "a.json", "properties": {"extension": {"type": "string"}}},
+        }
+        assert not self._schema_allows_extra(schemas["a.json"], schemas)
+        schemas["b.json"]["properties"]["extension"] = {"additionalProperties": True}
+        assert self._schema_allows_extra(schemas["a.json"], schemas)
 
     def test_typed_additional_properties_allows_extra(self) -> None:
         """A schema-valued additionalProperties keyword is an open object contract."""

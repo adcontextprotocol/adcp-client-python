@@ -959,6 +959,24 @@ class TestHandleTestController:
                 {"arm": "submitted", "task_id": "task-signals"},
             ),
             (
+                "force_media_buy_purge",
+                {"media_buy_id": "buy-purged"},
+                None,
+                {"media_buy_id": "buy-purged"},
+            ),
+            (
+                "force_get_creative_features_arm",
+                {"arm": "submitted", "task_id": "task-features", "evaluation_id": "eval-1"},
+                {"account_id": "acct-1", "sandbox": True},
+                {"evaluation_id": "eval-1"},
+            ),
+            (
+                "force_get_creative_features_arm",
+                {"arm": "completed", "result": {"evaluation_id": "eval-1", "results": []}},
+                {"account_id": "acct-1", "sandbox": True},
+                {"result": {"evaluation_id": "eval-1", "results": []}},
+            ),
+            (
                 "seed_account",
                 {"account_id": "acct-seed", "fixture": {"status": "active"}},
                 None,
@@ -1098,6 +1116,9 @@ class TestHandleTestController:
             ("expire_account_change_cursor", {}),
             ("force_get_products_arm", {"arm": "rejected"}),
             ("force_get_signals_arm", {"arm": "submitted"}),
+            ("force_media_buy_purge", {}),
+            ("force_get_creative_features_arm", {"arm": "submitted", "task_id": "t"}),
+            ("force_get_creative_features_arm", {"arm": "completed", "result": {}}),
             (
                 "catalog_item_availability_probe",
                 {"operation": "query_eligibility", "catalog_id": "cat-1", "item_id": "item-1"},

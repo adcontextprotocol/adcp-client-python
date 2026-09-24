@@ -27,7 +27,8 @@ async def test_core_records_do_not_create_managed_work_capture_or_readiness(back
         await h.store.put_configuration(config)
         await h.store.commit_obligation(obligation)
         await h.store.commit_revision(revision, rows)
-        assert (await h.store.claim_materialization(keys=())).state == "idle"
+        materializer_operation_1 = await h.store.claim_materialization(keys=())
+        assert (materializer_operation_1).state == "idle"
         assert not await h.works() and await h.queue() == ((), ())
 
 
@@ -49,7 +50,8 @@ async def test_durable_verified_success_still_cannot_advertise_unactivated_readi
 
     async with durable_harness(backend, notifications=True) as h:
         case = await durable_case(h.store)
-        assert (await case.service().run_once()).state == "verified"
+        materializer_operation_2 = await case.service().run_once()
+        assert (materializer_operation_2).state == "verified"
         outbox = (
             PgReportingOutbox(pool=h.pool)
             if h.pool is not None
@@ -113,9 +115,8 @@ async def test_materializer_store_closes_core_advertisement_until_b24_admits_it(
             reviewed_outbox = PgReportingOutbox(pool=h.pool)
             outbox = PgReportingOutbox(pool=h.pool)
         # The reviewed store still advertises the Core notification.
-        assert (await advertise(reviewed, reviewed_outbox))["ledger_notification"] == (
-            "reporting.ledger_changed"
-        )
+        materializer_operation_3 = await advertise(reviewed, reviewed_outbox)
+        assert (materializer_operation_3)["ledger_notification"] == ("reporting.ledger_changed")
         with pytest.raises(ReportingNotificationError, match="notification_chain_unready"):
             await advertise(h.store, outbox)
 
@@ -152,10 +153,10 @@ async def test_verified_finish_captures_private_inputs_acks_and_quarantines_exac
         assert len(events) == int(notifications)
         assert expansions == (("quarantined",) if notifications else ())
         assert (await h.works())[0][1] == "acked"
-        assert (
-            await h.store.finish_materialization(lease, prepared=prepared, verified=evidence)
-            == result
+        materializer_operation_4 = await h.store.finish_materialization(
+            lease, prepared=prepared, verified=evidence
         )
+        assert materializer_operation_4 == result
         assert await h.queue() == (events, expansions)
         assert await h.store.read_materializer_boundaries(caller=case.scope.principal) == boundaries
 
@@ -163,8 +164,10 @@ async def test_verified_finish_captures_private_inputs_acks_and_quarantines_exac
 async def test_service_owns_reservation_verification_and_finish(backend):
     async with durable_harness(backend) as h:
         case = await durable_case(h.store)
-        assert (await case.service().run_once()).state == "verified"
-        assert (await case.service().run_once()).state in {"idle", "discovered"}
+        materializer_operation_5 = await case.service().run_once()
+        assert (materializer_operation_5).state == "verified"
+        materializer_operation_6 = await case.service().run_once()
+        assert (materializer_operation_6).state in {"idle", "discovered"}
         assert case.writer.write_effects == 1
 
 
@@ -221,14 +224,16 @@ async def test_unknown_effect_resumes_same_attempt_external_identity_and_rejects
         assert second.attempt == first.attempt
         assert second.request.external_id == first.request.external_id
         assert second.token != first.token
-        assert (
-            await h.store.finish_materialization(first, prepared=prepared, verified=evidence)
-        ).state == "pending"
+        materializer_operation_7 = await h.store.finish_materialization(
+            first, prepared=prepared, verified=evidence
+        )
+        assert (materializer_operation_7).state == "pending"
         prepared, evidence = await case.verified(second)
         assert case.writer.write_effects == 1
-        assert (
-            await h.store.finish_materialization(second, prepared=prepared, verified=evidence)
-        ).state == "verified"
+        materializer_operation_8 = await h.store.finish_materialization(
+            second, prepared=prepared, verified=evidence
+        )
+        assert (materializer_operation_8).state == "verified"
 
 
 @pytest.mark.parametrize("change", ["official", "unreadable", "deactivated"])
@@ -277,7 +282,8 @@ async def test_known_service_failure_allows_next_attempt_but_pending_does_not(ba
     async with durable_harness(backend) as h:
         case = await durable_case(h.store)
         first = await case.claim()
-        assert not isinstance(await case.claim(), ReportingMaterializerLease)
+        materializer_operation_9 = await case.claim()
+        assert not isinstance(materializer_operation_9, ReportingMaterializerLease)
         await h.store.finish_materialization(
             first, error=ReportingWriterFailure("WRITE_FAILED", "new_attempt", "not_started")
         )
@@ -327,9 +333,10 @@ async def test_prior_lease_readback_cannot_finish_a_new_fence_in_the_same_proces
             await h.store.finish_materialization(resumed, prepared=prepared, verified=proof)
         assert not await case.outcomes() and await h.queue() == ((), ())
         prepared, proof = await case.verified(resumed)
-        assert (
-            await h.store.finish_materialization(resumed, prepared=prepared, verified=proof)
-        ).state == "verified"
+        materializer_operation_10 = await h.store.finish_materialization(
+            resumed, prepared=prepared, verified=proof
+        )
+        assert (materializer_operation_10).state == "verified"
         assert case.writer.write_effects == 1
 
 
@@ -419,6 +426,8 @@ async def test_legacy_pending_requires_explicit_exact_external_history_import(ba
 async def test_finality_and_late_delivery_binding(backend, required, finality, expected):
     async with durable_harness(backend) as h:
         case = await durable_case(h.store, required=required, finality=finality, binding=False)
-        assert (await case.service().run_once()).state == "idle"
+        materializer_operation_11 = await case.service().run_once()
+        assert (materializer_operation_11).state == "idle"
         await h.store.put_destination_binding(case.binding)
-        assert (await case.service().run_once()).state == expected
+        materializer_operation_12 = await case.service().run_once()
+        assert (materializer_operation_12).state == expected
