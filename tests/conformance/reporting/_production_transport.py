@@ -9,6 +9,7 @@ class MountedProduction(MountedReceipts):
     def __init__(self, h):
         super().__init__(h)
         self.handler = h.production.handler
+        self.version = self.handler.get_adcp_version()
 
     def authorize(self, s, *, token="token-one"):
         super().authorize(s, token=token)
@@ -18,7 +19,7 @@ class MountedProduction(MountedReceipts):
         return await call_next()
 
     async def call(self, client, task, request, *, transport="mcp", token="token-one"):
-        request = {"adcp_version": "3.2-rc.3", **request}
+        request = {"adcp_version": self.version, **request}
 
         def route(wire):
             value = json.loads(wire)

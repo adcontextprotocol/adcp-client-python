@@ -675,6 +675,8 @@ jobs:
   pg-reporting-production:
     name: Production reporting status, ownership and notification contracts
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 35
     services:
       postgres:
@@ -682,7 +684,6 @@ jobs:
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: adcp_production_test
-          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
         ports: ["5432:5432"]
         options: >-
           --health-cmd pg_isready --health-interval 5s
@@ -702,6 +703,8 @@ jobs:
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_production_test
         run: |
+          # Explicit pytest paths bypass --ignore; preselect and reject empty globs.
+          shopt -s nullglob
           source_tests=()
           for test in tests/conformance/reporting/test_reporting_production*.py; do
             case "$test" in
@@ -709,9 +712,14 @@ jobs:
             esac
             source_tests+=("$test")
           done
+          projection_tests=(tests/conformance/reporting/test_reporting_projection*.py)
+          if (( ${#source_tests[@]} == 0 || ${#projection_tests[@]} == 0 )); then
+            echo "Production or projection test selection is empty"
+            exit 1
+          fi
           python scripts/reporting_test_harness.py pytest \
             "${source_tests[@]}" \
-            tests/conformance/reporting/test_reporting_projection*.py \
+            "${projection_tests[@]}" \
             tests/conformance/reporting/test_reporting_tier_projection.py \
             tests/conformance/reporting/test_reporting_schedule_schema.py \
             tests/test_reporting_capability_models.py \
@@ -730,6 +738,8 @@ jobs:
   pg-reporting-production-installed:
     name: Installed production reporting (${{ matrix.cell }}, Python 3.10)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 40
     strategy:
       fail-fast: false
@@ -741,7 +751,6 @@ jobs:
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: adcp_production_installed_test
-          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
         ports: ["5432:5432"]
         options: >-
           --health-cmd pg_isready --health-interval 5s
@@ -784,6 +793,8 @@ jobs:
   pg-reporting-production-compatibility:
     name: B2.3 and hardening to installed B2.4 activation and restart
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 50
     services:
       postgres:
@@ -791,15 +802,15 @@ jobs:
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: adcp_production_rolling_test
-          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
         ports: ["5432:5432"]
         options: >-
           --health-cmd pg_isready --health-interval 5s
           --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v6
-      - name: Fetch both independently approved artifacts
-        run: git fetch --no-tags origin 50e35f0ae3540f19b40e8fc460f5870dfe018bf9 a09878f67ab397a4b51b3314e3e8a5e87cf96da5
+      - name: Fetch integrated feed and hardening comparison artifacts
+        timeout-minutes: 1
+        run: git fetch --no-tags origin 2d777ace7b4bf8be519ce0abd4fd0a25ed4f1da7 e16eb8cf3074cabd45aab42840950f05ad6d2b43
       - uses: actions/setup-python@v6
         id: production-python310
         with:

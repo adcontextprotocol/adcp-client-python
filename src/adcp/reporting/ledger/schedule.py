@@ -23,13 +23,17 @@ from adcp.reporting.ledger.models import (
 
 
 def committed_periods(
-    configuration: ReportingConfiguration, *, near: datetime | None = None
+    configuration: ReportingConfiguration,
+    *,
+    near: datetime | None = None,
+    near_start: datetime | None = None,
 ) -> Iterator[ReportingPeriodBoundary]:
     """Yield full committed periods, optionally seeking near an expected-at time.
 
     ``near`` is an optimization, not a filter: the caller still compares exact
     instants. Two predecessor civil slots retain the period containing the
     requested instant, including its DST fold. No wall clock is consulted.
+    ``near_start`` seeks around a period start independently of its SLA.
     """
     activated = configuration.activated_at
     if activated is None:
@@ -37,11 +41,14 @@ def committed_periods(
     schedule, timezone = configuration.schedule, configuration.account_timezone
     zone, duration, anchor = _schedule_clock(schedule, timezone)
     ordinal = first_ordinal_after(schedule, account_timezone=timezone, activated_at=activated)
-    if near is not None:
+    seek = near_start
+    if seek is None and near is not None:
+        seek = near - iso_duration_to_timedelta(schedule.delivery_sla)
+    if seek is not None:
         candidate = first_ordinal_after(
             schedule,
             account_timezone=timezone,
-            activated_at=near - iso_duration_to_timedelta(schedule.delivery_sla),
+            activated_at=seek,
         )
         ordinal = max(ordinal, candidate - 2)
     while True:
@@ -92,4 +99,23 @@ def next_reporting_expectation(
                 continue
             future.append(period.expected_at)
             break
+    return min(future) if future else None
+
+
+def next_reporting_period_start(
+    configurations: Sequence[ReportingConfiguration], *, as_of: datetime
+) -> datetime | None:
+    """rc.6 complete-summary forecast outside the closed evaluated horizon.
+
+    Only captured committed generations supply this forecast. A completed
+    obligation's due time is not a period start, and a future forecast does
+    not create, count or lease an obligation. The producer still uses the
+    identical full-period activation/deactivation and civil-time boundaries.
+    """
+    future = []
+    for configuration in configurations:
+        for period in committed_periods(configuration, near_start=as_of):
+            if period.start > as_of:
+                future.append(period.start)
+                break
     return min(future) if future else None

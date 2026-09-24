@@ -165,6 +165,7 @@ class ReportingProductionSupport:
         status_retention_days: int = 400,
         notification_workers: tuple[ReportingNotificationWorker, ...] = (),
         poll_seconds: float = 0.25,
+        adcp_version: str | None = None,
     ) -> None:
         from adcp.reporting.outbox.worker import ReportingNotificationWorker
         from adcp.reporting.production.handler import ReportingProductionHandler
@@ -211,7 +212,10 @@ class ReportingProductionSupport:
 
         self._notification_identity = tuple(worker_identity(w) for w in notification_workers)
         self.handler = ReportingProductionHandler(
-            self, resolve_account=resolve_account, buyer_agents=buyer_agents
+            self,
+            resolve_account=resolve_account,
+            buyer_agents=buyer_agents,
+            adcp_version=adcp_version,
         )
         self._mounts: list[_MountedProduction] = []
         self._task: asyncio.Task[None] | None = None
@@ -227,6 +231,7 @@ class ReportingProductionSupport:
         self._schema_task: asyncio.Task[bool] | None = None
         self._schema_epoch = 0
         self._schema_positive: tuple[int, int] | None = None
+        self._protocol_version = self.handler.get_adcp_version()
         self._components = self._component_ids()
         self._methods = self._handler_methods()
         self.store._production_support = weakref.ref(self)
@@ -269,6 +274,7 @@ class ReportingProductionSupport:
                 "sync_reporting_status",
                 "sync_accounts",
                 "get_adcp_capabilities",
+                "get_adcp_version",
             )
         )
 
@@ -306,6 +312,8 @@ class ReportingProductionSupport:
             )
             or self._components != self._component_ids()
             or self._methods != self._handler_methods()
+            or type(self.handler._adcp_version) is not str
+            or self.handler._adcp_version != self._protocol_version
             or (
                 (running or mounted)
                 and not isinstance(self.store, InMemoryReportingProductionStore)

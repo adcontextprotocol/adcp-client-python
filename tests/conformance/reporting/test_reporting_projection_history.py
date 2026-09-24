@@ -142,13 +142,15 @@ async def history_replay(h, monkeypatch, *, legacy_baseline):
             from adcp.reporting.outbox.status_pg import PgStatusNotificationStore
 
             old = PgStatusNotificationStore(h.store)
-        assert await old.baseline(account_id=account)
+        production_operation_5 = await old.baseline(account_id=account)
+        assert production_operation_5
         baselines = await old.checkpoints(account_id=account)
         assert baselines
     original_queue = await h.queue()
     originals = await original_inputs(h, (first, second))
     assert len(originals) == 5
-    assert await h.projection._begin_activation(account_id=account)
+    production_operation_1 = await h.projection._begin_activation(account_id=account)
+    assert production_operation_1
     assert not await h.projection.baseline_ready(account_id=account)
     if h.pool is None:
         archived = h.store._projection_accounts[account].baselines
@@ -165,7 +167,8 @@ async def history_replay(h, monkeypatch, *, legacy_baseline):
                 ).fetchall()
             )
         assert archived == {checkpoint_key(c): checkpoint_document(c) for c in baselines}
-    assert (await h.projection.project_one(account_id=account)).did_work
+    production_operation_2 = await h.projection.project_one(account_id=account)
+    assert (production_operation_2).did_work
     before = await history_image(h, account)
     assert before
     # An interrupted invocation has a committed first input; the next complete
@@ -206,7 +209,8 @@ async def history_replay(h, monkeypatch, *, legacy_baseline):
         consumer_status_enabled=False,
         revision_ownership=True,
     )
-    assert not await projection.activate(account_id=account)
+    production_operation_3 = await projection.activate(account_id=account)
+    assert not production_operation_3
     assert await projection.baseline_ready(account_id=account)
     history = await history_image(h, account)
     personal = [
@@ -240,7 +244,8 @@ async def history_replay(h, monkeypatch, *, legacy_baseline):
         >= 4
     )
     assert await original_inputs(h, (first, second)) == originals
-    assert not await projection.activate(account_id=account)
+    production_operation_4 = await projection.activate(account_id=account)
+    assert not production_operation_4
 
 
 async def test_missing_retained_capture_refuses_activation(projections):

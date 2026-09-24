@@ -6,7 +6,7 @@ import shutil
 
 import pytest
 
-from ._generation_support import assert_c_collated_rolling_database
+from ._generation_support import require_rolling_database
 from ._production_packaging import installed_production
 from .test_reporting_materializer_packaging import b1_wheels, built_distribution
 from .test_reporting_notification_packaging import run_step
@@ -21,7 +21,7 @@ async def test_floor_installed_production_contract(request, kind, drivers):
     if interpreter is None:
         pytest.skip("ADCP_PYTHON310 supplies the installed floor runtime")
     if drivers:
-        assert_c_collated_rolling_database()
+        require_rolling_database()
     root, wheels, _ = request.getfixturevalue("b1_wheels")
     _, _, source = request.getfixturevalue("built_distribution")
     label = kind + ("-pg" if drivers else "-base")

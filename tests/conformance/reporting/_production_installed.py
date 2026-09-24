@@ -38,10 +38,11 @@ def main(settings):
         )
     from adcp.validation import schema_loader
 
-    schema_root = schema_loader._resolve_schema_root("3.2.0-rc.3").root
-    assert schema_root.is_relative_to(Path(sys.prefix))
-    for name, expected in settings["schemas"].items():
-        assert hashlib.sha256((schema_root / name).read_bytes()).hexdigest() == expected
+    for version, schemas in settings["schemas"].items():
+        schema_root = schema_loader._resolve_schema_root(version).root
+        assert schema_root.is_relative_to(Path(sys.prefix))
+        for name, expected in schemas.items():
+            assert hashlib.sha256((schema_root / name).read_bytes()).hexdigest() == expected
     if settings["driver_absent"]:
         assert importlib.util.find_spec("psycopg") is None
         assert importlib.util.find_spec("psycopg_pool") is None

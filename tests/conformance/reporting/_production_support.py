@@ -372,6 +372,8 @@ async def production_harness(
     feedback=False,
     identity_prefix="",
     poll_seconds=60,
+    source_factory=Source,
+    adcp_version=None,
 ):
     from contextlib import AsyncExitStack
 
@@ -484,7 +486,7 @@ async def production_harness(
             io,
         )
         source_clock = ManualClock(END)
-        source = Source(
+        source = source_factory(
             key,
             path.with_name("source"),
             rows if source_publication or periods is not None else None,
@@ -498,7 +500,9 @@ async def production_harness(
             source=source,
             offerings=ProducerOfferings(
                 snapshot_offering_id=None if reconciled else source.source_id,
-                official_offering_id=source.source_id if reconciled else None,
+                official_offering_id=(
+                    source.source_id if reconciled else getattr(source, "official_source_id", None)
+                ),
                 publication_namespace=source.capabilities.offerings[0].publication_namespace,
                 source_scope=source.capabilities.source_scope,
             ),
@@ -627,6 +631,7 @@ async def production_harness(
             resolve_account=authorize,
             notification_workers=workers,
             poll_seconds=poll_seconds,
+            adcp_version=adcp_version,
         )
         h.production, h.projection, h.item = support, projection, item
         h.source_clock = source_clock

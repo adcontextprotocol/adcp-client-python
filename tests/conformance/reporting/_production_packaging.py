@@ -60,6 +60,9 @@ def production_modules():
             "reporting/materializer/publication.py",
             "reporting/materializer/service.py",
             "reporting/materializer/verification.py",
+            "reporting/feed/request.py",
+            "reporting/feed/errors.py",
+            "reporting/ledger/status_server.py",
             "reporting/feed/snapshot.py",
             "reporting/feed/projection.py",
             "reporting/feed/memory.py",
@@ -244,10 +247,13 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
         "modules": modules,
         "assets": assets,
         "schemas": {
-            name: hashlib.sha256(
-                (ROOT / "schemas/cache/3.2.0-rc.3" / name).read_bytes()
-            ).hexdigest()
-            for name in SCHEMAS
+            version: {
+                name: hashlib.sha256(
+                    (ROOT / "schemas/cache" / version / name).read_bytes()
+                ).hexdigest()
+                for name in SCHEMAS
+            }
+            for version in ("3.2.0-rc.3", "3.2.0-rc.6")
         },
         "tests": [str(p.relative_to(ROOT)) for p in tests],
         "driver_absent": driver_absent,

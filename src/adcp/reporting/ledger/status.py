@@ -35,6 +35,11 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Any, Literal
 
+from adcp._version import (
+    is_adcp_version_at_least,
+    normalize_to_release_precision,
+    resolve_adcp_version,
+)
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger.consumer_status import condition_after_waiver
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryRecord
@@ -49,7 +54,7 @@ from adcp.reporting.ledger.models import (
     ReportingRevisionRecord,
 )
 from adcp.reporting.ledger.notification_models import ReportingStatusScope
-from adcp.reporting.ledger.schedule import next_reporting_expectation
+from adcp.reporting.ledger.schedule import next_reporting_expectation, next_reporting_period_start
 from adcp.reporting.ledger.status_projection import (
     ReportingStatusSnapshot,
     StatusProjectionInput,
@@ -231,6 +236,13 @@ class ReportingStatusHandler:
         if snapshot.account_id != caller.account_id:
             raise LedgerConflictError("LOOKUP_UNAVAILABLE", "status is unavailable to this caller")
         filters = _filters(request)
+        version = normalize_to_release_precision(
+            request.get("adcp_version") or resolve_adcp_version(None)
+        )
+        complete_start_forecast = is_adcp_version_at_least(version, "3.2-rc.6")
+        if complete_start_forecast:
+            # Bind the new wire contract without relabelling explicit rc.3 snapshots.
+            filters["adcp_version"] = version
         scope = ReportingStatusScope(
             caller.account_id,
             consumer_id=(
@@ -384,36 +396,42 @@ class ReportingStatusHandler:
             if self._consumer_status_enabled:
                 counts["consumer_status_pending"] = result.pending_count
             watermark = _scope_data_through(p.projection for p in result.obligations)
-            next_expected = next_reporting_expectation(
-                tuple(
-                    c
-                    for c in result.configurations
-                    if (not request.get("finality") or c.required_finality in request["finality"])
-                    and (
-                        not request.get("health")
-                        or project_status_scope(
-                            replace(
-                                value,
-                                scope=ReportingStatusScope(
-                                    c.account_id, c.generation_key, consumer_id=scope.consumer_id
-                                ),
-                            )
-                        ).health
-                        in request["health"]
-                    )
-                ),
-                tuple(
-                    p.obligation
-                    for p in result.obligations
-                    if (
-                        not request.get("finality")
-                        or p.obligation.required_finality in request["finality"]
-                    )
-                    and (not request.get("health") or p.projection.health in request["health"])
-                ),
-                as_of=snapshot.as_of,
-                period_start=value.period_start,
-                period_end=value.period_end,
+            configurations = tuple(
+                c
+                for c in result.configurations
+                if (not request.get("finality") or c.required_finality in request["finality"])
+                and (
+                    not request.get("health")
+                    or project_status_scope(
+                        replace(
+                            value,
+                            scope=ReportingStatusScope(
+                                c.account_id, c.generation_key, consumer_id=scope.consumer_id
+                            ),
+                        )
+                    ).health
+                    in request["health"]
+                )
+            )
+            selected_obligations = tuple(
+                p.obligation
+                for p in result.obligations
+                if (
+                    not request.get("finality")
+                    or p.obligation.required_finality in request["finality"]
+                )
+                and (not request.get("health") or p.projection.health in request["health"])
+            )
+            next_expected = (
+                next_reporting_period_start(configurations, as_of=snapshot.as_of)
+                if complete_start_forecast and result.health == "complete"
+                else next_reporting_expectation(
+                    configurations,
+                    selected_obligations,
+                    as_of=snapshot.as_of,
+                    period_start=value.period_start,
+                    period_end=value.period_end,
+                )
             )
             return {
                 **common,

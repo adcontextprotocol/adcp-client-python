@@ -65,6 +65,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
         *,
         resolve_account: ReceiptAccountResolver,
         buyer_agents: BuyerAgentRegistry | None = None,
+        adcp_version: str | None = None,
     ) -> None:
         self.production = production
         super().__init__(
@@ -72,6 +73,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             resolve_account=resolve_account,
             buyer_agents=buyer_agents,
             consumer_status_enabled=production.projection.consumer_status_enabled,
+            adcp_version=adcp_version,
         )
 
     def advertised_tools_for_instance(self) -> set[str]:
@@ -127,7 +129,11 @@ class ReportingProductionHandler(ReportingReceiptHandler):
         context: ToolContext | None = None,
     ) -> dict[str, Any]:
         response = capabilities_response(
-            ["media_buy"], sandbox=False, idempotency={"supported": False}
+            ["media_buy"],
+            sandbox=False,
+            idempotency={"supported": False},
+            adcp_version=self.production._protocol_version,
+            supported_versions=[self.production._protocol_version],
         )
         response["account"] = self.production.configuration_task.account_capabilities()
         reporting = await self.production.reporting_delivery()

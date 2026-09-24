@@ -591,8 +591,15 @@ class ReportingProducer:
             )
             if obligation is None or obligation.generation_key != configuration.generation_key:
                 raise LedgerConflictError("HISTORY_UNAVAILABLE", "producer history is unavailable")
+            policy = self._settling_policy(configuration, obligation)
+            finished = policy is None
             try:
-                await self.acquire_obligation(configuration, obligation, turn=turn, now=now)
+                if policy is None:
+                    await self.acquire_obligation(configuration, obligation, turn=turn, now=now)
+                else:
+                    finished = await self._acquire_with_settling_policy(
+                        configuration, obligation, policy=policy, turn=turn, now=now
+                    )
             except (ReportingCurrencyError, LedgerConflictError) as error:
                 if isinstance(error, LedgerConflictError) and error.code not in {
                     "HISTORY_UNAVAILABLE",
@@ -601,9 +608,13 @@ class ReportingProducer:
                     raise
                 turn.slices_failed.append(identifier)
                 self._note_escalation(obligation, turn, now=now)
-            await progress.finish_producer_acquisition(
-                configuration, reporting_obligation_id=identifier
-            )
+                # Retain the existing corrupt-history parking check. A transient
+                # currency failure during settling must not retire a readable leaf.
+                finished = policy is None or isinstance(error, LedgerConflictError)
+            if finished:
+                await progress.finish_producer_acquisition(
+                    configuration, reporting_obligation_id=identifier
+                )
 
     def _settling_policy(
         self,
@@ -650,14 +661,19 @@ class ReportingProducer:
         policy: _SettlingPolicy,
         turn: WorkerTurn,
         now: datetime,
-    ) -> None:
+    ) -> bool:
+        """Return whether policy-controlled acquisition may leave the pending queue.
+
+        A readable snapshot completes one acquisition, not the settling policy.
+        The progress store retains its rotating work item until the policy ends.
+        """
         checkpoint_store = self._restatement_store()
         revisions = await self._store.list_revisions(
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
         )
         if any(item.finality == "official" for item in revisions):
-            return
+            return True
         if not revisions:
             await self.acquire_obligation(
                 configuration,
@@ -667,7 +683,7 @@ class ReportingProducer:
                 target_finality="snapshot",
                 track_settling=True,
             )
-            return
+            return False
 
         checkpoint = await checkpoint_store.get_restatement_checkpoint(
             account_id=obligation.account_id,
@@ -695,10 +711,10 @@ class ReportingProducer:
                     target_finality="snapshot",
                     track_settling=True,
                 )
-            return
+            return False
 
         if policy.official_close_lag is None or self._offerings.official_offering_id is None:
-            return
+            return True
         closes_at = max(
             settles_at,
             _utc(obligation.period.end) + policy.official_close_lag,
@@ -713,6 +729,14 @@ class ReportingProducer:
                 target_finality="official",
                 track_settling=True,
             )
+            # An attempted close can still return not-ready. Retire only after
+            # the authoritative revision was actually committed.
+            revisions = await self._store.list_revisions(
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+            )
+            return any(item.finality == "official" for item in revisions)
+        return False
 
     async def acquire_obligation(
         self,

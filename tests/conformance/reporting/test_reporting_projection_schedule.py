@@ -64,7 +64,8 @@ async def test_producer_and_public_summary_share_all_activation_and_due_boundari
     )
     obligations = await producer.close_elapsed_periods(config, now=h.clock())
     assert len(obligations) == closed
-    assert await producer.close_elapsed_periods(config, now=h.clock()) == []
+    production_operation_1 = await producer.close_elapsed_periods(config, now=h.clock())
+    assert production_operation_1 == []
     # Completing all existing evidence must not erase tomorrow's commitment.
     for obligation in obligations:
         revision, rows = revision_for(obligation, suffix=obligation.reporting_obligation_id)

@@ -111,14 +111,16 @@ async def test_production_finish_fault_restores_every_row_head_capture_and_froze
         assert (
             await walk(h.store, feed_request(item), item.binding.principal, first=first) == frozen
         )
-        assert (await finish()).state == "verified"
+        production_operation_1 = await finish()
+        assert (production_operation_1).state == "verified"
         assert len(await item.outcomes()) == 1
         assert len(await h.store.read_production_boundaries(caller=item.binding.principal)) == 1
         assert await h.store.read_materializer_boundaries(caller=item.binding.principal) == ()
         assert len((await production_queue(h))[0]) == int(notifications)
         assert await h.queue() == old_queue and await h.ordinary_events() == ordinary
         committed = await h.image()
-        assert (await finish()).state == "verified"
+        production_operation_2 = await finish()
+        assert (production_operation_2).state == "verified"
         assert await h.image() == committed
         assert item.writer.writes == 1
 
@@ -179,7 +181,8 @@ async def test_enabled_production_enqueue_is_required_inside_verified_finish(
                     await finish()
         assert await h.image() == before
         assert await production_queue(h) == ((), ())
-        assert (await finish()).state == "verified"
+        production_operation_3 = await finish()
+        assert (production_operation_3).state == "verified"
         events, work = await production_queue(h)
         assert len(events) == 1 and work == ("pending",)
 
@@ -257,9 +260,8 @@ async def test_explicit_old_pending_import_keeps_epoch_and_external_identity_aft
                 == 1
             )
             frozen = await fresh.image()
-            assert (
-                await fresh.store.finish_materialization(lease, **arguments)
-            ).state == "verified"
+            production_operation_5 = await fresh.store.finish_materialization(lease, **arguments)
+            assert (production_operation_5).state == "verified"
             assert await fresh.image() == frozen
             await drain(fresh.projection, item.config.account_id)
             assert await production_queue(fresh) == ((), ())
@@ -299,11 +301,13 @@ async def test_producer_lease_bookkeeping_preserves_io_but_real_source_change_fe
 
             crashed = await acquire("crashed-producer", 0)
             assert crashed is not None
-            assert await acquire("duplicate-producer", 0) is None
+            production_operation_6 = await acquire("duplicate-producer", 0)
+            assert production_operation_6 is None
             recovered = await acquire("recovered-producer", 2)
             assert recovered is not None
             await h.store.release_period_close(crashed, worker_id="crashed-producer")
-            assert await acquire("duplicate-producer", 2) is None
+            production_operation_7 = await acquire("duplicate-producer", 2)
+            assert production_operation_7 is None
             await h.store.release_period_close(recovered, worker_id="recovered-producer")
             for seconds in (3, 4):
                 repeated = await acquire("scheduled-producer", seconds)
@@ -335,10 +339,10 @@ async def test_producer_lease_bookkeeping_preserves_io_but_real_source_change_fe
         assert len((await production_queue(h))[0]) == int(notifications and not source_changes)
         assert await h.queue() == ((), ())
         committed = await h.image()
-        assert (
-            await h.store.finish_materialization(lease, prepared=prepared, verified=verified)
-            == result
+        production_operation_4 = await h.store.finish_materialization(
+            lease, prepared=prepared, verified=verified
         )
+        assert production_operation_4 == result
         assert await h.image() == committed
 
 
@@ -399,8 +403,9 @@ async def test_pg_lease_bookkeeping_fault_rolls_back_configuration_candidate_and
             await h.store.release_period_close(lease, worker_id="bookkeeping-fault")
             assert await h.image() == image
             prepared, verified = await h.item.verified(pending)
-            assert (
-                await h.store.finish_materialization(pending, prepared=prepared, verified=verified)
-            ).state == "verified"
+            production_operation_8 = await h.store.finish_materialization(
+                pending, prepared=prepared, verified=verified
+            )
+            assert (production_operation_8).state == "verified"
         finally:
             h.production._producer_turn.reset(token)

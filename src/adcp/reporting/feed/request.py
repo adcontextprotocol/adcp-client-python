@@ -12,6 +12,11 @@ from typing import Any, Literal
 
 from jsonschema import Draft7Validator, FormatChecker
 
+from adcp._version import (
+    is_adcp_version_at_least,
+    normalize_to_release_precision,
+    resolve_adcp_version,
+)
 from adcp.reporting.feed.errors import ReportingFeedError
 from adcp.reporting.receipts.wire import _IDENTITY_FIELDS
 from adcp.validation.schema_loader import get_portable_schema
@@ -151,6 +156,14 @@ class FeedRequest:
                     "reporting_revision_id",
                 }
             }
+            version = normalize_to_release_precision(
+                request.get("adcp_version") or resolve_adcp_version(None)
+            )
+            if is_adcp_version_at_least(version, "3.2-rc.6"):
+                # Existing snapshots omit this marker and keep their rc.3
+                # bytes. The persisted filter binding prevents cross-version
+                # replay under an incompatible advertised output schema.
+                filters["adcp_version"] = version
             for name in (
                 "delivery_config_ids",
                 "media_buy_ids",
