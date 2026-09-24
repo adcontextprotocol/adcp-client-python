@@ -151,10 +151,12 @@ async def test_contaminated_epoch_corrects_changed_issue_set_once_and_preserves_
     await mark_v1(h)
     before = {c.scope.checkpoint_key: c for c in await h.status.checkpoints(account_id="acct_a")}
     assert not await h.status.baseline_ready(account_id="acct_a")
-    assert (await h.status.rebuild_one()).events == 0  # Durable fence only.
+    destination_operation_1 = await h.status.rebuild_one()
+    assert (destination_operation_1).events == 0  # Durable fence only.
     fenced = await h.status.checkpoints(account_id="acct_a")
     assert all(c.selector_writer_floor == 2 and c.selector_semantics_version == 1 for c in fenced)
-    assert not await h.status.claim_due(account_id="acct_a")
+    destination_operation_2 = await h.status.claim_due(account_id="acct_a")
+    assert not destination_operation_2
     await restart(h)
     await h.drain()
     events = await h.status.outbox.list_events(account_id="acct_a")
@@ -173,8 +175,10 @@ async def test_contaminated_epoch_corrects_changed_issue_set_once_and_preserves_
         assert current.generation == old.generation + (key in changed)
         assert current.selector_semantics_version == current.selector_writer_floor == 2
     assert await h.status.baseline_ready(account_id="acct_a")
-    assert not (await h.status.rebuild_one()).did_work
-    assert not (await h.status.project_one(account_id="acct_a")).did_work
+    destination_operation_3 = await h.status.rebuild_one()
+    assert not (destination_operation_3).did_work
+    destination_operation_4 = await h.status.project_one(account_id="acct_a")
+    assert not (destination_operation_4).did_work
     assert await h.status.checkpoints(account_id="acct_a") == tuple(after.values())
     assert await h.status.outbox.list_events(account_id="acct_a") == events
 
@@ -236,7 +240,8 @@ async def test_captured_reversal_boundaries_precede_chronological_overdue_deadli
     assert [e.cause.health for e in late] == ["delayed", "action_required"]
     assert [e.cause.previous_health for e in late] == ["waiting", "delayed"]
     assert len({e.notification_id for e in events}) == len(events)
-    assert not (await ReportingStatusSweeper(h.status).run_once(account_id="acct_a")).did_work
+    destination_operation_5 = await ReportingStatusSweeper(h.status).run_once(account_id="acct_a")
+    assert not (destination_operation_5).did_work
 
 
 @pytest.mark.parametrize("fail_at", [1, 2, 4])
@@ -247,7 +252,8 @@ async def test_checkpoint_event_failure_rolls_back_epoch_turn_and_restart_is_onc
     await two_feeds(h, issue=False)
     await h.status.baseline(account_id="acct_a")
     await mark_v1(h)
-    assert (await h.status.rebuild_one()).did_work
+    destination_operation_6 = await h.status.rebuild_one()
+    assert (destination_operation_6).did_work
     await h.ledger.ensure_issue_opened(
         issue_key="late-public",
         account_id="acct_a",
@@ -279,7 +285,8 @@ async def test_checkpoint_event_failure_rolls_back_epoch_turn_and_restart_is_onc
     await h.drain()
     events = await h.status.outbox.list_events(account_id="acct_a")
     assert len(events) == 4 and {e.cause.checkpoint_generation for e in events} == {1}
-    assert not (await h.status.rebuild_one()).did_work
+    destination_operation_7 = await h.status.rebuild_one()
+    assert not (destination_operation_7).did_work
 
 
 @pytest.mark.parametrize("phase", ["fence", "final_mark"])
@@ -291,7 +298,8 @@ async def test_crash_before_fence_or_final_mark_commit_is_restartable(
     await h.status.baseline(account_id="acct_a")
     await mark_v1(h)
     if phase == "final_mark":
-        assert (await h.status.rebuild_one()).did_work
+        destination_operation_12 = await h.status.rebuild_one()
+        assert (destination_operation_12).did_work
     before = await h.status.checkpoints(account_id="acct_a")
     name = "_rebuild" if isinstance(h.ledger, InMemoryReportingLedgerStore) else "_rebuild_on"
     original = getattr(h.status, name)
@@ -346,7 +354,8 @@ async def test_retained_scopes_outside_current_discovery_are_reprojected_without
         (c.scope, c.fingerprint, c.generation, c.baseline) for c in before
     ]
     assert all(c.selector_semantics_version == 2 and c.next_due_at is None for c in after)
-    assert not (await h.status.rebuild_one()).did_work
+    destination_operation_8 = await h.status.rebuild_one()
+    assert not (destination_operation_8).did_work
     assert not await h.status.outbox.list_events(account_id="acct_a")
 
 
@@ -364,7 +373,8 @@ async def test_account_epoch_readiness_and_new_baseline_are_isolated(status_harn
     await restart(h)
     assert await h.status.baseline_ready(account_id="acct_a")
     assert not await h.status.baseline_ready(account_id="acct_b")
-    assert await h.status.baseline(account_id="new-account")
+    destination_operation_9 = await h.status.baseline(account_id="new-account")
+    assert destination_operation_9
     assert await h.status.baseline_ready(account_id="new-account")
     assert not await h.status.outbox.list_events(account_id="new-account")
 
@@ -412,6 +422,8 @@ async def test_existing_c_service_discovers_old_accounts_without_an_account_list
     await h.status.baseline(account_id="acct_a")
     await mark_v1(h)
     service = ReportingStatusService(SimpleNamespace(store=h.status, account_ids=()))
-    assert await service.drain() >= 2
+    destination_operation_10 = await service.drain()
+    assert destination_operation_10 >= 2
     assert await h.status.baseline_ready(account_id="acct_a")
-    assert await service.drain() == 0
+    destination_operation_11 = await service.drain()
+    assert destination_operation_11 == 0

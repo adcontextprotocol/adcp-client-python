@@ -246,7 +246,7 @@ jobs:
           git fetch --no-tags --depth=1 origin \
             17ee407ae3978c8a2bb54437287afbf9dafb8130 \
             0f34c666ac1961e9832fce43ef0ef6937b3c1dde \
-            ea150fabd5ad90e3abf93f89729d2919f1c61798
+            967b6e286301d7e5d089aea6fdbb90bea8ee5a16
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6

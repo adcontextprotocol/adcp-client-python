@@ -1,7 +1,7 @@
 # Verified destination I/O — #1167B1
 
-**B1 of B1/B2**, stacked on reviewed #1168C at
-`ea150fabd5ad90e3abf93f89729d2919f1c61798`. Refs #1167.
+**B1 of B1/B2**, composed with integrated #1168C at
+`967b6e286301d7e5d089aea6fdbb90bea8ee5a16`. Refs #1167.
 
 B1 supplies immutable public contracts, whole-history revision selection,
 SDK-owned source/destination verification, and a deterministic development
@@ -170,3 +170,8 @@ old schema recreation, competing v2 projectors/sweepers, pool-local marker
 cleanup and retained physical rows. Shared memory/PG vectors cover interrupted
 fence, checkpoint/event and final-mark commits, ordered boundaries, late clocks,
 retained scopes, unchanged fingerprints and once-only restart convergence.
+
+The C control is the integrated rc.6 artifact above, including exact waiver
+bindings and locale-independent catalog validation. These controls do not
+qualify pre-`967b6e28` C binaries, including the earlier `ea150fab` snapshot.
+The existing pre-`17ee407a` A and pre-`0f34c666` B rolling limits remain.
