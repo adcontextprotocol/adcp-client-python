@@ -15,22 +15,22 @@ from adcp.reporting.materializer import PgReportingMaterializerStore
 from adcp.reporting.outbox._schema import schema_objects
 
 from ._durable_materializer_support import DurableHarness, durable_case
-from ._generation_support import assert_c_collated_rolling_database, isolated_reporting_pool
+from ._generation_support import isolated_reporting_pool, require_rolling_database
 from .test_reporting_notification_packaging import ROOT, run_step
 
 ARTIFACTS = {
     "beta15": "3e76aa54623529a3dda01cd690b8a5c287c75641",
     "records": "3c405a21f978ed9d3208611bb4a7a8434a056933",
     "integration": "037de4ac822ecefb2f95d32c15c297fb4c45d683",
-    "a": "21bf443e7d850d1800ec8a6f2e4abec1c8f85541",
-    "b": "198d50e61c74fb82aedbf2c77e06a0e200b91db6",
-    "c": "ea150fabd5ad90e3abf93f89729d2919f1c61798",
-    "b1": "1c91311ec28d25506d5db43f59d0c34936ecb8f7",
+    "a": "17ee407ae3978c8a2bb54437287afbf9dafb8130",
+    "b": "0f34c666ac1961e9832fce43ef0ef6937b3c1dde",
+    "c": "967b6e286301d7e5d089aea6fdbb90bea8ee5a16",
+    "b1": "5487f2bdef23c5102118b305be9e868228f6ce61",
 }
 
 
 def build_frozen(artifact, tmp_path_factory, request, *, sha=None):
-    assert_c_collated_rolling_database()
+    require_rolling_database()
     sha = sha or ARTIFACTS[artifact]
     root = tmp_path_factory.mktemp(f"materializer-{artifact}")
     request.addfinalizer(lambda: shutil.rmtree(root))
@@ -195,8 +195,10 @@ async def test_installed_old_reader_writer_and_workers_on_populated_materializer
         assert {key: objects[key] for key in old_objects} == old_objects
         assert all("reporting_materializer_" in key for key in objects.keys() - old_objects.keys())
         case.store = sibling.store = store
-        assert (await case.service().run_once()).state == "verified"
-        assert (await sibling.service().run_once()).state == "verified"
+        materializer_operation_1 = await case.service().run_once()
+        assert (materializer_operation_1).state == "verified"
+        materializer_operation_2 = await sibling.service().run_once()
+        assert (materializer_operation_2).state == "verified"
         h = DurableHarness(store, None, pool)
         before = await h.queue()
         async with pool.connection() as connection:

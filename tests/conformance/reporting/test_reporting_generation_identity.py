@@ -145,7 +145,10 @@ async def test_concurrent_leases_and_releases_keep_accounts_separate(
     )
     replacement = await store.lease_period_close(worker_id="next", now=NOW, lease_seconds=60)
     assert replacement is not None and replacement.generation_key == first.generation_key
-    assert await store.lease_period_close(worker_id="extra", now=NOW, lease_seconds=60) is None
+    receipt_operation_1 = await store.lease_period_close(
+        worker_id="extra", now=NOW, lease_seconds=60
+    )
+    assert receipt_operation_1 is None
     await asyncio.gather(
         store.release_period_close(second, worker_id="shared"),
         store.release_period_close(replacement, worker_id="next"),
@@ -170,11 +173,17 @@ async def test_an_expired_lease_cannot_release_a_replacement_with_the_same_worke
     replacement = await store.lease_period_close(worker_id="shared", now=later, lease_seconds=60)
     assert replacement is not None and replacement.generation_key == expired.generation_key
     await store.release_period_close(expired, worker_id="shared")
-    assert await store.lease_period_close(worker_id="extra", now=later, lease_seconds=60) is None
+    receipt_operation_2 = await store.lease_period_close(
+        worker_id="extra", now=later, lease_seconds=60
+    )
+    assert receipt_operation_2 is None
     await store.release_period_close(replacement, worker_id="shared")
     reclaimed = await store.lease_period_close(worker_id="new", now=later, lease_seconds=60)
     assert reclaimed is not None and reclaimed.generation_key == expired.generation_key
-    assert await store.lease_period_close(worker_id="extra", now=later, lease_seconds=60) is None
+    receipt_operation_3 = await store.lease_period_close(
+        worker_id="extra", now=later, lease_seconds=60
+    )
+    assert receipt_operation_3 is None
 
 
 async def test_a_worker_that_releases_each_turn_reaches_every_accounts_generation(
@@ -592,7 +601,10 @@ async def test_concurrent_workers_use_their_leased_generation(
         assert finished.leased is not None and finished.leased.account_id == "acct_a"
         probe = await store.lease_period_close(worker_id="probe", now=NOW, lease_seconds=60)
         assert probe is not None and probe.generation_key == configs[0].generation_key
-        assert await store.lease_period_close(worker_id="extra", now=NOW, lease_seconds=60) is None
+        receipt_operation_4 = await store.lease_period_close(
+            worker_id="extra", now=NOW, lease_seconds=60
+        )
+        assert receipt_operation_4 is None
         await store.release_period_close(probe, worker_id="probe")
         finish["acct_b"].set()
         turns = await asyncio.wait_for(asyncio.gather(*tasks), 10)

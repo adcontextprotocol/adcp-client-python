@@ -164,9 +164,10 @@ automation/facade and pinned cross-language program remain #1172 prerequisites.
    Leave the production application-clock override unset for DB-timed workers.
 3. Check `await store.reporting_feed_ready()` and
    `await store.receipt_ingestion_ready()` in the typed composition. The isolated
-   feed manifest contains 33 objects. It adds to the preserved 453 ledger objects,
-   187 materializer objects and 102 receipt objects: 775 enumerated objects when
-   those features are installed. Private fairness objects remain outside these
+   feed manifest contains 33 objects. It adds to the preserved 464 ledger objects,
+   10 rc.6 waiver-binding objects, 187 materializer objects and 102 receipt objects:
+   796 enumerated objects when those features are installed. With the complete
+   status and selector schemas, the exact combined catalog contains 1,045 objects. Private fairness objects remain outside these
    counts. No prior manifest acquires feed objects. Missing/partial/mismatched
    objects refuse new snapshots and continuation; no silent legacy fallback.
 4. Mount the same authenticated handler on MCP/A2A. New snapshots use the new
@@ -189,3 +190,19 @@ quarantined epoch-zero readiness records remain quarantined after restart,
 pending resume, replay, migration and rollback. Disabled notifications enqueue
 nothing; an enabled path retains its original atomic enqueue/rollback contract.
 Feed readiness does not release these higher-tier activation gates.
+
+
+### Integrated rolling baselines
+
+The nine-artifact controls retain the beta15, records and integration binaries.
+Their A/B/C/B1/B2.1/B2.2 pins now name the integrated commits `17ee407a`,
+`0f34c666`, `967b6e28`, `5487f2bd`, `3fd62121` and `09fd87f7`, respectively.
+Rolling compatibility with pre-`17ee407a` A, pre-`0f34c666` B, pre-`967b6e28` C,
+pre-`5487f2bd` B1, pre-`3fd62121` B2.1 and pre-`09fd87f7` B2.2 binaries is
+untested and unclaimed by these controls. Carry these limits into release notes.
+The earlier A snapshot has locale-dependent schema fingerprints; the integrated
+pins carry the catalog, transaction, permission and receipt-dispatch corrections.
+Controls use the database's actual locale, without a C-only service setting.
+A's whole-trigger readiness remains false after C; the supported restart path
+uses the later subset readiness contract and still requires draining old workers.
+These rolling checks do not activate epoch-zero/quarantined higher tiers.

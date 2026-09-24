@@ -55,7 +55,8 @@ async def main(settings):
             async with mount.client() as client:
                 _, result = await mount.mcp(client, settings["request"])
                 assert [r["result"] for r in result["results"]] == ["recorded", "recorded"]
-                assert (await mount.a2a(client, settings["request"]))[1] == result
+                receipt_operation_1 = await mount.a2a(client, settings["request"])
+                assert (receipt_operation_1)[1] == result
                 mount.grants.clear()
                 for call in (mount.mcp, mount.a2a):
                     _, denied = await call(client, settings["request"])

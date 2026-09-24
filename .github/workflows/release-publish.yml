@@ -1,0 +1,128 @@
+name: Accepted release publication
+
+# A new workflow identity avoids inheriting the retired workflow's definitions.
+# Publication remains off until external configuration and explicit approval.
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: Full current-main SHA of the merged release PR
+        required: true
+        type: string
+      ci_run_id:
+        description: Fresh successful main-push CI run for exactly target_sha
+        required: true
+        type: string
+      ci_run_attempt:
+        description: Exact successful CI attempt
+        required: true
+        default: '1'
+        type: string
+      release_pr:
+        description: Normal Release Please PR whose merge commit is target_sha
+        required: true
+        type: string
+      recover_from:
+        description: Optional failed guarded publication run supplying original distribution bytes
+        required: false
+        default: ''
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: adcp-release-main
+  cancel-in-progress: false
+
+env:
+  TARGET_SHA: ${{ inputs.target_sha }}
+  CI_RUN_ID: ${{ inputs.ci_run_id }}
+  CI_RUN_ATTEMPT: ${{ inputs.ci_run_attempt }}
+  OPERATION: publish
+  RELEASE_PR: ${{ inputs.release_pr }}
+  RECOVER_FROM: ${{ inputs.recover_from }}
+  PUBLICATION_ENABLED: ${{ vars.RELEASE_PUBLICATION_ENABLED }}
+  MAIN_FREEZE_ATTESTATION: ${{ vars.RELEASE_MAIN_FREEZE }}
+
+jobs:
+  acceptance:
+    permissions:
+      contents: read
+      actions: read # Inspect exact runs, attempts, artifacts and environment policy.
+      checks: read # Verify current protected check results and App identities.
+      pull-requests: read # Verify the release PR and its exact merge commit.
+    uses: ./.github/workflows/release-acceptance.yml
+    with:
+      target_sha: ${{ inputs.target_sha }}
+      ci_run_id: ${{ inputs.ci_run_id }}
+      ci_run_attempt: ${{ inputs.ci_run_attempt }}
+      operation: publish
+      release_pr: ${{ inputs.release_pr }}
+      recover_from: ${{ inputs.recover_from }}
+
+  pypi:
+    name: Publish accepted distributions to PyPI
+    needs: acceptance
+    if: >-
+      github.run_attempt == 1 && github.ref == 'refs/heads/main' &&
+      github.sha == inputs.target_sha && github.workflow_sha == inputs.target_sha
+    environment: release-publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read # Inspect exact runs, attempts, artifacts and environment policy.
+      checks: read # Verify current protected check results and App identities.
+      pull-requests: read # Verify the release PR and its exact merge commit.
+      id-token: write # PyPI Trusted Publishing in the approved environment.
+    env:
+      ARTIFACT_ID: ${{ needs.acceptance.outputs.artifact_id }}
+      ARTIFACT_DIGEST: ${{ needs.acceptance.outputs.artifact_digest }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Reapply the gate and select only exact missing files
+        id: prepare
+        run: python3 -m scripts.release_publish prepare-pypi
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Publish the accepted bytes using the environment-bound PyPI identity
+        if: steps.prepare.outputs.upload == 'true'
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+        with:
+          packages-dir: publish-dist/
+          skip-existing: false
+          attestations: true
+      - name: Verify the complete public file set and recheck current main
+        run: python3 -m scripts.release_publish verify-pypi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  github-release:
+    name: Create the accepted GitHub release
+    needs: [acceptance, pypi]
+    if: >-
+      github.run_attempt == 1 && github.ref == 'refs/heads/main' &&
+      github.sha == inputs.target_sha && github.workflow_sha == inputs.target_sha
+    environment: release-publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # Create only the accepted commit tag and GitHub release.
+      pull-requests: write # Complete Release Please labels after publication.
+      actions: read # Inspect exact runs, attempts, artifacts and environment policy.
+      checks: read # Verify current protected check results and App identities.
+    env:
+      ARTIFACT_ID: ${{ needs.acceptance.outputs.artifact_id }}
+      ARTIFACT_DIGEST: ${{ needs.acceptance.outputs.artifact_digest }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Reapply acceptance and create the exact commit tag and release
+        run: python3 -m scripts.release_publish github
+        env:
+          GH_TOKEN: ${{ github.token }}

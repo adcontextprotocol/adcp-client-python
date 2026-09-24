@@ -210,15 +210,12 @@ in one transaction. The B step is also atomic on its own, serializes concurrent
 installations, backfills nothing, and adds only B tables/indexes/constraints/
 functions/triggers. It does not change any A table or attach a new object to one.
 
-These rolling gates execute the frozen A artifact, whose readiness digest is
-collation-sensitive, so they are only measurable on a C-collated database: the
-fixture calls the shared `assert_c_collated_rolling_database()` precondition and
-the CI job initialises its cluster with
-`--encoding=UTF8 --lc-collate=C --lc-ctype=C`. See
-`docs/reporting-status-notifications.md` for the full explanation.
-
-An actual A binary at `21bf443e` can continue its existing work on a B-upgraded
-database without rejecting B's additive objects or claiming activity. B accepts
+The actual-binary rolling controls pin integrated A commit `17ee407a`, including
+its checkpoint-schema and database-locale readiness corrections. That A binary
+can continue existing work on a B-upgraded database without rejecting B's
+additive objects or claiming activity. These controls do not qualify the earlier
+`21bf443e` snapshot, whose schema fingerprints depend on database collation.
+B accepts
 the A required-object subset for existing outbox work, but its activity readiness
 fails closed until B migration commits. Attempts against an A-only schema fail
 without HTTP or parent ACK; they become retryable after migration.
@@ -233,6 +230,7 @@ barrier, not an A-table rewrite or data backfill.
 B validates a required-object subset rather than hashing each whole table.
 Required columns, named constraints, ready/valid indexes, enabled triggers and
 their definitions, and guard function definitions/security/volatility must match.
+This includes A's restatement checkpoint table, columns, constraints and indexes.
 Unrelated adopter columns/indexes/constraints/triggers are ignored. Diagnostics
 are `notification_schema_unready:{missing|disabled|changed}:<required object>` or
 `catalog_unavailable`; they contain bundled names, never catalog/provider prose.

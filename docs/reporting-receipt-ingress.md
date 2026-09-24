@@ -91,8 +91,8 @@ path or rewrite receipt history to make an error disappear.
 
 ## Wire and replay contract
 
-Requests negotiate `adcp_version: "3.2-rc.3"`. This is the wire release spelling;
-`3.2.0-rc.3` is the bundle's semantic-version spelling. Unnegotiated traffic keeps
+Requests negotiate `adcp_version: "3.2-rc.6"`. This is the wire release spelling;
+`3.2.0-rc.6` is the bundle's semantic-version spelling. Unnegotiated traffic keeps
 the SDK's existing AdCP 3.0 behavior; unsupported versions remain unsupported.
 Pinned, unpinned and fallback MCP inventories use an isolated schema overlay.
 Cached upstream schemas, generated models and older required protocols remain
@@ -240,9 +240,15 @@ incompatible status projectors before its activation.
 Historical reader/writer gates execute actual installed beta.15, records A,
 foundation integration, outbox A, activity B, status C, B1 and the exact approved
 B2.1 artifact on populated new records, comparing permitted old behavior before
-and after this migration. Their reviewed PostgreSQL prerequisite is **UTF8/C
-collation and ctype**. A's notification-readiness closure after C is compared on
-both sides and does not excuse new regressions. Non-C probes are distinct from
-this frozen-artifact gate. Optional notifications may stay explicitly disabled;
+and after this migration. The integrated pins are `17ee407a` (A), `0f34c666` (B),
+`967b6e28` (C), `5487f2bd` (B1) and `3fd62121` (B2.1). These controls do not qualify
+the earlier pre-integration A/B/C/B1/B2.1 snapshots. In particular, the old A
+fingerprints and B2.1 scheduler ordering depend on database collation. The
+integrated artifacts remove those dependencies; a C-only cluster would hide
+portability regressions, so the gates require URL and drivers without a locale
+pin. The pre-`17ee407a` A, pre-`0f34c666` B, pre-`967b6e28` C, pre-`5487f2bd` B1
+and pre-`3fd62121` B2.1 rolling exclusions must accompany release notes.
+A's notification-readiness closure after C is compared on both sides and does
+not excuse new regressions. Optional notifications may stay explicitly disabled;
 complete polling still depends on the later B2.3/B2.4 components. Full buyer
 adjustment automation and `client.reporting` remain named downstream #1172 work.

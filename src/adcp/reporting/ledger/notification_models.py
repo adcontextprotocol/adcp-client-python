@@ -462,6 +462,7 @@ def decode_dirty(value: object) -> ReportingStatusDirty:
         if dirty_storage(record) == value:
             return record
     except (ValidationError, ValueError, TypeError):
+        # Leave the parsing exception context before emitting the closed classification.
         pass
     raise ReportingNotificationError("invalid_status_evidence") from None
 
@@ -473,6 +474,7 @@ def decode_event(value: object) -> ReportingDomainEvent:
             event.body(subscriber_id="validation", idempotency_key="0" * 32)
             return event
     except (ValidationError, ValueError, TypeError):
+        # Leave the parsing exception context before emitting the closed classification.
         pass
     raise ReportingNotificationError("invalid_event") from None
 
@@ -483,6 +485,7 @@ def decode_status_scope(value: object) -> ReportingStatusScope:
         if asdict(scope) == value:
             return scope
     except (ValidationError, ValueError, TypeError):
+        # Leave the parsing exception context before emitting the closed classification.
         pass
     raise ReportingNotificationError("invalid_status_scope") from None
 
@@ -524,6 +527,6 @@ def validate_notification_payload(value: object) -> None:
         scan(value)
     except ValueError:
         raise ReportingNotificationError("invalid_payload") from None
-    validator = get_named_validator(path, version="3.2.0-rc.3")
+    validator = get_named_validator(path)
     if validator is None or not validator.is_valid(value):
         raise ReportingNotificationError("invalid_payload")

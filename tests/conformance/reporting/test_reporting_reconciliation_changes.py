@@ -184,7 +184,8 @@ async def test_repairs_and_receipts_remain_incrementally_visible_after_core_adva
         (repair, store.record_materialization_check),
         (accepted, store.record_revision_receipt),
     ]:
-        assert not (await write(record))[1]
+        result = await write(record)
+        assert not result[1]
     assert not (
         await store.read_reconciliation_changes(caller=caller, changes_after=checkpoint)
     ).changes

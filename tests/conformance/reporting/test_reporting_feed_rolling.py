@@ -30,8 +30,8 @@ from .test_reporting_materializer_process import worker
 from .test_reporting_materializer_rolling import ARTIFACTS, build_frozen, frozen_call
 from .test_reporting_receipt_rolling import B21, immutable_parent_rows, receipt_probe
 
-B22 = "74b338d81653f4f65bc1520e638da10225f199f3"
-B22_TREE = "b694de7cb216b1ea8456f44ea9ccc9fb66257c79"
+B22 = "09fd87f79a746665d828dea66b3a1dd9d1fc189e"
+B22_TREE = "76c64bb94d8b92faed644158317bb5372b64fcb9"
 
 
 @pytest.fixture(scope="module")
@@ -175,7 +175,8 @@ async def test_nine_actual_artifacts_preserve_ordinary_writes_and_frozen_b22_mou
             ) as child:
                 produced = await child.event("done")
                 assert produced["state"] == "verified"
-                assert await asyncio.wait_for(child.process.wait(), 5) == 0
+                feed_operation_3 = await asyncio.wait_for(child.process.wait(), 5)
+                assert feed_operation_3 == 0
             outcome = (await case.outcomes())[0]
             second = await other_artifact_consumer(parent, case, outcome)
             evidence = outcome.verification
@@ -201,7 +202,7 @@ async def test_nine_actual_artifacts_preserve_ordinary_writes_and_frozen_b22_mou
                 ),
             )
             request = {
-                "adcp_version": "3.2-rc.3",
+                "adcp_version": "3.2-rc.6",
                 "account": {"account_id": case.config.account_id},
                 "idempotency_key": "frozen-feed-mixed-batch",
                 "receipts": [receipt_to_wire(receipt)],
@@ -278,7 +279,8 @@ async def test_nine_actual_artifacts_preserve_ordinary_writes_and_frozen_b22_mou
             assert second_result["result"] != admitted["result"]
             image = without_feed(await h.image())
             fresh_reader = PgReportingFeedStore(pool=pool, notifications=notifications)
-            assert await walk(fresh_reader, query, case.scope.principal, first=first) == expected
+            feed_operation_1 = await walk(fresh_reader, query, case.scope.principal, first=first)
+            assert feed_operation_1 == expected
             assert (
                 await fresh_reader.read_reporting_feed_snapshot(
                     frozen.snapshot_id, caller=case.scope.principal
@@ -289,9 +291,10 @@ async def test_nine_actual_artifacts_preserve_ordinary_writes_and_frozen_b22_mou
             assert await parent.read_receipt_boundaries(caller=case.scope.principal) == captures
             assert await immutable_parent_rows(pool) == saved
             assert await h.queue() == queue
-            assert await PgReportingMaterializerStore(
+            feed_operation_2 = await PgReportingMaterializerStore(
                 pool=pool, notifications=notifications
             ).materializer_ready()
+            assert feed_operation_2
             assert before["ordinary_core"] and after["ordinary_core"]
             assert (
                 before["ordinary_materializer"]

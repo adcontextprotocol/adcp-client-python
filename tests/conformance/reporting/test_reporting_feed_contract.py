@@ -67,10 +67,10 @@ async def test_allowlist_exact_totals_dependency_order_and_final_only_checkpoint
         ):
             assert secret not in text
     assert without_feed(await h.image()) == before
-    assert (
-        await h.store.ingest_receipt_batch(receipt_request, caller=s.binding.principal)
-        == receipt_response
+    feed_operation_1 = await h.store.ingest_receipt_batch(
+        receipt_request, caller=s.binding.principal
     )
+    assert feed_operation_1 == receipt_response
 
 
 async def test_incremental_receipt_replays_old_exact_revision_materialization_adjustment_and_owner(
@@ -139,7 +139,7 @@ async def test_foreign_consumer_writes_do_not_change_open_snapshot_or_visible_ve
         store, request, s.binding.principal, first=first, consumer_status_enabled=not feedback
     )
     assert pages[-1]["pagination"]["total_count"] == 6
-    assert (
+    feed_condition_2 = (
         rows["receipts"][0]["received_at"]
         != (
             await store.read_reporting_feed(
@@ -148,6 +148,7 @@ async def test_foreign_consumer_writes_do_not_change_open_snapshot_or_visible_ve
         )["receipts"][0]["received_at"]
         or h.pool is None
     )
+    assert feed_condition_2
     saved = await store.read_reporting_feed_snapshot(
         first["ledger_snapshot_id"], caller=s.binding.principal
     )
@@ -257,7 +258,8 @@ async def test_readability_clock_configuration_and_private_inputs_survive_restar
             raise AssertionError("continuation consulted current projection")
 
         monkeypatch.setattr(store, "_capture_feed_on", forbidden)
-    assert await walk(store, req, s.binding.principal, first=first) == expected
+    feed_operation_3 = await walk(store, req, s.binding.principal, first=first)
+    assert feed_operation_3 == expected
     assert (
         await store.read_reporting_feed_snapshot(
             first["ledger_snapshot_id"], caller=s.binding.principal

@@ -109,7 +109,8 @@ async def test_real_process_crash_resume_preserves_external_identity_and_atomic_
             assert result["state"] in (
                 {"idle", "parked", "discovered"} if committed else {"verified"}
             )
-            assert await asyncio.wait_for(child.process.wait(), 5) == 0
+            materializer_operation_1 = await asyncio.wait_for(child.process.wait(), 5)
+            assert materializer_operation_1 == 0
         after = await h.works()
         assert len(after) == 1 and after[0][0] == work_before[0][0] and after[0][1] == "acked"
         assert len(tuple(tmp_path.glob("rwm_*"))) == 1
@@ -131,8 +132,10 @@ async def test_crash_after_actual_enabled_logical_enqueue_rolls_back_before_rest
         assert not await h.store.read_materializer_boundaries(caller=case.scope.principal)
         await h.expire()
         async with worker(h, case, tmp_path) as child:
-            assert (await child.event("done"))["state"] == "verified"
-            assert await asyncio.wait_for(child.process.wait(), 5) == 0
+            materializer_operation_2 = await child.event("done")
+            assert (materializer_operation_2)["state"] == "verified"
+            materializer_operation_3 = await asyncio.wait_for(child.process.wait(), 5)
+            assert materializer_operation_3 == 0
         assert len(tuple(tmp_path.glob("rwm_*"))) == 1
         assert len((await h.queue())[0]) == 1
 
@@ -143,10 +146,14 @@ async def test_two_real_workers_reserve_once_without_global_candidate_locks(tmp_
         async with worker(h, case, tmp_path, pause="reserved") as first:
             await first.event("reserved")
             async with worker(h, case, tmp_path) as second:
-                assert (await second.event("done"))["state"] in {"idle", "discovered"}
-                assert await asyncio.wait_for(second.process.wait(), 5) == 0
+                materializer_operation_6 = await second.event("done")
+                assert (materializer_operation_6)["state"] in {"idle", "discovered"}
+                materializer_operation_7 = await asyncio.wait_for(second.process.wait(), 5)
+                assert materializer_operation_7 == 0
             assert not tuple(tmp_path.glob("rwm_*"))
             await first.send({"continue": True})
-            assert (await first.event("done"))["state"] == "verified"
-            assert await asyncio.wait_for(first.process.wait(), 5) == 0
+            materializer_operation_4 = await first.event("done")
+            assert (materializer_operation_4)["state"] == "verified"
+            materializer_operation_5 = await asyncio.wait_for(first.process.wait(), 5)
+            assert materializer_operation_5 == 0
         assert len(await h.works()) == 1

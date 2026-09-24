@@ -66,7 +66,7 @@ async def mixed_case(h, **kwargs):
 
 def feed_request(s, *, limit=1, **kwargs):
     return {
-        "adcp_version": "3.2-rc.3",
+        "adcp_version": "3.2-rc.6",
         "view": "periods",
         "account": {"account_id": s.obligation.account_id},
         "pagination": {"max_results": limit},
@@ -215,7 +215,7 @@ class MountedFeed(MountedReceipts):
                     clients[protocol] = await stack.enter_async_context(
                         ADCPClient(
                             config,
-                            adcp_version="3.2-rc.3",
+                            adcp_version="3.2-rc.6",
                             force_a2a_version=a2a_version if protocol == "a2a" else None,
                             httpx_client_factory=mcp_http if protocol == "mcp" else None,
                         )

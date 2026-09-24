@@ -179,6 +179,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS reporting_revisions_one_successor
 CREATE INDEX IF NOT EXISTS reporting_revisions_obligation_idx
     ON reporting_revisions (account_id, reporting_obligation_id);
 
+-- Scheduler metadata for successful source observations. This is deliberately
+-- separate from immutable revisions: an unchanged refresh must advance the
+-- execution ordinal and cadence clock without publishing duplicate bytes.
+CREATE TABLE IF NOT EXISTS reporting_restatement_checkpoints (
+    reporting_obligation_id TEXT COLLATE "C" NOT NULL PRIMARY KEY
+        REFERENCES reporting_obligations (reporting_obligation_id),
+    account_id              TEXT COLLATE "C" NOT NULL,
+    checked_at              TIMESTAMPTZ      NOT NULL,
+    next_observation        BIGINT           NOT NULL CHECK (next_observation >= 1),
+    provisional_until       TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS reporting_restatement_checkpoints_account_idx
+    ON reporting_restatement_checkpoints (account_id, checked_at);
+
 CREATE TABLE IF NOT EXISTS reporting_revision_rows (
     reporting_revision_id TEXT COLLATE "C" NOT NULL
         REFERENCES reporting_revisions (reporting_revision_id),
@@ -309,6 +324,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS reporting_issue_lifecycle_one_live
 
 CREATE UNIQUE INDEX IF NOT EXISTS reporting_issue_lifecycle_issue_id
     ON reporting_issue_lifecycle (issue_id);
+
+-- Rc.6 binds a bilateral waiver to one immutable statement and diagnosed
+-- conflict. A separate table preserves older binaries' column fingerprints;
+-- historical waivers are never backfilled with invented agreement evidence.
+CREATE TABLE IF NOT EXISTS reporting_issue_waiver_bindings (
+    account_id TEXT COLLATE "C" NOT NULL,
+    issue_key TEXT COLLATE "C" NOT NULL,
+    generation INTEGER NOT NULL,
+    reporting_status_id TEXT COLLATE "C" NOT NULL,
+    conflict_sha256 TEXT COLLATE "C" NOT NULL CHECK (conflict_sha256 ~ '^[0-9a-f]{64}$'),
+    PRIMARY KEY (account_id, issue_key, generation),
+    FOREIGN KEY (account_id, issue_key, generation)
+        REFERENCES reporting_issue_lifecycle (account_id, issue_key, generation)
+);
 
 -- The per-account change feed. `seq` orders every immutable record across
 -- kinds so `changes_after` is exact.

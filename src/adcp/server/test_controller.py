@@ -106,9 +106,11 @@ SCENARIOS = [
     "force_creative_purge",
     "force_account_status",
     "force_media_buy_status",
+    "force_media_buy_purge",
     "force_create_media_buy_arm",
     "force_get_products_arm",
     "force_get_signals_arm",
+    "force_get_creative_features_arm",
     "force_task_completion",
     "force_session_status",
     "simulate_delivery",
@@ -283,6 +285,20 @@ class TestControllerStore:
         """
         raise NotImplementedError
 
+    async def force_media_buy_purge(
+        self,
+        media_buy_id: str,
+        *,
+        account: dict[str, Any] | None = None,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Purge a sandbox media buy while retaining its idempotency journal.
+
+        Implementations opt in explicitly; purging must not enable a second
+        commit when the original idempotent request is replayed.
+        """
+        raise NotImplementedError
+
     async def force_session_status(
         self,
         session_id: str,
@@ -371,6 +387,24 @@ class TestControllerStore:
 
         Returns:
             {"forced": {"arm": "submitted", "task_id": str}}
+        """
+        raise NotImplementedError
+
+    async def force_get_creative_features_arm(
+        self,
+        arm: str,
+        task_id: str | None = None,
+        evaluation_id: str | None = None,
+        message: str | None = None,
+        result: dict[str, Any] | None = None,
+        *,
+        account: dict[str, Any] | None = None,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Force the next sandbox feature evaluation's submitted/completed arm.
+
+        Submitted evaluations preserve the supplied task and evaluation IDs
+        through completion. Completed evaluations preserve the supplied result.
         """
         raise NotImplementedError
 
@@ -1114,6 +1148,8 @@ async def _handle_test_controller(
             _require_scenario_params(scenario_params, "account_id", "status")
         elif scenario == "force_media_buy_status":
             _require_scenario_params(scenario_params, "media_buy_id", "status")
+        elif scenario == "force_media_buy_purge":
+            _require_scenario_params(scenario_params, "media_buy_id")
         elif scenario == "force_session_status":
             _require_scenario_params(scenario_params, "session_id", "status")
         elif scenario == "force_create_media_buy_arm":
@@ -1239,6 +1275,10 @@ async def _handle_test_controller(
                 )
             if _accepts_kwarg(method, "task_id"):
                 method_kwargs["task_id"] = task_id
+        elif scenario == "force_get_creative_features_arm":
+            validation_error = _canonical_validation_error(params)
+            if validation_error is not None:
+                return validation_error
         elif scenario == "force_task_completion":
             raw_task_id = scenario_params.get("task_id")
             task_id = raw_task_id.strip() if isinstance(raw_task_id, str) else None

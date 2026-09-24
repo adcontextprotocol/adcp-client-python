@@ -12,6 +12,7 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import account_authorization as account_authorization_1
 from ..core import account_identity_change as account_identity_change_1
 from ..core import account_identity_change_preview as account_identity_change_preview_1
+from ..core import account_ref as account_ref_1
 from ..core import brand_ref as brand_ref_1
 from ..core import business_entity as business_entity_1
 from ..core import context as context_1
@@ -42,8 +43,9 @@ class CreditLimit(AdcpVersionEnvelope):
 class Account(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     account_id: str | None = None
-    brand: brand_ref_1.BrandReference
-    operator: str
+    account: account_ref_1.AccountReference | None = None
+    brand: brand_ref_1.BrandReference | None = None
+    operator: str | None = None
     operator_unit: operator_unit_1.OperatorUnit | None = None
     revision: Annotated[int, Field(ge=1)] | None = None
     identity_change: account_identity_change_1.AccountIdentityChange | None = None
@@ -52,7 +54,7 @@ class Account(AdcpVersionEnvelope):
     timezone: Annotated[str, StringConstraints(min_length=1)] | None = None
     name: str | None = None
     action: Literal['created', 'updated', 'unchanged', 'failed']
-    status: Literal['active', 'pending_approval', 'rejected', 'payment_required', 'suspended', 'closed']
+    status: Literal['active', 'pending_approval', 'rejected', 'payment_required', 'suspended', 'closed'] | None = None
     billing: billing_party_1.BillingParty | None = None
     billing_entity: business_entity_1.BusinessEntity | None = None
     destination_billing_entity: Any | None = None
@@ -61,7 +63,7 @@ class Account(AdcpVersionEnvelope):
     rate_card: str | None = None
     payment_terms: payment_terms_1.PaymentTerms | None = None
     credit_limit: CreditLimit | None = None
-    errors: list[error_1.Error] | None = None
+    errors: Annotated[list[error_1.Error], Field(min_length=1)] | None = None
     warnings: list[str] | None = None
     sandbox: bool | None = None
     notification_configs: Annotated[list[notification_config_1.NotificationConfig], Field(max_length=16)] | None = None
