@@ -488,13 +488,14 @@ jobs:
     # Crash processes and shared memory/SQL vectors have their own database
     # and bounded suite; setup and cleanup have five minutes of headroom.
     timeout-minutes: 25
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: adcp_feed_test
-          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
         ports:
           - 5432:5432
         options: >-
@@ -517,14 +518,21 @@ jobs:
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_feed_test
         run: |
+          # Filter before pytest receives explicit paths; --ignore cannot do this.
+          shopt -s nullglob
+          feed_tests=()
+          for test_file in tests/conformance/reporting/test_reporting_feed_*.py; do
+            case "$test_file" in
+              tests/conformance/reporting/test_reporting_feed_rolling.py|tests/conformance/reporting/test_reporting_feed_packaging.py|tests/conformance/reporting/test_reporting_feed_installed_pg.py) ;;
+              *) feed_tests+=("$test_file") ;;
+            esac
+          done
+          if (( ${#feed_tests[@]} == 0 )); then
+            echo "No native feed test files selected" >&2
+            exit 1
+          fi
           python scripts/reporting_test_harness.py pytest \
-            tests/conformance/reporting/test_reporting_feed_contract.py \
-            tests/conformance/reporting/test_reporting_feed_positions.py \
-            tests/conformance/reporting/test_reporting_feed_history.py \
-            tests/conformance/reporting/test_reporting_feed_transports.py \
-            tests/conformance/reporting/test_reporting_feed_transactions.py \
-            tests/conformance/reporting/test_reporting_feed_migration.py \
-            tests/conformance/reporting/test_reporting_feed_process.py \
+            "${feed_tests[@]}" \
             -v -s -ra | tee pg-reporting-feed-evidence.log
       - name: Preserve exact public, private, restart and fault evidence
         if: always()
@@ -540,13 +548,14 @@ jobs:
     # Actual B2.1 produces the artifact and actual B2.2 mounts receipts on
     # both sides of migration for every historical reader/writer cell.
     timeout-minutes: 50
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: adcp_feed_rolling_test
-          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
         ports:
           - 5432:5432
         options: >-
@@ -563,12 +572,12 @@ jobs:
             3e76aa54623529a3dda01cd690b8a5c287c75641 \
             3c405a21f978ed9d3208611bb4a7a8434a056933 \
             037de4ac822ecefb2f95d32c15c297fb4c45d683 \
-            21bf443e7d850d1800ec8a6f2e4abec1c8f85541 \
-            198d50e61c74fb82aedbf2c77e06a0e200b91db6 \
-            ea150fabd5ad90e3abf93f89729d2919f1c61798 \
-            1c91311ec28d25506d5db43f59d0c34936ecb8f7 \
-            8e18ca12b9a0c3750f80aa822058c02982ab3e52 \
-            74b338d81653f4f65bc1520e638da10225f199f3
+            17ee407ae3978c8a2bb54437287afbf9dafb8130 \
+            0f34c666ac1961e9832fce43ef0ef6937b3c1dde \
+            967b6e286301d7e5d089aea6fdbb90bea8ee5a16 \
+            5487f2bdef23c5102118b305be9e868228f6ce61 \
+            3fd62121c96a074e3ea458c30c5224d6a586f169 \
+            09fd87f79a746665d828dea66b3a1dd9d1fc189e
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -597,13 +606,14 @@ jobs:
     name: Installed frozen feed (Python 3.10 VCS and sdist)
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: adcp_feed_installed_test
-          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
         ports:
           - 5432:5432
         options: >-

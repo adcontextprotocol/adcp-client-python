@@ -34,7 +34,8 @@ async def main(settings):
     async def pause(point, **evidence):
         if settings.get("pause") == point:
             print(json.dumps({"point": point, **evidence}), flush=True)
-            assert json.loads(await asyncio.to_thread(sys.stdin.readline))["continue"]
+            feed_operation_1 = await asyncio.to_thread(sys.stdin.readline)
+            assert json.loads(feed_operation_1)["continue"]
 
     receipt_only = settings.get("receipt_only", False)
     if receipt_only:
@@ -61,9 +62,11 @@ async def main(settings):
         if settings["action"] == "install":
             await store.create_schema()
             await store.create_schema()
-            assert await store.receipt_ingestion_ready()
+            feed_operation_2 = await store.receipt_ingestion_ready()
+            assert feed_operation_2
             if not receipt_only:
-                assert await store.reporting_feed_ready()
+                feed_operation_3 = await store.reporting_feed_ready()
+                assert feed_operation_3
             if settings.get("legacy_status_schema"):
                 from adcp.reporting.ledger import PgReportingReconciliationStore
                 from adcp.reporting.outbox import PgStatusNotificationStore
@@ -118,18 +121,23 @@ async def main(settings):
                     expected.add("get_reporting_status")
                 assert {tool["name"] for tool in inventory["tools"]} == expected
                 for path in ("/.well-known/agent.json", "/.well-known/agent-card.json"):
-                    assert {s["id"] for s in (await client.get(path)).json()["skills"]} == expected
+                    feed_condition_4 = {
+                        s["id"] for s in (await client.get(path)).json()["skills"]
+                    } == expected
+                    assert feed_condition_4
                 if settings["action"] == "receipt":
                     _, response = await mount.mcp(client, settings["request"])
                     assert response["results"]
                     for v1 in (False, True):
-                        assert (await mount.a2a(client, settings["request"], v1=v1))[1] == response
+                        feed_operation_6 = await mount.a2a(client, settings["request"], v1=v1)
+                        assert (feed_operation_6)[1] == response
                     mount.grants.clear()
                     for call in (mount.mcp, mount.a2a):
-                        assert (
+                        feed_condition_7 = (
                             transport.error_code((await call(client, settings["request"]))[1])
                             == "UNAUTHORIZED"
                         )
+                        assert feed_condition_7
                     result = response
                 else:
 
@@ -163,12 +171,13 @@ async def main(settings):
                         pages[0]["ledger_snapshot_id"], caller=caller
                     )
                     mount.grants.clear()
-                    assert (
+                    feed_condition_5 = (
                         transport.error_code(
                             (await mount.a2a(client, request, mutate_wire=reporting))[1]
                         )
                         == "UNAUTHORIZED"
                     )
+                    assert feed_condition_5
                     result = {
                         "pages": pages,
                         "binding": snapshot.binding,

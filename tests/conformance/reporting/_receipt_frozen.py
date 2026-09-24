@@ -63,7 +63,8 @@ async def main(settings):
             await PgStatusNotificationStore(
                 ledger.PgReportingReconciliationStore(pool=pool, notifications=True)
             ).create_schema()
-            assert await store.materializer_ready()
+            feed_operation_1 = await store.materializer_ready()
+            assert feed_operation_1
             manifest = json.loads(
                 files("adcp.reporting.materializer").joinpath("required_schema.json").read_text()
             )
@@ -169,7 +170,8 @@ async def main(settings):
             assert readiness == (settings["artifact"] != "a")
         materializer = None
         if settings["artifact"] in {"b21", "b22"}:
-            assert await store.materializer_ready()
+            feed_operation_2 = await store.materializer_ready()
+            assert feed_operation_2
             boundaries = await store.read_materializer_boundaries(caller=caller)
             assert len(boundaries) == 1
             assert boundaries[0].to_storage()["version"] == 1
