@@ -6,7 +6,7 @@ import importlib
 import importlib.util
 import json
 import sys
-from dataclasses import fields
+from dataclasses import fields, replace
 from datetime import datetime, timedelta, timezone
 from importlib.resources import files
 from pathlib import Path
@@ -26,6 +26,7 @@ async def main():
         "adcp.reporting.revision_selection",
         "adcp.reporting.ledger",
         "adcp.reporting.outbox",
+        "adcp.reporting.receipts",
     ):
         module = importlib.import_module(name)
         assert len(module.__all__) == len(set(module.__all__))
@@ -72,6 +73,8 @@ async def main():
     assert files("adcp.reporting.outbox").joinpath("required_status_selector_schema.json").is_file()
     assert files("adcp.reporting.ledger").joinpath("reporting_materializer.sql").is_file()
     assert files("adcp.reporting.materializer").joinpath("required_schema.json").is_file()
+    assert files("adcp.reporting.ledger").joinpath("reporting_receipt_ingestion.sql").is_file()
+    assert files("adcp.reporting.receipts").joinpath("required_schema.json").is_file()
     start = datetime(2026, 9, 1, tzinfo=timezone.utc)
     schedule = ReportingScheduleSpec("PT1H", "PT1H", period_anchor=start)
     period = derive_period(schedule, account_timezone="UTC", ordinal=0)
@@ -210,6 +213,59 @@ async def main():
         boundaries = await durable.read_materializer_boundaries(caller=scope.principal)
         assert len(boundaries) == boundaries[0].sequence == boundaries[0].account_sequence == 1
         assert durable._materializer_outbox is None
+        from adcp.reporting.ledger import ReportingRevisionReceiptRecord, receipt_to_wire
+        from adcp.reporting.receipts import InMemoryReportingReceiptStore, ReportingReceiptHandler
+        from adcp.server import ToolContext
+
+        receipt_store = InMemoryReportingReceiptStore(notifications=False)
+        await receipt_store.put_configuration(configuration)
+        await receipt_store.commit_obligation(obligation)
+        receipt_binding = replace(binding, reconciliation_mode="consumer_receipt")
+        await receipt_store.put_destination_binding(receipt_binding)
+        await receipt_store.commit_revision(revision, rows)
+        destination = example.development_destination(receipt_binding)
+        receipt_service = ReportingMaterializerService(
+            receipt_store,
+            ReportingDestinationIO(destination.registry, destination.resolver),
+            destination.writer,
+        )
+        receipt_operation_1 = await receipt_service.run_once()
+        assert (receipt_operation_1).state == "verified"
+        snapshot = await receipt_store.read_reconciliation_snapshot(caller=scope.principal)
+        outcome = next(r for r in snapshot.records if r.kind == "materialization")
+        verification = outcome.verification
+        receipt = ReportingRevisionReceiptRecord(
+            scope,
+            "installed-receipt-0001",
+            revision.reporting_revision_id,
+            outcome.reporting_materialization_id,
+            "accepted",
+            verification.verification_profile,
+            verification.row_count,
+            verification.control_totals,
+            datetime.now(timezone.utc),
+            observed_canonical_content_digest=verification.canonical_content_digest,
+        )
+        request = {
+            "adcp_version": "3.2-rc.6",
+            "account": {"account_id": configuration.account_id},
+            "idempotency_key": "installed-batch-0001",
+            "receipts": [receipt_to_wire(receipt)],
+        }
+
+        async def authorize(reference, context, consumer):
+            assert reference == {"account_id": configuration.account_id}
+            assert consumer == scope.consumer_id
+            return configuration.account_id
+
+        handler = ReportingReceiptHandler(receipt_store, resolve_account=authorize)
+        context = ToolContext(caller_identity=scope.consumer_id)
+        recorded = await handler.sync_reporting_receipts(request, context)
+        assert recorded["results"][0]["result"] == "recorded"
+        receipt_operation_2 = await handler.sync_reporting_receipts(request, context)
+        assert receipt_operation_2 == recorded
+        assert len(await receipt_store.read_receipt_boundaries(caller=scope.principal)) == 1
+        assert receipt_store._materializer_outbox is None
     workspace = Path(config["workspace"]).resolve()
     assert all(not Path(path).resolve().is_relative_to(workspace) for path in sys.path)
     assert all(
@@ -227,6 +283,7 @@ async def main():
                 "installed": True,
                 "assets": actual,
                 "durable": True,
+                "receipts": True,
             }
         )
     )

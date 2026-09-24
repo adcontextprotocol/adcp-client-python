@@ -188,11 +188,44 @@ def current_receipt(
         for item in records
         if isinstance(item, _RECEIPTS) and receipt_chain(item) == receipt_chain(requested)
     ]
-    superseded = {item.supersedes_reporting_receipt_id for item in chain}
+    if not chain:
+        return None
+    by_id = {item.reporting_receipt_id: item for item in chain}
+    superseded = [
+        item.supersedes_reporting_receipt_id
+        for item in chain
+        if item.supersedes_reporting_receipt_id is not None
+    ]
     leaves = [item for item in chain if item.reporting_receipt_id not in superseded]
-    if chain and len(leaves) != 1:
+    if len(by_id) != len(chain) or len(set(superseded)) != len(superseded) or len(leaves) != 1:
         fail("REPORTING_HISTORY_CORRUPT")
-    return leaves[0] if leaves else None
+    # One apparent leaf alone does not rule out a disconnected cycle, a missing
+    # predecessor, an accepted predecessor, or a cross-target/generation edge.
+    visited: set[str] = set()
+    node: ReportingReceiptRecord | None = leaves[0]
+    while node is not None:
+        if (
+            node.reporting_receipt_id in visited
+            or type(node) is not type(requested)
+            or node.scope != requested.scope
+        ):
+            fail("REPORTING_HISTORY_CORRUPT")
+        if isinstance(node, ReportingAdjustmentReceiptRecord) and isinstance(
+            requested, ReportingAdjustmentReceiptRecord
+        ):
+            if node.adjusts_reporting_revision_id != requested.adjusts_reporting_revision_id:
+                fail("REPORTING_HISTORY_CORRUPT")
+        visited.add(node.reporting_receipt_id)
+        predecessor_id = node.supersedes_reporting_receipt_id
+        if predecessor_id is None:
+            node = None
+        else:
+            node = by_id.get(predecessor_id)
+            if node is None or node.status != "rejected":
+                fail("REPORTING_HISTORY_CORRUPT")
+    if len(visited) != len(chain):
+        fail("REPORTING_HISTORY_CORRUPT")
+    return leaves[0]
 
 
 def replay(
@@ -203,6 +236,8 @@ def replay(
     )
     if existing is None:
         return None
+    if isinstance(existing, _RECEIPTS):
+        current_receipt(records, existing)
     comparison = existing
     if (
         isinstance(record, _RECEIPTS)
@@ -553,15 +588,22 @@ def _verify_receipt(
         fail("REPORTING_TIME_INVALID")
     if record.status != "accepted":
         return
-    if record.observed_row_count != revision.row_count or sorted(
-        record.observed_control_totals, key=lambda item: item.name
-    ) != sorted(target.verification.control_totals, key=lambda item: item.name):
+    if (
+        record.observed_row_count != revision.row_count
+        or record.observed_row_count != target.verification.row_count
+        or sorted(record.observed_control_totals, key=lambda item: item.name)
+        != sorted(target.verification.control_totals, key=lambda item: item.name)
+    ):
         fail("RECEIPT_TOTALS_MISMATCH")
     profile = record.verification_profile
     if (
         (
             record.observed_canonical_content_digest is not None
-            and record.observed_canonical_content_digest != revision.canonical_content_digest
+            and (
+                record.observed_canonical_content_digest != revision.canonical_content_digest
+                or record.observed_canonical_content_digest
+                != target.verification.canonical_content_digest
+            )
         )
         or (
             record.observed_manifest_sha256 is not None

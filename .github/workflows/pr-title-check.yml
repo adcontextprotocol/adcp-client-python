@@ -3,7 +3,7 @@ name: PR Title Check
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
-    branches: [main]
+    branches: [main, conductor/1167b2-durable-managed-reporting]
 
 permissions:
   contents: read

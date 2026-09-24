@@ -58,6 +58,45 @@ CREATE INDEX IF NOT EXISTS reporting_configurations_account_idx
 CREATE INDEX IF NOT EXISTS reporting_configurations_lease_idx
     ON reporting_configurations (lease_expires_at NULLS FIRST);
 
+-- Durable round-robin fairness for period-close leasing.
+--
+-- `reporting_configurations_lease_idx` above cannot deliver the "least recently
+-- worked" order its own comment promises. `release_period_close` clears
+-- `lease_expires_at`, so every released generation ties at NULL and the winner
+-- is whichever tuple the scan happens to yield first: a worker that releases at
+-- the end of every turn re-leases the same generation forever and never closes
+-- any other account's periods. Ordering by expiry *first* is a second
+-- starvation path -- the acquisition filter has already dropped every live
+-- lease, so a peer that is released each turn is permanently NULL and outranks
+-- a generation whose worker crashed, which then stays expired forever.
+--
+-- The fairness rank therefore lives in its own private SDK table, stamped on
+-- acquisition (release only clears the lease, so there is nowhere else to
+-- record it) and persisted so it survives a worker restart.
+--
+-- The `adcp_` prefix is deliberate and load-bearing. `schema_objects()`
+-- enumerates every table in the current schema whose name starts with
+-- `reporting_`, and the A/B+C conformance suites assert that the installed
+-- object set is *exactly* their manifests. A new `reporting_*` table, or a new
+-- column on `reporting_configurations`, would therefore break exact object
+-- identity for every older binary: adding it to the required manifest would
+-- make old installations fail validation, and leaving it out would break the
+-- exhaustive comparison. Outside that prefix the table is invisible to the
+-- catalog contract, so old manifests, `reporting_configurations`'s shape and
+-- its retained evidence all stay byte-identical.
+CREATE SEQUENCE IF NOT EXISTS adcp_reporting_configuration_lease_turn_seq AS BIGINT;
+
+-- No foreign key: the reference is resolved by the lazy LEFT JOIN instead, so
+-- nothing is added to `reporting_configurations` and a generation that is
+-- deleted simply stops being joined.
+CREATE TABLE IF NOT EXISTS adcp_reporting_configuration_lease_turns (
+    account_id              TEXT COLLATE "C" NOT NULL,
+    delivery_config_id      TEXT COLLATE "C" NOT NULL,
+    delivery_config_version INTEGER          NOT NULL,
+    lease_turn              BIGINT           NOT NULL,
+    PRIMARY KEY (account_id, delivery_config_id, delivery_config_version)
+);
+
 CREATE TABLE IF NOT EXISTS reporting_obligations (
     reporting_obligation_id TEXT COLLATE "C" NOT NULL PRIMARY KEY,
     account_id              TEXT COLLATE "C" NOT NULL,

@@ -540,9 +540,21 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "properties": {
                 "account": {"type": "object"},
                 "idempotency_key": {"type": "string"},
-                "receipts": {"type": "array"},
+                "receipts": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "items": {"type": "object", "not": {"required": ["received_at"]}},
+                },
+                "adjustment_receipts": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "items": {"type": "object", "not": {"required": ["received_at"]}},
+                },
             },
-            "required": ["account", "idempotency_key", "receipts"],
+            "required": ["account", "idempotency_key"],
+            "anyOf": [{"required": ["receipts"]}, {"required": ["adjustment_receipts"]}],
         },
     },
     {
@@ -2401,7 +2413,16 @@ def get_tools_for_handler(
         # The in-memory registry shares memoized schema subtrees to keep server
         # startup compact. Public definitions remain ordinary independently
         # mutable JSON values, matching the pre-memoization behavior.
-        return [_copy_json_without_aliases(tool) for tool in selected]
+        definitions = [_copy_json_without_aliases(tool) for tool in selected]
+        for definition in definitions:
+            if definition["name"] == "sync_reporting_receipts":
+                from adcp.reporting.receipts.wire import receipt_schema
+
+                # Also runs when model generation fell back to hand-written
+                # stubs. Do not mutate cached upstream/generated schema inputs.
+                definition["inputSchema"] = receipt_schema("request")
+                definition["outputSchema"] = receipt_schema("sync")
+        return definitions
 
     if not list_validator_keys(version=resolved_version):
         raise ValueError(
@@ -2419,6 +2440,13 @@ def get_tools_for_handler(
         if input_schema is None:
             continue
         definition = copy.deepcopy(tool)
+        if name == "sync_reporting_receipts":
+            from adcp.reporting.receipts.wire import receipt_schema
+
+            definition["inputSchema"] = receipt_schema("request", version=resolved_version)
+            definition["outputSchema"] = receipt_schema("sync", version=resolved_version)
+            versioned.append(definition)
+            continue
         definition["inputSchema"] = input_schema
         output_schema = get_mcp_schema(name, "sync", version=resolved_version)
         if output_schema is not None:
@@ -2745,11 +2773,48 @@ def create_tool_caller(
 
         raw_params = params  # Preserve original wire params for context echo.
 
+        if method_name == "sync_reporting_receipts":
+            from adcp.reporting.receipts.errors import ReportingReceiptError
+            from adcp.reporting.receipts.wire import ReceiptBatch
+
+            # Financial batches require the raw shape even with generic
+            # validation disabled. Coercion must not erase supplied empty
+            # arrays, read-only fields, timestamps, or request extensions.
+            try:
+                receipt_batch = ReceiptBatch.parse(raw_params)
+                raw_params = receipt_batch.request
+            except ReportingReceiptError as exc:
+                raise ADCPTaskError(
+                    operation=method_name, errors=[Error(code=exc.code, message=str(exc))]
+                ) from None
+
         if pre_validation_hooks:
             try:
                 params = _apply_pre_validation_hooks(
-                    pre_validation_hooks, method_name, dict(params)
+                    pre_validation_hooks,
+                    method_name,
+                    (
+                        copy.deepcopy(params)
+                        if method_name == "sync_reporting_receipts"
+                        else dict(params)
+                    ),
                 )
+                if method_name == "sync_reporting_receipts":
+                    # A rewrite would change the identity the buyer authorized.
+                    # Hooks may inspect this task; financial mutations fail closed.
+                    try:
+                        if ReceiptBatch.parse(params) != receipt_batch:
+                            raise ReportingReceiptError("INVALID_REQUEST")
+                    except ReportingReceiptError:
+                        raise ADCPTaskError(
+                            operation=method_name,
+                            errors=[
+                                Error(
+                                    code="INVALID_REQUEST",
+                                    message="receipt requests cannot be rewritten",
+                                )
+                            ],
+                        ) from None
             except PreValidationHookError as exc:
                 raise ADCPTaskError(
                     operation=method_name,
@@ -2959,7 +3024,7 @@ def create_tool_caller(
                     ],
                 ) from exc
 
-        if isinstance(params, dict):
+        if isinstance(params, dict) and method_name != "sync_reporting_receipts":
             params = _apply_unknown_field_policy(
                 method_name,
                 params,
@@ -2987,7 +3052,9 @@ def create_tool_caller(
                 )
 
         call_params: Any = params
-        if params_model is not None and isinstance(params, dict):
+        if method_name == "sync_reporting_receipts":
+            call_params = raw_params
+        elif params_model is not None and isinstance(params, dict):
             try:
                 call_params = params_model.model_validate(params)
             except ValidationError as exc:
@@ -3142,7 +3209,7 @@ def create_tool_caller(
             # envelope is enhanced on the dedicated error paths
             # (``build_mcp_error_result`` / ``_send_adcp_error``), so skip
             # it here to avoid a double pass.
-            if "adcp_error" not in result:
+            if "adcp_error" not in result and method_name != "sync_reporting_receipts":
                 _apply_response_enhancer(response_enhancer, method_name, result, ctx)
 
         if response_mode is not None and response_mode != "off" and isinstance(result, dict):

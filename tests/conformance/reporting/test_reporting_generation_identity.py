@@ -26,6 +26,7 @@ from adcp.reporting.ledger import (
     consumer_mismatch_issue_key,
 )
 from adcp.reporting.ledger.pg import PgReportingLedgerStore
+from adcp.reporting.outbox._schema import schema_objects
 from adcp.reporting.source import ReportingSourceSliceRequestV1
 from tests.conformance.reporting._generation_support import (
     END,
@@ -144,7 +145,10 @@ async def test_concurrent_leases_and_releases_keep_accounts_separate(
     )
     replacement = await store.lease_period_close(worker_id="next", now=NOW, lease_seconds=60)
     assert replacement is not None and replacement.generation_key == first.generation_key
-    assert await store.lease_period_close(worker_id="extra", now=NOW, lease_seconds=60) is None
+    receipt_operation_1 = await store.lease_period_close(
+        worker_id="extra", now=NOW, lease_seconds=60
+    )
+    assert receipt_operation_1 is None
     await asyncio.gather(
         store.release_period_close(second, worker_id="shared"),
         store.release_period_close(replacement, worker_id="next"),
@@ -169,11 +173,17 @@ async def test_an_expired_lease_cannot_release_a_replacement_with_the_same_worke
     replacement = await store.lease_period_close(worker_id="shared", now=later, lease_seconds=60)
     assert replacement is not None and replacement.generation_key == expired.generation_key
     await store.release_period_close(expired, worker_id="shared")
-    assert await store.lease_period_close(worker_id="extra", now=later, lease_seconds=60) is None
+    receipt_operation_2 = await store.lease_period_close(
+        worker_id="extra", now=later, lease_seconds=60
+    )
+    assert receipt_operation_2 is None
     await store.release_period_close(replacement, worker_id="shared")
     reclaimed = await store.lease_period_close(worker_id="new", now=later, lease_seconds=60)
     assert reclaimed is not None and reclaimed.generation_key == expired.generation_key
-    assert await store.lease_period_close(worker_id="extra", now=later, lease_seconds=60) is None
+    receipt_operation_3 = await store.lease_period_close(
+        worker_id="extra", now=later, lease_seconds=60
+    )
+    assert receipt_operation_3 is None
 
 
 async def test_a_worker_that_releases_each_turn_reaches_every_accounts_generation(
@@ -185,6 +195,13 @@ async def test_a_worker_that_releases_each_turn_reaches_every_accounts_generatio
     always hands back the first leasable generation would close periods for one
     account forever and never reach the others -- invisible until two accounts
     share a ``delivery_config_id``, which is exactly what this change allows.
+
+    Release clears ``lease_expires_at``, so ``ORDER BY lease_expires_at NULLS
+    FIRST`` alone is not a total order and the winner is whatever plan order
+    happens to apply; CI caught nine consecutive ``acct_a`` leases this way
+    while the in-memory store, which breaks the tie on turn, stayed fair. Both
+    stores now rank on a persisted turn advanced at acquisition, so reverting
+    that ordering fails this test deterministically rather than occasionally.
     """
     accounts = ("acct_a", "acct_b", "acct_c")
     await asyncio.gather(*(store.put_configuration(configuration(name)) for name in accounts))
@@ -197,6 +214,278 @@ async def test_a_worker_that_releases_each_turn_reaches_every_accounts_generatio
         await store.release_period_close(lease, worker_id="solo")
     assert set(worked) == set(accounts)
     assert set(worked[: len(accounts)]) == set(accounts)
+
+
+async def test_lease_turn_advances_on_acquisition_so_a_crashed_worker_cannot_starve_peers(
+    store: ReportingLedgerStore,
+) -> None:
+    """Acquisition, not release, is where a generation loses its place in line.
+
+    ``release_period_close`` only clears the lease, so the turn has to be
+    recorded when the lease is taken -- otherwise a worker that crashes
+    mid-close keeps the minimum turn forever and every expiry sweep hands the
+    same generation back.
+
+    Ordering by expiry with ``NULLS FIRST`` hides that on its own: a never
+    worked generation always outranks an expired one, so the turn is only the
+    deciding term once two eligible generations share an expiry. This builds
+    exactly that state. ``acct_b`` is leased first and ``acct_a`` second, both
+    crash unreleased with the same expiry, so the generation that went longest
+    without a turn is ``acct_b`` even though ``acct_a`` sorts lower by key. A
+    store that advances the turn only on release ranks them equal and reaches
+    for ``acct_a``.
+    """
+    # Created in this order so the later-acquired generation sorts lower by key.
+    await store.put_configuration(configuration("acct_b"))
+    crashed_first = await store.lease_period_close(worker_id="crash-1", now=NOW, lease_seconds=30)
+    assert crashed_first is not None and crashed_first.account_id == "acct_b"
+    await store.put_configuration(configuration("acct_a"))
+    crashed_second = await store.lease_period_close(worker_id="crash-2", now=NOW, lease_seconds=30)
+    assert crashed_second is not None and crashed_second.account_id == "acct_a"
+    assert crashed_first.lease_expires_at == crashed_second.lease_expires_at
+    # Never worked, so it must outrank both expired generations.
+    await store.put_configuration(configuration("acct_c"))
+    later = NOW + timedelta(seconds=31)
+    swept = []
+    for _ in range(3):
+        lease = await store.lease_period_close(worker_id="solo", now=later, lease_seconds=30)
+        assert lease is not None
+        swept.append(lease.account_id)
+    assert swept == ["acct_c", "acct_b", "acct_a"]
+
+
+async def test_lease_order_is_total_and_does_not_depend_on_acceptance_order(
+    store: ReportingLedgerStore,
+) -> None:
+    """Both backends must choose the same generation, not this process's history.
+
+    Never-leased generations all share the minimum turn, so something has to
+    break the tie. Ranking on "whichever generation this store accepted first"
+    is not reproducible: the SQL store cannot express it, it differs from the
+    in-memory store, and it does not survive a restart or a second worker. The
+    generation key is part of the rank instead, so these configurations are
+    handed out in key order even though they are accepted in the reverse.
+    """
+    # Accepted in reverse key order, deliberately.
+    for name in ("acct_c", "acct_b", "acct_a"):
+        await store.put_configuration(configuration(name))
+    worked = []
+    for _ in range(3):
+        lease = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+        assert lease is not None
+        worked.append(lease.account_id)
+        await store.release_period_close(lease, worker_id="solo")
+    assert worked == ["acct_a", "acct_b", "acct_c"]
+
+
+async def test_a_crashed_generation_is_not_starved_by_a_peer_that_keeps_releasing(
+    store: ReportingLedgerStore,
+) -> None:
+    """A permanently unheld peer must not outrank a lower-turn expired generation.
+
+    The acquisition filter already drops every live lease, so among the
+    survivors the expiry carries no fairness information. If unheld sorted
+    ahead of expired, a peer that is leased and released on every turn would be
+    NULL forever and win every comparison, while the generation whose worker
+    died would stay expired and never close another period -- starvation with
+    no expiry sweep able to clear it.
+    """
+    await asyncio.gather(
+        *(store.put_configuration(configuration(name)) for name in ("acct_a", "acct_b"))
+    )
+    crashed = await store.lease_period_close(worker_id="crashes", now=NOW, lease_seconds=30)
+    assert crashed is not None and crashed.account_id == "acct_a"
+    # acct_a is still live here, so this can only take acct_b; it releases.
+    released = await store.lease_period_close(worker_id="polite", now=NOW, lease_seconds=30)
+    assert released is not None and released.account_id == "acct_b"
+    await store.release_period_close(released, worker_id="polite")
+    # Past acct_a's expiry both are leasable: acct_b unheld, acct_a expired.
+    later = NOW + timedelta(seconds=31)
+    recovered = await store.lease_period_close(worker_id="solo", now=later, lease_seconds=30)
+    assert recovered is not None
+    assert recovered.account_id == "acct_a"
+
+
+async def test_lease_fairness_migrates_onto_an_already_installed_older_schema() -> None:
+    """The additive upgrade reaches an existing install and stays idempotent.
+
+    The rank lives in a private `adcp_`-prefixed table precisely so that
+    `schema_objects()` -- which enumerates every `reporting_*` table in the
+    schema -- keeps reporting the exact object set that older binaries
+    validate. So the upgrade has to be proven on an install that predates it.
+    """
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(pool=pool, clock=lambda: NOW)
+        await store.create_schema()
+        async with pool.connection() as connection:
+            # Reduce the install to the pre-fairness shape an older binary left.
+            await connection.execute(
+                "DROP TABLE IF EXISTS adcp_reporting_configuration_lease_turns"
+            )
+            await connection.execute(
+                "DROP SEQUENCE IF EXISTS adcp_reporting_configuration_lease_turn_seq"
+            )
+        for name in ("acct_a", "acct_b"):
+            await store.put_configuration(configuration(name))
+        # Repeated migration is safe and restores the durable fairness rank.
+        await store.create_schema()
+        await store.create_schema()
+        async with pool.connection() as connection:
+            ranks = await (
+                await connection.execute(
+                    "SELECT count(*) FROM adcp_reporting_configuration_lease_turns"
+                )
+            ).fetchone()
+        # Generations accepted before the upgrade have no rank row at all, which
+        # is the never-leased rank rather than a privileged one.
+        assert ranks is not None and ranks[0] == 0
+        worked = []
+        for _ in range(2):
+            lease = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+            assert lease is not None
+            worked.append(lease.account_id)
+            await store.release_period_close(lease, worker_id="solo")
+        assert worked == ["acct_a", "acct_b"]
+        # A generation accepted by an older writer that knows nothing about the
+        # private table still ranks as never leased, so it is served before the
+        # generations that already took a turn rather than starved behind them.
+        async with pool.connection() as connection:
+            await connection.execute(
+                "INSERT INTO reporting_configurations"
+                " (delivery_config_id, delivery_config_version, account_id,"
+                "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
+                "  account_timezone, schedule, media_buy_ids, activated_at,"
+                "  automated_recovery_seconds, status_retention_days, content_sha256)"
+                " SELECT delivery_config_id, delivery_config_version, 'acct_legacy',"
+                "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
+                "  account_timezone, schedule, media_buy_ids, activated_at,"
+                "  automated_recovery_seconds, status_retention_days, 'f' || content_sha256"
+                " FROM reporting_configurations WHERE account_id = %s",
+                ("acct_a",),
+            )
+        legacy = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+        assert legacy is not None
+        assert legacy.account_id == "acct_legacy"
+
+
+async def test_lease_fairness_adds_no_enumerated_reporting_catalog_object() -> None:
+    """Exact `reporting_*` object identity is the A/B+C compatibility contract.
+
+    `schema_objects()` enumerates every current-schema table whose name starts
+    with `reporting_`, plus that table's columns, constraints, indexes and
+    triggers, and the status suites compare the installed set to their
+    manifests exhaustively. The fairness rank must therefore add nothing to
+    that set -- not a column on `reporting_configurations`, and not a new
+    `reporting_*` table either.
+    """
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(pool=pool, clock=lambda: NOW)
+        await store.create_schema()
+        async with pool.connection() as connection:
+            installed = await schema_objects(connection)
+            await connection.execute(
+                "DROP TABLE IF EXISTS adcp_reporting_configuration_lease_turns"
+            )
+            await connection.execute(
+                "DROP SEQUENCE IF EXISTS adcp_reporting_configuration_lease_turn_seq"
+            )
+            without = await schema_objects(connection)
+        assert installed == without
+        assert not [k for k in installed if "lease_turn" in k or "fairness" in k]
+        # And the private objects really are the ones carrying the rank.
+        await store.create_schema()
+        for name in ("acct_a", "acct_b"):
+            await store.put_configuration(configuration(name))
+        lease = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+        assert lease is not None
+        async with pool.connection() as connection:
+            assert await schema_objects(connection) == installed
+            rows = await (
+                await connection.execute(
+                    "SELECT account_id, lease_turn" " FROM adcp_reporting_configuration_lease_turns"
+                )
+            ).fetchall()
+        assert [(r[0], r[1] > 0) for r in rows] == [("acct_a", True)]
+
+
+async def test_lease_and_its_fairness_rank_commit_or_roll_back_together() -> None:
+    """The rank lives in another table, so it must share the lease transaction.
+
+    If the two statements could commit separately, a crash between them would
+    either hand out a lease whose generation never lost its place in line, or
+    advance the rank for a lease nobody holds. The rank update is forced to fail
+    here; the acquisition must roll back with it.
+
+    The pool is deliberately autocommit: that is the mode in which an implicit
+    per-block transaction does not exist, so it is the only mode that can
+    witness the explicit transaction actually doing the work.
+    """
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        store = PgReportingLedgerStore(pool=pool, clock=lambda: NOW)
+        await store.create_schema()
+        await store.put_configuration(configuration("acct_a"))
+        async with pool.connection() as connection:
+            await connection.execute(
+                "ALTER TABLE adcp_reporting_configuration_lease_turns"
+                " ADD CONSTRAINT reject_rank CHECK (lease_turn < 0)"
+            )
+        with pytest.raises(Exception):  # noqa: B017,PT011 - driver integrity error
+            await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+        async with pool.connection() as connection:
+            held = await (
+                await connection.execute(
+                    "SELECT count(*) FROM reporting_configurations"
+                    " WHERE lease_worker_id IS NOT NULL OR lease_expires_at IS NOT NULL"
+                )
+            ).fetchone()
+            ranked = await (
+                await connection.execute(
+                    "SELECT count(*) FROM adcp_reporting_configuration_lease_turns"
+                )
+            ).fetchone()
+        # Neither half survived.
+        assert held is not None and held[0] == 0
+        assert ranked is not None and ranked[0] == 0
+        # With the rank writable again the generation is still leasable.
+        async with pool.connection() as connection:
+            await connection.execute(
+                "ALTER TABLE adcp_reporting_configuration_lease_turns DROP CONSTRAINT reject_rank"
+            )
+        lease = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+        assert lease is not None and lease.account_id == "acct_a"
+
+
+async def test_a_stale_fairness_rank_row_cannot_affect_another_generation() -> None:
+    """An orphan rank row is inert, and a re-put generation keeps its own rank.
+
+    The rank table carries no foreign key, so a generation removed by an
+    operator can leave a row behind. The lazy join only matches on the exact
+    generation key, so such a row is never consulted for anyone else, and
+    ``put_configuration`` is immutable by key, so re-accepting the same
+    generation is the same generation and legitimately keeps its place in line.
+    """
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(pool=pool, clock=lambda: NOW)
+        await store.create_schema()
+        for name in ("acct_a", "acct_b"):
+            await store.put_configuration(configuration(name))
+        async with pool.connection() as connection:
+            await connection.execute(
+                "INSERT INTO adcp_reporting_configuration_lease_turns"
+                " (account_id, delivery_config_id, delivery_config_version, lease_turn)"
+                " VALUES ('acct_vanished', 'daily', 1, 999999)"
+            )
+        worked = []
+        for _ in range(2):
+            lease = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+            assert lease is not None
+            worked.append(lease.account_id)
+            await store.release_period_close(lease, worker_id="solo")
+        assert worked == ["acct_a", "acct_b"]
+        # Re-accepting acct_a's exact generation does not reset its rank.
+        await store.put_configuration(configuration("acct_a"))
+        again = await store.lease_period_close(worker_id="solo", now=NOW, lease_seconds=60)
+        assert again is not None and again.account_id == "acct_a"
 
 
 async def test_concurrent_period_closes_converge_within_each_account(
@@ -312,7 +601,10 @@ async def test_concurrent_workers_use_their_leased_generation(
         assert finished.leased is not None and finished.leased.account_id == "acct_a"
         probe = await store.lease_period_close(worker_id="probe", now=NOW, lease_seconds=60)
         assert probe is not None and probe.generation_key == configs[0].generation_key
-        assert await store.lease_period_close(worker_id="extra", now=NOW, lease_seconds=60) is None
+        receipt_operation_4 = await store.lease_period_close(
+            worker_id="extra", now=NOW, lease_seconds=60
+        )
+        assert receipt_operation_4 is None
         await store.release_period_close(probe, worker_id="probe")
         finish["acct_b"].set()
         turns = await asyncio.wait_for(asyncio.gather(*tasks), 10)

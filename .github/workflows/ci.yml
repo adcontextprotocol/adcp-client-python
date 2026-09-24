@@ -9,6 +9,7 @@ on:
       - conductor/reporting-webhook-activity-1168b
       - conductor/reporting-status-notifications-1168c
       - conductor/1167b1-materializer-contracts
+      - conductor/1167b2-durable-managed-reporting
 
 # Default @adcp/sdk runner alias for storyboard jobs. Tracks the current
 # stable @adcp/sdk release via the ``latest`` npm dist-tag.
@@ -106,7 +107,7 @@ jobs:
 
       - name: Run adopter type-check suite
         if: matrix.python-version == '3.12'
-        run: mypy --strict tests/type_checks/ examples/reporting_webhook_activity.py examples/reporting_status_notifications.py examples/reporting_destination_writer.py examples/reporting_durable_materializer.py
+        run: mypy --strict tests/type_checks/ examples/reporting_webhook_activity.py examples/reporting_status_notifications.py examples/reporting_destination_writer.py examples/reporting_durable_materializer.py examples/reporting_receipt_ingress.py
 
       - name: Enforce adopter type-check fixture contract
         if: matrix.python-version == '3.12'
@@ -119,12 +120,12 @@ jobs:
       - name: Run tests
         if: matrix.python-version != '3.12'
         timeout-minutes: 45
-        run: pytest tests/ -v
+        run: python scripts/reporting_test_harness.py pytest tests/ -v -ra
 
       - name: Run tests with coverage
         if: matrix.python-version == '3.12'
         timeout-minutes: 45
-        run: pytest tests/ -v --cov=src/adcp --cov-report=term-missing
+        run: python scripts/reporting_test_harness.py pytest tests/ -v -ra --cov=src/adcp --cov-report=term-missing
 
   pg-conformance:
     name: Postgres conformance tests (Postgres 16, ${{ matrix.lane }})
@@ -182,7 +183,7 @@ jobs:
           # so setup and teardown also fit inside each unchanged job budget.
           case "$PG_LANE" in
             core)
-              pytest tests/conformance/signing/test_pg_replay_store.py \
+              python scripts/reporting_test_harness.py pytest tests/conformance/signing/test_pg_replay_store.py \
                      tests/conformance/signing/test_pg_replay_store_e2e.py \
                      tests/conformance/decisioning/test_pg_buyer_agent_registry.py \
                      tests/conformance/decisioning/test_pg_idempotency_backend.py \
@@ -195,10 +196,11 @@ jobs:
                      --ignore=tests/conformance/reporting/test_reporting_materializer_process.py \
                      --ignore=tests/conformance/reporting/test_reporting_materializer_migration.py \
                      --ignore=tests/conformance/reporting/test_reporting_materializer_installed_pg.py \
-                     -v
+                     --ignore-glob='tests/conformance/reporting/test_reporting_receipt_*.py' \
+                     -v -ra
               ;;
             process)
-              pytest tests/conformance/reporting/test_reporting_notification_process_matrix.py -v
+              python scripts/reporting_test_harness.py pytest tests/conformance/reporting/test_reporting_notification_process_matrix.py -v -ra
               ;;
             *)
               echo "Unknown Postgres conformance lane"
@@ -211,7 +213,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
-    needs: [pg-conformance, pg-reporting-status, pg-reporting-materializer]
+    needs: [pg-conformance, pg-reporting-status, pg-reporting-materializer, pg-reporting-receipts, pg-reporting-receipt-compatibility]
     if: ${{ always() }}
     steps:
       - name: Require every Postgres conformance lane
@@ -219,11 +221,15 @@ jobs:
           PG_RESULT: ${{ needs.pg-conformance.result }}
           STATUS_RESULT: ${{ needs.pg-reporting-status.result }}
           MATERIALIZER_RESULT: ${{ needs.pg-reporting-materializer.result }}
+          RECEIPTS_RESULT: ${{ needs.pg-reporting-receipts.result }}
+          RECEIPT_COMPATIBILITY_RESULT: ${{ needs.pg-reporting-receipt-compatibility.result }}
         run: |
-          if [ "$PG_RESULT" != "success" ] || [ "$STATUS_RESULT" != "success" ] || [ "$MATERIALIZER_RESULT" != "success" ]; then
+          if [ "$PG_RESULT" != "success" ] || [ "$STATUS_RESULT" != "success" ] || [ "$MATERIALIZER_RESULT" != "success" ] || [ "$RECEIPTS_RESULT" != "success" ] || [ "$RECEIPT_COMPATIBILITY_RESULT" != "success" ]; then
             echo "Postgres conformance matrix result: $PG_RESULT"
             echo "Reporting status conformance result: $STATUS_RESULT"
             echo "Durable materializer conformance result: $MATERIALIZER_RESULT"
+            echo "Authenticated receipt conformance result: $RECEIPTS_RESULT"
+            echo "Receipt rolling compatibility result: $RECEIPT_COMPATIBILITY_RESULT"
             exit 1
           fi
           echo "All Postgres conformance lanes passed"
@@ -273,7 +279,7 @@ jobs:
       - name: Run status semantics, transaction, clock/process and rolling gates
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_status_test
-        run: pytest tests/conformance/reporting/test_reporting_status_*.py -v
+        run: python scripts/reporting_test_harness.py pytest tests/conformance/reporting/test_reporting_status_*.py -v -ra
 
   pg-reporting-materializer:
     name: Durable materializer and frozen artifacts (Postgres 16)
@@ -331,17 +337,141 @@ jobs:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_materializer_test
           ADCP_PYTHON310: ${{ steps.materializer-python310.outputs.python-path }}
         run: |
-          pytest tests/conformance/reporting/test_reporting_materializer_rolling.py \
+          python scripts/reporting_test_harness.py pytest \
+            tests/conformance/reporting/test_reporting_materializer_rolling.py \
             tests/conformance/reporting/test_reporting_materializer_migration.py \
             tests/conformance/reporting/test_reporting_materializer_process.py \
             tests/conformance/reporting/test_reporting_materializer_installed_pg.py \
-            -v -s | tee materializer-evidence.log
+            -v -s -ra | tee materializer-evidence.log
       - name: Preserve installed module and worker evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: materializer-evidence-${{ github.run_attempt }}
           path: materializer-evidence.log
+          if-no-files-found: error
+
+  pg-reporting-receipts:
+    name: Authenticated receipts and installed replay (Postgres 16)
+    runs-on: ubuntu-latest
+    # Separate databases avoid shared account advisory locks. Keep five minutes
+    # outside the bounded suite for checkout, installations and cleanup.
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: adcp_receipts_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        id: receipt-python310
+        with:
+          python-version: "3.10"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install test dependencies
+        run: pip install -e ".[dev,pg]"
+      - name: Run receipt transactions, real mounts, crash and installed gates
+        shell: bash
+        timeout-minutes: 30
+        env:
+          ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_receipts_test
+          ADCP_PYTHON310: ${{ steps.receipt-python310.outputs.python-path }}
+        run: |
+          # Explicit pytest paths bypass --ignore; exclude rolling before invocation.
+          shopt -s nullglob
+          receipt_tests=()
+          for test_file in tests/conformance/reporting/test_reporting_receipt_*.py; do
+            if [[ "$test_file" != tests/conformance/reporting/test_reporting_receipt_rolling.py ]]; then
+              receipt_tests+=("$test_file")
+            fi
+          done
+          if (( ${#receipt_tests[@]} == 0 )); then
+            echo "No receipt test files selected" >&2
+            exit 1
+          fi
+          python scripts/reporting_test_harness.py pytest \
+            "${receipt_tests[@]}" \
+            -v -s -ra | tee pg-reporting-receipts-evidence.log
+      - name: Preserve commands, counts, installed provenance and skip reasons
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pg-reporting-receipts-evidence-${{ github.run_attempt }}
+          path: pg-reporting-receipts-evidence.log
+          if-no-files-found: error
+
+  pg-reporting-receipt-compatibility:
+    name: Receipt rolling compatibility (eight actual artifacts)
+    runs-on: ubuntu-latest
+    # Separate databases avoid shared account advisory locks. Keep five minutes
+    # outside the bounded suite for checkout, installations and cleanup.
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: adcp_receipt_rolling_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Fetch all eight exact approved historical artifacts
+        timeout-minutes: 2
+        run: |
+          git fetch --no-tags --depth=1 origin \
+            3e76aa54623529a3dda01cd690b8a5c287c75641 \
+            3c405a21f978ed9d3208611bb4a7a8434a056933 \
+            037de4ac822ecefb2f95d32c15c297fb4c45d683 \
+            17ee407ae3978c8a2bb54437287afbf9dafb8130 \
+            0f34c666ac1961e9832fce43ef0ef6937b3c1dde \
+            967b6e286301d7e5d089aea6fdbb90bea8ee5a16 \
+            5487f2bdef23c5102118b305be9e868228f6ce61 \
+            3fd62121c96a074e3ea458c30c5224d6a586f169
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install test dependencies
+        run: pip install -e ".[dev,pg]"
+      - name: Run all historical binaries against approved parent and receipt schema
+        shell: bash
+        timeout-minutes: 30
+        env:
+          ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_receipt_rolling_test
+        run: |
+          python scripts/reporting_test_harness.py pytest \
+            tests/conformance/reporting/test_reporting_receipt_rolling.py \
+            -v -s -ra | tee pg-reporting-receipt-compatibility-evidence.log
+      - name: Preserve commands, counts, installed provenance and skip reasons
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pg-reporting-receipt-compatibility-evidence-${{ github.run_attempt }}
+          path: pg-reporting-receipt-compatibility-evidence.log
           if-no-files-found: error
 
   conventional-commits:

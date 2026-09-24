@@ -69,6 +69,7 @@ async def worker(
                 "pause": pause,
                 "notifications": notifications,
                 "installed": installed,
+                "legacy_definition": not case.config.definition.monetary_metric_units,
             }
         )
         yield child
