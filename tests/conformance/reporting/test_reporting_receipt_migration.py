@@ -31,7 +31,8 @@ async def test_populated_repeated_concurrent_migration_preserves_parent_objects_
         old = PgReportingMaterializerStore(pool=pool, notifications=notifications)
         await old.create_schema()
         case = await durable_case(old)
-        assert (await case.service().run_once()).state == "verified"
+        receipt_operation_1 = await case.service().run_once()
+        assert (receipt_operation_1).state == "verified"
         h = DurableHarness(old, Clock(), pool)
         before = await h.image()
         captures = await old.read_materializer_boundaries(caller=case.scope.principal)

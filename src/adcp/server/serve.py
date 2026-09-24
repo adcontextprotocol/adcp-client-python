@@ -369,6 +369,7 @@ def _get_starlette_request_for_dispatch() -> Any:
     try:
         return _ADCP_MCP_REQUEST_CONTEXT.get()
     except LookupError:
+        # No SDK dispatch is bound here; try the legacy test-harness context below.
         pass
 
     # MCP SDK v1 exposed this contextvar. MCP SDK v2 removed it, but keep

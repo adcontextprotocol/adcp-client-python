@@ -229,7 +229,8 @@ async def main():
             ReportingDestinationIO(destination.registry, destination.resolver),
             destination.writer,
         )
-        assert (await receipt_service.run_once()).state == "verified"
+        receipt_operation_1 = await receipt_service.run_once()
+        assert (receipt_operation_1).state == "verified"
         snapshot = await receipt_store.read_reconciliation_snapshot(caller=scope.principal)
         outcome = next(r for r in snapshot.records if r.kind == "materialization")
         verification = outcome.verification
@@ -261,7 +262,8 @@ async def main():
         context = ToolContext(caller_identity=scope.consumer_id)
         recorded = await handler.sync_reporting_receipts(request, context)
         assert recorded["results"][0]["result"] == "recorded"
-        assert await handler.sync_reporting_receipts(request, context) == recorded
+        receipt_operation_2 = await handler.sync_reporting_receipts(request, context)
+        assert receipt_operation_2 == recorded
         assert len(await receipt_store.read_receipt_boundaries(caller=scope.principal)) == 1
         assert receipt_store._materializer_outbox is None
     workspace = Path(config["workspace"]).resolve()

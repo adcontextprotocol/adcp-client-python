@@ -72,6 +72,7 @@ def _exact_integer(value: Decimal) -> int:
         ):
             return int(value)
     except (InvalidOperation, ValueError, OverflowError):
+        # Conversion failed; report the bounded integer error outside this handler.
         pass
     raise ValueError("receipt JSON requires exact safe integers")
 
@@ -133,6 +134,7 @@ def _a2a_receipt_invocation(body: bytes | None) -> dict[str, Any] | None:
         if len(invocations) == 1 and invocations[0]["skill"] == TASK:
             return dict(invocations[0])
     except (ValueError, TypeError, KeyError, RecursionError):
+        # Malformed envelopes cannot establish a unique receipt invocation.
         pass
     return None
 
@@ -152,6 +154,7 @@ def a2a_receipt_parameters(body: bytes | None) -> dict[str, Any] | None:
         if type(params) is dict:
             return dict(_receipt_numbers(params))
     except (ValueError, TypeError, RecursionError):
+        # The receipt route is known; return invalid parameters for ordinary rejection.
         pass
     return {}
 
@@ -172,6 +175,7 @@ def a2a_receipt_has_invalid_unicode(body: bytes | None) -> bool:
             elif type(value) is list:
                 pending.extend(value)
     except (ValueError, TypeError, RecursionError):
+        # Failed parsing establishes no Unicode diagnosis; ordinary validation still applies.
         pass
     return False
 
@@ -191,5 +195,6 @@ def mcp_receipt_parameters(body: bytes | None) -> dict[str, Any]:
         ):
             return dict(_receipt_numbers(envelope["params"]["arguments"]))
     except (ValueError, TypeError, KeyError, RecursionError):
+        # The selected MCP route must receive invalid parameters, never a partial body.
         pass
     return {}

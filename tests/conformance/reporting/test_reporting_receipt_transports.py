@@ -152,7 +152,8 @@ async def test_request_bound_capture_preserves_chunked_bytes_and_read_ahead_over
     async with mount.client() as client:
         _, first = await mount.a2a(client, request, mutate_wire=chunked)
         assert first["results"][0]["result"] == "recorded", first
-        assert (await mount.mcp(client, request))[1] == first
+        receipt_operation_1 = await mount.mcp(client, request)
+        assert (receipt_operation_1)[1] == first
         assert len(mount.auth_calls) == 2
 
 
@@ -527,7 +528,8 @@ async def test_raw_capture_cannot_supply_auth_or_cross_request_body_or_override_
                 # Avoid a fresh initialize in this helper: the authenticated
                 # tool request itself must reject a forged token.
                 mount.sessions["forged"] = mount.sessions["token-one"]
-            assert (await call(client, request, token="forged"))[0] == 401
+            receipt_operation_6 = await call(client, request, token="forged")
+            assert (receipt_operation_6)[0] == 401
             assert await h.image() == before
 
 
@@ -597,13 +599,14 @@ async def test_raw_mounted_requests_do_not_alias_account_consumer_pairs_or_cache
         _, b = await mount.a2a(client, request_for(second), token="token-two")
         assert a["results"][0]["result"] == b["results"][0]["result"] == "recorded"
         assert a != b
-        assert (await mount.a2a(client, request_for(first)))[1] == a
-        assert (await mount.mcp(client, request_for(second), token="token-two"))[1] == b
+        receipt_operation_2 = await mount.a2a(client, request_for(first))
+        assert (receipt_operation_2)[1] == a
+        receipt_operation_3 = await mount.mcp(client, request_for(second), token="token-two")
+        assert (receipt_operation_3)[1] == b
         before = await h.image()
-        assert error_code((await mount.a2a(client, request_for(second)))[1]) == "UNAUTHORIZED"
-        assert (
-            error_code((await mount.mcp(client, request_for(first), token="token-two"))[1])
-            == "UNAUTHORIZED"
-        )
+        receipt_operation_4 = await mount.a2a(client, request_for(second))
+        assert error_code((receipt_operation_4)[1]) == "UNAUTHORIZED"
+        receipt_operation_5 = await mount.mcp(client, request_for(first), token="token-two")
+        assert error_code((receipt_operation_5)[1]) == "UNAUTHORIZED"
         assert await h.image() == before
     assert len({c.caller_identity for c in mount.contexts}) == 1
