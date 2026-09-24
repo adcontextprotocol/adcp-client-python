@@ -392,9 +392,20 @@ jobs:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_receipts_test
           ADCP_PYTHON310: ${{ steps.receipt-python310.outputs.python-path }}
         run: |
+          # Explicit pytest paths bypass --ignore; exclude rolling before invocation.
+          shopt -s nullglob
+          receipt_tests=()
+          for test_file in tests/conformance/reporting/test_reporting_receipt_*.py; do
+            if [[ "$test_file" != tests/conformance/reporting/test_reporting_receipt_rolling.py ]]; then
+              receipt_tests+=("$test_file")
+            fi
+          done
+          if (( ${#receipt_tests[@]} == 0 )); then
+            echo "No receipt test files selected" >&2
+            exit 1
+          fi
           python scripts/reporting_test_harness.py pytest \
-            tests/conformance/reporting/test_reporting_receipt_*.py \
-            --ignore=tests/conformance/reporting/test_reporting_receipt_rolling.py \
+            "${receipt_tests[@]}" \
             -v -s -ra | tee pg-reporting-receipts-evidence.log
       - name: Preserve commands, counts, installed provenance and skip reasons
         if: always()
