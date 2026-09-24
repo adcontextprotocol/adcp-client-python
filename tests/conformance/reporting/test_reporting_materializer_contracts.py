@@ -49,7 +49,8 @@ from ._reliable_support import NotificationHarness, reliable_factory
         "delivery_task",
     ],
 )
-def test_producer_extra_cannot_inject_sdk_owned_readiness(key):
+@pytest.mark.parametrize("value", [False, True])
+def test_producer_extra_cannot_inject_sdk_owned_readiness(key, value):
     producer = ReportingProducer(
         source=UncalledSource(), offerings=ProducerOfferings(), store=InMemoryReportingLedgerStore()
     )
@@ -59,7 +60,7 @@ def test_producer_extra_cannot_inject_sdk_owned_readiness(key):
             offerings=(),
             automated_recovery_window=timedelta(hours=1),
             status_retention_days=30,
-            extra={key: True},
+            extra={key: value},
         )
 
 
