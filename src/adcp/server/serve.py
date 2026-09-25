@@ -18,11 +18,13 @@ Stand up an ADCP-compliant server with a single function call:
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 import os
 import sys
 import warnings
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
 from types import MethodType
@@ -120,6 +122,122 @@ Only honored on ``transport="both"`` today — single-transport paths
 (``streamable-http``, ``sse``, ``a2a``, ``stdio``) raise ``ValueError``
 when hooks are passed. See issue #709.
 """
+
+
+async def _run_shutdown_hooks(hooks: tuple[LifespanHook, ...]) -> BaseException | None:
+    """Attempt every callback in its startup task, without formatting adopter data."""
+    first_error: BaseException | None = None
+    for index, hook in enumerate(hooks):
+        try:
+            await hook()
+        except BaseException as exc:  # noqa: BLE001
+            if first_error is None:
+                first_error = exc
+            logger.error("on_shutdown hook failed; continuing cleanup (hook_index=%d)", index)
+    return first_error
+
+
+async def _settle_lifespan_task(
+    task: asyncio.Task[BaseException | None],
+) -> tuple[BaseException | None, asyncio.CancelledError | None]:
+    """Join the hook task despite repeated cancellation of its framework waiter."""
+    import anyio
+
+    cancellation: asyncio.CancelledError | None = None
+    # This scope belongs to the framework waiter, never above an adopter's
+    # scope in the hook task: shutdown may need to exit that adopter scope.
+    with anyio.CancelScope(shield=True):
+        while not task.done():
+            try:
+                await asyncio.shield(task)
+            except asyncio.CancelledError as exc:
+                if cancellation is None:
+                    cancellation = exc
+    return task.result(), cancellation
+
+
+@contextlib.asynccontextmanager
+async def _user_lifespan_hooks(
+    startup: tuple[LifespanHook, ...], shutdown: tuple[LifespanHook, ...]
+) -> AsyncIterator[None]:
+    """Keep paired hooks in one retained task inside the framework lifespans."""
+    if not startup and not shutdown:
+        yield
+        return
+
+    ready: asyncio.Future[BaseException | None] = asyncio.get_running_loop().create_future()
+    stop = asyncio.Event()
+    started = False
+    abort_startup = False
+    hook_error: BaseException | None = None
+    ended_early = False
+    owner = asyncio.current_task()
+
+    async def run() -> BaseException | None:
+        nonlocal started, hook_error
+        started = True
+        try:
+            if not abort_startup:
+                for hook in startup:
+                    await hook()
+            ready.set_result(None)
+            await stop.wait()
+        except BaseException as exc:  # noqa: BLE001
+            # Includes an adopter-owned scope ending this task after startup.
+            hook_error = exc
+            if not ready.done():
+                ready.set_result(exc)
+        cleanup_error = await _run_shutdown_hooks(shutdown)
+        if (
+            ready.result() is None
+            and isinstance(hook_error, asyncio.CancelledError)
+            and cleanup_error is not None
+        ):
+            # An adopter TaskGroup cancels its host to wake it, then exposes
+            # the causal child failure when the shutdown hook exits the group.
+            return cleanup_error
+        return hook_error if hook_error is not None else cleanup_error
+
+    task = asyncio.create_task(run())
+
+    def completed(_task: asyncio.Task[BaseException | None]) -> None:
+        nonlocal ended_early
+        if ready.done() and ready.result() is None and not stop.is_set():
+            ended_early = True
+            if owner is not None:
+                owner.cancel()
+
+    task.add_done_callback(completed)
+    try:
+        error = await asyncio.shield(ready)
+        if error is not None:
+            raise error
+        yield
+    finally:
+        primary_error = sys.exc_info()[1]
+        if not ready.done():
+            # Interrupt in-flight startup once. If the task has not run yet,
+            # let it skip startup and still attempt partial-startup cleanup.
+            abort_startup = True
+            if started:
+                task.cancel()
+        stop.set()
+        error, cancellation = await _settle_lifespan_task(task)
+        if (
+            ended_early
+            and error is not None
+            and (primary_error is None or isinstance(primary_error, asyncio.CancelledError))
+        ):
+            if isinstance(error, asyncio.CancelledError):
+                # AnyIO framework scopes can suppress their cancellation
+                # signals. An unexpectedly ended hook lifecycle is a failure.
+                raise RuntimeError("Server lifespan hook task stopped unexpectedly") from None
+            raise error
+        if primary_error is None:
+            if cancellation is not None:
+                raise cancellation
+            if error is not None:
+                raise error
 
 
 @dataclass(frozen=True)
@@ -973,10 +1091,20 @@ def serve(
             dropping the hook. See ``examples/scheduler_lifespan.py``.
         on_shutdown: Optional sequence of :data:`LifespanHook` zero-arg
             async callables fired before either inner lifespan tears
-            down. Every hook runs on a best-effort basis even if an
-            earlier one raised; the first failure re-raises so
-            Starlette surfaces it, later failures land in
-            ``logger.error``. Same ``transport="both"`` restriction
+            down, including when an adopter startup hook fails. Every
+            hook runs once in registration order, even after an earlier
+            error or cancellation. Hooks must tolerate partial startup;
+            register dependent resources' shutdowns in reverse dependency
+            order. Startup and shutdown share one retained task on the server
+            loop, preserving paired ContextVar tokens and AnyIO scopes.
+            Its initial context is copied from the framework task; startup
+            ContextVar mutations stay local to the hook lifecycle. Cleanup
+            settles before cancellation propagates or transports close.
+            There is no SDK cleanup timeout: a hook that never completes
+            can hold shutdown indefinitely. Startup/body failures take
+            precedence; otherwise cancellation or the first cleanup failure
+            propagates. SDK cleanup diagnostics omit exception text and
+            callable representations. Same ``transport="both"`` restriction
             as ``on_startup``.
 
     Example (MCP):
@@ -1931,7 +2059,6 @@ def _build_mcp_and_a2a_app(
     Returns the size-limit-wrapped ASGI app. Wire to uvicorn /
     Starlette / your test harness as you would any other ASGI app.
     """
-    import contextlib
 
     from starlette.applications import Starlette
     from starlette.types import ASGIApp, Receive, Scope, Send
@@ -2049,59 +2176,8 @@ def _build_mcp_and_a2a_app(
     async def _composed_lifespan(_app):  # type: ignore[no-untyped-def]
         async with mcp_inner.router.lifespan_context(mcp_inner):
             async with a2a_inner.router.lifespan_context(a2a_inner):
-                for hook in user_startup:
-                    await hook()
-                try:
+                async with _user_lifespan_hooks(user_startup, user_shutdown):
                     yield
-                finally:
-                    # Run every shutdown hook even if an earlier one
-                    # raised — adopters that wire multiple cleanup
-                    # hooks (close DB pool, stop scheduler, drain
-                    # queue) want all of them attempted on a
-                    # best-effort basis. Re-raise the first failure
-                    # so Starlette surfaces it; log later failures
-                    # without ``exc_info`` so adopter closure state
-                    # (DB DSNs, tokens stashed in hook captures)
-                    # doesn't end up verbatim in shutdown logs that
-                    # downstream aggregators attach locals to.
-                    #
-                    # Catch ``Exception`` only — ``CancelledError`` /
-                    # ``KeyboardInterrupt`` / ``SystemExit`` are the
-                    # exact signals uvicorn uses to drive shutdown,
-                    # and we want them to propagate immediately
-                    # rather than getting collected into ``first_error``.
-                    first_error: Exception | None = None
-                    for hook in user_shutdown:
-                        try:
-                            await hook()
-                        except Exception as exc:  # noqa: BLE001
-                            if first_error is None:
-                                first_error = exc
-                            else:
-                                logger.error(
-                                    "on_shutdown hook %r raised: %s "
-                                    "(suppressed; earlier hook also "
-                                    "raised)",
-                                    getattr(hook, "__name__", hook),
-                                    exc,
-                                )
-                    if first_error is not None:
-                        # If we reached the ``finally`` because the
-                        # body raised (framework lifespan teardown,
-                        # request handler escaping), don't overwrite
-                        # that propagation with our shutdown error —
-                        # the operator wants to see the upstream
-                        # cause, not a secondary cleanup failure.
-                        # Log the shutdown error so it isn't lost,
-                        # let the original exception keep propagating.
-                        if sys.exc_info()[0] is None:
-                            raise first_error
-                        logger.error(
-                            "on_shutdown hook raised during exception "
-                            "unwinding: %s (suppressed; the upstream "
-                            "exception takes precedence)",
-                            first_error,
-                        )
 
     parent = Starlette(lifespan=_composed_lifespan)
 
