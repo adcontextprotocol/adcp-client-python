@@ -511,14 +511,13 @@ def _strict_validate_platform() -> bool:
 
 #: Substring suffixes that flag a ctx_metadata key as credential-shaped.
 #: Lowercased for case-insensitive matching against the user-supplied
-#: key. The list intentionally errs broad — a key like
+#: key. This finite list is best-effort screening — a key like
 #: ``"upstream.api_key"`` belongs in :class:`AuthInfo.credential`, not
-#: ``ctx.metadata`` which round-trips into responses.
+#: ``ctx.metadata``, which is reserved for non-secret request hints.
 #:
 #: Drift policy: when the spec or adopter conventions add a new
-#: credential-shaped suffix, append here. The gate is fail-closed by
-#: design — false positives require the adopter to rename the key, NOT
-#: silently echo the credential.
+#: credential-shaped suffix, evaluate its coverage and false positives before
+#: adding it. A passing key is not evidence that its value is safe to expose.
 _CREDENTIAL_SHAPED_KEY_SUFFIXES: tuple[str, ...] = (
     "credential",
     "credentials",
@@ -532,13 +531,13 @@ _CREDENTIAL_SHAPED_KEY_SUFFIXES: tuple[str, ...] = (
 
 
 def _validate_ctx_metadata_credentials(metadata: Any) -> None:
-    """Fail-closed gate: ctx.metadata must not carry credential-shaped
-    keys.
+    """Best-effort credential-key screening, as defense in depth.
 
-    The framework projects buyer-supplied ``context`` extensions into
-    ``tool_ctx.metadata`` and echoes context back on responses per
-    the AdCP spec. An adopter who treats ``metadata`` as a generic
-    KV bucket can accidentally round-trip a credential to the buyer.
+    Standard auth context construction adds framework fields and adopter
+    principal metadata. Buyer wire ``context`` is echoed separately and is
+    not projected into ``tool_ctx.metadata`` by the framework. An adopter's
+    custom context factory or response code can still expose credentials
+    copied into metadata. Passing this screen is not a no-credential guarantee.
     The ergonomic path for credentials is
     :class:`AuthInfo.credential` / typed credential classes
     (:class:`ApiKeyCredential`, :class:`OAuthCredential`,
@@ -546,12 +545,12 @@ def _validate_ctx_metadata_credentials(metadata: Any) -> None:
     request-scope hints (correlation ids, feature flags, trace ids).
 
     Matches against any key whose lowercased form ends with one of
-    :data:`_CREDENTIAL_SHAPED_KEY_SUFFIXES`. Sub-keys at any nesting
-    depth count — a buyer-supplied
-    ``{"upstream": {"api_token": "..."}}`` is rejected the same as
-    a flat ``{"api_token": "..."}``.
+    :data:`_CREDENTIAL_SHAPED_KEY_SUFFIXES`, through dictionaries and lists.
+    Other containers are not traversed. Unlisted names, including some
+    plural and embedded credential terms, pass this finite suffix screen;
+    that does not make their contents safe for metadata or response echo.
 
-    :raises ValueError: when any credential-shaped key is found. The
+    :raises ValueError: when a screened key matches a listed suffix. The
         exception message names the offending key path so the adopter
         knows which field to migrate to ``AuthInfo.credential``.
     """
@@ -595,12 +594,11 @@ def _validate_ctx_metadata_credentials(metadata: Any) -> None:
 
 
 def _walk_ctx_metadata_list(items: list[Any]) -> None:
-    """Recurse into a list collected from ``ctx_metadata`` and reject
-    any credential-shaped key found in a dict element.
+    """Recurse into a metadata list and screen dictionary keys by suffix.
 
     Nested lists are walked through this same function. Non-dict,
-    non-list items (strings, numbers, None) are ignored — only
-    container types can hide a credential-shaped key.
+    non-list items (including tuple values) are ignored. This finite
+    traversal is best-effort screening, not a no-credential guarantee.
     """
     for index, item in enumerate(items):
         if isinstance(item, dict):
@@ -1233,17 +1231,11 @@ def _build_request_context(
 
     auth_principal = auth_info.principal if auth_info is not None else None
 
-    # ctx_metadata credential gate — fail-closed before any platform
-    # method sees the metadata. Buyers can populate ``context``
-    # extensions on the wire request that the framework projects into
-    # ``tool_ctx.metadata``; an adopter who treats ``metadata`` as a
-    # general-purpose KV bucket might shove a credential through it,
-    # only to discover the value round-trips into the response (the
-    # framework echoes context into responses per the AdCP spec).
-    # The ergonomic path for credentials is :class:`AuthInfo.credential`
-    # / typed credential classes; ``metadata`` is for non-secret
-    # request-scope hints. See the "ctx_metadata: write-only credentials
-    # prohibited" section in CLAUDE.md.
+    # Best-effort screening of adopter metadata before platform dispatch.
+    # Wire context echo is separate; metadata must contain only non-secret
+    # request hints even when its keys pass this finite denylist. Credentials
+    # belong in AuthInfo.credential / typed credential classes. See the
+    # "ctx_metadata: write-only credentials prohibited" section in CLAUDE.md.
     _validate_ctx_metadata_credentials(tool_ctx.metadata)
 
     # Composite cache scope key when store is supplied (production

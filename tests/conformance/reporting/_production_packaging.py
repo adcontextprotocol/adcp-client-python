@@ -50,6 +50,11 @@ def production_modules():
         for name in (
             "_version.py",
             "server/mcp_tools.py",
+            "server/a2a_server.py",
+            "decisioning/dispatch.py",
+            "signing/verifier.py",
+            "signing/webhook_verifier.py",
+            "signing/webhook_signer.py",
             "reporting/feed/request.py",
             "reporting/feed/errors.py",
             "reporting/ledger/status_server.py",
@@ -86,6 +91,8 @@ def production_modules():
             "types/v32.py",
             "types/versioned.py",
             "types/generated_poc/core/reporting_delivery_capabilities.py",
+            "types/generated_poc/core/reporting_delivery_config.py",
+            "types/generated_poc/media_buy/get_media_buy_delivery_request.py",
             "types/generated_poc/bundled/protocol/get_adcp_capabilities_response.py",
         )
     ]
@@ -282,8 +289,17 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
         for name in (
             "tests/conformance/reporting/test_reporting_tier_projection.py",
             "tests/conformance/reporting/test_reporting_schedule_schema.py",
+            "tests/conformance/reporting/test_reporting_materializer_progress.py",
+            "tests/conformance/reporting/test_reporting_publication_time.py",
             "tests/test_reporting_revision_ownership.py",
             "tests/test_reporting_capability_models.py",
+            "tests/test_reporting_scope_models.py",
+            "tests/test_reporting_exact_request_models.py",
+            "tests/test_reporting_feed_numeric_parameters.py",
+            "tests/conformance/signing/test_webhook_rc4_vectors.py",
+            "tests/conformance/signing/test_webhook_signature_http.py",
+            "tests/conformance/signing/test_webhook_signature_emission.py",
+            "tests/conformance/signing/test_revocation_checker_boundary.py",
             "tests/test_reporting_production_public.py",
             "tests/test_schema_datetime_formats.py",
             "tests/test_rc6_adoption.py",

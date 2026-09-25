@@ -633,18 +633,25 @@ class ADCPAgentExecutor(AgentExecutor):
                     parsed = self._default_parse_request(context)
                 except ValueError:
                     # The protobuf JSON printer refuses non-finite numbers.
-                    # A standard raw receipt invocation still reaches mandatory
+                    # Standard raw receipt/feed invocations still reach their
                     # strict preflight and a closed INVALID_REQUEST, without
-                    # logging a protobuf serialization exception.
+                    # logging a protobuf serialization exception. Feed recovery
+                    # is confined to an explicitly mounted reporting store.
                     if request is not None:
                         from adcp.reporting.receipts.transport import (
                             RAW_RECEIPT_BODY_SCOPE_KEY,
                             a2a_receipt_parameters,
                         )
 
-                        raw = a2a_receipt_parameters(request.scope.get(RAW_RECEIPT_BODY_SCOPE_KEY))
-                        if raw is not None:
-                            return "sync_reporting_receipts", raw
+                        tasks = ["sync_reporting_receipts"]
+                        if getattr(self._handler, "reporting_feed_store", None) is not None:
+                            tasks.append("get_reporting_status")
+                        for task in tasks:
+                            raw = a2a_receipt_parameters(
+                                request.scope.get(RAW_RECEIPT_BODY_SCOPE_KEY), task=task
+                            )
+                            if raw is not None:
+                                return task, raw
                     raise
         if request is not None and (
             parsed[0] == "sync_reporting_receipts"

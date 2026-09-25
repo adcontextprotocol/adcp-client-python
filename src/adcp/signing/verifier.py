@@ -68,6 +68,11 @@ from adcp.signing.replay import (
     supports_atomic_claim,
 )
 from adcp.signing.revocation import RevocationChecker, RevocationList
+from adcp.signing.revocation_fetcher import (
+    RevocationListFetchError,
+    RevocationListFreshnessError,
+    RevocationListParseError,
+)
 
 CoversDigestPolicy = Literal["required", "forbidden", "either"]
 SigningProfileVersion = Literal["3.0", "3.1", "3.2"]
@@ -331,12 +336,24 @@ def verify_request_signature(
                     f"is in the past"
                 ),
             )
-    if options.revocation_checker is not None and options.revocation_checker(keyid):
-        raise SignatureVerificationError(
-            REQUEST_SIGNATURE_KEY_REVOKED,
-            step=9,
-            message=f"key {keyid!r} is revoked",
-        )
+    if options.revocation_checker is not None:
+        try:
+            revoked = options.revocation_checker(keyid)
+        except (RevocationListFetchError, RevocationListParseError, RevocationListFreshnessError):
+            # The checker owns caching and grace. Only its documented trust /
+            # availability failures become signature rejections here; unrelated
+            # adopter errors remain operational. Never expose transport details.
+            raise SignatureVerificationError(
+                REQUEST_SIGNATURE_REVOCATION_STALE,
+                step=9,
+                message="revocation status could not be verified from a fresh, trusted list",
+            ) from None
+        if revoked:
+            raise SignatureVerificationError(
+                REQUEST_SIGNATURE_KEY_REVOKED,
+                step=9,
+                message=f"key {keyid!r} is revoked",
+            )
 
     # Cheap early rejection; ``claim`` repeats the capacity check atomically
     # after crypto verification so concurrent claims cannot exceed the cap.

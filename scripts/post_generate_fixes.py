@@ -2593,6 +2593,162 @@ def fix_unchanged_literal_defaults() -> None:
         print("  No unchanged field defaults needed fixing")
 
 
+def fix_reporting_request_selectors() -> None:
+    """Preserve reporting selector modes that codegen flattens into one model.
+
+    A const is not a default for an alternative selector. Likewise an
+    aggregate default is not legal in an exact-revision request. Keep these
+    contracts on the generated models, including any self-contained clones,
+    so nesting and non-client serialization obey the same rules.
+    """
+    scope = json.loads((SCHEMA_DIR / "core/reporting-delivery-config.json").read_text())[
+        "properties"
+    ]["scope"]
+    if (
+        set(scope["properties"]) != {"all_media_buys", "media_buy_ids"}
+        or scope["minProperties"] != 1
+        or scope["maxProperties"] != 1
+        or scope["properties"]["all_media_buys"] != {"type": "boolean", "const": True}
+    ):
+        raise ValueError("reporting scope schema changed; revisit selector repair")
+    delivery = json.loads(
+        (SCHEMA_DIR / "media-buy/get-media-buy-delivery-request.json").read_text()
+    )
+    exact = next(
+        rule
+        for rule in delivery["allOf"]
+        if rule.get("if") == {"required": ["reporting_revision_id"]}
+    )
+    forbidden = tuple(item["required"][0] for item in exact["then"]["not"]["anyOf"])
+    repaired = {"scope": 0, "exact": 0}
+    for path in sorted(OUTPUT_DIR.rglob("*.py")):
+        original = path.read_text()
+        if "all_media_buys:" not in original and "class GetMediaBuyDeliveryRequest" not in original:
+            continue
+        offsets = [0]
+        for line in original.splitlines(keepends=True):
+            offsets.append(offsets[-1] + len(line))
+        changes: list[tuple[int, int, str]] = []
+        matched = False
+        needs_mapping = False
+        for node in ast.parse(original).body:
+            if not isinstance(node, ast.ClassDef):
+                continue
+            fields = {
+                field.target.id: field
+                for field in node.body
+                if isinstance(field, ast.AnnAssign) and isinstance(field.target, ast.Name)
+            }
+            methods = {method.name for method in node.body if isinstance(method, ast.FunctionDef)}
+            if set(fields) == {"all_media_buys", "media_buy_ids"}:
+                repaired["scope"] += 1
+                needs_mapping = True
+                matched = True
+                field = fields["all_media_buys"]
+                if field.value is None:
+                    raise ValueError("reporting scope lost its generated default")
+                annotation = field.annotation
+                if isinstance(annotation, ast.Subscript) and isinstance(
+                    annotation.slice, ast.Tuple
+                ):
+                    annotation = annotation.slice.elts[0]
+                for part, replacement in (
+                    (annotation, "Literal[True] | None"),
+                    (field.value, "None"),
+                ):
+                    changes.append(
+                        (
+                            offsets[part.lineno - 1] + part.col_offset,
+                            offsets[part.end_lineno - 1] + part.end_col_offset,
+                            replacement,
+                        )
+                    )
+                addition = f"""
+    @model_validator(mode='before')
+    @classmethod
+    def _select_reporting_scope(cls, value: Any) -> Any:
+        if not isinstance(value, Mapping):
+            return value
+        if 'all_media_buys' in value and 'media_buy_ids' in value:
+            raise ValueError('reporting scope requires exactly one selector')
+        if 'all_media_buys' in value and value['all_media_buys'] is not True:
+            raise ValueError('all_media_buys must be true')
+        if 'media_buy_ids' in value:
+            if value['media_buy_ids'] is None:
+                raise ValueError('media_buy_ids must be a nonempty unique list')
+            return value
+        # Preserve the typed empty-scope convenience without mutating its input.
+        return {{**value, 'all_media_buys': True}}
+
+    @model_validator(mode='after')
+    def _unique_reporting_scope(self) -> {node.name}:
+        if self.media_buy_ids is not None:
+            ids = [getattr(item, 'root', item) for item in self.media_buy_ids]
+            if len(ids) != len(set(ids)):
+                raise ValueError('media_buy_ids must be unique')
+        return self
+
+    @model_serializer(mode='wrap')
+    def _serialize_reporting_scope(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        value: dict[str, Any] = handler(self)
+        for name in ('all_media_buys', 'media_buy_ids'):
+            if value.get(name) is None:
+                value.pop(name, None)
+        return value
+"""
+                marker = "_select_reporting_scope"
+            elif re.fullmatch(r"GetMediaBuyDeliveryRequest\d*", node.name):
+                if not {*forbidden, "reporting_revision_id", "pagination"} <= fields.keys():
+                    raise ValueError("delivery request fields changed; revisit selector repair")
+                repaired["exact"] += 1
+                matched = True
+                addition = f"""
+    @model_validator(mode='after')
+    def _validate_delivery_selector_mode(self) -> {node.name}:
+        if self.reporting_revision_id is not None:
+            if self.model_fields_set.intersection({forbidden!r}):
+                raise ValueError('exact revision requests forbid aggregate selectors, even false or null')
+        elif self.pagination is not None:
+            raise ValueError('pagination requires reporting_revision_id')
+        return self
+
+    @model_serializer(mode='wrap')
+    def _serialize_delivery_selector_mode(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        value: dict[str, Any] = handler(self)
+        if self.reporting_revision_id is not None:
+            for name in {forbidden!r}:
+                if name not in self.model_fields_set:
+                    value.pop(name, None)
+        return value
+"""
+                marker = "_validate_delivery_selector_mode"
+            else:
+                continue
+            if marker not in methods:
+                changes.append((offsets[node.end_lineno], offsets[node.end_lineno], addition))
+        if not matched:
+            continue
+        source = original
+        for start, end, replacement in sorted(changes, reverse=True):
+            source = source[:start] + replacement + source[end:]
+        imports = ("from collections.abc import Mapping\n" if needs_mapping else "") + (
+            "from typing import Any\n"
+            "from pydantic import SerializerFunctionWrapHandler, model_serializer, model_validator\n"
+        )
+        if "from pydantic import SerializerFunctionWrapHandler," not in source:
+            source = source.replace(
+                "from __future__ import annotations\n",
+                "from __future__ import annotations\n\n" + imports,
+                1,
+            )
+        ast.parse(source)
+        if source != original:
+            path.write_text(source)
+        print(f"  {path.relative_to(OUTPUT_DIR)}: reporting selector modes")
+    if not all(repaired.values()):
+        raise ValueError("expected generated reporting selector model missing")
+
+
 def fix_reporting_capability_defaults() -> None:
     """Keep optional reporting promises absent in both generated model graphs.
 
@@ -6052,6 +6208,7 @@ def main(argv: list[str] | None = None):
         widen_extension_point_lists_to_sequence,
         fix_canceled_literal_defaults,
         fix_unchanged_literal_defaults,
+        fix_reporting_request_selectors,
         fix_reporting_capability_defaults,
         fix_protocol_envelope_status_default,
         fix_trusted_match_runtime_validators,

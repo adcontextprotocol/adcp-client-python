@@ -14,6 +14,7 @@ on:
       - conductor/reporting-frozen-account-feed-b23
       - conductor/reporting-schema-proof-receipt-diagnostics-hardening
       - conductor/reporting-production-tier-capabilities-b24
+      - conductor/reporting-adcp-rc4-adoption
 
 # Default @adcp/sdk runner alias for storyboard jobs. Tracks the current
 # stable @adcp/sdk release via the ``latest`` npm dist-tag.
