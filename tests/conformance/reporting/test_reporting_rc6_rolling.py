@@ -28,8 +28,8 @@ from .test_reporting_materializer_rolling import build_frozen
 from .test_reporting_notification_packaging import ROOT, run_step
 
 __all__ = ["b1_wheels", "built_distribution", "feed_wheels", "installed_feed"]
-B24 = "e3a44d281d019ebf6aec738c2cfe18f8bba97462"
-B24_TREE = "06a0abcfe38392501455fbda806be69871d6f0c6"
+B24 = "34c8f6d929aeac3407e2f595104a8e903e572623"
+B24_TREE = "2dd33404cb50e6d87ae875ccfa1c983e7faabd44"
 
 
 def installer(python):
@@ -42,7 +42,7 @@ def installer(python):
 
 @pytest.fixture(scope="module")
 def accepted_b24(request, tmp_path_factory):
-    root, _, _, identity = build_frozen("accepted-b24-rc4", tmp_path_factory, request, sha=B24)
+    root, _, _, identity = build_frozen("accepted-b24-rc6", tmp_path_factory, request, sha=B24)
     interpreter = os.environ.get("ADCP_PYTHON310")
     assert interpreter, "the accepted B2.4 boundary requires the installed Python 3.10 floor"
     assert (
@@ -50,12 +50,12 @@ def accepted_b24(request, tmp_path_factory):
         == B24_TREE
     )
     environment = root / "python310"
-    run_step([interpreter, "-m", "venv", str(environment)], label="b24-rc4-floor-env", cwd=root)
+    run_step([interpreter, "-m", "venv", str(environment)], label="b24-rc6-floor-env", cwd=root)
     python = environment / "bin/python"
     wheel = next((root / "dist").glob("*.whl"))
     run_step(
         [*installer(python), f"{wheel}[pg]", "asgi-lifespan==2.1.0", "pytest==9.1.1"],
-        label="b24-rc4-floor-install",
+        label="b24-rc6-floor-install",
         cwd=root,
         timeout=180,
     )
@@ -72,18 +72,18 @@ def accepted_b24(request, tmp_path_factory):
 
 
 @pytest.fixture(scope="module")
-def rc4_installed_boundary(accepted_b24, installed_feed, feed_wheels, built_distribution):
+def rc6_installed_boundary(accepted_b24, installed_feed, feed_wheels, built_distribution):
     old_root, old_python, old_wheel, old = accepted_b24
     root, python, _, _, current = installed_feed
     run_step(
-        [*installer(python), "pytest==9.1.1"], label="rc4-rolling-fixtures", cwd=root, timeout=180
+        [*installer(python), "pytest==9.1.1"], label="rc6-rolling-fixtures", cwd=root, timeout=180
     )
-    fixtures = copied_fixtures(root, "rc4-continuation-" + current["distribution"])
-    script = fixtures / "rc4_continuation_process.py"
-    shutil.copy2(Path(__file__).with_name("_rc4_continuation_process.py"), script)
+    fixtures = copied_fixtures(root, "rc6-continuation-" + current["distribution"])
+    script = fixtures / "rc6_continuation_process.py"
+    shutil.copy2(Path(__file__).with_name("_rc6_continuation_process.py"), script)
     evidence = Path(
         os.environ.get("ADCP_PRODUCTION_EVIDENCE")
-        or tempfile.mkdtemp(prefix="adcp-rc4-rolling-evidence-")
+        or tempfile.mkdtemp(prefix="adcp-rc6-rolling-evidence-")
     )
     evidence.mkdir(parents=True, exist_ok=True, mode=0o700)
     retained = evidence / "accepted-b24.whl"
@@ -96,7 +96,7 @@ def rc4_installed_boundary(accepted_b24, installed_feed, feed_wheels, built_dist
         wheels[current["distribution"]],
         sdist,
         evidence=evidence,
-        label="rc4-rolling-" + current["distribution"],
+        label="rc6-rolling-" + current["distribution"],
     )
     old.update(
         workspace=str(ROOT),
@@ -148,7 +148,7 @@ def execute(python, script, settings, evidence, label):
             "sha256": hashlib.sha256(raw).hexdigest(),
         }
     (evidence / (label + ".json")).write_text(json.dumps(record, indent=2) + "\n")
-    print(json.dumps({"rc4_installed_continuation": record}), flush=True)
+    print(json.dumps({"rc6_installed_continuation": record}), flush=True)
     assert (
         process.returncode == 0
     ), f"installed continuation failed; original diagnostics: {evidence / label}"
@@ -156,10 +156,10 @@ def execute(python, script, settings, evidence, label):
 
 
 @pytest.mark.parametrize("notifications", [False, True])
-async def test_actual_accepted_b24_snapshot_to_rc4_installed_restart(
-    rc4_installed_boundary, notifications
+async def test_actual_accepted_b24_snapshot_to_rc6_installed_restart(
+    rc6_installed_boundary, notifications
 ):
-    old_python, python, script, old, current, evidence = rc4_installed_boundary
+    old_python, python, script, old, current, evidence = rc6_installed_boundary
     label = current["distribution"] + "-" + str(int(notifications))
     async with isolated_reporting_pool(autocommit=True) as pool:
         private = {"conninfo": pool.conninfo, "kwargs": pool.kwargs, "notifications": notifications}
@@ -169,7 +169,7 @@ async def test_actual_accepted_b24_snapshot_to_rc4_installed_restart(
             script,
             {**old, **private, "phase": "seed"},
             evidence,
-            "rc4-b24-" + label,
+            "rc6-b24-" + label,
         )
         for phase in ("replay", "restart"):
             result = await asyncio.to_thread(
@@ -178,7 +178,7 @@ async def test_actual_accepted_b24_snapshot_to_rc4_installed_restart(
                 script,
                 {**current, **private, "phase": phase, "prior": first},
                 evidence,
-                "rc4-" + phase + "-" + label,
+                "rc6-" + phase + "-" + label,
             )
             assert result["pages"] == first["pages"]
             assert result["snapshot_sha256"] == first["snapshot_sha256"]

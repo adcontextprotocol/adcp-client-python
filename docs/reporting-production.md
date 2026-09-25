@@ -6,11 +6,12 @@ receipt ingress and frozen feed with versioned private status. Use
 typed composition and authenticated MCP/A2A lifecycle. Existing Core polling
 and eligible Core notification deployments keep their existing composition.
 
-The default protocol is AdCP 3.2.0-rc.4. Set `ReportingProductionSupport`'s
-`adcp_version="3.2-rc.3"` and the matching client pin to continue retained B2.4
-reporting walks. See [the rc.4 adoption and history boundary](protocol-3.2-rc4.md)
-for complete-summary period-start forecasting, version-aligned mounts and
-rollback limits. This protocol adoption changes no SQL manifest or stored snapshot.
+The default protocol remains AdCP 3.2.0-rc.6. Set `ReportingProductionSupport`'s
+`adcp_version="3.2-rc.6"` or omit the pin for the packaged default. Historical
+rc.3 schemas are available offline but are not advertised as a live reporting
+contract. See [signed inputs and history boundaries](protocol-3.2-rc6.md) for
+version-aligned mounts and integrated-parent continuation limits. Existing
+schema manifests and stored snapshot bytes are unchanged.
 
 ## Provider and source contracts
 
@@ -379,14 +380,15 @@ or the later cross-language interoperability gate.
 
 The production rolling controls compare the integrated B2.3 artifact
 `2d777ace7b4bf8be519ce0abd4fd0a25ed4f1da7` and integrated hardening artifact
-`e16eb8cf3074cabd45aab42840950f05ad6d2b43`. Their frozen bytes, origins and
+`e16eb8cf3074cabd45aab42840950f05ad6d2b43`, plus production artifact
+`34c8f6d929aeac3407e2f595104a8e903e572623`. Their frozen bytes, origins and
 continuations must be established by fresh installed CI. Earlier snapshots are
 not qualified by these comparisons.
 
-The release notes must retain all eight exclusions: pre-`17ee407a` A,
+The release notes must retain all nine exclusions: pre-`17ee407a` A,
 pre-`0f34c666` B, pre-`967b6e28` C, pre-`5487f2bd` B1,
 pre-`3fd62121` B2.1, pre-`09fd87f7` B2.2, pre-`2d777ace` B2.3,
-and pre-`e16eb8cf` hardening. In particular, old A whole-trigger startup after C
+pre-`e16eb8cf` hardening, and pre-`34c8f6d9` production. In particular, old A whole-trigger startup after C
 is not supported, and historical false notification-readiness results do not
 become healthy through later source integration. These notes do not qualify
 simultaneous old autonomous writers or release/activation acceptance.

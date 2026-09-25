@@ -117,7 +117,10 @@ def main(settings):
         "historical_reference_schema": {
             "version": reference["version"],
             "root": str(reference_root),
-            "origin": "copied immutable test reference; independently compared with the packaged historical bundle",
+            "origin": (
+                "copied immutable test reference; independently compared with "
+                "the packaged historical bundle"
+            ),
             "files": len(reference["files"]),
             "inputs": str(reference_inputs),
             "inputs_sha256": hashlib.sha256(reference_bytes).hexdigest(),

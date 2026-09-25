@@ -34,11 +34,11 @@ PINS = {
     "beta15": "3e76aa54623529a3dda01cd690b8a5c287c75641",
     "records": "3c405a21f978ed9d3208611bb4a7a8434a056933",
     "integration": "037de4ac822ecefb2f95d32c15c297fb4c45d683",
-    "a": "21bf443e7d850d1800ec8a6f2e4abec1c8f85541",
-    "b": "198d50e61c74fb82aedbf2c77e06a0e200b91db6",
-    "c": "ea150fabd5ad90e3abf93f89729d2919f1c61798",
-    "b1": "1c91311ec28d25506d5db43f59d0c34936ecb8f7",
-    "b21": "8e18ca12b9a0c3750f80aa822058c02982ab3e52",
+    "a": "17ee407ae3978c8a2bb54437287afbf9dafb8130",
+    "b": "0f34c666ac1961e9832fce43ef0ef6937b3c1dde",
+    "c": "967b6e286301d7e5d089aea6fdbb90bea8ee5a16",
+    "b1": "5487f2bdef23c5102118b305be9e868228f6ce61",
+    "b21": "3fd62121c96a074e3ea458c30c5224d6a586f169",
 }
 IDS = tuple(PINS)
 FILES = {"attempted.json", "collection.json", "manifest.json", "stdout.log", "stderr.log"}
@@ -197,8 +197,10 @@ def verify_workflow(path=ROOT / ".github/workflows/ci.yml"):
     service = shard["services"]["postgres"]
     require(service["image"] == "postgres:16", "postgres_version")
     require(
-        service["env"]["POSTGRES_INITDB_ARGS"] == "--encoding=UTF8 --lc-collate=C --lc-ctype=C",
-        "postgres_locale",
+        # Keep the integrated locale-portability boundary: forcing C would hide
+        # the class of ordering defect caught by the earlier native-time fix.
+        "POSTGRES_INITDB_ARGS" not in service["env"],
+        "postgres_locale_must_remain_unpinned",
     )
     require(
         shard["env"]["RECEIPT_SOURCE_HEAD"]

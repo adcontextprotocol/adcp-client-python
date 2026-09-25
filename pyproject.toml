@@ -216,10 +216,10 @@ adcp = [
     "_schemas/3.2.0-rc.3/**/*.json",
     "_schemas/3.2.0-rc.6/**/*.json",
     # Exact signed compliance inputs plus their immutable release provenance.
-    "_compliance/3.2.0-rc.4/**/*.json",
-    "_compliance/3.2.0-rc.4/**/*.jsonl",
-    "_compliance/3.2.0-rc.4/**/*.yaml",
-    "_compliance/3.2.0-rc.4/**/*.md",
+    "_compliance/3.2.0-rc.6/**/*.json",
+    "_compliance/3.2.0-rc.6/**/*.jsonl",
+    "_compliance/3.2.0-rc.6/**/*.yaml",
+    "_compliance/3.2.0-rc.6/**/*.md",
     # Vendored canonical-formats reference fixtures (14 v2 products +
     # 50-entry v1 catalog) so :mod:`adcp.canonical_formats.fixtures`
     # can serve them to adopter test suites without forcing each

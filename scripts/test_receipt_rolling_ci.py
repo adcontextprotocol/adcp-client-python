@@ -280,6 +280,42 @@ class ReceiptCIControls(unittest.TestCase):
             with self.assertRaises(ci.ContractError):
                 ci.verify_workflow(path)
 
+    def test_workflow_rejects_reintroduced_locale_pin(self):
+        import yaml
+
+        workflow = yaml.safe_load((ci.ROOT / ".github/workflows/ci.yml").read_text())
+        path = self.root / "ci.yml"
+        for value in ("--encoding=UTF8 --lc-collate=C --lc-ctype=C", "--locale=en_US.utf8", ""):
+            bad = copy.deepcopy(workflow)
+            bad["jobs"]["pg-reporting-receipt-compatibility-shard"]["services"]["postgres"]["env"][
+                "POSTGRES_INITDB_ARGS"
+            ] = value
+            path.write_text(yaml.safe_dump(bad))
+            with self.subTest(value=value), self.assertRaises(ci.ContractError):
+                ci.verify_workflow(path)
+
+    def test_history_rejects_changed_integrated_artifact(self):
+        root = self.root / "history"
+        directory = root / "tests/conformance/reporting"
+        directory.mkdir(parents=True)
+        materializer = directory / "test_reporting_materializer_rolling.py"
+        receipt = root / ci.TEST
+        original = {key: ci.PINS[key] for key in ci.IDS[:-1]}
+        materializer.write_text("ARTIFACTS = " + repr(original))
+        receipt.write_text("B21 = " + repr(ci.PINS["b21"]))
+        ci.verify_history(root)
+        for artifact in ci.IDS:
+            changed = dict(original)
+            if artifact == "b21":
+                receipt.write_text("B21 = " + repr("f" * 40))
+            else:
+                changed[artifact] = "f" * 40
+                materializer.write_text("ARTIFACTS = " + repr(changed))
+            with self.subTest(artifact=artifact), self.assertRaises(ci.ContractError):
+                ci.verify_history(root)
+            materializer.write_text("ARTIFACTS = " + repr(original))
+            receipt.write_text("B21 = " + repr(ci.PINS["b21"]))
+
     def test_junit_requires_one_actual_pass(self):
         path = self.root / "junit.xml"
         case = (

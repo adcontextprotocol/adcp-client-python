@@ -206,7 +206,7 @@ jobs:
                      --ignore-glob='tests/conformance/reporting/test_reporting_projection*.py' \
                      --ignore=tests/conformance/reporting/test_reporting_tier_projection.py \
                      --ignore=tests/conformance/reporting/test_reporting_schedule_schema.py \
-                     --ignore=tests/conformance/reporting/test_reporting_rc4_rolling.py \
+                     --ignore=tests/conformance/reporting/test_reporting_rc6_rolling.py \
                      -v -ra
               ;;
             process)
@@ -811,7 +811,7 @@ jobs:
             tests/test_reporting_revision_ownership.py \
             tests/test_reporting_production_public.py \
             tests/test_schema_datetime_formats.py \
-            tests/test_rc4_adoption.py \
+            tests/test_rc6_adoption.py \
             -v -s -ra | tee pg-reporting-production-evidence.log
       - name: Preserve production contract evidence
         if: always()
@@ -894,9 +894,9 @@ jobs:
           --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v6
-      - name: Fetch integrated feed and hardening comparison artifacts
+      - name: Fetch integrated feed, hardening and production comparison artifacts
         timeout-minutes: 1
-        run: git fetch --no-tags origin 2d777ace7b4bf8be519ce0abd4fd0a25ed4f1da7 e16eb8cf3074cabd45aab42840950f05ad6d2b43 e3a44d281d019ebf6aec738c2cfe18f8bba97462
+        run: git fetch --no-tags origin 2d777ace7b4bf8be519ce0abd4fd0a25ed4f1da7 e16eb8cf3074cabd45aab42840950f05ad6d2b43 34c8f6d929aeac3407e2f595104a8e903e572623
       - uses: actions/setup-python@v6
         id: production-python310
         with:
@@ -918,7 +918,7 @@ jobs:
         run: |
           python scripts/reporting_test_harness.py pytest \
             tests/conformance/reporting/test_reporting_production_rolling.py \
-            tests/conformance/reporting/test_reporting_rc4_rolling.py \
+            tests/conformance/reporting/test_reporting_rc6_rolling.py \
             -v -s -ra | tee pg-reporting-production-rolling.log
       - name: Preserve exact installed historical continuity and fence evidence
         if: always()

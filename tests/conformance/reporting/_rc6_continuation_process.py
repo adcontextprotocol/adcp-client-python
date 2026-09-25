@@ -1,4 +1,4 @@
-"""Actual installed B2.4 page one and rc.4 continuation in separate processes."""
+"""Actual installed B2.4 page one and rc.6 continuation in separate processes."""
 
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ async def main(settings):
     from tests.conformance.reporting._receipt_transport import error_code
     from tests.conformance.reporting._reliable_support import ManualClock
 
-    consumer = "https://buyer.example.test/installed-rc4"
+    consumer = "https://buyer.example.test/installed-rc6"
     clock = ManualClock(START + timedelta(hours=1.5 if settings["phase"] == "seed" else 8.5))
     config = replace(configuration(), deactivated_at=None)
     caller = ReportingDeliveryPrincipal(config.account_id, consumer)
@@ -91,9 +91,9 @@ async def main(settings):
             )
             return result
 
-        old_mount = mounted("3.2-rc.3")
+        old_mount = mounted("3.2-rc.6")
         req = {
-            "adcp_version": "3.2-rc.3",
+            "adcp_version": "3.2-rc.6",
             "account": {"account_id": config.account_id},
             "view": "periods",
             "pagination": {"max_results": 1},
@@ -114,7 +114,7 @@ async def main(settings):
                 )
                 assert result.success, result
                 page = result.data.model_dump(mode="json", exclude_unset=True)
-                get_validator("get_reporting_status", "sync", version="3.2-rc.3").validate(page)
+                get_validator("get_reporting_status", "sync", version="3.2-rc.6").validate(page)
                 pages.append(page)
                 if not page["pagination"]["has_more"]:
                     break
@@ -122,10 +122,10 @@ async def main(settings):
                 protocol = "a2a" if protocol == "mcp" else "mcp"
             else:
                 raise AssertionError("unbounded installed continuation")
-            assert observed and all(p[2]["adcp_version"] == "3.2-rc.3" for p in observed)
+            assert observed and all(p[2]["adcp_version"] == "3.2-rc.6" for p in observed)
         first = pages[0]
         assert first["health"] == "complete"
-        assert first["next_expected_at"] == "2026-09-01T02:00:00Z"
+        assert "next_expected_at" not in first
         assert first["pagination"]["total_count"] == 2
         assert len(pages) == 2
         checkpoint = first["changes_checkpoint"]
@@ -139,7 +139,7 @@ async def main(settings):
             first["ledger_snapshot_id"], caller=caller
         )
         document = canonical_json_utf8_v1(snapshot.to_storage())
-        assert snapshot.filters_json.find(b"adcp_version") == -1
+        assert json.loads(snapshot.filters_json)["adcp_version"] == "3.2-rc.6"
         async with pool.connection() as connection:
             row = await (
                 await connection.execute(
@@ -160,12 +160,24 @@ async def main(settings):
         if prior is not None:
             assert pages == prior["pages"]
             assert digest == prior["snapshot_sha256"] and raw_digest == prior["pages_sha256"]
-            new_mount = mounted("3.2-rc.4")
+            new_mount = mounted("3.2-rc.6")
             async with new_mount.client() as client:
+                from adcp.reporting.feed.errors import ReportingFeedError
+
                 for position in (
                     {"pagination": {"max_results": 1, "cursor": first["pagination"]["cursor"]}},
                     {"changes_after": checkpoint},
                 ):
+                    # The stored boundary remains authenticated and version-bound.
+                    try:
+                        await store.read_reporting_feed(
+                            {**req, **position, "adcp_version": "3.2-rc.3"}, caller=caller
+                        )
+                    except ReportingFeedError as exc:
+                        assert exc.code == "REPORTING_FEED_VERSION_MISMATCH"
+                        version_boundary = exc.code
+                    else:
+                        raise AssertionError("cross-version stored position was accepted")
                     for call in (new_mount.mcp, new_mount.a2a):
                         _, rejected = await call(
                             client,
@@ -173,16 +185,15 @@ async def main(settings):
                                 "account": req["account"],
                                 "view": "periods",
                                 **position,
-                                "adcp_version": "3.2-rc.4",
+                                "adcp_version": "3.2-rc.3",
                             },
                         )
-                        assert error_code(rejected) == "REPORTING_FEED_VERSION_MISMATCH", rejected
-                        version_boundary = error_code(rejected)
-                # New rc.4 captures obey their own schema and omit the field.
+                        assert error_code(rejected) == "VERSION_UNSUPPORTED", rejected
+                # New rc.6 captures obey their own schema and omit the field.
                 _, current = await new_mount.mcp(
                     client,
                     {
-                        "adcp_version": "3.2-rc.4",
+                        "adcp_version": "3.2-rc.6",
                         "account": {"account_id": config.account_id},
                         "view": "periods",
                     },
@@ -192,12 +203,12 @@ async def main(settings):
                     "media-buy/get-reporting-status-response.json",
                     "bundled/media-buy/get-reporting-status-response.json",
                 ):
-                    get_named_validator(schema, version="3.2-rc.4").validate(current)
+                    get_named_validator(schema, version="3.2-rc.6").validate(current)
             async with old_mount.client() as client:
                 _, resumed = await old_mount.a2a(
                     client,
                     {
-                        "adcp_version": "3.2-rc.3",
+                        "adcp_version": "3.2-rc.6",
                         "account": {"account_id": config.account_id},
                         "view": "periods",
                         "changes_after": checkpoint,

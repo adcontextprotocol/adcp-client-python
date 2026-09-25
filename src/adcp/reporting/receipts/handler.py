@@ -125,10 +125,10 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
         )
         self._feed_consumer_status_enabled = consumer_status_enabled
         self._adcp_version = resolve_adcp_version(adcp_version)
-        if not is_adcp_version_at_least(self._adcp_version, "3.2-rc.3"):
+        if not is_adcp_version_at_least(self._adcp_version, "3.2-rc.6"):
             raise ConfigurationError(
                 "reporting mounts require a supported AdCP 3.2 reporting contract; "
-                "use 3.2-rc.3 for retained walks or omit the pin for the packaged default"
+                "use 3.2-rc.6 or omit the pin for the packaged default"
             )
 
     def get_adcp_version(self) -> str:

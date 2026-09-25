@@ -150,23 +150,30 @@ async def test_activation_and_producer_actual_trigger_lock_order(
             ).fetchone()
         if isinstance(results[0], BaseException):
             assert rows == (1, 0, 0, 0, 0)
-            assert not await support.projection.baseline_ready(account_id=item.config.account_id)
+            adoption_operation_1 = not await support.projection.baseline_ready(
+                account_id=item.config.account_id
+            )
+            assert adoption_operation_1
         else:
             assert rows == (1, 1, 0, 0, 0)
         # A failed lease rolls back; a winning producer releases in its real
         # finally block. Neither path can leak a lease or reserve epoch-zero I/O.
         assert lease == (None, None)
-        assert (
+        adoption_operation_2 = (
             await store.get_revision(
                 account_id=item.config.account_id,
                 reporting_revision_id=item.revision.reporting_revision_id,
             )
             == item.revision
         )
+        assert adoption_operation_2
         # The negative control restores the real methods before resuming the
         # incomplete phase. Its original input and epoch-zero queues persist.
         await support.activate(account_id=item.config.account_id)
-        assert await support.projection.baseline_ready(account_id=item.config.account_id)
+        adoption_operation_3 = await support.projection.baseline_ready(
+            account_id=item.config.account_id
+        )
+        assert adoption_operation_3
         executing.clear()
         with monkeypatch.context() as patch:
             patch.setattr(psycopg.AsyncConnection, "execute", observe)
@@ -246,10 +253,11 @@ async def test_selected_source_enrollment_and_expired_lease_fairness(backend, tm
         isolated = await acquire(other, "other")
         assert isolated.generation_key == other_config.generation_key
         await store.release_period_close(isolated, worker_id="other")
-        assert {
+        adoption_operation_4 = {
             account: await store.list_configurations(account_id=account)
             for account in ("acct_a", "acct_b")
         } == before
+        assert adoption_operation_4
         if h.pool is None:
             turns = store._lease_turns
             assert unadmitted.generation_key not in turns
@@ -269,7 +277,7 @@ async def test_selected_source_enrollment_and_expired_lease_fairness(backend, tm
                     ("acct_a", "other-source"),
                     ("acct_a", "peer"),
                 ]
-                assert (
+                adoption_operation_5 = (
                     await (
                         await c.execute(
                             "SELECT count(*) FROM reporting_configurations"
@@ -277,4 +285,6 @@ async def test_selected_source_enrollment_and_expired_lease_fairness(backend, tm
                         )
                     ).fetchone()
                 )[0] == 0
-        assert not (await h.queue())[0]
+                assert adoption_operation_5
+        adoption_operation_6 = not (await h.queue())[0]
+        assert adoption_operation_6

@@ -2950,11 +2950,11 @@ def create_tool_caller(
 
             mounted_version = default_unnegotiated_adcp_version or resolve_adcp_version(None)
             requested_version = wire_version or resolve_adcp_version(None)
-            if is_adcp_version_at_least(mounted_version, "3.2-rc.4") != is_adcp_version_at_least(
-                requested_version, "3.2-rc.4"
+            if is_adcp_version_at_least(mounted_version, "3.2-rc.6") != is_adcp_version_at_least(
+                requested_version, "3.2-rc.6"
             ):
                 # Frozen rc.3 complete periods may carry next_expected_at;
-                # rc.4 forbids it. Do not return preserved old bytes under an
+                # rc.6 forbids it. Do not return preserved old bytes under an
                 # incompatible advertised schema, even with validation off.
                 raise ADCPTaskError(
                     operation=method_name,

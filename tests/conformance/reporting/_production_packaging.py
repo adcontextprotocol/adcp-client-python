@@ -115,7 +115,7 @@ def inspect_distribution(wheel, source):
         for name, raw in assets.items():
             assert archive.read("adcp/reporting/" + name) == raw
             assert sdist.extractfile(f"{prefix}/src/adcp/reporting/{name}").read() == raw
-        for path in sorted((ROOT / "src/adcp/_compliance/3.2.0-rc.4").rglob("*")):
+        for path in sorted((ROOT / "src/adcp/_compliance/3.2.0-rc.6").rglob("*")):
             if path.is_file():
                 name = path.relative_to(ROOT / "src").as_posix()
                 assert archive.read(name) == path.read_bytes()
@@ -286,7 +286,7 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
             "tests/test_reporting_capability_models.py",
             "tests/test_reporting_production_public.py",
             "tests/test_schema_datetime_formats.py",
-            "tests/test_rc4_adoption.py",
+            "tests/test_rc6_adoption.py",
             "tests/test_mcp_schema_materialization.py",
         )
     ]
