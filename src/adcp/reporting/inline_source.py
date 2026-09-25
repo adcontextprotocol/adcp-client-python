@@ -73,6 +73,7 @@ from typing import Any, Literal, Protocol, TypeAlias, runtime_checkable
 
 from pydantic import TypeAdapter, ValidationError
 
+from adcp.reporting._settlement import settle_task
 from adcp.reporting.currency import (
     ReportingCurrencyError,
     validate_currency,
@@ -470,7 +471,7 @@ class FileSystemStagingStore:
         digest = hashlib.sha256(payload).hexdigest()
         object_ref = f"{source_execution_key}.{ordinal}"
         target = self._path(account_id, object_ref, digest)
-        await asyncio.to_thread(self._write, target, payload)
+        await settle_task(asyncio.create_task(asyncio.to_thread(self._write, target, payload)))
         return object_ref, digest
 
     @staticmethod
@@ -499,7 +500,9 @@ class FileSystemStagingStore:
         cancel: asyncio.Event,
     ) -> bytes:
         target = self._path(account_id, object_ref, object_generation)
-        payload: bytes = await asyncio.to_thread(target.read_bytes)
+        payload: bytes = await settle_task(
+            asyncio.create_task(asyncio.to_thread(target.read_bytes))
+        )
         if hashlib.sha256(payload).hexdigest() != object_generation:
             raise OSError("staged object bytes no longer match their pinned generation")
         return payload
@@ -724,7 +727,13 @@ class InlineReportingSource:
         if _is_async_callable(self._fetch):
             answer = await self._fetch(request)
         else:
-            answer = await asyncio.shield(asyncio.to_thread(self._fetch, request))
+            # Keep both the thread and a dynamically returned awaitable owned
+            # until they settle. Shield alone abandons the wait on cancellation.
+            async def run_sync() -> Any:
+                result = await asyncio.to_thread(self._fetch, request)
+                return await result if isinstance(result, Awaitable) else result
+
+            answer = await settle_task(asyncio.create_task(run_sync()))
         if isinstance(answer, Awaitable):
             # A plain callable that hands back a coroutine; await it here
             # rather than letting it reach the coercion step unfinished.

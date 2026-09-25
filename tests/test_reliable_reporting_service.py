@@ -26,6 +26,8 @@ from adcp.reporting.ledger import (
 from adcp.reporting.service import (
     ReliableReportingConfigurationError,
     ReliableReportingService,
+    ReliableReportingServiceError,
+    ReliableReportingState,
     ReportingAccountContext,
 )
 from adcp.reporting.testing import (
@@ -235,6 +237,10 @@ async def test_capability_block_is_schema_valid_and_only_advertises_installed_ti
     )
     service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), [_rows(1)]))
     await service.configure(_configuration())
+    assert service.capability_block() == {}
+    await service.initialize()
+    assert service.capability_block() == {}
+    await service.start()
     block = service.capability_block()
 
     assert block["managed_delivery"] is False
@@ -247,6 +253,7 @@ async def test_capability_block_is_schema_valid_and_only_advertises_installed_ti
     validator = get_named_validator("core/reporting-delivery-capabilities.json")
     assert validator is not None
     assert list(validator.iter_errors(block)) == []
+    await service.close()
 
 
 async def test_startup_rejects_impossible_component_combinations() -> None:
@@ -272,8 +279,7 @@ async def test_startup_rejects_impossible_component_combinations() -> None:
         ).initialize()
 
 
-async def test_background_worker_reports_an_error_and_recovers_on_the_next_turn() -> None:
-    recovered = asyncio.Event()
+async def test_background_worker_reports_an_error_and_stops_admitting_work() -> None:
     errors: list[tuple[str, str]] = []
 
     class FlakyWorker:
@@ -283,25 +289,29 @@ async def test_background_worker_reports_an_error_and_recovers_on_the_next_turn(
             self.calls += 1
             if self.calls == 1:
                 raise RuntimeError("temporary materializer failure")
-            recovered.set()
             return "recovered"
 
     async def capture(component: str, error: BaseException) -> None:
         errors.append((component, str(error)))
 
+    worker = FlakyWorker()
     service = ReliableReportingService.memory(
         account_context=_account_context,
-        materialization_worker=FlakyWorker(),
+        materialization_worker=worker,
         worker_interval=timedelta(milliseconds=1),
         worker_error_handler=capture,
     )
     await service.start()
     try:
-        await asyncio.wait_for(recovered.wait(), timeout=1)
+        with pytest.raises(ReliableReportingServiceError, match="materialization"):
+            await asyncio.wait_for(service.wait(), timeout=1)
     finally:
         await service.close()
 
-    assert errors == [("materialization", "temporary materializer failure")]
+    assert errors == [("materialization", "reporting service failed (materialization)")]
+    assert worker.calls == 1
+    assert service.state is ReliableReportingState.FAILED
+    assert not service.ready
 
 
 async def test_configuration_rejects_unregistered_routes_and_mutated_generations() -> None:
