@@ -1920,7 +1920,8 @@ async def test_sync_cancellation_settles_success_before_on_complete(
             on_complete=_on_complete,
         )
     )
-    assert await asyncio.to_thread(entered.wait, 1)
+    correction_condition_1 = await asyncio.to_thread(entered.wait, 1)
+    assert correction_condition_1
     task.cancel("client disconnected")
     with pytest.raises(asyncio.CancelledError):
         _ = await task
@@ -1965,7 +1966,8 @@ async def test_sync_cancellation_settles_real_failure_before_on_failure(
             on_failure=_on_failure,
         )
     )
-    assert await asyncio.to_thread(entered.wait, 1)
+    correction_condition_2 = await asyncio.to_thread(entered.wait, 1)
+    assert correction_condition_2
     task.cancel()
     with pytest.raises(asyncio.CancelledError) as exc_info:
         await asyncio.gather(task)

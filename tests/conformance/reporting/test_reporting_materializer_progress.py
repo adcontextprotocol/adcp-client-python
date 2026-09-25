@@ -176,8 +176,10 @@ async def test_more_than_two_busy_pages_progress_then_recover_after_unlock(
                 await store._lock_account(holder, account)
             before = await served(pool)
             for _ in range(2):
-                assert (await bounded_claim(store, samples)).state == "idle"
-                assert await served(pool) == before
+                correction_condition_1 = (await bounded_claim(store, samples)).state == "idle"
+                assert correction_condition_1
+                correction_condition_2 = await served(pool) == before
+                assert correction_condition_2
             assert samples == [16, 16]
             await bounded_claim(store, samples)
             after = await served(pool)
@@ -200,7 +202,10 @@ async def test_more_than_two_busy_pages_progress_then_recover_after_unlock(
             if recovered == set(busy):
                 break
         assert recovered == set(busy)
-        assert all(value != "-infinity" for value in (await served(pool)).values())
+        correction_condition_3 = all(
+            value != "-infinity" for value in (await served(pool)).values()
+        )
+        assert correction_condition_3
 
 
 @pytest.mark.parametrize("notifications", [False, True])
@@ -228,11 +233,13 @@ async def test_commit_failure_rolls_back_rank_and_reservation_then_retries(notif
                 await store.claim_materialization(keys=case.keys)
             assert error.value.failure.code == "RESOURCE_UNAVAILABLE"
             assert "private-progress" not in str(error.value)
-            assert await served(pool) == before
+            correction_condition_4 = await served(pool) == before
+            assert correction_condition_4
             async with pool.connection() as connection:
-                assert await (
+                correction_condition_5 = await (
                     await connection.execute("SELECT count(*) FROM reporting_materializer_work")
                 ).fetchone() == (0,)
+                assert correction_condition_5
         finally:
             async with pool.connection() as connection:
                 await connection.execute(
@@ -242,8 +249,10 @@ async def test_commit_failure_rolls_back_rank_and_reservation_then_retries(notif
         lease = await case.claim()
         assert isinstance(lease, ReportingMaterializerLease)
         assert lease.attempt.attempt == 1
-        assert await store.renew_materialization(lease, lease_seconds=30)
-        assert await served(pool) != before
+        correction_condition_6 = await store.renew_materialization(lease, lease_seconds=30)
+        assert correction_condition_6
+        correction_condition_7 = await served(pool) != before
+        assert correction_condition_7
 
 
 async def test_two_workers_skip_uncommitted_peer_and_reserve_distinct_accounts(monkeypatch):
@@ -299,13 +308,17 @@ async def test_two_workers_skip_uncommitted_peer_and_reserve_distinct_accounts(m
             assert selected.request.external_id != other.request.external_id
             await store.authorize_materialization(selected)
             await peer.authorize_materialization(other)
-            assert await store.renew_materialization(selected, lease_seconds=30)
-            assert await peer.renew_materialization(other, lease_seconds=30)
+            correction_condition_8 = await store.renew_materialization(selected, lease_seconds=30)
+            assert correction_condition_8
+            correction_condition_9 = await peer.renew_materialization(other, lease_seconds=30)
+            assert correction_condition_9
             for current in (store, peer):
-                assert not isinstance(
+                correction_condition_10 = not isinstance(
                     await current.claim_materialization(keys=first.keys), ReportingMaterializerLease
                 )
+                assert correction_condition_10
             async with pool.connection() as connection:
-                assert await (
+                correction_condition_11 = await (
                     await connection.execute("SELECT count(*) FROM reporting_materializer_work")
                 ).fetchone() == (2,)
+                assert correction_condition_11

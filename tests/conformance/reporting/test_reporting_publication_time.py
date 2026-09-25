@@ -259,13 +259,14 @@ async def test_invalid_publication_clock_stops_before_immutable_write(
         result.response.manifest, result.manifest_bytes
     )
     assert manifest.observed_at == observed  # Original source evidence was not backdated.
-    assert (
+    correction_condition_1 = (
         await store.list_revisions(
             account_id=config.account_id,
             reporting_obligation_id=request.identity.reporting_obligation_id,
         )
         == ()
     )
+    assert correction_condition_1
 
 
 @pytest.mark.parametrize("finality", ["official", "snapshot"])
@@ -308,13 +309,13 @@ async def test_same_publication_replay_preserves_committed_time_and_source_evide
             now=clock.now,
         )
         assert replay == first
-    assert (
+    correction_condition_2 = (
         await store.list_revisions(
-            account_id=config.account_id,
-            reporting_obligation_id=obligation.reporting_obligation_id,
+            account_id=config.account_id, reporting_obligation_id=obligation.reporting_obligation_id
         )
         == expected_revisions
     )
+    assert correction_condition_2
     changed = [dict(ROWS[0], row_id="changed")]
     with pytest.raises(LedgerConflictError) as conflict:
         await factory().commit_revision_from_manifest(
@@ -394,13 +395,14 @@ async def test_direct_commit_uses_explicit_publication_time_before_any_write(
             )
         assert raised.value.code == "PUBLICATION_TIME_INVALID"
         assert not writes
-        assert (
+        correction_condition_3 = (
             await store.list_revisions(
                 account_id=config.account_id,
                 reporting_obligation_id=obligations[0].reporting_obligation_id,
             )
             == ()
         )
+        assert correction_condition_3
     else:
         committed = await producer.commit_revision_from_manifest(
             obligations[0], manifest, rows=ROWS, finality="official", now=PUBLISHED

@@ -103,11 +103,12 @@ async def test_real_source_observation_before_publication_reconciles_and_replays
                     )
                     runs.append(result)
             async with pool.connection() as connection:
-                assert await (
+                correction_condition_1 = await (
                     await connection.execute(
                         "SELECT count(*) FROM pg_stat_activity WHERE application_name=%s", (schema,)
                     )
                 ).fetchone() == (0,)
+                assert correction_condition_1
         for field in (
             "revision",
             "digest",

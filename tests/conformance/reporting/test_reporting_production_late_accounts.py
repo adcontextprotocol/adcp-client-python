@@ -126,7 +126,7 @@ def client_for(uri, account):
             auth_header="Authorization",
             auth_type="bearer",
         ),
-        adcp_version="3.2.0-rc.4",
+        adcp_version="3.2.0-rc.6",
     )
 
 
@@ -390,15 +390,16 @@ async def test_late_account_progresses_via_typed_public_support_and_survives_res
                             period=results[0][account]["period"] if index else None,
                         )
                         if index == 0 and account != first:
-                            assert (await served(pool))[first] != first_before
+                            correction_condition_1 = (await served(pool))[first] != first_before
+                            assert correction_condition_1
                 results.append(current)
             async with pool.connection() as connection:
-                assert await (
+                correction_condition_2 = await (
                     await connection.execute(
-                        "SELECT count(*) FROM pg_stat_activity WHERE application_name=%s",
-                        (schema,),
+                        "SELECT count(*) FROM pg_stat_activity WHERE application_name=%s", (schema,)
                     )
                 ).fetchone() == (0,)
+                assert correction_condition_2
         for account in order:
             for field in ("revision", "digest", "receipt_ids", "materialization_id"):
                 assert results[0][account][field] == results[1][account][field]

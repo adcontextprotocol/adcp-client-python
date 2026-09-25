@@ -1,4 +1,4 @@
-"""Separate HTTP process using the real production composition and rc.4 MCP mount."""
+"""Separate HTTP process using the real production composition and rc.6 MCP mount."""
 
 import asyncio
 import copy
@@ -105,7 +105,7 @@ async def scope_fixture(backend, root):
                 delivery_config_id="shared-config", scope={"media_buy_ids": ["shared-media-buy"]}
             )
             requests[account] = {
-                "adcp_version": "3.2-rc.4",
+                "adcp_version": "3.2-rc.6",
                 "idempotency_key": "public-scope-" + account,
                 "accounts": [
                     {"account": {"account_id": account}, "reporting_delivery_configs": [wire]}
@@ -181,7 +181,7 @@ async def exact_fixture(backend, root, count):
 async def feed_fixture(backend, root, notifications):
     async with feed_harness(backend, notifications=notifications) as h:
         case, _, _ = await mixed_case(h)
-        mounted = MountedFeed(h, version="3.2-rc.4")
+        mounted = MountedFeed(h, version="3.2-rc.6")
         mounted.authorize(case, token="acct_a")
         audit = {"http": []}
 
@@ -191,7 +191,7 @@ async def feed_fixture(backend, root, notifications):
             temporary.replace(root / "audit.json")
 
         yield h, mounted.handler, mounted.tokens, {
-            "request": feed_request(case, adcp_version="3.2-rc.4"),
+            "request": feed_request(case, adcp_version="3.2-rc.6"),
         }, audit, save
 
 

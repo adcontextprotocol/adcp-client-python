@@ -87,7 +87,7 @@ def public_client(uri, account, route="mcp"):
             auth_header="Authorization",
             auth_type="bearer",
         ),
-        adcp_version="3.2.0-rc.4",
+        adcp_version="3.2.0-rc.6",
         force_a2a_version=route.removeprefix("a2a-") if route != "mcp" else None,
     )
 
