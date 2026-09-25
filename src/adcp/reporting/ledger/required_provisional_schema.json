@@ -1,0 +1,110 @@
+{
+  "column:reporting_provisional_acquisitions.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_provisional_acquisitions.ordinal": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_provisional_acquisitions.payload": {
+    "enabled": true,
+    "fingerprint": "ac355fc16c02b70cb0a24afee8214cdce5f5cbfdc7fd1630786d5101932ecfa4"
+  },
+  "column:reporting_provisional_acquisitions.reporting_obligation_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_provisional_acquisitions.source_execution_key": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_provisional_observations.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_provisional_observations.ordinal": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:reporting_provisional_observations.payload": {
+    "enabled": true,
+    "fingerprint": "ac355fc16c02b70cb0a24afee8214cdce5f5cbfdc7fd1630786d5101932ecfa4"
+  },
+  "column:reporting_provisional_observations.reporting_obligation_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:reporting_provisional_observations.reporting_revision_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "constraint:reporting_provisional_acquisitions.provisional_acquisition_execution_key": {
+    "enabled": true,
+    "fingerprint": "1276a011c989e1b6064812b2abab0c8ff1db5dc4e36f193d84b302d2f3152d04"
+  },
+  "constraint:reporting_provisional_acquisitions.provisional_acquisition_owner_fk": {
+    "enabled": true,
+    "fingerprint": "a16c879766a899d572875db28fb19e13779063dfda05a1662c1919f38ed42ab5"
+  },
+  "constraint:reporting_provisional_acquisitions.reporting_provisional_acquisitions_ordinal_check": {
+    "enabled": true,
+    "fingerprint": "c5100a7d23190ff8be6c1daab6ef9cfb45083283d78d77e319173e18ee7b8f39"
+  },
+  "constraint:reporting_provisional_acquisitions.reporting_provisional_acquisitions_pkey": {
+    "enabled": true,
+    "fingerprint": "6e0009dfd0c8c76adc077b6f9e8bc866b476342946a107c8cba342ee3c6ec602"
+  },
+  "constraint:reporting_provisional_observations.provisional_observation_acquisition_fk": {
+    "enabled": true,
+    "fingerprint": "bdfe1ed11c202a06b8f07b215f934e269628eda56a8f7922159ec056708a66b3"
+  },
+  "constraint:reporting_provisional_observations.provisional_observation_revision_fk": {
+    "enabled": true,
+    "fingerprint": "6336638ff31659c0ea0a0fa6c67a7ed65e1b1bf792d17b5fbaec138fa6869c17"
+  },
+  "constraint:reporting_provisional_observations.reporting_provisional_observations_pkey": {
+    "enabled": true,
+    "fingerprint": "6e0009dfd0c8c76adc077b6f9e8bc866b476342946a107c8cba342ee3c6ec602"
+  },
+  "constraint:reporting_provisional_observations.reporting_provisional_observations_reporting_revision_id_key": {
+    "enabled": true,
+    "fingerprint": "dface19184e3b1196ac3f05865ce9fd2c1fde32593a604fd8e59e0e7b37525e7"
+  },
+  "function:reporting_provisional_immutable()": {
+    "enabled": true,
+    "fingerprint": "5f46da14407d6b8acab20bf770940bcae96698b27a941eab2d1f4aa5c271484b"
+  },
+  "index:reporting_provisional_acquisitions.provisional_acquisition_execution_key": {
+    "enabled": true,
+    "fingerprint": "ed532b97341cb02c8bdd5aa138e5a7b1748621c5d57907cc6ab3a1ea12bb6017"
+  },
+  "index:reporting_provisional_acquisitions.reporting_provisional_acquisitions_pkey": {
+    "enabled": true,
+    "fingerprint": "fa257545f1b9106f2682d6baed4fdf51d062f7a29e106caca8b77734a613599f"
+  },
+  "index:reporting_provisional_observations.reporting_provisional_observations_pkey": {
+    "enabled": true,
+    "fingerprint": "cc1a138288cf600afcffe140e7001d4e44d1a762ba2b6feeea6c5615c2e1c204"
+  },
+  "index:reporting_provisional_observations.reporting_provisional_observations_reporting_revision_id_key": {
+    "enabled": true,
+    "fingerprint": "423b8e84d59c9f7c8a580f1b8f97058e964b191a9c4a2dfd0e1e95e00b1872c2"
+  },
+  "table:reporting_provisional_acquisitions": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:reporting_provisional_observations": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "trigger:reporting_provisional_acquisitions.reporting_provisional_acquisition_immutable": {
+    "enabled": true,
+    "fingerprint": "0aedcd3a818d7899d2882f0543fbfc8446230a696a0f1d6dd757ea6894a4da41"
+  },
+  "trigger:reporting_provisional_observations.reporting_provisional_observation_immutable": {
+    "enabled": true,
+    "fingerprint": "a93f79c3f18e6fbdee8c539ffcdd7e29f37018be6e9923104d2cecb95ad913e7"
+  }
+}

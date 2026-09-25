@@ -52,6 +52,15 @@ same atomic operations. Custom producer stores must implement
 `ProvisionalObservationStore` from `adcp.reporting.ledger.provisional` together
 with `RestatementCheckpointStore`.
 
+The packaged `reporting/ledger/required_provisional_schema.json` describes all
+27 objects added by this extension. Bootstrap and each reservation, observation
+read, and atomic observation commit validate those objects, including immutable
+triggers and their function definitions. Validation also runs with notifications
+disabled. Missing, disabled or changed objects fail closed with
+`PROVISIONAL_SCHEMA_UNREADY`; reinstall or repair the schema before resuming
+production. Notification readiness alone does not establish observation readiness:
+historical notification-only schemas remain valid for their original operations.
+
 Existing revision tables, exact-read row layout and pinned migration manifests
 are unchanged. Each observation has its own revision ID and revision-specific
 wire content hash. Unchanged source content retains its source content identity;
@@ -67,6 +76,43 @@ Stop old producer writers before switching scheduling behavior. Old binaries do
 not write the new observation metadata, even though they can still read the
 existing revision rows. Historical-binary rolling tests and full service
 qualification must pass before claiming an upgrade is supported.
+
+## Custom stores and publication decorators
+
+Declare the checkpoint and observation methods explicitly on the store class.
+Dynamic `__getattr__` forwarding does not enable these optional capabilities.
+The producer checks declarations consistently across supported Python versions;
+an incomplete adapter raises `RESTATEMENT_CHECKPOINTS_NOT_SUPPORTED` or
+`PROVISIONAL_OBSERVATIONS_NOT_SUPPORTED` before source acquisition. It does not
+fall back to separate revision and checkpoint writes.
+
+A decorator that prepares revisions in `commit_revision` must also prepare them
+in `commit_provisional_observation`. Explicitly compose all three observation
+methods (`reserve_provisional_acquisition`, `get_provisional_observation`,
+`commit_provisional_observation`) and both checkpoint methods
+(`get_restatement_checkpoint`, `record_restatement_checkpoint`). Reuse the same
+revision preparation, validation and fault boundaries around the delegated atomic
+commit. Calling ordinary `commit_revision` first would break the observation's
+transaction boundary; forwarding the new method without preparation would bypass
+the decorator's publication rules.
+
+An `OBSERVATION_CONFLICT` fails only the affected slice for that worker turn. Its
+pending work remains eligible for a later retry while sibling slices continue.
+Schema or capability failures stop the turn so the operator can repair the store.
+
+## Pending scheduling qualification
+
+The production progress queue still selects bounded pending work before checking
+its observation due time. During the new provisional window, future-due work can
+therefore consume turn capacity that would otherwise acquire newly closed periods.
+Durable due-time selection and its fairness tests remain a service activation
+requirement; the default window is not a claim of completed production rollout.
+
+Successful observations retain their next cadence checkpoint. Failed or not-ready
+attempts retain their acquisition identity, but do not yet persist an independent
+retry time. Repeated worker turns can retry that acquisition before its source's
+safe cadence. Restart-safe retry scheduling remains required before full rollout;
+an in-process delay alone would not complete that requirement.
 
 ## Previously retired work: activation requirement remains open
 

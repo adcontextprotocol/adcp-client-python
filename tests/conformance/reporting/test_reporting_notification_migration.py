@@ -15,6 +15,7 @@ from adcp.reporting.outbox._schema import SCHEMA_CONTRACT, schema_contract, vali
 from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS
 
 from ._generation_support import NOW, isolated_reporting_pool, revision_for
+from ._provisional_catalog import PROVISIONAL_OBJECTS
 from ._reconciliation_support import scenario
 from ._reliable_support import Barrier
 from .test_reporting_reconciliation_migration import FIXTURES
@@ -164,6 +165,7 @@ async def test_direct_and_hopwise_historical_schema_chain(source, hopwise):
             assert await schema_contract(conn) == {
                 **SCHEMA_CONTRACT,
                 **{key: value["fingerprint"] for key, value in WAIVER_OBJECTS.items()},
+                **{key: value["fingerprint"] for key, value in PROVISIONAL_OBJECTS.items()},
             }
         assert await PgReportingOutbox(pool=pool).list_events(account_id="acct_a") == ()
 

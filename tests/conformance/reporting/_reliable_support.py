@@ -85,6 +85,9 @@ from ._generation_support import END, NOW, START, isolated_reporting_pool
 if TYPE_CHECKING:
     from psycopg_pool import AsyncConnectionPool
 
+    from adcp.reporting.ledger.provisional import ProvisionalAcquisition, ProvisionalObservation
+    from adcp.reporting.ledger.store import RestatementCheckpoint
+
 Store = InMemoryReportingReconciliationStore | PgReportingReconciliationStore
 Backend = Literal["memory", "postgres"]
 METRICS = ("impressions", "clicks", "spend")
@@ -498,7 +501,7 @@ class _PreparedRevisionStore:
     def __getattr__(self, name: str) -> Any:
         return getattr(self.harness.store, name)
 
-    async def commit_revision(
+    def _prepare_revision(
         self, revision: ReportingRevisionRecord, rows: Sequence[dict[str, Any]]
     ) -> ReportingRevisionRecord:
         fingerprint = f"sha256:{revision.source_manifest_sha256}"
@@ -507,7 +510,7 @@ class _PreparedRevisionStore:
             ReportingControlTotalRecord(total.name, total.value, total.value_type, total.unit)
             for total in manifest.control_totals
         )
-        prepared = replace(
+        return replace(
             revision,
             managed_control_totals=totals,
             canonical_content_digest=ReportingCanonicalDigest(
@@ -524,8 +527,53 @@ class _PreparedRevisionStore:
                 control_total_evidence=totals,
             ),
         )
+
+    async def commit_revision(
+        self, revision: ReportingRevisionRecord, rows: Sequence[dict[str, Any]]
+    ) -> ReportingRevisionRecord:
+        prepared = self._prepare_revision(revision, rows)
         await self.harness.failures.hit("revision.before")
         retained = await self.harness.store.commit_revision(prepared, rows)
+        await self.harness.failures.hit("revision.after")
+        return retained
+
+    # Optional persistence contracts are explicit across Python versions. A
+    # __getattr__ forwarder cannot compose this publisher's preparation/faults.
+    async def get_restatement_checkpoint(
+        self, *, account_id: str, reporting_obligation_id: str
+    ) -> RestatementCheckpoint | None:
+        return await self.harness.store.get_restatement_checkpoint(
+            account_id=account_id, reporting_obligation_id=reporting_obligation_id
+        )
+
+    async def record_restatement_checkpoint(
+        self, checkpoint: RestatementCheckpoint
+    ) -> RestatementCheckpoint:
+        return await self.harness.store.record_restatement_checkpoint(checkpoint)
+
+    async def reserve_provisional_acquisition(
+        self, acquisition: ProvisionalAcquisition
+    ) -> ProvisionalAcquisition:
+        return await self.harness.store.reserve_provisional_acquisition(acquisition)
+
+    async def get_provisional_observation(
+        self, *, account_id: str, reporting_obligation_id: str
+    ) -> ProvisionalObservation | None:
+        return await self.harness.store.get_provisional_observation(
+            account_id=account_id, reporting_obligation_id=reporting_obligation_id
+        )
+
+    async def commit_provisional_observation(
+        self,
+        observation: ProvisionalObservation,
+        revision: ReportingRevisionRecord,
+        rows: Sequence[dict[str, Any]],
+    ) -> ReportingRevisionRecord:
+        prepared = self._prepare_revision(revision, rows)
+        await self.harness.failures.hit("revision.before")
+        retained = await self.harness.store.commit_provisional_observation(
+            observation, prepared, rows
+        )
         await self.harness.failures.hit("revision.after")
         return retained
 

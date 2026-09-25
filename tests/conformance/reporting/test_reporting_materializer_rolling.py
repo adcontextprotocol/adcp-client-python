@@ -6,6 +6,7 @@ import json
 import shutil
 import sys
 import tarfile
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,7 @@ from adcp.reporting.outbox._schema import schema_objects
 
 from ._durable_materializer_support import DurableHarness, durable_case
 from ._generation_support import isolated_reporting_pool, require_rolling_database
+from ._provisional_catalog import PROVISIONAL_OBJECTS
 from .test_reporting_notification_packaging import ROOT, run_step
 
 ARTIFACTS = {
@@ -193,7 +195,11 @@ async def test_installed_old_reader_writer_and_workers_on_populated_materializer
         async with pool.connection() as connection:
             objects = await schema_objects(connection)
         assert {key: objects[key] for key in old_objects} == old_objects
-        assert all("reporting_materializer_" in key for key in objects.keys() - old_objects.keys())
+        materializer_objects = json.loads(
+            files("adcp.reporting.materializer").joinpath("required_schema.json").read_text()
+        )
+        assert len(materializer_objects) == 187
+        assert objects == {**old_objects, **materializer_objects, **PROVISIONAL_OBJECTS}
         case.store = sibling.store = store
         materializer_operation_1 = await case.service().run_once()
         assert (materializer_operation_1).state == "verified"

@@ -5,6 +5,7 @@ import json
 import shutil
 import sys
 from datetime import datetime, timedelta, timezone
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
@@ -21,6 +22,7 @@ from adcp.reporting.receipts import PgReportingReceiptStore
 
 from ._durable_materializer_support import DurableHarness, durable_case
 from ._generation_support import END, isolated_reporting_pool
+from ._provisional_catalog import PROVISIONAL_OBJECTS
 from .test_reporting_materializer_process import worker
 from .test_reporting_materializer_rolling import ARTIFACTS, build_frozen, frozen_call
 
@@ -137,10 +139,11 @@ async def test_actual_old_readers_and_writers_before_and_after_receipt_migration
             async with pool.connection() as c:
                 new_objects = await schema_objects(c)
             assert {key: new_objects[key] for key in old_objects} == old_objects
-            assert all(
-                "reporting_receipt_ingestion_" in key
-                for key in new_objects.keys() - old_objects.keys()
+            receipt_objects = json.loads(
+                files("adcp.reporting.receipts").joinpath("required_schema.json").read_text()
             )
+            assert len(receipt_objects) == 102
+            assert new_objects == {**old_objects, **receipt_objects, **PROVISIONAL_OBJECTS}
             assert await immutable_parent_rows(pool) == saved
             adjustment = ReportingAdjustmentRecord(
                 "frozen-adjustment",

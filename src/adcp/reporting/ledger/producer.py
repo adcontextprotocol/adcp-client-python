@@ -565,12 +565,12 @@ class ReportingProducer:
                         turn=turn,
                         now=now,
                     )
-            except ReportingCurrencyError as error:
-                # One obligation whose money cannot be interpreted -- a legacy
-                # period with no retained currency, or a source contradicting
-                # the frozen one -- is a stuck slice, not a broken worker.
-                # Raising here would starve every later period under this
-                # configuration on every turn, forever.
+            except (ReportingCurrencyError, LedgerConflictError) as error:
+                if isinstance(error, LedgerConflictError) and error.code != "OBSERVATION_CONFLICT":
+                    raise
+                # Currency interpretation and competing observations are local
+                # slice failures. Let later periods make progress; a later turn
+                # can read the winning observation or retry the same reservation.
                 logger.info(
                     "reporting slice failed obligation=%s code=%s",
                     obligation.reporting_obligation_id,
@@ -609,13 +609,16 @@ class ReportingProducer:
                 if isinstance(error, LedgerConflictError) and error.code not in {
                     "HISTORY_UNAVAILABLE",
                     "EMPTY_DENOMINATOR",
+                    "OBSERVATION_CONFLICT",
                 }:
                     raise
                 turn.slices_failed.append(identifier)
                 self._note_escalation(obligation, turn, now=now)
                 # Retain the existing corrupt-history parking check. A transient
-                # currency failure during settling must not retire a readable leaf.
-                finished = policy is None or isinstance(error, LedgerConflictError)
+                # currency failure or observation conflict must not retire work.
+                finished = error.code != "OBSERVATION_CONFLICT" and (
+                    policy is None or isinstance(error, LedgerConflictError)
+                )
             if finished:
                 await progress.finish_producer_acquisition(
                     configuration, reporting_obligation_id=identifier
@@ -937,19 +940,32 @@ class ReportingProducer:
         )
 
     def _restatement_store(self) -> RestatementCheckpointStore:
-        if not isinstance(self._store, RestatementCheckpointStore):
+        explicit = all(
+            inspect.getattr_static(self._store, name, None) is not None
+            for name in ("get_restatement_checkpoint", "record_restatement_checkpoint")
+        )
+        if not explicit or not isinstance(self._store, RestatementCheckpointStore):
             raise LedgerConflictError(
                 "RESTATEMENT_CHECKPOINTS_NOT_SUPPORTED",
-                "a source settling window requires a ledger store with durable restatement "
-                "checkpoints",
+                "a source settling window requires explicitly implemented durable "
+                "restatement checkpoint methods",
             )
         return self._store
 
     def _observation_store(self) -> ProvisionalObservationStore:
-        if not isinstance(self._store, ProvisionalObservationStore):
+        explicit = all(
+            inspect.getattr_static(self._store, name, None) is not None
+            for name in (
+                "reserve_provisional_acquisition",
+                "get_provisional_observation",
+                "commit_provisional_observation",
+            )
+        )
+        if not explicit or not isinstance(self._store, ProvisionalObservationStore):
             raise LedgerConflictError(
                 "PROVISIONAL_OBSERVATIONS_NOT_SUPPORTED",
-                "scheduled provisional reads require atomic durable observation storage",
+                "scheduled provisional reads require explicitly implemented atomic "
+                "observation methods, including any decorating publisher's preparation",
             )
         return self._store
 

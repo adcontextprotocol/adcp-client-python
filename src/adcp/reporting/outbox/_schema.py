@@ -18,6 +18,9 @@ from adcp.reporting.ledger.notification_models import ReportingNotificationError
 REQUIRED_OBJECTS: dict[str, dict[str, Any]] = json.loads(
     files("adcp.reporting.outbox").joinpath("required_schema.json").read_text()
 )
+PROVISIONAL_REQUIRED_OBJECTS: dict[str, dict[str, Any]] = json.loads(
+    files("adcp.reporting.ledger").joinpath("required_provisional_schema.json").read_text()
+)
 SCHEMA_CONTRACT: dict[str, str] = {
     key: value["fingerprint"] for key, value in REQUIRED_OBJECTS.items()
 }
@@ -132,7 +135,13 @@ def _validate_schema_objects(
     """Apply the packaged B contract to an already captured catalog."""
     if not REQUIRED_OBJECTS:
         raise ReportingNotificationError("notification_schema_unready:manifest_missing")
-    for key, expected in REQUIRED_OBJECTS.items():
+    # A historical notification-only installation may have no provisional
+    # capability. Once any exact known extension object exists, its entire
+    # contract is required; unrelated adopter DDL remains unrelated.
+    required = REQUIRED_OBJECTS
+    if any(key in installed for key in PROVISIONAL_REQUIRED_OBJECTS):
+        required = {**required, **PROVISIONAL_REQUIRED_OBJECTS}
+    for key, expected in required.items():
         if not activity and "reporting_webhook_" in key:
             continue
         actual = installed.get(key)
@@ -145,3 +154,32 @@ def _validate_schema_objects(
         else:
             continue
         raise ReportingNotificationError(f"notification_schema_unready:{classification}:{key}")
+
+
+async def validate_provisional_schema(connection: Any) -> None:
+    """Require the complete observation extension even when none of it exists."""
+    from adcp.reporting.ledger.store import LedgerConflictError
+
+    try:
+        installed = await schema_objects(connection)
+    except Exception:
+        raise LedgerConflictError(
+            "PROVISIONAL_SCHEMA_UNREADY", "provisional_schema_unready:catalog_unavailable"
+        ) from None
+    if not PROVISIONAL_REQUIRED_OBJECTS:
+        raise LedgerConflictError(
+            "PROVISIONAL_SCHEMA_UNREADY", "provisional_schema_unready:manifest_missing"
+        )
+    for key, expected in PROVISIONAL_REQUIRED_OBJECTS.items():
+        actual = installed.get(key)
+        if actual is None:
+            classification = "missing"
+        elif not actual["enabled"]:
+            classification = "disabled"
+        elif actual["fingerprint"] != expected["fingerprint"]:
+            classification = "changed"
+        else:
+            continue
+        raise LedgerConflictError(
+            "PROVISIONAL_SCHEMA_UNREADY", f"provisional_schema_unready:{classification}:{key}"
+        )

@@ -2,24 +2,29 @@
 -- remain readable by historical SDKs; no existing payload is rewritten.
 CREATE TABLE IF NOT EXISTS reporting_provisional_acquisitions (
     account_id TEXT COLLATE "C" NOT NULL,
-    reporting_obligation_id TEXT COLLATE "C" NOT NULL
-        REFERENCES reporting_obligations (reporting_obligation_id),
+    reporting_obligation_id TEXT COLLATE "C" NOT NULL,
     ordinal BIGINT NOT NULL CHECK (ordinal >= 0),
     source_execution_key TEXT COLLATE "C" NOT NULL,
     payload JSONB NOT NULL,
     PRIMARY KEY (account_id, reporting_obligation_id, ordinal),
-    UNIQUE (account_id, source_execution_key)
+    CONSTRAINT provisional_acquisition_execution_key UNIQUE (account_id, source_execution_key),
+    CONSTRAINT provisional_acquisition_owner_fk
+        FOREIGN KEY (account_id, reporting_obligation_id)
+        REFERENCES reporting_obligations (account_id, reporting_obligation_id)
 );
 
 CREATE TABLE IF NOT EXISTS reporting_provisional_observations (
     account_id TEXT COLLATE "C" NOT NULL,
     reporting_obligation_id TEXT COLLATE "C" NOT NULL,
     ordinal BIGINT NOT NULL,
-    reporting_revision_id TEXT COLLATE "C" NOT NULL UNIQUE
-        REFERENCES reporting_revisions (reporting_revision_id),
+    reporting_revision_id TEXT COLLATE "C" NOT NULL UNIQUE,
     payload JSONB NOT NULL,
     PRIMARY KEY (account_id, reporting_obligation_id, ordinal),
-    FOREIGN KEY (account_id, reporting_obligation_id, ordinal)
+    CONSTRAINT provisional_observation_revision_fk
+        FOREIGN KEY (account_id, reporting_revision_id)
+        REFERENCES reporting_revisions (account_id, reporting_revision_id),
+    CONSTRAINT provisional_observation_acquisition_fk
+        FOREIGN KEY (account_id, reporting_obligation_id, ordinal)
         REFERENCES reporting_provisional_acquisitions
             (account_id, reporting_obligation_id, ordinal)
 );

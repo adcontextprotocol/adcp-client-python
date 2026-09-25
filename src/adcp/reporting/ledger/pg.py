@@ -248,10 +248,16 @@ class PgReportingLedgerStore:
             Path(__file__).with_name("reporting_provisional_observations.sql"),
         ):
             await connection.execute(path.read_text())
+        await self._require_provisional_schema(connection)
         if self._notifications_enabled:
             from adcp.reporting.outbox._schema import validate_schema
 
             await validate_schema(connection)
+
+    async def _require_provisional_schema(self, connection: Any) -> None:
+        from adcp.reporting.outbox._schema import validate_provisional_schema
+
+        await validate_provisional_schema(connection)
 
     async def _notification_now(self, connection: Any) -> datetime:
         from adcp.reporting.outbox.pg import database_now
@@ -889,6 +895,7 @@ class PgReportingLedgerStore:
     ) -> ProvisionalAcquisition:
         async with self.transaction(), self._connection() as connection:
             await self._lock_account(connection, acquisition.account_id)
+            await self._require_provisional_schema(connection)
             key = (acquisition.account_id, acquisition.obligation_id, acquisition.ordinal)
             existing = await (
                 await connection.execute(
@@ -946,6 +953,7 @@ class PgReportingLedgerStore:
         self, *, account_id: str, reporting_obligation_id: str
     ) -> ProvisionalObservation | None:
         async with self._connection() as connection:
+            await self._require_provisional_schema(connection)
             row = await (
                 await connection.execute(
                     "SELECT payload FROM reporting_provisional_observations"
@@ -972,6 +980,7 @@ class PgReportingLedgerStore:
             raise LedgerConflictError("OBSERVATION_CONFLICT", "observation identity differs")
         async with self.transaction(), self._connection() as connection:
             await self._lock_account(connection, acquisition.account_id)
+            await self._require_provisional_schema(connection)
             existing = await (
                 await connection.execute(
                     "SELECT reporting_revision_id,payload FROM reporting_provisional_observations"

@@ -25,6 +25,7 @@ from ._generation_support import (
     obligation_for,
     revision_for,
 )
+from ._provisional_catalog import PROVISIONAL_OBJECTS
 from .test_reporting_notification_migration import CHAIN, WAIVER_OBJECTS
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -342,7 +343,8 @@ assert files("adcp.reporting.ledger").joinpath("reporting_status_notifications.s
 assert files("adcp.reporting.ledger").joinpath("reporting_status_selector_version.sql").is_file()
 assert files("adcp.reporting.outbox").joinpath("required_status_selector_schema.json").is_file()
 version = files("adcp").joinpath("ADCP_VERSION").read_text().strip()
-assert get_named_validator("core/reporting-status-changed-webhook.json", version=version) is not None
+assert get_named_validator(
+    "core/reporting-status-changed-webhook.json", version=version) is not None
 assert get_named_validator("core/webhook-activity-record.json", version=version) is not None
 assert (
     get_named_validator("core/reporting-ledger-changed-webhook.json", version=version)
@@ -410,6 +412,7 @@ async def test_installed_pg_extra_migrates_commits_and_restarts(installed_distri
                 (ROOT / "src/adcp/reporting/outbox/required_schema.json").read_text()
             ),
             "waiver_objects": WAIVER_OBJECTS,
+            "provisional_objects": PROVISIONAL_OBJECTS,
         }
         for name, record in (
             ("config", config),
@@ -440,7 +443,12 @@ from adcp.reporting.outbox._schema import schema_objects
 
 values = json.load(sys.stdin)
 assert len(values["waiver_objects"]) == 10
-expected_objects = {**values["required_objects"], **values["waiver_objects"]}
+assert len(values["provisional_objects"]) == 27
+assert json.loads(files("adcp.reporting.ledger").joinpath(
+    "required_provisional_schema.json").read_text()) == values["provisional_objects"]
+expected_objects = {
+    **values["required_objects"], **values["waiver_objects"], **values["provisional_objects"]
+}
 
 
 async def main():
@@ -491,7 +499,8 @@ async def main():
             clock=clock,
         )
         projector = ReportingActivityProjector(outbox)
-        materializer_operation_1 = await ReportingActivitySupport(worker, store, projector).durable()
+        materializer_operation_1 = await ReportingActivitySupport(
+            worker, store, projector).durable()
         assert materializer_operation_1
         events = await outbox.list_events(account_id="acct_a")
         expanded_1 = await worker.expand_one(account_id="acct_a")
@@ -506,7 +515,8 @@ async def main():
             attempt, outcome=ActivityOutcome("failed", 503, 1), now=clock(),
         )
         assert completed_attempt_1
-        finished_delivery_1 = await outbox.finish_delivery(lease, now=clock(), state="pending", retry_at=clock())
+        finished_delivery_1 = await outbox.finish_delivery(
+            lease, now=clock(), state="pending", retry_at=clock())
         assert finished_delivery_1
     async with AsyncConnectionPool(
         values["conninfo"], kwargs=values["kwargs"], open=False
@@ -561,15 +571,19 @@ async def main():
             async def get_active(self, *, account_id, subscriber_id, notification_type):
                 return status_subscription if account_id == status_subscription.account_id else None
         status_worker = ReportingNotificationWorker(outbox=status.outbox,
-            subscriptions=StatusConfigurations(), cipher=cipher, clock=clock, activity=status.outbox)
+            subscriptions=StatusConfigurations(), cipher=cipher, clock=clock,
+            activity=status.outbox)
         status_operation_2 = await status_worker.expand_one(account_id="acct_a")
         assert status_operation_2
-        status_lease = await status.outbox.claim_delivery(account_id="acct_a", now=clock(), lease_seconds=60)
+        status_lease = await status.outbox.claim_delivery(
+            account_id="acct_a", now=clock(), lease_seconds=60)
         status_body = cipher.open(status_lease.delivery).prepared
         assert json.loads(status_body.body)["notification_type"] == "reporting.status_changed"
-        status_operation_3 = await status.outbox.finish_delivery(status_lease, now=clock(), state="pending", retry_at=clock())
+        status_operation_3 = await status.outbox.finish_delivery(
+            status_lease, now=clock(), state="pending", retry_at=clock())
         assert status_operation_3
-    async with AsyncConnectionPool(values["conninfo"], kwargs=values["kwargs"], open=False) as c_restart:
+    async with AsyncConnectionPool(
+        values["conninfo"], kwargs=values["kwargs"], open=False) as c_restart:
         ledger = PgReportingReconciliationStore(pool=c_restart, clock=clock, notifications=True)
         status = PgStatusNotificationStore(ledger)
         await status.create_schema()
@@ -582,7 +596,8 @@ async def main():
         retry = cipher.open(status_lease.delivery).prepared
         assert retry.body == status_body.body
         assert retry.idempotency_key == status_body.idempotency_key
-        status_operation_5 = await status.outbox.finish_delivery(status_lease, now=clock(), state="complete")
+        status_operation_5 = await status.outbox.finish_delivery(
+            status_lease, now=clock(), state="complete")
         assert status_operation_5
         status_operation_6 = await status.outbox.reemit(account_id="acct_a", consumer_namespace="",
             notification_id=status_events[0].notification_id, now=clock())
