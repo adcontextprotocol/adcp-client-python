@@ -2630,6 +2630,7 @@ def fix_reporting_request_selectors() -> None:
             offsets.append(offsets[-1] + len(line))
         changes: list[tuple[int, int, str]] = []
         matched = False
+        needs_mapping = False
         for node in ast.parse(original).body:
             if not isinstance(node, ast.ClassDef):
                 continue
@@ -2641,6 +2642,7 @@ def fix_reporting_request_selectors() -> None:
             methods = {method.name for method in node.body if isinstance(method, ast.FunctionDef)}
             if set(fields) == {"all_media_buys", "media_buy_ids"}:
                 repaired["scope"] += 1
+                needs_mapping = True
                 matched = True
                 field = fields["all_media_buys"]
                 if field.value is None:
@@ -2729,8 +2731,7 @@ def fix_reporting_request_selectors() -> None:
         source = original
         for start, end, replacement in sorted(changes, reverse=True):
             source = source[:start] + replacement + source[end:]
-        imports = (
-            "from collections.abc import Mapping\n"
+        imports = ("from collections.abc import Mapping\n" if needs_mapping else "") + (
             "from typing import Any\n"
             "from pydantic import SerializerFunctionWrapHandler, model_serializer, model_validator\n"
         )

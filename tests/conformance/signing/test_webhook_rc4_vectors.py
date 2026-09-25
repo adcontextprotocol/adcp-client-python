@@ -1,4 +1,4 @@
-"""The installed, protocol-owned rc.4 webhook-v1 corpus through the public API."""
+"""The rc.4 webhook-v1 corpus, unchanged in the shipped current fixtures."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from adcp.signing import InMemoryReplayStore, SignatureVerificationError
 from adcp.signing.revocation import RevocationList
 from adcp.webhooks import WebhookVerifyOptions, verify_webhook_signature
 
-VECTORS = files("adcp").joinpath("_compliance/3.2.0-rc.4/test-vectors/webhook-signing")
+VECTORS = files("adcp").joinpath("_compliance/3.2.0-rc.6/test-vectors/webhook-signing")
 KEYS = {
     row["kid"]: {name: value for name, value in row.items() if not name.startswith("_")}
     for row in json.loads(VECTORS.joinpath("keys.json").read_text())["keys"]

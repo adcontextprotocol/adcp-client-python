@@ -13,7 +13,7 @@ from adcp.webhooks import WebhookVerifyOptions, sign_webhook, verify_webhook_sig
 
 KEYS = json.loads(
     files("adcp")
-    .joinpath("_compliance/3.2.0-rc.4/test-vectors/webhook-signing/keys.json")
+    .joinpath("_compliance/3.2.0-rc.6/test-vectors/webhook-signing/keys.json")
     .read_text()
 )["keys"]
 ALGORITHMS = [

@@ -48,6 +48,16 @@ def test_regeneration_repairs_canonical_and_self_contained_clones(tmp_path, monk
     targets = []
     for relative, class_name, package in SOURCES:
         source = unrepaired((ROOT / relative).read_text())
+        # Exercise fresh codegen without the repair's imports already present.
+        for added_import in (
+            "from collections.abc import Mapping\n",
+            "from typing import Any\n",
+            (
+                "from pydantic import SerializerFunctionWrapHandler, "
+                "model_serializer, model_validator\n"
+            ),
+        ):
+            source = source.replace(added_import, "")
         for clone in (False, True):
             name = class_name + ("2" if clone else "")
             target = tmp_path / (("bundled/" if clone else "") + relative)
@@ -65,6 +75,7 @@ def test_regeneration_repairs_canonical_and_self_contained_clones(tmp_path, monk
         monkeypatch.setitem(sys.modules, module.__name__, module)
         exec(compile(target.read_bytes(), str(target), "exec"), vars(module))
         model = getattr(module, name)
+        assert ("Mapping" in vars(module)) == name.startswith("Scope")
         if name.startswith("Scope"):
             explicit = model.model_validate({"media_buy_ids": ["shared-media-buy"]})
             assert json.loads(explicit.model_dump_json()) == {"media_buy_ids": ["shared-media-buy"]}

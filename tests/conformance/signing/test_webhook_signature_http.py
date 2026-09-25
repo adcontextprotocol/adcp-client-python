@@ -75,7 +75,7 @@ async def receiver(tmp_path):
 def keys():
     return json.loads(
         files("adcp")
-        .joinpath("_compliance/3.2.0-rc.4/test-vectors/webhook-signing/keys.json")
+        .joinpath("_compliance/3.2.0-rc.6/test-vectors/webhook-signing/keys.json")
         .read_text()
     )["keys"]
 
