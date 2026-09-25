@@ -149,7 +149,7 @@ async def setup(
 async def public_outcome(store, config):
     payload = await ReportingStatusHandler(store).handle(
         {
-            "adcp_version": "3.2-rc.4",
+            "adcp_version": "3.2-rc.6",
             "account": {"account_id": config.account_id},
             "view": "periods",
             "period": {"start": START.isoformat(), "end": END.isoformat()},
@@ -157,7 +157,7 @@ async def public_outcome(store, config):
         caller=ReportingStatusCaller(account_id=config.account_id, consumer_id="clock-buyer"),
     )
     response = GetReportingStatusResponse.model_validate(payload)
-    validator = get_named_validator("core/reporting-revision.json", version="3.2.0-rc.4")
+    validator = get_named_validator("core/reporting-revision.json", version="3.2.0-rc.6")
     assert validator is not None
     for revision in payload["revisions"]:
         validator.validate(revision)
