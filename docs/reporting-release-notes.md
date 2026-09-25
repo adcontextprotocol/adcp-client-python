@@ -84,8 +84,8 @@ durable wiring and activation. The [service guide](reliable-reporting-service.md
 and [source adapter contract](reporting-source-adapters.md) describe adapter
 registration and lifecycle. The service's PostgreSQL factory makes the ledger
 durable; default adapter staging and replay seals remain in memory. Supply
-durable implementations if retained revisions must remain readable after a
-restart. Multiple service schedulers still need a single account/configuration
+durable implementations for acquisition and sealed-replay recovery across a
+restart. Committed revision rows remain in the durable ledger. Multiple service schedulers still need a single account/configuration
 lease owner until that integration is enabled.
 
 ## Migration and activation

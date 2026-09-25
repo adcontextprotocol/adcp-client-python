@@ -132,8 +132,9 @@ reporting = ReliableReportingService.postgres(
 The PostgreSQL factory makes the ledger durable; it does not make the default
 adapter staging or replay-seal stores durable. Production adapters should pass
 durable `staging=` and `seals=` implementations to `sources.register`, or use
-`sources.register_executor` for a custom executor and object reader. A retained
-revision whose staged rows disappear cannot satisfy an exact read.
+`sources.register_executor` for a custom executor and object reader. Committed revision rows are retained in the ledger for exact reads. Durable
+staging and seals are needed to recover interrupted acquisitions and replay
+previously sealed source results across a restart.
 
 Managed delivery, notification, and receipt components are replaceable
 extensions. Startup rejects combinations that cannot be advertised honestly,
