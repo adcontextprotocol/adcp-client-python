@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -373,13 +373,25 @@ async def load_reporting_ledger(
         or max_bytes < 1
     ):
         raise ValueError("reporting walk bounds must be positive (restarts may be zero)")
-    base = request.model_dump(mode="json", exclude_none=True)
-    base["view"] = "periods"
-    base.pop("pagination", None)
-    for selector in ("changes_after", "reporting_revision_id", "health", "finality"):
-        base.pop(selector, None)
-    page_size = request.pagination.max_results if request.pagination else None
-    requested_account = request.account.model_dump(mode="json").get("account_id")
+    prepared = None
+    try:
+        base = request.model_dump(mode="json", exclude_none=True, warnings="error")
+        base["view"] = "periods"
+        base.pop("pagination", None)
+        for selector in ("changes_after", "reporting_revision_id", "health", "finality"):
+            base.pop(selector, None)
+        page_size = request.pagination.max_results if request.pagination else None
+        requested_account = request.account.model_dump(mode="json", warnings="error").get(
+            "account_id"
+        )
+        prepared = (base, page_size, requested_account)
+    except Exception:
+        prepared = None
+    if prepared is None:
+        raise ReportingReconciliationError(
+            "INVALID_STATUS_REQUEST", "reporting status request could not be constructed"
+        )
+    base, page_size, requested_account = prepared
     for restart in range(max_snapshot_restarts + 1):
         try:
             obligations: dict[str, ReportingObligation] = {}
@@ -411,11 +423,21 @@ async def load_reporting_ledger(
                     pagination_request["cursor"] = cursor
                 if pagination_request:
                     payload["pagination"] = pagination_request
+                page_request = None
+                try:
+                    page_request = GetReportingStatusRequest.model_validate(payload)
+                except Exception:
+                    page_request = None
+                if page_request is None:
+                    # SDK-side construction and provider failures are distinct,
+                    # but neither may retain validation inputs or private context.
+                    raise ReportingReconciliationError(
+                        "INVALID_STATUS_REQUEST",
+                        "reporting status request could not be constructed",
+                    )
                 result = None
                 try:
-                    result = await client.get_reporting_status(
-                        GetReportingStatusRequest.model_validate(payload)
-                    )
+                    result = await client.get_reporting_status(page_request)
                 except Exception:
                     result = None
                 if result is None:
@@ -632,7 +654,7 @@ async def load_reporting_ledger(
                 list(adjustments.values()),
                 list(adjustment_receipts.values()),
             )
-            _, partition_complete = _validate_read_ledger(ledger)
+            _, partition_complete, _ = _validate_read_ledger(ledger)
             if partition_complete:
                 ledger._read_fingerprint = _ledger_fingerprint(ledger)
             return ledger
@@ -700,12 +722,11 @@ def _validate_owned_ledger(ledger: ReportingLedger) -> None:
 
 
 def _status_matches_obligation(status: Any, obligation: ReportingObligation) -> bool:
+    # Logical compatibility alone is never an ownership proof: statuses have
+    # no account, campaign-set or reporting-profile fields to disambiguate it.
     return bool(
         status.reporting_obligation_id in {None, obligation.reporting_obligation_id}
-        and status.delivery_config_id == obligation.delivery_config_id
-        and status.delivery_config_version == obligation.delivery_config_version
-        and status.report_definition_id == obligation.report_definition_id
-        and _json(status.period) == _json(obligation.period)
+        and _status_scope(status) == _status_scope(obligation)
     )
 
 
@@ -777,8 +798,60 @@ def _ordered_times(*values: datetime | None) -> bool:
     return all(a <= b for a, b in zip(values, values[1:]) if a is not None and b is not None)
 
 
-def _validate_read_ledger(ledger: ReportingLedger) -> tuple[dict[_ReceiptTarget, _Receipt], bool]:
-    """Check the full frozen denominator and dependencies before using evidence."""
+def _status_scope(item: Any) -> tuple[str, int, str, str]:
+    return (
+        item.delivery_config_id,
+        item.delivery_config_version,
+        item.report_definition_id,
+        _json(item.period),
+    )
+
+
+def _revision_scope(
+    item: ReportingRevision | ReportingObligation,
+) -> tuple[str, str, str, tuple[str, ...], str]:
+    return (
+        item.account_id,
+        item.report_definition_id,
+        item.reporting_profile,
+        _identifiers(item.media_buy_ids),
+        _json(item.period),
+    )
+
+
+@dataclass
+class _ObligationHistory:
+    revisions: list[ReportingRevision] = field(default_factory=list)
+    materializations: list[ReportingMaterialization] = field(default_factory=list)
+    receipts: list[ReportingReceipt] = field(default_factory=list)
+    adjustments: list[ReportingAdjustment] = field(default_factory=list)
+    adjustment_receipts: list[ReportingAdjustmentReceipt] = field(default_factory=list)
+    statuses: list[Any] = field(default_factory=list)
+    ambiguous_revisions: bool = False
+    unresolved_status_count: int = 0
+
+
+@dataclass
+class _ReadIndex:
+    owners: dict[str, ReportingObligation]
+    revisions: dict[str, ReportingRevision]
+    materials: dict[str, ReportingMaterialization]
+    adjustments: dict[str, ReportingAdjustment]
+    histories: dict[str, _ObligationHistory]
+    adjustments_by_revision: dict[str, list[ReportingAdjustment]]
+    unresolved_statuses: bool
+    selections: dict[
+        str, tuple[ReportingRevision | None, ReportingMaterialization | None, list[str]]
+    ] = field(default_factory=dict)
+
+
+def _index_read_ledger(ledger: ReportingLedger) -> _ReadIndex:
+    """Index the complete read, checking identity before partitioning evidence.
+
+    Indexes are private to this validation, never cached on mutable ledgers.
+    Legacy ambiguous associations get a separate work bound so sharing one
+    semantic scope cannot expand a bounded record set into quadratic work.
+    """
     if ledger.revision_ownership is not None:
         _validate_owned_ledger(ledger)
     owners = {o.reporting_obligation_id: o for o in ledger.obligations}
@@ -807,25 +880,8 @@ def _validate_read_ledger(ledger: ReportingLedger) -> tuple[dict[_ReceiptTarget,
         r.account_id != ledger.account_id for r in revisions.values()
     ):
         invalid()
-    partition_complete = True
-    covered_revisions: set[str] = set()
-    for obligation in ledger.obligations:
-        candidates, _, reasons = _obligation_history(obligation, ledger)
-        covered_revisions.update(r.reporting_revision_id for r in candidates)
-        if "AMBIGUOUS_REVISION_OWNERSHIP" in reasons:
-            # Do not turn scope equality into an ownership assertion in legacy
-            # histories. Retain diagnostics without certifying completeness.
-            partition_complete = False
-            continue
-        if "ASSOCIATED_HISTORY_INCOMPLETE" in reasons:
-            raise ReportingReconciliationError(
-                "LEDGER_COUNT_MISMATCH", "frozen obligation counts do not match the ledger"
-            )
-    if covered_revisions != set(revisions):
-        invalid()
-    # A wholly absent ownership extension is still conservative legacy mode.
-    # Materializations provide exact references, never an excuse for fan-out.
-    material_owners: dict[str, str] = {}
+    histories = {owner_id: _ObligationHistory() for owner_id in owners}
+    revision_owners = dict(ledger.revision_ownership or {})
     for material in materials.values():
         owner = owners.get(material.reporting_obligation_id)
         revision = revisions.get(material.reporting_revision_id)
@@ -837,16 +893,57 @@ def _validate_read_ledger(ledger: ReportingLedger) -> tuple[dict[_ReceiptTarget,
             or material.delivery_config_version != owner.delivery_config_version
             or material.destination_ref != owner.destination_ref
             or material.feed_purpose != owner.feed_purpose
-            or material_owners.setdefault(
+            or revision_owners.setdefault(
                 material.reporting_revision_id, material.reporting_obligation_id
             )
             != material.reporting_obligation_id
         ):
             invalid()
-    for revision in revisions.values():
+        histories[owner.reporting_obligation_id].materializations.append(material)
+    owners_by_scope: dict[tuple[str, str, str, tuple[str, ...], str], list[str]] = defaultdict(list)
+    for owner_id, owner in owners.items():
+        owners_by_scope[_revision_scope(owner)].append(owner_id)
+    association_count = 0
+    association_limit = max(
+        200_000,
+        sum(
+            len(records)
+            for records in (
+                ledger.obligations,
+                ledger.revisions,
+                ledger.materializations,
+                ledger.receipts,
+                ledger.adjustments,
+                ledger.adjustment_receipts,
+                ledger.consumer_statuses,
+            )
+        ),
+    )
+
+    def account_associations(count: int) -> None:
+        nonlocal association_count
+        association_count += count
+        if association_count > association_limit:
+            raise ReportingReconciliationError(
+                "LEDGER_LIMIT_EXCEEDED", "legacy history association budget exceeded"
+            )
+
+    for revision_id, revision in revisions.items():
         predecessor = revision.supersedes_reporting_revision_id
         if predecessor is not None and predecessor not in revisions:
             invalid()
+        exact_owner = revision_owners.get(revision_id)
+        matching = (
+            [exact_owner]
+            if exact_owner is not None
+            else owners_by_scope.get(_revision_scope(revision), [])
+        )
+        if not matching:
+            invalid()
+        account_associations(len(matching))
+        for owner_id in matching:
+            histories[owner_id].revisions.append(revision)
+            histories[owner_id].ambiguous_revisions |= len(matching) > 1
     for receipt in ledger.receipts:
         owner = owners.get(receipt.reporting_obligation_id)
         revision = revisions.get(receipt.reporting_revision_id)
@@ -861,62 +958,123 @@ def _validate_read_ledger(ledger: ReportingLedger) -> tuple[dict[_ReceiptTarget,
             or _enum(owner.reconciliation_mode) != "consumer_receipt"
         ):
             invalid()
+        histories[owner.reporting_obligation_id].receipts.append(receipt)
+    adjustments_by_revision: dict[str, list[ReportingAdjustment]] = defaultdict(list)
+    receipts_by_adjustment: dict[str, list[ReportingAdjustmentReceipt]] = defaultdict(list)
+    for adjustment in adjustments.values():
+        if adjustment.adjusts_reporting_revision_id not in revisions:
+            invalid()
+        adjustments_by_revision[adjustment.adjusts_reporting_revision_id].append(adjustment)
+    for adjustment_receipt in ledger.adjustment_receipts:
+        target = adjustments.get(adjustment_receipt.reporting_adjustment_id)
+        if target is None or target.adjusts_reporting_revision_id != (
+            adjustment_receipt.adjusts_reporting_revision_id
+        ):
+            invalid()
+        receipts_by_adjustment[target.reporting_adjustment_id].append(adjustment_receipt)
+    for history in histories.values():
+        for revision in history.revisions:
+            related = adjustments_by_revision.get(revision.reporting_revision_id, [])
+            account_associations(len(related))
+            history.adjustments.extend(related)
+        for adjustment in history.adjustments:
+            related_receipts = receipts_by_adjustment.get(adjustment.reporting_adjustment_id, [])
+            account_associations(len(related_receipts))
+            history.adjustment_receipts.extend(related_receipts)
+
+    status_owners: dict[str, str | None] = {}
+    unresolved_by_scope: Counter[tuple[str, int, str, str]] = Counter()
     for status in statuses.values():
-        owner_id = status.reporting_obligation_id
-        revision_id = status.reporting_revision_id
-        predecessor_id = status.supersedes_reporting_status_id
-        if revision_id is not None and owner_id is None:
-            # A legal legacy status can omit the owner ID. Resolve only from an
-            # exact revision binding/artifact, never equal semantic scopes.
-            owner_id = (
-                ledger.revision_ownership.get(revision_id)
-                if ledger.revision_ownership is not None
-                else material_owners.get(revision_id)
-            )
-            if owner_id is None:
-                partition_complete = False
-        if owner_id is not None and (
-            owner_id not in owners or not _status_matches_obligation(status, owners[owner_id])
+        status_revision_id = status.reporting_revision_id
+        status_owner: str | None = status.reporting_obligation_id
+        if status_owner is None and status_revision_id is not None:
+            status_owner = revision_owners.get(status_revision_id)
+        if status_owner is None:
+            # Neither a logical-key match nor a seller's projected count can
+            # invent missing immutable ownership. Keep these rows diagnostic.
+            unresolved_by_scope[_status_scope(status)] += 1
+        elif status_owner not in owners or not _status_matches_obligation(
+            status, owners[status_owner]
         ):
             invalid()
-        if revision_id is not None and (
-            revision_id not in revisions
+        if status_revision_id is not None and (
+            status_revision_id not in revisions
             or (
-                owner_id is not None
+                status_owner is not None
                 and (
-                    not _revision_matches_obligation(revisions[revision_id], owners[owner_id])
-                    or (
-                        ledger.revision_ownership is not None
-                        and ledger.revision_ownership.get(revision_id) != owner_id
+                    not _revision_matches_obligation(
+                        revisions[status_revision_id], owners[status_owner]
                     )
+                    or revision_owners.get(status_revision_id, status_owner) != status_owner
                 )
             )
         ):
             invalid()
-        if predecessor_id is not None:
-            predecessor_status = statuses.get(predecessor_id)
-            if predecessor_status is None or any(
-                _json(getattr(status, key)) != _json(getattr(predecessor_status, key))
-                for key in (
-                    "delivery_config_id",
-                    "delivery_config_version",
-                    "report_definition_id",
-                    "period",
-                )
-            ):
-                invalid()
-    for owner in owners.values():
+        status_owners[status.reporting_status_id] = status_owner
+        if status_owner is not None:
+            histories[status_owner].statuses.append(status)
+    for status in statuses.values():
+        predecessor_id = status.supersedes_reporting_status_id
+        if predecessor_id is None:
+            continue
+        predecessor = statuses.get(predecessor_id)
+        if predecessor is None or _status_scope(status) != _status_scope(predecessor):
+            invalid()
+        status_owner = status_owners[status.reporting_status_id]
+        predecessor_owner = status_owners[predecessor_id]
+        if (
+            status_owner is not None
+            and predecessor_owner is not None
+            and status_owner != predecessor_owner
+        ):
+            invalid()
+    for owner_id, owner in owners.items():
+        histories[owner_id].unresolved_status_count = unresolved_by_scope[_status_scope(owner)]
         current_id = owner.current_consumer_status_id
         if current_id is not None:
             current = statuses.get(current_id)
             if (
                 current is None
                 or not _status_matches_obligation(current, owner)
-                or not owner.consumer_status_count
+                or status_owners[current_id] not in {None, owner_id}
+                or owner.consumer_status_count == 0
             ):
                 invalid()
         elif owner.consumer_status_count:
             invalid()
+    return _ReadIndex(
+        owners,
+        revisions,
+        materials,
+        adjustments,
+        histories,
+        adjustments_by_revision,
+        bool(unresolved_by_scope),
+    )
+
+
+def _validate_read_ledger(
+    ledger: ReportingLedger,
+) -> tuple[dict[_ReceiptTarget, _Receipt], bool, _ReadIndex]:
+    """Check the full frozen denominator and dependencies before using evidence."""
+    index = _index_read_ledger(ledger)
+    owners, revisions = index.owners, index.revisions
+    materials, adjustments = index.materials, index.adjustments
+    partition_complete = not index.unresolved_statuses
+
+    def invalid() -> NoReturn:
+        raise ReportingReconciliationError(
+            "INVALID_LEDGER_DEPENDENCY", "ledger dependencies are incomplete or inconsistent"
+        )
+
+    for owner_id, owner in owners.items():
+        selection = _select_current(owner, ledger, index)
+        index.selections[owner_id] = selection
+        if any(
+            reason in selection[2]
+            for reason in ("ASSOCIATED_HISTORY_INCOMPLETE", "AMBIGUOUS_REVISION_OWNERSHIP")
+        ):
+            partition_complete = False
     for adjustment in adjustments.values():
         revision = revisions.get(adjustment.adjusts_reporting_revision_id)
         if (
@@ -967,7 +1125,7 @@ def _validate_read_ledger(ledger: ReportingLedger) -> tuple[dict[_ReceiptTarget,
     for owner in owners.values():
         if owner.pending_adjustment_count is None:
             continue
-        selected, _, _ = _select_current(owner, ledger)
+        selected, _, _ = index.selections[owner.reporting_obligation_id]
         if selected is None:
             continue
         pending = sum(
@@ -978,8 +1136,7 @@ def _validate_read_ledger(ledger: ReportingLedger) -> tuple[dict[_ReceiptTarget,
             )
             is None
             or _enum(leaf.status) != "accepted"
-            for a in adjustments.values()
-            if a.adjusts_reporting_revision_id == selected.reporting_revision_id
+            for a in index.adjustments_by_revision.get(selected.reporting_revision_id, [])
         )
         if owner.pending_adjustment_count != pending:
             raise ReportingReconciliationError(
@@ -997,7 +1154,7 @@ def _validate_read_ledger(ledger: ReportingLedger) -> tuple[dict[_ReceiptTarget,
             raise ReportingReconciliationError(
                 "INVALID_RECEIPT_EVIDENCE", "accepted receipt evidence does not match its target"
             )
-    return leaves, partition_complete
+    return leaves, partition_complete, index
 
 
 def _owned_revisions(
@@ -1014,127 +1171,80 @@ def _owned_revisions(
 
 
 def _obligation_history(
-    obligation: ReportingObligation, ledger: ReportingLedger
+    obligation: ReportingObligation, index: _ReadIndex
 ) -> tuple[list[ReportingRevision], list[ReportingMaterialization], list[str]]:
+    history = index.histories[obligation.reporting_obligation_id]
     reasons: list[str] = []
-    attempts = [
-        item
-        for item in ledger.materializations
-        if item.reporting_obligation_id == obligation.reporting_obligation_id
-    ]
-    revision_ids = {item.reporting_revision_id for item in attempts}
-    managed_delivery = obligation.destination_ref is not None
-    # ``ReportingRevision`` carries no obligation reference, so semantic scope
-    # alone cannot separate two obligations that legitimately share a definition,
-    # profile, campaign set and period. A revision some *other* obligation has
-    # materialized is that obligation's publication. Anything this obligation also
-    # materialized stays a candidate so illegal fan-out is reported below rather
-    # than silently narrowed away. Revisions no obligation has materialized -- an
-    # unmaterialized official included -- are never excluded here.
-    owned_elsewhere = {
-        item.reporting_revision_id
-        for item in ledger.materializations
-        if item.reporting_obligation_id != obligation.reporting_obligation_id
-    } - revision_ids
-    candidates = [
-        item
-        for item in ledger.revisions
-        if (
-            _revision_matches_obligation(item, obligation)
-            or (managed_delivery and item.reporting_revision_id in revision_ids)
-        )
-        and item.reporting_revision_id not in owned_elsewhere
-    ]
-    if ledger.revision_ownership is not None:
-        candidates = _owned_revisions(obligation, ledger)
-    elif any(
-        not any(
-            m.reporting_revision_id == item.reporting_revision_id for m in ledger.materializations
-        )
-        and sum(_revision_matches_obligation(item, o) for o in ledger.obligations) > 1
-        for item in candidates
-    ):
-        # Counts and equal semantic scopes are not an ownership declaration.
-        # An unmaterialized revision may still belong to either obligation.
+    incomplete = False
+    if history.ambiguous_revisions:
         reasons.append("AMBIGUOUS_REVISION_OWNERSHIP")
-    receipts = [
-        item
-        for item in ledger.receipts
-        if item.reporting_obligation_id == obligation.reporting_obligation_id
-    ]
-    successful_attempts = [
-        item for item in attempts if _enum(item.status) in {"available", "delivered"}
-    ]
-    accepted_receipts = [item for item in receipts if _enum(item.status) == "accepted"]
-    history_incomplete = len(candidates) != obligation.revision_count
-    if managed_delivery:
-        history_incomplete = history_incomplete or (
-            obligation.materialization_count is None
-            or len(attempts) != obligation.materialization_count
-            or obligation.successful_materialization_count is None
-            or len(successful_attempts) != obligation.successful_materialization_count
-        )
-    elif attempts:
-        history_incomplete = True
-    if obligation.receipt_count is not None:
-        history_incomplete = history_incomplete or len(receipts) != obligation.receipt_count
-    if obligation.accepted_receipt_count is not None:
-        history_incomplete = (
-            history_incomplete or len(accepted_receipts) != obligation.accepted_receipt_count
-        )
-    if _enum(obligation.reconciliation_mode) == "consumer_receipt" and (
-        obligation.receipt_count is None or obligation.accepted_receipt_count is None
-    ):
-        history_incomplete = True
-    candidate_ids = {r.reporting_revision_id for r in candidates}
-    adjustments = [
-        a for a in ledger.adjustments if a.adjusts_reporting_revision_id in candidate_ids
-    ]
-    adjustment_ids = {a.reporting_adjustment_id for a in adjustments}
-    adjustment_receipts = [
-        r for r in ledger.adjustment_receipts if r.reporting_adjustment_id in adjustment_ids
-    ]
-    if (
-        ledger.revision_ownership is not None
-        or obligation.adjustment_count is not None
-        or adjustments
-        or adjustment_receipts
-    ):
-        history_incomplete |= obligation.adjustment_count != len(adjustments)
-        if _enum(obligation.reconciliation_mode) == "consumer_receipt":
-            history_incomplete |= obligation.adjustment_receipt_count != len(
-                adjustment_receipts
-            ) or obligation.accepted_adjustment_receipt_count != sum(
-                _enum(r.status) == "accepted" for r in adjustment_receipts
-            )
-    for declared, actual in (
-        (obligation.adjustment_receipt_count, len(adjustment_receipts)),
+    managed = obligation.destination_ref is not None
+    reconciled = _enum(obligation.reconciliation_mode) == "consumer_receipt"
+    # Optional fields remain readable in legacy shapes. Their absence prevents
+    # proof where applicable; only a present, provably false count is an error.
+    # Applicability never depends on the unrelated revision-ownership extension.
+    counts = (
+        (obligation.revision_count, len(history.revisions), True, history.ambiguous_revisions),
+        (obligation.materialization_count, len(history.materializations), managed, False),
+        (
+            obligation.successful_materialization_count,
+            sum(_enum(m.status) in {"available", "delivered"} for m in history.materializations),
+            managed,
+            False,
+        ),
+        (obligation.receipt_count, len(history.receipts), reconciled, False),
+        (
+            obligation.accepted_receipt_count,
+            sum(_enum(r.status) == "accepted" for r in history.receipts),
+            reconciled,
+            False,
+        ),
+        # Reliable Reporting requires this count; its optional schema shape also
+        # admits older sellers, which remain diagnostic until evidence is complete.
+        (obligation.adjustment_count, len(history.adjustments), True, history.ambiguous_revisions),
+        (
+            obligation.adjustment_receipt_count,
+            len(history.adjustment_receipts),
+            reconciled,
+            history.ambiguous_revisions,
+        ),
         (
             obligation.accepted_adjustment_receipt_count,
-            sum(_enum(r.status) == "accepted" for r in adjustment_receipts),
+            sum(_enum(r.status) == "accepted" for r in history.adjustment_receipts),
+            reconciled,
+            history.ambiguous_revisions,
         ),
-        (
-            obligation.consumer_status_count,
-            sum(_status_matches_obligation(s, obligation) for s in ledger.consumer_statuses),
-        ),
-    ):
-        if declared is not None and declared != actual:
-            history_incomplete = True
-    if history_incomplete:
+    )
+    for declared, actual, required, ambiguous in counts:
+        if declared is None:
+            incomplete |= required
+        elif declared != actual:
+            if ambiguous:
+                incomplete = True
+            else:
+                raise ReportingReconciliationError(
+                    "LEDGER_COUNT_MISMATCH", "frozen obligation counts do not match the ledger"
+                )
+    known = len(history.statuses)
+    declared = obligation.consumer_status_count
+    if declared is not None and not known <= declared <= known + history.unresolved_status_count:
+        raise ReportingReconciliationError(
+            "LEDGER_COUNT_MISMATCH", "frozen consumer status counts do not match the ledger"
+        )
+    # A disabled status projection does not require an optional count. A current
+    # status reference without its count cannot prove the projected history.
+    incomplete |= declared is None and obligation.current_consumer_status_id is not None
+    if history.unresolved_status_count:
+        reasons.append("AMBIGUOUS_CONSUMER_STATUS_OWNERSHIP")
+    if incomplete:
         reasons.append("ASSOCIATED_HISTORY_INCOMPLETE")
-    if any(not _revision_matches_obligation(item, obligation) for item in candidates) or any(
-        item.reporting_revision_id in revision_ids
-        and item.reporting_obligation_id != obligation.reporting_obligation_id
-        for item in ledger.materializations
-    ):
-        reasons.append("REVISION_SCOPE_MISMATCH")
-    return candidates, attempts, reasons
+    return history.revisions, history.materializations, reasons
 
 
 def _select_current(
-    obligation: ReportingObligation, ledger: ReportingLedger
+    obligation: ReportingObligation, ledger: ReportingLedger, index: _ReadIndex
 ) -> tuple[ReportingRevision | None, ReportingMaterialization | None, list[str]]:
-    candidates, attempts, reasons = _obligation_history(obligation, ledger)
+    candidates, attempts, reasons = _obligation_history(obligation, index)
     selection = select_reporting_revision(
         tuple(
             RevisionHistoryEntry(
@@ -1409,7 +1519,12 @@ def build_reporting_receipt(
     return ReportingReceipt.model_validate(payload)
 
 
-def _expected_in_scope(expected: ExpectedReportingPeriod, scope: BaseModel) -> bool:
+def _expected_in_scope(
+    expected: ExpectedReportingPeriod,
+    scope: BaseModel,
+    generations: set[tuple[str, int, str]],
+    media_buy_ids: set[str],
+) -> bool:
     """Missing obligations can only be diagnosed inside the retained denominator."""
     start = datetime.fromisoformat(expected.period_start.replace("Z", "+00:00"))
     end = datetime.fromisoformat(expected.period_end.replace("Z", "+00:00"))
@@ -1425,13 +1540,10 @@ def _expected_in_scope(expected: ExpectedReportingPeriod, scope: BaseModel) -> b
             expected.delivery_config_version,
             expected.feed_purpose,
         )
-        in {
-            (g.delivery_config_id, g.delivery_config_version, _enum(g.feed_purpose))
-            for g in getattr(scope, "delivery_config_generations", [])
-        }
+        in generations
         and (
             getattr(scope, "all_accessible_media_buys", False)
-            or set(expected.media_buy_ids) <= set(_identifiers(getattr(scope, "media_buy_ids", [])))
+            or set(expected.media_buy_ids) <= media_buy_ids
         )
     )
 
@@ -1454,13 +1566,16 @@ def evaluate_reporting_ledger(
         raise ReportingReconciliationError(
             "LEDGER_CHANGED", "the completed ledger was changed after loading"
         )
-    leaves, partition_complete = _validate_read_ledger(ledger)
+    leaves, partition_complete, index = _validate_read_ledger(ledger)
     complete_read = complete_read and partition_complete
     now = now or datetime.now(timezone.utc)
     outcomes: list[ObligationReconciliation] = []
     unique_revisions: dict[str, ReportingRevision] = {}
     for obligation in ledger.obligations:
-        revision, materialization, reasons = _select_current(obligation, ledger)
+        revision, materialization, selected_reasons = index.selections[
+            obligation.reporting_obligation_id
+        ]
+        reasons = list(selected_reasons)
         if not complete_read:
             reasons.append("UNVERIFIED_LEDGER_SNAPSHOT")
         if _enum(obligation.health) != "complete":
@@ -1483,11 +1598,7 @@ def evaluate_reporting_ledger(
             # the newest artifact selected independently for current readability.
             if receipt is None or _enum(receipt.status) != "accepted":
                 reasons.append("MISSING_MATCHING_CONSUMER_RECEIPT")
-            applicable = [
-                a
-                for a in ledger.adjustments
-                if a.adjusts_reporting_revision_id == revision.reporting_revision_id
-            ]
+            applicable = index.adjustments_by_revision.get(revision.reporting_revision_id, [])
             if any(
                 (
                     leaf := leaves.get(
@@ -1523,31 +1634,51 @@ def evaluate_reporting_ledger(
         )
         for item in ledger.obligations
     }
+    generations = {
+        (g.delivery_config_id, g.delivery_config_version, _enum(g.feed_purpose))
+        for g in getattr(ledger.scope, "delivery_config_generations", [])
+    }
+    media_buy_ids = set(_identifiers(getattr(ledger.scope, "media_buy_ids", [])))
+    expectations = [
+        (
+            item,
+            _expected_in_scope(item, ledger.scope, generations, media_buy_ids),
+            (
+                item.delivery_config_id,
+                item.delivery_config_version,
+                item.report_definition_id,
+                item.feed_purpose,
+                item.reporting_profile,
+                tuple(sorted(item.media_buy_ids)),
+                _iso(item.period_start),
+                _iso(item.period_end),
+                item.source_timezone,
+            )
+            in actual,
+        )
+        for item in expected_periods or []
+    ]
+    # The producer describes configuration requirements here, not current
+    # revision finality: [official] can be a complete unfiltered denominator.
+    # ExpectedReportingPeriod has no trusted finality fact, however, so for an
+    # *absent* obligation we cannot prove membership in a proper subset. This
+    # intentionally withholds some valid absence claims; it is not evidence of
+    # seller filtering. Positive returned obligations retain their exact proof.
+    absence_finality_proven = {_enum(value) for value in getattr(ledger.scope, "finality", [])} == {
+        "snapshot",
+        "official",
+    }
     missing = [
         item
-        for item in expected_periods or []
-        if complete_read
-        and _expected_in_scope(item, ledger.scope)
-        and (
-            item.delivery_config_id,
-            item.delivery_config_version,
-            item.report_definition_id,
-            item.feed_purpose,
-            item.reporting_profile,
-            tuple(sorted(item.media_buy_ids)),
-            _iso(item.period_start),
-            _iso(item.period_end),
-            item.source_timezone,
-        )
-        not in actual
+        for item, in_scope, present in expectations
+        if complete_read and absence_finality_proven and in_scope and not present
     ]
     definitive = bool(
         complete_read
         and expected_periods is not None
-        and all(_expected_in_scope(item, ledger.scope) for item in expected_periods)
+        and all(in_scope and present for _, in_scope, present in expectations)
         and bool(getattr(ledger.scope, "scope_closed", False))
         and bool(getattr(ledger.scope, "coverage_complete", False))
-        and not missing
         and all(item.definitive for item in outcomes)
     )
     return ReportingReconciliationResult(
@@ -1717,10 +1848,11 @@ async def reconcile_reporting(
                 "canonical-digest verification requires the reconciled_billing tier",
             )
     submitted: list[ReportingReceipt] = []
+    _, _, index = _validate_read_ledger(ledger)
     for obligation in ledger.obligations:
         if _enum(obligation.reconciliation_mode) != "consumer_receipt":
             continue
-        revision, materialization, reasons = _select_current(obligation, ledger)
+        revision, materialization, reasons = index.selections[obligation.reporting_obligation_id]
         if not revision or not materialization or reasons:
             continue
         if any(_receipt_matches(item, revision, materialization) for item in ledger.receipts):

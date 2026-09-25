@@ -297,6 +297,20 @@ def _response(receipts: list[dict[str, object]] | None = None) -> dict[str, obje
     }
 
 
+def _full_finality_scope(raw):
+    # Include a second generation with a snapshot requirement; no obligation
+    # from that generation is expected in these billing-only vectors.
+    raw["scope"]["finality"] = ["snapshot", "official"]
+    raw["scope"]["feed_purposes"].append("pacing")
+    raw["scope"]["delivery_config_generations"].append(
+        {
+            "delivery_config_id": "pacing-feed",
+            "delivery_config_version": 1,
+            "feed_purpose": "pacing",
+        }
+    )
+
+
 class _Client:
     def __init__(self) -> None:
         self.recorded_receipt: dict[str, object] | None = None
@@ -1051,6 +1065,7 @@ async def test_missing_expected_period_prevents_definitive_result() -> None:
     raw = _response()
     # The requested/returned horizon must include the independently expected July period.
     raw["scope"]["period_start"] = "2026-07-01T00:00:00Z"
+    _full_finality_scope(raw)
     ledger = await _ledger_from(raw)
     result = evaluate_reporting_ledger(
         ledger,
@@ -1076,6 +1091,7 @@ async def test_missing_expected_period_prevents_definitive_result() -> None:
 async def test_same_feed_period_cannot_hide_a_missing_campaign() -> None:
     raw = _response()
     raw["scope"]["media_buy_ids"].append("buy-3")
+    _full_finality_scope(raw)
     ledger = await _ledger_from(raw)
     result = evaluate_reporting_ledger(
         ledger,

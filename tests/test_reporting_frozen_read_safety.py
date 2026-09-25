@@ -19,7 +19,14 @@ from adcp.reporting import (
 from adcp.reporting.ownership import with_revision_ownership
 from adcp.types import GetReportingStatusRequest, GetReportingStatusResponse
 from adcp.types.core import TaskResult, TaskStatus
-from tests.test_reporting_reconciliation import DIGEST, PERIOD, REVISION, TOTALS, _response
+from tests.test_reporting_reconciliation import (
+    DIGEST,
+    PERIOD,
+    REVISION,
+    TOTALS,
+    _full_finality_scope,
+    _response,
+)
 
 NOW = datetime(2026, 9, 3, tzinfo=timezone.utc)
 OWNER = "obligation-billing"
@@ -283,6 +290,9 @@ async def test_expected_period_outside_the_proven_scope_is_not_an_obligation_mis
 
 async def test_full_retained_snapshot_can_establish_a_missing_obligation() -> None:
     raw = _history()
+    # The expectation has no independent finality fact. Absence proof requires
+    # a denominator spanning both possible configuration requirements.
+    _full_finality_scope(raw)
     raw.update({name: [] for name in ARRAYS})
     raw["pagination"]["total_count"] = 0
     result = evaluate_reporting_ledger(await _load(raw), expected_periods=_expected(), now=NOW)

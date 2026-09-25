@@ -12,6 +12,7 @@ from adcp.reporting import (
 )
 from adcp.types import GetReportingStatusRequest
 
+from ._durable_materializer_support import durable_case
 from ._feed_support import MountedFeed, feed_request, mixed_case, second_consumer
 from ._projection_support import projection_harness
 from .test_reporting_notification_outbox import statement
@@ -111,3 +112,40 @@ async def test_revocation_between_pages_and_on_replay_never_produces_a_completed
                 assert error.value.code == "STATUS_READ_FAILED"
                 assert s.binding.consumer_id not in str(error.value)
                 assert error.value.__context__ is None
+
+
+@pytest.mark.parametrize("protocol", ["mcp", "a2a"])
+async def test_official_configuration_scope_keeps_a_current_snapshot_obligation(protocol):
+    """The actual producer's scope describes required, not current, finality."""
+    async with projection_harness("memory") as h:
+        s = await durable_case(h.store, required="official", finality="snapshot", active=False)
+        await h.projection.activate(account_id=s.obligation.account_id)
+        mounted = MountedFeed(h)
+        mounted.authorize(s)
+        request = GetReportingStatusRequest.model_validate(
+            feed_request(s, limit=1, finality=["official"])
+        )
+        async with mounted.sdk_clients("1.0") as (clients, observed):
+            ledger = await load_reporting_ledger(clients[protocol], request)
+            assert [value.value for value in ledger.scope.finality] == ["official"]
+            assert len(ledger.obligations) == len(ledger.revisions) == 1
+            assert ledger.obligations[0].required_finality.value == "official"
+            assert ledger.revisions[0].finality.value == "snapshot"
+            assert all("finality" not in params for _, _, params in observed)
+            obligation = ledger.obligations[0]
+            expected = ExpectedReportingPeriod(
+                obligation.delivery_config_id,
+                obligation.delivery_config_version,
+                obligation.report_definition_id,
+                obligation.feed_purpose.value,
+                obligation.reporting_profile,
+                tuple(b.root for b in obligation.media_buy_ids),
+                obligation.period.start.isoformat(),
+                obligation.period.end.isoformat(),
+                obligation.period.source_timezone,
+            )
+            result = evaluate_reporting_ledger(ledger, expected_periods=[expected], now=h.clock())
+            assert not result.definitive
+            assert result.missing_expected_periods == []
+            assert "FINALITY_NOT_MET" in result.obligations[0].reasons
+            assert "UNVERIFIED_LEDGER_SNAPSHOT" not in result.obligations[0].reasons
