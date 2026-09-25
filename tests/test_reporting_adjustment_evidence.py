@@ -400,6 +400,7 @@ def test_maximum_consumer_identity_is_preserved_without_normalization() -> None:
         {"observed_at": datetime(2026, 9, 1, tzinfo=timezone.utc)},
         {"reporting_receipt_id": "short"},
         {"reporting_receipt_id": SECRET + " bad"},
+        {"reporting_receipt_id": SECRET + "\n"},
     ],
 )
 def test_bad_receipt_identity_or_time_never_escapes_as_model_error(kwargs: dict[str, Any]) -> None:
@@ -589,3 +590,53 @@ def test_selection_binding_cannot_be_inferred_from_an_unrelated_official(
             SCOPE, obligation=obligation, revision=revision, revision_owner="obligation-1"
         ),
     )
+
+
+@pytest.mark.parametrize("side", ["obligation", "revision"])
+def test_selected_period_requires_exact_source_timezone(side: str) -> None:
+    obligation, revision = selected()
+    target = obligation if side == "obligation" else revision
+    target.period.source_timezone = "America/New_York"
+    rejected(
+        "INVALID_CONTEXT",
+        lambda: ReportingAdjustmentReceiptContext.from_selection(
+            SCOPE, obligation=obligation, revision=revision, revision_owner="obligation-1"
+        ),
+    )
+
+
+@pytest.mark.parametrize("units", [("ab",), ("spendUSD",), ({"spend": "USD"},)])
+def test_context_unit_pairs_do_not_coerce_strings_or_mappings(units: Any) -> None:
+    rejected("INVALID_CONTEXT", lambda: replace(CONTEXT, control_total_units=units))
+
+
+def test_context_detaches_explicit_list_pairs() -> None:
+    units = [["spend", "USD"]]
+    context = replace(CONTEXT, control_total_units=units)
+    units[0][1] = "EUR"
+    assert context.control_total_units == (("spend", "USD"),)
+
+
+def test_receipt_model_validation_failure_is_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    evidence = capture()
+
+    def fail(*args: Any, **kwargs: Any) -> None:
+        raise ValueError(SECRET)
+
+    monkeypatch.setattr(ReportingAdjustmentReceipt, "model_validate", fail)
+    with pytest.raises(ReportingAdjustmentEvidenceError) as caught:
+        build(evidence)
+    assert caught.value.code == "INVALID_RECEIPT"
+    assert caught.value.__context__ is None and caught.value.__cause__ is None
+    assert SECRET not in "".join(traceback.format_exception(caught.type, caught.value, caught.tb))
+
+
+def test_uppercase_advertised_digest_preserves_raw_evidence_and_compares_hex_value() -> None:
+    raw = adjustment()
+    expected = raw["canonical_adjustment_sha256"]
+    raw["canonical_adjustment_sha256"] = expected.upper()
+    evidence = capture(raw)
+    receipt = build(evidence)
+    assert json.loads(evidence.raw_json)["canonical_adjustment_sha256"] == expected.upper()
+    assert receipt.observed_adjustment_sha256 == expected
+    assert receipt.status == "accepted"

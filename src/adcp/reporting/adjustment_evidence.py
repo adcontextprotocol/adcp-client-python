@@ -97,7 +97,11 @@ class ReportingAdjustmentScope:
 
 @dataclass(frozen=True, slots=True)
 class ReportingAdjustmentEvidenceLimits:
-    """Per-adjustment admission bounds, checked before schema/model work."""
+    """Caller-selected admission bounds, checked before schema/model work.
+
+    Defaults are conservative; there is no separate SDK-wide ceiling on trusted
+    caller configuration. Raising these limits expands the admitted workload.
+    """
 
     max_bytes: int = 65_536
     max_depth: int = 12
@@ -330,6 +334,10 @@ class ReportingAdjustmentReceiptContext:
             if type(self.scope) is ReportingAdjustmentScope:
                 reporting_identifier(self.reporting_revision_id)
                 final = aware_utc(self.finalized_at)
+                if type(self.control_total_units) not in (tuple, list) or any(
+                    type(item) not in (tuple, list) for item in self.control_total_units
+                ):
+                    _fail("INVALID_CONTEXT")
                 units = tuple(tuple(item) for item in self.control_total_units)
                 valid = bool(units) and all(
                     len(item) == 2
@@ -377,6 +385,7 @@ class ReportingAdjustmentReceiptContext:
                 and revision.reporting_profile == obligation.reporting_profile
                 and revision.period.start == obligation.period.start
                 and revision.period.end == obligation.period.end
+                and revision.period.source_timezone == obligation.period.source_timezone
             )
         except (ValueError, TypeError, AttributeError):
             pass
@@ -442,8 +451,9 @@ def build_reporting_adjustment_receipt(
         "status": "rejected" if failures else "accepted",
         "observed_adjustment_sha256": evidence.observed_adjustment_sha256,
     }
-    valid = False
+    receipt: ReportingAdjustmentReceipt | None = None
     try:
+        reporting_identifier(reporting_receipt_id)
         moment = aware_utc(observed_at)
         if _instant(moment) < _instant(adjustment.created_at, raw["created_at"]):
             _fail("INVALID_RECEIPT")
@@ -466,11 +476,12 @@ def build_reporting_adjustment_receipt(
             if str(leaf.status) == "accepted":
                 _fail("RECEIPT_TERMINAL")
             payload["supersedes_reporting_receipt_id"] = leaf.reporting_receipt_id
-        valid = _schema_valid(payload, "reporting-adjustment-receipt")
+        if _schema_valid(payload, "reporting-adjustment-receipt"):
+            receipt = ReportingAdjustmentReceipt.model_validate(payload)
     except ReportingAdjustmentEvidenceError:
         raise
     except (ValueError, TypeError, AttributeError, OverflowError):
         pass
-    if not valid:
+    if receipt is None:
         _fail("INVALID_RECEIPT")
-    return ReportingAdjustmentReceipt.model_validate(payload)
+    return receipt
