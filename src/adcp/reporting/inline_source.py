@@ -413,9 +413,11 @@ class ReportingSealStore(Protocol):
 class InMemoryStagingStore:
     """Process-local, account-scoped payload reuse for tests and pilots.
 
-    Not durable: a restart loses the rows a retained manifest still points at,
-    which breaks exact revision reads. Use :class:`FileSystemStagingStore` or
-    your own object store in production.
+    Not durable: a restart loses payloads needed for uncommitted acquisitions
+    or replay of retained source manifests. Committed ledger rows use the
+    ledger's independent exact-revision read path. Use
+    :class:`FileSystemStagingStore` or your own durable staging store when
+    source payloads must survive a restart.
     """
 
     def __init__(self) -> None:
