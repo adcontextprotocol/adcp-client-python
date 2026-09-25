@@ -168,10 +168,17 @@ async def main(settings):
                     {"pagination": {"max_results": 1, "cursor": first["pagination"]["cursor"]}},
                     {"changes_after": checkpoint},
                 ):
+                    assert ("pagination" in position) != ("changes_after" in position)
                     # The stored boundary remains authenticated and version-bound.
                     try:
                         await store.read_reporting_feed(
-                            {**req, **position, "adcp_version": "3.2-rc.3"}, caller=caller
+                            {
+                                "account": req["account"],
+                                "view": "periods",
+                                **position,
+                                "adcp_version": "3.2-rc.3",
+                            },
+                            caller=caller,
                         )
                     except ReportingFeedError as exc:
                         assert exc.code == "REPORTING_FEED_VERSION_MISMATCH"
