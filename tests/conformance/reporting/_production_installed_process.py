@@ -50,7 +50,7 @@ async def main(settings):
             reconciled=True,
             identity_prefix="b24-",
             existing_pool=pool,
-            adcp_version="3.2-rc.3",
+            adcp_version="3.2-rc.6",
         ) as h:
             mount = MountedProduction(h)
             subject = SimpleNamespace(
