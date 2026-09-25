@@ -2447,7 +2447,15 @@ def get_tools_for_handler(
         input_schema = get_mcp_schema(name, "request", version=resolved_version)
         if input_schema is None:
             continue
-        definition = copy.deepcopy(tool)
+        # The current-model schemas can be large and are replaced below by
+        # the exact versioned wire schemas. Copy only retained metadata.
+        definition = copy.deepcopy(
+            {
+                key: value
+                for key, value in tool.items()
+                if key not in {"inputSchema", "outputSchema"}
+            }
+        )
         if name == "sync_reporting_receipts":
             from adcp.reporting.receipts.wire import receipt_schema
 

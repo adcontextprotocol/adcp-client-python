@@ -526,6 +526,7 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
             request,
             context,
             work["notifications_enabled"],
+            work["admission_epoch"],
         )
 
     async def _park_work_on(
@@ -570,6 +571,7 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
             or work["binding_sha256"] != lease.request.binding_fingerprint
             or work["notifications_enabled"] != lease.notifications_enabled
             or work["notifications_enabled"] != self._notifications_enabled
+            or work["admission_epoch"] != lease.admission_epoch
         ):
             raise failure("BINDING_MISMATCH")
         return work

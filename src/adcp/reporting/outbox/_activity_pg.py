@@ -105,53 +105,58 @@ class _PgReportingActivity:
     async def reserve_attempt(
         self, lease: DeliveryLease, *, request: ActivityRequest, now: datetime
     ) -> WebhookAttempt | None:
+        async with self._activity_transaction() as conn:
+            return await self._reserve_attempt_on(conn, lease, request=request)
+
+    async def _reserve_attempt_on(
+        self, conn: Any, lease: DeliveryLease, *, request: ActivityRequest
+    ) -> WebhookAttempt | None:
         from adcp.reporting.outbox.pg import database_now
 
         b = lease.delivery.binding
         consumer = canonical_consumer(b.principal_id)
         request = ActivityRequest(request.url, request.payload_size_bytes)
         key = (b.account_id, consumer, b.subscriber_id, b.idempotency_key)
-        async with self._activity_transaction() as conn:
-            if await self._activity_fence(conn, lease) is None:
-                return None
-            duplicate = await (
-                await conn.execute(
-                    "SELECT 1 FROM reporting_webhook_attempts WHERE account_id = %s"
-                    " AND principal_id = %s AND consumer_namespace = %s"
-                    " AND delivery_id = %s AND lease_token = %s",
-                    (b.account_id, consumer, b.consumer_namespace, b.delivery_id, lease.token),
-                )
-            ).fetchone()
-            if duplicate is not None:
-                return None
-            number = await self._next_attempt_on(conn, b)
-            at = await database_now(conn, self._clock)
-            # The row stays locked from the fence through this commit. A later
-            # reclaim can never mutate this reservation, including after purge.
-            if at >= lease.expires_at:
-                # Roll back the increment as well; no reservation means no HTTP.
-                raise ReportingNotificationError("activity_lease_expired")
-            reservation = token_hex(32)
+        if await self._activity_fence(conn, lease) is None:
+            return None
+        duplicate = await (
             await conn.execute(
-                "INSERT INTO reporting_webhook_attempts (account_id, principal_id, subscriber_id,"
-                " idempotency_key, notification_id, attempt, delivery_id, consumer_namespace,"
-                " lease_token, reservation_token, binding, fired_at, url, payload_size_bytes)"
-                " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s)",
-                (
-                    *key,
-                    b.notification_id,
-                    number,
-                    b.delivery_id,
-                    b.consumer_namespace,
-                    lease.token,
-                    reservation,
-                    json.dumps(asdict(b)),
-                    at,
-                    request.url,
-                    request.payload_size_bytes,
-                ),
+                "SELECT 1 FROM reporting_webhook_attempts WHERE account_id = %s"
+                " AND principal_id = %s AND consumer_namespace = %s"
+                " AND delivery_id = %s AND lease_token = %s",
+                (b.account_id, consumer, b.consumer_namespace, b.delivery_id, lease.token),
             )
-            return WebhookAttempt(b, number, lease.token, reservation, at, request)
+        ).fetchone()
+        if duplicate is not None:
+            return None
+        number = await self._next_attempt_on(conn, b)
+        at = await database_now(conn, self._clock)
+        # The row stays locked from the fence through this commit. A later
+        # reclaim can never mutate this reservation, including after purge.
+        if at >= lease.expires_at:
+            # Roll back the increment as well; no reservation means no HTTP.
+            raise ReportingNotificationError("activity_lease_expired")
+        reservation = token_hex(32)
+        await conn.execute(
+            "INSERT INTO reporting_webhook_attempts (account_id, principal_id, subscriber_id,"
+            " idempotency_key, notification_id, attempt, delivery_id, consumer_namespace,"
+            " lease_token, reservation_token, binding, fired_at, url, payload_size_bytes)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s)",
+            (
+                *key,
+                b.notification_id,
+                number,
+                b.delivery_id,
+                b.consumer_namespace,
+                lease.token,
+                reservation,
+                json.dumps(asdict(b)),
+                at,
+                request.url,
+                request.payload_size_bytes,
+            ),
+        )
+        return WebhookAttempt(b, number, lease.token, reservation, at, request)
 
     async def _next_attempt_on(self, conn: Any, binding: DeliveryBinding) -> int:
         b = binding

@@ -7,6 +7,7 @@ from typing import Literal
 FeedErrorCode = Literal[
     "INVALID_REQUEST",
     "INVALID_CHECKPOINT",
+    "REPORTING_FEED_VERSION_MISMATCH",
     "UNAUTHORIZED",
     "REPORTING_FEED_SCHEMA_UNREADY",
     "REPORTING_FEED_HISTORY_CORRUPT",
@@ -17,6 +18,10 @@ FeedErrorCode = Literal[
 _MESSAGES: dict[FeedErrorCode, str] = {
     "INVALID_REQUEST": "supply a periods request with valid reporting filters and pagination",
     "INVALID_CHECKPOINT": "restart the reporting walk; this position is unavailable for this scope",
+    "REPORTING_FEED_VERSION_MISMATCH": (
+        "continue with the original walk's reporting representation;"
+        " start a new walk without a cursor or checkpoint when changing protocol version"
+    ),
     "UNAUTHORIZED": "the reporting account or authenticated consumer is unavailable",
     "REPORTING_FEED_SCHEMA_UNREADY": "install and verify the isolated reporting feed schema",
     "REPORTING_FEED_HISTORY_CORRUPT": "retained reporting feed evidence requires operator repair",

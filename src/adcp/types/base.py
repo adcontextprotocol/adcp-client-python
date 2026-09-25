@@ -275,12 +275,11 @@ class AdCPBaseModel(BaseModel):
     model_config = ConfigDict(extra=_EXTRA_POLICY, defer_build=True)
 
     @model_serializer(mode="wrap")
-    def _explicit_reporting_wire_defaults(self, handler: SerializerFunctionWrapHandler) -> Any:
-        """Do not synthesize conditional reporting promises from generated defaults.
+    def _notification_config_wire_defaults(self, handler: SerializerFunctionWrapHandler) -> Any:
+        """Retain the unrelated product default only for product subscriptions.
 
-        The generated classes remain untouched. This wrapper also runs for
-        nested account notification configs and model_dump_json, without
-        mutating the adopter's model or its fields-set information.
+        Reporting capability defaults and tier validation live in their own
+        generated models; this wrapper does not mask reporting attributes.
         """
         value = handler(self)
         if not isinstance(value, dict):
@@ -295,31 +294,6 @@ class AdCPBaseModel(BaseModel):
                 str(getattr(e, "value", e)).startswith("product.") for e in events
             ):
                 value.pop("product_payload_view", None)
-        elif {
-            "supported",
-            "reliable_reporting_version",
-            "managed_delivery",
-            "reconciled_billing",
-            "offerings",
-            "automated_recovery_window_seconds",
-            "status_retention_days",
-        } <= fields.keys():
-            for field in (
-                "reliable_reporting_version",
-                "managed_delivery",
-                "reconciled_billing",
-                "configuration_task",
-                "status_task",
-                "consumer_status_task",
-                "revision_content_task",
-                "receipt_task",
-                "readiness_notification",
-                "status_notification",
-                "ledger_notification",
-                "supports_webhook_activity",
-            ):
-                if field not in self.model_fields_set:
-                    value.pop(field, None)
         return value
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:

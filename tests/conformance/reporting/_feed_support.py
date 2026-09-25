@@ -160,10 +160,9 @@ class MountedFeed(MountedReceipts):
             resolve_account=self.resolve_account,
             buyer_agents=self.registry,
             consumer_status_enabled=feedback,
+            adcp_version=self.version,
         )
         self.handler.get_reporting_status = self.idempotency.wrap(self.handler.get_reporting_status)
-        if kwargs.get("version") is not None:
-            self.handler.adcp_version = kwargs["version"]
 
     @asynccontextmanager
     async def sdk_clients(self, a2a_version, *, token="token-one"):
@@ -215,7 +214,7 @@ class MountedFeed(MountedReceipts):
                     clients[protocol] = await stack.enter_async_context(
                         ADCPClient(
                             config,
-                            adcp_version="3.2-rc.6",
+                            adcp_version=self.version,
                             force_a2a_version=a2a_version if protocol == "a2a" else None,
                             httpx_client_factory=mcp_http if protocol == "mcp" else None,
                         )

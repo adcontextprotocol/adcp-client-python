@@ -31,10 +31,10 @@ import re
 import threading
 import warnings
 from copy import deepcopy
-from datetime import datetime
+from datetime import date
 from importlib.resources import as_file, files
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from urllib.parse import unquote, urlparse
 
 from adcp.validation.version import resolve_bundle_key
@@ -56,7 +56,8 @@ _RFC3339_DATE_TIME = re.compile(
     r"^\d{4}-\d{2}-\d{2}[Tt]"
     r"(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d"
     r"(?:\.\d+)?"
-    r"(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$"
+    r"(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$",
+    re.ASCII,
 )
 
 
@@ -73,9 +74,12 @@ def _is_rfc3339_date_time(instance: Any) -> bool:
         return True
     if _RFC3339_DATE_TIME.fullmatch(instance) is None:
         return False
-    normalized = instance[:-1] + "+00:00" if instance.endswith(("Z", "z")) else instance
     try:
-        datetime.fromisoformat(normalized)
+        # The grammar already checks time and offset ranges. Validate only
+        # the calendar here: Python 3.10's datetime parser accepts only three
+        # or six fractional digits, whereas RFC 3339 permits any positive
+        # number. Validation must neither coerce nor truncate the wire value.
+        date.fromisoformat(instance[:10])
     except ValueError:
         return False
     return True
@@ -143,6 +147,10 @@ class _LoaderState:
         self.compiled: dict[tuple[str, Direction], Any] = {}
         self.named_compiled: dict[str, Any] = {}
         self.portable: dict[tuple[str, Direction], dict[str, Any]] = {}
+        # Serialized JSON keeps the immutable cached value private and makes
+        # every returned tree independent, including any repeated branches.
+        self.mcp_schemas: dict[tuple[str, Direction], str] = {}
+        self.mcp_schema_lock = threading.Lock()
         self.registry: dict[str, dict[str, Any]] = {}
         self._registry_loaded = False
 
@@ -358,7 +366,7 @@ def _make_ref_resolver(state: _LoaderState, base_file: Path, schema: dict[str, A
             ) from exc
 
         _load_schema_registry(state)
-        base_uri = base_file.resolve().parent.as_uri() + "/"
+        base_uri = base_file.resolve().as_uri()
 
         def missing_local_reference(uri: str) -> Any:
             raise ValueError(f"schema reference is not in bundle {state.bundle_key}: {uri}")
@@ -471,6 +479,45 @@ def _normalize_bundled_schema_for_validation(schema: dict[str, Any]) -> dict[str
     return normalized
 
 
+def _effective_task_schema(
+    schema: dict[str, Any], tool_name: str, direction: Direction, *, bundle_key: str
+) -> dict[str, Any]:
+    """Apply the SDK's captured-schedule contract without rewriting signed bundles.
+
+    Reporting health describes existing evidence; it does not cancel a frozen
+    generation's future commitment (#1179). The 3.2.0-rc.3 status schema couples
+    the two at /allOf/2/then/not. Correct only that exact known rule and version.
+    Its if, scope closure and coverage requirements remain unchanged. A changed
+    or different-version rule is left intact for explicit compatibility review.
+    """
+    if (tool_name, direction, bundle_key) != ("get_reporting_status", "sync", "3.2.0-rc.3"):
+        return schema
+    known_rule = {
+        "if": {
+            "properties": {"health": {"const": "complete"}},
+            "required": ["health"],
+        },
+        "then": {
+            "properties": {
+                "scope": {
+                    "properties": {
+                        "scope_closed": {"const": True},
+                        "coverage_complete": {"const": True},
+                    },
+                    "required": ["scope_closed", "coverage_complete"],
+                }
+            },
+            "not": {"required": ["next_expected_at"]},
+        },
+    }
+    conditions = schema.get("allOf")
+    if not isinstance(conditions, list) or len(conditions) < 3 or conditions[2] != known_rule:
+        return schema
+    result = deepcopy(schema)
+    del result["allOf"][2]["then"]["not"]
+    return result
+
+
 def get_validator(
     tool_name: str,
     direction: Direction,
@@ -507,6 +554,7 @@ def get_validator(
         return None
     if file.is_relative_to(state.root.bundled):
         schema = _normalize_bundled_schema_for_validation(schema)
+    schema = _effective_task_schema(schema, tool_name, direction, bundle_key=state.bundle_key)
 
     try:
         from jsonschema import Draft7Validator, FormatChecker
@@ -596,7 +644,7 @@ def get_named_validator(
                 from jsonschema import RefResolver
 
                 resolver = RefResolver(
-                    base_uri=file.resolve().parent.as_uri() + "/",
+                    base_uri=file.resolve().as_uri(),
                     referrer=schema,
                     store=_reachable_schema_store(state, file, schema),
                 )
@@ -645,7 +693,9 @@ def get_schema(
     if not isinstance(schema, dict):
         logger.warning("Schema %s is not a JSON object", file)
         return None
-    return deepcopy(schema)
+    return deepcopy(
+        _effective_task_schema(schema, tool_name, direction, bundle_key=state.bundle_key)
+    )
 
 
 def get_named_schema_document(
@@ -737,7 +787,11 @@ def get_portable_schema(
         schema = json.loads(file.read_text())
         if not isinstance(schema, dict):
             raise ValueError("schema root is not an object")
-        portable = _self_contained_schema(state, file, schema)
+        portable = _self_contained_schema(
+            state,
+            file,
+            _effective_task_schema(schema, tool_name, direction, bundle_key=state.bundle_key),
+        )
     except (OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
         logger.warning("Failed to make schema %s portable for %s: %s", file, key, exc)
         return None
@@ -872,35 +926,59 @@ def get_mcp_schema(
     Newer bundles provide self-contained production-profile schemas that
     remove duplicated descriptions and definitions. Releases without those
     artifacts fall back to their canonical versioned schema.
+
+    Successful materializations belong to the immutable versioned loader
+    state. Each caller receives an independent, alias-free JSON tree; missing
+    or invalid schemas are not added to the materialization cache.
     """
     state = _ensure_state(version)
     if state is None:
         return None
     key = (tool_name, direction)
-    file = state.mcp_index.get(key) or state.source_index.get(key) or state.file_index.get(key)
-    if file is None:
-        return None
-    try:
-        schema = json.loads(file.read_text())
-    except (OSError, json.JSONDecodeError) as exc:
-        logger.warning(
-            "Failed to load MCP schema %s for %s::%s: %s",
-            file,
-            tool_name,
-            direction,
-            exc,
-        )
-        return None
-    if not isinstance(schema, dict):
-        logger.warning("MCP schema %s is not a JSON object", file)
-        return None
-    try:
-        portable = _self_contained_schema(state, file, schema)
-    except (OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
-        logger.warning("Failed to make MCP schema %s portable: %s", file, exc)
-        return None
-    compact = _strip_schema_annotations(portable)
-    return compact if isinstance(compact, dict) else None
+    cached = state.mcp_schemas.get(key)
+    if cached is None:
+        with state.mcp_schema_lock:
+            # Only one concurrent first caller traverses the reference graph.
+            cached = state.mcp_schemas.get(key)
+            if cached is None:
+                file = (
+                    state.mcp_index.get(key)
+                    or state.source_index.get(key)
+                    or state.file_index.get(key)
+                )
+                if file is None:
+                    return None
+                try:
+                    schema = json.loads(file.read_text())
+                except (OSError, json.JSONDecodeError) as exc:
+                    logger.warning(
+                        "Failed to load MCP schema %s for %s::%s: %s",
+                        file,
+                        tool_name,
+                        direction,
+                        exc,
+                    )
+                    return None
+                if not isinstance(schema, dict):
+                    logger.warning("MCP schema %s is not a JSON object", file)
+                    return None
+                try:
+                    portable = _self_contained_schema(
+                        state,
+                        file,
+                        _effective_task_schema(
+                            schema, tool_name, direction, bundle_key=state.bundle_key
+                        ),
+                    )
+                except (OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
+                    logger.warning("Failed to make MCP schema %s portable: %s", file, exc)
+                    return None
+                compact = _strip_schema_annotations(portable)
+                if not isinstance(compact, dict):
+                    return None
+                cached = json.dumps(compact, separators=(",", ":"))
+                state.mcp_schemas[key] = cached
+    return cast(dict[str, Any], json.loads(cached))
 
 
 def list_validator_keys(*, version: str | None = None) -> list[str]:

@@ -7,6 +7,7 @@ from dataclasses import replace
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
+from adcp.reporting._timestamp import aware_timestamp
 from adcp.reporting.ledger.models import ConsumerStatusRecord
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.ledger.status_projection import (
@@ -258,11 +259,7 @@ def snapshot_from_storage(raw: dict[str, Any]) -> ReportingStatusSnapshot:
         result = []
         for row in raw.get(key, []):
             values = [
-                (
-                    datetime.fromisoformat(row[n])
-                    if n in dates and row.get(n) is not None
-                    else row.get(n)
-                )
+                (aware_timestamp(row[n]) if n in dates and row.get(n) is not None else row.get(n))
                 for n in names
             ]
             result.append(builder(values))
@@ -304,7 +301,7 @@ def snapshot_from_storage(raw: dict[str, Any]) -> ReportingStatusSnapshot:
     consumers.update(i.consumer_id for i in lifecycles if i.consumer_id is not None)
     return ReportingStatusSnapshot(
         account_id=raw["account_id"],
-        as_of=datetime.fromisoformat(raw["as_of"]),
+        as_of=aware_timestamp(raw["as_of"]),
         configurations=configurations,
         obligations=decode("obligations", _OBLIGATION_COLUMNS, _obligation_from_row),
         revisions=decode("revisions", _REVISION_COLUMNS, _revision_from_row),

@@ -35,7 +35,7 @@ import logging
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
-from typing import Any, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import (
@@ -50,7 +50,6 @@ from adcp.reporting.ledger.models import (
     ReportingObligationRecord,
     ReportingPeriodBoundary,
     ReportingRevisionRecord,
-    derive_period,
     iso_duration_to_timedelta,
 )
 from adcp.reporting.ledger.store import (
@@ -79,6 +78,10 @@ from adcp.reporting.source import (
     iso_duration_milliseconds_v1,
     parse_verified_source_batch_manifest_v1,
 )
+
+if TYPE_CHECKING:
+    from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
+    from adcp.reporting.materializer.verification import ReportingRevisionVerifier
 
 __all__ = [
     "CurrencyResolver",
@@ -236,6 +239,7 @@ class ReportingProducer:
         max_periods_per_turn: int = 64,
         clock: Callable[[], datetime] | None = None,
         currency_resolver: CurrencyResolver | None = None,
+        revision_verifier: ReportingRevisionVerifier | None = None,
     ) -> None:
         self._source = source
         self._offerings = offerings
@@ -251,6 +255,7 @@ class ReportingProducer:
             if currency_resolver is not None
             else FixedCurrencyResolver(offerings.currency)
         )
+        self._revision_verifier = revision_verifier
 
     @property
     def store(self) -> ReportingLedgerStore:
@@ -413,8 +418,12 @@ class ReportingProducer:
         *,
         now: datetime,
     ) -> list[ReportingObligationRecord]:
+        from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
+
+        progress = self._store if isinstance(self._store, ReportingProducerProgress) else None
+        after = None if progress is None else await progress.producer_closed_through(configuration)
         committed: list[ReportingObligationRecord] = []
-        for boundary in self._elapsed_periods(configuration, now=now):
+        for boundary in self._elapsed_periods(configuration, now=now, after=after):
             existing = await self._store.find_obligation(
                 account_id=configuration.account_id,
                 delivery_config_id=configuration.delivery_config_id,
@@ -423,6 +432,11 @@ class ReportingProducer:
                 period_end=boundary.end,
             )
             if existing is not None:
+                if progress is not None:
+                    await progress.commit_producer_period(
+                        configuration, existing, previous_end=after
+                    )
+                    after = boundary.end
                 continue
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=self._obligation_id(configuration, boundary),
@@ -449,48 +463,51 @@ class ReportingProducer:
             resolved = self._currency_resolver(configuration, obligation)
             currency = await resolved if inspect.isawaitable(resolved) else resolved
             obligation = replace(obligation, currency=validate_currency(currency))
-            stored = await self._store.commit_obligation(obligation)
+            stored = (
+                await self._store.commit_obligation(obligation)
+                if progress is None
+                else await progress.commit_producer_period(
+                    configuration, obligation, previous_end=after
+                )
+            )
+            after = boundary.end
             committed.append(stored)
             turn.obligations_committed.append(stored.reporting_obligation_id)
         return committed
 
     def _elapsed_periods(
-        self, configuration: ReportingConfiguration, *, now: datetime
+        self,
+        configuration: ReportingConfiguration,
+        *,
+        now: datetime,
+        after: datetime | None = None,
     ) -> list[ReportingPeriodBoundary]:
         """Every eligible period that has closed but is not yet obligated.
 
-        A period is eligible once its *end* is at or before now.  A snapshot
-        taken exactly at the boundary does not expose it -- the obligation
-        appears in the first snapshot strictly after it, which is the rule both
-        sides derive independently.
+        A period is eligible once its *end* is at or before now. Activation
+        owes the first full period; deactivation after a period has started
+        retains that whole period and its original SLA. Polling forecasts use
+        the same committed-generation iterator.
         """
-        from adcp.reporting.ledger.models import first_ordinal_after
+        from itertools import islice
 
-        activated_at = configuration.activated_at
-        if activated_at is None:
-            return []
-        ordinal = first_ordinal_after(
-            configuration.schedule,
-            account_timezone=configuration.account_timezone,
-            activated_at=activated_at,
-        )
+        from adcp.reporting.ledger.schedule import committed_periods
+
         boundaries: list[ReportingPeriodBoundary] = []
-        for _ in range(self._max_periods_per_turn):
-            boundary = derive_period(
-                configuration.schedule,
-                account_timezone=configuration.account_timezone,
-                ordinal=ordinal,
-            )
+        near = (
+            None
+            if after is None
+            else after + iso_duration_to_timedelta(configuration.schedule.delivery_sla)
+        )
+        periods = (
+            period
+            for period in committed_periods(configuration, near=near)
+            if after is None or period.end > after
+        )
+        for boundary in islice(periods, self._max_periods_per_turn):
             if _utc(boundary.end) > _utc(now):
                 break
-            if configuration.deactivated_at is not None and _utc(boundary.start) >= _utc(
-                configuration.deactivated_at
-            ):
-                # Deactivation still owes a period that already started, but
-                # not one that had not begun when the configuration stopped.
-                break
             boundaries.append(boundary)
-            ordinal += 1
         return boundaries
 
     @staticmethod
@@ -516,6 +533,11 @@ class ReportingProducer:
     async def _acquire_pending(
         self, configuration: ReportingConfiguration, turn: WorkerTurn, *, now: datetime
     ) -> None:
+        from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
+
+        if isinstance(self._store, ReportingProducerProgress):
+            await self._acquire_progress(self._store, configuration, turn, now=now)
+            return
         for boundary in self._elapsed_periods(configuration, now=now):
             obligation = await self._store.find_obligation(
                 account_id=configuration.account_id,
@@ -551,6 +573,48 @@ class ReportingProducer:
                 )
                 turn.slices_failed.append(obligation.reporting_obligation_id)
                 self._note_escalation(obligation, turn, now=now)
+
+    async def _acquire_progress(
+        self,
+        progress: ReportingProducerProgress,
+        configuration: ReportingConfiguration,
+        turn: WorkerTurn,
+        *,
+        now: datetime,
+    ) -> None:
+        identifiers = await progress.next_producer_obligations(
+            configuration, now=now, limit=self._max_periods_per_turn
+        )
+        for identifier in identifiers:
+            obligation = await self._store.get_obligation(
+                account_id=configuration.account_id, reporting_obligation_id=identifier
+            )
+            if obligation is None or obligation.generation_key != configuration.generation_key:
+                raise LedgerConflictError("HISTORY_UNAVAILABLE", "producer history is unavailable")
+            policy = self._settling_policy(configuration, obligation)
+            finished = policy is None
+            try:
+                if policy is None:
+                    await self.acquire_obligation(configuration, obligation, turn=turn, now=now)
+                else:
+                    finished = await self._acquire_with_settling_policy(
+                        configuration, obligation, policy=policy, turn=turn, now=now
+                    )
+            except (ReportingCurrencyError, LedgerConflictError) as error:
+                if isinstance(error, LedgerConflictError) and error.code not in {
+                    "HISTORY_UNAVAILABLE",
+                    "EMPTY_DENOMINATOR",
+                }:
+                    raise
+                turn.slices_failed.append(identifier)
+                self._note_escalation(obligation, turn, now=now)
+                # Retain the existing corrupt-history parking check. A transient
+                # currency failure during settling must not retire a readable leaf.
+                finished = policy is None or isinstance(error, LedgerConflictError)
+            if finished:
+                await progress.finish_producer_acquisition(
+                    configuration, reporting_obligation_id=identifier
+                )
 
     def _settling_policy(
         self,
@@ -597,14 +661,19 @@ class ReportingProducer:
         policy: _SettlingPolicy,
         turn: WorkerTurn,
         now: datetime,
-    ) -> None:
+    ) -> bool:
+        """Return whether policy-controlled acquisition may leave the pending queue.
+
+        A readable snapshot completes one acquisition, not the settling policy.
+        The progress store retains its rotating work item until the policy ends.
+        """
         checkpoint_store = self._restatement_store()
         revisions = await self._store.list_revisions(
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
         )
         if any(item.finality == "official" for item in revisions):
-            return
+            return True
         if not revisions:
             await self.acquire_obligation(
                 configuration,
@@ -614,7 +683,7 @@ class ReportingProducer:
                 target_finality="snapshot",
                 track_settling=True,
             )
-            return
+            return False
 
         checkpoint = await checkpoint_store.get_restatement_checkpoint(
             account_id=obligation.account_id,
@@ -642,10 +711,10 @@ class ReportingProducer:
                     target_finality="snapshot",
                     track_settling=True,
                 )
-            return
+            return False
 
         if policy.official_close_lag is None or self._offerings.official_offering_id is None:
-            return
+            return True
         closes_at = max(
             settles_at,
             _utc(obligation.period.end) + policy.official_close_lag,
@@ -660,6 +729,14 @@ class ReportingProducer:
                 target_finality="official",
                 track_settling=True,
             )
+            # An attempted close can still return not-ready. Retire only after
+            # the authoritative revision was actually committed.
+            revisions = await self._store.list_revisions(
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+            )
+            return any(item.finality == "official" for item in revisions)
+        return False
 
     async def acquire_obligation(
         self,
@@ -724,6 +801,14 @@ class ReportingProducer:
                 f"this producer declares no source offering for {finality} reporting",
             )
 
+        from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
+
+        constituents = (
+            await self._store.producer_constituents(configuration, obligation)
+            if isinstance(self._store, ReportingProducerProgress)
+            else None
+        )
+
         checkpoint_store = self._restatement_store() if track_settling else None
         checkpoint = (
             await checkpoint_store.get_restatement_checkpoint(
@@ -741,6 +826,7 @@ class ReportingProducer:
             finality=finality,
             now=now,
             observation=observation,
+            constituents=constituents,
         )
         cancel = asyncio.Event()
         try:
@@ -967,6 +1053,10 @@ class ReportingProducer:
             source_publication_id=manifest.publication_id,
             source_manifest_sha256=manifest.content_fingerprint.split(":", 1)[-1],
         )
+        if self._revision_verifier is not None:
+            from adcp.reporting.materializer.publication import verified_publication
+
+            revision = verified_publication(self._revision_verifier, obligation, revision, rows)
         committed = await self._store.commit_revision(revision, rows)
         turn.revisions_committed.append(committed.reporting_revision_id)
         return committed
@@ -1069,6 +1159,7 @@ class ReportingProducer:
         finality: str | None = None,
         now: datetime,
         observation: int = 0,
+        constituents: tuple[ReportingConstituent, ...] | None = None,
     ) -> ReportingSourceSliceRequestV1:
         """Freeze one slice request from the obligation.
 
@@ -1087,15 +1178,19 @@ class ReportingProducer:
         behavior depends on wall time.
         """
         offering = self._source.capabilities.offering(offering_id)
-        constituents: list[ReportingConstituent] = [
-            MediaBuyConstituentV1(
-                constituent_id=media_buy_id,
-                product_id=obligation.report_definition_id,
-                media_buy_id=media_buy_id,
-            )
-            for media_buy_id in obligation.media_buy_ids
-        ]
-        if not constituents:
+        resolved_constituents: list[ReportingConstituent] = (
+            list(constituents)
+            if constituents is not None
+            else [
+                MediaBuyConstituentV1(
+                    constituent_id=media_buy_id,
+                    product_id=obligation.report_definition_id,
+                    media_buy_id=media_buy_id,
+                )
+                for media_buy_id in obligation.media_buy_ids
+            ]
+        )
+        if not resolved_constituents:
             raise LedgerConflictError(
                 "EMPTY_DENOMINATOR",
                 "an obligation with no media buys has no source work; it is a platform-owned "
@@ -1151,8 +1246,8 @@ class ReportingProducer:
             trigger="scheduled_poll",
             coverage=ReportingSourceCoverageRequestV1(
                 expected="full",
-                constituents=constituents,
-                denominator_fingerprint=coverage_denominator_fingerprint_v1(constituents),
+                constituents=resolved_constituents,
+                denominator_fingerprint=coverage_denominator_fingerprint_v1(resolved_constituents),
             ),
             requested_metrics=list(self._offerings.requested_metrics),
             requested_dimensions=list(self._offerings.requested_dimensions),

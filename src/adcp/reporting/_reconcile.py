@@ -40,10 +40,13 @@ from adcp.reporting._consumer import (
     post_consumer_statuses,
     resolve_checkpointed_leaves,
 )
+from adcp.reporting.ownership import ReportingOwnershipError, page_revision_ownership
 from adcp.reporting.revision_selection import RevisionHistoryEntry, select_reporting_revision
 from adcp.types import (
     GetReportingStatusRequest,
     GetReportingStatusResponse,
+    ReportingAdjustment,
+    ReportingAdjustmentReceipt,
     ReportingCanonicalContentDigest,
     ReportingControlTotal,
     ReportingDeliveryCapabilities,
@@ -172,6 +175,11 @@ class ReportingLedger:
     #: from "new claim, must supersede", and re-filing the same claim under a
     #: new id churns the chain for no reason.
     consumer_statuses: list[Any] = field(default_factory=list)
+    # None is the all-pages-absent legacy mode. An empty mapping is an explicit
+    # new-mode empty snapshot; do not collapse those two meanings.
+    revision_ownership: dict[str, str] | None = None
+    adjustments: list[ReportingAdjustment] = field(default_factory=list)
+    adjustment_receipts: list[ReportingAdjustmentReceipt] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -296,9 +304,19 @@ async def load_reporting_ledger(
     request: GetReportingStatusRequest,
     *,
     max_snapshot_restarts: int = 2,
+    max_pages: int = 2048,
+    max_records: int = 200_000,
 ) -> ReportingLedger:
     """Exhaust a stable periods cursor and verify its declared record count."""
-
+    if (
+        type(max_snapshot_restarts) is not int
+        or max_snapshot_restarts < 0
+        or type(max_pages) is not int
+        or max_pages < 1
+        or type(max_records) is not int
+        or max_records < 1
+    ):
+        raise ValueError("reporting walk bounds must be positive (restarts may be zero)")
     base = request.model_dump(mode="json", exclude_none=True)
     base["view"] = "periods"
     base.pop("pagination", None)
@@ -309,6 +327,11 @@ async def load_reporting_ledger(
             materializations: dict[str, ReportingMaterialization] = {}
             receipts: dict[str, ReportingReceipt] = {}
             consumer_statuses: dict[str, Any] = {}
+            adjustments: dict[str, ReportingAdjustment] = {}
+            adjustment_receipts: dict[str, ReportingAdjustmentReceipt] = {}
+            ownership: dict[str, str] = {}
+            ownership_mode: bool | None = None
+            frozen_metadata: str | None = None
             cursor: str | None = None
             seen_cursors: set[str] = set()
             snapshot_id: str | None = None
@@ -317,7 +340,7 @@ async def load_reporting_ledger(
             scope: BaseModel | None = None
             total_count: int | None = None
 
-            while True:
+            for _page_number in range(max_pages):
                 payload = dict(base)
                 if cursor:
                     payload["pagination"] = {"cursor": cursor}
@@ -330,6 +353,38 @@ async def load_reporting_ledger(
                         "STATUS_READ_FAILED",
                         "get_reporting_status did not return a completed periods view",
                     )
+                raw_page = response.model_dump(mode="json", exclude_none=True)
+                if "ext" in response.model_fields_set and response.ext is None:
+                    raw_page["ext"] = None
+                try:
+                    local = page_revision_ownership(raw_page)
+                except ReportingOwnershipError:
+                    raise ReportingReconciliationError(
+                        "INVALID_REVISION_OWNERSHIP", "invalid page-local revision ownership"
+                    ) from None
+                mode = local is not None
+                if ownership_mode is not None and mode != ownership_mode:
+                    raise ReportingReconciliationError(
+                        "INVALID_REVISION_OWNERSHIP", "mixed ownership modes within one snapshot"
+                    )
+                ownership_mode = mode
+                for revision_id, owner_id in (local or {}).items():
+                    if revision_id in ownership and ownership[revision_id] != owner_id:
+                        raise ReportingReconciliationError(
+                            "INVALID_REVISION_OWNERSHIP", "ownership changed within one snapshot"
+                        )
+                    ownership[revision_id] = owner_id
+                metadata = _json(
+                    {
+                        k: raw_page.get(k)
+                        for k in ("changes_checkpoint", "next_expected_at", "health", "issues")
+                    }
+                )
+                if mode and frozen_metadata is not None and metadata != frozen_metadata:
+                    raise ReportingReconciliationError(
+                        "SNAPSHOT_CHANGED", "frozen projection changed"
+                    )
+                frozen_metadata = metadata
                 pagination = response.pagination
                 if (
                     not response.ledger_snapshot_id
@@ -359,6 +414,10 @@ async def load_reporting_ledger(
                 account_id = response.account_id
                 scope = response.scope
                 total_count = pagination.total_count
+                if total_count is not None and total_count > max_records:
+                    raise ReportingReconciliationError(
+                        "LEDGER_LIMIT_EXCEEDED", "ledger record limit exceeded"
+                    )
                 for obligation in response.periods or []:
                     _add_immutable(
                         obligations,
@@ -377,6 +436,17 @@ async def load_reporting_ledger(
                     )
                 for receipt in response.receipts or []:
                     _add_immutable(receipts, receipt.reporting_receipt_id, receipt, "receipt")
+                for adjustment in response.adjustments or []:
+                    _add_immutable(
+                        adjustments, adjustment.reporting_adjustment_id, adjustment, "adjustment"
+                    )
+                for adjustment_receipt in response.adjustment_receipts or []:
+                    _add_immutable(
+                        adjustment_receipts,
+                        adjustment_receipt.reporting_receipt_id,
+                        adjustment_receipt,
+                        "adjustment receipt",
+                    )
                 for status in getattr(response, "consumer_statuses", None) or []:
                     _add_immutable(
                         consumer_statuses,
@@ -385,14 +455,36 @@ async def load_reporting_ledger(
                         "consumer status",
                     )
 
+                if (
+                    sum(
+                        len(records)
+                        for records in (
+                            obligations,
+                            revisions,
+                            materializations,
+                            receipts,
+                            consumer_statuses,
+                            adjustments,
+                            adjustment_receipts,
+                        )
+                    )
+                    > max_records
+                ):
+                    raise ReportingReconciliationError(
+                        "LEDGER_LIMIT_EXCEEDED", "ledger record limit exceeded"
+                    )
                 if not pagination.has_more:
                     break
                 cursor = pagination.cursor
-                if not cursor or cursor in seen_cursors:
+                if not cursor or len(cursor) > 2048 or cursor in seen_cursors:
                     raise ReportingReconciliationError(
                         "CURSOR_LOOP", "ledger pagination did not advance"
                     )
                 seen_cursors.add(cursor)
+            else:
+                raise ReportingReconciliationError(
+                    "LEDGER_LIMIT_EXCEEDED", "ledger page limit exceeded"
+                )
 
             count = (
                 len(obligations)
@@ -400,6 +492,8 @@ async def load_reporting_ledger(
                 + len(materializations)
                 + len(receipts)
                 + len(consumer_statuses)
+                + len(adjustments)
+                + len(adjustment_receipts)
             )
             if total_count is not None and total_count != count:
                 raise ReportingReconciliationError(
@@ -410,7 +504,7 @@ async def load_reporting_ledger(
                 raise ReportingReconciliationError(
                     "EMPTY_LEDGER_RESPONSE", "get_reporting_status returned no ledger page"
                 )
-            return ReportingLedger(
+            ledger = ReportingLedger(
                 snapshot_id,
                 ledger_as_of,
                 account_id,
@@ -420,11 +514,90 @@ async def load_reporting_ledger(
                 list(materializations.values()),
                 list(receipts.values()),
                 list(consumer_statuses.values()),
+                ownership if ownership_mode else None,
+                list(adjustments.values()),
+                list(adjustment_receipts.values()),
             )
+            if ownership_mode:
+                _validate_owned_ledger(ledger)
+            return ledger
         except ReportingReconciliationError as error:
             if error.code != "SNAPSHOT_CHANGED" or restart == max_snapshot_restarts:
                 raise
     raise ReportingReconciliationError("SNAPSHOT_CHANGED", "ledger never stabilized")
+
+
+def _validate_owned_ledger(ledger: ReportingLedger) -> None:
+    """Validate explicit ownership only after all bounded pages are present."""
+    owners = {o.reporting_obligation_id: o for o in ledger.obligations}
+    revisions = {r.reporting_revision_id: r for r in ledger.revisions}
+    bindings = ledger.revision_ownership
+
+    def invalid() -> None:
+        raise ReportingReconciliationError(
+            "INVALID_REVISION_OWNERSHIP", "incomplete or inconsistent ownership dependencies"
+        )
+
+    if bindings is None or set(bindings) != set(revisions):
+        invalid()
+    assert bindings is not None
+    if any(o.account_id != ledger.account_id for o in owners.values()):
+        invalid()
+    for revision_id, owner_id in bindings.items():
+        if owner_id not in owners or not _revision_matches_obligation(
+            revisions[revision_id], owners[owner_id]
+        ):
+            invalid()
+        predecessor = revisions[revision_id].supersedes_reporting_revision_id
+        if predecessor is not None and bindings.get(predecessor) != owner_id:
+            invalid()
+    for owner in owners.values():
+        if (
+            sum(o == owner.reporting_obligation_id for o in bindings.values())
+            != owner.revision_count
+        ):
+            invalid()
+    materials = {m.reporting_materialization_id: m for m in ledger.materializations}
+    owned_evidence: tuple[ReportingMaterialization | ReportingReceipt, ...] = (
+        *ledger.materializations,
+        *ledger.receipts,
+    )
+    for item in owned_evidence:
+        if bindings.get(item.reporting_revision_id) != item.reporting_obligation_id:
+            invalid()
+    for receipt in ledger.receipts:
+        material = materials.get(receipt.reporting_materialization_id)
+        if material is None or (
+            material.reporting_revision_id != receipt.reporting_revision_id
+            or material.reporting_obligation_id != receipt.reporting_obligation_id
+        ):
+            invalid()
+    adjustments = {a.reporting_adjustment_id: a for a in ledger.adjustments}
+    for adjustment in adjustments.values():
+        revision = revisions.get(adjustment.adjusts_reporting_revision_id)
+        if revision is None or _enum(revision.finality) != "official":
+            invalid()
+    for adjustment_receipt in ledger.adjustment_receipts:
+        target_adjustment = adjustments.get(adjustment_receipt.reporting_adjustment_id)
+        if (
+            target_adjustment is None
+            or target_adjustment.adjusts_reporting_revision_id
+            != adjustment_receipt.adjusts_reporting_revision_id
+        ):
+            invalid()
+
+
+def _owned_revisions(
+    obligation: ReportingObligation, ledger: ReportingLedger
+) -> list[ReportingRevision]:
+    if ledger.revision_ownership is not None:
+        return [
+            r
+            for r in ledger.revisions
+            if ledger.revision_ownership.get(r.reporting_revision_id)
+            == obligation.reporting_obligation_id
+        ]
+    return [r for r in ledger.revisions if _revision_matches_obligation(r, obligation)]
 
 
 def _select_current(
@@ -459,6 +632,18 @@ def _select_current(
         )
         and item.reporting_revision_id not in owned_elsewhere
     ]
+    if ledger.revision_ownership is not None:
+        candidates = _owned_revisions(obligation, ledger)
+    elif any(
+        not any(
+            m.reporting_revision_id == item.reporting_revision_id for m in ledger.materializations
+        )
+        and sum(_revision_matches_obligation(item, o) for o in ledger.obligations) > 1
+        for item in candidates
+    ):
+        # Counts and equal semantic scopes are not an ownership declaration.
+        # An unmaterialized revision may still belong to either obligation.
+        reasons.append("AMBIGUOUS_REVISION_OWNERSHIP")
     receipts = [
         item
         for item in ledger.receipts
@@ -761,11 +946,20 @@ def evaluate_reporting_ledger(
     expected_periods: list[ExpectedReportingPeriod] | None = None,
     now: datetime | None = None,
 ) -> ReportingReconciliationResult:
+    if ledger.revision_ownership is not None:
+        _validate_owned_ledger(ledger)
     now = now or datetime.now(timezone.utc)
     outcomes: list[ObligationReconciliation] = []
     unique_revisions: dict[str, ReportingRevision] = {}
     for obligation in ledger.obligations:
         revision, materialization, reasons = _select_current(obligation, ledger)
+        if obligation.adjustment_count or any(
+            a.adjusts_reporting_revision_id == getattr(revision, "reporting_revision_id", None)
+            for a in ledger.adjustments
+        ):
+            # Loading ownership/dependencies is additive. The separately owned
+            # buyer adjustment evidence/submission workflow remains required.
+            reasons.append("ADJUSTMENT_RECONCILIATION_REQUIRED")
         if _enum(obligation.health) != "complete":
             reasons.append(f"OBLIGATION_{_enum(obligation.health).upper()}")
         if (
@@ -909,11 +1103,7 @@ async def reconcile_reporting_core(
             definition=pinned_definition,
             revisions={item.reporting_revision_id: item for item in ledger.revisions},
             obligation_revisions={
-                obligation.reporting_obligation_id: [
-                    revision
-                    for revision in ledger.revisions
-                    if _revision_matches_obligation(revision, obligation)
-                ]
+                obligation.reporting_obligation_id: _owned_revisions(obligation, ledger)
                 for obligation in ledger.obligations
             },
             current_statuses=ledger.consumer_statuses,

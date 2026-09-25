@@ -35,8 +35,14 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Any, Literal
 
+from adcp._version import (
+    is_adcp_version_at_least,
+    normalize_to_release_precision,
+    resolve_adcp_version,
+)
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger.consumer_status import condition_after_waiver
+from adcp.reporting.ledger.delivery_models import ReportingDeliveryRecord
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ReportingAdjustmentRecord,
@@ -48,6 +54,7 @@ from adcp.reporting.ledger.models import (
     ReportingRevisionRecord,
 )
 from adcp.reporting.ledger.notification_models import ReportingStatusScope
+from adcp.reporting.ledger.schedule import next_reporting_expectation, next_reporting_period_start
 from adcp.reporting.ledger.status_projection import (
     ReportingStatusSnapshot,
     StatusProjectionInput,
@@ -219,6 +226,8 @@ class ReportingStatusHandler:
         *,
         caller: ReportingStatusCaller,
         snapshot: ReportingStatusSnapshot,
+        reconciliation: tuple[ReportingDeliveryRecord, ...] | None = None,
+        revision_ownership: bool = False,
     ) -> dict[str, Any]:
         """Render captured database evidence without any store calls or clock reads."""
         view = request.get("view", "summary")
@@ -227,21 +236,51 @@ class ReportingStatusHandler:
         if snapshot.account_id != caller.account_id:
             raise LedgerConflictError("LOOKUP_UNAVAILABLE", "status is unavailable to this caller")
         filters = _filters(request)
+        version = normalize_to_release_precision(
+            request.get("adcp_version") or resolve_adcp_version(None)
+        )
+        complete_start_forecast = is_adcp_version_at_least(version, "3.2-rc.6")
+        if complete_start_forecast:
+            # Bind the new wire contract without relabelling explicit rc.3 snapshots.
+            filters["adcp_version"] = version
         scope = ReportingStatusScope(
             caller.account_id,
-            consumer_id=caller.consumer_id if self._consumer_status_enabled else None,
+            consumer_id=(
+                caller.consumer_id
+                if self._consumer_status_enabled or reconciliation is not None
+                else None
+            ),
         )
         snapshot_id = (
             "rpls_"
             + _fingerprint(
                 [
                     caller.account_id,
-                    caller.consumer_id if self._consumer_status_enabled else None,
+                    (
+                        caller.consumer_id
+                        if self._consumer_status_enabled or reconciliation is not None
+                        else None
+                    ),
                     filters,
                     snapshot.max_sequence,
                 ]
             )[:32]
         )
+        if reconciliation is not None:
+            from adcp.reporting.ledger._delivery_state import fingerprint, principal
+
+            reconciliation = tuple(
+                r
+                for r in reconciliation
+                if principal(r).account_id == caller.account_id
+                and principal(r).consumer_id == caller.consumer_id
+            )
+            snapshot_id = (
+                "rpls_"
+                + _fingerprint(
+                    [snapshot_id, [fingerprint(r) for r in reconciliation], _iso(snapshot.as_of)]
+                )[:32]
+            )
         offset = 0
         lower = _checkpoint_sequence(request.get("changes_after")) or 0
         cursor = (request.get("pagination") or {}).get("cursor")
@@ -277,6 +316,8 @@ class ReportingStatusHandler:
             tuple(filters["feed_purposes"] or ()),
             _parse(filters["period_start"]),
             _parse(filters["period_end"]),
+            reconciliation=reconciliation,
+            consumer_status_enabled=self._consumer_status_enabled,
         )
         result = project_status_scope(value)
         if result.intents:
@@ -311,7 +352,7 @@ class ReportingStatusHandler:
                 ),
                 None,
             )
-            return {
+            response = {
                 **common,
                 "revision": _revision_to_wire(revision, owner),
                 "adjustments": [
@@ -323,6 +364,19 @@ class ReportingStatusHandler:
                 "receipts": [],
                 "pagination": {"total_count": 1, "has_more": False},
             }
+            if reconciliation is not None:
+                from adcp.reporting.projection.wire import exact_revision_evidence
+
+                response.update(
+                    exact_revision_evidence(snapshot, revision, owner, reconciliation, caller)
+                )
+                if revision_ownership:
+                    from adcp.reporting.ownership import with_revision_ownership
+
+                    response = with_revision_ownership(
+                        response, {revision.reporting_revision_id: revision.reporting_obligation_id}
+                    )
+            return response
         common["scope"] = _scope_to_wire(
             result.configurations,
             ledger_as_of=snapshot.as_of,
@@ -342,17 +396,49 @@ class ReportingStatusHandler:
             if self._consumer_status_enabled:
                 counts["consumer_status_pending"] = result.pending_count
             watermark = _scope_data_through(p.projection for p in result.obligations)
-            next_expected = _next_expected(obligations, ledger_as_of=snapshot.as_of)
+            configurations = tuple(
+                c
+                for c in result.configurations
+                if (not request.get("finality") or c.required_finality in request["finality"])
+                and (
+                    not request.get("health")
+                    or project_status_scope(
+                        replace(
+                            value,
+                            scope=ReportingStatusScope(
+                                c.account_id, c.generation_key, consumer_id=scope.consumer_id
+                            ),
+                        )
+                    ).health
+                    in request["health"]
+                )
+            )
+            selected_obligations = tuple(
+                p.obligation
+                for p in result.obligations
+                if (
+                    not request.get("finality")
+                    or p.obligation.required_finality in request["finality"]
+                )
+                and (not request.get("health") or p.projection.health in request["health"])
+            )
+            next_expected = (
+                next_reporting_period_start(configurations, as_of=snapshot.as_of)
+                if complete_start_forecast and result.health == "complete"
+                else next_reporting_expectation(
+                    configurations,
+                    selected_obligations,
+                    as_of=snapshot.as_of,
+                    period_start=value.period_start,
+                    period_end=value.period_end,
+                )
+            )
             return {
                 **common,
                 "health": result.health,
                 "coverage": _coverage_roll_up(obligations, as_of=snapshot.as_of),
                 "data_through": _iso(watermark) if watermark else None,
-                **(
-                    {"next_expected_at": next_expected}
-                    if next_expected is not None and result.health != "complete"
-                    else {}
-                ),
+                **({"next_expected_at": _iso(next_expected)} if next_expected is not None else {}),
                 "obligation_counts": counts,
                 "issues": [i.to_wire() for i in result.issues],
             }
@@ -527,17 +613,6 @@ def _scope_data_through(projections: Any) -> datetime | None:
         and projection.current_revision.data_through is not None
     ]
     return min(watermarks) if watermarks else None
-
-
-def _next_expected(
-    obligations: Sequence[ReportingObligationRecord], *, ledger_as_of: datetime
-) -> str | None:
-    upcoming = [
-        item.period.expected_at
-        for item in obligations
-        if _utc(item.period.expected_at) > _utc(ledger_as_of)
-    ]
-    return _iso(min(upcoming)) if upcoming else None
 
 
 def _scope_to_wire(

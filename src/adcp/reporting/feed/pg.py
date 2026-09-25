@@ -9,7 +9,7 @@ import secrets
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from importlib.resources import files
-from typing import Any
+from typing import Any, Literal
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.feed._errors import storage_errors
@@ -41,6 +41,9 @@ class _CapturedFeed:
     changes: tuple[ReportingReconciliationChange, ...]
     materializer: tuple[dict[str, Any], ...]
     receipts: tuple[dict[str, Any], ...]
+    representation_version: Literal[1, 2] = 1
+    revision_ownership: bool = False
+    activated_consumer_status_enabled: bool | None = None
 
 
 @dataclass(frozen=True, repr=False)
@@ -71,6 +74,9 @@ def _prepare_feed(
             decode_materializer_boundary(r) for r in captured.materializer
         ),
         receipt_boundaries=tuple(decode_receipt_boundary(r) for r in captured.receipts),
+        representation_version=captured.representation_version,
+        revision_ownership=captured.revision_ownership,
+        activated_consumer_status_enabled=captured.activated_consumer_status_enabled,
     )
     stored = StoredFeedSnapshot(snapshot, secrets.token_bytes(32))
     document = canonical_json_utf8_v1(snapshot.to_storage())

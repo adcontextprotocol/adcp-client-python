@@ -17,6 +17,7 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
+from adcp.reporting.ledger.delivery_models import ReportingDeliveryRecord
 from adcp.reporting.ledger.models import ReportingDeliveryEscalation, ReportingIssueLifecycle
 from adcp.reporting.ledger.notification_models import (
     ReportingDomainEvent,
@@ -291,6 +292,9 @@ class PgStatusNotificationStore:
         *,
         through: int,
         baseline: bool = False,
+        reconciliation: tuple[ReportingDeliveryRecord, ...] | None = None,
+        consumer_status_enabled: bool = True,
+        enqueue: bool = True,
     ) -> int:
         await self._lock_scopes_on(connection, snapshot)
         snapshot = settled_replay(snapshot)
@@ -311,7 +315,15 @@ class PgStatusNotificationStore:
                     scope.checkpoint_key,
                 )
             ).fetchone()
-            result = project_status_scope(StatusProjectionInput(snapshot, scope, self.escalation))
+            result = project_status_scope(
+                StatusProjectionInput(
+                    snapshot,
+                    scope,
+                    self.escalation,
+                    reconciliation=reconciliation,
+                    consumer_status_enabled=consumer_status_enabled,
+                )
+            )
             checkpoint, event = advance_checkpoint(
                 _checkpoint(row),
                 result,
@@ -320,10 +332,13 @@ class PgStatusNotificationStore:
                 baseline=baseline,
             )
             await self._write_on(connection, checkpoint)
-            if event is not None:
-                await _enqueue_on(connection, event)
+            if event is not None and enqueue:
+                await self._enqueue_status_on(connection, event)
                 count += 1
         return count
+
+    async def _enqueue_status_on(self, connection: Any, event: ReportingDomainEvent) -> None:
+        await _enqueue_on(connection, event)
 
     async def baseline(self, *, account_id: str) -> bool:
         from adcp.reporting.outbox.status_schema import validate_status_schema

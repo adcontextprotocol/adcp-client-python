@@ -5,9 +5,10 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from adcp._version import is_adcp_version_at_least, resolve_adcp_version
 from adcp.decisioning.context import AuthInfo, RequestContext
 from adcp.decisioning.registry import BuyerAgent, BuyerAgentRegistry, HttpSigCredential
-from adcp.exceptions import ADCPTaskError
+from adcp.exceptions import ADCPTaskError, ConfigurationError
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.outbox.identity import canonical_consumer, resolve_reporting_consumer
@@ -109,6 +110,7 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
         resolve_account: ReceiptAccountResolver,
         buyer_agents: BuyerAgentRegistry | None = None,
         consumer_status_enabled: bool = False,
+        adcp_version: str | None = None,
     ) -> None:
         super().__init__()
         if not isinstance(store, ReportingReceiptBatchStore):
@@ -122,6 +124,16 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
             store if isinstance(store, ReportingFeedStore) else None
         )
         self._feed_consumer_status_enabled = consumer_status_enabled
+        self._adcp_version = resolve_adcp_version(adcp_version)
+        if not is_adcp_version_at_least(self._adcp_version, "3.2-rc.3"):
+            raise ConfigurationError(
+                "reporting mounts require a supported AdCP 3.2 reporting contract; "
+                "use 3.2-rc.3 for retained walks or omit the pin for the packaged default"
+            )
+
+    def get_adcp_version(self) -> str:
+        """Select rendering and advertised MCP/A2A schemas for this mount."""
+        return self._adcp_version
 
     def advertised_tools_for_instance(self) -> set[str]:
         return {TASK, "get_reporting_status"} if self.reporting_feed_store is not None else {TASK}
@@ -140,10 +152,14 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
         if self.reporting_feed_store is None:
             return self._not_supported("get_reporting_status")
         request = (
-            params
+            dict(params)
             if isinstance(params, dict)
             else params.model_dump(mode="json", exclude_unset=True)
         )
+        if context is not None and context.resolved_adcp_version is not None:
+            request["adcp_version"] = context.resolved_adcp_version
+        else:
+            request.setdefault("adcp_version", self.get_adcp_version())
         try:
             if request.get("view") == "periods":
                 FeedRequest.parse(request)
@@ -163,14 +179,14 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
                     raise ReportingFeedError("UNAUTHORIZED") from None
 
             caller = await authorize()
+
+            async def reauthorize() -> None:
+                # A still-authorized alias must not change which account or
+                # canonical consumer owns the already captured boundary.
+                if await authorize() != caller:
+                    raise ReportingFeedError("UNAUTHORIZED")
+
             if request.get("view") == "periods":
-
-                async def reauthorize() -> None:
-                    # A still-authorized alias must not change which account or
-                    # canonical consumer owns the already captured boundary.
-                    if await authorize() != caller:
-                        raise ReportingFeedError("UNAUTHORIZED")
-
                 response = await self.reporting_feed_store.read_reporting_feed(
                     request,
                     caller=caller,
@@ -190,13 +206,24 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
                 raise ReportingFeedError("INVALID_CHECKPOINT")
             if isinstance(self.receipt_store, ReportingLedgerStore):
                 try:
-                    return await ReportingStatusHandler(
-                        self.receipt_store,
-                        consumer_status_enabled=self._feed_consumer_status_enabled,
-                    ).handle(
-                        request,
-                        caller=ReportingStatusCaller(caller.account_id, caller.consumer_id),
-                    )
+                    from adcp.reporting.projection.wire import ReportingTierStatusStore
+
+                    if isinstance(self.receipt_store, ReportingTierStatusStore):
+                        response = await self.receipt_store.read_tier_status(
+                            request,
+                            caller=caller,
+                            consumer_status_enabled=self._feed_consumer_status_enabled,
+                        )
+                    else:
+                        response = await ReportingStatusHandler(
+                            self.receipt_store,
+                            consumer_status_enabled=self._feed_consumer_status_enabled,
+                        ).handle(
+                            request,
+                            caller=ReportingStatusCaller(caller.account_id, caller.consumer_id),
+                        )
+                    await reauthorize()
+                    return response
                 except LedgerConflictError as error:
                     # Only the legacy Core projector exposes its established
                     # domain errors. ACL/provider/feed failures stay redacted.

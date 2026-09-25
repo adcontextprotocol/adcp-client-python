@@ -74,7 +74,7 @@ class ReportingFeedSnapshot:
     records: tuple[ReportingFeedRecord, ...] = field(repr=False)
     inputs_json: bytes = field(repr=False)
     representation_version: int = 1
-    ownership_mode: Literal["absent"] = "absent"
+    ownership_mode: Literal["absent", "bindings"] = "absent"
 
     @property
     def total_count(self) -> int:
@@ -121,8 +121,8 @@ def decode_snapshot(value: Any) -> ReportingFeedSnapshot:
             or type(value["version"]) is not int
             or value["version"] != 1
             or type(value["representation_version"]) is not int
-            or value["representation_version"] != 1
-            or value["ownership_mode"] != "absent"
+            or (value["representation_version"], value["ownership_mode"])
+            not in {(1, "absent"), (2, "absent"), (2, "bindings")}
             or type(value["filters"]) is not str
             or type(json.loads(value["filters"])) is not dict
         ):
@@ -165,9 +165,39 @@ def decode_snapshot(value: Any) -> ReportingFeedSnapshot:
             canonical_json_utf8_v1(value["common"]),
             records,
             canonical_json_utf8_v1(value["inputs"]),
+            value["representation_version"],
+            value["ownership_mode"],
         )
         if result.to_storage() != value:
             raise ValueError
+        if result.representation_version == 2:
+            inputs = value["inputs"]
+            if (
+                inputs["projection_version"] != 2
+                or inputs["ownership_mode"] != result.ownership_mode
+            ):
+                raise ValueError
+            core = inputs["core"]
+            owners = {o["reporting_obligation_id"] for o in core["obligations"]}
+            revisions = core["revisions"]
+            expected = {r["reporting_revision_id"]: r["reporting_obligation_id"] for r in revisions}
+            if len(expected) != len(revisions) or not set(expected.values()).issubset(owners):
+                raise ValueError
+            bindings = inputs["revision_ownership"]
+            if (
+                type(bindings) is not list
+                or len(bindings) != len(expected)
+                or any(
+                    type(b) is not dict
+                    or set(b) != {"reporting_revision_id", "reporting_obligation_id"}
+                    for b in bindings
+                )
+                or {b["reporting_revision_id"]: b["reporting_obligation_id"] for b in bindings}
+                != expected
+            ):
+                raise ValueError
+            if any(r.record_id not in expected for r in records if r.kind == "revision"):
+                raise ValueError
     except (ValueError, TypeError, KeyError, IndexError, RecursionError):
         result = None
     if result is None:
@@ -208,7 +238,6 @@ class StoredFeedSnapshot:
         position = decoded[3]
         if (
             snapshot.caller != caller
-            or snapshot.filters_json != request.filters_json
             or decoded[1] != kind
             or decoded[2] != snapshot.snapshot_id
             or type(position) is not int
@@ -217,6 +246,30 @@ class StoredFeedSnapshot:
             or (kind == "cursor" and not 0 < position < snapshot.total_count)
             or not hmac.compare_digest(token, self.token(kind, position))
         ):
+            raise ReportingFeedError("INVALID_CHECKPOINT")
+        if snapshot.filters_json != request.filters_json:
+            captured_filters = json.loads(snapshot.filters_json)
+            proposed_filters = request.filters
+            if (
+                snapshot.representation_version == 1
+                and snapshot.ownership_mode == "absent"
+                and "adcp_version" not in captured_filters
+                and proposed_filters.get("adcp_version") == "3.2-rc.6"
+            ):
+                # Integrated parents persisted unversioned v1 filters. Their
+                # immutable representation has no complete-summary forecast;
+                # the rc.6 marker must not invalidate those original walks.
+                # Caller, position and signature were verified above. Every
+                # previously bound semantic filter must still match exactly.
+                proposed_filters.pop("adcp_version")
+                if captured_filters != proposed_filters:
+                    raise ReportingFeedError("INVALID_CHECKPOINT")
+                return position
+            # Only an authenticated, correctly signed position can disclose
+            # this actionable version boundary. Other callers/tokens retain
+            # the indistinguishable INVALID_CHECKPOINT error above.
+            if captured_filters.get("adcp_version") != proposed_filters.get("adcp_version"):
+                raise ReportingFeedError("REPORTING_FEED_VERSION_MISMATCH")
             raise ReportingFeedError("INVALID_CHECKPOINT")
         return position
 
@@ -239,6 +292,19 @@ class StoredFeedSnapshot:
                 **({"cursor": self.token("cursor", end)} if more else {}),
             },
         )
+        if snapshot.ownership_mode == "bindings":
+            from adcp.reporting.ownership import ReportingOwnershipError, with_revision_ownership
+
+            try:
+                ownership: dict[str, str] = {}
+                for item in snapshot.inputs["revision_ownership"]:
+                    revision, owner = item["reporting_revision_id"], item["reporting_obligation_id"]
+                    if revision in ownership:
+                        raise ReportingOwnershipError()
+                    ownership[revision] = owner
+                result = with_revision_ownership(result, ownership)
+            except (KeyError, TypeError, ReportingOwnershipError):
+                raise ReportingFeedError("REPORTING_FEED_HISTORY_CORRUPT") from None
         return result
 
 
