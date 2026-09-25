@@ -160,9 +160,9 @@ class FeedRequest:
                 request.get("adcp_version") or resolve_adcp_version(None)
             )
             if is_adcp_version_at_least(version, "3.2-rc.6"):
-                # Existing snapshots omit this marker and keep their rc.3
-                # bytes. The persisted filter binding prevents cross-version
-                # replay under an incompatible advertised output schema.
+                # New snapshots bind their rendering contract. Integrated
+                # parents' unversioned v1 walks retain their captured bytes;
+                # StoredFeedSnapshot checks that narrow compatibility case.
                 filters["adcp_version"] = version
             for name in (
                 "delivery_config_ids",

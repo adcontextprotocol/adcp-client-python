@@ -189,6 +189,14 @@ packaged version. Cursor/checkpoint version mismatches fail closed only after
 caller and signed-position verification. Changing a production mount's captured
 protocol pin invalidates readiness even after a successful schema proof.
 
+Integrated parents created representation-one snapshots without a protocol
+filter marker. Their original pages and checkpoints remain usable under rc.6,
+before and after activation, without re-projecting or modifying their captured
+bytes. Caller, signature and every original semantic filter must still match.
+This exception is restricted to unversioned representation one without revision
+ownership; newer version-bound representations retain strict pin matching. A
+legacy checkpoint can start a fresh rc.6 walk, which records the new marker.
+
 These are Python source and conformance boundaries, not TypeScript, release or
 cross-language acceptance. The tests in `test_reporting_projection_rc6.py` cover
 current mounted transports, clients and schema agreement, frozen historical
