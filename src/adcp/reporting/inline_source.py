@@ -411,7 +411,7 @@ class ReportingSealStore(Protocol):
 
 
 class InMemoryStagingStore:
-    """Process-local staging.  Fine for tests and single-process pilots.
+    """Process-local, account-scoped payload reuse for tests and pilots.
 
     Not durable: a restart loses the rows a retained manifest still points at,
     which breaks exact revision reads. Use :class:`FileSystemStagingStore` or
@@ -424,9 +424,17 @@ class InMemoryStagingStore:
     async def stage(
         self, *, account_id: str, source_execution_key: str, ordinal: int, payload: bytes
     ) -> tuple[str, str]:
+        if not isinstance(payload, bytes):
+            raise TypeError("staging payload must be immutable bytes")
         digest = hashlib.sha256(payload).hexdigest()
-        object_ref = f"{source_execution_key}.{ordinal}"
-        self._objects[(account_id, object_ref, digest)] = payload
+        account = hashlib.sha256(account_id.encode("utf-8")).hexdigest()
+        object_ref = f"sha256.{account}.{digest}"
+        key = (account_id, object_ref, digest)
+        if key in self._objects:
+            if self._objects[key] != payload:
+                raise OSError("staged object bytes no longer match their pinned generation")
+        else:
+            self._objects[key] = payload
         return object_ref, digest
 
     async def read(
@@ -441,18 +449,25 @@ class InMemoryStagingStore:
         key = (account_id, object_ref, object_generation)
         if key not in self._objects:
             raise PermissionError("staged object is outside the requested account scope")
-        return self._objects[key]
+        payload = self._objects[key]
+        if hashlib.sha256(payload).hexdigest() != object_generation:
+            raise OSError("staged object bytes no longer match their pinned generation")
+        return payload
 
 
 class FileSystemStagingStore:
-    """Content-addressed staging on a filesystem.
+    """Account-scoped content-addressed staging on a local filesystem.
 
-    ``object_generation`` is the SHA-256 of the bytes and the file is named for
-    it, so the store is immutable by construction: staging identical bytes
-    twice is a no-op, and staging different bytes produces a different
-    generation rather than overwriting the first.  Writes land via
-    temp-file-and-rename so a crashed write never leaves a half-file a manifest
-    already points at.
+    Equal payload bytes in an account share their ref and SHA-256 generation
+    across acquisitions. Legacy opaque refs remain readable at their existing
+    paths. Observation identity belongs to the manifest/seal, not the payload.
+
+    The filesystem must support atomic same-directory hard links and directory
+    fsync. A flushed temporary file is linked without replacing a winner, then
+    its temporary name is removed and the directory chain is synced. Readers
+    never see an SDK writer's partial file. Existing bytes are verified before
+    reuse; corruption fails closed rather than being overwritten. A failed
+    publication may retain complete bytes, but never returns a successful pair.
     """
 
     def __init__(self, root: Path | str) -> None:
@@ -468,15 +483,26 @@ class FileSystemStagingStore:
     async def stage(
         self, *, account_id: str, source_execution_key: str, ordinal: int, payload: bytes
     ) -> tuple[str, str]:
+        if not isinstance(payload, bytes):
+            raise TypeError("staging payload must be immutable bytes")
         digest = hashlib.sha256(payload).hexdigest()
-        object_ref = f"{source_execution_key}.{ordinal}"
+        account = hashlib.sha256(account_id.encode("utf-8")).hexdigest()
+        object_ref = f"sha256.{account}.{digest}"
         target = self._path(account_id, object_ref, digest)
         await settle_task(asyncio.create_task(asyncio.to_thread(self._write, target, payload)))
         return object_ref, digest
 
-    @staticmethod
-    def _write(target: Path, payload: bytes) -> None:
-        if target.exists():
+    @classmethod
+    def _write(cls, target: Path, payload: bytes) -> None:
+        try:
+            cls._verify_existing(target, payload)
+        except FileNotFoundError:
+            pass
+        else:
+            # Another writer may have linked the complete file but not yet
+            # synced its name/ancestors. A reuse must complete that durability
+            # barrier itself before returning a successful pair.
+            cls._sync_directory(target.parent)
             return
         target.parent.mkdir(parents=True, exist_ok=True)
         handle, temporary = tempfile.mkstemp(dir=str(target.parent))
@@ -485,10 +511,38 @@ class FileSystemStagingStore:
                 stream.write(payload)
                 stream.flush()
                 os.fsync(stream.fileno())
-            os.replace(temporary, target)
-        except BaseException:
+            try:
+                cls._publish_file(Path(temporary), target)
+            except FileExistsError:
+                cls._verify_existing(target, payload)
+        finally:
             Path(temporary).unlink(missing_ok=True)
-            raise
+        # Sync after unlink: both the final link and removal of our temporary
+        # link are committed together. Sync ancestors too, because this turn
+        # (or a concurrent publisher) may have just created those directories.
+        # If any sync fails, the complete file is retained for verified retry,
+        # but no successful pair escapes to the source's seal operation.
+        cls._sync_directory(target.parent)
+
+    @staticmethod
+    def _verify_existing(target: Path, payload: bytes) -> None:
+        with target.open("rb") as stream:
+            if stream.read() != payload:
+                raise OSError("staged object bytes no longer match their pinned generation")
+            os.fsync(stream.fileno())
+
+    @staticmethod
+    def _publish_file(temporary: Path, target: Path) -> None:
+        os.link(temporary, target)
+
+    @staticmethod
+    def _sync_directory(directory: Path) -> None:
+        for path in (directory, *directory.parents):
+            descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+            try:
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
 
     async def read(
         self,
