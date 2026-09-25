@@ -46,9 +46,10 @@ async def main(settings):
 
     old = ReportingReceiptHandler(InMemoryReportingReceiptStore(), resolve_account=resolve)
     new = ReportingReceiptHandler(store, resolve_account=resolve)
-    assert await old.get_reporting_status(request) == await ADCPHandler().get_reporting_status(
+    feed_condition_1 = await old.get_reporting_status(
         request
-    )
+    ) == await ADCPHandler().get_reporting_status(request)
+    assert feed_condition_1
     assert {t["name"] for t in get_tools_for_handler(old)} == {
         "get_adcp_capabilities",
         "sync_reporting_receipts",

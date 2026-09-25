@@ -204,9 +204,10 @@ async def test_original_pg_execute_and_commit_failures_log_once_across_translati
             caplog, "store.ingest_receipt_batch", "OperationalError", origin_function=point
         )
         assert await h.image() == before
-        assert (await h.store.ingest_receipt_batch(request, caller=s.binding.principal))["results"][
-            0
-        ]["result"] == "recorded"
+        hardening_operation_1 = await h.store.ingest_receipt_batch(
+            request, caller=s.binding.principal
+        )
+        assert (hardening_operation_1)["results"][0]["result"] == "recorded"
 
 
 @pytest.mark.parametrize(

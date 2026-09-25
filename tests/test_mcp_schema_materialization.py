@@ -22,14 +22,14 @@ from adcp.server.a2a_server import create_a2a_server
 from adcp.validation import schema_loader as loader
 from adcp.validation.schema_validator import validate_request
 
-PINS = ("3.2.0-rc.3", "3.2.0-rc.4", "3.2.0-beta.6")
+PINS = ("3.2.0-rc.3", "3.2.0-rc.6", "3.2.0-beta.6")
 
-# Canonical JSON digests captured from the unchanged 71c2bc0f source before
-# adding the materialization cache. These are transformed public schemas,
+# Canonical JSON digests captured from unchanged e9a1c8fc before adding
+# the materialization cache. These are transformed public schemas,
 # not a claim of byte identity with the signed upstream schema files.
 EXPECTED_PUBLIC_SHA256 = {
     "3.2.0-rc.3": "6656874ca37ea0732e65a5f0313c8ead7b56ed12460bdbae297c4c648fa26f14",
-    "3.2.0-rc.4": "8ac3eefc79f4b4fdd3e65c7c36fbb7c8deac07e1aa7117a5e52e7097c98de4f1",
+    "3.2.0-rc.6": "d712168e85932dfabad8a76b49a24aa6411dc11748832d18dd0ae00ad7106b3e",
     "3.2.0-beta.6": "e9a10b9f1ee5654a51219c91329089f591c953b972e57a913450a1b9acdb810c",
 }
 
@@ -125,7 +125,8 @@ def test_public_handler_pins_have_isolated_materializations(monkeypatch):
             if "outputSchema" in definition:
                 definition["outputSchema"].clear()
     for version in reversed(PINS):
-        assert canonical(public_definitions(version)) == saved[version]
+        definitions = public_definitions(version)
+        assert canonical(definitions) == saved[version]
     assert {key[0] for key in calls} == set(PINS)
     assert calls and set(calls.values()) == {1}
     assert len(set(saved.values())) == len(PINS)
@@ -153,10 +154,12 @@ def test_failed_materialization_is_not_cached(monkeypatch):
         return original(*args, **kwargs)
 
     monkeypatch.setattr(loader, "_self_contained_schema", transient_failure)
-    assert loader.get_mcp_schema("get_products", "request", version=PINS[1]) is None
+    missing = loader.get_mcp_schema("get_products", "request", version=PINS[1])
+    assert missing is None
     restored = loader.get_mcp_schema("get_products", "request", version=PINS[1])
     assert restored is not None
-    assert loader.get_mcp_schema("get_products", "request", version=PINS[1]) == restored
+    cached = loader.get_mcp_schema("get_products", "request", version=PINS[1])
+    assert cached == restored
     assert attempts == 2
 
 
@@ -174,7 +177,8 @@ def test_concurrent_first_callers_share_one_materialization(monkeypatch):
         with count_lock:
             attempts += 1
         entered.set()
-        assert release.wait(timeout=20)
+        released = release.wait(timeout=20)
+        assert released
         return original(*args, **kwargs)
 
     def load():
@@ -186,7 +190,8 @@ def test_concurrent_first_callers_share_one_materialization(monkeypatch):
         pending = [pool.submit(load) for _ in range(workers)]
         try:
             ready.wait(timeout=20)
-            assert entered.wait(timeout=20)
+            started = entered.wait(timeout=20)
+            assert started
         finally:
             release.set()
         results = [future.result(timeout=30) for future in pending]
@@ -211,9 +216,8 @@ def test_pinned_schemas_do_not_copy_superseded_current_models(monkeypatch):
     monkeypatch.setitem(definition, "inputSchema", SupersededSchema())
     monkeypatch.setitem(definition, "outputSchema", SupersededSchema())
     monkeypatch.setattr(mcp_tools, "_ensure_pydantic_schemas_applied", unexpected_generation)
-    assert hashlib.sha256(canonical(public_definitions(PINS[1]))).hexdigest() == (
-        EXPECTED_PUBLIC_SHA256[PINS[1]]
-    )
+    definitions = public_definitions(PINS[1])
+    assert hashlib.sha256(canonical(definitions)).hexdigest() == (EXPECTED_PUBLIC_SHA256[PINS[1]])
 
 
 def test_current_model_fallback_retains_exact_definitions_and_mutation_isolation():
@@ -225,14 +229,16 @@ def test_current_model_fallback_retains_exact_definitions_and_mutation_isolation
     for definition in first:
         mutable_ids(definition)
         definition["inputSchema"].clear()
-    assert canonical(mcp_tools.get_tools_for_handler(SchemaHandler())) == snapshot
+    repeated = mcp_tools.get_tools_for_handler(SchemaHandler())
+    assert canonical(repeated) == snapshot
 
 
 def test_unsupported_public_pin_never_reuses_a_warm_supported_schema():
     public_definitions(PINS[1])
     with pytest.raises(ValueError, match="no bundled AdCP schemas"):
         public_definitions("3.2.0-rc.999")
-    assert loader.get_mcp_schema("get_products", "request", version="3.2.0-rc.999") is None
+    unsupported = loader.get_mcp_schema("get_products", "request", version="3.2.0-rc.999")
+    assert unsupported is None
 
 
 @pytest.mark.parametrize("version", PINS)
@@ -288,9 +294,8 @@ async def test_mutation_cannot_change_mounted_discovery_registration_or_validati
             response = await client.get(path)
             assert response.status_code == 200
             assert "get_products" in {skill["id"] for skill in response.json()["skills"]}
-    assert hashlib.sha256(canonical(public_definitions(version))).hexdigest() == (
-        EXPECTED_PUBLIC_SHA256[version]
-    )
+    repeated = public_definitions(version)
+    assert hashlib.sha256(canonical(repeated)).hexdigest() == (EXPECTED_PUBLIC_SHA256[version])
 
 
 def test_cached_rc4_schema_retains_all_signed_summary_and_period_controls():

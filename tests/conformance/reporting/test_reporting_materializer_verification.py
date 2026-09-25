@@ -70,7 +70,8 @@ async def test_entire_source_and_destination_walk_in_every_supported_profile(cou
         "acct_a", "https://buyer.example.test/agents/reporting"
     )
     assert result.verification.verification_path == capability.verification_path
-    assert await case.io.write(case.prepared, context=io_context()) == locator
+    destination_operation_1 = await case.io.write(case.prepared, context=io_context())
+    assert destination_operation_1 == locator
     assert case.writer.write_effects == 1 and case.writer.open_count == case.writer.close_count == 3
     assert case.writer.production_eligible is False
     assert (await case.store.get_materialization(case.attempt.key)).outcome is None

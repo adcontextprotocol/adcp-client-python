@@ -1,0 +1,108 @@
+name: Release acceptance
+
+# Local calls resolve at the caller's commit. There is deliberately no push,
+# workflow_run, tag, or standalone dispatch route and no inherited secrets.
+on:
+  workflow_call:
+    inputs:
+      target_sha:
+        required: true
+        type: string
+      ci_run_id:
+        required: true
+        type: string
+      ci_run_attempt:
+        required: true
+        type: string
+      operation:
+        required: true
+        type: string
+      release_pr:
+        default: ''
+        type: string
+      recover_from:
+        default: ''
+        type: string
+    outputs:
+      artifact_id:
+        value: ${{ jobs.accept.outputs.artifact_id }}
+      artifact_digest:
+        value: ${{ jobs.accept.outputs.artifact_digest }}
+
+permissions:
+  contents: read
+  actions: read # Inspect exact runs, attempts, artifacts and environment policy.
+  checks: read # Verify current protected check results and App identities.
+  pull-requests: read # Verify the release PR and its exact merge commit.
+
+env:
+  TARGET_SHA: ${{ inputs.target_sha }}
+  CI_RUN_ID: ${{ inputs.ci_run_id }}
+  CI_RUN_ATTEMPT: ${{ inputs.ci_run_attempt }}
+  OPERATION: ${{ inputs.operation }}
+  RELEASE_PR: ${{ inputs.release_pr }}
+  RECOVER_FROM: ${{ inputs.recover_from }}
+  PUBLICATION_ENABLED: ${{ vars.RELEASE_PUBLICATION_ENABLED }}
+  MAIN_FREEZE_ATTESTATION: ${{ vars.RELEASE_MAIN_FREEZE }}
+
+jobs:
+  preflight:
+    name: Check current main and operator configuration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - run: python3 -m scripts.release_gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  accept:
+    name: Build and accept distributions
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
+    services:
+      postgres:
+        image: postgres:16.14@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: adcp_release_acceptance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.10'
+      - name: Install build tooling
+        run: python -m pip install build==1.2.2.post1 setuptools==80.9.0 wheel==0.45.1
+      - name: Build and install the exact candidates outside the checkout
+        run: python -m scripts.release_artifacts build candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_release_acceptance
+      - name: Retain immutable distributions and acceptance evidence
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-acceptance-${{ github.run_id }}-1
+          path: candidate/
+          if-no-files-found: error
+          overwrite: false
+          archive: true
+          compression-level: 0
+          retention-days: 30

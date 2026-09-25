@@ -54,9 +54,10 @@ async def test_status_queue_isolation_and_atomic_projection(backend, fault, monk
         assert len(events) == turn.events
         assert all(e.notification_type == "reporting.status_changed" for e in events)
         assert await old.list_events(account_id=account) == ()
-        assert (
-            await old.claim_expansion(account_id=account, now=h.clock(), lease_seconds=30) is None
+        production_operation_1 = await old.claim_expansion(
+            account_id=account, now=h.clock(), lease_seconds=30
         )
+        assert production_operation_1 is None
         assert await h.queue() == original_readiness
         # Persist a real expansion lease, then verify a competing incarnation
         # cannot claim it and a separately constructed new outbox resumes it.
@@ -68,5 +69,6 @@ async def test_status_queue_isolation_and_atomic_projection(backend, fault, monk
         assert await current.list_events(account_id=account) == events
         assert await h.queue() == original_readiness
         await h.store.ingest_receipt_batch(request_for(case), caller=case.binding.principal)
-        assert not (await h.projection.project_one(account_id=account)).did_work
+        production_operation_2 = await h.projection.project_one(account_id=account)
+        assert not (production_operation_2).did_work
         assert await current.list_events(account_id=account) == events

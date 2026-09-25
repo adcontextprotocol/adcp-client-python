@@ -31,7 +31,8 @@ async def test_populated_repeated_concurrent_migration_preserves_parent_objects_
         old = PgReportingMaterializerStore(pool=pool, notifications=notifications)
         await old.create_schema()
         case = await durable_case(old)
-        assert (await case.service().run_once()).state == "verified"
+        receipt_operation_1 = await case.service().run_once()
+        assert (receipt_operation_1).state == "verified"
         h = DurableHarness(old, Clock(), pool)
         before = await h.image()
         captures = await old.read_materializer_boundaries(caller=case.scope.principal)
@@ -93,21 +94,29 @@ async def test_interrupted_receipt_migration_is_invisible_and_restart_converges(
     "damage",
     [
         "DROP INDEX reporting_receipt_ingestion_chain",
-        "ALTER TABLE reporting_receipt_ingestion_results "
-        "DISABLE TRIGGER reporting_receipt_ingestion_result",
+        (
+            "ALTER TABLE reporting_receipt_ingestion_results "
+            "DISABLE TRIGGER reporting_receipt_ingestion_result"
+        ),
         "ALTER TABLE reporting_receipt_ingestion_batches ALTER COLUMN expected_count DROP NOT NULL",
         "DROP TABLE reporting_receipt_ingestion_boundaries CASCADE",
         "ALTER TABLE reporting_materializer_work DISABLE TRIGGER reporting_materializer_guard",
-        "ALTER TABLE reporting_reconciliation_records "
-        "DISABLE TRIGGER reporting_reconciliation_guard",
+        (
+            "ALTER TABLE reporting_reconciliation_records "
+            "DISABLE TRIGGER reporting_reconciliation_guard"
+        ),
         # Every object still present and enabled, but a financial predicate body
         # silently replaced. Dropped objects and disabled triggers cannot stand
         # in for this: a weakened tuple predicate is exactly how a deployment
         # would lose graph enforcement without any visible schema difference.
-        "CREATE OR REPLACE FUNCTION reporting_receipt_ingestion_graph()"
-        " RETURNS TRIGGER LANGUAGE plpgsql AS $damage$ BEGIN RETURN NEW; END $damage$",
-        "CREATE OR REPLACE FUNCTION reporting_receipt_ingestion_sha256(document JSONB)"
-        " RETURNS TEXT LANGUAGE SQL IMMUTABLE STRICT AS $damage$ SELECT repeat('0', 64) $damage$",
+        (
+            "CREATE OR REPLACE FUNCTION reporting_receipt_ingestion_graph()"
+            " RETURNS TRIGGER LANGUAGE plpgsql AS $damage$ BEGIN RETURN NEW; END $damage$"
+        ),
+        (
+            "CREATE OR REPLACE FUNCTION reporting_receipt_ingestion_sha256(document JSONB)"
+            " RETURNS TEXT LANGUAGE SQL IMMUTABLE STRICT AS $damage$ SELECT repeat('0', 64) $damage$"
+        ),
     ],
 )
 @pytest.mark.parametrize("notifications", [False, True])

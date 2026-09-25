@@ -119,11 +119,15 @@ async def _other_constraints(pool: AsyncConnectionPool) -> list[Any]:
     async with pool.connection() as connection:
         constraints = await (
             await connection.execute(
-                "SELECT oid, conname, pg_get_constraintdef(oid) FROM pg_constraint"
+                "SELECT pg_constraint.oid, conname, pg_get_constraintdef(pg_constraint.oid)"
+                " FROM pg_constraint"
+                " JOIN pg_class ON pg_class.oid = conrelid"
                 " WHERE connamespace = current_schema()::regnamespace"
+                " AND relname = ANY(%s)"
                 " AND NOT (conrelid = 'reporting_configurations'::regclass AND contype = 'p')"
                 " AND conname <> 'reporting_obligations_currency_code'"
-                " ORDER BY oid"
+                " ORDER BY pg_constraint.oid",
+                (list(_TABLES),),
             )
         ).fetchall()
         indexes = await (
@@ -131,8 +135,10 @@ async def _other_constraints(pool: AsyncConnectionPool) -> list[Any]:
                 "SELECT indexrelid, pg_get_indexdef(indexrelid) FROM pg_index"
                 " JOIN pg_class ON pg_class.oid = indrelid"
                 " WHERE relnamespace = current_schema()::regnamespace"
+                " AND relname = ANY(%s)"
                 " AND NOT (indrelid = 'reporting_configurations'::regclass AND indisprimary)"
-                " ORDER BY indexrelid"
+                " ORDER BY indexrelid",
+                (list(_TABLES),),
             )
         ).fetchall()
     return [constraints, indexes]
@@ -181,17 +187,22 @@ async def test_beta15_upgrade_preserves_all_evidence_and_survives_concurrent_boo
             account_id=old.account_id, reporting_revision_id=revision.reporting_revision_id
         )
         assert rows.rows == ({"media_buy_id": "mb_acct_a", "impressions": 5},)
-        assert await store.commit_revision(revision, rows.rows) == revision
+        receipt_operation_1 = await store.commit_revision(revision, rows.rows)
+        assert receipt_operation_1 == revision
         statuses = await store.list_consumer_statuses(
             account_id=old.account_id, consumer_id="shared-buyer"
         )
         assert len(statuses) == 1 and statuses[0].mismatch_code == "metric_missing"
-        assert await store.record_consumer_status(statuses[0]) == (statuses[0], False)
+        receipt_operation_2 = await store.record_consumer_status(statuses[0])
+        assert receipt_operation_2 == (statuses[0], False)
         assert await _retained_rows(pool) == before  # Replays append no new feed entries.
 
         # Existing leases survive, and releasing an old handle must not release
         # a new tenant's same-name generation even if the worker id is reused.
-        assert await store.lease_period_close(worker_id="extra", now=NOW, lease_seconds=60) is None
+        receipt_operation_3 = await store.lease_period_close(
+            worker_id="extra", now=NOW, lease_seconds=60
+        )
+        assert receipt_operation_3 is None
         other = configuration("acct_b")
         await store.put_configuration(other)
         other_lease = await store.lease_period_close(
@@ -204,7 +215,10 @@ async def test_beta15_upgrade_preserves_all_evidence_and_survives_concurrent_boo
             worker_id="new-worker", now=NOW, lease_seconds=60
         )
         assert reclaimed is not None and reclaimed.generation_key == old.generation_key
-        assert await store.lease_period_close(worker_id="extra", now=NOW, lease_seconds=60) is None
+        receipt_operation_4 = await store.lease_period_close(
+            worker_id="extra", now=NOW, lease_seconds=60
+        )
+        assert receipt_operation_4 is None
 
         # The retained feed and its sequence continue; no history is renumbered.
         checkpoint = await store.open_snapshot(account_id=old.account_id, filters_fingerprint="")

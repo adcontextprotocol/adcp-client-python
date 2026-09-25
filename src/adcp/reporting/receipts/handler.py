@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from adcp._version import is_adcp_version_at_least, resolve_adcp_version
 from adcp.decisioning.context import AuthInfo, RequestContext
@@ -18,9 +18,6 @@ from adcp.reporting.receipts.store import ReportingReceiptBatchStore
 from adcp.reporting.receipts.wire import TASK, validate_receipt_request
 from adcp.server.base import ADCPHandler, NotImplementedResponse, ToolContext
 from adcp.types import Error, GetReportingStatusRequest, SyncReportingReceiptsRequest
-
-if TYPE_CHECKING:
-    from adcp.reporting.feed.store import ReportingFeedStore
 
 ReceiptAccountResolver = Callable[[dict[str, Any], ToolContext, str], Awaitable[str]]
 """Resolve AND reauthorize the exact account reference for this consumer on every call.

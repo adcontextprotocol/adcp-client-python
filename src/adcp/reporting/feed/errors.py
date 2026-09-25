@@ -19,7 +19,7 @@ _MESSAGES: dict[FeedErrorCode, str] = {
     "INVALID_REQUEST": "supply a periods request with valid reporting filters and pagination",
     "INVALID_CHECKPOINT": "restart the reporting walk; this position is unavailable for this scope",
     "REPORTING_FEED_VERSION_MISMATCH": (
-        "pin the reporting mount and client to the original walk's AdCP version to continue;"
+        "continue with the original walk's reporting representation;"
         " start a new walk without a cursor or checkpoint when changing protocol version"
     ),
     "UNAUTHORIZED": "the reporting account or authenticated consumer is unavailable",

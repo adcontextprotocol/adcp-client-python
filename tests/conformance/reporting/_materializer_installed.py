@@ -208,7 +208,8 @@ async def main():
             ReportingDestinationIO(destination.registry, destination.resolver),
             destination.writer,
         )
-        assert (await service.run_once()).state == "verified"
+        materializer_operation_1 = await service.run_once()
+        assert (materializer_operation_1).state == "verified"
         boundaries = await durable.read_materializer_boundaries(caller=scope.principal)
         assert len(boundaries) == boundaries[0].sequence == boundaries[0].account_sequence == 1
         assert durable._materializer_outbox is None
@@ -228,7 +229,8 @@ async def main():
             ReportingDestinationIO(destination.registry, destination.resolver),
             destination.writer,
         )
-        assert (await receipt_service.run_once()).state == "verified"
+        receipt_operation_1 = await receipt_service.run_once()
+        assert (receipt_operation_1).state == "verified"
         snapshot = await receipt_store.read_reconciliation_snapshot(caller=scope.principal)
         outcome = next(r for r in snapshot.records if r.kind == "materialization")
         verification = outcome.verification
@@ -245,7 +247,7 @@ async def main():
             observed_canonical_content_digest=verification.canonical_content_digest,
         )
         request = {
-            "adcp_version": "3.2-rc.3",
+            "adcp_version": "3.2-rc.6",
             "account": {"account_id": configuration.account_id},
             "idempotency_key": "installed-batch-0001",
             "receipts": [receipt_to_wire(receipt)],
@@ -260,7 +262,8 @@ async def main():
         context = ToolContext(caller_identity=scope.consumer_id)
         recorded = await handler.sync_reporting_receipts(request, context)
         assert recorded["results"][0]["result"] == "recorded"
-        assert await handler.sync_reporting_receipts(request, context) == recorded
+        receipt_operation_2 = await handler.sync_reporting_receipts(request, context)
+        assert receipt_operation_2 == recorded
         assert len(await receipt_store.read_receipt_boundaries(caller=scope.principal)) == 1
         assert receipt_store._materializer_outbox is None
     workspace = Path(config["workspace"]).resolve()

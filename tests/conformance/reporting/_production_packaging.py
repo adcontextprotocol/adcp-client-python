@@ -66,6 +66,9 @@ def production_modules():
             "reporting/materializer/publication.py",
             "reporting/materializer/service.py",
             "reporting/materializer/verification.py",
+            "reporting/feed/request.py",
+            "reporting/feed/errors.py",
+            "reporting/ledger/status_server.py",
             "reporting/feed/snapshot.py",
             "reporting/feed/projection.py",
             "reporting/feed/memory.py",
@@ -204,6 +207,33 @@ def source_basis(wheel, source, *, evidence, label):
     return basis
 
 
+def historical_schema_fixture(root):
+    """Copy immutable rc.3 reference inputs, never claim them as wheel contents.
+
+    The installed suite retains historical rejection and correction controls.
+    rc.3 is no longer a shipped bundle. The existing source-layout fallback
+    can read these explicit test inputs without changing installed SDK code,
+    its current bundle, or the public protocol-version allowlist.
+    """
+    version = "3.2.0-rc.3"
+    source = ROOT / "schemas/cache" / version
+    destination = root / "schemas/cache" / version
+    assert not root.resolve().is_relative_to(ROOT.resolve())
+    expected = {
+        str(p.relative_to(source)): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in sorted(source.rglob("*.json"))
+    }
+    assert expected
+    if not destination.exists():
+        shutil.copytree(source, destination)
+    actual = {
+        str(p.relative_to(destination)): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in sorted(destination.rglob("*.json"))
+    }
+    assert actual == expected
+    return {"version": version, "root": str(destination), "files": expected}
+
+
 def installed_production(root, python, wheel, source, *, label, driver_absent):
     from ._installed_progress import ProgressMonitor
 
@@ -269,17 +299,15 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
         "modules": modules,
         "assets": assets,
         "schemas": {
-            name: hashlib.sha256(
-                (ROOT / "schemas/cache/3.2.0-rc.3" / name).read_bytes()
-            ).hexdigest()
-            for name in SCHEMAS
+            version: {
+                name: hashlib.sha256(
+                    (ROOT / "schemas/cache" / version / name).read_bytes()
+                ).hexdigest()
+                for name in SCHEMAS
+            }
+            for version in ("3.2.0-rc.6",)
         },
-        "current_schemas": {
-            name: hashlib.sha256(
-                (ROOT / "schemas/cache/3.2.0-rc.4" / name).read_bytes()
-            ).hexdigest()
-            for name in SCHEMAS
-        },
+        "historical_reference_schema": historical_schema_fixture(root),
         "tests": [str(p.relative_to(ROOT)) for p in tests],
         "driver_absent": driver_absent,
         "python": [3, 10],

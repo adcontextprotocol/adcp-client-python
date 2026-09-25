@@ -81,7 +81,8 @@ async def test_exact_artifact_predicates_produce_durable_item_failures(receipts,
     assert result["results"][0]["errors"][0]["code"] == expected
     assert not await h.store.get_receipt(s.receipt.key)
     assert not await h.store.read_receipt_boundaries(caller=s.binding.principal)
-    assert await h.store.ingest_receipt_batch(request, caller=s.binding.principal) == result
+    receipt_operation_1 = await h.store.ingest_receipt_batch(request, caller=s.binding.principal)
+    assert receipt_operation_1 == result
 
 
 @pytest.mark.parametrize(
@@ -171,7 +172,8 @@ async def test_official_adjustment_digest_ownership_and_order(receipts, fault, e
     assert result["results"][0]["result"] == "recorded"
     assert result["results"][1]["errors"][0]["code"] == expected
     assert result["results"][1]["reporting_receipt_id"] == item["reporting_receipt_id"]
-    assert await h.store.ingest_receipt_batch(request, caller=s.binding.principal) == result
+    receipt_operation_2 = await h.store.ingest_receipt_batch(request, caller=s.binding.principal)
+    assert receipt_operation_2 == result
 
 
 @pytest.mark.parametrize(
@@ -205,18 +207,16 @@ async def test_adjustment_rejected_current_leaf_replacement_and_accepted_termina
     item = await adjustment_for(h, s)
     rejected = {**item, "status": "rejected", "rejection_codes": ["LOAD_FAILED"]}
     first = request_for(s, adjustment_receipts=[rejected])
-    assert (await h.store.ingest_receipt_batch(first, caller=s.binding.principal))["results"][1][
-        "result"
-    ] == "recorded"
+    receipt_operation_3 = await h.store.ingest_receipt_batch(first, caller=s.binding.principal)
+    assert (receipt_operation_3)["results"][1]["result"] == "recorded"
     accepted = {
         **item,
         "reporting_receipt_id": "accepted-adjustment-0002",
         "supersedes_reporting_receipt_id": item["reporting_receipt_id"],
     }
     second = request_for(s, key="receipt-batch-0002", adjustment_receipts=[accepted])
-    assert (await h.store.ingest_receipt_batch(second, caller=s.binding.principal))["results"][1][
-        "result"
-    ] == "recorded"
+    receipt_operation_4 = await h.store.ingest_receipt_batch(second, caller=s.binding.principal)
+    assert (receipt_operation_4)["results"][1]["result"] == "recorded"
     third = request_for(
         s,
         key="receipt-batch-0003",
@@ -394,7 +394,8 @@ async def test_all_receipt_evidence_profiles_match_exact_immutable_artifact(
     accepted = await h.store.ingest_receipt_batch(request, caller=s.binding.principal)
     assert accepted["results"][0]["result"] == "recorded"
     assert accepted["results"][0]["receipt"][field] == request["receipts"][0][field]
-    assert await h.store.ingest_receipt_batch(request, caller=s.binding.principal) == accepted
+    receipt_operation_5 = await h.store.ingest_receipt_batch(request, caller=s.binding.principal)
+    assert receipt_operation_5 == accepted
 
 
 async def test_snapshot_adjustment_is_never_admitted_as_official_receipt_evidence(receipts):
@@ -495,7 +496,8 @@ async def test_existing_foreign_targets_fail_exactly_like_absent_records(receipt
     assert failed_id not in {b.reporting_receipt_id for b in boundaries}
     assert len(boundaries) == index
     # Identical durable replay, and an identical closed error for an absent row.
-    assert await h.store.ingest_receipt_batch(request, caller=s.binding.principal) == result
+    receipt_operation_6 = await h.store.ingest_receipt_batch(request, caller=s.binding.principal)
+    assert receipt_operation_6 == result
     absent = await h.store.ingest_receipt_batch(control, caller=s.binding.principal)
     assert absent["results"][index]["result"] == "failed"
     assert absent["results"][index]["errors"] == failure["errors"]

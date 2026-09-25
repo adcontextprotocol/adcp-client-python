@@ -215,12 +215,15 @@ async def test_selected_source_enrollment_and_expired_lease_fairness(backend, tm
             finally:
                 support._producer_turn.reset(token)
 
-        assert await acquire(selected, "preactivation") is None
-        assert await acquire(other, "preactivation") is None
+        production_operation_1 = await acquire(selected, "preactivation")
+        assert production_operation_1 is None
+        production_operation_2 = await acquire(other, "preactivation")
+        assert production_operation_2 is None
         await support.activate(account_id="acct_a")
         # Two actual source instances intentionally have identical report
         # contracts. Only explicit, verified offering admission chooses one.
-        assert await acquire(selected, "unbound") is None
+        production_operation_3 = await acquire(selected, "unbound")
+        assert production_operation_3 is None
         for configuration, offering in (
             (item.config, selected),
             (peer, selected),

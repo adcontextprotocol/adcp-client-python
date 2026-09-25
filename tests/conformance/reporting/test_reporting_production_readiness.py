@@ -26,12 +26,14 @@ async def test_warm_proof_rechecks_the_actual_mount(transport, mutation, tmp_pat
         if mutation == "replace":
             mapping["get_reporting_status"] = mapping["get_adcp_capabilities"]
         try:
-            assert await support.reporting_delivery() == {}
+            production_operation_5 = await support.reporting_delivery()
+            assert production_operation_5 == {}
             with pytest.raises(ReportingNotificationError, match="component_unready"):
                 await support.activate(account_id=h.item.config.account_id)
         finally:
             mapping["get_reporting_status"] = original
-        assert (await support.reporting_delivery())["managed_delivery"] is True
+        production_operation_1 = await support.reporting_delivery()
+        assert (production_operation_1)["managed_delivery"] is True
 
 
 async def test_shared_scan_cancellation_and_post_scan_dynamic_check(tmp_path, monkeypatch):
@@ -62,11 +64,13 @@ async def test_shared_scan_cancellation_and_post_scan_dynamic_check(tmp_path, mo
             removed = h.mount._tool_manager._tools.pop("get_reporting_status")
             try:
                 release.set()
-                assert await asyncio.wait_for(asyncio.gather(*callers), 10) == [{}] * 4
+                production_operation_8 = await asyncio.wait_for(asyncio.gather(*callers), 10)
+                assert production_operation_8 == [{}] * 4
             finally:
                 h.mount._tool_manager._tools["get_reporting_status"] = removed
             assert scans == 1
-            assert (await support.reporting_delivery())["managed_delivery"] is True
+            production_operation_6 = await support.reporting_delivery()
+            assert (production_operation_6)["managed_delivery"] is True
             await h.store.materializer_ready()
             assert scans == 1
 
@@ -286,7 +290,8 @@ async def test_optional_delivery_is_owned_and_broken_enabled_chain_fails_closed(
         outbox = worker.outbox
         worker.outbox = support.notification_workers[0].outbox
         try:
-            assert await support.reporting_delivery() == {}
+            production_operation_7 = await support.reporting_delivery()
+            assert production_operation_7 == {}
             with pytest.raises(ReportingNotificationError, match="notification_chain_unready"):
                 await support.activate(account_id=h.item.config.account_id)
         finally:
@@ -300,7 +305,8 @@ async def test_optional_delivery_is_owned_and_broken_enabled_chain_fails_closed(
         }
         await support.aclose()
         assert support._notification_task is None
-        assert await support.reporting_delivery() == {}
+        production_operation_2 = await support.reporting_delivery()
+        assert production_operation_2 == {}
 
 
 async def test_warm_catalog_proof_does_not_cache_signing_wiring(tmp_path, monkeypatch):
@@ -310,7 +316,8 @@ async def test_warm_catalog_proof_does_not_cache_signing_wiring(tmp_path, monkey
         "postgres", tmp_path / "destination.sqlite", notifications=True, notification_delivery=True
     ) as h:
         support = h.production
-        assert (await support.reporting_delivery())["managed_delivery"]
+        production_operation_3 = await support.reporting_delivery()
+        assert (production_operation_3)["managed_delivery"]
         mount = MountedProduction(h)
         mount.authorize(h.item)
 
@@ -378,4 +385,5 @@ async def test_current_key_contract_is_rechecked_before_account_activation(
                 await h.production.activate(account_id="acct_a")
             assert await h.image() == before
         assert not caplog.records
-        assert await h.production.activate(account_id="acct_a")
+        production_operation_4 = await h.production.activate(account_id="acct_a")
+        assert production_operation_4

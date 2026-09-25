@@ -324,6 +324,7 @@ BEGIN
             'revisions', coalesce((SELECT jsonb_agg(to_jsonb(r)) FROM reporting_revisions r WHERE account_id=owner), '[]'),
             'statuses', coalesce((SELECT jsonb_agg(to_jsonb(r)) FROM reporting_consumer_statuses r WHERE account_id=owner), '[]'),
             'lifecycles', coalesce((SELECT jsonb_agg(to_jsonb(r)) FROM reporting_issue_lifecycle r WHERE account_id=owner), '[]'),
+            'waivers', coalesce((SELECT jsonb_agg(to_jsonb(r)) FROM reporting_issue_waiver_bindings r WHERE account_id=owner), '[]'),
             'issue_scopes', coalesce((SELECT jsonb_agg(to_jsonb(r)) FROM reporting_issue_status_scopes r WHERE account_id=owner), '[]'),
             'adjustments', coalesce((SELECT jsonb_agg(to_jsonb(r)) FROM reporting_adjustments r WHERE account_id=owner), '[]'),
             'changes', coalesce((SELECT jsonb_agg(to_jsonb(r)) FROM reporting_ledger_changes r WHERE account_id=owner), '[]'),

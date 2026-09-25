@@ -148,12 +148,14 @@ def test_nested_contexts_restore_filters_and_context_after_exit(caplog, exceptio
                     if exception_exit:
                         raise ContextExitError
             except ContextExitError:
+                # The injected inner exit must leave the outer context protecting logs.
                 pass
             for name in _LOGGER_NAMES:
                 logging.getLogger(name).warning("OUTER_CONTEXT_SECRET")
             if exception_exit:
                 raise ContextExitError
     except ContextExitError:
+        # The injected outer exit lets the checks below verify normal logging is restored.
         pass
 
     for name in _LOGGER_NAMES:

@@ -215,6 +215,7 @@ async def run_status_service(
                     try:
                         await asyncio.wait_for(stop.wait(), 1)
                     except asyncio.TimeoutError:
+                        # The poll interval elapsed; check for work or shutdown again.
                         pass
 
         async def serve_http() -> None:

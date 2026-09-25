@@ -78,7 +78,8 @@ async def queued_production(backend, tmp_path, monkeypatch):
         revision, rows = revision_for(obligation, suffix="ordinary-core")
         await h.store.commit_revision(revision, rows)
         await support.activate(account_id=item.config.account_id)
-        assert (await support.materializer.run_once()).state == "verified"
+        production_operation_1 = await support.materializer.run_once()
+        assert (production_operation_1).state == "verified"
         assert item.writer.writes == 1
         for readable in (False, True):
             await h.store.set_revision_readable(
@@ -192,7 +193,8 @@ async def test_retry_window_and_http_attempt_share_the_reservation_boundary(
     async with queued_production(backend, tmp_path, monkeypatch) as h:
         worker = h.workers[2]
         await pin_current_clock(h)
-        assert await worker.expand_one(account_id="acct_a")
+        production_operation_2 = await worker.expand_one(account_id="acct_a")
+        assert production_operation_2
         calls = 0
         with monkeypatch.context() as patch:
             if h.pool is None:
@@ -255,7 +257,8 @@ async def test_window_insert_failure_rolls_back_attempt_head_and_all_state(
     async with queued_production(backend, tmp_path, monkeypatch) as h:
         await pin_current_clock(h)
         worker = h.workers[queue]
-        assert await worker.expand_one(account_id="acct_a")
+        production_operation_3 = await worker.expand_one(account_id="acct_a")
+        assert production_operation_3
         lease = await worker.outbox.claim_delivery(
             account_id="acct_a", now=h.clock(), lease_seconds=60
         )
@@ -327,36 +330,42 @@ async def test_timeout_backoff_duplicate_workers_and_configuration_change_keep_f
             if key[0] == "acct_a" and key[1] != "buyer":
                 del h.subscriptions.values[key]
         worker = h.workers[queue]
-        assert await worker.expand_one(account_id="acct_a")
+        production_operation_4 = await worker.expand_one(account_id="acct_a")
+        assert production_operation_4
         h.receiver.responses["buyer"].extend([429, httpx.ReadTimeout("controlled timeout")])
-        assert await worker.deliver_one(account_id="acct_a")
+        production_operation_5 = await worker.deliver_one(account_id="acct_a")
+        assert production_operation_5
         original = await retained_windows(h)
         assert len(original) == 1
         first = (await worker.outbox.list_deliveries(account_id="acct_a"))[0]
         assert first.state == "pending"
         duplicate = fresh_workers(h)[queue]
-        assert await asyncio.gather(
+        production_operation_6 = await asyncio.gather(
             worker.deliver_one(account_id="acct_a"), duplicate.deliver_one(account_id="acct_a")
-        ) == [False, False]
+        )
+        assert production_operation_6 == [False, False]
         h.clock.advance(timedelta(seconds=5))
         # A reconstructed worker with a longer retry interval cannot postpone
         # expiration or turn it into another day of delivery eligibility.
         restarted = fresh_workers(h)[queue]
         restarted.retry_seconds = 2 * 86400
-        assert await restarted.deliver_one(account_id="acct_a")
+        production_operation_7 = await restarted.deliver_one(account_id="acct_a")
+        assert production_operation_7
         assert await retained_windows(h) == original
         await h.store.put_configuration(replace(h.item.config, deactivated_at=h.clock()))
         h.signing.generation = 2
         use_clock(h, original[0][5] - timedelta(microseconds=1))
-        assert not await fresh_workers(h)[queue].deliver_one(account_id="acct_a")
+        production_operation_8 = await fresh_workers(h)[queue].deliver_one(account_id="acct_a")
+        assert not production_operation_8
         use_clock(h, original[0][5])
         current, duplicate = fresh_workers(h)[queue], fresh_workers(h)[queue]
-        assert sorted(
+        production_condition_9 = sorted(
             await asyncio.gather(
                 current.deliver_one(account_id="acct_a"),
                 duplicate.deliver_one(account_id="acct_a"),
             )
         ) == [False, True]
+        assert production_condition_9
         final = (await current.outbox.list_deliveries(account_id="acct_a"))[0]
         assert final.delivery == first.delivery
         assert (final.state, final.error_code) == ("suppressed", "lease_expired")
@@ -367,7 +376,8 @@ async def test_timeout_backoff_duplicate_workers_and_configuration_change_keep_f
         assert [r.outcome.status for r in activity] == ["timeout", "failed"]
         assert [r.attempt for r in activity] == [2, 1]
         assert len(h.receiver.received) == 1
-        assert not await current.deliver_one(account_id="acct_b")
+        production_operation_10 = await current.deliver_one(account_id="acct_b")
+        assert not production_operation_10
         assert not caplog.records
 
 
@@ -385,7 +395,8 @@ async def test_worker_timeout_after_reservation_preserves_original_window_and_pe
                 del h.subscriptions.values[key]
         worker = h.workers[queue]
         worker.lease_seconds = 1
-        assert await worker.expand_one(account_id="acct_a")
+        production_operation_11 = await worker.expand_one(account_id="acct_a")
+        assert production_operation_11
         barrier = Barrier()
         h.notification_failures.at("http.before", barrier)
         task = asyncio.create_task(worker.deliver_one(account_id="acct_a"))
@@ -394,14 +405,16 @@ async def test_worker_timeout_after_reservation_preserves_original_window_and_pe
             original = await retained_windows(h)
             assert len(original) == 1
             use_clock(h, original[0][5])
-            assert await asyncio.wait_for(task, 3)
+            production_operation_19 = await asyncio.wait_for(task, 3)
+            assert production_operation_19
         finally:
             barrier.release()
             if not task.done():
                 task.cancel()
             await asyncio.gather(task, return_exceptions=True)
         restarted = fresh_workers(h)[queue]
-        assert await restarted.deliver_one(account_id="acct_a")
+        production_operation_12 = await restarted.deliver_one(account_id="acct_a")
+        assert production_operation_12
         assert await retained_windows(h) == original
         activity = await restarted.outbox.list_activity(
             account_id="acct_a", consumer_id=h.item.binding.consumer_id
@@ -416,7 +429,8 @@ async def test_worker_timeout_after_reservation_preserves_original_window_and_pe
 async def test_pg_deadline_crossed_while_reserving_an_ordinal_rolls_it_back(tmp_path, monkeypatch):
     async with queued_production("postgres", tmp_path, monkeypatch) as h:
         worker = h.workers[2]
-        assert await worker.expand_one(account_id="acct_a")
+        production_operation_13 = await worker.expand_one(account_id="acct_a")
+        assert production_operation_13
         h.notification_failures.at("http.accepted", SimulatedCrash())
         with pytest.raises(SimulatedCrash):
             await worker.deliver_one(account_id="acct_a")
@@ -434,7 +448,8 @@ async def test_pg_deadline_crossed_while_reserving_an_ordinal_rolls_it_back(tmp_
             return ordinal
 
         monkeypatch.setattr(restarted.outbox, "_next_attempt_on", cross_deadline)
-        assert await restarted.deliver_one(account_id="acct_a")
+        production_operation_14 = await restarted.deliver_one(account_id="acct_a")
+        assert production_operation_14
         assert len(h.receiver.received) == 1
         assert await retained_windows(h) == original
         assert (
@@ -453,7 +468,8 @@ async def test_retry_horizon_is_immutable_across_crash_rotation_and_restart(
 ):
     async with queued_production(backend, tmp_path, monkeypatch) as h:
         worker = h.workers[queue]
-        assert await worker.expand_one(account_id="acct_a")
+        production_operation_15 = await worker.expand_one(account_id="acct_a")
+        assert production_operation_15
         h.notification_failures.at("http.accepted", SimulatedCrash())
         with pytest.raises(SimulatedCrash):
             await worker.deliver_one(account_id="acct_a")
@@ -468,7 +484,8 @@ async def test_retry_horizon_is_immutable_across_crash_rotation_and_restart(
         use_clock(h, row[5] + timedelta(microseconds=offset))
         h.signing.generation = 2
         restarted = fresh_workers(h)[queue]
-        assert await restarted.deliver_one(account_id="acct_a")
+        production_operation_16 = await restarted.deliver_one(account_id="acct_a")
+        assert production_operation_16
         received_count = len(h.receiver.received)
         assert received_count == (2 if offset < 0 else 1)
         assert await retained_windows(h) == original
@@ -623,7 +640,8 @@ async def test_new_queue_fanout_failure_rolls_back_all_recipients(
         assert not await worker.outbox.list_deliveries(account_id="acct_a")
         await expire_queue_lease(h, worker, expansion=True)
         restarted = fresh_workers(h)[queue]
-        assert await restarted.expand_one(account_id="acct_a")
+        production_operation_17 = await restarted.expand_one(account_id="acct_a")
+        assert production_operation_17
         assert len(await restarted.outbox.list_deliveries(account_id="acct_a")) == len(deliveries)
 
 
@@ -643,7 +661,8 @@ async def test_current_signing_failure_never_sends_or_exposes_private_data(
 
     async with queued_production(backend, tmp_path, monkeypatch) as h:
         worker = h.workers[queue]
-        assert await worker.expand_one(account_id="acct_a")
+        production_operation_18 = await worker.expand_one(account_id="acct_a")
+        assert production_operation_18
         quarantine = await h.queue()
 
         async def incompatible(**kwargs):
@@ -674,7 +693,8 @@ async def test_current_signing_failure_never_sends_or_exposes_private_data(
                 with pytest.raises(asyncio.CancelledError):
                     await worker.deliver_one(account_id="acct_a")
             else:
-                assert await worker.deliver_one(account_id="acct_a")
+                production_operation_20 = await worker.deliver_one(account_id="acct_a")
+                assert production_operation_20
         assert not h.receiver.received
         assert not caplog.records
         deliveries = await worker.outbox.list_deliveries(account_id="acct_a")

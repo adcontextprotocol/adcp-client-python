@@ -65,7 +65,8 @@ async def test_mismatch_open_resolve_recur_before_drain_and_restart(status_harne
     assert events[0].cause.issue_ids == (occurrence_ids[0],)
     assert events[2].cause.issue_ids == (occurrence_ids[1],)
     assert not await h.events(consumer="")
-    assert not (await h.status.project_one(account_id="acct_a")).did_work
+    status_operation_1 = await h.status.project_one(account_id="acct_a")
+    assert not (status_operation_1).did_work
 
 
 async def test_obligation_missing_attaches_once_and_never_broadens(status_harness):
@@ -122,14 +123,18 @@ async def test_readable_healthy_completes_at_period_end_exactly(
         c.snapshot["health"] == "healthy" for c in await h.status.checkpoints(account_id="acct_a")
     )
     h.clock.now = END - timedelta(microseconds=1)
-    assert not (await sweep.run_once(account_id="acct_a")).did_work
+    status_operation_2 = await sweep.run_once(account_id="acct_a")
+    assert not (status_operation_2).did_work
     h.clock.now = END
-    assert (await sweep.run_once(account_id="acct_a")).events == 2
+    status_operation_3 = await sweep.run_once(account_id="acct_a")
+    assert (status_operation_3).events == 2
     (event,) = await h.events()
     assert (event.cause.previous_health, event.cause.health) == ("healthy", "complete")
-    assert not (await sweep.run_once(account_id="acct_a")).did_work
+    status_operation_4 = await sweep.run_once(account_id="acct_a")
+    assert not (status_operation_4).did_work
     h.clock.now += timedelta(microseconds=1)
-    assert not (await sweep.run_once(account_id="acct_a")).did_work
+    status_operation_5 = await sweep.run_once(account_id="acct_a")
+    assert not (status_operation_5).did_work
 
 
 @pytest.mark.parametrize("escalation_seconds", [None, 0, 60, 3600, 7200])
@@ -175,18 +180,23 @@ async def test_stale_received_grace_and_escalation_share_exact_next_deadline(
         expected = h.clock() + timedelta(seconds=min(3600, escalation_seconds or 3600))
         assert checkpoint.next_due_at == expected
         h.clock.now = expected - timedelta(microseconds=1)
-        assert not (await sweep.run_once(account_id="acct_a")).did_work
+        status_operation_18 = await sweep.run_once(account_id="acct_a")
+        assert not (status_operation_18).did_work
         h.clock.now = expected
-        assert (await sweep.run_once(account_id="acct_a")).events == 2
+        status_operation_19 = await sweep.run_once(account_id="acct_a")
+        assert (status_operation_19).events == 2
         assert (await h.events(consumer="buyer"))[-1].cause.health == "action_required"
-    assert not (await sweep.run_once(account_id="acct_a")).did_work
+    status_operation_6 = await sweep.run_once(account_id="acct_a")
+    assert not (status_operation_6).did_work
     if escalation_seconds == 7200:
         before = (await h.events(consumer="buyer"))[-1]
         later = replacement.created_at + timedelta(seconds=escalation_seconds)
         h.clock.now = later - timedelta(microseconds=1)
-        assert not (await sweep.run_once(account_id="acct_a")).did_work
+        status_operation_20 = await sweep.run_once(account_id="acct_a")
+        assert not (status_operation_20).did_work
         h.clock.now = later
-        assert (await sweep.run_once(account_id="acct_a")).events == 2
+        status_operation_21 = await sweep.run_once(account_id="acct_a")
+        assert (status_operation_21).events == 2
         after = (await h.events(consumer="buyer"))[-1]
         assert after.cause.previous_health == after.cause.health == "action_required"
         assert after.cause.issue_ids == before.cause.issue_ids
@@ -197,7 +207,8 @@ async def test_stale_received_grace_and_escalation_share_exact_next_deadline(
         ).handle({}, caller=ReportingStatusCaller("acct_a", "buyer"))
         assert summary["issues"][0]["recommended_action"] == "contact_buyer"
         h.clock.now += timedelta(microseconds=1)
-        assert not (await sweep.run_once(account_id="acct_a")).did_work
+        status_operation_22 = await sweep.run_once(account_id="acct_a")
+        assert not (status_operation_22).did_work
 
 
 @pytest.mark.parametrize("revision_after_claim", [False, True])
@@ -216,10 +227,12 @@ async def test_revision_invalidates_claimed_candidate_and_clears_on_first_turn(
     if not revision_after_claim:
         lease = await h.status.claim_due(account_id="acct_a")
         assert lease is not None
-    assert (await h.status.complete_due(lease)).did_work
+    status_operation_7 = await h.status.complete_due(lease)
+    assert (status_operation_7).did_work
     assert [e.cause.health for e in await h.events()] == ["complete"]
     assert all(c.next_due_at is None for c in await h.status.checkpoints(account_id="acct_a"))
-    assert not (await ReportingStatusSweeper(h.status).run_once(account_id="acct_a")).did_work
+    status_operation_8 = await ReportingStatusSweeper(h.status).run_once(account_id="acct_a")
+    assert not (status_operation_8).did_work
 
 
 @pytest.mark.parametrize("mutation", ["readability", "waiver", "agreement", "receipt_and_waiver"])
@@ -275,11 +288,13 @@ async def test_activity_after_due_claim_repairs_candidate_without_stale_escalati
     else:
         async with h.ledger.transaction():
             if mutation == "receipt_and_waiver":
-                assert (await h.ledger.record_revision_receipt(managed.receipt))[1]
+                status_operation_23 = await h.ledger.record_revision_receipt(managed.receipt)
+                assert (status_operation_23)[1]
             await h.ledger.set_issue_state(
                 issue_key=issue.issue_key, account_id="acct_a", state="waived", at=h.clock()
             )
-    assert (await h.status.complete_due(lease)).did_work
+    status_operation_9 = await h.status.complete_due(lease)
+    assert (status_operation_9).did_work
     events = await h.events(consumer="buyer")
     assert len(events) == 1
     assert issue.issue_id not in events[0].cause.issue_ids
@@ -289,8 +304,10 @@ async def test_activity_after_due_claim_repairs_candidate_without_stale_escalati
     assert events[0].cause.health == summary["health"]
     assert events[0].cause.issue_ids == tuple(sorted(i["issue_id"] for i in summary["issues"]))
     assert all(c.next_due_at is None for c in await h.status.checkpoints(account_id="acct_a"))
-    assert not (await ReportingStatusSweeper(h.status).run_once(account_id="acct_a")).did_work
-    assert not (await h.status.project_one(account_id="acct_a")).did_work
+    status_operation_10 = await ReportingStatusSweeper(h.status).run_once(account_id="acct_a")
+    assert not (status_operation_10).did_work
+    status_operation_11 = await h.status.project_one(account_id="acct_a")
+    assert not (status_operation_11).did_work
 
 
 async def test_expiry_equality_reclaim_stale_ack_and_release(status_harness):
@@ -302,13 +319,18 @@ async def test_expiry_equality_reclaim_stale_ack_and_release(status_harness):
     lease = await h.status.claim_due(account_id="acct_a", lease_seconds=1)
     assert lease is not None
     h.clock.now = lease.expires_at
-    assert not (await h.status.complete_due(lease)).did_work
-    assert not await h.status.release_due(lease)
+    status_operation_12 = await h.status.complete_due(lease)
+    assert not (status_operation_12).did_work
+    status_operation_13 = await h.status.release_due(lease)
+    assert not status_operation_13
     replacement = await h.status.claim_due(account_id="acct_a", lease_seconds=2)
     assert replacement is not None and replacement.token != lease.token
-    assert (await h.status.complete_due(replacement)).events == 2
-    assert not (await h.status.complete_due(lease)).did_work
-    assert not await h.status.release_due(replacement)
+    status_operation_14 = await h.status.complete_due(replacement)
+    assert (status_operation_14).events == 2
+    status_operation_15 = await h.status.complete_due(lease)
+    assert not (status_operation_15).did_work
+    status_operation_16 = await h.status.release_due(replacement)
+    assert not status_operation_16
 
 
 async def test_waiver_recovers_and_agreement_rearms_a_new_occurrence(status_harness):
@@ -335,7 +357,8 @@ async def test_waiver_recovers_and_agreement_rearms_a_new_occurrence(status_harn
     old = await h.ledger.get_issue(account_id="acct_a", issue_key=mismatch_key(status))
     # Still disagreeing while waived never creates repeated occurrences.
     await h.ledger.read_status_snapshot(account_id="acct_a")
-    assert not (await h.status.project_one(account_id="acct_a")).did_work
+    status_operation_17 = await h.status.project_one(account_id="acct_a")
+    assert not (status_operation_17).did_work
     revision = (
         await h.ledger.list_revisions(
             account_id="acct_a", reporting_obligation_id=obligation.reporting_obligation_id
@@ -354,7 +377,7 @@ async def test_waiver_recovers_and_agreement_rearms_a_new_occurrence(status_harn
         status_as_of=h.clock(),
     )
     await h.ledger.record_consumer_status(agreeing)
-    assert await h.ledger.get_issue(account_id="acct_a", issue_key=mismatch_key(status)) is None
+    assert await h.ledger.get_issue(account_id="acct_a", issue_key=mismatch_key(status)) == old
     h.clock.advance()
     recur = replace(
         status,
@@ -365,8 +388,13 @@ async def test_waiver_recovers_and_agreement_rearms_a_new_occurrence(status_harn
     )
     await h.ledger.record_consumer_status(recur)
     await h.drain()
-    new = await h.ledger.get_issue(account_id="acct_a", issue_key=mismatch_key(status))
-    assert new.issue_id != old.issue_id and new.generation == old.generation + 1
+    snapshot = await h.ledger.read_status_snapshot(account_id="acct_a")
+    new_id = (await h.events(consumer="buyer"))[-1].cause.issue_ids[0]
+    new = next(i for i in snapshot.lifecycles if i.issue_id == new_id)
+    assert new.issue_id != old.issue_id
+    assert (new.issue_key, new.generation) != (old.issue_key, old.generation)
+    assert new.opened_at == h.clock() and new.issue_state == "open"
+    assert next(i for i in snapshot.lifecycles if i.issue_id == old.issue_id) == old
     assert (await h.events(consumer="buyer"))[-1].cause.issue_ids == (new.issue_id,)
     assert await h.status.baseline_ready(account_id="acct_a")
 

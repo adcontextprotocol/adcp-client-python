@@ -2,7 +2,7 @@
 
 **B2.1 of 4 within B2 of B1/B2. Refs #1167.** This unit builds on the
 independently approved B1 commit
-`1c91311ec28d25506d5db43f59d0c34936ecb8f7`. It supplies durable reservation,
+`5487f2bdef23c5102118b305be9e868228f6ce61`. It supplies durable reservation,
 verified destination I/O, recovery, and one atomic finish transaction. It does
 not activate a complete Managed Delivery or Reconciled Billing offering.
 
@@ -226,14 +226,14 @@ and performs permitted ordinary writes both before and after B2 installation.
 | beta.15 | `3e76aa54623529a3dda01cd690b8a5c287c75641` | No notification API |
 | #1167A records | `3c405a21f978ed9d3208611bb4a7a8434a056933` | No notification API |
 | Foundation integration | `037de4ac822ecefb2f95d32c15c297fb4c45d683` | No notification API |
-| #1168A outbox | `21bf443e7d850d1800ec8a6f2e4abec1c8f85541` | Aggregate readiness closed on both |
-| #1168B activity | `198d50e61c74fb82aedbf2c77e06a0e200b91db6` | Required-object readiness valid on both |
-| #1168C status | `ea150fabd5ad90e3abf93f89729d2919f1c61798` | Required-object readiness valid on both |
-| #1167B1 | `1c91311ec28d25506d5db43f59d0c34936ecb8f7` | Required-object readiness valid on both |
+| #1168A outbox | `17ee407ae3978c8a2bb54437287afbf9dafb8130` | Aggregate readiness closed on both |
+| #1168B activity | `0f34c666ac1961e9832fce43ef0ef6937b3c1dde` | Required-object readiness valid on both |
+| #1168C status | `967b6e286301d7e5d089aea6fdbb90bea8ee5a16` | Required-object readiness valid on both |
+| #1167B1 | `5487f2bdef23c5102118b305be9e868228f6ce61` | Required-object readiness valid on both |
 
-The historical positive-readiness fixture requires PostgreSQL 16, **UTF8 with
-`LC_COLLATE=C` and `LC_CTYPE=C`**. Frozen A is ready on its native schema under
-that precondition. Reviewed C's additive triggers already close A's aggregate
+The positive-readiness fixture requires PostgreSQL 16 and UTF8. The integrated
+A/B/C/B1 pins above preserve the catalog-portability and rc.6 corrections now on
+main; no C-only database locale is imposed. Frozen A is ready on its native schema. Reviewed C's additive triggers already close A's aggregate
 digest on the approved C/B1 baseline. B2 must preserve that exact classification;
 it is not a new waiver. A's permitted default-off Core reads/writes and existing
 ordinary notification worker remain functional. The newer B/C required-object
@@ -250,10 +250,12 @@ caller's materializations. Actual old ordinary/status workers consume positive
 control events but cannot claim/mutate B2 event/expansion work, materializer work,
 or captured boundaries/heads.
 
-Non-C historical aggregate portability is a separate probe with a different
-precondition; it must not be presented as this positive readiness gate or as
-shared-database lock contention. New B2 failures on supported old operations
-are regressions, regardless of the inherited frozen-A aggregate limitation.
+These controls do not qualify pre-`17ee407a` A, pre-`0f34c666` B,
+pre-`967b6e28` C or pre-`5487f2bd` B1 binaries. In particular, the earlier
+`21bf443e` A catalog digests depended on database collation. This rolling scope
+limit must accompany release notes; it does not retroactively qualify the older
+snapshots. New B2 failures on supported old operations are regressions, regardless
+of the inherited frozen-A aggregate limitation.
 
 Run the historical comparison with its provenance output preserved:
 

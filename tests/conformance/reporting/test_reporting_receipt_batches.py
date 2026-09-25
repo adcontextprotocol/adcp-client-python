@@ -60,7 +60,10 @@ async def test_mixed_batch_order_durable_failure_and_exact_response_replay(recei
     assert replay == result and "replayed" not in replay
     assert await h.image() == before
     replay["results"].clear()
-    assert await h.store.ingest_receipt_batch(request, caller=s.attempt.scope.principal) == result
+    receipt_operation_1 = await h.store.ingest_receipt_batch(
+        request, caller=s.attempt.scope.principal
+    )
+    assert receipt_operation_1 == result
 
 
 @pytest.mark.parametrize(
@@ -313,10 +316,10 @@ async def test_accepted_artifact_authority_survives_later_outcomes_separately_fr
     view = snapshot.materialization(s.attempt.key)
     assert view.outcome == s.outcome
     assert view.readable_at(at) is (later not in {"expiry", "corruption"})
-    assert (
-        await h.store.ingest_receipt_batch(request_for(s), caller=s.attempt.scope.principal)
-        == result
+    receipt_operation_2 = await h.store.ingest_receipt_batch(
+        request_for(s), caller=s.attempt.scope.principal
     )
+    assert receipt_operation_2 == result
 
 
 async def test_hundred_combined_results_and_adjustment_only_admission(receipts):
@@ -341,9 +344,8 @@ async def test_hundred_combined_results_and_adjustment_only_admission(receipts):
         "idempotency_key": "only-adjustment-0001",
         "adjustment_receipts": [request["adjustment_receipts"][0]],
     }
-    assert (await h.store.ingest_receipt_batch(only, caller=s.attempt.scope.principal))["results"][
-        0
-    ]["result"] == "unchanged"
+    receipt_operation_3 = await h.store.ingest_receipt_batch(only, caller=s.attempt.scope.principal)
+    assert (receipt_operation_3)["results"][0]["result"] == "unchanged"
 
 
 @pytest.mark.parametrize(
@@ -379,7 +381,8 @@ async def test_whole_request_utf16_key_order_survives_storage_and_exact_replay(r
     response = await h.store.ingest_receipt_batch(request, caller=s.binding.principal)
     assert response["results"][0]["result"] == "recorded"
     assert response["context"] == context
-    assert await h.store.ingest_receipt_batch(request, caller=s.binding.principal) == response
+    receipt_operation_4 = await h.store.ingest_receipt_batch(request, caller=s.binding.principal)
+    assert receipt_operation_4 == response
     before = await h.image()
     changed = {**request, "context": {**context, "nested": {"\ue000": "changed"}}}
     with pytest.raises(ReportingReceiptError) as error:

@@ -295,17 +295,20 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
             # Read-only sampling. Never lock global candidate rows before the
             # account advisory lock, including when a competing worker is busy.
             for _ in range(2):
+                # Keep the cursor serialized, but order native timestamps: the
+                # served_at::text output alias otherwise makes fairness locale-dependent.
                 after = self._materializer_sample_after
                 if after:
                     query = (
                         "SELECT account_id,served_at::text FROM reporting_materializer_accounts"
                         " WHERE due_at<=%s AND (served_at,account_id)>(%s::timestamptz,%s)"
-                        " ORDER BY served_at,account_id LIMIT 16"
+                        " ORDER BY reporting_materializer_accounts.served_at,account_id LIMIT 16"
                     )
                 else:
                     query = (
                         "SELECT account_id,served_at::text FROM reporting_materializer_accounts"
-                        " WHERE due_at<=%s ORDER BY served_at,account_id LIMIT 16"
+                        " WHERE due_at<=%s"
+                        " ORDER BY reporting_materializer_accounts.served_at,account_id LIMIT 16"
                     )
                 accounts = await (
                     await connection.execute(
