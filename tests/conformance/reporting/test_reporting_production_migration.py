@@ -38,7 +38,8 @@ def original_rows(image, before):
     # Its default leaves old C checkpoints compatible until explicit activation.
     result = deepcopy({key: image[key] for key in before})
     for (row,) in result.get("reporting_status_scope_checkpoints", []):
-        assert row.pop("projection_writer_floor", 1) == 1
+        writer_floor = row.pop("projection_writer_floor", 1)
+        assert writer_floor == 1
     return result
 
 
@@ -200,15 +201,21 @@ async def test_interrupted_complete_migration_rolls_back_every_new_object(
 @pytest.mark.parametrize(
     "damage",
     [
-        "ALTER TABLE reporting_production_delivery_windows"
-        " DISABLE TRIGGER reporting_production_delivery_window_immutable",
+        (
+            "ALTER TABLE reporting_production_delivery_windows"
+            " DISABLE TRIGGER reporting_production_delivery_window_immutable"
+        ),
         "ALTER TABLE reporting_production_delivery_windows ALTER COLUMN expires_at DROP NOT NULL",
         "DROP TABLE reporting_production_delivery_windows",
         "DROP INDEX reporting_production_source_pending",
-        "ALTER TABLE reporting_projection_inputs"
-        " DISABLE TRIGGER reporting_projection_input_immutable",
-        "ALTER TABLE reporting_status_scope_checkpoints"
-        " DISABLE TRIGGER reporting_projection_checkpoint_guard",
+        (
+            "ALTER TABLE reporting_projection_inputs"
+            " DISABLE TRIGGER reporting_projection_input_immutable"
+        ),
+        (
+            "ALTER TABLE reporting_status_scope_checkpoints"
+            " DISABLE TRIGGER reporting_projection_checkpoint_guard"
+        ),
     ],
 )
 @pytest.mark.parametrize("notifications", [False, True])
