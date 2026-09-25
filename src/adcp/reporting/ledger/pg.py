@@ -118,6 +118,7 @@ from adcp.reporting.ledger.notification_models import (
     issue_evidence,
     validate_scope_refinement,
 )
+from adcp.reporting.ledger.provisional import ProvisionalAcquisition, ProvisionalObservation
 from adcp.reporting.ledger.store import (
     LeasedConfiguration,
     LedgerConflictError,
@@ -244,6 +245,7 @@ class PgReportingLedgerStore:
             _RECONCILIATION_DDL_PATH,
             _NOTIFICATIONS_DDL_PATH,
             _ACTIVITY_DDL_PATH,
+            Path(__file__).with_name("reporting_provisional_observations.sql"),
         ):
             await connection.execute(path.read_text())
         if self._notifications_enabled:
@@ -881,6 +883,149 @@ class PgReportingLedgerStore:
                 )
             ).fetchall()
         return tuple(_revision_from_row(row) for row in rows)
+
+    async def reserve_provisional_acquisition(
+        self, acquisition: ProvisionalAcquisition
+    ) -> ProvisionalAcquisition:
+        async with self.transaction(), self._connection() as connection:
+            await self._lock_account(connection, acquisition.account_id)
+            key = (acquisition.account_id, acquisition.obligation_id, acquisition.ordinal)
+            existing = await (
+                await connection.execute(
+                    "SELECT payload FROM reporting_provisional_acquisitions"
+                    " WHERE account_id=%s AND reporting_obligation_id=%s AND ordinal=%s",
+                    key,
+                )
+            ).fetchone()
+            if existing is not None:
+                return ProvisionalAcquisition.from_wire(existing[0])
+            obligation = await self.get_obligation(
+                account_id=acquisition.account_id,
+                reporting_obligation_id=acquisition.obligation_id,
+            )
+            if obligation is None:
+                raise LedgerConflictError("OBLIGATION_NOT_FOUND", "unknown observation obligation")
+            if not acquisition.binds(obligation):
+                raise LedgerConflictError("OBSERVATION_CONFLICT", "acquisition generation differs")
+            duplicate = await (
+                await connection.execute(
+                    "SELECT 1 FROM reporting_provisional_acquisitions"
+                    " WHERE account_id=%s AND source_execution_key=%s",
+                    (acquisition.account_id, acquisition.execution_key),
+                )
+            ).fetchone()
+            if duplicate is not None:
+                raise LedgerConflictError(
+                    "OBSERVATION_CONFLICT", "execution key is already reserved"
+                )
+            checkpoint = await self.get_restatement_checkpoint(
+                account_id=acquisition.account_id,
+                reporting_obligation_id=acquisition.obligation_id,
+            )
+            expected = (
+                checkpoint.next_observation
+                if checkpoint
+                else len(
+                    await self.list_revisions(
+                        account_id=acquisition.account_id,
+                        reporting_obligation_id=acquisition.obligation_id,
+                    )
+                )
+            )
+            if acquisition.ordinal != expected:
+                raise LedgerConflictError("OBSERVATION_CONFLICT", "observation ordinal changed")
+            await connection.execute(
+                "INSERT INTO reporting_provisional_acquisitions"
+                " (account_id,reporting_obligation_id,ordinal,source_execution_key,payload)"
+                " VALUES (%s,%s,%s,%s,%s::jsonb)",
+                (*key, acquisition.execution_key, _json(acquisition.to_wire())),
+            )
+            return ProvisionalAcquisition.from_wire(acquisition.to_wire())
+
+    async def get_provisional_observation(
+        self, *, account_id: str, reporting_obligation_id: str
+    ) -> ProvisionalObservation | None:
+        async with self._connection() as connection:
+            row = await (
+                await connection.execute(
+                    "SELECT payload FROM reporting_provisional_observations"
+                    " WHERE account_id=%s AND reporting_obligation_id=%s"
+                    " ORDER BY ordinal DESC LIMIT 1",
+                    (account_id, reporting_obligation_id),
+                )
+            ).fetchone()
+        return ProvisionalObservation.from_wire(row[0]) if row else None
+
+    async def commit_provisional_observation(
+        self,
+        observation: ProvisionalObservation,
+        revision: ReportingRevisionRecord,
+        rows: Sequence[dict[str, Any]],
+    ) -> ReportingRevisionRecord:
+        acquisition = observation.acquisition
+        key = (acquisition.account_id, acquisition.obligation_id, acquisition.ordinal)
+        if (
+            revision.account_id != acquisition.account_id
+            or revision.reporting_obligation_id != acquisition.obligation_id
+            or revision.reporting_revision_id != observation.revision_id
+        ):
+            raise LedgerConflictError("OBSERVATION_CONFLICT", "observation identity differs")
+        async with self.transaction(), self._connection() as connection:
+            await self._lock_account(connection, acquisition.account_id)
+            existing = await (
+                await connection.execute(
+                    "SELECT reporting_revision_id,payload FROM reporting_provisional_observations"
+                    " WHERE account_id=%s AND reporting_obligation_id=%s AND ordinal=%s",
+                    key,
+                )
+            ).fetchone()
+            if existing is not None:
+                retained_observation = ProvisionalObservation.from_wire(existing[1])
+                if (
+                    retained_observation.acquisition != acquisition
+                    or existing[0] != observation.revision_id
+                ):
+                    raise LedgerConflictError("OBSERVATION_CONFLICT", "observation replay differs")
+                retained_revision = await self.get_revision(
+                    account_id=acquisition.account_id, reporting_revision_id=existing[0]
+                )
+                if retained_revision is None:
+                    raise LedgerConflictError(
+                        "HISTORY_UNAVAILABLE", "observation revision is missing"
+                    )
+                return retained_revision
+            reserved = await (
+                await connection.execute(
+                    "SELECT payload FROM reporting_provisional_acquisitions"
+                    " WHERE account_id=%s AND reporting_obligation_id=%s AND ordinal=%s",
+                    key,
+                )
+            ).fetchone()
+            if reserved is None or ProvisionalAcquisition.from_wire(reserved[0]) != acquisition:
+                raise LedgerConflictError("OBSERVATION_CONFLICT", "acquisition was not reserved")
+            checkpoint = await self.get_restatement_checkpoint(
+                account_id=acquisition.account_id,
+                reporting_obligation_id=acquisition.obligation_id,
+            )
+            if checkpoint is not None and checkpoint.next_observation != acquisition.ordinal:
+                raise LedgerConflictError("OBSERVATION_CONFLICT", "observation ordinal changed")
+            committed = await self.commit_revision(revision, rows)
+            await self.record_restatement_checkpoint(
+                RestatementCheckpoint(
+                    acquisition.account_id,
+                    acquisition.obligation_id,
+                    observation.checked_at,
+                    acquisition.ordinal + 1,
+                    observation.provisional_until,
+                )
+            )
+            await connection.execute(
+                "INSERT INTO reporting_provisional_observations"
+                " (account_id,reporting_obligation_id,ordinal,reporting_revision_id,payload)"
+                " VALUES (%s,%s,%s,%s,%s::jsonb)",
+                (*key, revision.reporting_revision_id, _json(observation.to_wire())),
+            )
+            return committed
 
     async def get_restatement_checkpoint(
         self, *, account_id: str, reporting_obligation_id: str
