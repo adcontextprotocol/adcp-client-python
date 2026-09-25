@@ -11,6 +11,7 @@ from adcp.reporting.submissions.models import (
     ReportingSubmissionError,
     ReportingSubmissionScope,
     confirm_submission,
+    freeze_response,
     validate_submission,
 )
 from adcp.types import SyncReportingReceiptsResponse
@@ -128,6 +129,7 @@ class InMemoryReportingSubmissionIntentStore:
         chunk: int,
         response: SyncReportingReceiptsResponse,
     ) -> ReportingReceiptSubmission:
+        frozen = freeze_response(response)
         async with self._lock:
             current = self._current(scope)
             state = self._submissions.get((scope.storage_key, submission_id))
@@ -138,6 +140,6 @@ class InMemoryReportingSubmissionIntentStore:
                 state.pending and state.submission_id != current.submission_id
             ):
                 raise ReportingSubmissionError(ReportingSubmissionCode.HISTORY_CORRUPT)
-            updated = confirm_submission(state, chunk, response)
+            updated = confirm_submission(state, chunk, frozen)
             self._submissions[(scope.storage_key, submission_id)] = updated
             return updated

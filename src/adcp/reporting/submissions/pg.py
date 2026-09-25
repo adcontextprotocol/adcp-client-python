@@ -7,7 +7,9 @@ Importing this module does not require psycopg; actual use requires adcp[pg].
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
 from functools import wraps
 from importlib.resources import files
 from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
@@ -20,6 +22,7 @@ from adcp.reporting.submissions.models import (
     confirm_submission,
     decode_submission,
     encode_submission,
+    freeze_response,
     validate_submission,
 )
 from adcp.types import SyncReportingReceiptsResponse
@@ -29,6 +32,22 @@ if TYPE_CHECKING:
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
+_MAX_CAS_ATTEMPTS = 16
+_Row = tuple[Any, ...]
+
+
+@dataclass(frozen=True, repr=False)
+class _Snapshot:
+    """Complete raw state used by a read/validate/lock/compare transaction.
+
+    Actual text, digests, pending flags, pointer and scope identity participate
+    in equality. A matching digest label alone never permits a write.
+    """
+
+    scope: _Row | None
+    current: _Row | None
+    selected: _Row | None
+    has_intents: bool
 
 
 def _closed_storage_errors(
@@ -55,7 +74,11 @@ class PgReportingSubmissionIntentStore:
     with a dedicated schema/search_path and bounded connection/statement waits.
     There is no credential or connection string in this object's representation.
     Run create_schema explicitly during rollout, then validate custom backends
-    with the same memory/PostgreSQL state-machine vectors.
+    with the same memory/PostgreSQL state-machine vectors. Readiness requires all
+    shipped, validated CHECK definitions as well as the keys and reservation
+    index. Snapshot validation happens outside transactions; a mutation compares
+    the complete locked state, retrying at most 16 times. Contention exhaustion
+    raises STORAGE_UNAVAILABLE and leaves the durable intent available to resume.
     """
 
     def __init__(self, *, pool: AsyncConnectionPool) -> None:
@@ -83,37 +106,59 @@ class PgReportingSubmissionIntentStore:
             await self._check_schema_on(connection)
 
     async def _check_schema_on(self, connection: Any) -> None:
-        # These are the concurrency invariants, not an IF NOT EXISTS assumption.
+        # Verify storage bounds as well as concurrency invariants. IF NOT EXISTS
+        # must not silently bless a pre-created table with weaker constraints.
         rows = await (
             await connection.execute(
-                "SELECT c.conname,c.contype,c.convalidated,c.condeferrable,"
+                "SELECT c.conrelid='reporting_buyer_submission_scopes'::regclass,"
+                " c.conname,c.contype,c.convalidated,c.condeferrable,c.connoinherit,"
                 " pg_get_constraintdef(c.oid) FROM pg_constraint c"
                 " WHERE c.conrelid IN ('reporting_buyer_submission_scopes'::regclass,"
                 " 'reporting_buyer_submission_intents'::regclass)"
             )
         ).fetchall()
-        constraints = {row[0]: tuple(row[1:]) for row in rows}
+        constraints = {(row[0], row[1]): tuple(row[2:]) for row in rows}
         required = {
-            "reporting_buyer_submission_scopes_pkey": (
+            (True, "reporting_buyer_submission_scopes_pkey"): (
                 "p",
                 True,
                 False,
+                True,
                 "PRIMARY KEY (scope_sha256)",
             ),
-            "reporting_buyer_submission_intents_pkey": (
+            (False, "reporting_buyer_submission_intents_pkey"): (
                 "p",
                 True,
                 False,
+                True,
                 "PRIMARY KEY (scope_sha256, submission_id)",
             ),
-            "reporting_buyer_submission_scope_fk": (
+            (False, "reporting_buyer_submission_scope_fk"): (
                 "f",
                 True,
                 False,
+                True,
                 "FOREIGN KEY (scope_sha256) REFERENCES "
                 "reporting_buyer_submission_scopes(scope_sha256)",
             ),
         }
+        checks = (
+            (True, "scope_digest", "scope_sha256 ~ '^[a-f0-9]{64}$'::text"),
+            (True, "scope_bound", "octet_length(canonical_identity) <= 32768"),
+            (False, "submission_id", "submission_id ~ '^reporting-submission:[a-f0-9]{64}$'::text"),
+            (False, "plan_digest", "plan_sha256 ~ '^[a-f0-9]{64}$'::text"),
+            (False, "confirmed_digest", "confirmed_sha256 ~ '^[a-f0-9]{64}$'::text"),
+            (False, "plan_bound", "octet_length(canonical_plan) <= 16777216"),
+            (False, "confirmed_bound", "octet_length(confirmed_results) <= 16777216"),
+        )
+        for scopes_table, suffix, expression in checks:
+            required[(scopes_table, f"reporting_buyer_{suffix}")] = (
+                "c",
+                True,
+                False,
+                False,
+                f"CHECK (({expression}))",
+            )
         if any(constraints.get(name) != expected for name, expected in required.items()):
             raise ReportingSubmissionError(ReportingSubmissionCode.HISTORY_CORRUPT)
         index = await (
@@ -127,51 +172,75 @@ class PgReportingSubmissionIntentStore:
         if index is None or tuple(index) != (True, True, True, 1, "scope_sha256", "pending", True):
             raise ReportingSubmissionError(ReportingSubmissionCode.HISTORY_CORRUPT)
 
-    async def _scope_on(
-        self, connection: Any, scope: ReportingSubmissionScope, *, create: bool = False
-    ) -> tuple[bool, str | None]:
-        if create:
-            await connection.execute(
-                "INSERT INTO reporting_buyer_submission_scopes"
-                " (scope_sha256,canonical_identity) VALUES (%s,%s)"
-                " ON CONFLICT (scope_sha256) DO NOTHING",
-                (scope.storage_key, scope.canonical_identity.decode()),
-            )
-        row = await (
-            await connection.execute(
-                "SELECT canonical_identity,current_submission_id"
-                " FROM reporting_buyer_submission_scopes WHERE scope_sha256=%s FOR UPDATE",
-                (scope.storage_key,),
-            )
-        ).fetchone()
+    async def _snapshot_on(
+        self, connection: Any, key: str, selected_id: str | None, *, lock: bool = False
+    ) -> _Snapshot:
+        scope_query = (
+            "SELECT canonical_identity,current_submission_id"
+            " FROM reporting_buyer_submission_scopes WHERE scope_sha256=%s FOR UPDATE"
+            if lock
+            else "SELECT canonical_identity,current_submission_id"
+            " FROM reporting_buyer_submission_scopes WHERE scope_sha256=%s"
+        )
+        row = await (await connection.execute(scope_query, (key,))).fetchone()
         if row is None:
-            return False, None
-        if row[0] != scope.canonical_identity.decode():
-            raise ReportingSubmissionError(ReportingSubmissionCode.HISTORY_CORRUPT)
+            return _Snapshot(None, None, None, False)
+        intent_query = (
+            "SELECT submission_id,canonical_plan,plan_sha256,confirmed_results,"
+            " confirmed_sha256,pending FROM reporting_buyer_submission_intents"
+            " WHERE scope_sha256=%s AND (submission_id=%s OR submission_id=%s) FOR UPDATE"
+            if lock
+            else "SELECT submission_id,canonical_plan,plan_sha256,confirmed_results,"
+            " confirmed_sha256,pending FROM reporting_buyer_submission_intents"
+            " WHERE scope_sha256=%s AND (submission_id=%s OR submission_id=%s)"
+        )
+        rows = await (await connection.execute(intent_query, (key, row[1], selected_id))).fetchall()
+        by_id = {value[0]: tuple(value) for value in rows}
+        has_intents = bool(rows)
         if row[1] is None:
-            existing = await (
-                await connection.execute(
-                    "SELECT 1 FROM reporting_buyer_submission_intents"
-                    " WHERE scope_sha256=%s LIMIT 1",
-                    (scope.storage_key,),
-                )
-            ).fetchone()
-            if existing is not None:
-                raise ReportingSubmissionError(ReportingSubmissionCode.HISTORY_CORRUPT)
-        return True, row[1]
+            has_intents = (
+                await (
+                    await connection.execute(
+                        "SELECT 1 FROM reporting_buyer_submission_intents"
+                        " WHERE scope_sha256=%s LIMIT 1",
+                        (key,),
+                    )
+                ).fetchone()
+            ) is not None
+        return _Snapshot(
+            tuple(row),
+            by_id.get(row[1]),
+            by_id.get(row[1] if selected_id is None else selected_id),
+            has_intents,
+        )
 
-    async def _read_on(
-        self, connection: Any, scope: ReportingSubmissionScope, submission_id: str
-    ) -> ReportingReceiptSubmission | None:
-        row = await (
-            await connection.execute(
-                "SELECT submission_id,canonical_plan,plan_sha256,confirmed_results,"
-                " confirmed_sha256,pending FROM reporting_buyer_submission_intents"
-                " WHERE scope_sha256=%s AND submission_id=%s",
-                (scope.storage_key, submission_id),
-            )
-        ).fetchone()
-        return decode_submission(scope, row) if row is not None else None
+    async def _snapshot(self, key: str, selected_id: str | None) -> _Snapshot:
+        # Release the read-only MVCC snapshot and connection before CPU work.
+        # No scope row lock or caller-owned validation occurs in this phase.
+        async with self._pool.connection() as connection, connection.transaction():
+            await connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+            return await self._snapshot_on(connection, key, selected_id)
+
+    def _validate_snapshot(
+        self, scope: ReportingSubmissionScope, snapshot: _Snapshot
+    ) -> tuple[ReportingReceiptSubmission | None, ReportingReceiptSubmission | None]:
+        if snapshot.scope is None:
+            return None, None
+        if snapshot.scope[0] != scope.canonical_identity.decode() or (
+            snapshot.scope[1] is None and snapshot.has_intents
+        ):
+            raise ReportingSubmissionError(ReportingSubmissionCode.HISTORY_CORRUPT)
+        if snapshot.scope[1] is not None and snapshot.current is None:
+            raise ReportingSubmissionError(ReportingSubmissionCode.HISTORY_CORRUPT)
+        current = decode_submission(scope, snapshot.current) if snapshot.current else None
+        selected = (
+            current
+            if snapshot.selected is snapshot.current
+            else decode_submission(scope, snapshot.selected) if snapshot.selected else None
+        )
+        if selected is not None and selected.pending and selected != current:
+            raise ReportingSubmissionError(ReportingSubmissionCode.HISTORY_CORRUPT)
+        return current, selected
 
     @_closed_storage_errors
     async def reserve(self, proposed: ReportingReceiptSubmission) -> ReportingReceiptSubmission:
@@ -179,54 +248,58 @@ class PgReportingSubmissionIntentStore:
         if proposed.confirmed_chunks:
             raise ReportingSubmissionError(ReportingSubmissionCode.INVALID_PLAN)
         scope = proposed.scope
-        async with self._pool.connection() as connection, connection.transaction():
-            _, current_id = await self._scope_on(connection, scope, create=True)
-            if current_id is not None:
-                current = await self._read_on(connection, scope, current_id)
-                if current is None:
-                    raise ReportingSubmissionError(ReportingSubmissionCode.HISTORY_CORRUPT)
-                if current.pending:
-                    return current
-            previous = await self._read_on(connection, scope, proposed.submission_id)
+        key, identity = scope.storage_key, scope.canonical_identity.decode()
+        plan, plan_digest, confirmed, confirmed_digest = encode_submission(proposed)
+        for _ in range(_MAX_CAS_ATTEMPTS):
+            snapshot = await self._snapshot(key, proposed.submission_id)
+            current, previous = await asyncio.to_thread(self._validate_snapshot, scope, snapshot)
+            if current is not None and current.pending:
+                return current
             if previous is not None:
                 if previous._plan != proposed._plan:
                     raise ReportingSubmissionError(ReportingSubmissionCode.HISTORY_CORRUPT)
                 return previous
-            plan, plan_digest, confirmed, confirmed_digest = encode_submission(proposed)
-            await connection.execute(
-                "INSERT INTO reporting_buyer_submission_intents"
-                " (scope_sha256,submission_id,canonical_plan,plan_sha256,"
-                " confirmed_results,confirmed_sha256,pending) VALUES (%s,%s,%s,%s,%s,%s,true)",
-                (
-                    scope.storage_key,
-                    proposed.submission_id,
-                    plan,
-                    plan_digest,
-                    confirmed,
-                    confirmed_digest,
-                ),
-            )
-            await connection.execute(
-                "UPDATE reporting_buyer_submission_scopes SET current_submission_id=%s"
-                " WHERE scope_sha256=%s",
-                (proposed.submission_id, scope.storage_key),
-            )
-        return proposed
+            async with self._pool.connection() as connection, connection.transaction():
+                expected = snapshot
+                if snapshot.scope is None:
+                    await connection.execute(
+                        "INSERT INTO reporting_buyer_submission_scopes"
+                        " (scope_sha256,canonical_identity) VALUES (%s,%s)"
+                        " ON CONFLICT (scope_sha256) DO NOTHING",
+                        (key, identity),
+                    )
+                    expected = _Snapshot((identity, None), None, None, False)
+                actual = await self._snapshot_on(connection, key, proposed.submission_id, lock=True)
+                if actual != expected:
+                    continue
+                await connection.execute(
+                    "INSERT INTO reporting_buyer_submission_intents"
+                    " (scope_sha256,submission_id,canonical_plan,plan_sha256,"
+                    " confirmed_results,confirmed_sha256,pending) VALUES (%s,%s,%s,%s,%s,%s,true)",
+                    (
+                        key,
+                        proposed.submission_id,
+                        plan,
+                        plan_digest,
+                        confirmed,
+                        confirmed_digest,
+                    ),
+                )
+                await connection.execute(
+                    "UPDATE reporting_buyer_submission_scopes SET current_submission_id=%s"
+                    " WHERE scope_sha256=%s",
+                    (proposed.submission_id, key),
+                )
+            return proposed
+        raise ReportingSubmissionError(ReportingSubmissionCode.STORAGE_UNAVAILABLE)
 
     @_closed_storage_errors
     async def get(
         self, scope: ReportingSubmissionScope, submission_id: str | None = None
     ) -> ReportingReceiptSubmission | None:
-        async with self._pool.connection() as connection, connection.transaction():
-            exists, current_id = await self._scope_on(connection, scope)
-            if not exists or current_id is None:
-                return None
-            current = await self._read_on(connection, scope, current_id)
-            if current is None:
-                raise ReportingSubmissionError(ReportingSubmissionCode.HISTORY_CORRUPT)
-            if submission_id is None or submission_id == current_id:
-                return current
-            return await self._read_on(connection, scope, submission_id)
+        snapshot = await self._snapshot(scope.storage_key, submission_id)
+        _, selected = await asyncio.to_thread(self._validate_snapshot, scope, snapshot)
+        return selected
 
     @_closed_storage_errors
     async def confirm(
@@ -236,20 +309,29 @@ class PgReportingSubmissionIntentStore:
         chunk: int,
         response: SyncReportingReceiptsResponse,
     ) -> ReportingReceiptSubmission:
-        async with self._pool.connection() as connection, connection.transaction():
-            exists, current_id = await self._scope_on(connection, scope)
-            state = await self._read_on(connection, scope, submission_id) if exists else None
+        # Caller-owned Pydantic objects are detached before the first await.
+        # Retries compare the same immutable response, even if its owner edits it.
+        frozen = freeze_response(response)
+        key = scope.storage_key
+        for _ in range(_MAX_CAS_ATTEMPTS):
+            snapshot = await self._snapshot(key, submission_id)
+            _, state = await asyncio.to_thread(self._validate_snapshot, scope, snapshot)
             if state is None:
                 raise ReportingSubmissionError(ReportingSubmissionCode.NOT_FOUND)
-            if state.pending and current_id != submission_id:
-                raise ReportingSubmissionError(ReportingSubmissionCode.HISTORY_CORRUPT)
-            updated = confirm_submission(state, chunk, response)
-            if updated is not state:
-                _, _, confirmed, digest = encode_submission(updated)
-                await connection.execute(
-                    "UPDATE reporting_buyer_submission_intents"
-                    " SET confirmed_results=%s,confirmed_sha256=%s,pending=%s"
-                    " WHERE scope_sha256=%s AND submission_id=%s",
-                    (confirmed, digest, updated.pending, scope.storage_key, submission_id),
-                )
-        return updated
+            updated = await asyncio.to_thread(confirm_submission, state, chunk, frozen)
+            _, _, confirmed, digest = encode_submission(updated)
+            pending = updated.pending
+            async with self._pool.connection() as connection, connection.transaction():
+                actual = await self._snapshot_on(connection, key, submission_id, lock=True)
+                if actual != snapshot:
+                    continue
+                if updated is not state:
+                    await connection.execute(
+                        "UPDATE reporting_buyer_submission_intents"
+                        " SET confirmed_results=%s,confirmed_sha256=%s,pending=%s"
+                        " WHERE scope_sha256=%s AND submission_id=%s",
+                        (confirmed, digest, pending, key, submission_id),
+                    )
+            return updated
+        # Contention never frees the lane or guesses whether another commit won.
+        raise ReportingSubmissionError(ReportingSubmissionCode.STORAGE_UNAVAILABLE)

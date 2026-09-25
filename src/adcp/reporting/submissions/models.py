@@ -18,6 +18,7 @@ from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.evidence import consumer_reference, principal_reference
 from adcp.reporting.outbox.identity import canonical_consumer
 from adcp.reporting.receipts.wire import ReceiptBatch, validate_receipt_response
+from adcp.reporting.submissions._validation_cache import CONFIRMATIONS, PLANS
 from adcp.types import (
     ReportingAdjustmentReceipt,
     ReportingReceipt,
@@ -174,7 +175,7 @@ class ReportingReceiptSubmission:
 
     @property
     def chunk_count(self) -> int:
-        return len(json.loads(self._plan)["requests"])
+        return len(_validated_requests(self))
 
     @property
     def confirmed_chunks(self) -> int:
@@ -186,7 +187,7 @@ class ReportingReceiptSubmission:
 
     def request(self, ordinal: int) -> SyncReportingReceiptsRequest:
         """Return a fresh typed view of one exact persisted request body."""
-        body = json.loads(self._plan)["requests"][ordinal]
+        body = json.loads(_validated_requests(self)[ordinal])
         return SyncReportingReceiptsRequest.model_validate(body)
 
     @property
@@ -284,6 +285,7 @@ def prepare_reporting_receipt_submission(
             scope.canonical_identity + b"\n" + canonical_json_utf8_v1(items)
         ).hexdigest()
         requests = []
+        encoded_requests = []
         for offset in range(0, len(items), _CHUNK_SIZE):
             request: dict[str, Any] = {
                 "adcp_version": _VERSION,
@@ -306,10 +308,12 @@ def prepare_reporting_receipt_submission(
                 raise ValueError
             ReceiptBatch.parse(request)
             requests.append(request)
+            encoded_requests.append(encoded)
         plan = canonical_json_utf8_v1({"version": 1, "items": items, "requests": requests})
         if len(plan) > MAX_SUBMISSION_BYTES:
             raise ValueError
         result = ReportingReceiptSubmission(scope, f"reporting-submission:{fingerprint}", plan)
+        PLANS.put(_plan_key(result), tuple(encoded_requests))
     except Exception:
         result = None
     if result is None:
@@ -317,12 +321,28 @@ def prepare_reporting_receipt_submission(
     return result
 
 
-def validate_submission(submission: ReportingReceiptSubmission) -> None:
-    """Check every supplied/persisted byte and confirmed result before use."""
-    valid = False
+def _plan_key(submission: ReportingReceiptSubmission) -> tuple[bytes, ...]:
+    if (
+        type(submission) is not ReportingReceiptSubmission
+        or type(submission.scope) is not ReportingSubmissionScope
+        or type(submission._plan) is not bytes
+        or len(submission._plan) > MAX_SUBMISSION_BYTES
+        or type(submission.submission_id) is not str
+        or len(submission.submission_id) != len("reporting-submission:") + 64
+    ):
+        raise ValueError
+    submission.scope.__post_init__()
+    return submission.scope.canonical_identity, submission.submission_id.encode(), submission._plan
+
+
+def _validated_requests(submission: ReportingReceiptSubmission) -> tuple[bytes, ...]:
+    """Reuse only a proof for this exact immutable identity and complete plan."""
+    result = None
     try:
-        if type(submission._plan) is not bytes or len(submission._plan) > MAX_SUBMISSION_BYTES:
-            raise ValueError
+        key = _plan_key(submission)
+        cached = PLANS.get(key)
+        if cached is not None:
+            return cached
         plan = json.loads(submission._plan)
         if (
             type(plan) is not dict
@@ -338,17 +358,44 @@ def validate_submission(submission: ReportingReceiptSubmission) -> None:
         )
         if rebuilt._plan != submission._plan or rebuilt.submission_id != submission.submission_id:
             raise ValueError
+        result = tuple(canonical_json_utf8_v1(request) for request in plan["requests"])
+        PLANS.put(key, result)
+    except Exception:
+        result = None
+    if result is None:
+        raise ReportingSubmissionError(ReportingSubmissionCode.HISTORY_CORRUPT)
+    return result
+
+
+def _confirmation_key(
+    submission: ReportingReceiptSubmission, request: bytes, chunk: bytes
+) -> tuple[bytes, ...]:
+    return submission.scope.canonical_identity, submission.submission_id.encode(), request, chunk
+
+
+def validate_submission(submission: ReportingReceiptSubmission) -> None:
+    """Check fresh bytes, bounds, identity and ordered confirmed prefix every time.
+
+    Exact immutable-byte proofs avoid repeating plan and response schemas. No
+    stored digest or mutable model is sufficient to hit either bounded cache.
+    """
+    valid = False
+    try:
+        requests = _validated_requests(submission)
         if (
-            not isinstance(submission._confirmed, tuple)
-            or len(submission._confirmed) > len(plan["requests"])
+            type(submission._confirmed) is not tuple
+            or len(submission._confirmed) > len(requests)
             or _confirmation_bytes(submission._confirmed) > MAX_CONFIRMATION_BYTES
         ):
             raise ValueError
         for ordinal, chunk in enumerate(submission._confirmed):
             if type(chunk) is not bytes or len(chunk) > MAX_RESPONSE_BYTES:
                 raise ValueError
-            if _restore_confirmation(submission, ordinal, chunk) != chunk:
-                raise ValueError
+            key = _confirmation_key(submission, requests[ordinal], chunk)
+            if CONFIRMATIONS.get(key) is None:
+                if _restore_confirmation(submission, ordinal, chunk) != chunk:
+                    raise ValueError
+                CONFIRMATIONS.put(key, ())
         valid = True
     except Exception:
         valid = False
@@ -359,15 +406,19 @@ def validate_submission(submission: ReportingReceiptSubmission) -> None:
 def _confirmation(
     submission: ReportingReceiptSubmission,
     ordinal: int,
-    response: SyncReportingReceiptsResponse,
+    response: SyncReportingReceiptsResponse | bytes,
 ) -> bytes:
     """Validate complete unique coverage and exact immutable success bodies."""
     result = None
     try:
-        body = response.model_dump(mode="json", exclude_none=True)
-        if len(canonical_json_utf8_v1(body)) > MAX_RESPONSE_BYTES:
+        encoded = freeze_response(response) if not isinstance(response, bytes) else response
+        if len(encoded) > MAX_RESPONSE_BYTES:
             raise ValueError
-        batch = ReceiptBatch.parse(json.loads(submission._plan)["requests"][ordinal])
+        body = json.loads(encoded)
+        request = _validated_requests(submission)[ordinal]
+        # This constructor retains only bytes already proven by complete plan
+        # validation. Response schema/coverage/body validation below stays fresh.
+        batch = ReceiptBatch(request)
         results = body["results"]
         by_id = {}
         for entry in results:
@@ -415,6 +466,7 @@ def _confirmation(
         result = canonical_json_utf8_v1(normalized)
         if len(result) > MAX_RESPONSE_BYTES:
             raise ValueError
+        CONFIRMATIONS.put(_confirmation_key(submission, request, result), ())
     except Exception:
         result = None
     if result is None:
@@ -426,9 +478,12 @@ def _restore_confirmation(
     submission: ReportingReceiptSubmission, ordinal: int, encoded: bytes
 ) -> bytes:
     """Revalidate retained sanitized evidence, including exact result coverage."""
+    batch = ReceiptBatch(_validated_requests(submission)[ordinal])
     kinds = {
-        item["body"]["reporting_receipt_id"]: item["kind"]
-        for item in json.loads(submission._plan)["items"]
+        item["reporting_receipt_id"]: (
+            "receipt" if kind == "revision_receipt" else "adjustment_receipt"
+        )
+        for kind, item in batch.items
     }
     results = []
     for item in json.loads(encoded):
@@ -464,7 +519,7 @@ def _confirmation_bytes(chunks: tuple[bytes, ...]) -> int:
 def confirm_submission(
     submission: ReportingReceiptSubmission,
     ordinal: int,
-    response: SyncReportingReceiptsResponse,
+    response: SyncReportingReceiptsResponse | bytes,
 ) -> ReportingReceiptSubmission:
     if (
         type(ordinal) is not int
@@ -494,13 +549,51 @@ def confirm_submission(
 
 def encode_submission(submission: ReportingReceiptSubmission) -> tuple[str, str, str, str]:
     """Exact text/hashes for PostgreSQL; JSONB is not the identity store."""
-    confirmed = canonical_json_utf8_v1([json.loads(chunk) for chunk in submission._confirmed])
+    confirmed = b"[" + b",".join(submission._confirmed) + b"]"
     return (
         submission._plan.decode(),
         hashlib.sha256(submission._plan).hexdigest(),
         confirmed.decode(),
         hashlib.sha256(confirmed).hexdigest(),
     )
+
+
+def freeze_response(response: SyncReportingReceiptsResponse) -> bytes:
+    """Detach the caller's response once, before any await or storage lock."""
+    encoded = None
+    try:
+        encoded = canonical_json_utf8_v1(response.model_dump(mode="json", exclude_none=True))
+        if len(encoded) > MAX_RESPONSE_BYTES:
+            raise ValueError
+    except Exception:
+        encoded = None
+    if encoded is None:
+        raise ReportingSubmissionError(ReportingSubmissionCode.INVALID_RESPONSE)
+    return encoded
+
+
+def _decode_chunks(confirmed: str) -> tuple[bytes, ...]:
+    # Preserve received text for exact-byte proof lookup. Recanonicalizing all
+    # old chunks would repeat expensive work at every prefix. Each slice still
+    # requires its own canonical/schema proof in validate_submission below.
+    if confirmed == "[]":
+        return ()
+    if not confirmed.startswith("[") or not confirmed.endswith("]"):
+        raise ValueError
+    decoder = json.JSONDecoder()
+    chunks = []
+    offset = 1
+    while offset < len(confirmed) - 1:
+        _, end = decoder.raw_decode(confirmed, offset)
+        chunks.append(confirmed[offset:end].encode())
+        if len(chunks) > MAX_SUBMISSION_RECEIPTS // _CHUNK_SIZE:
+            raise ValueError
+        if end == len(confirmed) - 1:
+            return tuple(chunks)
+        if confirmed[end] != ",":
+            raise ValueError
+        offset = end + 1
+    raise ValueError
 
 
 def decode_submission(
@@ -523,7 +616,7 @@ def decode_submission(
             scope,
             identifier,
             plan.encode(),
-            tuple(canonical_json_utf8_v1(chunk) for chunk in json.loads(confirmed)),
+            _decode_chunks(confirmed),
         )
         validate_submission(candidate)
         if (

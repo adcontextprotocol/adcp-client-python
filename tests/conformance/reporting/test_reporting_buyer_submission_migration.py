@@ -55,6 +55,91 @@ async def test_existing_weakened_reservation_index_fails_rollout_closed():
 
 
 @pytest.mark.parametrize(
+    "table,suffix",
+    [
+        ("scopes", "scope_digest"),
+        ("scopes", "scope_bound"),
+        ("intents", "submission_id"),
+        ("intents", "plan_digest"),
+        ("intents", "confirmed_digest"),
+        ("intents", "plan_bound"),
+        ("intents", "confirmed_bound"),
+    ],
+)
+@pytest.mark.parametrize("replacement", [None, "CHECK (true)"])
+async def test_each_missing_or_weakened_check_constraint_fails_rollout_closed(
+    table, suffix, replacement
+):
+    async with isolated_reporting_pool() as pool:
+        from psycopg import sql
+
+        store = PgReportingSubmissionIntentStore(pool=pool)
+        await store.create_schema()
+        table_name = sql.Identifier(f"reporting_buyer_submission_{table}")
+        constraint_name = sql.Identifier(f"reporting_buyer_{suffix}")
+        async with pool.connection() as connection:
+            await connection.execute(
+                sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(table_name, constraint_name)
+            )
+            if replacement is not None:
+                await connection.execute(
+                    sql.SQL("ALTER TABLE {} ADD CONSTRAINT {} CHECK (true)").format(
+                        table_name, constraint_name
+                    )
+                )
+        # create_schema must leave the weakened schema rejected; no automatic
+        # repair or previously completed migration can stand in for validation.
+        for _ in range(2):
+            with pytest.raises(ReportingSubmissionError) as error:
+                await store.create_schema()
+            assert error.value.code == ReportingSubmissionCode.HISTORY_CORRUPT
+            assert error.value.__context__ is None and error.value.__cause__ is None
+
+
+@pytest.mark.parametrize("modifier", ["NOT VALID", "NO INHERIT"])
+async def test_correct_check_expression_with_weakened_enforcement_is_rejected(modifier):
+    async with isolated_reporting_pool() as pool:
+        from psycopg import sql
+
+        store = PgReportingSubmissionIntentStore(pool=pool)
+        await store.create_schema()
+        async with pool.connection() as connection:
+            await connection.execute(
+                "ALTER TABLE reporting_buyer_submission_intents"
+                " DROP CONSTRAINT reporting_buyer_plan_bound"
+            )
+            await connection.execute(
+                sql.SQL(
+                    "ALTER TABLE reporting_buyer_submission_intents"
+                    " ADD CONSTRAINT reporting_buyer_plan_bound"
+                    " CHECK (octet_length(canonical_plan) <= 16777216) {}"
+                ).format(sql.SQL(modifier))
+            )
+        with pytest.raises(ReportingSubmissionError) as error:
+            await store.create_schema()
+        assert error.value.code == ReportingSubmissionCode.HISTORY_CORRUPT
+
+
+async def test_identically_named_check_on_the_wrong_table_does_not_prove_readiness():
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingSubmissionIntentStore(pool=pool)
+        await store.create_schema()
+        async with pool.connection() as connection:
+            await connection.execute(
+                "ALTER TABLE reporting_buyer_submission_scopes"
+                " DROP CONSTRAINT reporting_buyer_scope_digest"
+            )
+            await connection.execute(
+                "ALTER TABLE reporting_buyer_submission_intents"
+                " ADD CONSTRAINT reporting_buyer_scope_digest"
+                " CHECK (scope_sha256 ~ '^[a-f0-9]{64}$')"
+            )
+        with pytest.raises(ReportingSubmissionError) as error:
+            await store.create_schema()
+        assert error.value.code == ReportingSubmissionCode.HISTORY_CORRUPT
+
+
+@pytest.mark.parametrize(
     "mutation", ["plan", "confirmed", "identity", "pointer", "pending", "driver"]
 )
 async def test_pg_corruption_and_driver_diagnostics_never_escape_or_permit_replacement(mutation):
