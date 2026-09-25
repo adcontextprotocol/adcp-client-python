@@ -50,6 +50,7 @@ async def main(settings):
             reconciled=True,
             identity_prefix="b24-",
             existing_pool=pool,
+            adcp_version="3.2-rc.6",
         ) as h:
             mount = MountedProduction(h)
             subject = SimpleNamespace(
@@ -90,7 +91,8 @@ async def main(settings):
                 return row[3]
 
             if settings["pause"]:
-                assert await pending_identity() == "pending"
+                adoption_operation_1 = await pending_identity() == "pending"
+                assert adoption_operation_1
                 production_operation_1 = await h.production.activate(account_id="acct_a")
                 assert production_operation_1
                 # Run the real producer's lease acquisition/release after
@@ -124,7 +126,8 @@ async def main(settings):
                 else:
                     raise AssertionError("historical pending work did not resume to verified")
                 assert h.item.writer.writes == 1
-                assert await pending_identity() == "acked"
+                adoption_operation_2 = await pending_identity() == "acked"
+                assert adoption_operation_2
                 async with pool.connection() as c:
                     rows = await (
                         await c.execute(
@@ -146,7 +149,8 @@ async def main(settings):
             else:
                 production_operation_3 = await h.production.activate(account_id="acct_a")
                 assert not production_operation_3
-                assert await pending_identity() == "acked"
+                adoption_operation_3 = await pending_identity() == "acked"
+                assert adoption_operation_3
                 # A new eligible period was committed after both first pages.
                 # Finish it through bounded real turns if startup first handled
                 # another candidate. Neither snapshot may gain that membership.

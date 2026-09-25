@@ -92,8 +92,9 @@ path or rewrite receipt history to make an error disappear.
 ## Wire and replay contract
 
 Requests negotiate `adcp_version: "3.2-rc.6"`. This is the wire release spelling;
-`3.2.0-rc.6` is the bundle's semantic-version spelling. Unnegotiated traffic keeps
-the SDK's existing AdCP 3.0 behavior; unsupported versions remain unsupported.
+`3.2.0-rc.6` is the bundle's semantic-version spelling. The reporting handler's
+public mount pin also selects unnegotiated traffic; its default is rc.6. General
+SDK fallback behavior and unsupported-version rejection remain unchanged.
 Pinned, unpinned and fallback MCP inventories use an isolated schema overlay.
 Cached upstream schemas, generated models and older required protocols remain
 unchanged.

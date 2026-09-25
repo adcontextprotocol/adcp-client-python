@@ -3,14 +3,13 @@
 import asyncio
 import json
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from types import MethodType
 
 import pytest
 
-from adcp.reporting.ledger.pg import PgReportingLedgerStore
-
 from ._generation_support import END
+from ._legacy_row_first_lease import row_first_period_close
 from ._production_support import production_harness
 
 
@@ -92,7 +91,7 @@ async def test_activation_and_producer_actual_trigger_lock_order(
                 patch.setattr(
                     store,
                     "lease_period_close",
-                    MethodType(PgReportingLedgerStore.lease_period_close, store),
+                    MethodType(row_first_period_close, store),
                 )
             activation = asyncio.create_task(support.activate(account_id=item.config.account_id))
             tasks.append(activation)
@@ -106,6 +105,17 @@ async def test_activation_and_producer_actual_trigger_lock_order(
                     turn = await asyncio.wait_for(asyncio.shield(producer), 5)
                     assert turn.leased is None
                     assert not executing.is_set()
+                print(
+                    json.dumps(
+                        {
+                            "production_lock_order": "before_checkpoint",
+                            "wrong_order_control": wrong_order,
+                            "backend_pids": pids,
+                            "at": datetime.now(timezone.utc).isoformat(),
+                        }
+                    ),
+                    flush=True,
+                )
                 release.set()
                 results = await asyncio.wait_for(
                     asyncio.gather(activation, producer, return_exceptions=True), 8
@@ -140,30 +150,36 @@ async def test_activation_and_producer_actual_trigger_lock_order(
             ).fetchone()
         if isinstance(results[0], BaseException):
             assert rows == (1, 0, 0, 0, 0)
-            assert not await support.projection.baseline_ready(account_id=item.config.account_id)
+            adoption_operation_1 = not await support.projection.baseline_ready(
+                account_id=item.config.account_id
+            )
+            assert adoption_operation_1
         else:
             assert rows == (1, 1, 0, 0, 0)
         # A failed lease rolls back; a winning producer releases in its real
         # finally block. Neither path can leak a lease or reserve epoch-zero I/O.
         assert lease == (None, None)
-        assert (
+        adoption_operation_2 = (
             await store.get_revision(
                 account_id=item.config.account_id,
                 reporting_revision_id=item.revision.reporting_revision_id,
             )
             == item.revision
         )
+        assert adoption_operation_2
         # The negative control restores the real methods before resuming the
         # incomplete phase. Its original input and epoch-zero queues persist.
         await support.activate(account_id=item.config.account_id)
-        assert await support.projection.baseline_ready(account_id=item.config.account_id)
-        if not wrong_order:
-            executing.clear()
-            with monkeypatch.context() as patch:
-                patch.setattr(psycopg.AsyncConnection, "execute", observe)
-                turn = await asyncio.wait_for(source_turn(support), 5)
-            assert turn.leased is not None and executing.is_set()
-            assert turn.revisions_committed == []
+        adoption_operation_3 = await support.projection.baseline_ready(
+            account_id=item.config.account_id
+        )
+        assert adoption_operation_3
+        executing.clear()
+        with monkeypatch.context() as patch:
+            patch.setattr(psycopg.AsyncConnection, "execute", observe)
+            turn = await asyncio.wait_for(source_turn(support), 5)
+        assert turn.leased is not None and executing.is_set()
+        assert turn.revisions_committed == []
         print(
             json.dumps(
                 {
@@ -171,8 +187,11 @@ async def test_activation_and_producer_actual_trigger_lock_order(
                     "actual_trigger": True,
                     "observed_trigger_wait": wrong_order,
                     "deadlocks": len(deadlocks),
+                    "backend_pids": pids,
+                    "at": datetime.now(timezone.utc).isoformat(),
                     "rollback_or_commit_verified": True,
                     "restored_acquisition": store.lease_period_close.__func__ is original_lease,
+                    "producer_progress_after_restore": turn.leased is not None,
                 }
             )
         )
@@ -234,10 +253,11 @@ async def test_selected_source_enrollment_and_expired_lease_fairness(backend, tm
         isolated = await acquire(other, "other")
         assert isolated.generation_key == other_config.generation_key
         await store.release_period_close(isolated, worker_id="other")
-        assert {
+        adoption_operation_4 = {
             account: await store.list_configurations(account_id=account)
             for account in ("acct_a", "acct_b")
         } == before
+        assert adoption_operation_4
         if h.pool is None:
             turns = store._lease_turns
             assert unadmitted.generation_key not in turns
@@ -257,7 +277,7 @@ async def test_selected_source_enrollment_and_expired_lease_fairness(backend, tm
                     ("acct_a", "other-source"),
                     ("acct_a", "peer"),
                 ]
-                assert (
+                adoption_operation_5 = (
                     await (
                         await c.execute(
                             "SELECT count(*) FROM reporting_configurations"
@@ -265,4 +285,6 @@ async def test_selected_source_enrollment_and_expired_lease_fairness(backend, tm
                         )
                     ).fetchone()
                 )[0] == 0
-        assert not (await h.queue())[0]
+                assert adoption_operation_5
+        adoption_operation_6 = not (await h.queue())[0]
+        assert adoption_operation_6

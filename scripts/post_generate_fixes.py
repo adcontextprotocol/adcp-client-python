@@ -189,6 +189,41 @@ def rewrite_generated_enums_to_strenum() -> None:
     )
 
 
+def annotate_registry_track_verdict() -> None:
+    """Identify the fixed protocol verdict that Bandit mistakes for a password."""
+    path = OUTPUT_DIR / "core" / "registry_event.py"
+    if not path.exists():
+        return
+    source = path.read_text()
+    lines = source.splitlines(keepends=True)
+    for cls in ast.parse(source).body:
+        if not (
+            isinstance(cls, ast.ClassDef)
+            and cls.name == "Tracks"
+            and any(isinstance(base, ast.Name) and base.id == "StrEnum" for base in cls.bases)
+        ):
+            continue
+        for node in cls.body:
+            if (
+                isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "pass_"
+                and isinstance(node.value, ast.Constant)
+                and node.value.value == "pass"
+                and node.lineno == node.end_lineno
+                and "# nosec B105" not in lines[node.lineno - 1]
+            ):
+                lines[node.lineno - 1] = (
+                    lines[node.lineno - 1].rstrip("\r\n")
+                    + "  # nosec B105: Fixed protocol compliance track verdict.\n"
+                )
+    updated = "".join(lines)
+    if updated != source:
+        path.write_text(updated)
+        print("  registry_event.py: annotated fixed compliance track verdict")
+
+
 def fix_preview_render_self_reference():
     """Fix self-referential RootModel in preview_render.py."""
     preview_file = OUTPUT_DIR / "creative" / "preview_render.py"
@@ -5954,22 +5989,6 @@ def enforce_change_term_runtime_constraints() -> None:
             )
             terms_path.write_text(source)
             print("  media_buy/commercial_terms.py: restored change-term set invariants")
-
-
-def annotate_registry_track_verdict() -> None:
-    """Identify the canonical pass/fail verdict as data, not a credential."""
-    path = OUTPUT_DIR / "core" / "registry_event.py"
-    if not path.exists():
-        return
-    original = path.read_text()
-    marker = "class Tracks(StrEnum):\n    pass_ = 'pass'\n"
-    replacement = (
-        "class Tracks(StrEnum):\n"
-        "    pass_ = 'pass'  # nosec B105 - protocol verdict enum, not a credential\n"
-    )
-    updated = original.replace(marker, replacement)
-    if updated != original:
-        path.write_text(updated)
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:

@@ -43,6 +43,58 @@ def original_rows(image, before):
     return result
 
 
+async def test_catalog_round_trips_stay_bounded_and_still_detect_fresh_ddl():
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        store = PgReportingProductionStore(pool=pool, notifications=True)
+        await store.create_schema()
+        async with pool.connection() as connection:
+
+            class CountQueries:
+                def __init__(self):
+                    self.calls = 0
+
+                async def execute(self, *args, **kwargs):
+                    self.calls += 1
+                    return await connection.execute(*args, **kwargs)
+
+            counted = CountQueries()
+            original = await schema_objects(counted)
+            initial_queries = counted.calls
+            # Adopter tables are allowed, but must not multiply the number of
+            # catalog round trips needed by every production readiness check.
+            from psycopg import sql
+
+            for number in range(24):
+                await connection.execute(
+                    sql.SQL("CREATE TABLE {} (id integer PRIMARY KEY)").format(
+                        sql.Identifier(f"reporting_catalog_probe_{number}")
+                    )
+                )
+            # A similarly named table outside current_schema() stays excluded.
+            await connection.execute("CREATE TEMP TABLE reporting_catalog_outside (id integer)")
+            counted.calls = 0
+            async with connection.transaction():
+                await connection.execute("SET TRANSACTION READ ONLY")
+                expanded = await schema_objects(counted)
+            assert counted.calls == initial_queries <= 10
+            assert all(expanded[key] == value for key, value in original.items())
+            assert "table:reporting_catalog_probe_23" in expanded
+            assert "table:reporting_catalog_outside" not in expanded
+            await validate_production_schema(connection, notifications=True)
+            await connection.execute(
+                "ALTER TABLE reporting_production_delivery_windows"
+                " DISABLE TRIGGER reporting_production_delivery_window_immutable"
+            )
+            changed = await schema_objects(connection)
+            key = (
+                "trigger:reporting_production_delivery_windows."
+                "reporting_production_delivery_window_immutable"
+            )
+            assert original[key]["enabled"] and not changed[key]["enabled"]
+            with pytest.raises(ReportingNotificationError):
+                await validate_production_schema(connection, notifications=True)
+
+
 @pytest.mark.parametrize("notifications", [False, True])
 @pytest.mark.parametrize("autocommit", [False, True])
 async def test_populated_repeat_concurrent_migration_keeps_history_fairness_and_frozen_pages(
@@ -88,11 +140,12 @@ async def test_populated_repeat_concurrent_migration_keeps_history_fairness_and_
             current = await schema_objects(c)
             await validate_projection_schema(c, notifications=notifications)
             await validate_production_schema(c, notifications=notifications)
-            assert (
+            adoption_operation_1 = (
                 await (
                     await c.execute("SELECT count(*) FROM reporting_production_accounts")
                 ).fetchone()
             )[0] == 0
+            assert adoption_operation_1
         assert {key: current[key] for key in old_objects} == old_objects
         required = manifests()
         assert set(required["projection"]).isdisjoint(required["production"])
@@ -101,22 +154,27 @@ async def test_populated_repeat_concurrent_migration_keeps_history_fairness_and_
         )
         for objects in required.values():
             assert all(current.get(key) == value for key, value in objects.items())
-        assert original_rows(await h.image(), before) == before
-        assert await fairness(pool) == old_turns
+        adoption_operation_2 = original_rows(await h.image(), before) == before
+        assert adoption_operation_2
+        adoption_operation_3 = await fairness(pool) == old_turns
+        assert adoption_operation_3
         production_operation_1 = await parent.ingest_receipt_batch(
             request, caller=case.binding.principal
         )
         assert production_operation_1 == response
-        assert (
+        adoption_operation_4 = (
             await walk(child, feed_request(case), case.binding.principal, first=first) == expected
         )
-        assert (
+        assert adoption_operation_4
+        adoption_operation_5 = (
             await child.read_reporting_feed_snapshot(
                 original.snapshot_id, caller=case.binding.principal
             )
             == original
         )
-        assert original_rows(await h.image(), before) == before
+        assert adoption_operation_5
+        adoption_operation_6 = original_rows(await h.image(), before) == before
+        assert adoption_operation_6
         print(
             json.dumps(
                 {
@@ -173,7 +231,7 @@ async def test_interrupted_complete_migration_rolls_back_every_new_object(
                     # the intentionally paused ALTER TABLE. Observe raw MVCC
                     # catalog visibility now; compare every definition after
                     # cancellation releases those DDL locks.
-                    assert (
+                    adoption_operation_7 = (
                         await (
                             await c.execute(
                                 "SELECT count(*) FROM pg_class c"
@@ -183,15 +241,19 @@ async def test_interrupted_complete_migration_rolls_back_every_new_object(
                             )
                         ).fetchone()
                     )[0] == 0
+                    assert adoption_operation_7
             finally:
                 task.cancel()
                 with pytest.raises(asyncio.CancelledError):
                     await task
-        assert await h.image() == before
+        adoption_operation_8 = await h.image() == before
+        assert adoption_operation_8
         async with pool.connection() as c:
-            assert await schema_objects(c) == original
+            adoption_operation_9 = await schema_objects(c) == original
+            assert adoption_operation_9
         await child.create_schema()
-        assert original_rows(await h.image(), before) == before
+        adoption_operation_10 = original_rows(await h.image(), before) == before
+        assert adoption_operation_10
         production_operation_2 = await parent.ingest_receipt_batch(
             request, caller=case.binding.principal
         )
@@ -260,6 +322,7 @@ async def test_retry_window_is_immutable_and_repeated_bootstrap_never_restarts_d
                         await c.execute(statement)
         await store.create_schema()
         async with pool.connection() as c:
-            assert await (
+            adoption_operation_11 = await (
                 await c.execute("SELECT * FROM reporting_production_delivery_windows")
             ).fetchall() == [row]
+            assert adoption_operation_11

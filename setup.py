@@ -15,7 +15,9 @@ _CURRENT_SCHEMA_BUNDLE = (
     if "-" in _PINNED_ADCP_VERSION
     else ".".join(_PINNED_ADCP_VERSION.split(".")[:2])
 )
-_BUNDLED_SCHEMA_VERSIONS = ("2.5", "3.0", "3.1", _CURRENT_SCHEMA_BUNDLE)
+_BUNDLED_SCHEMA_VERSIONS = tuple(
+    dict.fromkeys(("2.5", "3.0", "3.1", "3.2.0-beta.6", "3.2.0-rc.3", _CURRENT_SCHEMA_BUNDLE))
+)
 
 
 class BuildPy(_build_py):

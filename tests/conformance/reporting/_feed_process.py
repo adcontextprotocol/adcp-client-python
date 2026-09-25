@@ -113,6 +113,9 @@ async def main(settings):
                     resolve_account=mount.resolve_account,
                     consumer_status_enabled=settings.get("feedback", False),
                 )
+                # Preserve the fixture's public pin after replacing its handler.
+                # This also works with the actual historical SDK constructors.
+                mount.handler.get_adcp_version = lambda: mount.version
             mount.authorize(subject)
             async with mount.client() as client:
                 _, inventory = await mount.mcp(client, inventory=True)

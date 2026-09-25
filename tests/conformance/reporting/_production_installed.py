@@ -37,6 +37,9 @@ def main(settings):
     assert not (root / "adcp").exists() and not (root / "src").exists()
     sys.path.insert(0, str(root))
     from tests.conformance.reporting._hardening_installed import Results
+    from tests.conformance.reporting._installed_progress import InstalledProgress
+
+    progress = InstalledProgress(settings["progress"])
 
     enter_phase("installed_modules")
     origins = {}
@@ -68,7 +71,20 @@ def main(settings):
     assert not reference_root.is_relative_to(Path(sys.prefix))
     assert not reference_root.is_relative_to(workspace)
     assert reference["version"] not in settings["schemas"]
-    assert schema_loader._resolve_schema_root(reference["version"]).root == reference_root
+    historical_resolved = schema_loader._resolve_schema_root(reference["version"])
+    assert historical_resolved is not None
+    historical_root = historical_resolved.root
+    assert historical_root.is_relative_to(Path(sys.prefix))
+    assert not historical_root.is_relative_to(workspace)
+    assert historical_root != reference_root
+
+    def historical_manifest():
+        return {
+            str(p.relative_to(historical_root)): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in sorted(historical_root.rglob("*.json"))
+        }
+
+    assert historical_manifest() == reference["files"]
 
     def reference_manifest():
         return {
@@ -87,6 +103,40 @@ def main(settings):
     reference_inputs = evidence / (settings["label"] + "-historical-schema-inputs.json")
     reference_bytes = (json.dumps(reference, indent=2, sort_keys=True) + "\n").encode()
     reference_inputs.write_bytes(reference_bytes)
+    identity = {
+        "python": sys.version,
+        "source_basis": settings["source_basis"],
+        "direct_url": json.loads(
+            importlib.metadata.distribution("adcp").read_text("direct_url.json")
+        ),
+        "origins": origins,
+        "distribution_version": importlib.metadata.version("adcp"),
+        "wheel_sha256": settings["wheel_sha256"],
+        "assets": settings["assets"],
+        "schemas": settings["schemas"],
+        "historical_reference_schema": {
+            "version": reference["version"],
+            "root": str(reference_root),
+            "origin": (
+                "copied immutable test reference; independently compared with "
+                "the packaged historical bundle"
+            ),
+            "files": len(reference["files"]),
+            "inputs": str(reference_inputs),
+            "inputs_sha256": hashlib.sha256(reference_bytes).hexdigest(),
+        },
+        "installed_historical_schema": {
+            "version": reference["version"],
+            "root": str(historical_root),
+            "origin": "installed distribution",
+            "files": len(reference["files"]),
+        },
+        "driver_absent": settings["driver_absent"],
+    }
+    # Preflight provenance survives an interrupted run without implying success.
+    with (evidence / (settings["label"] + "-identity.json")).open("x") as stream:
+        json.dump(identity, stream, indent=2)
+        stream.write("\n")
     log = evidence / (settings["label"] + ".log")
     recorder = Results()
     command = [
@@ -104,12 +154,13 @@ def main(settings):
     ]
     enter_phase("conformance")
     started = time.monotonic()
+    progress.start("collection")
     with (
         log.open("x") as stream,
         contextlib.redirect_stdout(stream),
         contextlib.redirect_stderr(stream),
     ):
-        code = int(pytest.main(command, plugins=[recorder]))
+        code = int(pytest.main(command, plugins=[recorder, progress]))
     result = {
         "command": command,
         "pytest_exit": code,
@@ -144,37 +195,30 @@ def main(settings):
         "--no-incremental",
         str(root / "adopter.py"),
     ]
+    progress.start("typing")
     enter_phase("strict_adopter")
     typed = subprocess.run(typing_command, cwd=root, capture_output=True, timeout=120)
     typing_log = evidence / (settings["label"] + "-adopter.log")
     typing_log.write_bytes(typed.stdout + typed.stderr)
     result["valid"] &= typed.returncode == 0
+    progress.start("origins")
     enter_phase("final_origins_and_reference_preservation")
     for name, module in tuple(sys.modules.items()):
         if (name == "adcp" or name.startswith("adcp.")) and getattr(module, "__file__", None):
             assert Path(module.__file__).resolve().is_relative_to(Path(sys.prefix))
     assert reference_manifest() == reference["files"]
+    assert historical_manifest() == reference["files"]
+    progress.start("complete")
+    progress.close()
+    journal = progress.path.with_suffix(".jsonl")
     record = {
-        "python": sys.version,
-        "source_basis": settings["source_basis"],
-        "direct_url": json.loads(
-            importlib.metadata.distribution("adcp").read_text("direct_url.json")
-        ),
-        "origins": origins,
-        "distribution_version": importlib.metadata.version("adcp"),
-        "wheel_sha256": settings["wheel_sha256"],
-        "assets": settings["assets"],
-        "schemas": settings["schemas"],
-        "historical_reference_schema": {
-            "version": reference["version"],
-            "root": str(reference_root),
-            "origin": "copied immutable test reference; not a shipped SDK bundle",
-            "files": len(reference["files"]),
-            "inputs": str(reference_inputs),
-            "inputs_sha256": hashlib.sha256(reference_bytes).hexdigest(),
-        },
-        "driver_absent": settings["driver_absent"],
+        **identity,
         "result": result,
+        "progress": {
+            "log": str(journal),
+            "bytes": journal.stat().st_size,
+            "sha256": hashlib.sha256(journal.read_bytes()).hexdigest(),
+        },
         "adopter": {
             "command": typing_command,
             "exit": typed.returncode,

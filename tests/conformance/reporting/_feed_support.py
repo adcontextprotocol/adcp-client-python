@@ -163,6 +163,7 @@ class MountedFeed(MountedReceipts):
             adcp_version=self.version,
         )
         self.handler.get_reporting_status = self.idempotency.wrap(self.handler.get_reporting_status)
+        self.handler.get_adcp_version = lambda: self.version
 
     @asynccontextmanager
     async def sdk_clients(self, a2a_version, *, token="token-one"):

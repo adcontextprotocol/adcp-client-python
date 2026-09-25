@@ -69,8 +69,12 @@ def redacted_stage_stderr(stderr):
     )
 
 
-def run_step(command, *, label, cwd, value=None, timeout=120):
+def run_step(command, *, label, cwd, value=None, timeout=120, progress=None):
     started = time.monotonic()
+    environment = {key: item for key, item in os.environ.items() if key != "PYTHONPATH"}
+    if progress is not None:
+        environment["PGAPPNAME"] = progress.application
+        command = progress.command(command)
     process = subprocess.Popen(
         command,
         cwd=cwd,
@@ -79,15 +83,18 @@ def run_step(command, *, label, cwd, value=None, timeout=120):
         stderr=subprocess.PIPE,
         text=True,
         start_new_session=True,
-        env={key: item for key, item in os.environ.items() if key != "PYTHONPATH"},
+        env=environment,
     )
     print(f"notification_distribution stage={label} pid={process.pid} started", flush=True)
     try:
-        stdout, stderr = process.communicate(
-            json.dumps(value) if value is not None else None,
-            timeout=timeout,
-        )
+        payload = json.dumps(value) if value is not None else None
+        if progress is None:
+            stdout, stderr = process.communicate(payload, timeout=timeout)
+        else:
+            stdout, stderr = progress.communicate(process, payload, timeout)
     except subprocess.TimeoutExpired:
+        if progress is not None:
+            progress.capture(process)
         # Give only this task-owned process group a bounded graceful shutdown,
         # then escalate. A timeout is a failing gate, never an implicit retry.
         cleanup = "terminated"
@@ -96,26 +103,37 @@ def run_step(command, *, label, cwd, value=None, timeout=120):
         except ProcessLookupError:
             # The owned group already exited; still drain its pipes and reap the child below.
             pass
+        if progress is not None:
+            progress.signal_owned(signal.SIGTERM)
         try:
             stdout, stderr = process.communicate(timeout=5)
         except subprocess.TimeoutExpired:
             cleanup = "killed"
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                # The owned group already exited; drain and reap it in communicate below.
-                pass
+            if progress is not None:
+                progress.signal_owned(signal.SIGKILL)
+            if progress is None or not progress.supervised:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
             try:
                 stdout, stderr = process.communicate(timeout=5)
-            except subprocess.TimeoutExpired:
-                raise AssertionError(
-                    f"notification distribution {label}: cleanup_deadline pid={process.pid}"
-                ) from None
+            except subprocess.TimeoutExpired as error:
+                # Finalize ownership/database evidence even if pipe draining
+                # failed. TimeoutExpired carries bytes even in text mode.
+                cleanup = "cleanup_deadline"
+                stdout = (error.output or b"").decode(errors="replace")
+                stderr = (error.stderr or b"").decode(errors="replace")
         # Capture actionable process diagnostics without ever including child
         # prose, URLs, fixture values, provider output, or credentials.
+        phase = progress.cleaned(process, cleanup) if progress is not None else ""
+        for stream in (process.stdin, process.stdout, process.stderr):
+            if stream is not None:
+                stream.close()
         raise AssertionError(
             f"notification distribution {label}: deadline"
             f" pid={process.pid} exit={process.returncode} cleanup={cleanup}"
+            f"{phase}"
             f" elapsed_ms={int((time.monotonic() - started) * 1000)}"
             f" stdout_chars={len(stdout)} stderr_chars={len(stderr)}"
             f" stderr={redacted_stage_stderr(stderr)}"
@@ -194,6 +212,7 @@ def built_distribution(tmp_path_factory, request):
         )
     )
     sources.extend(p for p in (ROOT / "schemas/cache").rglob("*.json"))
+    sources.extend(p for p in (ROOT / "schemas/releases").rglob("*.json"))
     digest = hashlib.sha256()
     for item in sorted(sources):
         digest.update(str(item.relative_to(ROOT)).encode())
@@ -220,11 +239,14 @@ def built_distribution(tmp_path_factory, request):
         project / "src",
         ignore=shutil.ignore_patterns("__pycache__", "*.egg-info", "_schemas"),
     )
-    pinned = (ROOT / "src" / "adcp" / "ADCP_VERSION").read_text().strip()
-    for version in ("2.5", "3.0", "3.1", pinned):
+    pin = (ROOT / "src/adcp/ADCP_VERSION").read_text().strip()
+    current = pin if "-" in pin else ".".join(pin.split(".")[:2])
+    for version in dict.fromkeys(("2.5", "3.0", "3.1", "3.2.0-beta.6", "3.2.0-rc.3", current)):
         shutil.copytree(
             ROOT / "schemas" / "cache" / version, project / "schemas" / "cache" / version
         )
+    if (ROOT / "schemas/releases").is_dir():
+        shutil.copytree(ROOT / "schemas/releases", project / "schemas/releases")
     dist = path / "dist"
     # build's default path makes an sdist, then builds the wheel FROM that sdist.
     run_step(

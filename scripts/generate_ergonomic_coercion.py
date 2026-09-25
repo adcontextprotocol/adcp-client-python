@@ -579,10 +579,14 @@ def generate_code() -> str:
                 lines.append(f"        {type_name},")
                 lines.append(f'        "{field}",')
                 annotation = f"{target} | None, BeforeValidator(coerce_to_enum({target}))"
-                if len(f"        Annotated[{annotation}],") > 100:
+                line = f"        Annotated[{annotation}],"
+                # Match the repository's 100-column generated source contract.
+                # Otherwise normal pinned formatting changes this output after
+                # generation and leaves a reproducible strict-check drift.
+                if len(line) > 100:
                     lines.extend(["        Annotated[", f"            {annotation}", "        ],"])
                 else:
-                    lines.append(f"        Annotated[{annotation}],")
+                    lines.append(line)
                 lines.append("    )")
             elif c["type"] == "unique_enum_list":
                 target = get_symbol_name(c["target_class"])

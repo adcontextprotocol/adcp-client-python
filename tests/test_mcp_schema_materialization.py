@@ -8,11 +8,14 @@ import threading
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
+from importlib.resources import files
 from typing import Any
 
 import httpx
 import pytest
 from asgi_lifespan import LifespanManager
+from jsonschema import FormatChecker
+from jsonschema.validators import validator_for
 
 from adcp.server import ADCPHandler, create_mcp_server, mcp_tools
 from adcp.server.a2a_server import create_a2a_server
@@ -293,3 +296,26 @@ async def test_mutation_cannot_change_mounted_discovery_registration_or_validati
             assert "get_products" in {skill["id"] for skill in response.json()["skills"]}
     repeated = public_definitions(version)
     assert hashlib.sha256(canonical(repeated)).hexdigest() == (EXPECTED_PUBLIC_SHA256[version])
+
+
+def test_cached_rc6_schema_retains_all_signed_summary_and_period_controls():
+    from tests.test_rc6_adoption import patched
+
+    fixture = json.loads(
+        files("adcp")
+        .joinpath("_compliance", PINS[1], "test-vectors/reporting-summary/complete-summary.json")
+        .read_bytes()
+    )
+    cold = loader.get_mcp_schema("get_reporting_status", "sync", version=PINS[1])
+    saved = canonical(cold)
+    assert cold is not None
+    cold.clear()
+    warm = loader.get_mcp_schema("get_reporting_status", "sync", version=PINS[1])
+    assert canonical(warm) == saved
+    checker = FormatChecker()
+    checker.checks("date-time")(loader._is_rfc3339_date_time)
+    validator = validator_for(warm)(warm, format_checker=checker)
+    assert len(fixture["cases"]) == 22
+    for case in fixture["cases"]:
+        payload = patched(fixture["response"], case["patch"])
+        assert validator.is_valid(payload) is case["valid"], case["name"]

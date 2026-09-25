@@ -55,7 +55,7 @@ async def test_production_discovery_advertises_its_usable_reporting_pin(backend,
                 assert caps["adcp_version"] == version
 
 
-@pytest.mark.parametrize("version", ["3.0", "3.1", RC3])
+@pytest.mark.parametrize("version", ["3.0", "3.1", RC3, "3.2-rc.4", "3.2-rc.7"])
 async def test_production_mount_rejects_releases_without_reporting_schemas(version, tmp_path):
     from adcp.exceptions import ConfigurationError
 
@@ -168,7 +168,8 @@ async def test_complete_forecast_uses_period_start_without_creating_future_work(
             raw = get_named_validator(relative, version=RC6)
             assert raw is not None
             raw.validate(new)
-        assert await h.image() == before
+        adoption_operation_1 = await h.image() == before
+        assert adoption_operation_1
         await h.store.put_configuration(replace(config, deactivated_at=START))
         h.clock.now += timedelta(hours=8)
         assert handler.render_snapshot(request(RC6), caller=caller, snapshot=captured) == new
@@ -232,7 +233,8 @@ async def test_mounted_summary_periods_schema_and_client_use_the_same_pin(
                         else "2026-09-01T02:00:00Z"
                     )
                 assert observed and all(p[2]["adcp_version"] == version for p in observed)
-        assert await h.works() == before_work
+        adoption_operation_2 = await h.works() == before_work
+        assert adoption_operation_2
 
 
 @pytest.mark.parametrize("backend", ["memory", "postgres"])
@@ -289,8 +291,12 @@ async def test_frozen_continuations_retain_bytes_and_reject_cross_version_positi
         )
         assert canonical_json_utf8_v1(snapshot.to_storage()) == document
         if version == RC3:
-            # Historical stored bytes remain replayable through the store API.
-            # The current SDK does not advertise rc.3 as a live server/client pin.
+            from adcp.exceptions import ConfigurationError
+
+            # The low-level retained representation remains readable. It does
+            # not imply a live mount advertising rc.3's different waiver rules.
+            with pytest.raises(ConfigurationError):
+                mount(h, config, version)
             return
         mounted = mount(h, config, version)
         continuation = {**req, "pagination": pagination}
@@ -300,6 +306,10 @@ async def test_frozen_continuations_retain_bytes_and_reject_cross_version_positi
                 assert raw == original_pages[1]
                 _, crossed = await call(client, {**continuation, "adcp_version": other})
                 assert error_code(crossed) == "VERSION_UNSUPPORTED", crossed
+                error = crossed["adcp_error"] if "adcp_error" in crossed else crossed["errors"][0]
+                assert error["details"]["claimed_version"] == other
+                assert RC6 in error["details"]["supported_versions"]
+                assert RC3 not in error["details"]["supported_versions"]
 
 
 @pytest.mark.parametrize("backend", ["memory", "postgres"])
@@ -405,7 +415,8 @@ async def test_rc6_nearest_captured_generation_and_historical_scope_filters(back
                 "media-buy/get-reporting-status-response.json", version=RC6
             ).validate(result)
         assert all(original[key] == value for key, value in expected.items())
-        assert await h.image() == before
+        adoption_operation_3 = await h.image() == before
+        assert adoption_operation_3
         await h.store.put_configuration(replace(second, deactivated_at=anchor))
         h.clock.now += timedelta(days=1)
         assert handler.render_snapshot(common, caller=caller, snapshot=captured) == original
@@ -571,7 +582,8 @@ async def test_admitted_producer_verified_artifact_and_receipt_keep_the_future_s
                         assert page["obligation_counts"]["total"] == 1
                     elif version == RC6:
                         assert "next_expected_at" not in page
-            assert await h.works() == before_work
+            adoption_operation_4 = await h.works() == before_work
+            assert adoption_operation_4
         async with MountedFeed.sdk_clients(mounted, "1.0") as (clients, observed):
             for client in clients.values():
                 result = await client.get_reporting_status(

@@ -82,6 +82,7 @@ from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from time import monotonic
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 _BOUND_CONNECTION: ContextVar[tuple[object, object, Any] | None] = ContextVar(
@@ -173,6 +174,9 @@ def _json(value: object) -> str:
     return json.dumps(value, separators=(",", ":"), sort_keys=True, default=str)
 
 
+_LEASE_ACCOUNT_WAIT_SECONDS = 0.05
+
+
 class PgReportingLedgerStore:
     """Durable reporting ledger over a caller-supplied connection pool."""
 
@@ -196,6 +200,7 @@ class PgReportingLedgerStore:
         # evidence rather than wherever wall-clock time happens to fall.
         self._clock = clock
         self._notifications_enabled = notifications
+        self._period_close_sample: tuple[int, datetime | None, str, str, int] | None = None
 
     @asynccontextmanager
     async def _connection(self) -> AsyncIterator[Any]:
@@ -1806,85 +1811,207 @@ class PgReportingLedgerStore:
 
     # -- leasing ----------------------------------------------------------
 
+    async def _period_close_generations_on(
+        self, connection: Any, identity: tuple[str, str, int]
+    ) -> list[tuple[str, str, int]]:
+        # A base-tier store may share a schema installed by another participant.
+        # Probe on this transaction without caching schema presence or validating
+        # every catalog object on the lease path. Call only after the account lock.
+        present = await (
+            await connection.execute(
+                "SELECT to_regclass('reporting_materializer_candidates') IS NOT NULL"
+            )
+        ).fetchone()
+        if not present[0]:
+            return []
+        rows = await (
+            await connection.execute(
+                "SELECT consumer_id,reporting_obligation_id,generation"
+                " FROM reporting_materializer_candidates WHERE account_id=%s"
+                " AND delivery_config_id=%s AND delivery_config_version=%s",
+                identity,
+            )
+        ).fetchall()
+        return [(row[0], row[1], row[2]) for row in rows]
+
+    async def _restore_period_close_generations_on(
+        self,
+        connection: Any,
+        identity: tuple[str, str, int],
+        snapshot: list[tuple[str, str, int]],
+    ) -> None:
+        # These SDK writes change only lease fields. All supported source writers
+        # hold the same account lock, so no source change can intervene. Restore
+        # only the captured generation plus the known single trigger increment;
+        # never decrement blindly if the trigger was disabled or did not fire.
+        # Unexpected generation changes remain fenced for schema/target validation.
+        # Wakeups and due_at/reason retain the production tier's existing behavior.
+        if not snapshot:
+            return
+        await connection.execute(
+            "UPDATE reporting_materializer_candidates c SET generation=s.generation"
+            " FROM unnest(%s::text[],%s::text[],%s::bigint[])"
+            " AS s(consumer_id,reporting_obligation_id,generation)"
+            " WHERE c.account_id=%s AND c.delivery_config_id=%s"
+            " AND c.delivery_config_version=%s AND c.consumer_id=s.consumer_id"
+            " AND c.reporting_obligation_id=s.reporting_obligation_id"
+            " AND c.generation=s.generation+1",
+            (
+                [row[0] for row in snapshot],
+                [row[1] for row in snapshot],
+                [row[2] for row in snapshot],
+                *identity,
+            ),
+        )
+
     async def lease_period_close(
         self, *, worker_id: str, now: datetime, lease_seconds: float
     ) -> LeasedConfiguration | None:
-        expires = _utc(now) + timedelta(seconds=lease_seconds)
-        async with self._connection() as connection, connection.transaction():
-            # The fairness rank is the primary ordering term. The WHERE clause
-            # has already excluded every live lease, so among the survivors the
-            # expiry carries no fairness information: ordering by it first
-            # starves a crashed generation forever, because a peer that is
-            # leased and released each turn is always NULL and NULL sorts
-            # first. Without the rank at all, every released generation ties
-            # and whichever tuple the scan yields first is re-leased forever.
-            # Expiry and the generation key only break exact ties, which keeps
-            # the order total and independent of physical layout.
-            #
-            # The rank is joined from a private table rather than held on
-            # `reporting_configurations`, so the enumerated `reporting_*`
-            # catalog that older binaries validate stays byte-identical. A
-            # generation with no row yet has never been leased, which is what
-            # COALESCE to 0 means, so a newly accepted generation is served
-            # before any that already took a turn.
-            row = await (
-                await connection.execute(
-                    "UPDATE reporting_configurations SET lease_worker_id = %s,"
-                    " lease_expires_at = %s"
-                    " WHERE (account_id, delivery_config_id, delivery_config_version) = ("
-                    "   SELECT c.account_id, c.delivery_config_id, c.delivery_config_version"
-                    "   FROM reporting_configurations c"
-                    "   LEFT JOIN adcp_reporting_configuration_lease_turns t"
-                    "     ON (t.account_id, t.delivery_config_id, t.delivery_config_version)"
-                    "      = (c.account_id, c.delivery_config_id, c.delivery_config_version)"
-                    "   WHERE c.lease_expires_at IS NULL OR c.lease_expires_at <= %s"
-                    "   ORDER BY COALESCE(t.lease_turn, 0), c.lease_expires_at NULLS FIRST,"
-                    "     c.account_id, c.delivery_config_id, c.delivery_config_version"
-                    "   FOR UPDATE OF c SKIP LOCKED"
-                    "   LIMIT 1)"
-                    " RETURNING account_id, delivery_config_id, delivery_config_version",
-                    (worker_id, expires, _utc(now)),
-                )
-            ).fetchone()
-            if row is not None:
-                # Same transaction as the acquisition, so the rank can never
-                # advance without the lease or the lease without the rank.
-                await connection.execute(
-                    "INSERT INTO adcp_reporting_configuration_lease_turns"
-                    " (account_id, delivery_config_id, delivery_config_version, lease_turn)"
-                    " VALUES (%s, %s, %s,"
-                    "   nextval('adcp_reporting_configuration_lease_turn_seq'))"
-                    " ON CONFLICT (account_id, delivery_config_id, delivery_config_version)"
-                    " DO UPDATE SET lease_turn ="
-                    "   nextval('adcp_reporting_configuration_lease_turn_seq')",
-                    (row[0], row[1], row[2]),
-                )
-        if row is None:
-            return None
-        return LeasedConfiguration(
-            account_id=row[0],
-            delivery_config_id=row[1],
-            delivery_config_version=row[2],
-            lease_expires_at=expires,
-        )
+        from psycopg.errors import LockNotAvailable
+        from psycopg.pq import TransactionStatus
+
+        moment = _utc(now)
+        expires = moment + timedelta(seconds=lease_seconds)
+        after = self._period_close_sample
+        wait_until = None
+        following = None
+        result = None
+        async with self._connection() as connection:
+            # Never add a blocking account edge while a caller transaction may
+            # already own locks. Standalone turns may queue only before the first
+            # account acquisition, including acquisitions that find a stale row.
+            can_wait = connection.info.transaction_status == TransactionStatus.IDLE
+            async with connection.transaction():
+                # A materializer installed by any participant adds an AFTER UPDATE
+                # trigger taking the account lock. Sample without row locks, then take
+                # that account lock before locking a configuration. The base store can
+                # share that schema, so the ordering belongs here, not only on a tier.
+                for _ in range(2):
+                    continuation = (
+                        " AND (COALESCE(t.lease_turn,0),"
+                        " COALESCE(c.lease_expires_at,'-infinity'::timestamptz),"
+                        " c.account_id,c.delivery_config_id,c.delivery_config_version)"
+                        " > (%s,COALESCE(%s::timestamptz,'-infinity'::timestamptz),%s,%s,%s)"
+                        if after is not None
+                        else ""
+                    )
+                    query = (
+                        "SELECT c.account_id,c.delivery_config_id,c.delivery_config_version,"  # nosec B608
+                        " COALESCE(t.lease_turn,0),c.lease_expires_at FROM"
+                        " reporting_configurations c"
+                        " LEFT JOIN adcp_reporting_configuration_lease_turns t"
+                        " ON (t.account_id,t.delivery_config_id,t.delivery_config_version)"
+                        " = (c.account_id,c.delivery_config_id,c.delivery_config_version)"
+                        " WHERE (c.lease_expires_at IS NULL OR c.lease_expires_at<=%s)"
+                        + continuation
+                        + " ORDER BY COALESCE(t.lease_turn,0),c.lease_expires_at NULLS FIRST,"
+                        " c.account_id,c.delivery_config_id,c.delivery_config_version LIMIT 32"
+                    )
+                    rows = await (
+                        await connection.execute(query, (moment, *(after or ())))
+                    ).fetchall()
+                    if rows or after is None:
+                        break
+                    after = None
+                for candidate in rows:
+                    row = candidate[:3]
+                    following = (candidate[3], candidate[4], row[0], row[1], row[2])
+                    locked = await (
+                        await connection.execute(
+                            "SELECT pg_try_advisory_xact_lock(hashtext('adcp.reporting:' || %s))",
+                            (row[0],),
+                        )
+                    ).fetchone()
+                    if not locked[0]:
+                        if not can_wait:
+                            continue
+                        # A try-lock alone can starve behind a continuous queue of
+                        # ordinary writers, even though each writer commits promptly.
+                        # Join that queue briefly, sharing one wait budget per turn.
+                        # The savepoint rolls back a timed-out wait and its SET LOCAL;
+                        # successful acquisition restores the caller's lock timeout.
+                        if wait_until is None:
+                            wait_until = monotonic() + _LEASE_ACCOUNT_WAIT_SECONDS
+                        remaining_ms = int((wait_until - monotonic()) * 1000)
+                        if remaining_ms <= 0:
+                            continue
+                        try:
+                            async with connection.transaction():
+                                previous, configured_ms = await (
+                                    await connection.execute(
+                                        "SELECT current_setting('lock_timeout'),setting::integer"
+                                        " FROM pg_settings WHERE name='lock_timeout'"
+                                    )
+                                ).fetchone()
+                                limit_ms = min(remaining_ms, configured_ms or remaining_ms)
+                                await connection.execute(
+                                    "SELECT set_config('lock_timeout',%s,true)", (f"{limit_ms}ms",)
+                                )
+                                await connection.execute(
+                                    "SELECT pg_advisory_xact_lock(hashtext('adcp.reporting:' ||"
+                                    " %s))",
+                                    (row[0],),
+                                )
+                                await connection.execute(
+                                    "SELECT set_config('lock_timeout',%s,true)", (previous,)
+                                )
+                        except LockNotAvailable:
+                            continue
+                    can_wait = False
+                    snapshot = await self._period_close_generations_on(connection, tuple(row))
+                    acquired = await (
+                        await connection.execute(
+                            "UPDATE reporting_configurations SET lease_worker_id = %s,"
+                            " lease_expires_at = %s"
+                            " WHERE (account_id,delivery_config_id,delivery_config_version) = ("
+                            " SELECT c.account_id,c.delivery_config_id,c.delivery_config_version"
+                            " FROM reporting_configurations c WHERE c.account_id=%s"
+                            " AND c.delivery_config_id=%s AND c.delivery_config_version=%s"
+                            " AND (c.lease_expires_at IS NULL OR c.lease_expires_at<=%s)"
+                            " FOR UPDATE OF c SKIP LOCKED) RETURNING account_id",
+                            (worker_id, expires, *row, moment),
+                        )
+                    ).fetchone()
+                    if acquired is None:
+                        continue
+                    await self._restore_period_close_generations_on(
+                        connection, tuple(row), snapshot
+                    )
+                    await connection.execute(
+                        "INSERT INTO adcp_reporting_configuration_lease_turns"
+                        " (account_id,delivery_config_id,delivery_config_version,lease_turn)"
+                        " VALUES(%s,%s,%s,nextval('adcp_reporting_configuration_lease_turn_seq'))"
+                        " ON CONFLICT(account_id,delivery_config_id,delivery_config_version)"
+                        " DO UPDATE SET"
+                        " lease_turn=nextval('adcp_reporting_configuration_lease_turn_seq')",
+                        tuple(row),
+                    )
+                    result = LeasedConfiguration(row[0], row[1], row[2], expires)
+                    break
+        # Only sampling uses this hint: leases and fairness ranks stay transactional.
+        # Continue past a busy prefix on the next turn; a successful turn returns to
+        # durable fairness order. Empty tails wrap at most once without row locks.
+        self._period_close_sample = following if result is None else None
+        return result
 
     async def release_period_close(self, lease: LeasedConfiguration, *, worker_id: str) -> None:
         key = lease.generation_key
-        async with self._connection() as connection:
-            await connection.execute(
-                "UPDATE reporting_configurations SET lease_worker_id = NULL,"
-                " lease_expires_at = NULL"
-                " WHERE account_id = %s AND delivery_config_id = %s"
-                "   AND delivery_config_version = %s AND lease_worker_id = %s"
-                "   AND lease_expires_at = %s",
-                (
-                    key.account_id,
-                    key.delivery_config_id,
-                    key.delivery_config_version,
-                    worker_id,
-                    lease.lease_expires_at,
-                ),
-            )
+        identity = (key.account_id, key.delivery_config_id, key.delivery_config_version)
+        async with self._connection() as connection, connection.transaction():
+            await self._lock_account(connection, key.account_id)
+            snapshot = await self._period_close_generations_on(connection, identity)
+            released = await (
+                await connection.execute(
+                    "UPDATE reporting_configurations SET lease_worker_id = NULL,"
+                    " lease_expires_at = NULL"
+                    " WHERE account_id = %s AND delivery_config_id = %s"
+                    " AND delivery_config_version = %s AND lease_worker_id = %s"
+                    " AND lease_expires_at = %s RETURNING account_id",
+                    (*identity, worker_id, lease.lease_expires_at),
+                )
+            ).fetchone()
+            if released is not None:
+                await self._restore_period_close_generations_on(connection, identity, snapshot)
 
 
 # --------------------------------------------------------------------------

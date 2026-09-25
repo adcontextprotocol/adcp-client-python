@@ -7,20 +7,26 @@ against its SHA-256 sidecar, and extracts the `schemas/` tree into
 `schemas/cache/` and protocol-managed skills into `skills/`. Replaces the
 prior per-file sync.
 
-Pinned releases additionally ship Sigstore keyless sidecars (`.tgz.sig` +
+Published releases additionally ship Sigstore keyless sidecars (`.tgz.sig` +
 `.tgz.crt`). When present, this script shells out to `cosign verify-blob`
 to prove the bundle was built by the adcontextprotocol/adcp release
-workflow. Missing sidecars (e.g., `latest.tgz`, or releases that predate
-signing) fall back to checksum-only trust per the upstream client contract.
+workflow. Only unaudited legacy/development targets may retain checksum-only
+trust when their sidecars are missing.
 
-The target version comes from `src/adcp/ADCP_VERSION`. If that version's
-bundle is not published, sync falls back to `latest.tgz` (the dev snapshot).
+The target version comes from `src/adcp/ADCP_VERSION`. For an unaudited target
+whose bundle is not published, sync may fall back to `latest.tgz` (the dev snapshot).
+Audited published pins in `schemas/releases/` instead always require their
+exact bundle and sidecars, source URL, and signing identity. They never allow
+fallback or signature bypass. `--require-signed-release` also rejects a target
+without an audited pin.
 
 Environment variables:
   ADCP_BASE_URL       Override the protocol host (default: https://adcontextprotocol.org).
                       Set to point at a fixture CDN for cross-SDK CI or pre-release testing.
                       Trailing slashes are stripped automatically. Do NOT include "/protocol".
+                      An audited published pin rejects an alternate host.
   ADCP_SKIP_SIGNATURE Set to "1" to skip Sigstore verification and trust the SHA-256 only.
+                      An audited published pin rejects this bypass.
 
 Usage:
     python scripts/sync_schemas.py              # sync schemas + skills
@@ -53,6 +59,8 @@ COMPATIBILITY_VECTORS_DIR = (
 REQUEST_SIGNING_VECTORS_DIR = REPO_ROOT / "tests" / "conformance" / "vectors" / "request-signing"
 REQUEST_SIGNING_MANIFEST = REPO_ROOT / "tests" / "conformance" / "signing" / "vector_manifest.json"
 VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
+RELEASE_PINS_DIR = REPO_ROOT / "schemas" / "releases"
+COMPLIANCE_DIR = REPO_ROOT / "src" / "adcp" / "_compliance"
 
 
 # Load ``resolve_bundle_key`` directly from its source file. Going through
@@ -179,7 +187,13 @@ def fetch_signature_sidecars(version: str) -> tuple[bytes | None, bytes | None]:
     return sig, crt
 
 
-def verify_cosign_signature(tgz_bytes: bytes, sig_bytes: bytes, crt_bytes: bytes) -> None:
+def verify_cosign_signature(
+    tgz_bytes: bytes,
+    sig_bytes: bytes,
+    crt_bytes: bytes,
+    *,
+    certificate_identity: str | None = None,
+) -> None:
     """Verify the bundle with `cosign verify-blob`.
 
     Raises RuntimeError if cosign is not installed or verification fails.
@@ -188,7 +202,7 @@ def verify_cosign_signature(tgz_bytes: bytes, sig_bytes: bytes, crt_bytes: bytes
         raise RuntimeError(
             "Bundle has Sigstore signature sidecars but `cosign` is not installed.\n"
             "  Install: https://docs.sigstore.dev/cosign/installation/\n"
-            "  Or set ADCP_SKIP_SIGNATURE=1 to trust the SHA-256 checksum only."
+            "  Audited signed releases require signature verification."
         )
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -207,8 +221,12 @@ def verify_cosign_signature(tgz_bytes: bytes, sig_bytes: bytes, crt_bytes: bytes
                 str(sig_path),
                 "--certificate",
                 str(crt_path),
-                "--certificate-identity-regexp",
-                COSIGN_IDENTITY_REGEX,
+                (
+                    "--certificate-identity"
+                    if certificate_identity
+                    else "--certificate-identity-regexp"
+                ),
+                certificate_identity or COSIGN_IDENTITY_REGEX,
                 "--certificate-oidc-issuer",
                 COSIGN_OIDC_ISSUER,
                 str(tgz_path),
@@ -226,6 +244,51 @@ def verify_cosign_signature(tgz_bytes: bytes, sig_bytes: bytes, crt_bytes: bytes
         )
 
 
+def load_release_pin(version: str) -> dict | None:
+    """Read reviewed immutable identity metadata, never downloaded trust policy."""
+    if version != Path(version).name:
+        raise RuntimeError("invalid audited release pin version")
+    path = RELEASE_PINS_DIR / f"{version}.json"
+    if not path.is_file():
+        return None
+    pin = json.loads(path.read_text(encoding="utf-8"))
+    if (
+        pin.get("version") != version
+        or pin.get("bundle_url") != f"https://adcontextprotocol.org/protocol/{version}.tgz"
+        or pin.get("certificate_oidc_issuer") != COSIGN_OIDC_ISSUER
+        or pin.get("certificate_identity")
+        != "https://github.com/adcontextprotocol/adcp/.github/workflows/release.yml@refs/heads/main"
+    ):
+        raise RuntimeError("invalid audited release pin identity")
+    return pin
+
+
+def fetch_signed_release(version: str, pin: dict) -> bytes:
+    """Fail closed on the official source, all four pinned assets and real cosign."""
+    if os.environ.get("ADCP_SKIP_SIGNATURE") == "1":
+        raise RuntimeError("ADCP_SKIP_SIGNATURE is forbidden for an audited signed release")
+    if BUNDLE_BASE_URL != "https://adcontextprotocol.org/protocol":
+        raise RuntimeError("an audited signed release requires the official protocol source")
+    artifacts = {}
+    for suffix in (".tgz", ".tgz.sha256", ".tgz.sig", ".tgz.crt"):
+        name = version + suffix
+        data = _http_get(f"{BUNDLE_BASE_URL}/{name}")
+        expected = pin["artifacts"][name]
+        if len(data) != expected["bytes"] or hashlib.sha256(data).hexdigest() != expected["sha256"]:
+            raise RuntimeError(f"{name} does not match the audited release pin")
+        artifacts[suffix] = data
+    data = artifacts[".tgz"]
+    if artifacts[".tgz.sha256"].split()[0].decode() != hashlib.sha256(data).hexdigest():
+        raise RuntimeError("checksum sidecar disagrees with the audited release pin")
+    verify_cosign_signature(
+        data,
+        artifacts[".tgz.sig"],
+        artifacts[".tgz.crt"],
+        certificate_identity=pin["certificate_identity"],
+    )
+    return data
+
+
 def _extract_bundle(
     tgz_bytes: bytes, effective_version: str
 ) -> tuple[Path, tempfile.TemporaryDirectory[str]]:
@@ -237,6 +300,19 @@ def _extract_bundle(
     tmpdir: tempfile.TemporaryDirectory[str] = tempfile.TemporaryDirectory()
     try:
         with tarfile.open(fileobj=io.BytesIO(tgz_bytes), mode="r:gz") as tf:
+            names = set()
+            for member in tf.getmembers():
+                path = Path(member.name)
+                if (
+                    path.is_absolute()
+                    or ".." in path.parts
+                    or not path.parts
+                    or path.parts[0] != f"adcp-{effective_version}"
+                    or not (member.isfile() or member.isdir())
+                    or member.name in names
+                ):
+                    raise RuntimeError("unsafe or unexpected protocol bundle member")
+                names.add(member.name)
             tf.extractall(tmpdir.name, filter="data")
     except Exception:
         tmpdir.cleanup()
@@ -577,6 +653,75 @@ def sync_request_signing_vectors_from_bundle(
     return len(files)
 
 
+def sync_packaged_compliance(bundle_root: Path, *, pin: dict) -> int:
+    """Ship unmodified current vectors and their signed-release provenance offline."""
+    version = pin["version"]
+    manifest = _read_json(bundle_root / "manifest.json")
+    if manifest.get("adcp_version") != version or manifest.get("published_version") != version:
+        raise RuntimeError("signed bundle manifest disagrees with the audited release pin")
+    dest = COMPLIANCE_DIR / version
+    if dest.exists():
+        shutil.rmtree(dest)
+    dest.mkdir(parents=True)
+    shutil.copytree(bundle_root / "compliance" / "test-vectors", dest / "test-vectors")
+    (dest / "universal").mkdir()
+    shutil.copy2(
+        bundle_root / "compliance" / "universal" / "reporting-core.yaml",
+        dest / "universal" / "reporting-core.yaml",
+    )
+    shutil.copy2(bundle_root / "manifest.json", dest / "bundle-manifest.json")
+    files = {
+        path.relative_to(dest).as_posix(): {
+            "bytes": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
+        for path in sorted(dest.rglob("*"))
+        if path.is_file()
+    }
+    # Record the signed bytes separately from the deterministic SDK cache
+    # transformation. Reuse the owned reference repair, not a second subtly
+    # different implementation and not any program from the release bundle.
+    import importlib.util
+
+    repair_path = REPO_ROOT / "scripts" / "fix_schema_refs.py"
+    spec = importlib.util.spec_from_file_location("_adcp_schema_refs", repair_path)
+    assert spec is not None and spec.loader is not None
+    repair = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(repair)
+    repair.SCHEMAS_DIR = CACHE_DIR / version
+    schemas = {}
+    for path in sorted((bundle_root / "schemas").rglob("*.json")):
+        relative = path.relative_to(bundle_root / "schemas").as_posix()
+        raw = path.read_bytes()
+        data = json.loads(raw)
+        repair.fix_refs(data, repair.SCHEMAS_DIR / relative)
+        cached = json.dumps(data, indent=2).encode("utf-8")
+        schemas[relative] = {
+            "signed_bytes": len(raw),
+            "signed_sha256": hashlib.sha256(raw).hexdigest(),
+            "cache_bytes": len(cached),
+            "cache_sha256": hashlib.sha256(cached).hexdigest(),
+        }
+    _write_json(
+        dest / "provenance.json",
+        {
+            "release": pin,
+            "files": files,
+            "cache_transformation": {
+                "script": "scripts/fix_schema_refs.py",
+                "sha256": hashlib.sha256(repair_path.read_bytes()).hexdigest(),
+                "operations": [
+                    "remove every $id",
+                    "convert /schemas/ references to relative cache paths",
+                    "json.dumps(indent=2), UTF-8, no final newline",
+                ],
+            },
+            "schemas": schemas,
+        },
+    )
+    return len(files)
+
+
 def _sync_one(
     target_version: str,
     *,
@@ -584,6 +729,7 @@ def _sync_one(
     sync_compatibility_vectors: bool = False,
     sync_request_signing_vectors: bool = False,
     target_bundle_key: str | None = None,
+    require_signed_release: bool = False,
 ) -> tuple[int, int, str, str]:
     """Download, verify, and extract a single bundle into the cache.
 
@@ -598,8 +744,16 @@ def _sync_one(
     """
     print(f"Fetching {target_version}.tgz + checksum...")
     try:
-        tgz_bytes, expected_sha, effective_version = fetch_bundle_with_fallback(target_version)
-    except (HTTPError, URLError) as exc:
+        pin = load_release_pin(target_version)
+        if require_signed_release and pin is None:
+            raise RuntimeError(f"no audited release pin for {target_version}")
+        if pin is not None:
+            tgz_bytes = fetch_signed_release(target_version, pin)
+            expected_sha = pin["artifacts"][target_version + ".tgz"]["sha256"]
+            effective_version = target_version
+        else:
+            tgz_bytes, expected_sha, effective_version = fetch_bundle_with_fallback(target_version)
+    except (HTTPError, URLError, RuntimeError) as exc:
         print(f"\n✗ Failed to download bundle: {exc}", file=sys.stderr)
         sys.exit(1)
 
@@ -614,7 +768,9 @@ def _sync_one(
         sys.exit(1)
     print(f"  ✓ Checksum verified ({actual_sha[:12]}…, {len(tgz_bytes):,} bytes)")
 
-    if os.environ.get("ADCP_SKIP_SIGNATURE") == "1":
+    if pin is not None:
+        print("  ✓ Audited release and exact signing identity verified; no fallback allowed")
+    elif os.environ.get("ADCP_SKIP_SIGNATURE") == "1":
         print("  ! Skipping Sigstore verification (ADCP_SKIP_SIGNATURE=1)")
     else:
         try:
@@ -645,6 +801,13 @@ def _sync_one(
     bundle_key = target_bundle_key or resolve_bundle_key(target_version)
 
     with tmpdir:
+        if pin is not None:
+            manifest = _read_json(bundle_root / "manifest.json")
+            if (
+                manifest.get("adcp_version") != target_version
+                or manifest.get("published_version") != target_version
+            ):
+                raise RuntimeError("signed bundle manifest disagrees with the audited release pin")
         try:
             schema_count = replace_cache_from_bundle(
                 bundle_root,
@@ -687,12 +850,21 @@ def _sync_one(
                 print(f"\n✗ Failed to sync request-signing vectors: {exc}", file=sys.stderr)
                 sys.exit(1)
 
+        if pin is not None and sync_compatibility_vectors:
+            count = sync_packaged_compliance(bundle_root, pin=pin)
+            print(f"  ✓ Packaged {count} original compliance/manifest files with provenance")
+
     return schema_count, skill_count, effective_version, bundle_key
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Sync AdCP schemas and skills from the protocol bundle."
+    )
+    parser.add_argument(
+        "--require-signed-release",
+        action="store_true",
+        help="Require an audited immutable release pin, all sidecars and exact cosign identity.",
     )
     parser.add_argument(
         "--no-skills",
@@ -726,6 +898,7 @@ def main() -> None:
         sync_compatibility_vectors=True,
         sync_request_signing_vectors=True,
         target_bundle_key=primary_bundle_key,
+        require_signed_release=args.require_signed_release,
     )
 
     print(f"\n✓ Successfully synced {schema_count} schema files")
@@ -750,6 +923,7 @@ def main() -> None:
         preview_schemas, _, preview_effective, preview_key = _sync_one(
             preview,
             sync_skills=False,
+            require_signed_release=args.require_signed_release,
         )
         print(f"  ✓ Synced {preview_schemas} schema files into {CACHE_DIR / preview_key}/")
         if preview_effective != preview:
