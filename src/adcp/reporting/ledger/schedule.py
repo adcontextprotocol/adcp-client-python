@@ -105,7 +105,7 @@ def next_reporting_expectation(
 def next_reporting_period_start(
     configurations: Sequence[ReportingConfiguration], *, as_of: datetime
 ) -> datetime | None:
-    """rc.4 complete-summary forecast outside the closed evaluated horizon.
+    """rc.6 complete-summary forecast outside the closed evaluated horizon.
 
     Only captured committed generations supply this forecast. A completed
     obligation's due time is not a period start, and a future forecast does

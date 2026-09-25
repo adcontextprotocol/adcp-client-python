@@ -339,8 +339,10 @@ async def test_synchronous_startup_then_runtime_loop_has_no_loop_bound_cache(act
 async def test_memory_only_claims_and_frozen_constructor_remain_unchanged():
     async with reliable_factory("memory", notifications=True) as reliable:
         support = await compose_activity(reliable, False)
-        assert not await support.durable()
-        assert not await support.durable()
+        hardening_operation_1 = await support.durable()
+        assert not hardening_operation_1
+        hardening_operation_2 = await support.durable()
+        assert not hardening_operation_2
         with mounted_activity(support) as handler:
             handler._platform.claim = False
             await handler.get_adcp_capabilities()
@@ -486,8 +488,10 @@ async def test_b_and_composite_prove_each_packaged_contract_once(monkeypatch):
         monkeypatch.setattr(_schema, "_validate_schema_objects", b_contract)
         monkeypatch.setattr(status_schema, "_validate_status_objects", c_contract)
         for support in (b_only, composite):
-            assert await support.durable()
-            assert await support.durable()
+            hardening_operation_4 = await support.durable()
+            assert hardening_operation_4
+            hardening_operation_5 = await support.durable()
+            assert hardening_operation_5
         assert calls == [
             ("B", {"activity": True}),
             ("B", {"activity": True}),
@@ -500,7 +504,8 @@ async def test_b_and_composite_prove_each_packaged_contract_once(monkeypatch):
                 "ALTER TABLE reporting_status_webhook_attempts DISABLE TRIGGER"
                 " reporting_status_webhook_attempt_guard"
             )
-        assert await b_only.durable()
+        hardening_operation_3 = await b_only.durable()
+        assert hardening_operation_3
         # A new server instance is the normal migration/restart boundary.
         restarted = replace(composite)
         with pytest.raises(ReportingNotificationError, match="status_schema_unready"):

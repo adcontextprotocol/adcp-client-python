@@ -33,7 +33,7 @@ from .test_reporting_materializer_rolling import build_frozen
 from .test_reporting_notification_packaging import ROOT, run_step
 
 __all__ = ["approved_b23", "b1_wheels", "built_distribution", "feed_wheels", "installed_feed"]
-HARDENING = "a09878f67ab397a4b51b3314e3e8a5e87cf96da5"
+HARDENING = "e16eb8cf3074cabd45aab42840950f05ad6d2b43"
 
 
 @pytest.fixture(scope="module", params=["b23", "hardening"])
@@ -86,7 +86,7 @@ def production_parent(request, tmp_path_factory):
             **identity,
             "modules": modules,
             "python": [3, 10],
-            "tree": "528cf5fddb61c72a284dc0a9b22b169752db7691",
+            "tree": "c043d1e14c5071859f566e07cc9980058fa6ee07",
         },
         wheel,
     )
@@ -367,7 +367,8 @@ async def test_actual_parent_page_one_to_installed_activation_sigkill_and_comple
         )
         async with installed_child(python, script, settings, tmp_path) as child:
             result = await child.event("done")
-            assert await asyncio.wait_for(child.process.wait(), 10) == 0
+            production_operation_1 = await asyncio.wait_for(child.process.wait(), 10)
+            assert production_operation_1 == 0
         assert result["legacy"] == {
             "pages": expected[0][1:],
             "binding": snapshot.binding,

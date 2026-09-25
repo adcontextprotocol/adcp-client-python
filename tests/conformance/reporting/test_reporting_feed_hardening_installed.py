@@ -84,7 +84,7 @@ def approved_b23(tmp_path_factory, request):
         "modules": modules,
         "assets": assets,
         "python": [3, 10],
-        "tree": "16c55b24340aeea3524c781f19bfa64d1491ac34",
+        "tree": "2f71a273c0218e7ffc490fb4df243d02711cff7b",
     }
     return root, python, script, helper, installed, wheel
 
@@ -117,7 +117,8 @@ async def test_actual_b23_to_child_installed_restart_preserves_pages_and_receipt
         # replay before it writes page one; fixtures only supply populated data.
         async with feed_process(h, s, receipt_request, action="receipt", **old) as child:
             admitted = await child.event("done")
-            assert await asyncio.wait_for(child.process.wait(), 5) == 0
+            hardening_operation_1 = await asyncio.wait_for(child.process.wait(), 5)
+            assert hardening_operation_1 == 0
         assert admitted["result"] == receipt_response
         async with feed_process(h, s, feed_request(s), pause="committed", **old) as child:
             first = (await child.event("committed"))["result"]
@@ -158,14 +159,16 @@ async def test_actual_b23_to_child_installed_restart_preserves_pages_and_receipt
                 h, s, continuation, action="walk", transport="a2a", v1=v1, **new
             ) as child:
                 continued = await child.event("done")
-                assert await asyncio.wait_for(child.process.wait(), 5) == 0
+                hardening_operation_3 = await asyncio.wait_for(child.process.wait(), 5)
+                assert hardening_operation_3 == 0
             assert continued["result"]["pages"] == expected[0][1:]
             assert continued["result"]["binding"] == original.binding
             assert continued["result"]["version"] == original.representation_version
             assert continued["result"]["ownership_mode"] == original.ownership_mode == "absent"
         async with feed_process(h, s, receipt_request, action="receipt", **new) as child:
             replayed = await child.event("done")
-            assert await asyncio.wait_for(child.process.wait(), 5) == 0
+            hardening_operation_2 = await asyncio.wait_for(child.process.wait(), 5)
+            assert hardening_operation_2 == 0
         assert replayed["result"] == receipt_response
         assert without_feed(await h.image()) == before
         assert (

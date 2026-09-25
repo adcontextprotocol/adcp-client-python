@@ -66,7 +66,7 @@ async def mixed_case(h, **kwargs):
 
 def feed_request(s, *, limit=1, **kwargs):
     return {
-        "adcp_version": "3.2-rc.3",
+        "adcp_version": "3.2-rc.6",
         "view": "periods",
         "account": {"account_id": s.obligation.account_id},
         "pagination": {"max_results": limit},
@@ -160,6 +160,7 @@ class MountedFeed(MountedReceipts):
             resolve_account=self.resolve_account,
             buyer_agents=self.registry,
             consumer_status_enabled=feedback,
+            adcp_version=self.version,
         )
         self.handler.get_reporting_status = self.idempotency.wrap(self.handler.get_reporting_status)
         self.handler.get_adcp_version = lambda: self.version

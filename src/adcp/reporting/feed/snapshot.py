@@ -248,12 +248,27 @@ class StoredFeedSnapshot:
         ):
             raise ReportingFeedError("INVALID_CHECKPOINT")
         if snapshot.filters_json != request.filters_json:
+            captured_filters = json.loads(snapshot.filters_json)
+            proposed_filters = request.filters
+            if (
+                snapshot.representation_version == 1
+                and snapshot.ownership_mode == "absent"
+                and "adcp_version" not in captured_filters
+                and proposed_filters.get("adcp_version") == "3.2-rc.6"
+            ):
+                # Integrated parents persisted unversioned v1 filters. Their
+                # immutable representation has no complete-summary forecast;
+                # the rc.6 marker must not invalidate those original walks.
+                # Caller, position and signature were verified above. Every
+                # previously bound semantic filter must still match exactly.
+                proposed_filters.pop("adcp_version")
+                if captured_filters != proposed_filters:
+                    raise ReportingFeedError("INVALID_CHECKPOINT")
+                return position
             # Only an authenticated, correctly signed position can disclose
             # this actionable version boundary. Other callers/tokens retain
             # the indistinguishable INVALID_CHECKPOINT error above.
-            if json.loads(snapshot.filters_json).get("adcp_version") != request.filters.get(
-                "adcp_version"
-            ):
+            if captured_filters.get("adcp_version") != proposed_filters.get("adcp_version"):
                 raise ReportingFeedError("REPORTING_FEED_VERSION_MISMATCH")
             raise ReportingFeedError("INVALID_CHECKPOINT")
         return position

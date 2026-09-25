@@ -80,7 +80,8 @@ async def test_snapshot_restatement_and_official_keep_exact_receipt_adjustment_t
 ):
     h = feeds
     case = await durable_case(h.store, count=3, reconciliation_mode="consumer_receipt")
-    assert (await case.service().run_once()).state == "verified"
+    feed_operation_1 = await case.service().run_once()
+    assert (feed_operation_1).state == "verified"
     request = {
         "account": {"account_id": case.config.account_id},
         "view": "periods",
@@ -91,7 +92,8 @@ async def test_snapshot_restatement_and_official_keep_exact_receipt_adjustment_t
     restatement = await case.publish(
         "restated-snapshot", finality="snapshot", supersedes=case.revision.reporting_revision_id
     )
-    assert (await case.service().run_once()).state == "verified"
+    feed_operation_2 = await case.service().run_once()
+    assert (feed_operation_2).state == "verified"
     outcomes = await case.outcomes()
     retained_outcome = next(
         r for r in outcomes if r.reporting_revision_id == restatement.reporting_revision_id
@@ -217,9 +219,10 @@ async def test_rejected_adjustment_digest_and_replacement_chain_are_preserved_wi
     )
     assert response["results"][0]["result"] == "recorded"
     before = without_feed(await h.image())
-    assert (
-        await walk(await restart(h), feed_request(s), s.binding.principal, first=first) == original
+    feed_operation_3 = await walk(
+        await restart(h), feed_request(s), s.binding.principal, first=first
     )
+    assert feed_operation_3 == original
     _, delta, _ = await walk(
         h.store, feed_request(s, changes_after=original[2]), s.binding.principal
     )
@@ -290,12 +293,10 @@ async def test_page_one_freezes_issue_waiver_status_replacement_configuration_an
     h.clock.now += timedelta(days=500)
     store = await restart(h)
     before = without_feed(await h.image())
-    assert (
-        await walk(
-            store, req, s.binding.principal, first=first, consumer_status_enabled=not feedback
-        )
-        == expected
+    feed_operation_4 = await walk(
+        store, req, s.binding.principal, first=first, consumer_status_enabled=not feedback
     )
+    assert feed_operation_4 == expected
     assert (
         await store.read_reporting_feed_snapshot(
             first["ledger_snapshot_id"], caller=s.binding.principal
@@ -401,7 +402,8 @@ async def test_late_committed_backdated_check_cannot_rewrite_receipt_admission(f
         )
     )
     before = without_feed(await h.image())
-    assert await h.store.ingest_receipt_batch(request, caller=s.binding.principal) == response
+    feed_operation_5 = await h.store.ingest_receipt_batch(request, caller=s.binding.principal)
+    assert feed_operation_5 == response
     fresh = await h.store.read_reporting_feed(
         feed_request(s, limit=100), caller=s.binding.principal
     )
@@ -445,7 +447,8 @@ async def test_conflicting_owner_in_retained_receipt_boundary_fails_new_capture_
             )
     store = await restart(h)
     before = await h.image()
-    assert (await walk(store, feed_request(s), s.binding.principal, first=first))[1]["receipts"]
+    feed_operation_6 = await walk(store, feed_request(s), s.binding.principal, first=first)
+    assert (feed_operation_6)[1]["receipts"]
     with pytest.raises(ReportingFeedError) as error:
         await store.read_reporting_feed(feed_request(s), caller=s.binding.principal)
     assert error.value.code == "REPORTING_FEED_HISTORY_CORRUPT"

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from adcp._version import is_adcp_version_at_least, resolve_adcp_version
 from adcp.decisioning.context import AuthInfo, RequestContext
@@ -18,9 +18,6 @@ from adcp.reporting.receipts.store import ReportingReceiptBatchStore
 from adcp.reporting.receipts.wire import TASK, validate_receipt_request
 from adcp.server.base import ADCPHandler, NotImplementedResponse, ToolContext
 from adcp.types import Error, GetReportingStatusRequest, SyncReportingReceiptsRequest
-
-if TYPE_CHECKING:
-    from adcp.reporting.feed.store import ReportingFeedStore
 
 ReceiptAccountResolver = Callable[[dict[str, Any], ToolContext, str], Awaitable[str]]
 """Resolve AND reauthorize the exact account reference for this consumer on every call.
@@ -128,10 +125,10 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
         )
         self._feed_consumer_status_enabled = consumer_status_enabled
         self._adcp_version = resolve_adcp_version(adcp_version)
-        if not is_adcp_version_at_least(self._adcp_version, "3.2-rc.3"):
+        if not is_adcp_version_at_least(self._adcp_version, "3.2-rc.6"):
             raise ConfigurationError(
                 "reporting mounts require a supported AdCP 3.2 reporting contract; "
-                "use 3.2-rc.3 for retained walks or omit the pin for the packaged default"
+                "use 3.2-rc.6 or omit the pin for the packaged default"
             )
 
     def get_adcp_version(self) -> str:

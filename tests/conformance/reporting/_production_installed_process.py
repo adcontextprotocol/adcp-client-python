@@ -50,7 +50,7 @@ async def main(settings):
             reconciled=True,
             identity_prefix="b24-",
             existing_pool=pool,
-            adcp_version="3.2-rc.3",
+            adcp_version="3.2-rc.6",
         ) as h:
             mount = MountedProduction(h)
             subject = SimpleNamespace(
@@ -91,14 +91,17 @@ async def main(settings):
                 return row[3]
 
             if settings["pause"]:
-                assert await pending_identity() == "pending"
-                assert await h.production.activate(account_id="acct_a")
+                adoption_operation_1 = await pending_identity() == "pending"
+                assert adoption_operation_1
+                production_operation_1 = await h.production.activate(account_id="acct_a")
+                assert production_operation_1
                 # Run the real producer's lease acquisition/release after
                 # activation while the actual parent's attempt is pending.
                 # The already-killed parent's lease deliberately spans setup.
                 # Persist its expiry as a bounded crash-recovery fault, without
                 # changing any original attempt, generation or external identity.
-                assert (await source_turn(h.production)).leased is not None
+                production_operation_2 = await source_turn(h.production)
+                assert (production_operation_2).leased is not None
                 async with pool.connection() as c, c.transaction():
                     account = original_attempt.scope.principal.account_id
                     await h.store._lock_account(c, account)
@@ -123,7 +126,8 @@ async def main(settings):
                 else:
                     raise AssertionError("historical pending work did not resume to verified")
                 assert h.item.writer.writes == 1
-                assert await pending_identity() == "acked"
+                adoption_operation_2 = await pending_identity() == "acked"
+                assert adoption_operation_2
                 async with pool.connection() as c:
                     rows = await (
                         await c.execute(
@@ -143,8 +147,10 @@ async def main(settings):
                 assert rows == (int(settings["notifications"]), int(settings["notifications"]), 0)
                 await drain(h.projection, "acct_a")
             else:
-                assert not await h.production.activate(account_id="acct_a")
-                assert await pending_identity() == "acked"
+                production_operation_3 = await h.production.activate(account_id="acct_a")
+                assert not production_operation_3
+                adoption_operation_3 = await pending_identity() == "acked"
+                assert adoption_operation_3
                 # A new eligible period was committed after both first pages.
                 # Finish it through bounded real turns if startup first handled
                 # another candidate. Neither snapshot may gain that membership.

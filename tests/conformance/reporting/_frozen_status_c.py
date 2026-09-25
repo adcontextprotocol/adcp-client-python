@@ -48,7 +48,8 @@ async def main():
                 if gate == "project" or "SET lease_token=" in query:
                     gate = None
                     emit({"held": True})
-                    assert (await read())["action"] == "release_hold"
+                    destination_operation_1 = await read()
+                    assert (destination_operation_1)["action"] == "release_hold"
             return result
 
     async with AsyncConnectionPool(

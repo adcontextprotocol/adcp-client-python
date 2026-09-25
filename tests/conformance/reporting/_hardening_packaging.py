@@ -28,7 +28,7 @@ ASSETS = (
     "ledger/reporting_receipt_ingestion.sql",
     "receipts/required_schema.json",
 )
-B23 = "50e35f0ae3540f19b40e8fc460f5870dfe018bf9"
+B23 = "2d777ace7b4bf8be519ce0abd4fd0a25ed4f1da7"
 
 
 def installed_hardening(root, python, wheel, *, label, parent=False, driver_absent=False):

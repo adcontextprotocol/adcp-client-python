@@ -199,7 +199,7 @@ def test_correction_is_limited_to_the_known_rule_and_version(mutation):
 @pytest.mark.parametrize("backend", ["memory", "postgres"])
 @pytest.mark.parametrize("mode", ["core", "projection"])
 @pytest.mark.parametrize("notifications", [False, True])
-@pytest.mark.parametrize("version", [None, PIN])
+@pytest.mark.parametrize("version", [None, "3.2.0-rc.6"])
 async def test_complete_future_expectation_on_actual_summary_mounts(
     backend, mode, notifications, version
 ):
@@ -218,7 +218,7 @@ async def test_complete_future_expectation_on_actual_summary_mounts(
         )
         mounted.authorize(identity)
         request = {
-            "adcp_version": "3.2-rc.3",
+            "adcp_version": "3.2-rc.6",
             "account": {"account_id": config.account_id},
             "view": "summary",
         }
@@ -239,7 +239,7 @@ async def test_complete_future_expectation_on_actual_summary_mounts(
                 else:
                     _, raw = await mounted.a2a(client, request, v1=transport == "a2a-1.0")
                 assert raw.get("health") == "complete", raw
-                assert raw["next_expected_at"] == "2026-09-01T02:00:00Z"
+                assert raw["next_expected_at"] == "2026-09-01T01:00:00Z"
                 assert_original_rejection(raw)
                 schema_loader.get_validator("get_reporting_status", "sync", version=PIN).validate(
                     raw

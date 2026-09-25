@@ -75,7 +75,8 @@ async def test_pg_sigkill_after_accepted_http_keeps_first_retry_window(
         for key in tuple(h.subscriptions.values):
             if key[0] == "acct_a" and key[1] != "buyer":
                 del h.subscriptions.values[key]
-        assert await h.workers[queue].expand_one(account_id="acct_a")
+        production_operation_1 = await h.workers[queue].expand_one(account_id="acct_a")
+        assert production_operation_1
         async with delivery_child(h, tmp_path, queue=queue, pause=True, at=h.clock()) as child:
             first = await child.event("accepted_before_ack")
             assert len(await retained_windows(h)) == 1
@@ -85,7 +86,8 @@ async def test_pg_sigkill_after_accepted_http_keeps_first_retry_window(
         at = datetime.fromisoformat(first["expires_at"]) + timedelta(microseconds=offset)
         async with delivery_child(h, tmp_path, queue=queue, pause=False, at=at) as child:
             restored = await child.event("done")
-            assert await asyncio.wait_for(child.process.wait(), 10) == 0
+            production_operation_2 = await asyncio.wait_for(child.process.wait(), 10)
+            assert production_operation_2 == 0
         assert restored["http_calls"] == int(offset < 0)
         assert restored["activity_count"] == (2 if offset < 0 else 1)
         assert (restored["state"], restored["error_code"]) == (

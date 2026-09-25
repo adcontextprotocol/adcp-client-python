@@ -1,0 +1,24 @@
+{
+  "published_version": "3.2.0-rc.6",
+  "adcp_version": "3.2.0-rc.6",
+  "generated_at": "2026-09-23T20:19:14.773Z",
+  "root_dir": "adcp-3.2.0-rc.6",
+  "contents": {
+    "schemas": true,
+    "compliance": true,
+    "skills": [
+      "adcp-brand",
+      "adcp-creative",
+      "adcp-governance",
+      "adcp-measurement",
+      "adcp-media-buy",
+      "adcp-si",
+      "adcp-signals",
+      "call-adcp-agent"
+    ],
+    "openapi": true,
+    "changelog": true,
+    "readme": true
+  },
+  "file_count": 4131
+}

@@ -277,16 +277,27 @@ class ConsumerStatusIngest:
             current=stored, current_revision=current, revisions=revisions
         ):
             return
+        key = consumer_mismatch_issue_key(
+            account_id=stored.account_id,
+            consumer_id=stored.consumer_id,
+            delivery_config_id=stored.delivery_config_id,
+            delivery_config_version=stored.delivery_config_version,
+            report_definition_id=stored.report_definition_id,
+            period_start=stored.period_start,
+            period_end=stored.period_end,
+        )
+        seen: set[str] = set()
+        while (
+            issue := await self.store.get_issue(account_id=stored.account_id, issue_key=key)
+        ) is not None and issue.issue_state == "waived":
+            if issue.issue_id in seen or issue.issue_key != key:
+                raise LedgerConflictError("STATUS_PROJECTION_UNAVAILABLE", "invalid waiver chain")
+            seen.add(issue.issue_id)
+            if waiver_covers_mismatch(issue, stored, obligation, current):
+                return
+            key = condition_after_waiver(issue)
         await self.store.ensure_issue_opened(
-            issue_key=consumer_mismatch_issue_key(
-                account_id=stored.account_id,
-                consumer_id=stored.consumer_id,
-                delivery_config_id=stored.delivery_config_id,
-                delivery_config_version=stored.delivery_config_version,
-                report_definition_id=stored.report_definition_id,
-                period_start=stored.period_start,
-                period_end=stored.period_end,
-            ),
+            issue_key=key,
             account_id=stored.account_id,
             consumer_id=stored.consumer_id,
             observed_at=stored.recorded_at,
@@ -615,8 +626,8 @@ class ConsumerMismatch:
     issue: ReportingIssue
     severity: Literal["delayed", "action_required"]
     #: Only published occurrences contribute health. A waived occurrence is
-    #: omitted entirely by ``project_consumer_mismatch`` until agreement
-    #: retires it and rearms the chain for a subsequent occurrence.
+    #: omitted only while its exact statement and diagnosed conflict match
+    #: the recorded bilateral waiver. Later disagreements are independent.
     published: bool = True
 
 
@@ -698,6 +709,66 @@ def current_consumer_statement(
 ) -> ConsumerStatusRecord | None:
     """This caller's one unsuperseded leaf, or ``None`` for an empty chain."""
     return next((item for item in statuses if not item.superseded), None)
+
+
+def mismatch_conflict_fingerprint(
+    status: ConsumerStatusRecord,
+    obligation: ReportingObligationRecord | None,
+    current_revision: ReportingRevisionRecord | None,
+) -> str:
+    """Private identity of the diagnosed conflict, separate from escalation.
+
+    Time/severity changes do not create a different disagreement. A changed
+    seller revision does when the diagnosis compares against that revision.
+    The immutable consumer statement is bound separately by its record ID.
+    """
+    required = (
+        current_revision.reporting_revision_id
+        if current_revision is not None
+        and status.consumer_status in {"received", "revision_missing", "content_mismatch"}
+        else None
+    )
+    return hashlib.sha256(
+        canonical_json_utf8_v1(
+            [
+                "consumer-mismatch-waiver-v1",
+                status.account_id,
+                status.consumer_id,
+                status.consumer_status,
+                status.reporting_revision_id,
+                status.failure_code,
+                status.mismatch_code,
+                obligation.reporting_obligation_id if obligation else None,
+                required,
+            ]
+        )
+    ).hexdigest()
+
+
+def waiver_covers_mismatch(
+    lifecycle: ReportingIssueLifecycle,
+    status: ConsumerStatusRecord,
+    obligation: ReportingObligationRecord | None,
+    current_revision: ReportingRevisionRecord | None,
+) -> bool:
+    return (
+        lifecycle.issue_state == "waived"
+        and lifecycle.account_id == status.account_id
+        and lifecycle.consumer_id == status.consumer_id
+        and lifecycle.waived_reporting_status_id == status.reporting_status_id
+        and lifecycle.waived_conflict_sha256
+        == mismatch_conflict_fingerprint(status, obligation, current_revision)
+    )
+
+
+def condition_after_waiver(lifecycle: ReportingIssueLifecycle) -> str:
+    """A new occurrence namespace without changing the terminal waiver row."""
+    return (
+        "rpik_"
+        + hashlib.sha256(
+            canonical_json_utf8_v1(["after-exact-waiver-v1", lifecycle.issue_id])
+        ).hexdigest()[:40]
+    )
 
 
 def consumer_statement_conflicts(
@@ -836,7 +907,11 @@ def project_consumer_mismatch(
     if current is None:
         return None
     if lifecycle is not None and lifecycle.issue_state == "waived":
-        return None
+        if waiver_covers_mismatch(lifecycle, current, obligation, current_revision):
+            return None
+        # A caller must settle the new occurrence before publishing. Never
+        # treat a legacy/unrelated waiver as permission to clear this health.
+        lifecycle = None
     if not consumer_statement_conflicts(
         current=current, current_revision=current_revision, revisions=revisions
     ):

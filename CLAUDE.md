@@ -127,9 +127,10 @@ context-echo path.
 - Test locally with `python -m build` before relying on CI
 
 **Release Please Workflow**
-- Runs automatically on push to main
-- Creates release PR with version bump and changelog
-- When release PR is merged, automatically publishes to PyPI
+- Legacy workflow 204238826 stays disabled; its definition is a failing tombstone.
+- `release-proposal.yml` accepts an explicit current-main SHA and creates only a release PR.
+- `release-publish.yml` repeats exact-main CI/artifact/installed acceptance after the release PR merges, then requires environment approval.
+- Follow [docs/releasing.md](docs/releasing.md) for historical-run retirement, operator configuration, the main freeze, publication, and guarded recovery.
 - Requires proper `[project.scripts]` entry point in pyproject.toml for CLI tools
 
 **Entry Points for CLI Tools**

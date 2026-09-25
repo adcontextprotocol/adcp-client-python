@@ -125,13 +125,18 @@ async def test_public_stores_lease_and_configuration_writer_keep_consistent_orde
         assert lease is not None
         await asyncio.wait_for(store.release_period_close(lease, worker_id="after"), 3)
         async with pool.connection() as connection:
-            assert await (
+            adoption_operation_1 = await (
                 await connection.execute(
                     "SELECT count(*) FROM reporting_configurations WHERE lease_worker_id IS NOT"
                     " NULL"
                 )
             ).fetchone() == (0,)
-        assert await store.list_configurations(account_id=first.account_id) == (first, sibling)
+            assert adoption_operation_1
+        adoption_operation_2 = await store.list_configurations(account_id=first.account_id) == (
+            first,
+            sibling,
+        )
+        assert adoption_operation_2
 
 
 @pytest.mark.parametrize("held_lock", ["account", "row"])
@@ -155,12 +160,13 @@ async def test_shared_lease_sampling_reaches_past_a_busy_prefix(held_lock):
                     "SELECT 1 FROM reporting_configurations WHERE account_id=%s FOR UPDATE",
                     (configs[0].account_id,),
                 )
-            assert (
+            adoption_operation_3 = (
                 await asyncio.wait_for(
                     store.lease_period_close(worker_id="probe", now=NOW, lease_seconds=60), 3
                 )
                 is None
             )
+            assert adoption_operation_3
             lease = await asyncio.wait_for(
                 store.lease_period_close(worker_id="probe", now=NOW, lease_seconds=60), 3
             )
@@ -214,14 +220,16 @@ async def test_sampled_configuration_cannot_steal_a_lease_committed_before_accou
                         )
                     ).fetchall()
                 resume.set()
-                assert await asyncio.wait_for(first, 3) is None
+                adoption_operation_4 = await asyncio.wait_for(first, 3) is None
+                assert adoption_operation_4
                 async with pool.connection() as connection:
-                    assert await (
+                    adoption_operation_5 = await (
                         await connection.execute(
                             "SELECT lease_worker_id,lease_expires_at FROM reporting_configurations"
                         )
                     ).fetchone() == ("winner", winner.lease_expires_at)
-                    assert (
+                    assert adoption_operation_5
+                    adoption_operation_6 = (
                         await (
                             await connection.execute(
                                 "SELECT lease_turn FROM adcp_reporting_configuration_lease_turns"
@@ -229,6 +237,7 @@ async def test_sampled_configuration_cannot_steal_a_lease_committed_before_accou
                         ).fetchall()
                         == rank
                     )
+                    assert adoption_operation_6
                 await store.release_period_close(winner, worker_id="winner")
             finally:
                 resume.set()
@@ -284,7 +293,10 @@ async def test_bounded_account_wait_preserves_caller_transaction_and_timeout(
                     value = (await (await connection.execute("SHOW lock_timeout")).fetchone())[0]
                     restored.append(value)
                     assert value == previous
-                    assert await (await connection.execute("SELECT 1")).fetchone() == (1,)
+                    adoption_operation_7 = await (
+                        await connection.execute("SELECT 1")
+                    ).fetchone() == (1,)
+                    assert adoption_operation_7
                     await connection.execute(
                         "SELECT set_config('lock_timeout',%s,false)", (original,)
                     )

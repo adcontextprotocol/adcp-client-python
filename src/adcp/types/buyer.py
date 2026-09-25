@@ -56,6 +56,7 @@ __all__ = [
     "UpdateMediaBuyRequest",
     "PackageRequest",
     "TargetingOverlay",
+    "TargetingOverlayInput",
     "ProvidePerformanceFeedbackRequest",
     "ProvidePerformanceFeedbackResponse",
     "ProvidePerformanceFeedbackByMediaBuyRequest",
@@ -151,6 +152,7 @@ if TYPE_CHECKING:
         RightsPricingOption,
         RightsTerms,
         TargetingOverlay,
+        TargetingOverlayInput,
         UpdateMediaBuyRequest,
         VerifyBrandClaimsRequest,
     )

@@ -57,8 +57,10 @@ async def test_shared_producer_preserves_held_materialization_and_real_source_fe
         )
         assert token is not None and token.generation_key == case.config.generation_key
         await producer.release_period_close(token, worker_id="producer")
-        assert await candidate_generation(h.pool, case) == expected
-        assert await candidate_generation(h.pool, other) == other_generation
+        adoption_operation_1 = await candidate_generation(h.pool, case) == expected
+        assert adoption_operation_1
+        adoption_operation_2 = await candidate_generation(h.pool, other) == other_generation
+        assert adoption_operation_2
         if source_change:
             assert expected > lease.generation
             with pytest.raises(ReportingWriterError, match="CURRENT_REVISION_CHANGED"):
@@ -86,13 +88,14 @@ async def test_shared_lease_never_blindly_decrements_suppressed_or_changed_trigg
                 )
             elif trigger_mode == "replica":
                 await connection.execute("SET LOCAL session_replication_role='replica'")
-                assert await (
+                adoption_operation_3 = await (
                     await connection.execute(
                         "SELECT tgenabled FROM pg_trigger"
                         " WHERE tgrelid='reporting_configurations'::regclass"
                         " AND tgname='reporting_materializer_configuration'"
                     )
                 ).fetchone() == ("O",)
+                assert adoption_operation_3
             else:
                 definition = await (
                     await connection.execute(
@@ -113,9 +116,10 @@ async def test_shared_lease_never_blindly_decrements_suppressed_or_changed_trigg
             await h.store.release_period_close(token, worker_id="producer")
         # Replica mode did not fire the enabled trigger. Drift must remain
         # visible instead of restoring an unexpected increment to a valid lease.
-        assert await candidate_generation(h.pool, case) == original + (
+        adoption_operation_4 = await candidate_generation(h.pool, case) == original + (
             4 if trigger_mode == "drift" else 0
         )
+        assert adoption_operation_4
         async with h.pool.connection() as connection:
             if trigger_mode == "replica":
                 await validate_materializer_schema(connection)
@@ -146,15 +150,19 @@ async def test_stale_shared_release_preserves_current_lease_and_materializer_gen
             stale, worker_id="wrong" if wrong_fence == "worker" else "producer"
         )
         async with h.pool.connection() as connection:
-            assert await (
+            adoption_operation_5 = await (
                 await connection.execute(
                     "SELECT lease_worker_id,lease_expires_at FROM reporting_configurations"
                 )
             ).fetchone() == ("producer", token.lease_expires_at)
-        assert await candidate_generation(h.pool, case) == generation
-        assert await h.works() == pending
+            assert adoption_operation_5
+        adoption_operation_6 = await candidate_generation(h.pool, case) == generation
+        assert adoption_operation_6
+        adoption_operation_7 = await h.works() == pending
+        assert adoption_operation_7
         await producer.release_period_close(token, worker_id="producer")
-        assert await candidate_generation(h.pool, case) == generation
+        adoption_operation_8 = await candidate_generation(h.pool, case) == generation
+        assert adoption_operation_8
 
 
 async def test_base_lease_does_not_require_or_create_materializer_tables():
@@ -166,6 +174,7 @@ async def test_base_lease_does_not_require_or_create_materializer_tables():
         assert token is not None
         await store.release_period_close(token, worker_id="producer")
         async with pool.connection() as connection:
-            assert await (
+            adoption_operation_9 = await (
                 await connection.execute("SELECT to_regclass('reporting_materializer_candidates')")
             ).fetchone() == (None,)
+            assert adoption_operation_9

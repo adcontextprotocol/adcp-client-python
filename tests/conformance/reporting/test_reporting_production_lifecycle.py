@@ -137,9 +137,10 @@ async def test_production_official_receipts_adjustment_and_frozen_wire_cycle(
             assert isinstance(lease, ReportingMaterializerLease)
             assert lease.attempt.reporting_revision_id == official.reporting_revision_id
             prepared, verified = await item.verified(lease)
-            assert (
-                await h.store.finish_materialization(lease, prepared=prepared, verified=verified)
-            ).state == "verified"
+            production_operation_1 = await h.store.finish_materialization(
+                lease, prepared=prepared, verified=verified
+            )
+            assert (production_operation_1).state == "verified"
             before_receipts = await generation(h)
             receipt = ReportingRevisionReceiptRecord(
                 item.scope,
@@ -163,7 +164,8 @@ async def test_production_official_receipts_adjustment_and_frozen_wire_cycle(
             assert rejected["results"][0]["result"] == "recorded", rejected
             after_rejection = await generation(h)
             assert after_rejection > before_receipts
-            assert not isinstance(await item.claim(), ReportingMaterializerLease)
+            production_condition_2 = not isinstance(await item.claim(), ReportingMaterializerLease)
+            assert production_condition_2
             assert item.writer.writes == 1  # consumer rejection cannot schedule a retry
             feed_request = {
                 "account": request["account"],

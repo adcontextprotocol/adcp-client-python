@@ -82,7 +82,8 @@ async def test_full_method_controls_admission_acquisition_and_raw_discovery(
                     finally:
                         support._producer_turn.reset(token)
                     assert producer._source.requests == []
-                    assert (await source_turn(support)).leased is None
+                    production_operation_3 = await source_turn(support)
+                    assert (production_operation_3).leased is None
                     for transport in ("mcp", "a2a-0.3", "a2a-1.0"):
                         _, caps = await mounted.call(
                             client, "get_adcp_capabilities", {}, transport=transport
@@ -144,7 +145,8 @@ async def test_products_are_explicit_for_shared_definition_and_colliding_account
         assert outside.delivery_config_id == item.config.delivery_config_id
         # Supported discovery does not need a first trusted account binding.
         assert not first.producer._source.bindings and not second.producer._source.bindings
-        assert bool(await support.reporting_delivery()) == (backend == "postgres")
+        production_condition_1 = bool(await support.reporting_delivery()) == (backend == "postgres")
+        assert production_condition_1
         for config, obligation, binding, offering, product_id in entries:
             source = offering.producer._source
             source.rows = item.rows
@@ -158,7 +160,8 @@ async def test_products_are_explicit_for_shared_definition_and_colliding_account
         frozen = await source_documents(h)
         assert len(frozen) == 3
         # Admission fixes bindings even before activation can claim work.
-        assert (await source_turn(support)).leased is None
+        production_operation_2 = await source_turn(support)
+        assert (production_operation_2).leased is None
         for account in ("acct_a", "acct_b"):
             await support.activate(account_id=account)
         for config, obligation, binding, offering, product_id in entries:

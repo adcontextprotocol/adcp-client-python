@@ -21,7 +21,8 @@ async def test_captured_receipt_adjustment_and_readability_cycles_are_not_collap
     h = projections
     s = await receipt_case(h)
     account = s.obligation.account_id
-    assert await h.projection.activate(account_id=account)
+    production_operation_1 = await h.projection.activate(account_id=account)
+    assert production_operation_1
     assert await h.projection.baseline_ready(account_id=account)
     starting = next(
         c.generation
@@ -81,7 +82,8 @@ async def test_captured_receipt_adjustment_and_readability_cycles_are_not_collap
     before = await h.image()
     await h.store.ingest_receipt_batch(request_for(s), caller=s.binding.principal)
     assert await h.image() == before
-    assert not await h.projection.activate(account_id=account)
+    production_operation_2 = await h.projection.activate(account_id=account)
+    assert not production_operation_2
 
 
 async def test_activation_preserves_legacy_snapshot_and_new_pages_have_exact_local_ownership(
@@ -92,7 +94,8 @@ async def test_activation_preserves_legacy_snapshot_and_new_pages_have_exact_loc
     req = feed_request(s)
     first = await h.store.read_reporting_feed(req, caller=s.binding.principal)
     legacy = await walk(h.store, req, s.binding.principal, first=first)
-    assert await h.projection.activate(account_id=s.obligation.account_id)
+    production_operation_3 = await h.projection.activate(account_id=s.obligation.account_id)
+    assert production_operation_3
     resumed = await walk(h.store, req, s.binding.principal, first=first)
     assert resumed == legacy
     new = await walk(h.store, req, s.binding.principal)

@@ -354,9 +354,10 @@ async def test_feed_mount_preserves_closed_tier_and_new_store_notification_admis
     s, _, _ = await mixed_case(h)
     mounted = MountedFeed(h)
     mounted.authorize(s)
-    assert await mounted.handler.get_adcp_capabilities({}) == (
+    feed_condition_1 = await mounted.handler.get_adcp_capabilities({}) == (
         await ADCPHandler().get_adcp_capabilities({})
     )
+    assert feed_condition_1
     before = without_feed(await h.image())
     async with mounted.client() as client:
         for transport in (mounted.mcp, mounted.a2a):
@@ -493,7 +494,7 @@ async def test_mounted_malformed_scoped_positions_and_generic_cache_cannot_bypas
         assert error_code(denied) in {"UNAUTHORIZED", "INVALID_REQUEST"}
 
 
-@pytest.mark.parametrize("version", [None, "3.2.0-rc.3"])
+@pytest.mark.parametrize("version", [None, "3.2.0-rc.6"])
 async def test_actual_inventory_and_fallback_schemas_bound_positions_without_mutating_legacy(
     feeds, version
 ):
@@ -631,7 +632,8 @@ async def test_paired_handler_instances_keep_mcp_a2a_inventory_calls_and_authori
         feed.authorize(other_account, token="token-account")
         receipts.authorize(legacy)
         unsupported = await ADCPHandler().get_reporting_status(feed_request(s))
-        assert await receipts.handler.get_reporting_status(feed_request(s)) == unsupported
+        feed_operation_2 = await receipts.handler.get_reporting_status(feed_request(s))
+        assert feed_operation_2 == unsupported
         async with AsyncExitStack() as stack:
             clients = {
                 name: await stack.enter_async_context(mounts[name].client()) for name in order
@@ -722,6 +724,7 @@ async def test_paired_handler_instances_keep_mcp_a2a_inventory_calls_and_authori
                 assert error_code(denied) == "UNAUTHORIZED"
             _, replay = await receipts.mcp(rc, request_for(legacy))
             assert replay == legacy_response
-            assert await receipts.handler.get_reporting_status(feed_request(s)) == unsupported
+            feed_operation_3 = await receipts.handler.get_reporting_status(feed_request(s))
+            assert feed_operation_3 == unsupported
             _, inventory = await receipts.mcp(rc, inventory=True)
             assert {t["name"] for t in inventory["tools"]} == expected["receipts"]

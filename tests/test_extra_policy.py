@@ -369,6 +369,15 @@ class TestGeneratedCodeMatchesSchemas:
         assert self._schema_allows_extra(schemas["first.json"], schemas)
         assert self._schema_allows_extra(schemas["second.json"], schemas)
 
+    def test_recursive_references_do_not_hide_reachable_open_payloads(self) -> None:
+        schemas = {
+            "a.json": {"$ref": "b.json"},
+            "b.json": {"$ref": "a.json", "properties": {"extension": {"type": "string"}}},
+        }
+        assert not self._schema_allows_extra(schemas["a.json"], schemas)
+        schemas["b.json"]["properties"]["extension"] = {"additionalProperties": True}
+        assert self._schema_allows_extra(schemas["a.json"], schemas)
+
     def test_typed_additional_properties_allows_extra(self) -> None:
         """A schema-valued additionalProperties keyword is an open object contract."""
         assert self._schema_allows_extra(

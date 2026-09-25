@@ -89,6 +89,8 @@ __all__ = [
     "LedgerConflictError",
     "LedgerPage",
     "ReportingLedgerStore",
+    "RestatementCheckpoint",
+    "RestatementCheckpointStore",
     "ReportingRowPage",
     "decode_cursor",
     "check_issue_state_transition",
@@ -131,6 +133,44 @@ class LeasedConfiguration:
             delivery_config_id=self.delivery_config_id,
             delivery_config_version=self.delivery_config_version,
         )
+
+
+@dataclass(frozen=True)
+class RestatementCheckpoint:
+    """Durable scheduling state for successful source observations.
+
+    ``next_observation`` advances even when the source content is unchanged.
+    Without that durable ordinal the next scheduled refresh would replay the
+    same sealed source execution forever instead of making a new observation.
+    """
+
+    account_id: str
+    reporting_obligation_id: str
+    checked_at: datetime
+    next_observation: int
+    provisional_until: datetime | None = None
+
+    def __post_init__(self) -> None:
+        if self.next_observation < 1:
+            raise ValueError("next_observation must be at least one")
+        _utc(self.checked_at)
+        if self.provisional_until is not None:
+            _utc(self.provisional_until)
+
+
+@runtime_checkable
+class RestatementCheckpointStore(Protocol):
+    """Optional store extension used only by source settling policies."""
+
+    async def get_restatement_checkpoint(
+        self, *, account_id: str, reporting_obligation_id: str
+    ) -> RestatementCheckpoint | None: ...
+
+    async def record_restatement_checkpoint(
+        self, checkpoint: RestatementCheckpoint
+    ) -> RestatementCheckpoint:
+        """Persist the next source observation ordinal after a successful read."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -422,9 +462,13 @@ class ReportingLedgerStore(Protocol):
         disagreement, which is the one outcome this separately attributed loop
         exists to prevent.
 
-        ``waived`` *is* an operator action: it records an off-protocol
-        agreement to stop acting. It removes the issue from ``issues[]`` and
-        still leaves the caller's view degraded.
+        ``waived`` requires explicit off-protocol agreement by this consumer
+        and seller for the exact issue, causing statement and diagnosed
+        conflict. The adopter must retain its private consent audit before
+        calling this method; ``external_ref`` is inert correlation, not proof.
+        Rc.6 removes that issue and restores underlying seller health, without
+        changing the consumer statement. Later statements or different
+        conflicts are evaluated independently, never covered by this waiver.
         """
         ...
 
@@ -651,6 +695,7 @@ class InMemoryReportingLedgerStore:
         self._revisions: dict[str, ReportingRevisionRecord] = {}
         self._revision_identity: dict[str, str] = {}
         self._rows: dict[str, tuple[dict[str, Any], ...]] = {}
+        self._restatement_checkpoints: dict[str, RestatementCheckpoint] = {}
         self._adjustments: dict[str, ReportingAdjustmentRecord] = {}
         self._statuses: dict[tuple[str, str, str], ConsumerStatusRecord] = {}
         self._status_identity: dict[tuple[str, str, str], str] = {}
@@ -1016,6 +1061,33 @@ class InMemoryReportingLedgerStore:
             and item.reporting_obligation_id == reporting_obligation_id
         )
 
+    async def get_restatement_checkpoint(
+        self, *, account_id: str, reporting_obligation_id: str
+    ) -> RestatementCheckpoint | None:
+        checkpoint = self._restatement_checkpoints.get(reporting_obligation_id)
+        return checkpoint if checkpoint and checkpoint.account_id == account_id else None
+
+    async def record_restatement_checkpoint(
+        self, checkpoint: RestatementCheckpoint
+    ) -> RestatementCheckpoint:
+        async with self._mutation():
+            obligation = self._obligations.get(checkpoint.reporting_obligation_id)
+            if obligation is None or obligation.account_id != checkpoint.account_id:
+                raise LedgerConflictError(
+                    "OBLIGATION_NOT_FOUND",
+                    "a restatement checkpoint must attach to an obligation for this account",
+                )
+            existing = self._restatement_checkpoints.get(checkpoint.reporting_obligation_id)
+            if existing is not None:
+                if checkpoint.next_observation < existing.next_observation:
+                    return existing
+                if checkpoint.next_observation == existing.next_observation and _utc(
+                    checkpoint.checked_at
+                ) <= _utc(existing.checked_at):
+                    return existing
+            self._restatement_checkpoints[checkpoint.reporting_obligation_id] = checkpoint
+            return checkpoint
+
     async def get_revision(
         self, *, account_id: str, reporting_revision_id: str
     ) -> ReportingRevisionRecord | None:
@@ -1345,12 +1417,26 @@ class InMemoryReportingLedgerStore:
                     "reopened, and a recurrence gets a new occurrence",
                 )
             check_issue_state_transition(live.issue_state, state)
+            if state == "waived" and live.issue_state != "waived":
+                from adcp.reporting.ledger.status_projection import bind_mismatch_waiver
+                from adcp.reporting.ledger.status_snapshot import memory_snapshot
+
+                live = bind_mismatch_waiver(memory_snapshot(self, account_id), live)
             updated = replace(
                 live,
                 issue_state=state,
                 external_ref=external_ref or live.external_ref,
                 # Set on the way into a retired state and never cleared.
-                retired_at=_utc(at) if state == "waived" else live.retired_at,
+                retired_at=(
+                    (
+                        live.retired_at
+                        if live.waived_reporting_status_id is not None
+                        and live.retired_at is not None
+                        else _utc(at)
+                    )
+                    if state == "waived"
+                    else live.retired_at
+                ),
             )
             self._resolve_issue_scope(
                 account_id=account_id,

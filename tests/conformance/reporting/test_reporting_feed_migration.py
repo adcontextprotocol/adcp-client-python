@@ -8,7 +8,8 @@ import pytest
 
 from adcp.reporting.feed import PgReportingFeedStore, ReportingFeedError
 from adcp.reporting.materializer import ReportingMaterializerLease
-from adcp.reporting.outbox._schema import schema_objects
+from adcp.reporting.outbox._schema import REQUIRED_OBJECTS, schema_objects
+from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS
 from adcp.reporting.receipts import PgReportingReceiptStore
 
 from ._durable_materializer_support import DurableHarness, durable_case
@@ -61,16 +62,32 @@ async def test_feed_migration_preserves_parent_catalog_receipts_pending_and_fair
         before = await h.image()
         async with pool.connection() as c:
             original = await schema_objects(c)
-        assert len(original) == 742
+        waiver_objects = {
+            key: value
+            for key, value in REQUIRED_STATUS_OBJECTS.items()
+            if "reporting_issue_waiver_bindings" in key
+        }
+        assert len(waiver_objects) == 10
+        parent_manifest = {**REQUIRED_OBJECTS, **waiver_objects}
+        for package in ("materializer", "receipts"):
+            parent_manifest.update(
+                json.loads(
+                    files("adcp.reporting." + package).joinpath("required_schema.json").read_text()
+                )
+            )
+        assert len(parent_manifest) == 763
+        assert original == parent_manifest
         new = PgReportingFeedStore(pool=pool, notifications=notifications)
         with pytest.raises(ReportingFeedError) as error:
             await new.reporting_feed_ready()
         assert error.value.code == "REPORTING_FEED_SCHEMA_UNREADY"
         await asyncio.gather(*(new.create_schema() for _ in range(3)))
-        assert await new.reporting_feed_ready()
+        feed_operation_1 = await new.reporting_feed_ready()
+        assert feed_operation_1
         async with pool.connection() as c:
             actual = await schema_objects(c)
         assert {k: actual[k] for k in original} == original
+        assert actual == {**original, **MANIFEST}
         assert {k: v for k, v in actual.items() if "reporting_feed_" in k} == MANIFEST
         assert len(MANIFEST) == 33
         for package, count in (("materializer", 187), ("receipts", 102)):
@@ -89,9 +106,13 @@ async def test_feed_migration_preserves_parent_catalog_receipts_pending_and_fair
             await new.read_reporting_feed_snapshot(saved.snapshot_id, caller=s.binding.principal)
             == saved
         )
-        assert await parent.ingest_receipt_batch(req, caller=s.binding.principal) == response
+        feed_operation_2 = await parent.ingest_receipt_batch(req, caller=s.binding.principal)
+        assert feed_operation_2 == response
         assert await fairness(pool) == turns
-        assert await parent.materializer_ready() and await parent.receipt_ingestion_ready()
+        feed_condition_3 = (
+            await parent.materializer_ready() and await parent.receipt_ingestion_ready()
+        )
+        assert feed_condition_3
 
 
 async def test_interrupted_feed_migration_is_invisible_and_retry_retains_history():
@@ -128,10 +149,10 @@ async def test_interrupted_feed_migration_is_invisible_and_retry_retains_history
         with pytest.raises(ReportingFeedError):
             await new.reporting_feed_ready()
         await new.create_schema()
-        assert (
-            await parent.ingest_receipt_batch(request_for(s), caller=s.binding.principal)
-            == response
+        feed_operation_4 = await parent.ingest_receipt_batch(
+            request_for(s), caller=s.binding.principal
         )
+        assert feed_operation_4 == response
         assert without_feed(await h.image()) == before
 
 
@@ -141,10 +162,14 @@ async def test_interrupted_feed_migration_is_invisible_and_retry_retains_history
         "ALTER TABLE reporting_feed_snapshots DISABLE TRIGGER reporting_feed_immutable",
         "ALTER TABLE reporting_feed_snapshots ALTER COLUMN document DROP NOT NULL",
         "DROP TABLE reporting_feed_snapshots",
-        "CREATE OR REPLACE FUNCTION reporting_feed_immutable() RETURNS TRIGGER"
-        " LANGUAGE plpgsql AS $body$ BEGIN RETURN NEW; END $body$",
-        "ALTER TABLE reporting_receipt_ingestion_results"
-        " DISABLE TRIGGER reporting_receipt_ingestion_result",
+        (
+            "CREATE OR REPLACE FUNCTION reporting_feed_immutable() RETURNS TRIGGER"
+            " LANGUAGE plpgsql AS $body$ BEGIN RETURN NEW; END $body$"
+        ),
+        (
+            "ALTER TABLE reporting_receipt_ingestion_results"
+            " DISABLE TRIGGER reporting_receipt_ingestion_result"
+        ),
         "ALTER TABLE reporting_materializer_work DISABLE TRIGGER reporting_materializer_guard",
     ],
 )

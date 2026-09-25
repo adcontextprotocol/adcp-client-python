@@ -66,7 +66,8 @@ async def test_actual_admission_verified_finish_and_private_polling(
             assert validator is not None
             assert not list(validator.iter_errors(before))
         assert "sync_reporting_receipts" not in support.handler.advertised_tools_for_instance()
-        assert await support.activate(account_id=item.config.account_id)
+        production_operation_1 = await support.activate(account_id=item.config.account_id)
+        assert production_operation_1
         lease = await item.claim()
         assert isinstance(lease, ReportingMaterializerLease)
         assert lease.admission_epoch == 2
@@ -121,4 +122,5 @@ async def test_actual_admission_verified_finish_and_private_polling(
         assert repeat.state == "verified"
         assert item.writer.writes == 1
         await support.aclose()
-        assert await support.reporting_delivery() == {}
+        production_operation_2 = await support.reporting_delivery()
+        assert production_operation_2 == {}

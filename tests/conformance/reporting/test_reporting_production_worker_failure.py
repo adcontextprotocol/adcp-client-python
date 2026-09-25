@@ -163,7 +163,8 @@ async def test_expected_worker_stop_is_silent_and_drains_sibling(
                 await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), 5)
                 assert all(t.done() for t in tasks)
                 assert not [r for r in caplog.records if r.name == "adcp.reporting.production"]
-                assert await support.reporting_delivery() == {}
+                production_operation_1 = await support.reporting_delivery()
+                assert production_operation_1 == {}
             finally:
                 release.set()
                 support._stop.set()
@@ -206,7 +207,8 @@ async def test_failing_operator_sink_cannot_prevent_owned_shutdown(
                 assert support._failed and support._stop.is_set()
                 assert len(observed) == 1
                 assert "canary" not in json.dumps(observed[0].__dict__, default=str)
-                assert await support.reporting_delivery() == {}
+                production_operation_2 = await support.reporting_delivery()
+                assert production_operation_2 == {}
                 with pytest.raises(ReportingNotificationError, match="component_unready"):
                     await support.activate(account_id=h.item.config.account_id)
             finally:
@@ -287,7 +289,8 @@ async def test_stopped_composition_does_not_alert_on_late_inflight_failure(
                 if closing is not None:
                     await asyncio.wait_for(closing, 5)
                 assert not [r for r in caplog.records if r.name == "adcp.reporting.production"]
-                assert await support.reporting_delivery() == {}
+                production_operation_3 = await support.reporting_delivery()
+                assert production_operation_3 == {}
             finally:
                 producer_release.set()
                 notification_release.set()

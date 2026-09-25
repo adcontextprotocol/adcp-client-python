@@ -102,7 +102,8 @@ async def main(settings):
                 await task
                 raise AssertionError("paused child must be killed")
             before = await retained_windows(SimpleNamespace(pool=pool))
-            assert await worker.deliver_one(account_id="acct_a")
+            production_operation_1 = await worker.deliver_one(account_id="acct_a")
+            assert production_operation_1
             assert await retained_windows(SimpleNamespace(pool=pool)) == before
             row = before[0]
             states = await worker.outbox.list_deliveries(account_id="acct_a")

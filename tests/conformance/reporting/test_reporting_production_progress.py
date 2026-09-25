@@ -108,9 +108,10 @@ async def test_busy_account_window_advances_wraps_and_revisits_after_unlock(
             assert first.leased is None and samples[-1] == 32
             # Another producer has its own hint; its blocked turn cannot erase
             # the first producer's progress beyond the full 32-row window.
-            assert (
-                await bounded_turn(lambda: lease_source(support, "other", index=1), samples) is None
+            production_operation_1 = await bounded_turn(
+                lambda: lease_source(support, "other", index=1), samples
             )
+            assert production_operation_1 is None
             assert await h.image() == before
             second = await bounded_turn(lambda: source_turn(support), samples)
             assert second.leased is not None, "locked prefix hid the eligible second account"
@@ -122,13 +123,16 @@ async def test_busy_account_window_advances_wraps_and_revisits_after_unlock(
             assert source.requests[0].identity.account_id == "acct_b"
             assert not support.offerings[1].producer._source.requests
             # Successful acquisition resets discovery to the durable rank.
-            assert (await bounded_turn(lambda: source_turn(support), samples)).leased is None
+            production_operation_2 = await bounded_turn(lambda: source_turn(support), samples)
+            assert (production_operation_2).leased is None
             held = await bounded_turn(lambda: lease_source(support, "tail-held"), samples)
             assert held is not None and held.generation_key == outside.generation_key
             held_image = await h.image()
-            assert (await bounded_turn(lambda: source_turn(support), samples)).leased is None
+            production_operation_3 = await bounded_turn(lambda: source_turn(support), samples)
+            assert (production_operation_3).leased is None
             start = len(samples)
-            assert (await bounded_turn(lambda: source_turn(support), samples)).leased is None
+            production_operation_4 = await bounded_turn(lambda: source_turn(support), samples)
+            assert (production_operation_4).leased is None
             assert samples[start:] == [0, 32]  # empty tail wraps once, never an unbounded scan
             assert await h.image() == held_image
         try:
@@ -199,7 +203,8 @@ async def test_fresh_stores_and_concurrent_workers_preserve_bounded_sampling_and
         blocked, outside = await sample_configurations(h, count=65)
         async with h.pool.connection() as holder, holder.transaction():
             await h.store._lock_account(holder, "acct_a")
-            assert (await source_turn(h.production)).leased is None
+            production_operation_5 = await source_turn(h.production)
+            assert (production_operation_5).leased is None
         await h.production.aclose()
         bindings = [
             (c, h.production.offerings[0].offering_id, "catalog-7391") for c in [*blocked, outside]
@@ -543,7 +548,8 @@ async def test_bounded_producer_advances_past_processed_first_window(backend, tm
                 assert child.process.returncode == -9
             async with restarted_process(h, path, pause=False) as child:
                 third = await child.event("done")
-                assert await asyncio.wait_for(child.process.wait(), 10) == 0
+                production_operation_6 = await asyncio.wait_for(child.process.wait(), 10)
+                assert production_operation_6 == 0
         assert len(second["obligations"]) == len(second["revisions"]) == 64
         assert len(third["obligations"]) == len(third["revisions"]) == 3
         executions = first_document["executions"] + second["executions"] + third["executions"]

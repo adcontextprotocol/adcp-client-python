@@ -6,11 +6,12 @@ receipt ingress and frozen feed with versioned private status. Use
 typed composition and authenticated MCP/A2A lifecycle. Existing Core polling
 and eligible Core notification deployments keep their existing composition.
 
-The default protocol is AdCP 3.2.0-rc.4. Set `ReportingProductionSupport`'s
-`adcp_version="3.2-rc.3"` and the matching client pin to continue retained B2.4
-reporting walks. See [the rc.4 adoption and history boundary](protocol-3.2-rc4.md)
-for complete-summary period-start forecasting, version-aligned mounts and
-rollback limits. This protocol adoption changes no SQL manifest or stored snapshot.
+The default protocol remains AdCP 3.2.0-rc.6. Set `ReportingProductionSupport`'s
+`adcp_version="3.2-rc.6"` or omit the pin for the packaged default. Historical
+rc.3 schemas are available offline but are not advertised as a live reporting
+contract. See [signed inputs and history boundaries](protocol-3.2-rc6.md) for
+version-aligned mounts and integrated-parent continuation limits. Existing
+schema manifests and stored snapshot bytes are unchanged.
 
 ## Provider and source contracts
 
@@ -175,39 +176,50 @@ applicable official adjustment. Later valid artifacts or health degradation do
 not erase accepted evidence or successful-materialization counts. Consumer
 rejection is never a materializer retry signal.
 
-For #1179, a generation owes only complete periods whose start is at or after
-activation and strictly before deactivation. A period already begun at
-deactivation remains owed in full, including its SLA. The producer and feed use
-this same rule. Under rc.4, a complete summary's `next_expected_at` is the nearest
-committed period start strictly after `ledger_as_of` in the captured scope.
-Complete periods omit it; open scopes retain obligation due times. This does
-not create future obligations or change their `expected_at = period.end + SLA`.
-The authoritative rc.4 schemas validate this distinction without an SDK exception.
+A generation owes only complete periods whose start is at or after activation
+and strictly before deactivation. A period already begun at deactivation remains
+owed in full, including its SLA. The producer and captured feed use the same rule.
+For the current `3.2-rc.6` contract, an open summary's `next_expected_at` is its
+nearest future obligation due time. A **complete summary** instead reports the
+nearest future period **start**, strictly after the captured `ledger_as_of`,
+across the committed generations in scope. It is absent when no such period
+exists. This forecast creates, counts and leases no future obligation, and does
+not change scope closure, coverage or health. Complete periods responses do not
+inherit the summary-only forecast. Civil-time and DST boundaries are retained.
 
-Explicit rc.3 mounts retain the accepted due-time forecast and frozen pages.
-Their immutable Draft 7 cache rejects a complete response carrying the timestamp
-at `/allOf/2/then/not`; the effective SDK validator and advertised MCP schema
-remove only that exact known prohibition for rc.3. Both complete-scope guards,
-types, formats and other conditionals remain enforced. Cached bytes and rules
-for other versions remain unchanged. The legacy reproduction is in
-`test_reporting_schedule_schema.py`; new runtime and history-boundary cases are
-in `test_reporting_projection_rc4.py`. See the [rc.4 version boundary](protocol-3.2-rc4.md)
-and [#1179](https://github.com/adcontextprotocol/adcp-client-python/issues/1179).
+The immutable `3.2.0-rc.3` cache and exact-version Python correction for #1179
+remain available for historical validation. Direct historical projections and
+stored rc.3 walks retain their original representation; they do not acquire the
+new rc.6 forecast. The current SDK does not advertise rc.3 as a live client or
+server pin. New mounts, advertised schemas and rendering use the supported
+packaged version. Cursor/checkpoint version mismatches fail closed only after
+caller and signed-position verification. Changing a production mount's captured
+protocol pin invalidates readiness even after a successful schema proof.
 
-Cross-language compatibility remains a separate blocking dependency. Every
-selected compatible stable/skew client/server lane must successfully return
-`complete` with the legitimate future expectation and correct semantics.
-Unsupported-schema errors are acceptable only for explicitly unsupported
-combinations. Python success does not establish TypeScript/protocol agreement
-or release the later expert/four-quadrant gate. The coordinator owns upstream
-schema/version coordination; neither suppress the expectation nor change an
-otherwise-correct health value to satisfy the original prohibition.
-It is absent when there is no applicable expectation. Captured timezones and
-civil/DST boundaries survive later configuration changes. Producer turns keep
-the 64-period maximum; durable cursors and bounded pending-acquisition queues
-advance past completed windows without an unbounded history scan. Lease
-acquisition takes the account lock before configuration rows and preserves
-turn-primary fairness and account isolation.
+Integrated parents created representation-one snapshots without a protocol
+filter marker. Their original pages and checkpoints remain usable under rc.6,
+before and after activation, without re-projecting or modifying their captured
+bytes. Caller, signature and every original semantic filter must still match.
+This exception is restricted to unversioned representation one without revision
+ownership; newer version-bound representations retain strict pin matching. A
+legacy checkpoint can start a fresh rc.6 walk, which records the new marker.
+
+These are Python source and conformance boundaries, not TypeScript, release or
+cross-language acceptance. The tests in `test_reporting_projection_rc6.py` cover
+current mounted transports, clients and schema agreement, frozen historical
+bytes and continuations, civil/DST boundaries and absence of future work. The
+exact original rc.3 rejection and version-scoped correction remain separately
+recorded in `test_reporting_schedule_schema.py`.
+
+Producer turns keep the 64-period maximum. Durable closing positions and bounded
+pending queues rotate fairly without rescanning all history. A readable snapshot
+completes an acquisition, not its declared settling policy: the queue retains
+that obligation through restatement cadence and the settling window. It retires
+a snapshot-only policy at its terminal boundary, or a closing policy only after
+an official revision is actually committed. A not-ready official source leaves
+work pending. Persisted observation checkpoints survive fresh workers and keep
+no-op refreshes from replaying or changing execution identity. Lease acquisition
+takes the account lock before configuration rows and preserves account isolation.
 All PostgreSQL writers participating in this production composition must take
 the account advisory transaction lock before locking configuration, checkpoint
 or work rows. Activation, producer lease/release, materializer claim/finish and
@@ -363,3 +375,20 @@ or the later cross-language interoperability gate.
 | Private scope and buyer ownership | B2.3 inputs; B2.4 wire/walk | Exact page-local ownership, malformed/mixed/conflicting walks, cross-page dependencies and conservative legacy compatibility. |
 | Production tier capabilities | B2.4; #1180 | Full provider/source contracts, live component/mount checks, empty-seller discovery, polling and signing/retry truthfulness. |
 | Rolling compatibility | Every slice | Eleven distinct historical inputs, isolated manifests, populated/repeated/interrupted migration, installed floor runtimes and actual restarts. |
+
+## Integrated comparison and release-note limits
+
+The production rolling controls compare the integrated B2.3 artifact
+`2d777ace7b4bf8be519ce0abd4fd0a25ed4f1da7` and integrated hardening artifact
+`e16eb8cf3074cabd45aab42840950f05ad6d2b43`, plus production artifact
+`34c8f6d929aeac3407e2f595104a8e903e572623`. Their frozen bytes, origins and
+continuations must be established by fresh installed CI. Earlier snapshots are
+not qualified by these comparisons.
+
+The release notes must retain all nine exclusions: pre-`17ee407a` A,
+pre-`0f34c666` B, pre-`967b6e28` C, pre-`5487f2bd` B1,
+pre-`3fd62121` B2.1, pre-`09fd87f7` B2.2, pre-`2d777ace` B2.3,
+pre-`e16eb8cf` hardening, and pre-`34c8f6d9` production. In particular, old A whole-trigger startup after C
+is not supported, and historical false notification-readiness results do not
+become healthy through later source integration. These notes do not qualify
+simultaneous old autonomous writers or release/activation acceptance.
