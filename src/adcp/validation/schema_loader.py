@@ -34,7 +34,7 @@ from copy import deepcopy
 from datetime import date
 from importlib.resources import as_file, files
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from urllib.parse import unquote, urlparse
 
 from adcp.validation.version import resolve_bundle_key
@@ -147,6 +147,10 @@ class _LoaderState:
         self.compiled: dict[tuple[str, Direction], Any] = {}
         self.named_compiled: dict[str, Any] = {}
         self.portable: dict[tuple[str, Direction], dict[str, Any]] = {}
+        # Serialized JSON keeps the immutable cached value private and makes
+        # every returned tree independent, including any repeated branches.
+        self.mcp_schemas: dict[tuple[str, Direction], str] = {}
+        self.mcp_schema_lock = threading.Lock()
         self.registry: dict[str, dict[str, Any]] = {}
         self._registry_loaded = False
 
@@ -922,39 +926,59 @@ def get_mcp_schema(
     Newer bundles provide self-contained production-profile schemas that
     remove duplicated descriptions and definitions. Releases without those
     artifacts fall back to their canonical versioned schema.
+
+    Successful materializations belong to the immutable versioned loader
+    state. Each caller receives an independent, alias-free JSON tree; missing
+    or invalid schemas are not added to the materialization cache.
     """
     state = _ensure_state(version)
     if state is None:
         return None
     key = (tool_name, direction)
-    file = state.mcp_index.get(key) or state.source_index.get(key) or state.file_index.get(key)
-    if file is None:
-        return None
-    try:
-        schema = json.loads(file.read_text())
-    except (OSError, json.JSONDecodeError) as exc:
-        logger.warning(
-            "Failed to load MCP schema %s for %s::%s: %s",
-            file,
-            tool_name,
-            direction,
-            exc,
-        )
-        return None
-    if not isinstance(schema, dict):
-        logger.warning("MCP schema %s is not a JSON object", file)
-        return None
-    try:
-        portable = _self_contained_schema(
-            state,
-            file,
-            _effective_task_schema(schema, tool_name, direction, bundle_key=state.bundle_key),
-        )
-    except (OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
-        logger.warning("Failed to make MCP schema %s portable: %s", file, exc)
-        return None
-    compact = _strip_schema_annotations(portable)
-    return compact if isinstance(compact, dict) else None
+    cached = state.mcp_schemas.get(key)
+    if cached is None:
+        with state.mcp_schema_lock:
+            # Only one concurrent first caller traverses the reference graph.
+            cached = state.mcp_schemas.get(key)
+            if cached is None:
+                file = (
+                    state.mcp_index.get(key)
+                    or state.source_index.get(key)
+                    or state.file_index.get(key)
+                )
+                if file is None:
+                    return None
+                try:
+                    schema = json.loads(file.read_text())
+                except (OSError, json.JSONDecodeError) as exc:
+                    logger.warning(
+                        "Failed to load MCP schema %s for %s::%s: %s",
+                        file,
+                        tool_name,
+                        direction,
+                        exc,
+                    )
+                    return None
+                if not isinstance(schema, dict):
+                    logger.warning("MCP schema %s is not a JSON object", file)
+                    return None
+                try:
+                    portable = _self_contained_schema(
+                        state,
+                        file,
+                        _effective_task_schema(
+                            schema, tool_name, direction, bundle_key=state.bundle_key
+                        ),
+                    )
+                except (OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
+                    logger.warning("Failed to make MCP schema %s portable: %s", file, exc)
+                    return None
+                compact = _strip_schema_annotations(portable)
+                if not isinstance(compact, dict):
+                    return None
+                cached = json.dumps(compact, separators=(",", ":"))
+                state.mcp_schemas[key] = cached
+    return cast(dict[str, Any], json.loads(cached))
 
 
 def list_validator_keys(*, version: str | None = None) -> list[str]:
