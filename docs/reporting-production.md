@@ -6,6 +6,11 @@ receipt ingress and frozen feed with versioned private status. Use
 typed composition and authenticated MCP/A2A lifecycle. Existing Core polling
 and eligible Core notification deployments keep their existing composition.
 
+Read the [upgrade and release notes](reporting-release-notes.md) before
+deploying these changes. They collect the historical comparison boundaries,
+feature-tier requirements and operational limits; final release qualification
+remains separate from the integrated source.
+
 The default protocol remains AdCP 3.2.0-rc.6. Set `ReportingProductionSupport`'s
 `adcp_version="3.2-rc.6"` or omit the pin for the packaged default. Historical
 rc.3 schemas are available offline but are not advertised as a live reporting
@@ -348,8 +353,9 @@ contracts continue to apply.
 
 Full buyer adjustment/submission automation and the `client.reporting` facade
 remain later buyer work. They do not substitute for seller financial validation.
-This slice remains open and unmerged pending independent exact-head review and
-the separately gated downstream interoperability program.
+The seller composition is integrated. Complete service and buyer acceptance,
+installed cross-language interoperability and release qualification remain
+separate gates.
 
 ## Seller acceptance ownership
 

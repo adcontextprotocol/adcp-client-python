@@ -6,6 +6,12 @@ and fetches one frozen slice; the SDK owns staging, replay seals, obligation
 creation, immutable revisions, snapshot refresh and official close, status,
 exact revision reads, capability advertisement, and worker lifecycle.
 
+For an upgrade, begin with the
+[reporting release notes and deployment boundaries](reporting-release-notes.md)
+and the [production composition guide](reporting-production.md). The examples
+below explain the service API; complete service and cross-language release
+acceptance remain pending.
+
 The minimum adapter has no AdCP transport methods:
 
 ```python

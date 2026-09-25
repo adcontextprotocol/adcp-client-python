@@ -1,5 +1,12 @@
 # Migrating from Python SDK 7 to 8
 
+For the upcoming Reliable Reporting prerelease, read the
+[reporting upgrade and release notes](docs/reporting-release-notes.md) before
+deploying. They cover the account-qualified `generation_key` API change,
+PostgreSQL drain/migration/activation sequence, all nine historical comparison
+boundaries, and the distinction between offline schemas and live rc.6 mounts.
+Final package and full-rollout qualification remain pending.
+
 SDK 8 beta also updates the generated protocol surface from AdCP 3.1.15 to
 AdCP 3.2.0-beta.4 and adds the compact product/media-buy lifecycle. The old
 3.x lifecycle remains supported. See

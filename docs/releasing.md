@@ -1,9 +1,16 @@
 # Releasing the Python SDK
 
-The #1198 guard is implemented independently and **must merge last, after the
-reporting stack and #1172**. Rebase, review the installed acceptance suite against
-the integrated reporting contract, and validate the final exact head before
-merging. This implementation does not authorize stack integration or publication.
+The guarded workflow entry points are present. **Final guard corrections and
+acceptance integration must land after the reporting implementation and #1172**.
+Review the installed acceptance suite against the final reporting contract and
+validate that exact head before publication. This runbook describes the gate;
+it does not establish that implementation, interoperability or operator setup
+has been accepted.
+
+Include the [Reliable Reporting upgrade notes](reporting-release-notes.md) in
+the reviewed release proposal, preserving all nine historical comparison
+boundaries and the live/offline protocol distinction. The
+[release overview](../RELEASING.md) explains version and changelog preparation.
 
 Workflow **204238826**, `.github/workflows/release-please.yml`, stays
 `disabled_manually` permanently. Its new definition is a failing tombstone.
