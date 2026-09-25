@@ -822,6 +822,7 @@ def _revision_scope(
 @dataclass
 class _ObligationHistory:
     revisions: list[ReportingRevision] = field(default_factory=list)
+    known_revision_ids: set[str] = field(default_factory=set)
     materializations: list[ReportingMaterialization] = field(default_factory=list)
     receipts: list[ReportingReceipt] = field(default_factory=list)
     adjustments: list[ReportingAdjustment] = field(default_factory=list)
@@ -944,6 +945,8 @@ def _index_read_ledger(ledger: ReportingLedger) -> _ReadIndex:
         for owner_id in matching:
             histories[owner_id].revisions.append(revision)
             histories[owner_id].ambiguous_revisions |= len(matching) > 1
+            if len(matching) == 1:
+                histories[owner_id].known_revision_ids.add(revision_id)
     for receipt in ledger.receipts:
         owner = owners.get(receipt.reporting_obligation_id)
         revision = revisions.get(receipt.reporting_revision_id)
@@ -1138,7 +1141,11 @@ def _validate_read_ledger(
             or _enum(leaf.status) != "accepted"
             for a in index.adjustments_by_revision.get(selected.reporting_revision_id, [])
         )
-        if owner.pending_adjustment_count != pending:
+        # A legacy candidate without a proven owner can contribute zero through
+        # all of its pending adjustments. It cannot contribute more than exist.
+        history = index.histories[owner.reporting_obligation_id]
+        minimum = pending if selected.reporting_revision_id in history.known_revision_ids else 0
+        if not minimum <= owner.pending_adjustment_count <= pending:
             raise ReportingReconciliationError(
                 "LEDGER_COUNT_MISMATCH", "frozen adjustment counts do not match current leaves"
             )
@@ -1183,48 +1190,68 @@ def _obligation_history(
     # Optional fields remain readable in legacy shapes. Their absence prevents
     # proof where applicable; only a present, provably false count is an error.
     # Applicability never depends on the unrelated revision-ownership extension.
+    successful = sum(
+        _enum(m.status) in {"available", "delivered"} for m in history.materializations
+    )
+    accepted = sum(_enum(r.status) == "accepted" for r in history.receipts)
+    accepted_adjustments = [r for r in history.adjustment_receipts if _enum(r.status) == "accepted"]
+    # Unknown legacy owners widen a count's possible range, without excusing
+    # counts below known records or above the complete set of candidates.
     counts = (
-        (obligation.revision_count, len(history.revisions), True, history.ambiguous_revisions),
-        (obligation.materialization_count, len(history.materializations), managed, False),
+        (obligation.revision_count, len(history.known_revision_ids), len(history.revisions), True),
+        (
+            obligation.materialization_count,
+            len(history.materializations),
+            len(history.materializations),
+            managed,
+        ),
         (
             obligation.successful_materialization_count,
-            sum(_enum(m.status) in {"available", "delivered"} for m in history.materializations),
+            successful,
+            successful,
             managed,
-            False,
         ),
-        (obligation.receipt_count, len(history.receipts), reconciled, False),
-        (
-            obligation.accepted_receipt_count,
-            sum(_enum(r.status) == "accepted" for r in history.receipts),
-            reconciled,
-            False,
-        ),
+        (obligation.receipt_count, len(history.receipts), len(history.receipts), reconciled),
+        (obligation.accepted_receipt_count, accepted, accepted, reconciled),
         # Reliable Reporting requires this count; its optional schema shape also
         # admits older sellers, which remain diagnostic until evidence is complete.
-        (obligation.adjustment_count, len(history.adjustments), True, history.ambiguous_revisions),
+        (
+            obligation.adjustment_count,
+            sum(
+                a.adjusts_reporting_revision_id in history.known_revision_ids
+                for a in history.adjustments
+            ),
+            len(history.adjustments),
+            True,
+        ),
         (
             obligation.adjustment_receipt_count,
+            sum(
+                r.adjusts_reporting_revision_id in history.known_revision_ids
+                for r in history.adjustment_receipts
+            ),
             len(history.adjustment_receipts),
             reconciled,
-            history.ambiguous_revisions,
         ),
         (
             obligation.accepted_adjustment_receipt_count,
-            sum(_enum(r.status) == "accepted" for r in history.adjustment_receipts),
+            sum(
+                r.adjusts_reporting_revision_id in history.known_revision_ids
+                for r in accepted_adjustments
+            ),
+            len(accepted_adjustments),
             reconciled,
-            history.ambiguous_revisions,
         ),
     )
-    for declared, actual, required, ambiguous in counts:
+    for declared, minimum, maximum, required in counts:
         if declared is None:
             incomplete |= required
-        elif declared != actual:
-            if ambiguous:
-                incomplete = True
-            else:
-                raise ReportingReconciliationError(
-                    "LEDGER_COUNT_MISMATCH", "frozen obligation counts do not match the ledger"
-                )
+        elif not minimum <= declared <= maximum:
+            raise ReportingReconciliationError(
+                "LEDGER_COUNT_MISMATCH", "frozen obligation counts do not match the ledger"
+            )
+        elif declared != maximum:
+            incomplete = True
     known = len(history.statuses)
     declared = obligation.consumer_status_count
     if declared is not None and not known <= declared <= known + history.unresolved_status_count:

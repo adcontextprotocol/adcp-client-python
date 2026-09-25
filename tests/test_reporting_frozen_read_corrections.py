@@ -214,6 +214,96 @@ async def test_absent_optional_count_is_diagnostic_but_contradictory_count_is_re
     assert error.value.code == "LEDGER_COUNT_MISMATCH"
 
 
+def _partly_owned_legacy_history() -> dict[str, Any]:
+    raw = _history(adjustments=True)
+    first = raw["periods"][0]
+    first["revision_count"] = 2
+    second = deepcopy(first)
+    second.update(
+        reporting_obligation_id="obligation-second",
+        reconciliation_mode="delivery_only",
+        reconciliation_status="not_required",
+        health="waiting",
+        revision_count=1,
+        materialization_count=0,
+        successful_materialization_count=0,
+        receipt_count=0,
+        accepted_receipt_count=0,
+        adjustment_count=0,
+        adjustment_receipt_count=0,
+        accepted_adjustment_receipt_count=0,
+    )
+    raw["periods"].append(second)
+    unbound = deepcopy(raw["revisions"][0])
+    unbound.update(reporting_revision_id="revision-unbound", finality="snapshot")
+    for key in ("finalized_at", "finality_basis", "finality_policy_id"):
+        unbound.pop(key)
+    raw["revisions"].append(unbound)
+    return raw
+
+
+@pytest.mark.parametrize(
+    ("field", "declared"),
+    [
+        ("revision_count", 0),
+        ("revision_count", 3),
+        ("adjustment_count", 0),
+        ("adjustment_count", 2),
+        ("adjustment_receipt_count", 0),
+        ("adjustment_receipt_count", 2),
+        ("accepted_adjustment_receipt_count", 0),
+        ("accepted_adjustment_receipt_count", 2),
+    ],
+)
+async def test_legacy_ambiguity_does_not_hide_counts_outside_proven_bounds(field, declared):
+    raw = _partly_owned_legacy_history()
+    # The first revision and its adjustment evidence have an exact materialization
+    # owner. Only the extra snapshot can belong to either identical-scope period.
+    raw["periods"][0][field] = declared
+    with pytest.raises(ReportingReconciliationError) as error:
+        await _load_distinct(raw, explicit=False)
+    assert error.value.code == "LEDGER_COUNT_MISMATCH"
+
+
+@pytest.mark.parametrize("declared", [1, 2])
+async def test_legacy_count_inside_proven_bounds_remains_diagnostic(declared):
+    raw = _partly_owned_legacy_history()
+    raw["periods"][0]["revision_count"] = declared
+    result = evaluate_reporting_ledger(
+        await _load_distinct(raw, explicit=False), expected_periods=_expected(), now=NOW
+    )
+    assert not result.definitive
+    assert result.missing_expected_periods == []
+    assert all("AMBIGUOUS_REVISION_OWNERSHIP" in item.reasons for item in result.obligations)
+
+
+async def test_pending_adjustment_count_cannot_invent_ownership_of_selected_official():
+    raw = _partly_owned_legacy_history()
+    owned, unbound = raw["revisions"]
+    unbound["finality"] = "official"
+    owned["finality"] = "snapshot"
+    for key in ("finalized_at", "finality_basis", "finality_policy_id"):
+        unbound[key] = owned.pop(key)
+    raw["adjustments"][0]["adjusts_reporting_revision_id"] = unbound["reporting_revision_id"]
+    raw["adjustment_receipts"] = []
+    for owner in raw["periods"]:
+        owner.update(
+            adjustment_receipt_count=0,
+            accepted_adjustment_receipt_count=0,
+            pending_adjustment_count=0,
+        )
+    result = evaluate_reporting_ledger(
+        await _load_distinct(raw, explicit=False), expected_periods=[], now=NOW
+    )
+    assert not result.definitive
+    assert all("AMBIGUOUS_REVISION_OWNERSHIP" in item.reasons for item in result.obligations)
+    # Even ambiguous ownership cannot explain more pending rows than exist.
+    raw["periods"][0]["pending_adjustment_count"] = 2
+    with pytest.raises(ReportingReconciliationError) as error:
+        await _load_distinct(raw, explicit=False)
+    assert error.value.code == "LEDGER_COUNT_MISMATCH"
+
+
 @pytest.mark.parametrize("explicit", [False, True])
 async def test_ownership_extension_does_not_make_absent_adjustment_count_an_error(explicit):
     raw = _distinct_histories(1)
