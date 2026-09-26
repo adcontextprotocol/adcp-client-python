@@ -1,0 +1,11 @@
+import json, sys
+from adcp.reporting.evidence import resource_location
+corpus = json.load(open(sys.argv[1]))
+out=[]
+for c in corpus:
+    try:
+        resource_location(c["v"]); r="accept"
+    except ValueError: r="reject"
+    except Exception as e: r=f"error:{type(e).__name__}"
+    out.append({"id":c["id"],"expect":c["expect"],"python":r})
+print(json.dumps(out))

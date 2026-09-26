@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "corpus": "corpus.json",
+  "dispositions": {
+    "blocking_required": "Must pass for this blocking cell.",
+    "visible_nonblocking": "Must execute and remain visible, but cannot block or establish acceptance.",
+    "actionable_unsupported": "Must fail before mutation with a specific capability or schema error.",
+    "not_applicable": "Outside the declared client-language or server-foundation scope.",
+    "deferred_open": "Explicitly outside this staged release and still open."
+  },
+  "cells": [
+    {
+      "id": "candidate_py_client__candidate_py_server",
+      "contract_id": "Q1",
+      "family": "candidate_quadrant",
+      "blocking": true,
+      "protocol_contract": {"required": "3.2.0-rc.6", "alignment": "exact", "selected_artifacts": false},
+      "client": {"language": "python", "package_role": "candidate"},
+      "server": {"language": "python", "package_role": "candidate"}
+    },
+    {
+      "id": "candidate_ts_client__candidate_py_server",
+      "contract_id": "Q2",
+      "family": "candidate_quadrant",
+      "blocking": true,
+      "protocol_contract": {"required": "3.2.0-rc.6", "alignment": "exact", "selected_artifacts": false},
+      "client": {"language": "typescript", "package_role": "candidate"},
+      "server": {"language": "python", "package_role": "candidate"}
+    },
+    {
+      "id": "candidate_py_client__candidate_ts_server",
+      "contract_id": "Q3",
+      "family": "candidate_quadrant",
+      "blocking": true,
+      "protocol_contract": {"required": "3.2.0-rc.6", "alignment": "exact", "selected_artifacts": false},
+      "client": {"language": "python", "package_role": "candidate"},
+      "server": {"language": "typescript", "package_role": "candidate"}
+    },
+    {
+      "id": "candidate_ts_client__candidate_ts_server",
+      "contract_id": "Q4",
+      "family": "candidate_quadrant",
+      "blocking": true,
+      "protocol_contract": {"required": "3.2.0-rc.6", "alignment": "exact", "selected_artifacts": false},
+      "client": {"language": "typescript", "package_role": "candidate"},
+      "server": {"language": "typescript", "package_role": "candidate"}
+    },
+    {
+      "id": "previous_py_client__candidate_ts_server",
+      "contract_id": "S1",
+      "family": "supported_skew",
+      "blocking": true,
+      "positive_requirement": {"status": "unmet_no_published_compatible_pair", "blocking": true},
+      "negative_skew_control": {"required": true, "credit": "refusal_only_never_positive_acceptance"},
+      "client": {"language": "python", "package_role": "previous_released"},
+      "server": {"language": "typescript", "package_role": "candidate"}
+    },
+    {
+      "id": "candidate_py_client__previous_ts_server",
+      "contract_id": "S2",
+      "family": "supported_skew",
+      "blocking": true,
+      "positive_requirement": {"status": "unmet_no_published_compatible_pair", "blocking": true},
+      "negative_skew_control": {"required": true, "credit": "refusal_only_never_positive_acceptance"},
+      "client": {"language": "python", "package_role": "candidate"},
+      "server": {"language": "typescript", "package_role": "previous_compatible"}
+    },
+    {
+      "id": "latest_py_client__candidate_ts_server",
+      "family": "latest_canary",
+      "blocking": false,
+      "client": {"language": "python", "package_role": "latest_registry"},
+      "server": {"language": "typescript", "package_role": "candidate"}
+    },
+    {
+      "id": "latest_ts_client__candidate_py_server",
+      "family": "latest_canary",
+      "blocking": false,
+      "client": {"language": "typescript", "package_role": "latest_registry"},
+      "server": {"language": "python", "package_role": "candidate"}
+    }
+  ],
+  "defaults": {
+    "candidate_quadrant": "blocking_required",
+    "supported_skew": "blocking_required",
+    "latest_canary": "visible_nonblocking"
+  },
+  "overrides": [
+    {
+      "scenario": "foundation.reconciliation.python_standalone",
+      "by_client_language": {"python": "default", "typescript": "not_applicable"}
+    },
+    {
+      "scenario": "foundation.reconciliation.typescript_public",
+      "by_client_language": {"python": "not_applicable", "typescript": "default"},
+      "requires_server_tier": "managed_delivery"
+    },
+    {
+      "scenario": "foundation.webhook.signed_retry_dedup",
+      "by_server_scope": {"python_reporting_foundation": "default", "other": "not_applicable"}
+    },
+    {
+      "scenario": "foundation.activity.durable_account_feed",
+      "by_server_scope": {"python_reporting_foundation": "default", "other": "not_applicable"}
+    },
+    {
+      "scenario": "foundation.runtime.late_account_materialization_fairness",
+      "by_server_scope": {"python_reporting_foundation": "default", "other": "not_applicable"}
+    },
+    {
+      "scenario": "foundation.runtime.producer_finality_temporal_order",
+      "by_server_scope": {"python_reporting_foundation": "default", "other": "not_applicable"}
+    },
+    {
+      "scenario": "foundation.security.ctx_metadata_credentials",
+      "all": "visible_nonblocking"
+    },
+  {
+    "scenario": "foundation.security.resource_location_credential_screen",
+    "all": "visible_nonblocking"
+  },
+  {
+    "scenario": "foundation.transport.response_headers_metadata",
+    "all": "visible_nonblocking"
+  },
+    {
+      "scenario": "foundation.skew.actionable_unsupported",
+      "by_family": {
+        "candidate_quadrant": "not_applicable",
+        "supported_skew": "actionable_unsupported",
+        "latest_canary": "visible_nonblocking"
+      }
+    },
+    {
+      "scenario": "deferred.1172.service_composition",
+      "all": "deferred_open"
+    },
+    {
+      "scenario": "deferred.1172.client_reporting_facade",
+      "all": "deferred_open"
+    },
+    {
+      "scenario": "deferred.1182.provisional_reread",
+      "all": "deferred_open"
+    }
+  ],
+  "execution_contract": {
+    "fresh_processes_per_cell": true,
+    "isolated_database_per_cell": true,
+    "real_mcp_http": true,
+    "postgresql": "required_for_durable_seller_scenarios",
+    "installed_packages_only": true,
+    "latest_canaries_nonblocking": true
+  }
+}

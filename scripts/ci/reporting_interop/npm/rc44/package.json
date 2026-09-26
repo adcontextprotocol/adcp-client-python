@@ -1,0 +1,15 @@
+{
+  "name": "ts-rc44-inspect",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@adcp/sdk": "14.0.0-rc.44"
+  }
+}

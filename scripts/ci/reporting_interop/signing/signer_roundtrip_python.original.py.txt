@@ -1,0 +1,37 @@
+"""RLX-XL-003: what alphabet does Python's own sign_webhook emit, and does TS accept it?"""
+import base64, json, re, sys
+from pathlib import Path
+from cryptography.hazmat.primitives.asymmetric import ed25519
+from adcp.signing.webhook_signer import sign_webhook
+
+VEC = Path(sys.argv[1])
+ks = {k["kid"]: k for k in json.loads((VEC / "keys.json").read_text())["keys"]}
+k = ks["test-ed25519-webhook-2026"]
+d = base64.urlsafe_b64decode(k["_private_d_for_test_only"] + "=" * (-len(k["_private_d_for_test_only"]) % 4))
+priv = ed25519.Ed25519PrivateKey.from_private_bytes(d)
+
+body = b'{"idempotency_key":"whk_RLX0000000000000000000001","task_id":"t1","operation_id":"op1","status":"completed"}'
+url = "https://buyer.example.com/adcp/webhook/create_media_buy/agent_123/op_abc"
+signed = sign_webhook(
+    method="POST", url=url,
+    headers={"Content-Type": "application/json"},
+    body=body, private_key=priv, key_id=k["kid"], alg="ed25519",
+    created=1776520800, nonce="RLXnonce0000000000000",
+)
+hdrs = dict(signed.as_dict())
+def alphabet(tok):
+    m = re.match(r'^[^:]*:([^:]*):\s*$', (tok or "").strip())
+    v = m.group(1) if m else (tok or "")
+    bits = []
+    if re.search(r'[-_]', v): bits.append("url(-_)")
+    if re.search(r'[+/]', v): bits.append("std(+/)")
+    if "=" in v: bits.append("padded")
+    return ",".join(bits) or "ambiguous(A-Za-z0-9 only)"
+print(json.dumps({
+    "emitted_headers": {h: hdrs.get(h) for h in ("Signature", "Signature-Input", "Content-Digest")},
+    "signature_alphabet": alphabet(hdrs.get("Signature")),
+    "content_digest_alphabet": alphabet(hdrs.get("Content-Digest")),
+    "request": {"method": "POST", "url": url,
+                "headers": {**{"Content-Type": "application/json"}, **hdrs},
+                "body": body.decode()},
+}, indent=1))

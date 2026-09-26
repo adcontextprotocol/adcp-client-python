@@ -1,0 +1,58 @@
+"""RLX-XL-002: run the protocol's own rc.4 webhook-signing vectors through the
+installed Python public verifier. Neutral corpus; no invented inputs."""
+from __future__ import annotations
+import json, sys, glob, os
+from pathlib import Path
+
+from adcp.signing.webhook_verifier import WebhookVerifyOptions, verify_webhook_signature
+from adcp.signing.errors import SignatureVerificationError
+from adcp.signing.replay import InMemoryReplayStore
+
+VEC = Path(sys.argv[1])
+keys = json.loads((VEC / "keys.json").read_text())["keys"]
+BY_KID = {k["kid"]: {kk: vv for kk, vv in k.items() if not kk.startswith("_")} for k in keys}
+
+def run(path: Path):
+    v = json.loads(path.read_text())
+    req = v["request"]
+    ref_now = v.get("reference_now")
+    override = v.get("jwks_override")
+    table = dict(BY_KID)
+    if override:
+        # Observed shape is a {kid: jwk} mapping.
+        for kid, jwk in override.items():
+            table[kid] = jwk
+    state = v.get("test_harness_state") or {}
+    cap_for = state.get("per_keyid_cap_filled_for")
+    # Mirror the TS harness: express the vector's per-keyid cap through the
+    # public store's own per_keyid_cap knob, then fill it for the named keyid.
+    replay = InMemoryReplayStore(per_keyid_cap=1) if cap_for else InMemoryReplayStore()
+    if cap_for:
+        replay.remember(cap_for, "rlx-prefill-nonce", 3600)
+    for entry in state.get("replay_cache_entries", []):
+        replay.remember(entry["keyid"], entry["nonce"], 3600)
+    revoked = set(state.get("revoked_kids", []))
+    opts = WebhookVerifyOptions(
+        jwks_resolver=lambda kid: table.get(kid),
+        replay_store=replay,
+        revocation_checker=(lambda kid: kid in revoked) if revoked else None,
+        **({"clock": (lambda: float(ref_now))} if ref_now is not None else {}),
+    )
+    body = req.get("body", "")
+    body_bytes = body.encode() if isinstance(body, str) else bytes(body)
+    try:
+        verify_webhook_signature(method=req["method"], url=req["url"],
+                                 headers=req["headers"], body=body_bytes, options=opts)
+        got = {"success": True}
+    except SignatureVerificationError as e:
+        got = {"success": False, "error_code": getattr(e, "code", None) or str(e)[:60]}
+    except Exception as e:  # noqa: BLE001
+        got = {"success": False, "error_code": f"UNEXPECTED:{type(e).__name__}", "detail": str(e)[:90]}
+    exp = v["expected_outcome"]
+    ok = got["success"] == exp["success"] and (
+        exp["success"] or got.get("error_code") == exp.get("error_code"))
+    return {"vector": path.parent.name + "/" + path.name, "requires_contract": v.get("requires_contract"),
+            "expected": exp, "got": got, "match": ok}
+
+rows = [run(Path(p)) for p in sorted(glob.glob(str(VEC / "positive" / "*.json")) + glob.glob(str(VEC / "negative" / "*.json")))]
+print(json.dumps(rows, indent=1))

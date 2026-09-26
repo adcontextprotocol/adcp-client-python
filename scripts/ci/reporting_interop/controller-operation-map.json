@@ -1,0 +1,276 @@
+{
+  "schema_version": 1,
+  "typescript_pin": "14.0.0-rc.45",
+  "protocol": "3.2.0-rc.4",
+  "source": "installed rc.45 universal storyboard YAML plus public package declarations",
+  "scenarios": [
+    {
+      "scenario": "reporting_core_lifecycle_probe",
+      "operations": [
+        {
+          "operation": "prepare",
+          "step_ids": [
+            "prepare_waiting_obligation",
+            "prepare_nonempty_core",
+            "prepare_omission_fixture",
+            "prepare_revision_fixture",
+            "prepare_silence_fixture",
+            "prepare_mismatch_fixture"
+          ],
+          "transition": "Install an account-scoped Core configuration and expose its first elapsed obligation before any revision.",
+          "public_api": [
+            "createReportingProducer",
+            "ReportingProducerV1.installConfiguration",
+            "ReportingProducerV1.planObligations",
+            "PostgresReportingLedgerStore.listObligations"
+          ],
+          "implementation": "controlled_clock_public_store_and_real_mcp_preflight_passed",
+          "integration_boundary": "The harness-controlled store implements the exported ReportingConsumerStatusLedgerStore/read boundary and is distinct from the PostgresReportingLedgerStore durability lane. PostgreSQL still has no clock injection.",
+          "source_boundary": [
+            "dist/lib/reporting/ledger/postgres.d.ts:101-116",
+            "dist/lib/reporting/ledger/postgres.js:1377-1385",
+            "dist/lib/reporting/ledger/handler.js:66-96"
+          ]
+        },
+        {
+          "operation": "advance_time",
+          "step_ids": [
+            "advance_beyond_sla",
+            "advance_beyond_recovery",
+            "advance_omission_beyond_expected",
+            "advance_revision_beyond_expected",
+            "advance_mismatch_beyond_recovery"
+          ],
+          "transition": "Move the same prepared obligation across expected_at and recovery_deadline without replacing its schedule identity.",
+          "public_api": [
+            "createReportingStatusHandler",
+            "PostgresReportingLedgerStore.createSnapshot"
+          ],
+          "implementation": "controlled_clock_public_store_and_real_mcp_preflight_passed",
+          "integration_boundary": "The public status handler consumes the controlled store snapshot clock. No immutable deadline or handler response is rewritten, and this is not PostgreSQL clock evidence.",
+          "source_boundary": [
+            "dist/lib/reporting/ledger/handler.d.ts:4-16",
+            "dist/lib/reporting/ledger/postgres.js:1383"
+          ]
+        },
+        {
+          "operation": "publish_zero_row",
+          "step_ids": [
+            "publish_zero_row",
+            "publish_recovered_revision",
+            "publish_mismatch_revision"
+          ],
+          "transition": "Return an explicit empty source result and commit one immutable snapshot revision for the prepared obligation.",
+          "public_api": [
+            "ReportingSourceExecutorV1",
+            "buildReportingSourceManifestV1",
+            "completedReportingSourceResponseV1",
+            "ReportingProducerV1.runWorker",
+            "PostgresReportingLedgerStore.listRevisions"
+          ],
+          "implementation": "postgres_producer_and_controlled_clock_real_mcp_preflights_passed"
+        },
+        {
+          "operation": "publish_nonempty",
+          "step_ids": ["publish_nonempty_core"],
+          "transition": "Commit the installed two-row vector and retain its exact revision metadata and paged rows.",
+          "public_api": [
+            "ReportingSourceExecutorV1",
+            "buildReportingSourceManifestV1",
+            "completedReportingSourceResponseV1",
+            "ReportingProducerV1.runWorker",
+            "createReportingDeliveryHandler",
+            "createReportingStatusHandler"
+          ],
+          "implementation": "controlled_store_literal_vector_real_mcp_preflight_passed",
+          "integration_boundary": "The controlled fixture recomputes the literal RFC 8785 binding with the installed public canonicalizer and exposes both exact cursor pages through createReportingDeliveryHandler. The earlier producer-derived rrev_* result remains a distinct PostgreSQL preflight and is not relabeled.",
+          "source_boundary": [
+            "dist/lib/reporting/ledger/producer.js:554-571",
+            "dist/lib/reporting/ledger/postgres.d.ts:141-144"
+          ]
+        },
+        {
+          "operation": "omit_obligation",
+          "step_ids": ["omit_expected_obligation"],
+          "transition": "Keep a derivable elapsed period absent while returning the independently expected configuration and period identity.",
+          "public_api": [
+            "ReportingProducerV1.installConfiguration",
+            "PostgresReportingLedgerStore.listObligations"
+          ],
+          "implementation": "controlled_fixture_adapter_implemented_preflight_pending"
+        },
+        {
+          "operation": "restate_after_received",
+          "step_ids": ["restate_received_revision", "advance_past_restatement_grace"],
+          "transition": "Publish one convergent superseding snapshot bound to the buyer's received leaf, then project inside or beyond its grace deadline.",
+          "public_api": [
+            "createInlineReportingSourceExecutor",
+            "ReportingProducerV1.runWorker",
+            "PostgresReportingLedgerStore.listRevisions",
+            "createSyncReportingStatusHandler"
+          ],
+          "implementation": "controlled_fixture_adapter_implemented_preflight_pending",
+          "integration_boundary": "The controlled store preserves immutable supersession and advances only its snapshot clock; real sync_reporting_status remains the wire operation."
+        },
+        {
+          "operation": "advance_past_status_deadline",
+          "step_ids": ["advance_past_status_deadline"],
+          "transition": "Cross expected_at plus the advertised recovery window without recording consumer status.",
+          "public_api": ["createReportingStatusHandler"],
+          "implementation": "controlled_fixture_adapter_implemented_preflight_pending"
+        },
+        {
+          "operation": "advance_past_escalation",
+          "step_ids": ["advance_past_mismatch_escalation"],
+          "transition": "Cross the durable mismatch issue's advertised escalation deadline while retaining issue identity.",
+          "public_api": [
+            "createReportingStatusHandler",
+            "PostgresReportingLedgerStore.listIssues"
+          ],
+          "implementation": "controlled_fixture_adapter_implemented_preflight_pending"
+        }
+      ]
+    },
+    {
+      "scenario": "reliable_reporting_core_integrity_probe",
+      "operations": [
+        {
+          "operation": "probe_scheduler_dst",
+          "step_ids": ["run_real_source_calendar_dst_scheduler"],
+          "transition": "Plan real source_timezone P1D obligations across New York spring-forward and fall-back boundaries.",
+          "public_api": [
+            "reportingScheduleOriginV1",
+            "ReportingProducerV1.installConfiguration",
+            "ReportingProducerV1.planObligations"
+          ],
+          "implementation": "rc47_development_selected_execution_pending",
+          "rc45_limitation": "The pinned rc.45 public source module exposes the interval-zero origin and UTC-offset probes, but no civil-time next-boundary generator. Its ReportingProducerV1 plans fixed periodMilliseconds intervals and rejects source_timezone configurations when reportingUtcOffsetChangesV1 detects a DST transition, so rc.45 cannot produce the storyboard's 23-hour and 25-hour New York days.",
+          "current_source_disposition": "The frozen calendar correction is independently source-approved and exact rc.47 registry bytes are selected for developmental Q1-Q4 qualification. The harness has not locked, installed, or executed rc.47, so the mandatory step remains unexecuted rather than an open source defect.",
+          "source_boundary": [
+            "dist/lib/reporting/source/source.d.ts:1549-1573",
+            "dist/lib/reporting/ledger/producer.js:940-979",
+            "dist/lib/reporting/ledger/producer.js:365-410"
+          ]
+        },
+        {
+          "operation": "prepare",
+          "step_ids": ["prepare_core_integrity"],
+          "transition": "Install a source_timezone official configuration and persist its pre-publication checkpoint.",
+          "public_api": [
+            "createReportingProducer",
+            "ReportingProducerV1.installConfiguration",
+            "ReportingProducerV1.planObligations",
+            "createReportingStatusHandler"
+          ],
+          "implementation": "planned_public_adapter"
+        },
+        {
+          "operation": "publish_official_adjustment",
+          "step_ids": ["publish_official_and_adjustment_out_of_order"],
+          "transition": "Commit an official revision, a later immutable adjustment, and capture adjustment-first duplicate notification order for checkpoint repair.",
+          "public_api": [
+            "createInlineReportingSourceExecutor",
+            "ReportingProducerV1.runWorker",
+            "PostgresReportingLedgerStore.listAdjustments",
+            "ReportingLedgerSubscriberV1"
+          ],
+          "implementation": "planned_public_adapter"
+        }
+      ]
+    },
+    {
+      "scenario": "reliable_reporting_managed_delivery_probe",
+      "operations": [
+        {
+          "operation": "prepare",
+          "step_ids": ["prepare_managed_materialization"],
+          "transition": "Install a destination binding, publish a revision, deliver and verify one retained resource.",
+          "public_api": [
+            "PostgresReportingLedgerStore({managedDelivery:true})",
+            "PostgresReportingManagedDeliveryStore",
+            "createReportingManagedDeliveryRuntime",
+            "runManagedDeliveryWorker"
+          ],
+          "implementation": "postgres_public_runtime_and_real_mcp_preflight_passed",
+          "artifact": "scripts/ci/reporting_interop/ts_managed_reporting_fixture.cjs",
+          "callable": "createManagedReportingFixture(..., {mode:'managed'}).controller('reliable_reporting_managed_delivery_probe','prepare')",
+          "observable": "get_reporting_status revision view returns the exact available materialization with verification and resource expiry",
+          "integration_boundary": "Binding authorization and installation precede the obligation. The public runtime, not the controller, plans and settles the provider materialization."
+        },
+        {
+          "operation": "suppress_readiness",
+          "step_ids": ["suppress_managed_readiness"],
+          "transition": "Suppress the optional readiness subscriber while retaining authoritative polling state.",
+          "public_api": ["ReportingLedgerSubscriberV1"],
+          "implementation": "fixture_notification_gate_and_real_mcp_polling_recovery_preflight_passed",
+          "artifact": "scripts/ci/reporting_interop/ts_managed_reporting_fixture.cjs",
+          "callable": "controller(..., 'suppress_readiness') followed by runtime.getReportingStatus",
+          "integration_boundary": "No readiness subscriber is installed, so polling is authoritative. This suppression earns no signed-webhook credit."
+        },
+        {
+          "operation": "advance_within_retention",
+          "step_ids": ["prove_resource_retention"],
+          "transition": "Read the original resource before its committed expiry.",
+          "public_api": [
+            "readManagedReportingResource",
+            "ReportingManagedDeliveryStore.getReadableResource"
+          ],
+          "implementation": "public_runtime_resource_read_real_mcp_preflight_passed",
+          "artifact": "scripts/ci/reporting_interop/ts_managed_reporting_fixture.cjs",
+          "callable": "ReportingManagedDeliveryRuntimeV1.readResource",
+          "observable": "the provider returns the exact original bytes while the durable grant and resource expiry remain current"
+        },
+        {
+          "operation": "revoke_access",
+          "step_ids": ["revoke_managed_access"],
+          "transition": "Revoke the destination generation, complete cleanup inside the advertised bound, and retain immutable ledger history.",
+          "public_api": [
+            "ReportingManagedDeliveryStore.revokeDestination",
+            "ReportingManagedDeliveryStore.claimRevocation",
+            "ReportingManagedDeliveryStore.completeRevocation"
+          ],
+          "implementation": "durable_revoke_provider_cleanup_and_real_mcp_preflight_passed",
+          "artifact": "scripts/ci/reporting_interop/ts_managed_reporting_fixture.cjs",
+          "callable": "PostgresReportingManagedDeliveryStore.revokeDestination then ReportingManagedDeliveryRuntimeV1.runWorker",
+          "observable": "public resource read is denied, provider revoke ran, and immutable materialization metadata remains in status"
+        }
+      ]
+    },
+    {
+      "scenario": "reliable_reporting_reconciled_billing_probe",
+      "operations": [
+        {
+          "operation": "prepare",
+          "step_ids": ["prepare_reconciled_billing"],
+          "transition": "Publish an official billing revision, verified materialization, and receipt-ready consumer scope.",
+          "public_api": [
+            "createReportingManagedDeliveryRuntime",
+            "runManagedDeliveryWorker",
+            "createSyncReportingReceiptsHandler"
+          ],
+          "implementation": "postgres_public_runtime_receipt_scope_and_real_mcp_preflight_passed",
+          "artifact": "scripts/ci/reporting_interop/ts_managed_reporting_fixture.cjs",
+          "callable": "createManagedReportingFixture(..., {mode:'billing'}).controller('reliable_reporting_reconciled_billing_probe','prepare')",
+          "observable": "period status begins action_required/RECEIPT_REQUIRED; rejected then accepted superseding receipts are durable and a stale terminal supersession fails",
+          "integration_boundary": "The runtime advertises reconciled_billing only after adopting the full policy and authenticated consumer resolver."
+        },
+        {
+          "operation": "publish_adjustment",
+          "step_ids": ["publish_reconciled_adjustments"],
+          "transition": "Commit two immutable adjustments targeting the official revision for accepted and disputed receipt paths.",
+          "public_api": [
+            "PostgresReportingLedgerStore.commitAdjustment",
+            "reportingCanonicalAdjustmentSha256V1",
+            "PostgresReportingLedgerStore.listAdjustments",
+            "createSyncReportingReceiptsHandler"
+          ],
+          "implementation": "two_public_adjustment_commits_receipt_repair_and_real_mcp_preflight_passed",
+          "artifact": "scripts/ci/reporting_interop/ts_managed_reporting_fixture.cjs",
+          "callable": "controller(..., 'publish_adjustment') then ReportingManagedDeliveryRuntimeV1.syncReportingReceipts",
+          "observable": "two adjustments reopen reconciliation; accepted/rejected outcomes, replacement, terminal stale rejection, append-only count, and changes_after repair are visible",
+          "integration_boundary": "The controller commits only immutable correction facts. Every receipt outcome traverses the installed public receipt handler."
+        }
+      ]
+    }
+  ]
+}
