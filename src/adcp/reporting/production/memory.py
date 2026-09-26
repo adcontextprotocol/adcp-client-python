@@ -30,6 +30,7 @@ from adcp.reporting.materializer.contracts import ReportingVerificationKey, fail
 from adcp.reporting.materializer.work import MaterializerContext, ReportingMaterializerLease
 from adcp.reporting.outbox.memory import InMemoryReportingOutbox, NotificationState
 from adcp.reporting.production.contracts import ReportingProductionSourceBinding
+from adcp.reporting.production.source_registry import ReportingProductionSourceContext
 from adcp.reporting.projection.memory import InMemoryReportingProjectionStore
 from adcp.reporting.source import ReportingConstituent
 
@@ -106,6 +107,7 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
         binding: ReportingDestinationBinding,
         *,
         offering_id: str,
+        service_context: ReportingProductionSourceContext | None = None,
     ) -> None:
         offering = self._owner()._configuration_offering(
             configuration, binding, offering_id=offering_id
@@ -113,15 +115,25 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
         async with self._mutation():
             await self.put_configuration(configuration)
             await self.put_destination_binding(binding)
-            self._enroll(configuration, offering._producer_key, binding)
+            self._enroll(
+                configuration, offering._producer_key, binding, service_context=service_context
+            )
 
     def _enroll(
         self,
         configuration: ReportingConfiguration,
         producer_key: str,
         destination: ReportingDestinationBinding,
+        *,
+        service_context: ReportingProductionSourceContext | None = None,
     ) -> None:
-        binding = self._owner()._source_binding(configuration, producer_key)
+        previous_context = self._production_source_bindings.get(configuration.generation_key)
+        binding = self._owner()._source_binding(
+            configuration,
+            producer_key,
+            service_context=service_context,
+            document=previous_context.document() if previous_context is not None else None,
+        )
         previous = self._production_generations.setdefault(
             configuration.generation_key, producer_key
         )

@@ -1135,7 +1135,13 @@ class InMemoryReportingLedgerStore:
                     or existing.revision_id != observation.revision_id
                 ):
                     raise LedgerConflictError("OBSERVATION_CONFLICT", "observation replay differs")
-                return self._revisions[existing.revision_id]
+                if existing.revision_id not in self._revisions:
+                    raise LedgerConflictError(
+                        "HISTORY_UNAVAILABLE", "observation revision is missing"
+                    )
+                # A matching observation identity does not make conflicting
+                # publication content an idempotent replay.
+                return await self.commit_revision(revision, rows)
             retained = self._provisional_acquisitions.get(key)
             if retained != acquisition:
                 raise LedgerConflictError("OBSERVATION_CONFLICT", "acquisition was not reserved")

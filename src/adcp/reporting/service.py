@@ -17,7 +17,7 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from types import MappingProxyType
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel
@@ -59,6 +59,9 @@ from adcp.reporting.source import (
     ReportingSourceExecutor,
     ReportingSourceSliceRequestV1,
 )
+
+if TYPE_CHECKING:
+    from adcp.reporting.production.service import ReportingProductionSupport
 
 __all__ = [
     "AdapterRegistration",
@@ -362,6 +365,7 @@ class ReliableReportingService:
     ) -> None:
         effective_clock = clock or (lambda: datetime.now(timezone.utc))
         self.store = store
+        self._production: ReportingProductionSupport | None = None
         self.sources = ReportingAdapterRegistry(clock=effective_clock)
         self._context_resolver = account_context
         self._caller_resolver = caller_resolver or self._default_caller
@@ -388,6 +392,48 @@ class ReliableReportingService:
             resources=owned_resources,
             configuration_error=ReliableReportingConfigurationError,
         )
+
+    @classmethod
+    def from_production(
+        cls,
+        production: ReportingProductionSupport,
+        *,
+        owned_resources: Sequence[ReportingServiceResource] = (),
+    ) -> ReliableReportingService:
+        """Own a preassembled B2 graph with durable fixed-profile admission.
+
+        Mount the exact handler returned by ``install(application)`` before
+        startup. This explicit bridge requires the real production components
+        and a source registry; it is not an adapter-first component factory.
+        Production tasks use their existing indexed leases. Pools and providers
+        stay borrowed unless explicitly transferred in ``owned_resources``.
+        """
+        from adcp.reporting.production.service import ReportingProductionSupport
+
+        if (
+            type(production) is not ReportingProductionSupport
+            or production.source_registry is None
+            or production._task is not None
+            or production._closed
+            or production._service_lifecycle is not None
+        ):
+            raise ReliableReportingConfigurationError(
+                "requires an unstarted registered production graph"
+            )
+
+        def unavailable(_: ReportingConfiguration) -> ReportingAccountContext:
+            raise ReliableReportingConfigurationError(
+                "production requires typed sync_accounts admission"
+            )
+
+        service = cls(
+            store=production.store,
+            account_context=unavailable,
+            owned_resources=(*owned_resources, ReportingServiceResource(close=production.aclose)),
+        )
+        service._production = production
+        production._service_lifecycle = service._lifecycle
+        return service
 
     @classmethod
     def memory(
@@ -430,6 +476,10 @@ class ReliableReportingService:
 
     async def configure(self, configuration: ReportingConfiguration) -> None:
         """Resolve trusted account facts once and freeze this generation's route."""
+        if self._production is not None:
+            raise ReliableReportingConfigurationError(
+                "production requires typed sync_accounts admission"
+            )
 
         async def configure() -> None:
             async with self._configuration_lock:
@@ -558,6 +608,10 @@ class ReliableReportingService:
 
     def validate(self) -> None:
         """Fail fast on tier combinations the configured components cannot honor."""
+        if self._production is not None and self.sources.names:
+            raise ReliableReportingConfigurationError(
+                "production adapters must belong to its frozen source registry"
+            )
         if self._worker_interval is not None and self._worker_interval <= timedelta(0):
             raise ReliableReportingConfigurationError("worker_interval must be greater than zero")
         if self._notification_worker is not None and self._notification_attempt_store is None:
@@ -587,13 +641,33 @@ class ReliableReportingService:
                 await self.store.put_configuration(configuration)
             self._pending_configurations.clear()
             self.sources.freeze()
+            if self._production is not None:
+                await self._production.start()
             self._initialized = True
 
     async def start(self) -> None:
         await self.initialize()
         await self._lifecycle.activate(
-            self._worker_loop if self._worker_interval is not None else None
+            self._monitor_production
+            if self._production is not None
+            else (self._worker_loop if self._worker_interval is not None else None)
         )
+
+    async def _monitor_production(self) -> None:
+        assert self._production is not None
+        while not self._lifecycle.stopping:
+            self._production._assert_components()
+            stop = asyncio.create_task(self._lifecycle.wait_for_stop(60))
+            workers = [
+                task
+                for task in (self._production._task, self._production._notification_task)
+                if task is not None
+            ]
+            try:
+                await asyncio.wait([stop, *workers], return_when=asyncio.FIRST_COMPLETED)
+            finally:
+                stop.cancel()
+                await asyncio.gather(stop, return_exceptions=True)
 
     @property
     def state(self) -> ReliableReportingState:
@@ -657,6 +731,8 @@ class ReliableReportingService:
 
     async def run_worker(self, *, now: datetime | None = None) -> ReliableReportingTurn:
         """Route one turn across every frozen configuration generation."""
+        if self._production is not None:
+            raise ReliableReportingConfigurationError("production workers are owned by start/close")
         await self.initialize()
         await self._lifecycle.activate()
         return await self._lifecycle.call(lambda: self._run_worker(now=now))
@@ -728,6 +804,8 @@ class ReliableReportingService:
     async def get_reporting_status(
         self, request: Any, context: Any | None = None
     ) -> dict[str, Any]:
+        if self._production is not None:
+            return _wire(await self._production.handler.get_reporting_status(request, context))
         return await self._lifecycle.call(lambda: self._get_reporting_status(request, context))
 
     async def _get_reporting_status(self, request: Any, context: Any | None) -> dict[str, Any]:
@@ -741,6 +819,8 @@ class ReliableReportingService:
     async def sync_reporting_status(
         self, request: Any, context: Any | None = None
     ) -> dict[str, Any]:
+        if self._production is not None:
+            return _wire(await self._production.handler.sync_reporting_status(request, context))
         return await self._lifecycle.call(lambda: self._sync_reporting_status(request, context))
 
     async def _sync_reporting_status(self, request: Any, context: Any | None) -> dict[str, Any]:
@@ -756,6 +836,8 @@ class ReliableReportingService:
     async def sync_reporting_receipts(
         self, request: Any, context: Any | None = None
     ) -> dict[str, Any]:
+        if self._production is not None:
+            return _wire(await self._production.handler.sync_reporting_receipts(request, context))
         return await self._lifecycle.call(lambda: self._sync_reporting_receipts(request, context))
 
     async def _sync_reporting_receipts(self, request: Any, context: Any | None) -> dict[str, Any]:
@@ -769,6 +851,8 @@ class ReliableReportingService:
     async def get_revision_content(
         self, request: Any, context: Any | None = None
     ) -> dict[str, Any]:
+        if self._production is not None:
+            return _wire(await self._production.handler.get_media_buy_delivery(request, context))
         return await self._lifecycle.call(lambda: self._get_revision_content(request, context))
 
     async def _get_revision_content(self, request: Any, context: Any | None) -> dict[str, Any]:
@@ -879,6 +963,9 @@ class ReliableReportingService:
 
     def install(self, platform: Any) -> Any:
         """Install ready-to-use reporting handlers on an existing platform instance."""
+        if self._production is not None:
+            self._production.handler.bind_application(platform)
+            return self._production.handler
         from adcp.server import ADCPHandler
         from adcp.server.mcp_tools import get_tools_for_handler
 

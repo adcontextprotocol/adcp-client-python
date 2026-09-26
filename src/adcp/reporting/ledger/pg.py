@@ -1002,7 +1002,9 @@ class PgReportingLedgerStore:
                     raise LedgerConflictError(
                         "HISTORY_UNAVAILABLE", "observation revision is missing"
                     )
-                return retained_revision
+                # Reuse the immutable publication replay checks while holding
+                # the observation's account lock and transaction.
+                return await self.commit_revision(revision, rows)
             reserved = await (
                 await connection.execute(
                     "SELECT payload FROM reporting_provisional_acquisitions"

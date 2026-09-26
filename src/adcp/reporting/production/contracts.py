@@ -13,6 +13,7 @@ from adcp.reporting.ledger.delivery_models import ReportingDestinationBinding
 from adcp.reporting.ledger.models import ReportingConfiguration, ReportingConfigurationGenerationKey
 from adcp.reporting.ledger.store import _config_payload
 from adcp.reporting.materializer.contracts import ReportingWriterCapability, failure
+from adcp.reporting.production.source_registry import ReportingProductionSourceContext
 from adcp.reporting.source import (
     MediaBuyConstituentV1,
     ReportingConstituent,
@@ -127,6 +128,9 @@ class ReportingProductionSourceBinding:
     capabilities_sha256: str
     media_buy_products: tuple[tuple[str, str], ...]
     configuration_sha256: str = field(kw_only=True)
+    service_context: ReportingProductionSourceContext | None = field(
+        default=None, kw_only=True, repr=False
+    )
 
     def __post_init__(self) -> None:
         from adcp.reporting.evidence import reporting_identifier, sha256_value
@@ -135,6 +139,11 @@ class ReportingProductionSourceBinding:
             raise ValueError("source binding requires an exact configuration generation")
         sha256_value(self.capabilities_sha256)
         sha256_value(self.configuration_sha256)
+        if (
+            self.service_context is not None
+            and type(self.service_context) is not ReportingProductionSourceContext
+        ):
+            raise ValueError("source binding requires an exact service source context")
         pairs = tuple(tuple(pair) for pair in self.media_buy_products)
         if any(len(pair) != 2 for pair in pairs):
             raise ValueError("source binding requires media-buy/product pairs")
@@ -170,7 +179,7 @@ class ReportingProductionSourceBinding:
 
     def document(self) -> dict[str, Any]:
         key = self.generation_key
-        return {
+        document = {
             "account_id": key.account_id,
             "delivery_config_id": key.delivery_config_id,
             "delivery_config_version": key.delivery_config_version,
@@ -178,6 +187,12 @@ class ReportingProductionSourceBinding:
             "configuration_sha256": self.configuration_sha256,
             "media_buy_products": [list(pair) for pair in self.media_buy_products],
         }
+        if self.service_context is not None:
+            document["service_context"] = self.service_context.document()
+            document["service_context_sha256"] = hashlib.sha256(
+                self.service_context._wire
+            ).hexdigest()
+        return document
 
     def check(
         self,

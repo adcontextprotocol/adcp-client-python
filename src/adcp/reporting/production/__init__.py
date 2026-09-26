@@ -33,6 +33,7 @@ from adcp.reporting.production.service import (
     ReportingProductionDestination,
     ReportingProductionSupport,
 )
+from adcp.reporting.production.source_registry import ReportingProductionSourceRegistry
 
 if TYPE_CHECKING:
     from adcp.reporting.production.pg import PgReportingProductionOutbox, PgReportingProductionStore
@@ -54,6 +55,7 @@ __all__ = [
     "ReportingProductionSigning",
     "ReportingProductionSource",
     "ReportingProductionSourceBinding",
+    "ReportingProductionSourceRegistry",
     "ReportingProductionSupport",
     "production_notification_workers",
 ]

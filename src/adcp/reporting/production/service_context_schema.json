@@ -1,0 +1,10 @@
+{
+  "function:reporting_production_service_context_guard()": {
+    "enabled": true,
+    "fingerprint": "db567ebfe99bcdaf3083d972c5976156bf1d51371c33fd65add9ac036ea7076e"
+  },
+  "trigger:reporting_production_generations.reporting_production_service_context_consistent": {
+    "enabled": true,
+    "fingerprint": "6e099313085dfab338cc98b9964295733fcfb68972d33a9d04cdf29603ceaacd"
+  }
+}

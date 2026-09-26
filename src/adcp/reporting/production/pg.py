@@ -37,6 +37,7 @@ from adcp.reporting.materializer.work import (
     key_for,
 )
 from adcp.reporting.outbox.status_pg import PgReportingStatusOutbox
+from adcp.reporting.production.source_registry import ReportingProductionSourceContext
 from adcp.reporting.projection.pg import PgReportingProjectionStore
 from adcp.reporting.source import ReportingConstituent
 
@@ -166,6 +167,7 @@ class PgReportingProductionStore(PgReportingProjectionStore):
         binding: ReportingDestinationBinding,
         *,
         offering_id: str,
+        service_context: ReportingProductionSourceContext | None = None,
     ) -> None:
         offering = self._owner()._configuration_offering(
             configuration, binding, offering_id=offering_id
@@ -176,7 +178,13 @@ class PgReportingProductionStore(PgReportingProjectionStore):
             try:
                 await self.put_configuration(configuration)
                 await self.put_destination_binding(binding)
-                await self._enroll_on(connection, configuration, offering._producer_key, binding)
+                await self._enroll_on(
+                    connection,
+                    configuration,
+                    offering._producer_key,
+                    binding,
+                    service_context=service_context,
+                )
             finally:
                 _ADMISSION_CONNECTION.reset(token)
 
@@ -186,10 +194,28 @@ class PgReportingProductionStore(PgReportingProjectionStore):
         configuration: ReportingConfiguration,
         producer_key: str,
         destination: ReportingDestinationBinding,
+        *,
+        service_context: ReportingProductionSourceContext | None = None,
     ) -> None:
         key = configuration.generation_key
         identity = (key.account_id, key.delivery_config_id, key.delivery_config_version)
-        binding = self._owner()._source_binding(configuration, producer_key).document()
+        previous_context = await (
+            await connection.execute(
+                "SELECT source_binding FROM reporting_production_generations"
+                " WHERE account_id=%s AND delivery_config_id=%s AND delivery_config_version=%s",
+                identity,
+            )
+        ).fetchone()
+        binding = (
+            self._owner()
+            ._source_binding(
+                configuration,
+                producer_key,
+                service_context=service_context,
+                document=previous_context[0] if previous_context is not None else None,
+            )
+            .document()
+        )
         await connection.execute(
             "INSERT INTO reporting_production_generations VALUES(%s,%s,%s,%s,%s::jsonb)"
             " ON CONFLICT DO NOTHING",
@@ -568,6 +594,9 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                 "reporting_production.sql",
             ):
                 await connection.execute(root.joinpath(name).read_text())
+            await connection.execute(
+                files("adcp.reporting.production").joinpath("service_context.sql").read_text()
+            )
 
     async def materializer_ready(self) -> bool:
         owner = self._owner()

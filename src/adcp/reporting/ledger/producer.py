@@ -933,6 +933,8 @@ class ReportingProducer:
         rows = await self._read_rows(request, manifest)
         # ``now`` freezes dispatch/lease/cutoff decisions, not publication.
         # A conforming source can observe finality while acquisition is running.
+        # Every successful scheduled read, even unchanged content, reaches the
+        # atomic revision/observation/checkpoint commit with this fresh anchor.
         published_at = self._clock()
         if _utc(published_at) < _utc(now):
             raise LedgerConflictError(
@@ -1088,6 +1090,8 @@ class ReportingProducer:
         if prior is not None:
             # Still reconstruct and verify the supplied content below. Merely
             # finding the ID must not bypass immutable-content validation.
+            # On replay this retained parent wins over the acquisition's
+            # predecessor, just as the retained creation time wins over now.
             supersedes = prior.supersedes_reporting_revision_id
         if (
             _utc(manifest.acquired_at) > _utc(now)
@@ -1145,7 +1149,9 @@ class ReportingProducer:
         if acquisition is None:
             committed = await self._store.commit_revision(revision, rows)
         else:
-            checked_at = max(_utc(now), _utc(manifest.acquired_at))
+            # ``now`` is the publication anchor, sampled after row acquisition.
+            # The bounds check above already rejects acquired_at after now.
+            checked_at = _utc(now)
             boundary = manifest.finality_evidence.provisional_until or (
                 _utc(obligation.period.end) + acquisition.policy.window
             )

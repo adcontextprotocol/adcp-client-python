@@ -214,9 +214,7 @@ class ReportingProductionConfigurationTask:
                 raise LedgerConflictError(
                     "CONFIGURATION_GENERATION_IMMUTABLE", "configuration identity conflicts"
                 )
-            await support.store.admit_production_configuration(
-                value.configuration, value.binding, offering_id=value.offering_id
-            )
+            await support._admit_configuration(value)
             # The caller already entered the migrated, drained production
             # lifecycle. Complete this account's versioned baseline before
             # echoing ready; adopters need no account-enumeration worker or

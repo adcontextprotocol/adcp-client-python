@@ -374,6 +374,8 @@ async def production_harness(
     poll_seconds=60,
     source_factory=Source,
     adcp_version=None,
+    source_registry_factory=None,
+    service_factory=None,
 ):
     from contextlib import AsyncExitStack
 
@@ -632,12 +634,14 @@ async def production_harness(
             notification_workers=workers,
             poll_seconds=poll_seconds,
             adcp_version=adcp_version,
+            source_registry=source_registry_factory(offerings) if source_registry_factory else None,
         )
         h.production, h.projection, h.item = support, projection, item
+        h.service = service_factory(support) if service_factory else None
         h.source_clock = source_clock
         h.mount = create_mcp_server(support.handler)
         try:
-            await support.start()
+            await (h.service.start() if h.service else support.start())
             yield h
         finally:
-            await support.aclose()
+            await (h.service.close() if h.service else support.aclose())
