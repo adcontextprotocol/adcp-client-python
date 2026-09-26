@@ -52,7 +52,6 @@ from adcp.reporting.currency import (
     validate_currency,
 )
 from adcp.reporting.evidence import ReportingControlTotalRecord, freeze_control_totals
-from adcp.reporting.inline_storage import InlineStorageError
 from adcp.reporting.ledger.models import (
     ReportingConfiguration,
     ReportingDeliveryEscalation,
@@ -950,6 +949,8 @@ class ReportingProducer:
             return None
 
         if isinstance(result, _InlineStorageFailure):
+            from adcp.reporting.inline_storage import InlineStorageError
+
             # Return closed data from the executor task: a raw driver exception
             # must not survive through a context manager or Task wakeup frame.
             raise InlineStorageError(result.code)
@@ -1041,6 +1042,8 @@ class ReportingProducer:
         *,
         cancel: asyncio.Event,
     ) -> ReportingSourceExecutorResult | _InlineStorageFailure:
+        from adcp.reporting.inline_storage import InlineStorageError
+
         try:
             with bind_inline_publication(
                 configuration.account_id,
