@@ -90,7 +90,8 @@ class ReportingAdjustmentScope:
             reporting_identifier(self.reporting_obligation_id)
             valid = True
         except (ValueError, TypeError):
-            pass
+            # Normalize parse errors after leaving the exception handler.
+            valid = False
         if not valid:
             _fail("INVALID_CONTEXT")
 
@@ -251,7 +252,8 @@ class ReportingAdjustmentEvidence:
         except ReportingAdjustmentEvidenceError:
             raise
         except (ValueError, TypeError, OverflowError, RecursionError):
-            pass
+            # Do not retain a decoder exception in the public error context.
+            valid = False
         if not valid:
             _fail("INVALID_EVIDENCE")
         object.__setattr__(self, "canonical_json", canonical)
@@ -296,7 +298,8 @@ def capture_reporting_adjustment_evidence(
     except ReportingAdjustmentEvidenceError:
         raise
     except (ValueError, TypeError, OverflowError, RecursionError):
-        pass
+        # Normalize malformed mappings after the exception is cleared.
+        encoded = None
     if encoded is None:
         _fail("INVALID_EVIDENCE")
     evidence = ReportingAdjustmentEvidence(scope, encoded, kind, limits)
@@ -308,7 +311,8 @@ def capture_reporting_adjustment_evidence(
             )
             aligned = supplied == evidence.adjustment
     except (ValueError, TypeError, OverflowError, RecursionError):
-        pass
+        # Keep model diagnostics out of the public mismatch error.
+        aligned = False
     if not aligned:
         _fail("TYPED_EVIDENCE_MISMATCH")
     return evidence
@@ -350,7 +354,8 @@ class ReportingAdjustmentReceiptContext:
                     object.__setattr__(self, "finalized_at", final)
                     object.__setattr__(self, "control_total_units", units)
         except (ValueError, TypeError, AttributeError):
-            pass
+            # Normalize parse errors after leaving the exception handler.
+            valid = False
         if not valid:
             _fail("INVALID_CONTEXT")
 
@@ -388,7 +393,8 @@ class ReportingAdjustmentReceiptContext:
                 and revision.period.source_timezone == obligation.period.source_timezone
             )
         except (ValueError, TypeError, AttributeError):
-            pass
+            # Do not attach model diagnostics to the public context error.
+            valid = False
         if not valid or revision.finalized_at is None:
             _fail("INVALID_CONTEXT")
         return cls(
@@ -481,7 +487,8 @@ def build_reporting_adjustment_receipt(
     except ReportingAdjustmentEvidenceError:
         raise
     except (ValueError, TypeError, AttributeError, OverflowError):
-        pass
+        # Raise the closed receipt error outside the exception handler.
+        receipt = None
     if receipt is None:
         _fail("INVALID_RECEIPT")
     return receipt
