@@ -240,7 +240,7 @@ def test_outbound_capture_is_immutable_and_each_public_model_view_is_detached():
     assert first == same
     inputs[0].observed_adjustment_sha256 = "f" * 64
     first.request(0).adjustment_receipts[0].observed_adjustment_sha256 = "e" * 64
-    assert first == same
+    assert same.request(0).adjustment_receipts[0].observed_adjustment_sha256 == "b" * 64
     assert first.request(0).adjustment_receipts[0].observed_adjustment_sha256 == "b" * 64
     assert (
         prepare_reporting_receipt_submission(SCOPE, list(reversed(mixed()))).submission_id

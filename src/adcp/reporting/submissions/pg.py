@@ -92,6 +92,7 @@ class PgReportingSubmissionIntentStore:
 
             available = True
         except ImportError:
+            # The optional driver is absent; report PG_REQUIRED outside the handler.
             pass
         if not available:
             raise ReportingSubmissionError(ReportingSubmissionCode.PG_REQUIRED)

@@ -172,9 +172,9 @@ async def test_pg_corruption_and_driver_diagnostics_never_escape_or_permit_repla
                 await connection.execute(
                     "ALTER TABLE reporting_buyer_submission_intents DROP COLUMN confirmed_results"
                 )
-        for operation in (store.get(SCOPE), store.reserve(state)):
+        for operation in (lambda: store.get(SCOPE), lambda: store.reserve(state)):
             with pytest.raises(ReportingSubmissionError) as error:
-                await operation
+                await operation()
             assert error.value.code == (
                 ReportingSubmissionCode.STORAGE_UNAVAILABLE
                 if mutation == "driver"

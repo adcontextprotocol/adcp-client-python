@@ -117,6 +117,7 @@ class ReportingSubmissionScope:
             canonical_consumer(self.consumer_id)
             valid = all(value == value.strip() for value in (self.seller_id, self.account_id))
         except (ValueError, TypeError, RuntimeError):
+            # Map provider validation details to the closed INVALID_SCOPE error below.
             pass
         if not valid:
             raise ReportingSubmissionError(ReportingSubmissionCode.INVALID_SCOPE)
