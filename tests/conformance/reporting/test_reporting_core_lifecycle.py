@@ -35,6 +35,7 @@ from __future__ import annotations
 import os
 import secrets
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import Any
@@ -604,14 +605,16 @@ async def _restate(
 # --------------------------------------------------------------------------
 
 
-async def test_a_buyer_detects_a_period_the_seller_never_obligated(
+@pytest.mark.parametrize("all_finalities", [False, True])
+async def test_missing_period_claim_requires_complete_finality_denominator(
     ledger: PgReportingLedgerStore,
+    all_finalities: bool,
 ) -> None:
-    """The reason the buyer derives its own expectations.
+    """An absent expected period prevents success, but needs proof to be claimed.
 
-    A seller that simply omits a period returns a complete-looking, internally
-    consistent ledger. Only the buyer's independently derived denominator
-    catches it.
+    ExpectedReportingPeriod carries no trusted finality requirement. A proper
+    subset in the seller's denominator cannot prove that an absent period
+    belongs to it, even when that subset came from an unfiltered read.
     """
     source = SimulatedSource()
     await ledger.put_configuration(_configuration())
@@ -620,15 +623,27 @@ async def test_a_buyer_detects_a_period_the_seller_never_obligated(
     # Stop before the second period closes, so the seller's ledger is complete
     # and internally consistent -- exactly the shape that hides an omission.
     await _run_worker_at(ledger, source, now=first.end + timedelta(minutes=30))
+    if all_finalities:
+        # Expand the real seller's configuration denominator, without rewriting
+        # its response or introducing an obligation for this other generation.
+        await ledger.put_configuration(
+            replace(_configuration("official"), delivery_config_id="official_delivery")
+        )
 
     # The seller obligated one period; the buyer expects two.
     settled = await _reconcile(ledger, expected=_expected_periods(1))
     assert settled.definitive is True
+    assert {value.value for value in settled.ledger.scope.finality} == (
+        {"snapshot", "official"} if all_finalities else {"snapshot"}
+    )
 
     gap = await _reconcile(ledger, expected=_expected_periods(2))
     assert gap.definitive is False
-    assert len(gap.missing_expected_periods) == 1
-    assert gap.missing_expected_periods[0].period_start == _period(1).start.isoformat()
+    if all_finalities:
+        assert len(gap.missing_expected_periods) == 1
+        assert gap.missing_expected_periods[0].period_start == _period(1).start.isoformat()
+    else:
+        assert gap.missing_expected_periods == []
 
 
 async def test_core_reconciliation_refuses_a_managed_delivery_ledger(
