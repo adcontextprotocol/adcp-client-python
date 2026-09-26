@@ -586,10 +586,10 @@ async def _restate(
 ) -> Any:
     """Ask for a new observation of an already-satisfied snapshot obligation.
 
-    A settled period is left alone by an ordinary worker turn, so a
-    restatement is explicit. The observation ordinal advances with the
-    committed revision count, which is what gives this acquisition a distinct
-    source execution key rather than replaying the sealed original.
+    Worker turns also refresh provisional snapshots on their declared cadence.
+    This explicit restatement uses the next observation ordinal, giving the
+    acquisition a distinct source execution key rather than replaying a
+    previously sealed snapshot.
     """
     producer, _ = _producer(store, source, now=now)
     restated = await producer.acquire_obligation(
