@@ -554,6 +554,21 @@ class FileSystemStagingStore:
                     os.fsync(descriptor)
                 finally:
                     os.close(descriptor)
+            if not missing and self._root.parent != self._root:
+                # A fresh instance can repair a root another writer created
+                # just before crashing. A pre-existing root is still usable
+                # when its parent allows traversal but not directory reads.
+                try:
+                    descriptor = os.open(
+                        self._root.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+                    )
+                except PermissionError:
+                    pass
+                else:
+                    try:
+                        os.fsync(descriptor)
+                    finally:
+                        os.close(descriptor)
             self._root_synced = True
 
     @staticmethod

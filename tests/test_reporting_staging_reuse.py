@@ -162,24 +162,43 @@ async def test_existing_corrupt_payload_is_never_claimed_or_overwritten(
         assert staging._objects[("account-redacted", *pair)] == b"ro"
 
 
-async def test_staging_under_traversable_unreadable_ancestor(tmp_path: Path) -> None:
-    if os.name != "posix" or os.geteuid() == 0:
-        pytest.skip("requires POSIX directory permissions for an unprivileged process")
+async def test_staging_under_traversable_unreadable_ancestor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    if os.name != "posix":
+        pytest.skip("requires POSIX directory fsync")
     restricted = tmp_path / "restricted"
     owned = restricted / "app"
     owned.mkdir(parents=True)
     restricted.chmod(0o711)
+    real_open = os.open
+    opened: list[Path] = []
+
+    def guarded_open(path: Any, flags: int, *args: Any, **kwargs: Any) -> int:
+        opened.append(Path(path))
+        if Path(path) == restricted:
+            raise PermissionError("unreadable ancestor")
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", guarded_open)
     values = dict(
         account_id="account-redacted", source_execution_key="key", ordinal=0, payload=b"rows"
     )
     try:
+        # Enforce the access restriction even on runners with CAP_DAC_OVERRIDE.
+        with pytest.raises(PermissionError, match="unreadable ancestor"):
+            os.open(restricted, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        opened.clear()
         root = owned / "staging"
         staging = FileSystemStagingStore(root)
         pair = await staging.stage(**values)
         assert await read_payload(staging, pair) == b"rows"
         # A fresh instance must also reuse the retained bytes without opening
         # the unreadable ancestor during its first root durability check.
+        opened.clear()
         assert await FileSystemStagingStore(root).stage(**values) == pair
+        assert owned in opened  # repair a possible unsynced root name
+        assert restricted not in opened
     finally:
         restricted.chmod(0o700)
 
