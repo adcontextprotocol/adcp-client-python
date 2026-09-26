@@ -484,7 +484,8 @@ async def test_cancellation_while_waiting_for_sql_settles_pool_one(stores, datab
             for _ in range(200):
                 row = await (
                     await observer.execute(
-                        "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type='Lock' AND query LIKE 'LOCK TABLE reporting_inline_objects,%'"
+                        "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type='Lock' "
+                        "AND query LIKE 'LOCK TABLE reporting_inline_objects,%'"
                     )
                 ).fetchone()
                 if row[0]:
@@ -1065,7 +1066,7 @@ async def test_task_boundary_never_transports_raw_exception_context(
                 ordinal=0,
                 payload=marker.encode(),
             )
-        except BaseException as error:
+        except (InlineStorageError, asyncio.CancelledError) as error:
             assert error.__context__ is None and error.__cause__ is None
             chain = "".join(traceback.format_exception(type(error), error, error.__traceback__))
             assert marker not in chain
