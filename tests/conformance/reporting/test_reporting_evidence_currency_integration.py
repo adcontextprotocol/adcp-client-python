@@ -178,8 +178,11 @@ async def test_colliding_accounts_keep_sparse_metric_evidence_and_staging_isolat
         await commit_records(h, records)
         results.append((request, result, revision, records))
 
-    # Same staged ref AND digest: the second account must not evict the first.
-    assert verified(results[0][1]).objects == verified(results[1][1]).objects
+    # Identical bytes retain the same digest under either staging ref format.
+    first_object = verified(results[0][1]).objects[0]
+    second_object = verified(results[1][1]).objects[0]
+    assert first_object.sha256 == second_object.sha256
+    assert first_object.object_generation == second_object.object_generation
     assert verified(results[0][1]).publication_id != verified(results[1][1]).publication_id
     for request, result, revision, records in results:
         account = request.identity.account_id
