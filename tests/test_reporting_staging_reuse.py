@@ -376,6 +376,7 @@ async def test_inflight_truncating_writer_is_never_accepted_as_committed(tmp_pat
             await read_payload(staging, pair)
     finally:
         release.set()
+        # Propagate writer failures and finish the mutation before retrying.
         await writer
     assert await staging.stage(**values) == pair
     assert await read_payload(staging, pair) == b"rows"
@@ -494,6 +495,7 @@ async def reap_process(child: asyncio.subprocess.Process) -> None:
         try:
             child.kill()
         except ProcessLookupError:
+            # The child may exit between the returncode check and kill().
             pass
     await asyncio.wait_for(child.communicate(), 5)
 
