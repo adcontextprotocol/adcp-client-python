@@ -7,6 +7,12 @@ mis-wiring on single-transport paths.
 
 from __future__ import annotations
 
+import asyncio
+import importlib
+from contextlib import asynccontextmanager
+from contextvars import ContextVar, Token
+from unittest.mock import Mock
+
 import pytest
 
 starlette = pytest.importorskip("starlette")
@@ -97,6 +103,62 @@ def test_startup_and_shutdown_ordering_around_yield() -> None:
     assert events == ["startup", "shutdown"]
 
 
+def test_paired_hooks_share_contextvar_tokens() -> None:
+    value: ContextVar[str] = ContextVar("hook_value", default="initial")
+    token: Token[str] | None = None
+    events: list[str] = []
+
+    async def startup() -> None:
+        nonlocal token
+        assert value.get() == "parent"
+        token = value.set("started")
+
+    async def shutdown() -> None:
+        assert value.get() == "started"
+        assert token is not None
+        value.reset(token)
+        events.append(value.get())
+
+    parent_token = value.set("parent")
+    try:
+        with TestClient(_build_app(on_startup=[startup], on_shutdown=[shutdown])):
+            assert value.get() == "parent"
+        assert value.get() == "parent"
+    finally:
+        value.reset(parent_token)
+    assert events == ["parent"]
+
+
+@pytest.mark.parametrize("kind", ["cancel_scope", "task_group"])
+def test_paired_hooks_can_enter_and_exit_an_anyio_scope(kind: str) -> None:
+    import anyio
+
+    scope = None
+    events: list[str] = []
+
+    async def startup() -> None:
+        nonlocal scope
+        if kind == "cancel_scope":
+            scope = anyio.CancelScope()
+            scope.__enter__()
+        else:
+            scope = anyio.create_task_group()
+            await scope.__aenter__()
+        events.append("entered")
+
+    async def shutdown() -> None:
+        assert scope is not None
+        if kind == "cancel_scope":
+            scope.__exit__(None, None, None)
+        else:
+            await scope.__aexit__(None, None, None)
+        events.append("exited")
+
+    with TestClient(_build_app(on_startup=[startup], on_shutdown=[shutdown])):
+        pass
+    assert events == ["entered", "exited"]
+
+
 # ----- Failure modes ----------------------------------------------------
 
 
@@ -118,6 +180,119 @@ def test_startup_hook_failure_aborts_boot() -> None:
     # Walk the exception chain (including ExceptionGroup leaves) for
     # our marker. Whatever the framing, the cause must be visible.
     assert "boot-time wiring broke" in _flatten_exception_text(exc_info.value)
+
+
+def test_later_startup_failure_closes_started_resources_once() -> None:
+    events: list[str] = []
+
+    async def start_resource() -> None:
+        events.append("resource_started")
+
+    async def fail_later_startup() -> None:
+        events.append("later_startup")
+        raise RuntimeError("later startup failed")
+
+    async def close_resource() -> None:
+        events.append("resource_closed")
+
+    app = _build_app(
+        on_startup=[start_resource, fail_later_startup],
+        on_shutdown=[close_resource],
+    )
+    with pytest.raises(BaseException) as raised:
+        with TestClient(app):
+            pytest.fail("failed startup must not admit requests")
+
+    assert "later startup failed" in _flatten_exception_text(raised.value)
+    assert events == ["resource_started", "later_startup", "resource_closed"]
+
+
+def test_startup_failure_remains_primary_after_all_cleanup_hooks(caplog) -> None:
+    events: list[str] = []
+
+    async def fail_startup() -> None:
+        raise ValueError("primary startup failure")
+
+    async def fail_cleanup() -> None:
+        events.append("first_cleanup")
+        raise RuntimeError("secret-provider-body")
+
+    async def finish_cleanup() -> None:
+        events.append("last_cleanup")
+
+    app = _build_app(on_startup=[fail_startup], on_shutdown=[fail_cleanup, finish_cleanup])
+    with pytest.raises(BaseException) as raised:
+        with TestClient(app):
+            pytest.fail("failed startup must not admit requests")
+
+    assert "primary startup failure" in _flatten_exception_text(raised.value)
+    assert events == ["first_cleanup", "last_cleanup"]
+    assert "secret-provider-body" not in caplog.text
+
+
+@pytest.mark.parametrize("startup_failure", ["cancelled", "error"])
+async def test_startup_failure_settles_cleanup_despite_repeated_cancellation(
+    startup_failure: str,
+) -> None:
+    events: list[str] = []
+    later_started = asyncio.Event()
+    fail_startup = asyncio.Event()
+    cleanup_started = asyncio.Event()
+    allow_cleanup = asyncio.Event()
+    incoming: asyncio.Queue[dict] = asyncio.Queue()
+    outgoing: asyncio.Queue[dict] = asyncio.Queue()
+
+    async def first() -> None:
+        events.append("started")
+
+    async def later() -> None:
+        later_started.set()
+        try:
+            await fail_startup.wait()
+        except asyncio.CancelledError:
+            events.append("startup_cancelled")
+            raise
+        raise ValueError("primary startup failure")
+
+    async def close() -> None:
+        cleanup_started.set()
+        await allow_cleanup.wait()
+        events.append("closed")
+
+    app = _build_app(on_startup=[first, later], on_shutdown=[close])
+    task = asyncio.create_task(
+        app(
+            {"type": "lifespan", "asgi": {"version": "3.0"}, "state": {}},
+            incoming.get,
+            outgoing.put,
+        )
+    )
+    try:
+        await incoming.put({"type": "lifespan.startup"})
+        await asyncio.wait_for(later_started.wait(), 5)
+        if startup_failure == "cancelled":
+            task.cancel()
+        else:
+            fail_startup.set()
+        await asyncio.wait_for(cleanup_started.wait(), 5)
+        task.cancel()
+        await asyncio.sleep(0)
+        task.cancel()
+        await asyncio.sleep(0)
+        assert not task.done()
+        assert "closed" not in events
+    finally:
+        allow_cleanup.set()
+        with pytest.raises(BaseException) as raised:
+            await asyncio.wait_for(task, 5)
+
+    if startup_failure == "cancelled":
+        assert isinstance(raised.value, asyncio.CancelledError)
+        assert events == ["started", "startup_cancelled", "closed"]
+    else:
+        assert "primary startup failure" in _flatten_exception_text(raised.value)
+        assert events == ["started", "closed"]
+    assert (await outgoing.get())["type"] == "lifespan.startup.failed"
 
 
 def _flatten_exception_text(exc: BaseException) -> str:
@@ -176,6 +351,300 @@ def test_shutdown_hooks_all_attempted_when_one_raises() -> None:
         "TestClient context exit should have surfaced the first " "shutdown hook error"
     )
     assert "scheduler stop failed" in _flatten_exception_text(raised)
+
+
+def test_secondary_shutdown_diagnostics_do_not_format_adopter_values(caplog) -> None:
+    class SecretClosure:
+        async def __call__(self) -> None:
+            raise ValueError("secret-secondary-error")
+
+        def __repr__(self) -> str:
+            return "secret-callable-repr"
+
+    async def first_error() -> None:
+        raise RuntimeError("first cleanup failure")
+
+    app = _build_app(on_shutdown=[first_error, SecretClosure()])
+    with pytest.raises(BaseException) as raised:
+        with TestClient(app):
+            pass
+
+    assert "first cleanup failure" in _flatten_exception_text(raised.value)
+    assert "on_shutdown hook failed" in caplog.text
+    assert "secret-secondary-error" not in caplog.text
+    assert "secret-callable-repr" not in caplog.text
+    assert all(record.exc_info is None for record in caplog.records if record.name == "adcp.server")
+
+
+async def test_cancelled_shutdown_hook_does_not_skip_later_callbacks() -> None:
+    from adcp.server.serve import _user_lifespan_hooks
+
+    events: list[str] = []
+
+    async def cancel_first() -> None:
+        events.append("cancelled")
+        raise asyncio.CancelledError()
+
+    async def close_second() -> None:
+        events.append("closed")
+
+    with pytest.raises(asyncio.CancelledError):
+        async with _user_lifespan_hooks((), (cancel_first, close_second)):
+            pass
+    assert events == ["cancelled", "closed"]
+
+
+async def test_anyio_cancelled_scope_still_settles_shutdown_hooks() -> None:
+    import anyio
+
+    from adcp.server.serve import _user_lifespan_hooks
+
+    events: list[str] = []
+
+    async def close() -> None:
+        await anyio.sleep(0)
+        events.append("closed")
+
+    with anyio.CancelScope() as scope:
+        scope.cancel()
+        async with _user_lifespan_hooks((), (close,)):
+            pass
+
+    assert events == ["closed"]
+
+
+async def test_hook_lifecycle_failure_does_not_leave_framework_waiting() -> None:
+    import anyio
+
+    crash = asyncio.Event()
+    closed = asyncio.Event()
+    group = None
+    incoming: asyncio.Queue[dict] = asyncio.Queue()
+    outgoing: asyncio.Queue[dict] = asyncio.Queue()
+
+    async def worker() -> None:
+        await crash.wait()
+        raise RuntimeError("worker failed")
+
+    async def start() -> None:
+        nonlocal group
+        group = anyio.create_task_group()
+        await group.__aenter__()
+        group.start_soon(worker)
+
+    async def close() -> None:
+        assert group is not None
+        try:
+            await group.__aexit__(None, None, None)
+        finally:
+            closed.set()
+
+    app = _build_app(on_startup=[start], on_shutdown=[close])
+    task = asyncio.create_task(
+        app(
+            {"type": "lifespan", "asgi": {"version": "3.0"}, "state": {}},
+            incoming.get,
+            outgoing.put,
+        )
+    )
+    try:
+        await incoming.put({"type": "lifespan.startup"})
+        assert (await asyncio.wait_for(outgoing.get(), 5))["type"] == "lifespan.startup.complete"
+        crash.set()
+        with pytest.raises(BaseException) as raised:
+            await asyncio.wait_for(task, 5)
+        assert not isinstance(raised.value, asyncio.TimeoutError)
+        assert closed.is_set()
+        assert (await outgoing.get())["type"] == "lifespan.shutdown.failed"
+    finally:
+        if not task.done():
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+
+async def test_body_failure_remains_primary_after_hook_lifecycle_failure() -> None:
+    import anyio
+
+    from adcp.server.serve import _user_lifespan_hooks
+
+    crash = asyncio.Event()
+    group = None
+
+    async def worker() -> None:
+        await crash.wait()
+        raise RuntimeError("secondary worker failure")
+
+    async def start() -> None:
+        nonlocal group
+        group = anyio.create_task_group()
+        await group.__aenter__()
+        group.start_soon(worker)
+
+    async def close() -> None:
+        assert group is not None
+        await group.__aexit__(None, None, None)
+
+    with pytest.raises(ValueError, match="primary body failure"):
+        async with _user_lifespan_hooks((start,), (close,)):
+            crash.set()
+            try:
+                await asyncio.wait_for(asyncio.Event().wait(), 5)
+            except asyncio.CancelledError:
+                raise ValueError("primary body failure") from None
+
+
+@pytest.mark.parametrize("cancel_body", [False, True])
+async def test_repeated_cancellation_settles_cleanup_before_transport_teardown(
+    monkeypatch, cancel_body: bool
+) -> None:
+    events: list[str] = []
+    close_requested = asyncio.Event()
+    close_started = asyncio.Event()
+    allow_close = asyncio.Event()
+    worker: asyncio.Task[None] | None = None
+    incoming: asyncio.Queue[dict] = asyncio.Queue()
+    outgoing: asyncio.Queue[dict] = asyncio.Queue()
+
+    async def work() -> None:
+        await close_requested.wait()
+        close_started.set()
+        await allow_close.wait()
+        events.append("worker_settled")
+
+    async def start() -> None:
+        nonlocal worker
+        worker = asyncio.create_task(work())
+
+    async def close_worker() -> None:
+        close_requested.set()
+        assert worker is not None
+        await worker
+        events.append("worker_joined")
+
+    async def close_pool() -> None:
+        assert worker is not None and worker.done() and not worker.cancelled()
+        events.append("pool_closed")
+
+    # Observe the real inner transports without replacing their lifecycle.
+    def observe(inner, name):
+        original = inner.router.lifespan_context
+
+        @asynccontextmanager
+        async def lifespan(app):
+            try:
+                async with original(app):
+                    events.append(name + "_started")
+                    try:
+                        yield
+                    finally:
+                        events.append(name + "_closing")
+            finally:
+                events.append(name + "_closed")
+
+        inner.router.lifespan_context = lifespan
+        return inner
+
+    serve_module = importlib.import_module("adcp.server.serve")
+    a2a_module = importlib.import_module("adcp.server.a2a_server")
+    original_mcp = serve_module.create_mcp_server
+    original_a2a = a2a_module.create_a2a_server
+
+    def create_mcp(*args, **kwargs):
+        server = original_mcp(*args, **kwargs)
+        original_app = server.streamable_http_app
+        monkeypatch.setattr(server, "streamable_http_app", lambda: observe(original_app(), "mcp"))
+        return server
+
+    monkeypatch.setattr(serve_module, "create_mcp_server", create_mcp)
+    monkeypatch.setattr(
+        a2a_module, "create_a2a_server", lambda *a, **kw: observe(original_a2a(*a, **kw), "a2a")
+    )
+    app = _build_app(on_startup=[start], on_shutdown=[close_worker, close_pool])
+    task = asyncio.create_task(
+        app(
+            {"type": "lifespan", "asgi": {"version": "3.0"}, "state": {}},
+            incoming.get,
+            outgoing.put,
+        )
+    )
+    try:
+        await incoming.put({"type": "lifespan.startup"})
+        startup = await asyncio.wait_for(outgoing.get(), 5)
+        assert startup["type"] == "lifespan.startup.complete"
+        if cancel_body:
+            task.cancel()
+        else:
+            await incoming.put({"type": "lifespan.shutdown"})
+        await asyncio.wait_for(close_started.wait(), 5)
+        task.cancel()
+        await asyncio.sleep(0)
+        task.cancel()
+        await asyncio.sleep(0)
+        assert not task.done()
+        assert worker is not None and not worker.done()
+        assert events == ["mcp_started", "a2a_started"]
+    finally:
+        allow_close.set()
+        try:
+            await asyncio.wait_for(task, 5)
+        except asyncio.CancelledError:
+            pass
+
+    assert task.cancelled()
+    assert events[:5] == [
+        "mcp_started",
+        "a2a_started",
+        "worker_settled",
+        "worker_joined",
+        "pool_closed",
+    ]
+    assert events[5:] == ["a2a_closing", "a2a_closed", "mcp_closing", "mcp_closed"]
+    shutdown = await outgoing.get()
+    assert shutdown["type"] == "lifespan.shutdown.failed"
+
+
+def test_synchronous_serve_owns_the_hook_event_loop(monkeypatch) -> None:
+    import uvicorn
+
+    from adcp.server import serve
+
+    events: list[str] = []
+    hook_loops = []
+
+    async def start() -> None:
+        hook_loops.append(asyncio.get_running_loop())
+        events.append("start")
+
+    async def close() -> None:
+        hook_loops.append(asyncio.get_running_loop())
+        await asyncio.sleep(0)
+        events.append("close")
+
+    async def drive_lifespan(server, sockets) -> None:
+        messages = iter([{"type": "lifespan.startup"}, {"type": "lifespan.shutdown"}])
+        results = []
+
+        async def receive():
+            return next(messages)
+
+        async def send(message):
+            results.append(message["type"])
+
+        await server.config.app(
+            {"type": "lifespan", "asgi": {"version": "3.0"}, "state": {}}, receive, send
+        )
+        assert results == ["lifespan.startup.complete", "lifespan.shutdown.complete"]
+
+    sock = Mock()
+    module = importlib.import_module("adcp.server.serve")
+    monkeypatch.setattr(module, "_bind_reusable_socket", lambda *args: sock)
+    monkeypatch.setattr(uvicorn.Server, "serve", drive_lifespan)
+    serve(_Handler(), transport="both", on_startup=[start], on_shutdown=[close])
+    assert events == ["start", "close"]
+    assert hook_loops[0] is hook_loops[1]
+    assert hook_loops[0].is_closed()
+    sock.close.assert_called_once()
 
 
 # ----- Boot-time validation --------------------------------------------
