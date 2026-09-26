@@ -159,11 +159,10 @@ async def test_cancelled_filesystem_staging_joins_its_owned_write(tmp_path: Path
     loop = asyncio.get_running_loop()
 
     class Staging(FileSystemStagingStore):
-        @staticmethod
-        def _write(target: Path, payload: bytes) -> None:
+        def _write(self, target: Path, payload: bytes) -> None:
             loop.call_soon_threadsafe(entered.set)
             assert release.wait(5), "test cleanup watchdog"
-            FileSystemStagingStore._write(target, payload)
+            super()._write(target, payload)
 
     staging = Staging(tmp_path)
     values = dict(account_id="account", source_execution_key="attempt", ordinal=0, payload=b"rows")

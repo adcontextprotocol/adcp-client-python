@@ -63,6 +63,7 @@ import hashlib
 import json
 import os
 import tempfile
+import threading
 from collections.abc import Awaitable, Callable, Collection, Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
@@ -411,11 +412,13 @@ class ReportingSealStore(Protocol):
 
 
 class InMemoryStagingStore:
-    """Process-local staging.  Fine for tests and single-process pilots.
+    """Process-local, account-scoped payload reuse for tests and pilots.
 
-    Not durable: a restart loses the rows a retained manifest still points at,
-    which breaks exact revision reads. Use :class:`FileSystemStagingStore` or
-    your own object store in production.
+    Not durable: a restart loses payloads needed for uncommitted acquisitions
+    or replay of retained source manifests. Committed ledger rows use the
+    ledger's independent exact-revision read path. Use
+    :class:`FileSystemStagingStore` or your own durable staging store when
+    source payloads must survive a restart.
     """
 
     def __init__(self) -> None:
@@ -424,9 +427,17 @@ class InMemoryStagingStore:
     async def stage(
         self, *, account_id: str, source_execution_key: str, ordinal: int, payload: bytes
     ) -> tuple[str, str]:
+        if not isinstance(payload, bytes):
+            raise TypeError("staging payload must be immutable bytes")
         digest = hashlib.sha256(payload).hexdigest()
-        object_ref = f"{source_execution_key}.{ordinal}"
-        self._objects[(account_id, object_ref, digest)] = payload
+        account = hashlib.sha256(account_id.encode("utf-8")).hexdigest()
+        object_ref = f"sha256.{account}.{digest}"
+        key = (account_id, object_ref, digest)
+        if key in self._objects:
+            if self._objects[key] != payload:
+                raise OSError("staged object bytes no longer match their pinned generation")
+        else:
+            self._objects[key] = payload
         return object_ref, digest
 
     async def read(
@@ -441,22 +452,31 @@ class InMemoryStagingStore:
         key = (account_id, object_ref, object_generation)
         if key not in self._objects:
             raise PermissionError("staged object is outside the requested account scope")
-        return self._objects[key]
+        payload = self._objects[key]
+        if hashlib.sha256(payload).hexdigest() != object_generation:
+            raise OSError("staged object bytes no longer match their pinned generation")
+        return payload
 
 
 class FileSystemStagingStore:
-    """Content-addressed staging on a filesystem.
+    """Account-scoped content-addressed staging on a local filesystem.
 
-    ``object_generation`` is the SHA-256 of the bytes and the file is named for
-    it, so the store is immutable by construction: staging identical bytes
-    twice is a no-op, and staging different bytes produces a different
-    generation rather than overwriting the first.  Writes land via
-    temp-file-and-rename so a crashed write never leaves a half-file a manifest
-    already points at.
+    Equal payload bytes in an account share their ref and SHA-256 generation
+    across acquisitions. Legacy opaque refs remain readable at their existing
+    paths. Observation identity belongs to the manifest/seal, not the payload.
+
+    The filesystem must support atomic same-directory hard links and directory
+    fsync. A flushed temporary file is linked without replacing a winner, then
+    its temporary name is removed and the directory chain is synced. Readers
+    never see an SDK writer's partial file. Existing bytes are verified before
+    reuse; corruption fails closed rather than being overwritten. A failed
+    publication may retain complete bytes, but never returns a successful pair.
     """
 
     def __init__(self, root: Path | str) -> None:
         self._root = Path(root)
+        self._root_sync_lock = threading.Lock()
+        self._root_synced = False
 
     def _path(self, account_id: str, object_ref: str, object_generation: str) -> Path:
         # The account is part of the path so an authorization bug cannot become
@@ -468,15 +488,26 @@ class FileSystemStagingStore:
     async def stage(
         self, *, account_id: str, source_execution_key: str, ordinal: int, payload: bytes
     ) -> tuple[str, str]:
+        if not isinstance(payload, bytes):
+            raise TypeError("staging payload must be immutable bytes")
         digest = hashlib.sha256(payload).hexdigest()
-        object_ref = f"{source_execution_key}.{ordinal}"
+        account = hashlib.sha256(account_id.encode("utf-8")).hexdigest()
+        object_ref = f"sha256.{account}.{digest}"
         target = self._path(account_id, object_ref, digest)
         await settle_task(asyncio.create_task(asyncio.to_thread(self._write, target, payload)))
         return object_ref, digest
 
-    @staticmethod
-    def _write(target: Path, payload: bytes) -> None:
-        if target.exists():
+    def _write(self, target: Path, payload: bytes) -> None:
+        self._ensure_root_durable()
+        try:
+            self._verify_existing(target, payload)
+        except FileNotFoundError:
+            pass
+        else:
+            # Another writer may have linked the complete file but not yet
+            # synced its name/ancestors. A reuse must complete that durability
+            # barrier itself before returning a successful pair.
+            self._sync_directory(target.parent)
             return
         target.parent.mkdir(parents=True, exist_ok=True)
         handle, temporary = tempfile.mkstemp(dir=str(target.parent))
@@ -485,10 +516,83 @@ class FileSystemStagingStore:
                 stream.write(payload)
                 stream.flush()
                 os.fsync(stream.fileno())
-            os.replace(temporary, target)
-        except BaseException:
+            try:
+                self._publish_file(Path(temporary), target)
+            except FileExistsError:
+                self._verify_existing(target, payload)
+        finally:
             Path(temporary).unlink(missing_ok=True)
-            raise
+        # Sync after unlink: both the final link and removal of our temporary
+        # link are committed together. Sync ancestors too, because this turn
+        # (or a concurrent publisher) may have just created those directories.
+        # If any sync fails, the complete file is retained for verified retry,
+        # but no successful pair escapes to the source's seal operation.
+        self._sync_directory(target.parent)
+
+    def _ensure_root_durable(self) -> None:
+        # The root itself may be created on the first stage. Commit its name
+        # and any newly created parent names once; subsequent stages only need
+        # to sync the directories inside this store's root.
+        with self._root_sync_lock:
+            if self._root_synced:
+                return
+            missing: list[Path] = []
+            boundary = self._root
+            while not boundary.is_dir():
+                missing.append(boundary)
+                parent = boundary.parent
+                if parent == boundary:
+                    raise FileNotFoundError("no existing parent for staging root")
+                boundary = parent
+            self._root.mkdir(parents=True, exist_ok=True)
+            # A created directory's name is committed by syncing its parent.
+            # The first pre-existing ancestor is sufficient; ancestors above
+            # it may be traversable but unreadable to the staging process.
+            for path in (*missing, boundary) if missing else (self._root,):
+                descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+                try:
+                    os.fsync(descriptor)
+                finally:
+                    os.close(descriptor)
+            if not missing and self._root.parent != self._root:
+                # A fresh instance can repair a root another writer created
+                # just before crashing. A pre-existing root is still usable
+                # when its parent allows traversal but not directory reads.
+                try:
+                    descriptor = os.open(
+                        self._root.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+                    )
+                except PermissionError:
+                    pass
+                else:
+                    try:
+                        os.fsync(descriptor)
+                    finally:
+                        os.close(descriptor)
+            self._root_synced = True
+
+    @staticmethod
+    def _verify_existing(target: Path, payload: bytes) -> None:
+        with target.open("rb") as stream:
+            if stream.read() != payload:
+                raise OSError("staged object bytes no longer match their pinned generation")
+            os.fsync(stream.fileno())
+
+    @staticmethod
+    def _publish_file(temporary: Path, target: Path) -> None:
+        os.link(temporary, target)
+
+    def _sync_directory(self, directory: Path) -> None:
+        path = directory
+        while True:
+            descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+            try:
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+            if path == self._root:
+                break
+            path = path.parent
 
     async def read(
         self,
