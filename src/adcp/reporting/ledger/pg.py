@@ -139,6 +139,8 @@ from adcp.reporting.ledger.store import (
 if TYPE_CHECKING:
     from psycopg_pool import AsyncConnectionPool
 
+    from adcp.reporting._source_authorization import InlineSealPublisher
+    from adcp.reporting.inline_source import ReportingSealStore, SealedSlice
     from adcp.reporting.ledger.status_projection import ReportingStatusSnapshot
 
 try:
@@ -227,12 +229,44 @@ class PgReportingLedgerStore:
                 _BOUND_CONNECTION.reset(token)
 
     @asynccontextmanager
-    async def _source_publication(self, account_id: str) -> AsyncIterator[None]:
+    async def _source_publication(
+        self, account_id: str, *, seals: ReportingSealStore | None = None
+    ) -> AsyncIterator[InlineSealPublisher | None]:
+        from psycopg import Error
+
+        from adcp.reporting.inline_storage import InlineStorageError, PgReportingSealStore
+
+        if isinstance(seals, PgReportingSealStore) and seals._pool is self._pool:
+            # The backend's audited READ COMMITTED transaction owns both the
+            # account lock and seal write. A second pool checkout would deadlock
+            # with a size-one pool, and would separate the publication boundary.
+            failure = None
+            try:
+                async with seals._transaction() as connection:
+                    await self._lock_account(connection, account_id)
+                    owner = asyncio.current_task()
+
+                    async def publish(key: str, sealed: SealedSlice) -> SealedSlice:
+                        if asyncio.current_task() is not owner:
+                            raise InlineStorageError("INVALID_INPUT")
+                        prepared = seals._prepare_seal(
+                            account_id=account_id, source_execution_key=key, sealed=sealed
+                        )
+                        return await seals._put_on(connection, prepared)
+
+                    yield publish
+            except InlineStorageError as error:
+                failure = error.code
+            except Error:
+                failure = "RESOURCE_UNAVAILABLE"
+            if failure is not None:
+                raise InlineStorageError(failure)
+            return
         # Keep the live authorization check and ledger commit on the same
         # account transaction, including commits replayed after a restart.
         async with self.transaction(), self._connection() as connection:
             await self._lock_account(connection, account_id)
-            yield
+            yield None
 
     async def create_schema(self) -> None:
         """Create or upgrade the ledger atomically, serializing concurrent boots.

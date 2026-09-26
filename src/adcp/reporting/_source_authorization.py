@@ -6,16 +6,25 @@ dispatch and publication calls the adopter again; no authorization is cached.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from contextlib import AbstractAsyncContextManager, asynccontextmanager, contextmanager
 from contextvars import ContextVar
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn, TypeAlias
+
+if TYPE_CHECKING:
+    from adcp.reporting.inline_source import ReportingSealStore, SealedSlice
+
+InlineSealPublisher: TypeAlias = Callable[[str, "SealedSlice"], Awaitable["SealedSlice"]]
 
 _REVOKED_ACCOUNTS: ContextVar[set[str] | None] = ContextVar(
     "reporting_source_revoked_accounts", default=None
 )
 _INLINE_PUBLICATION: ContextVar[
-    tuple[str, Callable[[], AbstractAsyncContextManager[None]]] | None
+    tuple[
+        str,
+        Callable[[ReportingSealStore], AbstractAsyncContextManager[InlineSealPublisher | None]],
+    ]
+    | None
 ] = ContextVar("reporting_inline_publication", default=None)
 
 
@@ -52,7 +61,8 @@ def require_account_work(account_id: str) -> None:
 
 @contextmanager
 def bind_inline_publication(
-    account_id: str, guard: Callable[[], AbstractAsyncContextManager[None]]
+    account_id: str,
+    guard: Callable[[ReportingSealStore], AbstractAsyncContextManager[InlineSealPublisher | None]],
 ) -> Iterator[None]:
     """Carry the producer's lock and live check into its inline executor task."""
     token = _INLINE_PUBLICATION.set((account_id, guard))
@@ -63,12 +73,17 @@ def bind_inline_publication(
 
 
 @asynccontextmanager
-async def inline_publication(account_id: str) -> AsyncIterator[None]:
+async def inline_publication(
+    account_id: str, seals: ReportingSealStore
+) -> AsyncIterator[InlineSealPublisher]:
+    async def publish(key: str, sealed: SealedSlice) -> SealedSlice:
+        return await seals.put(account_id=account_id, source_execution_key=key, sealed=sealed)
+
     bound = _INLINE_PUBLICATION.get()
     if bound is None:
-        yield
+        yield publish
         return
     if bound[0] != account_id:
         raise ValueError("source publication must belong to the dispatched account")
-    async with bound[1]():
-        yield
+    async with bound[1](seals) as owned_publication:
+        yield owned_publication or publish

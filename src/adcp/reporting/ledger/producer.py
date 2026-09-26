@@ -52,6 +52,7 @@ from adcp.reporting.currency import (
     validate_currency,
 )
 from adcp.reporting.evidence import ReportingControlTotalRecord, freeze_control_totals
+from adcp.reporting.inline_storage import InlineStorageError
 from adcp.reporting.ledger.models import (
     ReportingConfiguration,
     ReportingDeliveryEscalation,
@@ -93,6 +94,9 @@ from adcp.reporting.source import (
 )
 
 if TYPE_CHECKING:
+    from adcp.reporting._source_authorization import InlineSealPublisher
+    from adcp.reporting.inline_source import ReportingSealStore
+    from adcp.reporting.inline_storage import _Code as InlineStorageErrorCode
     from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
     from adcp.reporting.materializer.verification import ReportingRevisionVerifier
 
@@ -106,6 +110,11 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class _InlineStorageFailure:
+    code: InlineStorageErrorCode
 
 
 CurrencyResolver: TypeAlias = Callable[
@@ -940,6 +949,11 @@ class ReportingProducer:
             self._note_escalation(obligation, turn, now=now)
             return None
 
+        if isinstance(result, _InlineStorageFailure):
+            # Return closed data from the executor task: a raw driver exception
+            # must not survive through a context manager or Task wakeup frame.
+            raise InlineStorageError(result.code)
+
         if not result.ok:
             error = result.error
             assert error is not None
@@ -1002,19 +1016,23 @@ class ReportingProducer:
 
     @asynccontextmanager
     async def _source_publication(
-        self, configuration: ReportingConfiguration, offering_id: str
-    ) -> AsyncIterator[None]:
+        self,
+        configuration: ReportingConfiguration,
+        offering_id: str,
+        *,
+        seals: ReportingSealStore | None = None,
+    ) -> AsyncIterator[InlineSealPublisher | None]:
         from adcp.reporting.production.contracts import ReportingProductionSource
 
         if not isinstance(self._source, ReportingProductionSource):
-            yield
+            yield None
             return
         publication = getattr(self._store, "_source_publication", None)
         if publication is None:
             raise TypeError("production source publication requires an SDK account lock")
-        async with publication(configuration.account_id):
+        async with publication(configuration.account_id, seals=seals) as publish_seal:
             self._check_source_authorization(configuration, offering_id)
-            yield
+            yield publish_seal
 
     async def _execute_source(
         self,
@@ -1022,15 +1040,20 @@ class ReportingProducer:
         request: ReportingSourceSliceRequestV1,
         *,
         cancel: asyncio.Event,
-    ) -> ReportingSourceExecutorResult:
-        with bind_inline_publication(
-            configuration.account_id,
-            lambda: self._source_publication(configuration, request.offering_id),
-        ):
-            # Check inside the executing task: scheduling it is not dispatch.
-            # Revocation never cancels a fetch that has already started.
-            self._check_source_authorization(configuration, request.offering_id)
-            return await self._source.execute(request, cancel=cancel)
+    ) -> ReportingSourceExecutorResult | _InlineStorageFailure:
+        try:
+            with bind_inline_publication(
+                configuration.account_id,
+                lambda seals: self._source_publication(
+                    configuration, request.offering_id, seals=seals
+                ),
+            ):
+                # Check inside the executing task: scheduling it is not dispatch.
+                # Revocation never cancels a fetch that has already started.
+                self._check_source_authorization(configuration, request.offering_id)
+                return await self._source.execute(request, cancel=cancel)
+        except InlineStorageError as error:
+            return _InlineStorageFailure(error.code)
 
     @asynccontextmanager
     async def _revision_publication(

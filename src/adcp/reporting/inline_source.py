@@ -894,7 +894,7 @@ class InlineReportingSource:
             row_count=len(result.rows),
         )
 
-        async with inline_publication(request.identity.account_id):
+        async with inline_publication(request.identity.account_id, self._seals) as publish_seal:
             manifest = self._seal_manifest(
                 request,
                 observed_at=observed_at,
@@ -914,10 +914,9 @@ class InlineReportingSource:
             reference = source_batch_manifest_reference_v1(
                 f"{self._staged_commit_prefix}.{manifest.publication_id}", manifest_bytes
             )
-            winner = await self._seals.put(
-                account_id=request.identity.account_id,
-                source_execution_key=request.identity.source_execution_key,
-                sealed=SealedSlice(reference=reference, manifest_bytes=manifest_bytes),
+            winner = await publish_seal(
+                request.identity.source_execution_key,
+                SealedSlice(reference=reference, manifest_bytes=manifest_bytes),
             )
             # A concurrent worker may have sealed first; its bytes are the
             # publication, and returning ours instead would make the same key

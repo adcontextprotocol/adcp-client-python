@@ -167,10 +167,10 @@ async def test_seal_authorization_checked_after_obtaining_account_lock(
         publication = h.store._source_publication
 
         @asynccontextmanager
-        async def observe_publication(account_id):
+        async def observe_publication(account_id, **kwargs):
             waiting.set()
-            async with publication(account_id):
-                yield
+            async with publication(account_id, **kwargs) as publish_seal:
+                yield publish_seal
 
         try:
             await asyncio.wait_for(source.started.wait(), 10)
@@ -323,3 +323,115 @@ async def test_revocation_stops_account_for_turn_and_other_accounts_continue(bac
         assert not restored.configuration_errors
         assert len(restored.configurations[configs[0].generation_key].revisions_committed) == 1
         assert len(restored.configurations[configs[1].generation_key].revisions_committed) == 1
+
+
+@pytest.mark.parametrize("interruption", ["revoked", "storage_error", "cancelled"])
+@pytest.mark.parametrize("autocommit", [False, True])
+async def test_postgres_inline_publication_shares_size_one_pool(
+    tmp_path, monkeypatch, interruption, autocommit
+):
+    pools = pytest.importorskip("psycopg_pool")
+    psycopg = pytest.importorskip("psycopg")
+
+    from adcp.reporting.inline_source import InlineReportingSource
+    from adcp.reporting.inline_storage import (
+        InlineStorageError,
+        PgReportingSealStore,
+        PgReportingStagingStore,
+    )
+
+    async with isolated_reporting_pool(autocommit=autocommit) as isolated:
+        async with pools.AsyncConnectionPool(
+            isolated.conninfo,
+            kwargs=isolated.kwargs,
+            min_size=1,
+            max_size=1,
+            timeout=2,
+            open=False,
+        ) as pool:
+            staging = PgReportingStagingStore(pool=pool)
+            seals = PgReportingSealStore(pool=pool)
+            await staging.create_schema()
+
+            def factory(*args, **kwargs):
+                source = RevocableSource(*args, **kwargs)
+                source.inline = InlineReportingSource(
+                    capabilities=source.capabilities,
+                    fetch=source.fetch,
+                    staging=staging,
+                    seals=seals,
+                    constituent_of=lambda row, request: (
+                        request.coverage.constituents[0].constituent_id
+                    ),
+                    clock=kwargs["clock"],
+                )
+                source.reader = staging
+                return source
+
+            async with harness(
+                "postgres",
+                tmp_path / "destination.sqlite",
+                existing_pool=pool,
+                source_factory=factory,
+            ) as h:
+                await h.production.activate(account_id=h.item.config.account_id)
+                source = h.production.offerings[0].producer._source
+                source.authorized = False
+                denied = await source_turn(h.production)
+                assert not denied.revisions_committed and not source.dispatched
+                await assert_unpublished(h)
+
+                source.authorized = True
+                put_on = seals._put_on
+                inserted = asyncio.Event()
+
+                async def interrupted_put(connection, prepared):
+                    result = await put_on(connection, prepared)
+                    if interruption == "storage_error":
+                        raise psycopg.OperationalError("private-storage-detail")
+                    if interruption == "cancelled":
+                        inserted.set()
+                        await asyncio.Event().wait()
+                    return result
+
+                monkeypatch.setattr(seals, "_put_on", interrupted_put)
+                source.release.clear()
+                running = asyncio.create_task(source_turn(h.production))
+                try:
+                    await asyncio.wait_for(source.started.wait(), 10)
+                    if interruption == "revoked":
+                        source.authorized = False
+                finally:
+                    source.release.set()
+                if interruption == "cancelled":
+                    await asyncio.wait_for(inserted.wait(), 10)
+                    running.cancel()
+                    with pytest.raises(asyncio.CancelledError):
+                        await asyncio.wait_for(running, 10)
+                elif interruption == "storage_error":
+                    with pytest.raises(InlineStorageError) as caught:
+                        await asyncio.wait_for(running, 10)
+                    assert caught.value.code == "RESOURCE_UNAVAILABLE"
+                    assert caught.value.__context__ is None and caught.value.__cause__ is None
+                    assert "private-storage-detail" not in str(caught.value)
+                else:
+                    revoked = await asyncio.wait_for(running, 10)
+                    assert not revoked.revisions_committed
+                await assert_unpublished(h)
+                request = source.dispatched[0]
+                assert (
+                    await seals.get(
+                        account_id=request.identity.account_id,
+                        source_execution_key=request.identity.source_execution_key,
+                    )
+                    is None
+                )
+
+                monkeypatch.setattr(seals, "_put_on", put_on)
+                source.authorized = True
+                source.rows = reference_rows(2)
+                restored = await asyncio.wait_for(source_turn(h.production), 10)
+                assert len(restored.revisions_committed) == 1
+                assert (await revisions(h))[0].row_count == 2
+                assert source.cancelled == (interruption == "cancelled")
+                assert len(source.requests) == 2

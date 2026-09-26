@@ -77,6 +77,7 @@ from adcp.reporting.ledger.notification_models import (
 from adcp.reporting.ledger.provisional import ProvisionalAcquisition, ProvisionalObservation
 
 if TYPE_CHECKING:
+    from adcp.reporting.inline_source import ReportingSealStore
     from adcp.reporting.ledger.status_projection import ReportingStatusSnapshot
     from adcp.reporting.outbox.memory import NotificationState
 
@@ -774,7 +775,9 @@ class InMemoryReportingLedgerStore:
             yield self
 
     @asynccontextmanager
-    async def _source_publication(self, account_id: str) -> AsyncIterator[None]:
+    async def _source_publication(
+        self, account_id: str, *, seals: ReportingSealStore | None = None
+    ) -> AsyncIterator[None]:
         # The memory mutation lock serializes all accounts, including seals.
         async with self._mutation():
             yield
