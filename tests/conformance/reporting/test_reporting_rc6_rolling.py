@@ -59,12 +59,22 @@ def accepted_b24(request, tmp_path_factory):
         cwd=root,
         timeout=180,
     )
+    historical_paths = set(
+        subprocess.check_output(
+            ["git", "ls-tree", "-r", "--name-only", B24, "--", "src/adcp"],
+            cwd=ROOT,
+            text=True,
+        ).splitlines()
+    )
     modules = {}
     with zipfile.ZipFile(wheel) as archive:
         for name in production_modules():
             member = name.replace(".", "/") + ".py"
-            if member not in archive.namelist():
+            if "src/" + member not in historical_paths:
                 member = name.replace(".", "/") + "/__init__.py"
+            # New production modules are absent from the pinned B2.4 source and wheel.
+            if "src/" + member not in historical_paths:
+                continue
             raw = archive.read(member)
             assert raw == subprocess.check_output(["git", "show", f"{B24}:src/{member}"], cwd=ROOT)
             modules[name] = hashlib.sha256(raw).hexdigest()

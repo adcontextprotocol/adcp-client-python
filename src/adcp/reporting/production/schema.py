@@ -11,11 +11,21 @@ from adcp.reporting.outbox._schema import schema_objects
 from adcp.reporting.projection.schema import validate_projection_schema
 
 
-async def validate_production_schema(connection: Any, *, notifications: bool = False) -> None:
+async def validate_production_schema(
+    connection: Any, *, notifications: bool = False, service_context: bool = False
+) -> None:
     try:
         required = json.loads(
             files("adcp.reporting.production").joinpath("required_schema.json").read_text()
         )
+        if service_context:
+            required.update(
+                json.loads(
+                    files("adcp.reporting.production")
+                    .joinpath("service_context_schema.json")
+                    .read_text()
+                )
+            )
         actual = await schema_objects(connection)
         if not required or any(actual.get(k) != v for k, v in required.items()):
             raise ValueError

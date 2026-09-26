@@ -1,8 +1,12 @@
 """A decorating publisher composes the entire atomic observation contract."""
 
 import asyncio
+from dataclasses import replace
+from datetime import timedelta
 
 import pytest
+
+from adcp.reporting.ledger import LedgerConflictError
 
 from ._reliable_support import ScriptedSource, complete_fetch, configuration, reliable_factory
 from .test_reporting_evidence_currency_integration import frozen_slice
@@ -73,3 +77,88 @@ async def test_prepared_ordinary_revision_keeps_the_existing_commit_seam(backend
         }
         assert await h.store.get_provisional_observation(**identity) is None
         assert await h.store.get_restatement_checkpoint(**identity) is None
+
+
+@pytest.mark.parametrize("backend", ["memory", "postgres"])
+async def test_prepared_observation_replay_validates_managed_content(backend):
+    async with reliable_factory(backend, notifications=True) as h:
+        await h.store.put_configuration(configuration("eur"))
+        script = ScriptedSource(eur=[complete_fetch])
+        producer = h.producer(h.source(script.async_fetch))
+        await producer.run_worker()
+        (request,) = script.requests
+        identity = {
+            "account_id": "eur",
+            "reporting_obligation_id": request.identity.reporting_obligation_id,
+        }
+        (revision,) = await h.store.list_revisions(**identity)
+        observation = await h.store.get_provisional_observation(**identity)
+        checkpoint = await h.store.get_restatement_checkpoint(**identity)
+        assert observation is not None and checkpoint is not None
+        assert revision.managed_control_totals is not None
+        assert revision.canonical_content_digest is not None
+        rows = (
+            await h.store.read_revision_rows(
+                account_id="eur", reporting_revision_id=revision.reporting_revision_id
+            )
+        ).rows
+        assert len(rows) == revision.row_count and rows
+
+        async def effects():
+            if h.blobs.pool is not None:
+                async with h.blobs.pool.connection() as connection:
+                    return await (
+                        await connection.execute(
+                            "SELECT (SELECT count(*) FROM reporting_ledger_changes),"
+                            " (SELECT count(*) FROM reporting_notification_events)"
+                        )
+                    ).fetchone()
+            return (
+                len(h.store._changes),
+                len(h.store._notification_state.events),
+                len(h.store._notification_state.boundaries),
+            )
+
+        original_effects = await effects()
+        changed_rows = (
+            dict(rows[0], impressions=rows[0]["impressions"] + 1),
+            *rows[1:],
+        )
+        for submitted_revision, submitted_rows, code, publisher in (
+            (revision, changed_rows, "REVISION_IMMUTABLE", producer._store),
+            (revision, (), "ROW_COUNT_MISMATCH", producer._store),
+            (
+                replace(revision, revision_content_sha256="0" * 64),
+                rows,
+                "REVISION_CONTENT_MISMATCH",
+                h.store,
+            ),
+        ):
+            with pytest.raises(LedgerConflictError) as conflict:
+                await publisher.commit_provisional_observation(
+                    observation, submitted_revision, submitted_rows
+                )
+            assert conflict.value.code == code
+            assert await h.store.list_revisions(**identity) == (revision,)
+            assert (
+                await h.store.read_revision_rows(
+                    account_id="eur", reporting_revision_id=revision.reporting_revision_id
+                )
+            ).rows == rows
+            assert await h.store.get_provisional_observation(**identity) == observation
+            assert await h.store.get_restatement_checkpoint(**identity) == checkpoint
+            assert await effects() == original_effects
+
+        h.clock.advance(timedelta(hours=2))
+        later = replace(
+            observation,
+            checked_at=h.clock(),
+            next_due_at=h.clock() + timedelta(hours=1),
+        )
+        assert (
+            await producer._store.commit_provisional_observation(later, revision, rows) == revision
+        )
+        assert await h.store.list_revisions(**identity) == (revision,)
+        assert await h.store.get_provisional_observation(**identity) == observation
+        assert await h.store.get_restatement_checkpoint(**identity) == checkpoint
+        assert await effects() == original_effects

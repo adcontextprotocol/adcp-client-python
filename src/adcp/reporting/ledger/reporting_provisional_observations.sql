@@ -1,5 +1,8 @@
 -- Additive private scheduling metadata. Original revision rows and manifests
 -- remain readable by historical SDKs; no existing payload is rewritten.
+-- Apply after reporting_ledger_reconciliation.sql installs the prerequisite
+-- unique indexes reporting_obligations_account_identity and
+-- reporting_revisions_account_identity for the account-bound foreign keys.
 CREATE TABLE IF NOT EXISTS reporting_provisional_acquisitions (
     account_id TEXT COLLATE "C" NOT NULL,
     reporting_obligation_id TEXT COLLATE "C" NOT NULL,

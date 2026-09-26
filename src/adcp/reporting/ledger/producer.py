@@ -32,12 +32,19 @@ import asyncio
 import hashlib
 import inspect
 import logging
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 from adcp.reporting._settlement import cancel_and_settle
+from adcp.reporting._source_authorization import (
+    bind_inline_publication,
+    require_account_work,
+    source_revoked,
+    source_turn,
+)
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import (
     ReportingCurrencyError,
@@ -86,6 +93,9 @@ from adcp.reporting.source import (
 )
 
 if TYPE_CHECKING:
+    from adcp.reporting._source_authorization import InlineSealPublisher
+    from adcp.reporting.inline_source import ReportingSealStore
+    from adcp.reporting.inline_storage import _Code as InlineStorageErrorCode
     from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
     from adcp.reporting.materializer.verification import ReportingRevisionVerifier
 
@@ -99,6 +109,11 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class _InlineStorageFailure:
+    code: InlineStorageErrorCode
 
 
 CurrencyResolver: TypeAlias = Callable[
@@ -354,6 +369,12 @@ class ReportingProducer:
         Returns immediately with an empty turn when nothing is leasable, so a
         caller can back off rather than spin.
         """
+        with source_turn():
+            return await self._run_leased_turn()
+
+    async def _run_leased_turn(self) -> WorkerTurn:
+        from adcp.reporting.production.contracts import _SourceAuthorizationRevokedError
+
         now = self._clock()
         leased = await self._store.lease_period_close(
             worker_id=self._worker_id, now=now, lease_seconds=self._lease_seconds
@@ -375,8 +396,13 @@ class ReportingProducer:
             )
             if configuration is None:
                 return turn
+            require_account_work(configuration.account_id)
             await self._close_elapsed_periods(configuration, turn, now=now)
             await self._acquire_pending(configuration, turn, now=now)
+        except _SourceAuthorizationRevokedError:
+            # Keep pending acquisitions retryable. Authorization may be
+            # restored on the next turn; it is not a history failure.
+            return turn
         finally:
             await self._store.release_period_close(leased, worker_id=self._worker_id)
         return turn
@@ -397,10 +423,17 @@ class ReportingProducer:
         Most adopters should continue using :meth:`run_worker`, whose store
         lease chooses a configuration automatically.
         """
+        from adcp.reporting.production.contracts import _SourceAuthorizationRevokedError
+
         boundary = now or self._clock()
         turn = WorkerTurn()
-        await self._close_elapsed_periods(configuration, turn, now=boundary)
-        await self._acquire_pending(configuration, turn, now=boundary)
+        with source_turn():
+            try:
+                require_account_work(configuration.account_id)
+                await self._close_elapsed_periods(configuration, turn, now=boundary)
+                await self._acquire_pending(configuration, turn, now=boundary)
+            except _SourceAuthorizationRevokedError:
+                return turn
         return turn
 
     # -- step 1: obligations before reports ------------------------------
@@ -838,13 +871,7 @@ class ReportingProducer:
                 f"this producer declares no source offering for {finality} reporting",
             )
 
-        from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
-
-        constituents = (
-            await self._store.producer_constituents(configuration, obligation)
-            if isinstance(self._store, ReportingProducerProgress)
-            else None
-        )
+        constituents = await self._admitted_source_constituents(configuration, obligation)
 
         checkpoint_store = self._restatement_store() if track_settling else None
         checkpoint = (
@@ -895,7 +922,11 @@ class ReportingProducer:
                 "snapshot" if request.publication_class == "PROVISIONAL_SNAPSHOT" else "official"
             )
         cancel = asyncio.Event()
-        execution = asyncio.create_task(self._source.execute(request, cancel=cancel))
+        execution = asyncio.create_task(
+            self._execute_source(
+                configuration, request, admitted_constituents=constituents, cancel=cancel
+            )
+        )
         try:
             result = await asyncio.wait_for(
                 asyncio.shield(execution),
@@ -915,6 +946,13 @@ class ReportingProducer:
             self._note_escalation(obligation, turn, now=now)
             return None
 
+        if isinstance(result, _InlineStorageFailure):
+            from adcp.reporting.inline_storage import InlineStorageError
+
+            # Return closed data from the executor task: a raw driver exception
+            # must not survive through a context manager or Task wakeup frame.
+            raise InlineStorageError(result.code)
+
         if not result.ok:
             error = result.error
             assert error is not None
@@ -933,6 +971,8 @@ class ReportingProducer:
         rows = await self._read_rows(request, manifest)
         # ``now`` freezes dispatch/lease/cutoff decisions, not publication.
         # A conforming source can observe finality while acquisition is running.
+        # Every successful scheduled read, even unchanged content, reaches the
+        # atomic revision/observation/checkpoint commit with this fresh anchor.
         published_at = self._clock()
         if _utc(published_at) < _utc(now):
             raise LedgerConflictError(
@@ -948,6 +988,132 @@ class ReportingProducer:
             turn=turn,
             acquisition=acquisition,
         )
+
+    async def _admitted_source_constituents(
+        self, configuration: ReportingConfiguration, obligation: ReportingObligationRecord
+    ) -> tuple[ReportingConstituent, ...] | None:
+        from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
+        from adcp.reporting.production.contracts import _SourceAuthorizationRevokedError
+
+        if not isinstance(self._store, ReportingProducerProgress):
+            return None
+        try:
+            return await self._store.producer_constituents(configuration, obligation)
+        except _SourceAuthorizationRevokedError:
+            source_revoked(configuration.account_id)
+
+    def _check_source_authorization(
+        self,
+        configuration: ReportingConfiguration,
+        offering_id: str,
+        admitted_constituents: tuple[ReportingConstituent, ...] | None,
+    ) -> None:
+        from adcp.reporting.materializer.contracts import failure
+        from adcp.reporting.production.contracts import (
+            ReportingProductionSource,
+            ReportingProductionSourceBinding,
+            _SourceAuthorizationRevokedError,
+        )
+
+        require_account_work(configuration.account_id)
+        if isinstance(self._source, ReportingProductionSource):
+            try:
+                binding = self._source.configuration_binding(configuration)
+                if binding is None:
+                    source_revoked(configuration.account_id)
+                if type(binding) is not ReportingProductionSourceBinding:
+                    raise failure("BINDING_MISMATCH")
+                binding.check(configuration, self._source.capabilities, offering_id)
+                if (
+                    admitted_constituents is not None
+                    and binding.constituents() != admitted_constituents
+                ):
+                    raise failure("BINDING_MISMATCH")
+            except _SourceAuthorizationRevokedError:
+                raise
+            except Exception:
+                raise failure("BINDING_MISMATCH") from None
+
+    @asynccontextmanager
+    async def _source_publication(
+        self,
+        configuration: ReportingConfiguration,
+        offering_id: str,
+        *,
+        admitted_constituents: tuple[ReportingConstituent, ...] | None,
+        seals: ReportingSealStore | None = None,
+    ) -> AsyncIterator[InlineSealPublisher | None]:
+        from adcp.reporting.production.contracts import ReportingProductionSource
+
+        if not isinstance(self._source, ReportingProductionSource):
+            yield None
+            return
+        publication = getattr(self._store, "_source_publication", None)
+        if publication is None:
+            raise TypeError("production source publication requires an SDK account lock")
+        async with publication(configuration.account_id, seals=seals) as publish_seal:
+            self._check_source_authorization(configuration, offering_id, admitted_constituents)
+            yield publish_seal
+
+    async def _execute_source(
+        self,
+        configuration: ReportingConfiguration,
+        request: ReportingSourceSliceRequestV1,
+        *,
+        admitted_constituents: tuple[ReportingConstituent, ...] | None,
+        cancel: asyncio.Event,
+    ) -> ReportingSourceExecutorResult | _InlineStorageFailure:
+        from adcp.reporting.inline_storage import InlineStorageError
+
+        try:
+            with bind_inline_publication(
+                configuration.account_id,
+                lambda seals: self._source_publication(
+                    configuration,
+                    request.offering_id,
+                    admitted_constituents=admitted_constituents,
+                    seals=seals,
+                ),
+            ):
+                # Check inside the executing task: scheduling it is not dispatch.
+                # Revocation never cancels a fetch that has already started.
+                self._check_source_authorization(
+                    configuration, request.offering_id, admitted_constituents
+                )
+                return await self._source.execute(request, cancel=cancel)
+        except InlineStorageError as error:
+            return _InlineStorageFailure(error.code)
+
+    @asynccontextmanager
+    async def _revision_publication(
+        self, obligation: ReportingObligationRecord, offering_id: str
+    ) -> AsyncIterator[None]:
+        from adcp.reporting.production.contracts import ReportingProductionSource
+
+        if not isinstance(self._source, ReportingProductionSource):
+            yield
+            return
+        configuration = next(
+            (
+                candidate
+                for candidate in await self._store.list_configurations(
+                    account_id=obligation.account_id,
+                    delivery_config_ids=[obligation.delivery_config_id],
+                )
+                if candidate.generation_key == obligation.generation_key
+            ),
+            None,
+        )
+        if configuration is None:
+            raise LedgerConflictError("HISTORY_UNAVAILABLE", "source generation is unavailable")
+        # Read immutable admission scope before taking the publication lock. It
+        # is not an authorization grant: the callback is checked again inside
+        # the lock against this exact mapping, including on replay.
+        constituents = await self._admitted_source_constituents(configuration, obligation)
+        async with self._source_publication(
+            configuration, offering_id, admitted_constituents=constituents
+        ):
+            yield
 
     def _restatement_store(self) -> RestatementCheckpointStore:
         explicit = all(
@@ -1088,6 +1254,8 @@ class ReportingProducer:
         if prior is not None:
             # Still reconstruct and verify the supplied content below. Merely
             # finding the ID must not bypass immutable-content validation.
+            # On replay this retained parent wins over the acquisition's
+            # predecessor, just as the retained creation time wins over now.
             supersedes = prior.supersedes_reporting_revision_id
         if (
             _utc(manifest.acquired_at) > _utc(now)
@@ -1138,34 +1306,37 @@ class ReportingProducer:
             source_publication_id=manifest.publication_id,
             source_manifest_sha256=manifest.content_fingerprint.split(":", 1)[-1],
         )
-        if self._revision_verifier is not None:
-            from adcp.reporting.materializer.publication import verified_publication
+        async with self._revision_publication(obligation, manifest.offering_id):
+            if self._revision_verifier is not None:
+                from adcp.reporting.materializer.publication import verified_publication
 
-            revision = verified_publication(self._revision_verifier, obligation, revision, rows)
-        if acquisition is None:
-            committed = await self._store.commit_revision(revision, rows)
-        else:
-            checked_at = max(_utc(now), _utc(manifest.acquired_at))
-            boundary = manifest.finality_evidence.provisional_until or (
-                _utc(obligation.period.end) + acquisition.policy.window
-            )
-            next_due = (
-                min(checked_at + acquisition.policy.cadence, _utc(boundary))
-                if finality == "snapshot" and checked_at < _utc(boundary)
-                else None
-            )
-            committed = await self._observation_store().commit_provisional_observation(
-                ProvisionalObservation(
-                    acquisition,
-                    revision_id,
-                    checked_at,
-                    _utc(boundary),
-                    next_due,
-                    manifest.model_dump_json(),
-                ),
-                revision,
-                rows,
-            )
+                revision = verified_publication(self._revision_verifier, obligation, revision, rows)
+            if acquisition is None:
+                committed = await self._store.commit_revision(revision, rows)
+            else:
+                # ``now`` is the publication anchor, sampled after row acquisition.
+                # The bounds check above already rejects acquired_at after now.
+                checked_at = _utc(now)
+                boundary = manifest.finality_evidence.provisional_until or (
+                    _utc(obligation.period.end) + acquisition.policy.window
+                )
+                next_due = (
+                    min(checked_at + acquisition.policy.cadence, _utc(boundary))
+                    if finality == "snapshot" and checked_at < _utc(boundary)
+                    else None
+                )
+                committed = await self._observation_store().commit_provisional_observation(
+                    ProvisionalObservation(
+                        acquisition,
+                        revision_id,
+                        checked_at,
+                        _utc(boundary),
+                        next_due,
+                        manifest.model_dump_json(),
+                    ),
+                    revision,
+                    rows,
+                )
         turn.revisions_committed.append(committed.reporting_revision_id)
         return committed
 

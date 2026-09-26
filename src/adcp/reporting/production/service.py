@@ -8,10 +8,11 @@ import json
 import weakref
 from collections.abc import Mapping
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
+from adcp.reporting._source_authorization import source_turn
 from adcp.reporting.ledger.delivery_models import ReportingDestinationBinding
 from adcp.reporting.ledger.models import ReportingConfiguration
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
@@ -40,6 +41,10 @@ from adcp.reporting.production.contracts import (
 )
 from adcp.reporting.production.memory import InMemoryReportingProductionStore
 from adcp.reporting.production.offerings import ReportingProductionOffering
+from adcp.reporting.production.source_registry import (
+    ReportingProductionSourceContext,
+    ReportingProductionSourceRegistry,
+)
 from adcp.reporting.projection.memory import InMemoryReportingStatusProjection
 from adcp.reporting.receipts.handler import ReceiptAccountResolver
 
@@ -49,6 +54,7 @@ if TYPE_CHECKING:
     from adcp.reporting.outbox.worker import ReportingNotificationWorker
     from adcp.reporting.production.pg import PgReportingProductionStore
     from adcp.reporting.projection.pg import PgReportingStatusProjection
+    from adcp.reporting.service_lifecycle import _ServiceLifecycle
     from adcp.server.base import ADCPHandler
 
 
@@ -166,6 +172,7 @@ class ReportingProductionSupport:
         notification_workers: tuple[ReportingNotificationWorker, ...] = (),
         poll_seconds: float = 0.25,
         adcp_version: str | None = None,
+        source_registry: ReportingProductionSourceRegistry | None = None,
     ) -> None:
         from adcp.reporting.outbox.worker import ReportingNotificationWorker
         from adcp.reporting.production.handler import ReportingProductionHandler
@@ -203,6 +210,12 @@ class ReportingProductionSupport:
             raise ReportingNotificationError("reporting_production_owner_conflict")
         self.materializer, self.projection = materializer, projection
         self.offerings, self.configuration_task = offerings, configuration_task
+        if source_registry is not None:
+            if type(source_registry) is not ReportingProductionSourceRegistry:
+                raise ValueError("production requires an exact source registry")
+            source_registry.freeze(offerings)
+        self.source_registry = source_registry
+        self._service_lifecycle: _ServiceLifecycle | None = None
         self.automated_recovery_window, self.status_retention_days = (
             automated_recovery_window,
             status_retention_days,
@@ -259,6 +272,7 @@ class ReportingProductionSupport:
                 self.projection,
                 self.projection.outbox,
                 self.configuration_task,
+                self.source_registry,
                 *self.offerings,
                 *self.notification_workers,
             )
@@ -380,6 +394,8 @@ class ReportingProductionSupport:
             ):
                 return False
             offering.check_source()
+            if self.source_registry is not None:
+                self.source_registry._registration(offering)
             return True
         except Exception:
             return False
@@ -466,7 +482,12 @@ class ReportingProductionSupport:
         value.check(self)
 
     def _source_binding(
-        self, configuration: ReportingConfiguration, producer_key: str
+        self,
+        configuration: ReportingConfiguration,
+        producer_key: str,
+        *,
+        document: dict[str, Any] | None = None,
+        service_context: ReportingProductionSourceContext | None = None,
     ) -> ReportingProductionSourceBinding:
         self._assert_components()
         matches = [
@@ -476,7 +497,39 @@ class ReportingProductionSupport:
         ]
         if len(matches) != 1:
             raise failure("BINDING_MISMATCH")
-        return matches[0].source_binding(configuration)
+        offering = matches[0]
+        binding = offering.source_binding(configuration)
+        if self.source_registry is not None:
+            context = self.source_registry.recover(
+                configuration,
+                offering,
+                offering.check_source(effective=True),
+                (
+                    service_context.document()
+                    if service_context is not None
+                    else (document or {}).get("service_context")
+                ),
+            )
+            binding = replace(binding, service_context=context)
+        elif service_context is not None or (document or {}).get("service_context") is not None:
+            raise failure("BINDING_MISMATCH")
+        return binding
+
+    async def _admit_configuration(self, value: ReportingConfigurationAdmission) -> None:
+        context = None
+        if self.source_registry is not None:
+            offering = self._configuration_offering(
+                value.configuration, value.binding, offering_id=value.offering_id
+            )
+            context = await self.source_registry.resolve(
+                value.configuration, offering, offering.check_source(effective=True)
+            )
+        await self.store.admit_production_configuration(
+            value.configuration,
+            value.binding,
+            offering_id=value.offering_id,
+            service_context=context,
+        )
 
     def _check_source_binding(
         self,
@@ -484,7 +537,12 @@ class ReportingProductionSupport:
         producer_key: str,
         document: dict[str, Any] | None,
     ) -> ReportingProductionSourceBinding:
-        binding = self._source_binding(configuration, producer_key)
+        try:
+            binding = self._source_binding(configuration, producer_key, document=document)
+        except (ValueError, TypeError):
+            # Runtime incompatibility follows the existing scoped refusal path:
+            # unavailable legacy/profile facts cannot stop unrelated work.
+            raise failure("BINDING_MISMATCH") from None
         if binding.document() != document:
             raise failure("BINDING_MISMATCH")
         return binding
@@ -538,7 +596,9 @@ class ReportingProductionSupport:
                 try:
                     async with pool.connection() as connection:
                         await validate_production_schema(
-                            connection, notifications=self.notifications_enabled
+                            connection,
+                            notifications=self.notifications_enabled,
+                            service_context=self.source_registry is not None,
                         )
                     if epoch == self._schema_epoch and pool is store._pool:
                         self._schema_positive = identity
@@ -582,13 +642,14 @@ class ReportingProductionSupport:
             while not self._stop.is_set():
                 # Each producer leases a generation through the reviewed fair
                 # indexed acquisition path; no account enumeration is required.
-                for producer in dict.fromkeys(o.producer for o in self.offerings):
-                    boundary = "producer"
-                    token = self._producer_turn.set(producer)
-                    try:
-                        await producer.run_worker()
-                    finally:
-                        self._producer_turn.reset(token)
+                with source_turn():
+                    for producer in dict.fromkeys(o.producer for o in self.offerings):
+                        boundary = "producer"
+                        token = self._producer_turn.set(producer)
+                        try:
+                            await producer.run_worker()
+                        finally:
+                            self._producer_turn.reset(token)
                 boundary = "materializer"
                 await self.materializer.run_once()
                 boundary = "projection"

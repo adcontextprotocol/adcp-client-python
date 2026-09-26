@@ -398,3 +398,15 @@ pre-`e16eb8cf` hardening, and pre-`34c8f6d9` production. In particular, old A wh
 is not supported, and historical false notification-readiness results do not
 become healthy through later source integration. These notes do not qualify
 simultaneous old autonomous writers or release/activation acceptance.
+
+### Source revocation
+
+`ReportingProductionSource.configuration_binding(configuration)` is also the
+live authorization callback for each dispatch and publication. The SDK checks
+again under the account lock before sealing or committing a fetched result.
+`None` discards the result without a success checkpoint and stops further source
+work for that account in the current turn; restoration resumes on the next turn.
+Replay and restart perform fresh checks. The SDK does not cancel an in-flight
+fetch for revocation: revocation takes effect at the next dispatch or publish.
+Adopters own any caching or latency inside the callback. See the
+[release guide](reporting-release-notes.md#source-authorization-d5-option-a).

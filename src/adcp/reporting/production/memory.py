@@ -30,6 +30,7 @@ from adcp.reporting.materializer.contracts import ReportingVerificationKey, fail
 from adcp.reporting.materializer.work import MaterializerContext, ReportingMaterializerLease
 from adcp.reporting.outbox.memory import InMemoryReportingOutbox, NotificationState
 from adcp.reporting.production.contracts import ReportingProductionSourceBinding
+from adcp.reporting.production.source_registry import ReportingProductionSourceContext
 from adcp.reporting.projection.memory import InMemoryReportingProjectionStore
 from adcp.reporting.source import ReportingConstituent
 
@@ -106,6 +107,7 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
         binding: ReportingDestinationBinding,
         *,
         offering_id: str,
+        service_context: ReportingProductionSourceContext | None = None,
     ) -> None:
         offering = self._owner()._configuration_offering(
             configuration, binding, offering_id=offering_id
@@ -113,15 +115,25 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
         async with self._mutation():
             await self.put_configuration(configuration)
             await self.put_destination_binding(binding)
-            self._enroll(configuration, offering._producer_key, binding)
+            self._enroll(
+                configuration, offering._producer_key, binding, service_context=service_context
+            )
 
     def _enroll(
         self,
         configuration: ReportingConfiguration,
         producer_key: str,
         destination: ReportingDestinationBinding,
+        *,
+        service_context: ReportingProductionSourceContext | None = None,
     ) -> None:
-        binding = self._owner()._source_binding(configuration, producer_key)
+        previous_context = self._production_source_bindings.get(configuration.generation_key)
+        binding = self._owner()._source_binding(
+            configuration,
+            producer_key,
+            service_context=service_context,
+            document=previous_context.document() if previous_context is not None else None,
+        )
         previous = self._production_generations.setdefault(
             configuration.generation_key, producer_key
         )
@@ -148,24 +160,23 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
         return dict(json.loads(raw)) if raw is not None else None
 
     def _configuration_lease_eligible(self, configuration: ReportingConfiguration) -> bool:
-        if configuration.account_id not in self._production_accounts:
-            return False
-        producer_key = self._production_generations.get(configuration.generation_key)
-        binding = self._production_source_bindings.get(configuration.generation_key)
-        if producer_key not in self._owner()._producer_keys() or binding is None:
-            return False
         try:
-            self._owner()._check_source_binding(configuration, producer_key, binding.document())
+            self._check_source_generation(configuration)
         except Exception:
             return False
         return True
 
     def _check_source_generation(self, configuration: ReportingConfiguration) -> None:
+        producer_key = self._production_generations.get(configuration.generation_key)
+        binding = self._production_source_bindings.get(configuration.generation_key)
         if (
-            not self._configuration_lease_eligible(configuration)
+            configuration.account_id not in self._production_accounts
+            or producer_key not in self._owner()._producer_keys()
+            or binding is None
             or self._configurations.get(configuration.generation_key) != configuration
         ):
             raise LedgerConflictError("HISTORY_UNAVAILABLE", "producer generation is unavailable")
+        self._owner()._check_source_binding(configuration, producer_key, binding.document())
 
     def _wake_obligation(self, account_id: str, obligation_id: str) -> None:
         super()._wake_obligation(account_id, obligation_id)

@@ -13,8 +13,10 @@ from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     PgReportingLedgerStore,
     ReportingProducer,
+    revision_content_sha256,
 )
 from adcp.reporting.ledger.store import LedgerConflictError
+from adcp.reporting.source import SourceBatchManifestV1
 from tests.conformance.reporting._generation_support import isolated_reporting_pool
 from tests.test_reporting_settling import (
     ACCOUNT,
@@ -59,6 +61,30 @@ async def latest(store):
     )
     assert observation is not None
     return observation
+
+
+async def _publication_effect_counts(store):
+    if isinstance(store, PgReportingLedgerStore):
+        async with store._pool.connection() as connection:
+            return await (
+                await connection.execute(
+                    "SELECT (SELECT count(*) FROM reporting_revisions),"
+                    " (SELECT count(*) FROM reporting_revision_rows),"
+                    " (SELECT count(*) FROM reporting_provisional_observations),"
+                    " (SELECT count(*) FROM reporting_restatement_checkpoints),"
+                    " (SELECT count(*) FROM reporting_ledger_changes),"
+                    " (SELECT count(*) FROM reporting_notification_events)"
+                )
+            ).fetchone()
+    return (
+        len(store._revisions),
+        sum(len(rows) for rows in store._rows.values()),
+        len(store._provisional_observations),
+        len(store._restatement_checkpoints),
+        len(store._changes),
+        len(store._notification_state.events),
+        len(store._notification_state.boundaries),
+    )
 
 
 async def test_adapter_without_window_rereads_with_sdk_default(make_harness):
@@ -441,6 +467,133 @@ async def test_generation_and_replay_identity_cannot_be_rebound(make_harness):
             [],
         )
     assert await latest(store) == observation
+
+
+async def test_recorded_observation_replay_validates_content_and_keeps_original_state(make_harness):
+    producer, store, fetch, clock = await make_harness(
+        _capabilities(restatement_window="P3D", restatement_cadence="PT1H")
+    )
+    await producer.run_worker()
+    parent = (await _revisions(store))[0]
+    clock[0] += timedelta(hours=1)
+    fetch.impressions = 27
+    await producer.run_worker()
+    revision = (await _revisions(store))[1]
+    observation = await latest(store)
+    assert revision.supersedes_reporting_revision_id == parent.reporting_revision_id
+    rows = (
+        await store.read_revision_rows(
+            account_id=ACCOUNT, reporting_revision_id=revision.reporting_revision_id
+        )
+    ).rows
+    assert len(rows) == revision.row_count == 1
+    checkpoint = await store.get_restatement_checkpoint(
+        account_id=ACCOUNT, reporting_obligation_id=observation.acquisition.obligation_id
+    )
+    effects = await _publication_effect_counts(store)
+    changed_rows = (dict(rows[0], impressions=rows[0]["impressions"] + 1),)
+    changed_revision = replace(
+        revision,
+        revision_content_sha256=revision_content_sha256(
+            reporting_revision_id=revision.reporting_revision_id,
+            row_count=revision.row_count,
+            control_totals=revision.control_totals,
+            reporting_rows=changed_rows,
+        ),
+    )
+    assert changed_revision.revision_content_sha256 != revision.revision_content_sha256
+    for submitted_revision, submitted_rows, code in (
+        (changed_revision, changed_rows, "REVISION_IMMUTABLE"),
+        (revision, (), "ROW_COUNT_MISMATCH"),
+    ):
+        with pytest.raises(LedgerConflictError) as conflict:
+            await store.commit_provisional_observation(
+                observation, submitted_revision, submitted_rows
+            )
+        assert conflict.value.code == code
+        assert (await _revisions(store)) == (parent, revision)
+        assert (
+            await store.read_revision_rows(
+                account_id=ACCOUNT, reporting_revision_id=revision.reporting_revision_id
+            )
+        ).rows == rows
+        assert await latest(store) == observation
+        assert (
+            await store.get_restatement_checkpoint(
+                account_id=ACCOUNT, reporting_obligation_id=observation.acquisition.obligation_id
+            )
+            == checkpoint
+        )
+        assert await _publication_effect_counts(store) == effects
+
+    # This is the producer's acquisition-supplied branch, which reconstructs
+    # a new digest for the same publication ID before calling the observation store.
+    manifest = SourceBatchManifestV1.model_validate_json(observation.manifest_json)
+    obligation = await _only_obligation(store)
+    with pytest.raises(LedgerConflictError) as conflict:
+        await producer.commit_revision_from_manifest(
+            obligation,
+            manifest,
+            rows=changed_rows,
+            finality="snapshot",
+            now=clock[0],
+            acquisition=observation.acquisition,
+        )
+    assert conflict.value.code == "REVISION_IMMUTABLE"
+    assert await latest(store) == observation
+    assert (
+        await store.get_restatement_checkpoint(
+            account_id=ACCOUNT, reporting_obligation_id=observation.acquisition.obligation_id
+        )
+        == checkpoint
+    )
+    assert await _publication_effect_counts(store) == effects
+
+    clock[0] += timedelta(hours=2)
+    replay_store = (
+        PgReportingLedgerStore(pool=store._pool, clock=lambda: clock[0], notifications=True)
+        if isinstance(store, PgReportingLedgerStore)
+        else store
+    )
+    later_observation = replace(
+        observation,
+        checked_at=clock[0],
+        next_due_at=clock[0] + timedelta(hours=1),
+    )
+    assert (
+        await replay_store.commit_provisional_observation(later_observation, revision, rows)
+        == revision
+    )
+    assert (
+        await producer.commit_revision_from_manifest(
+            obligation,
+            manifest,
+            rows=rows,
+            finality="snapshot",
+            now=clock[0],
+            acquisition=observation.acquisition,
+        )
+        == revision
+    )
+    assert revision.created_at < clock[0]
+    assert revision.supersedes_reporting_revision_id == parent.reporting_revision_id
+    assert observation.acquisition.ordinal == 1
+    assert observation.checked_at < clock[0]
+    assert observation.next_due_at is not None
+    assert await latest(replay_store) == observation
+    assert (
+        await replay_store.get_restatement_checkpoint(
+            account_id=ACCOUNT, reporting_obligation_id=observation.acquisition.obligation_id
+        )
+        == checkpoint
+    )
+    assert (await _revisions(replay_store)) == (parent, revision)
+    assert (
+        await replay_store.read_revision_rows(
+            account_id=ACCOUNT, reporting_revision_id=revision.reporting_revision_id
+        )
+    ).rows == rows
+    assert await _publication_effect_counts(replay_store) == effects
 
 
 async def test_notification_failure_rolls_back_revision_checkpoint_and_history(

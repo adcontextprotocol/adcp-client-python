@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import hashlib
-from typing import TYPE_CHECKING, Any
+import inspect
+from collections.abc import Callable
+from functools import wraps
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from adcp.decisioning.context import RequestContext
 from adcp.exceptions import ADCPTaskError
@@ -18,7 +21,8 @@ from adcp.reporting.receipts.handler import (
     ReportingReceiptHandler,
     _consumer,
 )
-from adcp.server.base import NotImplementedResponse, ToolContext
+from adcp.server.base import ADCPHandler, NotImplementedResponse, ToolContext
+from adcp.server.mcp_tools import ADCP_TOOL_DEFINITIONS, get_tools_for_handler
 from adcp.server.responses import capabilities_response
 from adcp.types import (
     Error,
@@ -47,17 +51,42 @@ def _task_error(task: str, code: str, message: str) -> ADCPTaskError:
     return ADCPTaskError(operation=task, errors=[Error(code=code, message=message)])
 
 
+_Method = TypeVar("_Method", bound=Callable[..., Any])
+_REPORTING_TASKS = {
+    "get_adcp_capabilities",
+    "get_reporting_status",
+    "get_media_buy_delivery",
+    "sync_accounts",
+    "sync_reporting_receipts",
+    "sync_reporting_status",
+}
+_APPLICATION_TASKS = {tool["name"] for tool in ADCP_TOOL_DEFINITIONS} - _REPORTING_TASKS
+_APPLICATION_METHODS = {
+    "build_creative": "build_creative_legacy",
+    "preview_creative": "preview_creative_legacy",
+    "list_creative_formats": "list_creative_formats_legacy",
+}
+
+
+def _admitted(method: _Method) -> _Method:
+    @wraps(method)
+    async def call(self: ReportingProductionHandler, *args: Any, **kwargs: Any) -> Any:
+        lifecycle = self.production._service_lifecycle
+        aggregate = (
+            method.__name__ == "get_media_buy_delivery"
+            and "reporting_revision_id" not in _request(args[0] if args else kwargs["params"])
+        )
+        if lifecycle is None or aggregate:
+            return await method(self, *args, **kwargs)
+        return await lifecycle.call(lambda: method(self, *args, **kwargs))
+
+    return cast(_Method, call)
+
+
 class ReportingProductionHandler(ReportingReceiptHandler):
     """Mount the same instance on MCP/A2A; the support owns its lifecycle."""
 
-    advertised_tools = {
-        "get_adcp_capabilities",
-        "get_reporting_status",
-        "get_media_buy_delivery",
-        "sync_accounts",
-        "sync_reporting_receipts",
-        "sync_reporting_status",
-    }
+    advertised_tools = _REPORTING_TASKS | _APPLICATION_TASKS
 
     def __init__(
         self,
@@ -68,6 +97,8 @@ class ReportingProductionHandler(ReportingReceiptHandler):
         adcp_version: str | None = None,
     ) -> None:
         self.production = production
+        self._application: ADCPHandler[Any] | None = None
+        self._application_tools: frozenset[str] = frozenset()
         super().__init__(
             production.store,
             resolve_account=resolve_account,
@@ -75,6 +106,37 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             consumer_status_enabled=production.projection.consumer_status_enabled,
             adcp_version=adcp_version,
         )
+
+    def bind_application(self, application: ADCPHandler[Any]) -> None:
+        """Delegate ordinary tasks before mounting this exact SDK handler.
+
+        Reporting/configuration collisions are refused. Supply the typed B2
+        configuration task separately; aggregate delivery and base capabilities
+        may coexist and are dispatched explicitly by their protected methods.
+        """
+        if application is self or not isinstance(application, ADCPHandler):
+            raise ValueError("application must be a separate ADCPHandler")
+        if self._application is application:
+            return
+        if (
+            self._application is not None
+            or self.production._mounts
+            or self.production._task is not None
+        ):
+            raise ValueError("application delegation must be fixed before mounting")
+        names = {t["name"] for t in get_tools_for_handler(application, _include_schemas=False)}
+        if names & (_REPORTING_TASKS - {"get_adcp_capabilities", "get_media_buy_delivery"}):
+            raise ValueError("application reporting handlers conflict with production ownership")
+        version = getattr(application, "get_adcp_version", None)
+        if callable(version) and version() != self.get_adcp_version():
+            raise ValueError("application and production protocol versions differ")
+        self._application, self._application_tools = application, frozenset(names)
+
+    async def _delegate(self, task: str, params: Any, context: ToolContext | None) -> Any:
+        if self._application is None or task not in self._application_tools:
+            return self._not_supported(task)
+        result = getattr(self._application, _APPLICATION_METHODS.get(task, task))(params, context)
+        return await result if inspect.isawaitable(result) else result
 
     def advertised_tools_for_instance(self) -> set[str]:
         names = {
@@ -87,8 +149,9 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             names.add("sync_reporting_receipts")
         if self._feed_consumer_status_enabled:
             names.add("sync_reporting_status")
-        return names
+        return names | set(self._application_tools & _APPLICATION_TASKS)
 
+    @_admitted
     async def get_reporting_status(
         self,
         params: GetReportingStatusRequest | dict[str, Any],
@@ -96,6 +159,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
     ) -> dict[str, Any] | NotImplementedResponse:
         return await super().get_reporting_status(params, context)
 
+    @_admitted
     async def sync_reporting_receipts(
         self,
         params: SyncReportingReceiptsRequest | dict[str, Any],
@@ -135,11 +199,36 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             adcp_version=self.production._protocol_version,
             supported_versions=[self.production._protocol_version],
         )
+        if self._application is not None and "get_adcp_capabilities" in self._application_tools:
+            protocol = response["adcp"]
+            result = await self._delegate("get_adcp_capabilities", params, context)
+            base = {} if isinstance(result, NotImplementedResponse) else _request(result)
+            if (base.get("media_buy") or {}).get("reporting_delivery") is not None:
+                raise ValueError(
+                    "application reporting capabilities conflict with production ownership"
+                )
+            response.update(base)
+            response["adcp_version"] = self.production._protocol_version
+            response["adcp"] = {
+                **response["adcp"],
+                "major_versions": protocol["major_versions"],
+                "supported_versions": protocol["supported_versions"],
+            }
+            response["supported_protocols"] = list(
+                dict.fromkeys([*base.get("supported_protocols", ()), "media_buy"])
+            )
         response["account"] = self.production.configuration_task.account_capabilities()
         reporting = await self.production.reporting_delivery()
         if reporting:
-            response["media_buy"] = {"reporting_delivery": reporting}
-            response["experimental_features"] = ["media_buy.reporting_delivery"]
+            response["media_buy"] = {
+                **response.get("media_buy", {}),
+                "reporting_delivery": reporting,
+            }
+            response["experimental_features"] = list(
+                dict.fromkeys(
+                    [*response.get("experimental_features", ()), "media_buy.reporting_delivery"]
+                )
+            )
             if any(
                 reporting.get(k)
                 for k in ("ledger_notification", "status_notification", "readiness_notification")
@@ -153,6 +242,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
                 response["identity"] = signing_identity(self.production)
         return response
 
+    @_admitted
     async def sync_accounts(
         self,
         params: SyncAccountsRequest | dict[str, Any],
@@ -174,6 +264,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             )
         raise _task_error("sync_accounts", code, message)
 
+    @_admitted
     async def sync_reporting_status(
         self,
         params: SyncReportingStatusRequest | dict[str, Any],
@@ -198,6 +289,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             code, message = "REPORTING_STATUS_UNAVAILABLE", "reporting status is unavailable"
         raise _task_error("sync_reporting_status", code, message)
 
+    @_admitted
     async def get_media_buy_delivery(
         self,
         params: GetMediaBuyDeliveryRequest | dict[str, Any],
@@ -205,7 +297,10 @@ class ReportingProductionHandler(ReportingReceiptHandler):
     ) -> dict[str, Any] | NotImplementedResponse:
         request = _request(params)
         if "reporting_revision_id" not in request:
-            return self._not_supported("get_media_buy_delivery")
+            return cast(
+                dict[str, Any] | NotImplementedResponse,
+                await self._delegate("get_media_buy_delivery", params, context),
+            )
         try:
             from adcp.validation.schema_loader import get_named_validator
 
@@ -320,3 +415,24 @@ class ReportingProductionHandler(ReportingReceiptHandler):
         except Exception:
             code, message = "REPORTING_CONTENT_UNAVAILABLE", "reporting content is unavailable"
         raise _task_error("get_media_buy_delivery", code, message)
+
+
+def _application_method(task: str) -> Callable[..., Any]:
+    async def delegated(
+        self: ReportingProductionHandler, params: Any, context: ToolContext | None = None
+    ) -> Any:
+        return await self._delegate(task, params, context)
+
+    delegated.__name__ = task
+    return delegated
+
+
+# Concrete SDK methods on the exact handler class, never an adopter subclass.
+# The per-instance inventory admits only tools actually implemented by the
+# delegate. Protected production methods are excluded from this fixed set.
+for _task in _APPLICATION_TASKS:
+    setattr(
+        ReportingProductionHandler,
+        _APPLICATION_METHODS.get(_task, _task),
+        _application_method(_task),
+    )

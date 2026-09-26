@@ -46,6 +46,25 @@ writes do not authorize concurrent incompatible autonomous materializers,
 status projectors or clock sweepers. Follow the component-specific migration
 procedures before starting those workers.
 
+## Source authorization (D5 Option A)
+
+The adopter's existing `ReportingProductionSource.configuration_binding(configuration)`
+is the authority for source work. Returning `None` withdraws authorization.
+The SDK calls it immediately before each source dispatch and again under the
+account lock before sealing or publishing the result. If authorization has been
+withdrawn, the result is discarded without publication or a success checkpoint,
+and the account gets no further source work during that turn. A restored
+binding resumes work on the next turn. Recovery and replay after a restart make
+fresh checks; an earlier successful check grants no authority to publish later.
+
+An in-flight fetch is allowed to finish: revocation takes effect at the next dispatch or publish.
+Adopters own any caching or latency inside their callback. There is no additional
+authorization adapter, persisted authorization grant, freshness budget, epoch,
+compare-and-swap protocol, or settlement-only mode; the proposed F/L/P values
+are not part of this contract. Existing frozen generation mappings still protect
+historical scope. Buyer exposure retains the existing per-request feed
+reauthorization and per-session destination authorization.
+
 ## Current and historical protocol versions
 
 Live reporting mounts and callers use AdCP `3.2-rc.6`, whose bundle spelling is

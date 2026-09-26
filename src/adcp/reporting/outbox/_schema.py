@@ -33,12 +33,33 @@ def _digest(value: object) -> str:
 
 
 async def schema_objects(connection: Any) -> dict[str, dict[str, Any]]:
-    tables = await (
-        await connection.execute(
+    return await _catalog_objects(connection)
+
+
+async def _catalog_objects(
+    connection: Any,
+    *,
+    table_names: tuple[str, ...] | None = None,
+    function_identity: tuple[str, str] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Read fresh catalog state with the same fingerprints for either scope."""
+    table_query = (
+        "SELECT c.oid, c.relname, c.relkind, c.relpersistence FROM pg_class c"
+        " JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = current_schema()"
+        " AND c.relkind IN ('r','p') AND starts_with(c.relname, 'reporting_')"
+        " ORDER BY c.relname"
+    )
+    if table_names is not None:
+        table_query = (
             "SELECT c.oid, c.relname, c.relkind, c.relpersistence FROM pg_class c"
             " JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = current_schema()"
             " AND c.relkind IN ('r','p') AND starts_with(c.relname, 'reporting_')"
-            " ORDER BY c.relname"
+            " AND c.relname = ANY(%s::text[]) ORDER BY c.relname"
+        )
+    tables = await (
+        await connection.execute(
+            table_query,
+            (list(table_names),) if table_names is not None else None,
         )
     ).fetchall()
     result: dict[str, dict[str, Any]] = {}
@@ -49,7 +70,7 @@ async def schema_objects(connection: Any) -> dict[str, dict[str, Any]]:
     names = {oid: name for oid, name, _, _ in tables}
     for _, name, kind, persistence in tables:
         remember(f"table:{name}", (kind, persistence))
-    # Capture each object kind for the entire schema in one query. These are
+    # Capture each object kind for the selected tables in one query. These are
     # still fresh catalog reads on the caller's connection; no cache can hide
     # DDL drift. Round trips no longer grow with the number of reporting tables.
     oids = list(names)
@@ -100,16 +121,25 @@ async def schema_objects(connection: Any) -> dict[str, dict[str, Any]]:
     ).fetchall()
     for oid, *row in triggers:
         remember(f"trigger:{names[oid]}.{row[0]}", row[1:], enabled=row[1] != "D")
-    functions = await (
-        await connection.execute(
+    function_query = (
+        "SELECT p.proname, pg_get_function_identity_arguments(p.oid), p.prosrc,"
+        " l.lanname, p.provolatile, p.proisstrict, p.prosecdef, p.proconfig,"
+        " pg_get_function_result(p.oid), p.proparallel, p.proleakproof FROM pg_proc p"
+        " JOIN pg_namespace n ON n.oid = p.pronamespace JOIN pg_language l ON l.oid = p.prolang"
+        " WHERE n.nspname = current_schema() AND starts_with(p.proname, 'reporting_')"
+        " ORDER BY p.proname, pg_get_function_identity_arguments(p.oid)"
+    )
+    if function_identity is not None:
+        function_query = (
             "SELECT p.proname, pg_get_function_identity_arguments(p.oid), p.prosrc,"
             " l.lanname, p.provolatile, p.proisstrict, p.prosecdef, p.proconfig,"
             " pg_get_function_result(p.oid), p.proparallel, p.proleakproof FROM pg_proc p"
             " JOIN pg_namespace n ON n.oid = p.pronamespace JOIN pg_language l ON l.oid = p.prolang"
             " WHERE n.nspname = current_schema() AND starts_with(p.proname, 'reporting_')"
+            " AND p.proname=%s AND pg_get_function_identity_arguments(p.oid)=%s"
             " ORDER BY p.proname, pg_get_function_identity_arguments(p.oid)"
         )
-    ).fetchall()
+    functions = await (await connection.execute(function_query, function_identity)).fetchall()
     for row in functions:
         remember(f"function:{row[0]}({row[1]})", row[2:])
     return result
@@ -161,7 +191,14 @@ async def validate_provisional_schema(connection: Any) -> None:
     from adcp.reporting.ledger.store import LedgerConflictError
 
     try:
-        installed = await schema_objects(connection)
+        installed = await _catalog_objects(
+            connection,
+            table_names=(
+                "reporting_provisional_acquisitions",
+                "reporting_provisional_observations",
+            ),
+            function_identity=("reporting_provisional_immutable", ""),
+        )
     except Exception:
         raise LedgerConflictError(
             "PROVISIONAL_SCHEMA_UNREADY", "provisional_schema_unready:catalog_unavailable"
