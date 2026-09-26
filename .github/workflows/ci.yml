@@ -78,9 +78,9 @@ jobs:
     # pre-test work is ~1m30s and the plain suite is ~16m, but 3.12 adds
     # coverage tracing on the full suite: even a 45-minute coverage step can
     # time out near 99% on a loaded runner with no failing test. Bound the
-    # suite itself so a hang fails the named step, leaving the 60-minute job
-    # enough room for setup and cleanup.
-    timeout-minutes: 60
+    # suite itself so a hang fails the named step. The 3.12 job keeps 15
+    # minutes beyond that step for setup and cleanup; other jobs keep 60.
+    timeout-minutes: ${{ matrix.python-version == '3.12' && 70 || 60 }}
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
