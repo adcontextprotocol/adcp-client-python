@@ -469,7 +469,7 @@ def _create_database(admin_url: str, name: str) -> dict[str, Any]:
     with _database_connect(url, autocommit=False) as connection:
         row = connection.execute(
             "SELECT current_database(), pg_encoding_to_char(encoding), datcollate, "
-            "current_setting('data_directory'), pg_postmaster_start_time()::text, "
+            "pg_postmaster_start_time()::text, "
             "(SELECT system_identifier::text FROM pg_control_system()) "
             "FROM pg_database WHERE datname=current_database()"
         ).fetchone()
@@ -481,8 +481,6 @@ def _create_database(admin_url: str, name: str) -> dict[str, Any]:
         or not row[3]
         or not isinstance(row[4], str)
         or not row[4]
-        or not isinstance(row[5], str)
-        or not row[5]
         or version is None
     ):
         raise HarnessError(f"database identity is not UTF8/C: {row}")
@@ -492,9 +490,8 @@ def _create_database(admin_url: str, name: str) -> dict[str, Any]:
         "collation": row[2],
         "version": version[0],
         "cluster_identity": {
-            "system_identifier": row[5],
-            "data_directory": row[3],
-            "postmaster_started_at": row[4],
+            "system_identifier": row[4],
+            "postmaster_started_at": row[3],
         },
     }
 
@@ -2281,14 +2278,12 @@ def _execution_credit_errors(contract: dict[str, Any], observed: dict[str, Any])
         or not isinstance(cluster_identity, dict)
         or not {
             "system_identifier",
-            "data_directory",
             "postmaster_started_at",
         }.issubset(cluster_identity)
         or any(
             not isinstance(cluster_identity.get(field), str) or not cluster_identity[field]
             for field in (
                 "system_identifier",
-                "data_directory",
                 "postmaster_started_at",
             )
         )

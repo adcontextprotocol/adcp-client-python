@@ -497,7 +497,6 @@ def test_foundation_database_identity_matches_execution_credit_contract(
                         "cell_database",
                         "UTF8",
                         "C",
-                        "/owned/postgres/data",
                         "2026-09-26 12:34:56+00",
                         "7491234567890123456",
                     ),
@@ -531,7 +530,6 @@ def test_foundation_database_identity_matches_execution_credit_contract(
         "version": "16.14",
         "cluster_identity": {
             "system_identifier": "7491234567890123456",
-            "data_directory": "/owned/postgres/data",
             "postmaster_started_at": "2026-09-26 12:34:56+00",
         },
     }
@@ -1866,7 +1864,6 @@ def test_foundation_accounting_rejects_id_only_rc4_and_negative_skew_credit(
             "name": "database-1",
             "cluster_identity": {
                 "system_identifier": "cluster-1",
-                "data_directory": "/owned/cluster-1",
                 "postmaster_started_at": "2026-09-26 00:00:00+00",
             },
         },
@@ -1967,7 +1964,6 @@ def test_foundation_accounting_requires_fresh_identity_and_positive_semantics(
             "name": "database-1",
             "cluster_identity": {
                 "system_identifier": "cluster-1",
-                "data_directory": "/owned/cluster-1",
                 "postmaster_started_at": "2026-09-26 00:00:00+00",
             },
         },
