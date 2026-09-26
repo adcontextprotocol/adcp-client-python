@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "issue": "https://github.com/adcontextprotocol/adcp-client-python/issues/1199",
+  "phase": "preparation",
+  "protocols": {
+    "stable": {
+      "version": "3.2.0-rc.3",
+      "target_commit": "71f9cd5414454e94ccfef87ce25777ead6fad228",
+      "release_url": "https://github.com/adcontextprotocol/adcp/releases/tag/v3.2.0-rc.3",
+      "source_url": "https://github.com/adcontextprotocol/adcp/releases/download/v3.2.0-rc.3/3.2.0-rc.3.tgz",
+      "sha256": "1cd940f76516b43327cbfa6c17c0befd4c093ca85b53a81a4062d38bb522d831",
+      "checksum_url": "https://github.com/adcontextprotocol/adcp/releases/download/v3.2.0-rc.3/3.2.0-rc.3.tgz.sha256",
+      "checksum_sha256": "4c1dac976d456cefd113132b6351f255b5d0bffff558593905877c9f382471ec",
+      "signature_url": "https://github.com/adcontextprotocol/adcp/releases/download/v3.2.0-rc.3/3.2.0-rc.3.tgz.sig",
+      "signature_sha256": "4a81a4d64f03d6f8edbd920815cd4fdb227e1767a5d62d1beb74a1cc9a9154c9",
+      "certificate_url": "https://github.com/adcontextprotocol/adcp/releases/download/v3.2.0-rc.3/3.2.0-rc.3.tgz.crt",
+      "certificate_sha256": "ffe8ddae6432277cc195ce76d37829c5e041a76d6f192269c75695c61c50a168"
+    },
+    "candidate": {
+      "version": "3.2.0-rc.4",
+      "target_commit": "94976657c8456e5ad6de55d9793a883542a4fc5f",
+      "release_url": "https://github.com/adcontextprotocol/adcp/releases/tag/v3.2.0-rc.4",
+      "source_url": "https://github.com/adcontextprotocol/adcp/releases/download/v3.2.0-rc.4/3.2.0-rc.4.tgz",
+      "sha256": "773bee016d279345d6fae91a0ce684a22ca9b81c2edd2cdb9a71dbfea65954d2",
+      "checksum_url": "https://github.com/adcontextprotocol/adcp/releases/download/v3.2.0-rc.4/3.2.0-rc.4.tgz.sha256",
+      "checksum_sha256": "5f8ec3f329675a2a95f3301b743a57325d044f3e38165ea41093ade0a0e3c6ba",
+      "signature_url": "https://github.com/adcontextprotocol/adcp/releases/download/v3.2.0-rc.4/3.2.0-rc.4.tgz.sig",
+      "signature_sha256": "493f5e9b77f8fde5b666bb0e0cbfc605f842ed311bd5e3670e82538cd91610e2",
+      "certificate_url": "https://github.com/adcontextprotocol/adcp/releases/download/v3.2.0-rc.4/3.2.0-rc.4.tgz.crt",
+      "certificate_sha256": "9f7ce3a9bdfed7996cacb3b57cc2a3bd2f0a1e9bcd0aa3ca92772387e64bbe41"
+    }
+  },
+  "artifacts": {
+    "python": {
+      "stable": null,
+      "candidate": null
+    },
+    "typescript": {
+      "stable": {
+        "package": "@adcp/sdk",
+        "version": "14.0.0-rc.41",
+        "registry": "https://registry.npmjs.org/",
+        "tarball_url": "https://registry.npmjs.org/@adcp/sdk/-/sdk-14.0.0-rc.41.tgz",
+        "integrity": "sha512-Qfs+ujKBpIjf7m9jcuzxvN/XCXUssxhR5xCvxCq4oqMR3aMJjnuTgzjxltPtv+A6LOxwmX1ia8sMRdhVSehdBg==",
+        "shasum": "394b62123fb31c02aeec92f7f12874142fac9a09"
+      },
+      "candidate": null
+    }
+  },
+  "pending": {
+    "python_stable": "Pin the accepted installed B2.4/#1172-capable artifact; do not substitute the current main checkout or PyPI 8.0.0b15 baseline.",
+    "python_candidate": "Pin the accepted rc.4 replacement plus #1172 artifact only after its immutable build and acceptance identity exist.",
+    "typescript_candidate": {
+      "repository": "adcontextprotocol/adcp-client",
+      "release_pr": 2979,
+      "source_merge_commit": "3d8c3dfec6d0b325d602964e067703f05408d76f",
+      "proposed_version": "14.0.0-rc.42",
+      "forbidden_substitute": "14.0.0-rc.41"
+    }
+  },
+  "execution": {
+    "postgresql_version": null,
+    "os_release_sha256": null,
+    "database_encoding": "UTF8",
+    "database_collation": "C",
+    "seller_entrypoint": null,
+    "seller_entrypoint_sha256": null,
+    "buyer_entrypoint": null,
+    "buyer_entrypoint_sha256": null,
+    "fixture_identity": {
+      "account_id": "interop-account-001",
+      "consumer_id": "interop-consumer-001",
+      "media_buy_id": "interop-media-buy-001",
+      "delivery_config_id": "interop-delivery-config-001",
+      "reporting_obligation_id": "interop-obligation-2026-09-01",
+      "reporting_revision_id": "interop-revision-2026-09-01-r1",
+      "reporting_materialization_id": "interop-materialization-2026-09-01-r1"
+    }
+  },
+  "cells": [
+    {
+      "id": "python-stable__typescript-stable",
+      "python": "stable",
+      "typescript": "stable",
+      "protocol": "stable",
+      "required": true
+    },
+    {
+      "id": "python-stable__typescript-candidate",
+      "python": "stable",
+      "typescript": "candidate",
+      "protocol": "stable",
+      "required": true
+    },
+    {
+      "id": "python-candidate__typescript-stable",
+      "python": "candidate",
+      "typescript": "stable",
+      "protocol": "stable",
+      "required": true
+    },
+    {
+      "id": "python-candidate__typescript-candidate",
+      "python": "candidate",
+      "typescript": "candidate",
+      "protocol": "candidate",
+      "required": true
+    }
+  ],
+  "baseline_inputs": {
+    "python_registry": {
+      "package": "adcp",
+      "version": "8.0.0b15",
+      "registry": "https://pypi.org/",
+      "wheel_url": "https://files.pythonhosted.org/packages/8b/63/cf3d7b2885126771009f6da3786ba564fcae7e910568c93f06cf672d2f5e/adcp-8.0.0b15-py3-none-any.whl",
+      "wheel_sha256": "608636a4fe774bc4846b5bb0eab6367d0b8e69f6f371aa6085845d9f8329f48f",
+      "protocol": "3.2.0-rc.3",
+      "acceptance": false
+    }
+  }
+}

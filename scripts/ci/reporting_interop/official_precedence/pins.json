@@ -1,0 +1,17 @@
+{
+  "package": "@adcp/sdk",
+  "version": "14.0.0-rc.42",
+  "integrity": "sha512-5v0byus3w2SKfXgZkT+ljuXoys/yjRLxSv2SXCuuRhXts4qyE0mYhO65GFR4WQWTVanAP6uBtIpZ5CLzfxii2Q==",
+  "shasum": "ec78a3912293fe450236ff9b31b81640ba4b493b",
+  "tarballSha256": "63fd1930026c5bf0774199536f9b6082b45fd056a5b6d803f018a77d5356a748",
+  "gitHead": "7b963da36eeca5ce7872af0bc429b1ee5abb0cb6",
+  "defaultAdcpVersion": "3.2.0-rc.4",
+  "fixtureSha256": "dc16c44297a315122c4450bdb4c7278b5635894f7a60fb0266456b8d083da013",
+  "observedCompiledReconcilerSha256": "1f2362aec97463d5397a940a15a82bc69a9210d863297f37fcb9ff5fc792327a",
+  "historicalPin": {
+    "version": "14.0.0-rc.38",
+    "gitHead": "97fc49687069b29e56c8b2e155b055c3a03dda0c",
+    "defaultAdcpVersion": "3.2.0-rc.3",
+    "note": "Historical lead only. Its compiled-hash and version assertions are deliberately not inherited."
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "adcp-reporting-interop-rc41",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@adcp/sdk": "14.0.0-rc.41"
+  }
+}

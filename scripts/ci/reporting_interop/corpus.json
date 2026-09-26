@@ -1,0 +1,254 @@
+{
+  "schema_version": 1,
+  "scope": "staged_reporting_foundations",
+  "protocol_candidate": "3.2.0-rc.4",
+  "rules": {
+    "transport": "real_separate_process_mcp_http",
+    "seller_durability": "real_postgresql",
+    "result_comparison": "normalized_redacted_public_semantics",
+    "manufactured_success": false,
+    "raw_protocol_oracle_counts_as_semantic_pass": false,
+    "expected_defect_exemptions": false
+  },
+  "scenarios": [
+    {
+      "id": "foundation.capabilities.fail_closed",
+      "area": "capabilities",
+      "stage": "foundation",
+      "expectation": "Advertise Core, Managed Delivery, and Reconciled Billing only when the installed public server composition supports each tier; absence and unsupported schema combinations are explicit."
+    },
+    {
+      "id": "foundation.status.complete_history",
+      "area": "status_history",
+      "stage": "foundation",
+      "expectation": "Return complete retained obligation, revision, materialization, receipt, issue, count, scope, and continuation semantics without private-structure comparison."
+    },
+    {
+      "id": "foundation.status.exact_revision_read",
+      "area": "status_history",
+      "stage": "foundation",
+      "expectation": "An exact public revision read returns the requested immutable revision or an actionable not-found or unsupported result without substituting another revision."
+    },
+    {
+      "id": "foundation.delivery.typed_exact_revision_pagination",
+      "area": "revision_content",
+      "stage": "foundation",
+      "expectation": "The public typed delivery client reads an exact reporting_revision_id and every content page without injecting aggregate-only breakdown defaults; explicit forbidden fields remain rejected and revision identity, row counts, digests, zero rows, and more-than-500-row traversal remain exact."
+    },
+    {
+      "id": "foundation.configuration.explicit_scope_roundtrip",
+      "area": "configuration",
+      "stage": "foundation",
+      "expectation": "A typed sync_accounts request that selects explicit media_buy_ids emits exactly that mutually exclusive scope, never also a default all_media_buys flag, and reaches authenticated production onboarding over MCP without manual wire repair."
+    },
+    {
+      "id": "foundation.receipts.idempotent_submission",
+      "area": "receipts",
+      "stage": "foundation",
+      "expectation": "Accepted, rejected, and replacement receipt submissions are account-bound, durable, replay-idempotent, and visible in a subsequent public status read."
+    },
+    {
+      "id": "foundation.reconciliation.python_standalone",
+      "area": "semantic_reconciliation",
+      "stage": "foundation",
+      "client_language": "python",
+      "public_entrypoints": [
+        "adcp.reporting.load_reporting_ledger",
+        "adcp.reporting.reconcile_reporting",
+        "adcp.reporting.reconcile_reporting_core",
+        "adcp.reporting.plan_consumer_statuses",
+        "adcp.reporting.post_consumer_statuses"
+      ],
+      "expectation": "Exercise the installed standalone Python buyer functions over public client calls; do not claim a client.reporting facade."
+    },
+    {
+      "id": "foundation.reconciliation.typescript_public",
+      "area": "semantic_reconciliation",
+      "stage": "foundation",
+      "client_language": "typescript",
+      "requires_server_tier": "managed_delivery",
+      "public_entrypoints": [
+        "@adcp/sdk.reconcileReporting",
+        "@adcp/sdk.evaluateReportingLedger",
+        "@adcp/sdk.buildReportingReceipt"
+      ],
+      "expectation": "Exercise installed public TypeScript reconciler primitives against verified destination materialization evidence; the package has no Core-only reconcileReporting counterpart, and a raw JSON-RPC call is not a semantic reconciliation pass."
+    },
+    {
+      "id": "foundation.auth.opaque_https_principals",
+      "area": "auth",
+      "stage": "foundation",
+      "expectation": "Opaque and HTTPS consumer principals resolve only in the authenticated account context; missing, invalid, or cross-account credentials fail closed."
+    },
+    {
+      "id": "foundation.isolation.two_accounts_reused_keys",
+      "area": "isolation",
+      "stage": "foundation",
+      "expectation": "Two accounts may reuse configuration and caller keys without leaking status, receipts, canonical consumers, activity, or continuation state."
+    },
+    {
+      "id": "foundation.values.strict_numbers_json",
+      "area": "value_integrity",
+      "stage": "foundation",
+      "expectation": "Fractions and nested bool, number, string, null, array, and object distinctions survive; transport-equivalent 1 and 1.0 bind where specified, while bool substitution, value changes, and unsafe integer precision loss fail closed without mutation."
+    },
+    {
+      "id": "foundation.values.transport_large_integer_binding",
+      "area": "value_integrity",
+      "stage": "foundation",
+      "expectation": "Wire decimal/exponent spellings above the JSON safe-integer range never collapse distinct vendor/context filter values into one cursor or checkpoint binding; the implementation must preserve the exact number or reject it actionably before snapshot mutation."
+    },
+    {
+      "id": "foundation.security.ctx_metadata_credentials",
+      "area": "security",
+      "stage": "nonblocking_hardening",
+      "expectation": "Documentation and the validator docstring truthfully describe ctx_metadata screening as best-effort defense in depth, distinguish adopter principal metadata from buyer wire context, direct credentials to the supported write-only facility, and preserve current redaction and documented actual positive/negative behavior without claiming unknown metadata is safe."
+    },
+    {
+      "id": "foundation.security.resource_location_credential_screen",
+      "area": "security",
+      "stage": "nonblocking_hardening",
+      "evidence_scope": "in_process_installed_seller_persistence_guards_only",
+      "advisory_only": true,
+      "does_not_override_secret_leak_failure": true,
+      "expectation": "Run the same 17 synthetic sentinels against each installed seller's public resource-location persistence guard and retain each native result. Report the bare JWT, cloud-key identifier, and encoded-presigned misses separately from intentional clean-HTTPS/provider-native naming policy differences; do not infer buyer validation, an HTTP quadrant break, or seven equivalent defects. Any future TypeScript hardening needs an explicit compatibility and false-positive budget, bounded decoding, and preservation of legitimate provider-native locations rather than rejecting every URL parse failure."
+    },
+    {
+      "id": "foundation.pagination.zero_rows",
+      "area": "pagination",
+      "stage": "foundation",
+      "expectation": "A zero-row report retains exact totals, digests, status, and terminal pagination semantics."
+    },
+    {
+      "id": "foundation.pagination.more_than_500_rows",
+      "area": "pagination",
+      "stage": "foundation",
+      "expectation": "More than 500 rows traverse every public page exactly once with stable continuation, order, totals, digests, and no truncation."
+    },
+    {
+      "id": "foundation.webhook.signed_retry_dedup",
+      "area": "server_foundation_notifications",
+      "stage": "foundation",
+      "server_scope": "python_reporting_foundation",
+      "expectation": "The public Python reporting foundation signs callbacks over canonical bytes and persists bounded retry and deduplication across restart without logging secrets."
+    },
+    {
+      "id": "foundation.webhook.protocol_rc4_vectors",
+      "area": "server_foundation_notifications",
+      "stage": "foundation",
+      "protocol_owned_inputs": true,
+      "expectation": "Execute all 29 byte-identical protocol rc.4 webhook-signing vectors through each installed public receiver composition. Preserve normative error code and failed-step classification, express revocation-staleness through the required webhook_receiver_runner contract rather than a bare verifier, and never count the separate 13-vector HTTP/replay control as complete protocol conformance."
+    },
+    {
+      "id": "foundation.webhook.cross_language_signer_verifier",
+      "area": "server_foundation_notifications",
+      "stage": "foundation",
+      "signature_profile": "webhook_signature_unpadded_base64url",
+      "protocol_source_commit": "94976657c8456e5ad6de55d9793a883542a4fc5f",
+      "expectation": "Using the same protocol test key, body, URL, and clock, every public webhook emission path uses the route-selected unpadded Base64URL Signature profile and both installed signer-to-verifier directions interoperate without weakening mixed-alphabet rejection or request-signing profiles. Retain Python-to-TypeScript, TypeScript-to-Python, and both same-language controls with each emitted Signature alphabet; preserve vector-compatible Content-Digest bytes as a separately bounded wording discrepancy."
+    },
+    {
+      "id": "foundation.activity.durable_account_feed",
+      "area": "server_foundation_notifications",
+      "stage": "foundation",
+      "server_scope": "python_reporting_foundation",
+      "expectation": "Receipt and consumer-status effects create durable, ordered, account-isolated public account activity exactly once."
+    },
+    {
+      "id": "foundation.runtime.late_account_materialization_fairness",
+      "area": "server_foundation_runtime",
+      "stage": "foundation",
+      "server_scope": "python_reporting_foundation",
+      "confirmed_red_mechanism": "While the first account remains continuously due, the retained pre-update served_at continuation chases that account's own newly advanced timestamp and can prevent wrap to a later due account at negative infinity.",
+      "expectation": "After one account completes, a later admitted account reusing configuration and destination keys makes bounded autonomous progress from a real revision through verified materialization and accepted receipt with a size-one PostgreSQL pool, both lexical orders, uninterrupted first-account wakeups, and process restart. The regression must prove progress under continuous first-account dueness; it must not weaken the finding into permanent starvation after a due gap."
+    },
+    {
+      "id": "foundation.runtime.producer_finality_temporal_order",
+      "area": "server_foundation_runtime",
+      "stage": "foundation",
+      "server_scope": "python_reporting_foundation",
+      "requires_server_capability": "reporting_producer",
+      "confirmed_red_mechanism": "A provider can observe and finalize source evidence during acquisition after dispatch, while the historical producer reuses its pre-fetch worker clock as revision.created_at, yielding finalized_at later than created_at and a buyer-side FINALITY_EVIDENCE_INVALID result.",
+      "expectation": "A real public source observation that completes after dispatch must be published with temporally valid revision evidence, then pass typed MCP/PostgreSQL status, exact-read, reconciliation, and replay/restart checks. Future, excessive-skew, and regressing-clock inputs remain separately fail-closed before publication. Equality and historical-time controls must remain definitive.",
+      "evidence_boundary": "The historical installed diagnostic is in-process public memory-producer evidence rather than HTTP/PostgreSQL acceptance; the original b203 public wire showed the inversion but stopped before buyer reconciliation."
+    },
+    {
+      "id": "foundation.official_precedence.unlinked_both_artifacts",
+      "area": "official_precedence",
+      "stage": "foundation",
+      "historical_vector": "rc38_unlinked_unique_official_with_snapshot_and_official_artifacts",
+      "normative_rc4_fixture_coverage": false,
+      "supplemental_shared_regression": true,
+      "protocol_owned": false,
+      "expectation": "Select the unique official revision and its verified materialization as definitive even when it is not linked to the retained snapshot; ordering does not affect the result.",
+      "required_outcome": "corrected_behavior",
+      "known_defect_exemption": false
+    },
+    {
+      "id": "foundation.official_precedence.no_official_materialization_unlinked",
+      "area": "official_precedence",
+      "stage": "foundation",
+      "historical_vector": "rc38_unique_official_without_materialization_unlinked",
+      "normative_rc4_fixture_coverage": false,
+      "supplemental_shared_regression": true,
+      "protocol_owned": false,
+      "expectation": "Select the unique official revision as nondefinitive with no selected artifact, no snapshot inspection or receipt submission, and no graph-integrity failure.",
+      "required_outcome": "corrected_behavior",
+      "known_defect_exemption": false
+    },
+    {
+      "id": "foundation.official_precedence.no_official_materialization_linked",
+      "area": "official_precedence",
+      "stage": "foundation",
+      "historical_vector": "rc38_unique_official_without_materialization_linked_to_snapshot",
+      "normative_rc4_fixture_coverage": false,
+      "supplemental_shared_regression": true,
+      "protocol_owned": false,
+      "expectation": "Select the linked unique official revision as nondefinitive with no selected artifact, no snapshot inspection or receipt submission, and no graph-integrity failure.",
+      "required_outcome": "corrected_behavior",
+      "known_defect_exemption": false
+    },
+    {
+      "id": "foundation.skew.actionable_unsupported",
+      "area": "version_skew",
+      "stage": "foundation",
+      "expectation": "A scenario outside an exact prior package feature envelope fails with an actionable capability or schema error rather than silent loss, manufactured success, or partial mutation."
+    },
+    {
+      "id": "foundation.cli.reporting_storyboards",
+      "area": "cli_storyboards",
+      "stage": "foundation",
+      "expectation": "Resolve the exact five reporting storyboards and each step/stateful-step count from the installed TypeScript pin at run time, retain the frozen inventory, and execute every resolved step; historical rc.38 counts cannot be asserted against a newer pin."
+    },
+    {
+      "id": "foundation.packaging.reject_version_only_candidate",
+      "area": "packaging",
+      "stage": "foundation",
+      "expectation": "Candidate Python installs use a local wheel or sdist path whose SHA-256, accepted source commit/tree, dependency record, and CPython runtime are bound into evidence; resolving the occupied 8.0.0b15 version from an index must fail the candidate identity gate."
+    },
+    {
+      "id": "foundation.transport.response_headers_metadata",
+      "area": "transport",
+      "stage": "foundation",
+      "expectation": "Preserve diagnostic response headers in the public TypeScript transport metadata. The independently observed responseHeaders omission remains a visible nonblocking candidate defect until an exact installed pin demonstrates the declared Undici floor and current dependency paths."
+    },
+    {
+      "id": "deferred.1172.service_composition",
+      "area": "deferred",
+      "stage": "deferred_1172",
+      "expectation": "Adapter-first service composition, lifecycle, scheduler, and mounted production service remain open under issue 1172."
+    },
+    {
+      "id": "deferred.1172.client_reporting_facade",
+      "area": "deferred",
+      "stage": "deferred_1172",
+      "expectation": "A new Python client.reporting facade remains open; standalone public reporting functions are not represented as that facade."
+    },
+    {
+      "id": "deferred.1182.provisional_reread",
+      "area": "deferred",
+      "stage": "deferred_1182",
+      "expectation": "Default provisional reread, cadence, immutable observation revisions, and provisional_until remain open under issue 1182."
+    }
+  ]
+}

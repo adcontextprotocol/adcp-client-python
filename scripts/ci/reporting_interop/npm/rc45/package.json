@@ -1,0 +1,8 @@
+{
+  "name": "reporting-interop-ts-rc45",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@adcp/sdk": "14.0.0-rc.45"
+  }
+}

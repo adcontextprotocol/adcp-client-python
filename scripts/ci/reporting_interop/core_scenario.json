@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "scenario_id": "foundation.reconciliation.python_standalone",
+  "request": {
+    "account": {"account_id": "interop-account-a"},
+    "view": "periods",
+    "period": {
+      "start": "2026-08-01T00:00:00Z",
+      "end": "2026-08-02T00:00:00Z"
+    }
+  },
+  "expected_periods": [
+    {
+      "deliveryConfigId": "shared-daily-key",
+      "deliveryConfigVersion": 1,
+      "reportDefinitionId": "interop-core-v1",
+      "feedPurpose": "analytics",
+      "reportingProfile": "interop-core-v1",
+      "mediaBuyIds": ["media-buy-a"],
+      "periodStart": "2026-08-01T00:00:00Z",
+      "periodEnd": "2026-08-02T00:00:00Z"
+    }
+  ],
+  "now": "2026-09-03T00:00:00Z",
+  "expected_outcome": {
+    "definitive": true,
+    "inspection_calls": 0,
+    "obligation_count": 1,
+    "reasons_absent": []
+  }
+}

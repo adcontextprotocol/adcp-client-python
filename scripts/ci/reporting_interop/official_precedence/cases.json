@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "protocol_owned": false,
+  "scope": "supplemental_shared_neutral_regression",
+  "cases": [
+    {"id":"official_precedence/snapshot/both_artifacts/unlinked/natural","required":"returned; reportingRevisionId=revision-august-official; definitive=true; reportingMaterializationId=materialization-billing; reasons=[]"},
+    {"id":"official_precedence/snapshot/both_artifacts/unlinked/reversed","required":"returned; reportingRevisionId=revision-august-official; definitive=true; reportingMaterializationId=materialization-billing; reasons=[]"},
+    {"id":"official_precedence/snapshot/both_artifacts/linked/natural","required":"returned; reportingRevisionId=revision-august-official; definitive=true; reportingMaterializationId=materialization-billing; reasons=[]"},
+    {"id":"official_precedence/snapshot/both_artifacts/linked/reversed","required":"returned; reportingRevisionId=revision-august-official; definitive=true; reportingMaterializationId=materialization-billing; reasons=[]"},
+    {"id":"official_precedence/snapshot/official_without_materialization/unlinked/natural","required":"returned; reportingRevisionId=revision-august-official; definitive=false; reportingMaterializationId=undefined"},
+    {"id":"official_precedence/snapshot/official_without_materialization/unlinked/reversed","required":"returned; reportingRevisionId=revision-august-official; definitive=false; reportingMaterializationId=undefined"},
+    {"id":"official_precedence/snapshot/official_without_materialization/linked/natural","required":"returned; reportingRevisionId=revision-august-official; definitive=false; reportingMaterializationId=undefined"},
+    {"id":"official_precedence/snapshot/official_without_materialization/linked/reversed","required":"returned; reportingRevisionId=revision-august-official; definitive=false; reportingMaterializationId=undefined"},
+    {"id":"official_precedence/official/both_artifacts/unlinked/natural","required":"returned; reportingRevisionId=revision-august-official; definitive=true; reportingMaterializationId=materialization-billing; reasons=[]"},
+    {"id":"official_precedence/official/both_artifacts/unlinked/reversed","required":"returned; reportingRevisionId=revision-august-official; definitive=true; reportingMaterializationId=materialization-billing; reasons=[]"},
+    {"id":"official_precedence/official/both_artifacts/linked/natural","required":"returned; reportingRevisionId=revision-august-official; definitive=true; reportingMaterializationId=materialization-billing; reasons=[]"},
+    {"id":"official_precedence/official/both_artifacts/linked/reversed","required":"returned; reportingRevisionId=revision-august-official; definitive=true; reportingMaterializationId=materialization-billing; reasons=[]"},
+    {"id":"official_precedence/official/official_without_materialization/unlinked/natural","required":"returned; reportingRevisionId=revision-august-official; definitive=false; reportingMaterializationId=undefined"},
+    {"id":"official_precedence/official/official_without_materialization/unlinked/reversed","required":"returned; reportingRevisionId=revision-august-official; definitive=false; reportingMaterializationId=undefined"},
+    {"id":"official_precedence/official/official_without_materialization/linked/natural","required":"returned; reportingRevisionId=revision-august-official; definitive=false; reportingMaterializationId=undefined"},
+    {"id":"official_precedence/official/official_without_materialization/linked/reversed","required":"returned; reportingRevisionId=revision-august-official; definitive=false; reportingMaterializationId=undefined"},
+    {"id":"official_precedence/single_official","required":"returned; reportingRevisionId=revision-august-official; definitive=true; reportingMaterializationId=materialization-billing; reasons=[]"}
+  ]
+}
