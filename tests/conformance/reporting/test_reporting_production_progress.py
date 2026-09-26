@@ -424,6 +424,51 @@ def turn_document(turn, source):
     }
 
 
+async def default_observation_states(h, snapshot, executions):
+    """Every bounded acquisition retains its identity, hourly due time and checkpoint."""
+    states, retained_keys = {}, set()
+    revisions = {revision.reporting_revision_id: revision for revision in snapshot.revisions}
+    for obligation in snapshot.obligations:
+        identity = {
+            "account_id": obligation.account_id,
+            "reporting_obligation_id": obligation.reporting_obligation_id,
+        }
+        observation = await h.store.get_provisional_observation(**identity)
+        assert observation is not None
+        acquisition = observation.acquisition
+        seeded = obligation.reporting_obligation_id == h.item.obligation.reporting_obligation_id
+        assert acquisition.ordinal == (1 if seeded else 0)
+        assert acquisition.predecessor_revision_id == (
+            h.item.revision.reporting_revision_id if seeded else None
+        )
+        assert acquisition.binds(obligation)
+        assert acquisition.policy.window == timedelta(days=3)
+        assert acquisition.policy.cadence == timedelta(hours=1)
+        assert acquisition.policy.official_close_lag is None
+        assert observation.provisional_until == obligation.period.end + timedelta(days=3)
+        expected_due = (
+            min(observation.checked_at + timedelta(hours=1), observation.provisional_until)
+            if observation.checked_at < observation.provisional_until
+            else None
+        )
+        assert observation.next_due_at == expected_due
+        checkpoint = await h.store.get_restatement_checkpoint(**identity)
+        assert checkpoint is not None
+        assert checkpoint.checked_at == observation.checked_at
+        assert checkpoint.next_observation == acquisition.ordinal + 1
+        assert checkpoint.provisional_until == observation.provisional_until
+        revision = revisions[observation.revision_id]
+        assert revision.finality == "snapshot"
+        assert revision.supersedes_reporting_revision_id == acquisition.predecessor_revision_id
+        assert acquisition.execution_key not in retained_keys
+        retained_keys.add(acquisition.execution_key)
+        states[obligation.reporting_obligation_id] = "pending" if expected_due else "settled"
+    assert retained_keys == set(executions)
+    assert list(states.values()).count("settled") == 60
+    assert list(states.values()).count("pending") == 71
+    return states
+
+
 @asynccontextmanager
 async def restarted_process(h, path, *, pause):
     from .test_reporting_materializer_process import Child
@@ -497,11 +542,24 @@ async def test_bounded_producer_advances_past_processed_first_window(backend, tm
         )
         first = await source_turn(support)
         assert not first.slices_failed
-        # The first period was already published before activation. The
-        # remaining first window is acquired once, using the real sealed source.
+        # The first period was published before activation. Its default-policy
+        # read retains that predecessor and adds an observation; all 64 periods
+        # still fit in the original bounded acquisition window.
         assert len(first.obligations_committed) == 63
-        assert len(first.revisions_committed) == 63
-        assert len(source.requests) == 63
+        assert len(first.revisions_committed) == 64
+        assert len(source.requests) == 64
+        seeded_observation = await h.store.get_provisional_observation(
+            account_id=item.config.account_id,
+            reporting_obligation_id=item.obligation.reporting_obligation_id,
+        )
+        assert seeded_observation is not None
+        assert seeded_observation.acquisition.ordinal == 1
+        assert seeded_observation.acquisition.predecessor_revision_id == (
+            item.revision.reporting_revision_id
+        )
+        assert seeded_observation.checked_at == h.source_clock()
+        assert seeded_observation.next_due_at is None
+        assert seeded_observation.revision_id in first.revisions_committed
         first_document = turn_document(first, source)
         print(
             json.dumps({"progress_backend": backend, "phase": "first_window", "count": 64}),
@@ -553,9 +611,18 @@ async def test_bounded_producer_advances_past_processed_first_window(backend, tm
         assert len(second["obligations"]) == len(second["revisions"]) == 64
         assert len(third["obligations"]) == len(third["revisions"]) == 3
         executions = first_document["executions"] + second["executions"] + third["executions"]
-        assert len(executions) == len(set(executions)) == 130
+        assert len(executions) == len(set(executions)) == 131
         snapshot = await h.store.read_status_snapshot(account_id=item.config.account_id)
-        assert len(snapshot.obligations) == len(snapshot.revisions) == 131
+        assert len(snapshot.obligations) == 131
+        assert len(snapshot.revisions) == 132
+        assert (
+            await h.store.get_provisional_observation(
+                account_id=item.config.account_id,
+                reporting_obligation_id=item.obligation.reporting_obligation_id,
+            )
+            == seeded_observation
+        )
+        expected_states = await default_observation_states(h, snapshot, executions)
         assert max(o.period.end for o in snapshot.obligations) == START + timedelta(hours=131)
         assert {o.generation_key for o in snapshot.obligations} == {item.config.generation_key}
         assert not (await h.store.read_status_snapshot(account_id="acct_b")).obligations
@@ -567,12 +634,15 @@ async def test_bounded_producer_advances_past_processed_first_window(backend, tm
             == item.revision
         )
         with sqlite3.connect(tmp_path / "source.seals") as connection:
-            assert connection.execute("SELECT count(*) FROM seals").fetchone() == (130,)
+            assert connection.execute("SELECT count(*) FROM seals").fetchone() == (131,)
         if h.pool is None:
             assert h.store._production_closed == {
                 item.config.generation_key: START + timedelta(hours=131)
             }
-            assert {w.state for w in h.store._production_source_work.values()} == {"settled"}
+            assert {
+                identifier: work.state
+                for identifier, work in h.store._production_source_work.items()
+            } == expected_states
             assert not {c.generation_key for c in untouched} & set(h.store._production_closed)
         else:
             async with h.pool.connection() as c:
@@ -590,18 +660,24 @@ async def test_bounded_producer_advances_past_processed_first_window(backend, tm
                         START + timedelta(hours=131),
                     )
                 ]
-                assert await (
-                    await c.execute(
-                        "SELECT state,count(*) FROM reporting_production_source_work GROUP BY state"
+                assert (
+                    dict(
+                        await (
+                            await c.execute(
+                                "SELECT reporting_obligation_id,state"
+                                " FROM reporting_production_source_work"
+                            )
+                        ).fetchall()
                     )
-                ).fetchall() == [("settled", 131)]
+                    == expected_states
+                )
         print(
             json.dumps(
                 {
                     "progress_backend": backend,
                     "periods": 131,
                     "bound": 64,
-                    "unique_acquisitions": 130,
+                    "unique_acquisitions": 131,
                     "restart": "SIGKILL" if h.pool else "new-service",
                 }
             ),

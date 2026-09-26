@@ -6,6 +6,7 @@ import json
 import shutil
 import sys
 from dataclasses import replace
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
@@ -26,6 +27,7 @@ from adcp.reporting.receipts import PgReportingReceiptStore
 from ._durable_materializer_support import DurableHarness, durable_case
 from ._feed_support import walk, without_feed
 from ._generation_support import isolated_reporting_pool
+from ._provisional_catalog import PROVISIONAL_OBJECTS
 from ._receipt_support import adjustment_for
 from .test_reporting_feed_packaging import ROOT, run_step
 from .test_reporting_materializer_process import worker
@@ -241,7 +243,12 @@ async def test_nine_actual_artifacts_preserve_ordinary_writes_and_frozen_b22_mou
                 new_objects = await schema_objects(c)
             assert {k: new_objects[k] for k in old_objects} == old_objects
             added = new_objects.keys() - old_objects.keys()
-            assert len(added) == 33 and all("reporting_feed_" in k for k in added)
+            feed_objects = json.loads(
+                files("adcp.reporting.feed").joinpath("required_schema.json").read_text()
+            )
+            assert len(feed_objects) == 33
+            assert added == feed_objects.keys() | PROVISIONAL_OBJECTS.keys()
+            assert new_objects == {**old_objects, **feed_objects, **PROVISIONAL_OBJECTS}
             query = {
                 "account": request["account"],
                 "view": "periods",
@@ -328,7 +335,8 @@ async def test_nine_actual_artifacts_preserve_ordinary_writes_and_frozen_b22_mou
                         "b22_mounted_origins": replayed["origins"],
                         "historical_wheel_sha256": installed_feed_history[3]["wheel_sha256"],
                         "b22_wheel_sha256": approved_feed_b22[3]["wheel_sha256"],
-                        "feed_objects": len(added),
+                        "feed_objects": len(feed_objects),
+                        "provisional_objects": len(PROVISIONAL_OBJECTS),
                         "b24_additive_objects": len(production_added),
                         "b24_activation": False,
                         "page_count": len(expected[0]),

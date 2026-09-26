@@ -76,13 +76,11 @@ jobs:
     # ruff/mypy/mypy --strict/the type-ignore contract before pytest starts,
     # then post-job cleanup after it ends. On an ubuntu-latest runner that
     # pre-test work is ~1m30s and the plain suite is ~16m, but 3.12 adds
-    # coverage tracing on ~9.4k tests: at 30 minutes that leg was cancelled
-    # mid-run at 99% with no failing test, which reports as a red matrix and
-    # hides real signal. Bound the suite itself below (so a hang fails one
-    # named step with its own message instead of silently taking the job), and
-    # leave the job enough room that step bound plus setup and cleanup still
-    # fit with margin for runner variance.
-    timeout-minutes: 60
+    # coverage tracing on the full suite: even a 45-minute coverage step can
+    # time out near 99% on a loaded runner with no failing test. Bound the
+    # suite itself so a hang fails the named step. The 3.12 job keeps 15
+    # minutes beyond that step for setup and cleanup; other jobs keep 60.
+    timeout-minutes: ${{ matrix.python-version == '3.12' && 70 || 60 }}
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
@@ -118,10 +116,8 @@ jobs:
         if: matrix.python-version == '3.12'
         run: python scripts/check_type_ignore_contract.py
 
-      # Bounded well above the observed ~16m (plain) and ~30m (coverage) runs
-      # so ordinary variance never trips it, and well below the job ceiling so
-      # a genuinely stuck suite still fails *this* step with a timeout rather
-      # than being cancelled as a whole job.
+      # Bound the plain and coverage runs separately so a genuinely stuck
+      # suite fails its named step rather than cancelling the entire job.
       - name: Run tests
         if: matrix.python-version != '3.12'
         timeout-minutes: 45
@@ -129,7 +125,7 @@ jobs:
 
       - name: Run tests with coverage
         if: matrix.python-version == '3.12'
-        timeout-minutes: 45
+        timeout-minutes: 55
         run: python scripts/reporting_test_harness.py pytest tests/ -v -ra --cov=src/adcp --cov-report=term-missing
 
   pg-conformance:
@@ -832,7 +828,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    timeout-minutes: 40
+    timeout-minutes: 50
     strategy:
       fail-fast: false
       matrix:
@@ -862,7 +858,7 @@ jobs:
         run: pip install -e ".[dev,pg]"
       - name: Run installed source-equivalent production contract
         shell: bash
-        timeout-minutes: 35
+        timeout-minutes: 45
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_production_installed_test
           ADCP_PYTHON310: ${{ steps.production-python310.outputs.python-path }}

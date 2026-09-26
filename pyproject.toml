@@ -194,6 +194,7 @@ adcp = [
     "signing/pg/*.sql",
     "decisioning/pg/*.sql",
     "reporting/ledger/*.sql",
+    "reporting/ledger/*.json",
     "reporting/outbox/*.json",
     "reporting/materializer/assets/*.json",
     "reporting/materializer/*.json",

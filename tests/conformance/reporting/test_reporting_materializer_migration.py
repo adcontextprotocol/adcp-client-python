@@ -14,6 +14,7 @@ from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS
 
 from ._durable_materializer_support import durable_case, durable_harness
 from ._generation_support import isolated_reporting_pool, obligation_for
+from ._provisional_catalog import PROVISIONAL_OBJECTS
 
 SQL = files("adcp.reporting.ledger").joinpath("reporting_materializer.sql").read_text()
 MANIFEST = json.loads(
@@ -59,11 +60,13 @@ async def test_populated_repeated_and_concurrent_install_preserves_all_old_objec
                     == {
                         **REQUIRED_OBJECTS,
                         **waiver_objects,
+                        **PROVISIONAL_OBJECTS,
                     }
                 )
                 assert {
                     key: value for key, value in actual.items() if "reporting_materializer_" in key
                 } == MANIFEST
+                assert actual == {**original, **MANIFEST}
                 assert (
                     await (
                         await c.execute(

@@ -98,6 +98,8 @@ class _MutableFetch:
 
 async def _harness(
     capabilities: ReportingSourceCapabilitiesV1,
+    *,
+    store_factory: Any = None,
 ) -> tuple[
     ReportingProducer,
     InMemoryReportingLedgerStore,
@@ -114,7 +116,12 @@ async def _harness(
         seals=InMemorySealStore(),
         clock=lambda: clock[0],
     )
-    store = InMemoryReportingLedgerStore(clock=lambda: clock[0])
+    store = (
+        InMemoryReportingLedgerStore(clock=lambda: clock[0])
+        if store_factory is None
+        else store_factory(lambda: clock[0])
+    )
+    await store.create_schema()
     configuration = ReportingConfiguration(
         delivery_config_id=CONFIG_ID,
         delivery_config_version=1,
@@ -181,7 +188,7 @@ async def _revisions(store: InMemoryReportingLedgerStore):
     )
 
 
-async def test_unchanged_refresh_honors_cadence_without_committing_a_revision() -> None:
+async def test_unchanged_refresh_honors_cadence_and_commits_an_observation() -> None:
     producer, store, fetch, clock = await _harness(
         _capabilities(
             restatement_window="P3D",
@@ -198,11 +205,11 @@ async def test_unchanged_refresh_honors_cadence_without_committing_a_revision() 
 
     clock[0] += timedelta(minutes=1)
     unchanged = await producer.run_worker()
-    assert unchanged.revisions_committed == []
+    assert len(unchanged.revisions_committed) == 1
     assert fetch.calls == ["PROVISIONAL_SNAPSHOT", "PROVISIONAL_SNAPSHOT"]
-    assert len(await _revisions(store)) == 1
+    assert len(await _revisions(store)) == 2
 
-    # The successful no-op advances both the cadence clock and execution
+    # The successful observation advances both the cadence clock and execution
     # ordinal, so an immediate worker turn neither polls nor replays it.
     await producer.run_worker()
     assert len(fetch.calls) == 2
@@ -288,21 +295,21 @@ async def test_slice_provisional_until_overrides_declared_window() -> None:
     assert (await _revisions(store))[-1].finality == "official"
 
 
-async def test_source_without_a_window_keeps_one_shot_behavior() -> None:
+async def test_source_without_a_window_retains_its_final_default_read() -> None:
     producer, store, fetch, clock = await _harness(_capabilities(restatement_window=None))
     await producer.run_worker()
     obligation = await _only_obligation(store)
     clock[0] = obligation.period.end + timedelta(days=10)
     await producer.run_worker()
-    assert fetch.calls == ["PROVISIONAL_SNAPSHOT"]
-    assert len(await _revisions(store)) == 1
-    assert (
-        await store.get_restatement_checkpoint(
-            account_id=ACCOUNT,
-            reporting_obligation_id=obligation.reporting_obligation_id,
-        )
-        is None
+    assert fetch.calls == ["PROVISIONAL_SNAPSHOT", "PROVISIONAL_SNAPSHOT"]
+    assert len(await _revisions(store)) == 2
+    checkpoint = await store.get_restatement_checkpoint(
+        account_id=ACCOUNT,
+        reporting_obligation_id=obligation.reporting_obligation_id,
     )
+    assert checkpoint is not None and checkpoint.next_observation == 2
+    await producer.run_worker()
+    assert len(fetch.calls) == 2
 
 
 def test_settling_options_require_a_declared_window_and_safe_cadence() -> None:

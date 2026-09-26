@@ -74,6 +74,7 @@ from adcp.reporting.ledger.notification_models import (
     issue_evidence,
     validate_scope_refinement,
 )
+from adcp.reporting.ledger.provisional import ProvisionalAcquisition, ProvisionalObservation
 
 if TYPE_CHECKING:
     from adcp.reporting.ledger.status_projection import ReportingStatusSnapshot
@@ -696,6 +697,8 @@ class InMemoryReportingLedgerStore:
         self._revision_identity: dict[str, str] = {}
         self._rows: dict[str, tuple[dict[str, Any], ...]] = {}
         self._restatement_checkpoints: dict[str, RestatementCheckpoint] = {}
+        self._provisional_acquisitions: dict[tuple[str, str, int], ProvisionalAcquisition] = {}
+        self._provisional_observations: dict[tuple[str, str, int], ProvisionalObservation] = {}
         self._adjustments: dict[str, ReportingAdjustmentRecord] = {}
         self._statuses: dict[tuple[str, str, str], ConsumerStatusRecord] = {}
         self._status_identity: dict[tuple[str, str, str], str] = {}
@@ -1060,6 +1063,97 @@ class InMemoryReportingLedgerStore:
             if item.account_id == account_id
             and item.reporting_obligation_id == reporting_obligation_id
         )
+
+    async def reserve_provisional_acquisition(
+        self, acquisition: ProvisionalAcquisition
+    ) -> ProvisionalAcquisition:
+        # Canonical round-trip also detaches all request collections.
+        acquisition = ProvisionalAcquisition.from_wire(acquisition.to_wire())
+        key = (acquisition.account_id, acquisition.obligation_id, acquisition.ordinal)
+        async with self._mutation():
+            existing = self._provisional_acquisitions.get(key)
+            if existing is not None:
+                return existing
+            obligation = self._obligations.get(acquisition.obligation_id)
+            if obligation is None or obligation.account_id != acquisition.account_id:
+                raise LedgerConflictError("OBLIGATION_NOT_FOUND", "unknown observation obligation")
+            if not acquisition.binds(obligation):
+                raise LedgerConflictError("OBSERVATION_CONFLICT", "acquisition generation differs")
+            if any(
+                item.account_id == acquisition.account_id
+                and item.execution_key == acquisition.execution_key
+                for item in self._provisional_acquisitions.values()
+            ):
+                raise LedgerConflictError(
+                    "OBSERVATION_CONFLICT", "execution key is already reserved"
+                )
+            checkpoint = self._restatement_checkpoints.get(acquisition.obligation_id)
+            expected = (
+                checkpoint.next_observation
+                if checkpoint
+                else len(
+                    await self.list_revisions(
+                        account_id=acquisition.account_id,
+                        reporting_obligation_id=acquisition.obligation_id,
+                    )
+                )
+            )
+            if acquisition.ordinal != expected:
+                raise LedgerConflictError("OBSERVATION_CONFLICT", "observation ordinal changed")
+            self._provisional_acquisitions[key] = acquisition
+            return acquisition
+
+    async def get_provisional_observation(
+        self, *, account_id: str, reporting_obligation_id: str
+    ) -> ProvisionalObservation | None:
+        observations = [
+            value
+            for (account, obligation, _), value in self._provisional_observations.items()
+            if account == account_id and obligation == reporting_obligation_id
+        ]
+        return max(observations, key=lambda item: item.acquisition.ordinal, default=None)
+
+    async def commit_provisional_observation(
+        self,
+        observation: ProvisionalObservation,
+        revision: ReportingRevisionRecord,
+        rows: Sequence[dict[str, Any]],
+    ) -> ReportingRevisionRecord:
+        acquisition = observation.acquisition
+        key = (acquisition.account_id, acquisition.obligation_id, acquisition.ordinal)
+        if (
+            revision.account_id != acquisition.account_id
+            or revision.reporting_obligation_id != acquisition.obligation_id
+            or revision.reporting_revision_id != observation.revision_id
+        ):
+            raise LedgerConflictError("OBSERVATION_CONFLICT", "observation identity differs")
+        async with self._mutation():
+            existing = self._provisional_observations.get(key)
+            if existing is not None:
+                if (
+                    existing.acquisition != acquisition
+                    or existing.revision_id != observation.revision_id
+                ):
+                    raise LedgerConflictError("OBSERVATION_CONFLICT", "observation replay differs")
+                return self._revisions[existing.revision_id]
+            retained = self._provisional_acquisitions.get(key)
+            if retained != acquisition:
+                raise LedgerConflictError("OBSERVATION_CONFLICT", "acquisition was not reserved")
+            checkpoint = self._restatement_checkpoints.get(acquisition.obligation_id)
+            if checkpoint is not None and checkpoint.next_observation != acquisition.ordinal:
+                raise LedgerConflictError("OBSERVATION_CONFLICT", "observation ordinal changed")
+            committed = await self.commit_revision(revision, rows)
+            await self.record_restatement_checkpoint(
+                RestatementCheckpoint(
+                    acquisition.account_id,
+                    acquisition.obligation_id,
+                    observation.checked_at,
+                    acquisition.ordinal + 1,
+                    observation.provisional_until,
+                )
+            )
+            self._provisional_observations[key] = observation
+            return committed
 
     async def get_restatement_checkpoint(
         self, *, account_id: str, reporting_obligation_id: str

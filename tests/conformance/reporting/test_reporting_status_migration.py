@@ -39,6 +39,7 @@ from ._generation_support import (
     require_rolling_database,
     revision_for,
 )
+from ._provisional_catalog import PROVISIONAL_OBJECTS
 from ._reliable_support import (
     Barrier,
     FailurePlan,
@@ -212,6 +213,7 @@ async def test_populated_repeated_c_manifest_preserves_every_a_b_object_and_row(
                 assert {k: v for k, v in objects.items() if k not in REQUIRED_OBJECTS} == {
                     **REQUIRED_STATUS_OBJECTS,
                     **REQUIRED_STATUS_SELECTOR_OBJECTS,
+                    **PROVISIONAL_OBJECTS,
                 }
                 assert (
                     json.dumps(REQUIRED_STATUS_OBJECTS, sort_keys=True, indent=2) + "\n"

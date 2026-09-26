@@ -53,11 +53,16 @@ from adcp.reporting.ledger.models import (
     ReportingRevisionRecord,
     iso_duration_to_timedelta,
 )
+from adcp.reporting.ledger.provisional import (
+    ProvisionalAcquisition,
+    ProvisionalObservation,
+    ProvisionalObservationStore,
+    ProvisionalPolicy,
+)
 from adcp.reporting.ledger.store import (
     LeasedConfiguration,
     LedgerConflictError,
     ReportingLedgerStore,
-    RestatementCheckpoint,
     RestatementCheckpointStore,
 )
 from adcp.reporting.revision_selection import select_reporting_revision
@@ -561,12 +566,12 @@ class ReportingProducer:
                         turn=turn,
                         now=now,
                     )
-            except ReportingCurrencyError as error:
-                # One obligation whose money cannot be interpreted -- a legacy
-                # period with no retained currency, or a source contradicting
-                # the frozen one -- is a stuck slice, not a broken worker.
-                # Raising here would starve every later period under this
-                # configuration on every turn, forever.
+            except (ReportingCurrencyError, LedgerConflictError) as error:
+                if isinstance(error, LedgerConflictError) and error.code != "OBSERVATION_CONFLICT":
+                    raise
+                # Currency interpretation and competing observations are local
+                # slice failures. Let later periods make progress; a later turn
+                # can read the winning observation or retry the same reservation.
                 logger.info(
                     "reporting slice failed obligation=%s code=%s",
                     obligation.reporting_obligation_id,
@@ -605,13 +610,16 @@ class ReportingProducer:
                 if isinstance(error, LedgerConflictError) and error.code not in {
                     "HISTORY_UNAVAILABLE",
                     "EMPTY_DENOMINATOR",
+                    "OBSERVATION_CONFLICT",
                 }:
                     raise
                 turn.slices_failed.append(identifier)
                 self._note_escalation(obligation, turn, now=now)
                 # Retain the existing corrupt-history parking check. A transient
-                # currency failure during settling must not retire a readable leaf.
-                finished = policy is None or isinstance(error, LedgerConflictError)
+                # currency failure or observation conflict must not retire work.
+                finished = error.code != "OBSERVATION_CONFLICT" and (
+                    policy is None or isinstance(error, LedgerConflictError)
+                )
             if finished:
                 await progress.finish_producer_acquisition(
                     configuration, reporting_obligation_id=identifier
@@ -622,16 +630,13 @@ class ReportingProducer:
         configuration: ReportingConfiguration,
         obligation: ReportingObligationRecord,
     ) -> _SettlingPolicy | None:
-        """Resolve the optional source-declared policy for a snapshot obligation."""
+        """Resolve the source policy or SDK fallback for a snapshot obligation."""
         offering_id = self._offerings.snapshot_offering_id
         if obligation.required_finality != "snapshot" or offering_id is None:
             return None
         offering = self._source.capabilities.offering(offering_id)
         if not isinstance(offering, ProvisionalSnapshotOfferingV1):
             return None
-        if offering.restatement_window is None:
-            return None
-
         if offering.restatement_cadence is not None:
             cadence = timedelta(
                 milliseconds=iso_duration_milliseconds_v1(offering.restatement_cadence)
@@ -648,7 +653,7 @@ class ReportingProducer:
         )
         return _SettlingPolicy(
             restatement_window=timedelta(
-                milliseconds=iso_duration_milliseconds_v1(offering.restatement_window)
+                milliseconds=iso_duration_milliseconds_v1(offering.restatement_window or "P3D")
             ),
             restatement_cadence=cadence,
             official_close_lag=close_lag,
@@ -669,6 +674,14 @@ class ReportingProducer:
         The progress store retains its rotating work item until the policy ends.
         """
         checkpoint_store = self._restatement_store()
+        observation_store = self._observation_store()
+        latest = await observation_store.get_provisional_observation(
+            account_id=obligation.account_id,
+            reporting_obligation_id=obligation.reporting_obligation_id,
+        )
+        if latest is not None:
+            frozen = latest.acquisition.policy
+            policy = _SettlingPolicy(frozen.window, frozen.cadence, frozen.official_close_lag)
         revisions = await self._store.list_revisions(
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
@@ -696,13 +709,27 @@ class ReportingProducer:
             if checkpoint is not None and checkpoint.provisional_until is not None
             else declared_until
         )
-        if _utc(now) < settles_at:
-            last_checked = (
-                checkpoint.checked_at
-                if checkpoint is not None
-                else max(revisions, key=lambda item: _utc(item.created_at)).created_at
-            )
-            if _utc(now) >= _utc(last_checked) + policy.restatement_cadence:
+        last_checked = (
+            checkpoint.checked_at
+            if checkpoint is not None
+            else max(revisions, key=lambda item: _utc(item.created_at)).created_at
+        )
+        explicit_close = (
+            policy.official_close_lag is not None
+            and self._offerings.official_offering_id is not None
+        )
+        next_due = (
+            latest.next_due_at
+            if latest is not None
+            else min(_utc(last_checked) + policy.restatement_cadence, settles_at)
+        )
+        # Preserve explicitly configured official-close boundary precedence.
+        # Snapshot-only policies retain their final inclusive due read through
+        # downtime; expiry alone is never an official publication.
+        if not explicit_close or _utc(now) < settles_at:
+            if next_due is None:
+                return not explicit_close
+            if _utc(now) >= _utc(next_due):
                 await self.acquire_obligation(
                     configuration,
                     obligation,
@@ -712,6 +739,12 @@ class ReportingProducer:
                     target_finality="snapshot",
                     track_settling=True,
                 )
+                published = await observation_store.get_provisional_observation(
+                    account_id=obligation.account_id,
+                    reporting_obligation_id=obligation.reporting_obligation_id,
+                )
+                if not explicit_close and published is not None and published.next_due_at is None:
+                    return True
             return False
 
         if policy.official_close_lag is None or self._offerings.official_offering_id is None:
@@ -832,6 +865,35 @@ class ReportingProducer:
             observation=observation,
             constituents=constituents,
         )
+        acquisition = None
+        if track_settling:
+            policy = self._settling_policy(configuration, obligation)
+            assert policy is not None
+            latest = await self._observation_store().get_provisional_observation(
+                account_id=obligation.account_id,
+                reporting_obligation_id=obligation.reporting_obligation_id,
+            )
+            frozen_policy = (
+                latest.acquisition.policy
+                if latest is not None
+                else ProvisionalPolicy(
+                    policy.restatement_window, policy.restatement_cadence, policy.official_close_lag
+                )
+            )
+            leaf = self._current_snapshot(revisions)
+            acquisition = await self._observation_store().reserve_provisional_acquisition(
+                ProvisionalAcquisition(
+                    request.model_dump_json(),
+                    observation,
+                    frozen_policy,
+                    leaf.reporting_revision_id if leaf is not None else None,
+                    checkpoint.provisional_until if checkpoint is not None else None,
+                )
+            )
+            request = acquisition.request(deadline_at=_utc(now) + self._offerings.slice_timeout)
+            finality = (
+                "snapshot" if request.publication_class == "PROVISIONAL_SNAPSHOT" else "official"
+            )
         cancel = asyncio.Event()
         execution = asyncio.create_task(self._source.execute(request, cancel=cancel))
         try:
@@ -869,24 +931,6 @@ class ReportingProducer:
         manifest = self._verified_manifest(result)
         self._validate_manifest_currency(obligation, manifest)
         rows = await self._read_rows(request, manifest)
-        fingerprint = manifest.content_fingerprint.split(":", 1)[-1]
-        current_snapshot = self._current_snapshot(revisions)
-        if (
-            track_settling
-            and finality == "snapshot"
-            and current_snapshot is not None
-            and current_snapshot.source_manifest_sha256 == fingerprint
-        ):
-            assert checkpoint_store is not None
-            await self._record_restatement_checkpoint(
-                checkpoint_store,
-                obligation,
-                manifest,
-                checked_at=now,
-                next_observation=observation + 1,
-            )
-            return None
-
         # ``now`` freezes dispatch/lease/cutoff decisions, not publication.
         # A conforming source can observe finality while acquisition is running.
         published_at = self._clock()
@@ -895,51 +939,45 @@ class ReportingProducer:
                 "PUBLICATION_TIME_INVALID",
                 "producer clock regressed during acquisition; correct the clock before retrying",
             )
-        committed = await self.commit_revision_from_manifest(
+        return await self.commit_revision_from_manifest(
             obligation,
             manifest,
             rows=rows,
             finality=finality,
             now=published_at,
             turn=turn,
+            acquisition=acquisition,
         )
-        if checkpoint_store is not None:
-            await self._record_restatement_checkpoint(
-                checkpoint_store,
-                obligation,
-                manifest,
-                checked_at=now,
-                next_observation=observation + 1,
-            )
-        return committed
 
     def _restatement_store(self) -> RestatementCheckpointStore:
-        if not isinstance(self._store, RestatementCheckpointStore):
+        explicit = all(
+            inspect.getattr_static(self._store, name, None) is not None
+            for name in ("get_restatement_checkpoint", "record_restatement_checkpoint")
+        )
+        if not explicit or not isinstance(self._store, RestatementCheckpointStore):
             raise LedgerConflictError(
                 "RESTATEMENT_CHECKPOINTS_NOT_SUPPORTED",
-                "a source settling window requires a ledger store with durable restatement "
-                "checkpoints",
+                "a source settling window requires explicitly implemented durable "
+                "restatement checkpoint methods",
             )
         return self._store
 
-    async def _record_restatement_checkpoint(
-        self,
-        store: RestatementCheckpointStore,
-        obligation: ReportingObligationRecord,
-        manifest: SourceBatchManifestV1,
-        *,
-        checked_at: datetime,
-        next_observation: int,
-    ) -> None:
-        await store.record_restatement_checkpoint(
-            RestatementCheckpoint(
-                account_id=obligation.account_id,
-                reporting_obligation_id=obligation.reporting_obligation_id,
-                checked_at=max(_utc(checked_at), _utc(manifest.acquired_at)),
-                next_observation=next_observation,
-                provisional_until=manifest.finality_evidence.provisional_until,
+    def _observation_store(self) -> ProvisionalObservationStore:
+        explicit = all(
+            inspect.getattr_static(self._store, name, None) is not None
+            for name in (
+                "reserve_provisional_acquisition",
+                "get_provisional_observation",
+                "commit_provisional_observation",
             )
         )
+        if not explicit or not isinstance(self._store, ProvisionalObservationStore):
+            raise LedgerConflictError(
+                "PROVISIONAL_OBSERVATIONS_NOT_SUPPORTED",
+                "scheduled provisional reads require explicitly implemented atomic "
+                "observation methods, including any decorating publisher's preparation",
+            )
+        return self._store
 
     def _note_escalation(
         self, obligation: ReportingObligationRecord, turn: WorkerTurn, *, now: datetime
@@ -997,6 +1035,7 @@ class ReportingProducer:
         finality: str,
         now: datetime | None = None,
         turn: WorkerTurn | None = None,
+        acquisition: ProvisionalAcquisition | None = None,
     ) -> ReportingRevisionRecord:
         """Project a verified manifest into an immutable ledger revision.
 
@@ -1038,6 +1077,9 @@ class ReportingProducer:
             if finality == "snapshot" and leaf.kind == "selected"
             else None
         )
+
+        if acquisition is not None and finality == "snapshot":
+            supersedes = acquisition.predecessor_revision_id
 
         control_totals = tuple((total.name, total.value) for total in manifest.control_totals)
         revision_id = f"rpr_{manifest.publication_id[4:44]}"
@@ -1100,7 +1142,30 @@ class ReportingProducer:
             from adcp.reporting.materializer.publication import verified_publication
 
             revision = verified_publication(self._revision_verifier, obligation, revision, rows)
-        committed = await self._store.commit_revision(revision, rows)
+        if acquisition is None:
+            committed = await self._store.commit_revision(revision, rows)
+        else:
+            checked_at = max(_utc(now), _utc(manifest.acquired_at))
+            boundary = manifest.finality_evidence.provisional_until or (
+                _utc(obligation.period.end) + acquisition.policy.window
+            )
+            next_due = (
+                min(checked_at + acquisition.policy.cadence, _utc(boundary))
+                if finality == "snapshot" and checked_at < _utc(boundary)
+                else None
+            )
+            committed = await self._observation_store().commit_provisional_observation(
+                ProvisionalObservation(
+                    acquisition,
+                    revision_id,
+                    checked_at,
+                    _utc(boundary),
+                    next_due,
+                    manifest.model_dump_json(),
+                ),
+                revision,
+                rows,
+            )
         turn.revisions_committed.append(committed.reporting_revision_id)
         return committed
 

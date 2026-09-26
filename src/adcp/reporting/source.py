@@ -664,12 +664,15 @@ class ProvisionalSnapshotOfferingV1(_OfferingBase):
     without upstream evidence that the account tolerates it is how a source
     gets itself rate-limited into ``action_required``.
 
-    ``restatement_window`` opts into automatic re-reads after period close.
-    ``restatement_cadence`` defaults to the configured reporting period (and
-    is never allowed to beat ``fastest_safe_cadence``). ``official_close_lag``
-    asks a producer that also has an authoritative offering to publish a
-    terminal official revision after the source settles. Omitting the window
-    preserves the original one-shot behavior.
+    ``restatement_window`` overrides the SDK's default three-day provisional
+    re-read window after period close. ``restatement_cadence`` defaults to the
+    configured reporting period (and is never allowed to beat
+    ``fastest_safe_cadence``). Every successful scheduled read is a new immutable
+    observation, including unchanged content. A per-slice ``provisional_until``
+    is authoritative over this offering default. ``official_close_lag`` still
+    requires an explicitly declared window and asks a producer with an
+    authoritative offering to publish an official revision after settlement;
+    the SDK fallback does not enable official close.
     """
 
     publication_class: Literal["PROVISIONAL_SNAPSHOT"] = "PROVISIONAL_SNAPSHOT"

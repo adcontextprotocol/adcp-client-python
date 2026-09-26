@@ -333,6 +333,27 @@ async def ongoing_first_turns(pool, account):
     raise AssertionError({"continuous_first_work_not_established": observed})
 
 
+async def next_due_first_turn(pool, account, previous):
+    """Wait for another committed first-account turn while its work remains due."""
+    deadline = time.monotonic() + 30
+    last = None
+    while time.monotonic() < deadline:
+        async with pool.connection() as connection:
+            last = await (
+                await connection.execute(
+                    "SELECT served_at::text,due_at<=clock_timestamp(),"
+                    " (SELECT count(*) FROM reporting_materializer_candidates c"
+                    " WHERE c.account_id=a.account_id AND c.due_at<=clock_timestamp())"
+                    " FROM reporting_materializer_accounts a WHERE account_id=%s",
+                    (account,),
+                )
+            ).fetchone()
+        if last[0] != previous and last[1] and last[2] >= 2:
+            return last
+        await asyncio.sleep(0.02)
+    raise AssertionError({"first_account_did_not_advance_after_late_admission": last})
+
+
 @pytest.mark.parametrize("first", ["usd", "eur"], ids=["late-sorts-first", "late-sorts-last"])
 @pytest.mark.parametrize("notifications", [False, True])
 async def test_late_account_progresses_via_typed_public_support_and_survives_restart(
@@ -390,8 +411,7 @@ async def test_late_account_progresses_via_typed_public_support_and_survives_res
                             period=results[0][account]["period"] if index else None,
                         )
                         if index == 0 and account != first:
-                            correction_condition_1 = (await served(pool))[first] != first_before
-                            assert correction_condition_1
+                            await next_due_first_turn(pool, first, first_before)
                 results.append(current)
             async with pool.connection() as connection:
                 correction_condition_2 = await (
