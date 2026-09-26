@@ -180,15 +180,18 @@ class ProvisionalObservation:
 class ProvisionalObservationStore(Protocol):
     async def reserve_provisional_acquisition(
         self, acquisition: ProvisionalAcquisition
-    ) -> ProvisionalAcquisition: ...
+    ) -> ProvisionalAcquisition:
+        pass
 
     async def get_provisional_observation(
         self, *, account_id: str, reporting_obligation_id: str
-    ) -> ProvisionalObservation | None: ...
+    ) -> ProvisionalObservation | None:
+        pass
 
     async def commit_provisional_observation(
         self,
         observation: ProvisionalObservation,
         revision: ReportingRevisionRecord,
         rows: Sequence[dict[str, Any]],
-    ) -> ReportingRevisionRecord: ...
+    ) -> ReportingRevisionRecord:
+        pass
