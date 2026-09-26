@@ -85,7 +85,9 @@ _MESSAGES: dict[_Code, str] = {
     "NOT_FOUND": "inline object is unavailable within the supplied account",
     "INTEGRITY_FAILED": "inline storage integrity verification failed",
     "SCHEMA_UNREADY": "inline storage schema is not ready",
-    "RESOURCE_UNAVAILABLE": "inline storage operation did not confirm an outcome; resume the same identity",
+    "RESOURCE_UNAVAILABLE": (
+        "inline storage operation did not confirm an outcome; resume the same identity"
+    ),
 }
 
 
@@ -367,7 +369,8 @@ class _PgStorage:
             await connection.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
             try:
                 await connection.execute(
-                    "LOCK TABLE reporting_inline_objects, reporting_inline_seals IN ACCESS SHARE MODE"
+                    "LOCK TABLE reporting_inline_objects, reporting_inline_seals "
+                    "IN ACCESS SHARE MODE"
                 )
             except UndefinedTable:
                 raise InlineStorageError("SCHEMA_UNREADY") from None
