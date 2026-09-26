@@ -6,6 +6,12 @@ and fetches one frozen slice; the SDK owns staging, replay seals, obligation
 creation, immutable revisions, snapshot refresh and official close, status,
 exact revision reads, capability advertisement, and worker lifecycle.
 
+For an upgrade, begin with the
+[reporting release notes and deployment boundaries](reporting-release-notes.md)
+and the [production composition guide](reporting-production.md). The examples
+below explain the service API; complete service and cross-language release
+acceptance remain pending.
+
 The minimum adapter has no AdCP transport methods:
 
 ```python
@@ -126,8 +132,9 @@ reporting = ReliableReportingService.postgres(
 The PostgreSQL factory makes the ledger durable; it does not make the default
 adapter staging or replay-seal stores durable. Production adapters should pass
 durable `staging=` and `seals=` implementations to `sources.register`, or use
-`sources.register_executor` for a custom executor and object reader. A retained
-revision whose staged rows disappear cannot satisfy an exact read.
+`sources.register_executor` for a custom executor and object reader. Committed revision rows are retained in the ledger for exact reads. Durable
+staging and seals are needed to recover interrupted acquisitions and replay
+previously sealed source results across a restart.
 
 Managed delivery, notification, and receipt components are replaceable
 extensions. Startup rejects combinations that cannot be advertised honestly,
