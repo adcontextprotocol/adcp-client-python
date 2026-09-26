@@ -120,6 +120,7 @@ async def setup(
         definition=key.definition,
     )
     await store.put_configuration(config)
+    source.bind_generation(config, product_id=key.report_definition_id)
 
     def complete_read():
         if not real:
