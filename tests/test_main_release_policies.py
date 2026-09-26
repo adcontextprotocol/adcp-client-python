@@ -321,6 +321,14 @@ def test_single_parent_commit_cannot_impersonate_github_merge(history: list[str]
             "fix(reporting)!: different breaking change (#1174)",
             False,
         ),
+        (
+            "34c8f6d929aeac3407e2f595104a8e903e572623",
+            "feat(reporting)!: enable production tier status and ownership",
+            True,
+        ),
+        ("a" * 40, "feat(reporting)!: enable production tier status and ownership", False),
+        (None, "feat(reporting)!: enable production tier status and ownership", False),
+        ("34c8f6d929aeac3407e2f595104a8e903e572623", BREAKING_SUBJECT, False),
     ],
 )
 def test_historical_footer_exception_requires_exact_commit_and_subject(
@@ -332,6 +340,34 @@ def test_historical_footer_exception_requires_exact_commit_and_subject(
     else:
         with pytest.raises(RuntimeError, match="BREAKING CHANGE footer"):
             policies.validate_message(message, commit_sha=commit_sha)
+
+
+def test_actual_main_history_preserves_both_historical_breaking_integrations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Capture actual committed messages/parents so shallow CI checkouts exercise
+    # the complete regression without network access or moving origin/main.
+    snapshot = json.loads(
+        (Path(__file__).parent / "fixtures" / "release_main_history.json").read_text()
+    )
+    commits = snapshot["commits"]
+    records = {record["sha"]: record for record in commits}
+
+    def read_history(*arguments: str) -> str:
+        if arguments == ("rev-list", "--first-parent", snapshot["target"]):
+            return "\n".join(
+                [record["sha"] for record in reversed(commits)] + [snapshot["published_base"]]
+            )
+        if len(arguments) == 4 and arguments[:3] == ("show", "-s", "--format=%P%n%B"):
+            record = records[arguments[3]]
+            return " ".join(record["parents"]) + "\n" + record["message"]
+        raise AssertionError(f"Unexpected history query: {arguments}")
+
+    monkeypatch.setattr(policies, "git", read_history)
+    assert policies.PUBLISHED_BASE == snapshot["published_base"]
+    result = policies.conventional("push", snapshot["target"], {})
+    assert len(result["commits"]) == 28
+    assert result["commits"] == [record["sha"] for record in commits]
 
 
 def test_pr_policy_uses_live_numeric_author_and_exact_head(history: list[str]) -> None:

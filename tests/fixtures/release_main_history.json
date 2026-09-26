@@ -1,0 +1,216 @@
+{
+  "published_base": "3e76aa54623529a3dda01cd690b8a5c287c75641",
+  "target": "2bfbca4b9c7505e5f7dc37d7c7f17bdb10ecfdd5",
+  "commits": [
+    {
+      "sha": "f6e9c15333db8e657ba96a79d806194dfc0e0447",
+      "parents": [
+        "3e76aa54623529a3dda01cd690b8a5c287c75641"
+      ],
+      "message": "fix(types): restore targeting overlay input compatibility (#1190)\n\n* fix(types): restore targeting overlay input compatibility\n\n* test(types): normalize import style in export guard\n\n* fix(types): keep targeting compatibility runtime-only\n\n* fix(types): preserve targeting validation error paths\n\n* fix(types): preserve targeting JSON validation diagnostics"
+    },
+    {
+      "sha": "a9bc11c94e7f188d9a442def20c64f76a11b0cab",
+      "parents": [
+        "f6e9c15333db8e657ba96a79d806194dfc0e0447"
+      ],
+      "message": "fix(release): gate publishing on accepted main artifacts (#1200)\n\n* fix(release): gate publishing on accepted main artifacts\n\n* test(release): initialize the fake GitHub client"
+    },
+    {
+      "sha": "6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac",
+      "parents": [
+        "a9bc11c94e7f188d9a442def20c64f76a11b0cab"
+      ],
+      "message": "fix(reporting)!: scope configuration generations by account (#1174)\n\n* fix(reporting): scope configuration generations by account\n\n* fix(reporting): rotate in-memory period-close leases across accounts\n\nInMemoryReportingLedgerStore.lease_period_close handed back the first\nleasable generation in insertion order, and release_period_close puts\nthat generation straight back into the free pool.\nReportingProducer.run_worker releases in a finally, so a worker loop\nre-leased the same generation on every turn and never closed a period\nfor any other account. The SQL store orders by lease_expires_at NULLS\nFIRST, and an update to that indexed column sends a released row to the\nback of the queue, so the two stores only diverged once two accounts\ncould hold the same delivery_config_id -- which is what this branch\nenables.\n\nRank leasable generations the way the SQL store does, unheld before\nexpired and oldest expiry first, then break the tie by whichever\ngeneration went longest without a turn. The shared memory/PostgreSQL\nsuite now asserts that a worker releasing every turn reaches all three\naccounts; it failed on memory and passed on PostgreSQL before this\nchange.\n\nCo-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+    },
+    {
+      "sha": "0164f907f558fc628fc913ff40bc9574856393ec",
+      "parents": [
+        "6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac",
+        "abc84746f43f7f80ebfafe21c2d1bfed54c8dd3c"
+      ],
+      "message": "fix(reporting): freeze currency on reporting obligations (#1175)\n\nMerge the reviewed currency-obligation change and its test-only optional PostgreSQL import repair, preserving the reviewed branch ancestry.\n\nFresh CI 35809709329 attempt 1 passed all 16 jobs on the exact candidate and GitHub test merge. Ladon approved the exact head; all review conversations are resolved. Genuine CodeQL and the actual IPR check and IPR Policy / Signature status passed."
+    },
+    {
+      "sha": "fba5515825b671c29c969e67ed982a606eab5208",
+      "parents": [
+        "0164f907f558fc628fc913ff40bc9574856393ec"
+      ],
+      "message": "feat(reporting): automate source settling windows (#1209)"
+    },
+    {
+      "sha": "25c297d663e70287f6abd8a0f954e17a8ab4d340",
+      "parents": [
+        "fba5515825b671c29c969e67ed982a606eab5208"
+      ],
+      "message": "feat(reporting): add adapter-first reliable reporting service (#1210)"
+    },
+    {
+      "sha": "4823dfff7ae94924419a745e0152547460dcdf42",
+      "parents": [
+        "25c297d663e70287f6abd8a0f954e17a8ab4d340",
+        "d523210d8c1f3f7b8d4ad6d7e4edbd827ee21b84"
+      ],
+      "message": "feat(reporting): persist managed delivery reconciliation records (#1176)\n\nPreserve the reviewed reconciliation-records branch history, its optional PostgreSQL test repairs, and the two ordinary refresh merges composing source settling and the adapter-first reporting service.\n\nFresh CI 35816493551 attempt 1 passed all 16 jobs on the exact current-base composition. Fresh Ladon approval 5286749759 binds d523210d in both API and embedded decision; all 16 review threads are resolved. Genuine CodeQL, actual IPR verification, and IPR Policy / Signature passed.\n\nUse the standing administrator authorization only for the missing literal check / check requirement. No ordinary CI, review or genuine security finding is waived. Installed-artifact, interoperability and release qualification remain separate."
+    },
+    {
+      "sha": "5dc746a89aebcfc4d9158632cca60668d27c45e9",
+      "parents": [
+        "4823dfff7ae94924419a745e0152547460dcdf42",
+        "c6573899d0249c9718096cd07b2da32f28cfc500"
+      ],
+      "message": "test(reporting): integrate currency and metric evidence (#1177)\n\nIntegrate the reviewed metric-evidence and currency foundation with current main's settling windows and reporting service. Preserve immutable publication/reconciliation evidence and the six original InlineFetchResult positional fields; require explicit keywords for added evidence fields so currency cannot silently bind to a settling timestamp. Keep test-harness writes outside assertions and document the adopter migration.\n\nCI 35820625906 attempt 1 passed all 16 jobs on the exact head and merge tree. Fresh Ladon approval and the independent composition/delta review bind c6573899; all review conversations are resolved. Genuine CodeQL and actual IPR verification passed. The standing administrative exception applies only to the missing literal check / check binding.\n\nBREAKING CHANGE: InlineFetchResult currency and provisional_until must be passed by keyword. The six earlier positional arguments retain their order; the source-adapter guide includes the migration example."
+    },
+    {
+      "sha": "17ee407ae3978c8a2bb54437287afbf9dafb8130",
+      "parents": [
+        "5dc746a89aebcfc4d9158632cca60668d27c45e9",
+        "d08e569730bac911352a54b34b74762a1de4ae41"
+      ],
+      "message": "feat(reporting): add transactional notification outbox (#1178)\n\nAdd opt-in transactional reporting notifications and Managed-readiness delivery, with durable subscriber expansion, lease-fenced dispatch, and immutable prepared delivery identities. Retain main's currency, evidence and settling behavior, including strict checkpoint-schema readiness. Make catalog fingerprints portable across database locales while preserving all 102 frozen values and exact validation.\n\nCI 35828007052 attempt 1 passed all 16 jobs bound to head d08e5697: 15 jobs checked out GitHub's merge composition 5fc38323; one aggregate had no checkout. PostgreSQL passed 1245 tests. Fresh Ladon approval and the independent composition/delta reviews bind the exact source history; all 19 review conversations are resolved. Genuine CodeQL and actual IPR verification passed. The standing administrative exception applies only to the missing literal check / check binding; no ordinary CI or review failure is waived. The original 9fc PostgreSQL failure remains preserved separately.\n\nThis is partial #1168A: ledger/readiness notifications and an ordered status-dirty handoff. Complete status projection and webhook-activity capability remain in the following stack step. Source integration does not confer released-artifact, main-artifact, or #1199 acceptance."
+    },
+    {
+      "sha": "0f34c666ac1961e9832fce43ef0ef6937b3c1dde",
+      "parents": [
+        "17ee407ae3978c8a2bb54437287afbf9dafb8130",
+        "d0d74b9c90c3eea1758da5e794c33e4f7a6fc67e"
+      ],
+      "message": "feat(reporting): expose durable webhook activity (#1183)\n\nRecord durable, account-scoped reporting webhook attempts and expose their activity through the opt-in account projection. Preserve pending reservations across uncertain delivery, enforce principal and account boundaries, and validate required schema objects individually.\n\nCompose the feature with integrated reporting foundations, preserve strict checkpoint validation, and qualify rolling behavior against the integrated A baseline. Keep PostgreSQL execution bounded in core/process lanes with a strict required aggregate and explicit token permissions. Historical pre-integration compatibility and main artifact/release qualification remain outside this source merge."
+    },
+    {
+      "sha": "967b6e286301d7e5d089aea6fdbb90bea8ee5a16",
+      "parents": [
+        "0f34c666ac1961e9832fce43ef0ef6937b3c1dde",
+        "81a1c5b3aa8711229f0dedcad06e43a0cfc39871"
+      ],
+      "message": "Merge pull request #1185 from adcontextprotocol/conductor/reporting-status-notifications-1168c\n\nfeat(reporting): project durable status notifications"
+    },
+    {
+      "sha": "5487f2bdef23c5102118b305be9e868228f6ce61",
+      "parents": [
+        "967b6e286301d7e5d089aea6fdbb90bea8ee5a16",
+        "58c82997ef82b8b5a5996eaa070c142fa488ba87"
+      ],
+      "message": "Merge pull request #1186 from adcontextprotocol/conductor/1167b1-materializer-contracts\n\nfeat(reporting): add destination verification and strict revision selection"
+    },
+    {
+      "sha": "3fd62121c96a074e3ea458c30c5224d6a586f169",
+      "parents": [
+        "5487f2bdef23c5102118b305be9e868228f6ce61",
+        "8ea0dbe46aafa356a40bb256dbb97316487c2468"
+      ],
+      "message": "Merge pull request #1187 from adcontextprotocol/conductor/1167b2-durable-managed-reporting\n\nfeat(reporting): materialize revisions with durable fenced work"
+    },
+    {
+      "sha": "09fd87f79a746665d828dea66b3a1dd9d1fc189e",
+      "parents": [
+        "3fd62121c96a074e3ea458c30c5224d6a586f169",
+        "624c1001ed42a210462ddb6de76806f9c1a81fc8"
+      ],
+      "message": "Merge pull request #1188 from adcontextprotocol/conductor/reporting-receipt-ingress-b22\n\nfeat(reporting): ingest receipts with authenticated durable replay"
+    },
+    {
+      "sha": "2d777ace7b4bf8be519ce0abd4fd0a25ed4f1da7",
+      "parents": [
+        "09fd87f79a746665d828dea66b3a1dd9d1fc189e",
+        "a35882251f91d9050f2a0cf98e226a31442bdafa"
+      ],
+      "message": "Merge pull request #1215 from adcontextprotocol/conductor/reporting-frozen-feed-integrated\n\nfeat(reporting): persist authorized frozen reporting feeds"
+    },
+    {
+      "sha": "e16eb8cf3074cabd45aab42840950f05ad6d2b43",
+      "parents": [
+        "2d777ace7b4bf8be519ce0abd4fd0a25ed4f1da7",
+        "ab12e1511058f0a9e75a8228f650d9a302423640"
+      ],
+      "message": "Merge pull request #1191 from adcontextprotocol/conductor/reporting-schema-proof-receipt-diagnostics-hardening\n\nfix(reporting): cache schema proofs and retain safe receipt diagnostics"
+    },
+    {
+      "sha": "34c8f6d929aeac3407e2f595104a8e903e572623",
+      "parents": [
+        "e16eb8cf3074cabd45aab42840950f05ad6d2b43",
+        "decfb4eb53845c22b019466b4167293f6c6181c7"
+      ],
+      "message": "Merge pull request #1192 from adcontextprotocol/conductor/reporting-production-tier-capabilities-b24\n\nfeat(reporting)!: enable production tier status and ownership"
+    },
+    {
+      "sha": "940c95e0c2d93758ed334b3edff59cbe933362d4",
+      "parents": [
+        "34c8f6d929aeac3407e2f595104a8e903e572623",
+        "1a0c7104c5c3a4c61aa35f78759c6014b1f984df"
+      ],
+      "message": "Merge pull request #1193 from adcontextprotocol/conductor/reporting-adcp-rc4-adoption\n\nfeat(reporting): integrate signed rc6 fixtures and lease progress"
+    },
+    {
+      "sha": "5fd54334e92057c9d7457a7aa87b5dd7d1e49330",
+      "parents": [
+        "940c95e0c2d93758ed334b3edff59cbe933362d4",
+        "8d6eba964b86c209a26df5decfef4f47d1c0a576"
+      ],
+      "message": "Merge pull request #1208 from adcontextprotocol/conductor/reporting-corrections-integration-v2\n\nfix(reporting): integrate reviewed reporting and signing corrections"
+    },
+    {
+      "sha": "6cd1929d96be5ec211ce0729d140d8484f0e8e70",
+      "parents": [
+        "5fd54334e92057c9d7457a7aa87b5dd7d1e49330"
+      ],
+      "message": "docs(reporting): document upgrade boundaries and guarded release steps (#1216)\n\n* docs(reporting): document upgrade boundaries and guarded release steps\n\n* docs(reporting): distinguish ledger retention from source recovery"
+    },
+    {
+      "sha": "a9719c6ba78f68b8a83ee143a7eff58989978030",
+      "parents": [
+        "6cd1929d96be5ec211ce0729d140d8484f0e8e70"
+      ],
+      "message": "fix(reporting): settle service lifecycle before resource cleanup (#1218)\n\n* fix(reporting): settle service lifecycle before resource cleanup\n\n* fix(reporting): isolate worker failures and preserve error callbacks"
+    },
+    {
+      "sha": "e77a401309be2397347cc4bd6bb5b6d45ddb33f1",
+      "parents": [
+        "a9719c6ba78f68b8a83ee143a7eff58989978030"
+      ],
+      "message": "feat(reporting): persist buyer receipt submission intents (#1219)\n\n* feat(reporting): persist buyer receipt submission intents\n\n* fix(reporting): bound buyer intent validation and verify checks\n\n* fix(ci): allow time for Postgres packaging coverage\n\nKeep the full core selection with a 30-minute job budget and preserve the process lane at 15 minutes. Address buyer submission review comments on redacted errors and test assertions."
+    },
+    {
+      "sha": "c67b97e02afcb387a5c9b6c06caa0904d43efcd8",
+      "parents": [
+        "e77a401309be2397347cc4bd6bb5b6d45ddb33f1"
+      ],
+      "message": "feat(reporting): preserve raw adjustment evidence for receipts (#1220)\n\n* feat(reporting): capture raw adjustment evidence and build receipts\n\n* fix(reporting): enforce adjustment receipt validation boundaries\n\n* fix(reporting): explain adjustment validation fallbacks"
+    },
+    {
+      "sha": "7c5a12397a27041bd76fce07e9ffafec4efa2295",
+      "parents": [
+        "c67b97e02afcb387a5c9b6c06caa0904d43efcd8"
+      ],
+      "message": "fix(server): settle lifespan cleanup after startup failures (#1223)\n\n* fix(server): settle lifespan cleanup after startup failures\n\n* fix(server): preserve startup errors through cancellation"
+    },
+    {
+      "sha": "2a45bafddd28afe9e6013a715289c2e1d9b208db",
+      "parents": [
+        "7c5a12397a27041bd76fce07e9ffafec4efa2295"
+      ],
+      "message": "feat(reporting): persist scheduled provisional observations (#1221)\n\n* feat(reporting): persist scheduled provisional observations\n\n* fix(reporting): validate provisional storage and compose publishers\n\n* fix(reporting): use protocol stub bodies\n\n* test(reporting): await late-account turn and scheduled reread\n\n* ci(reporting): allow core Postgres lane to finish installed cases\n\n* ci(reporting): allow installed PostgreSQL contract to finish\n\n* ci(reporting): allow coverage matrix to finish\n\n* ci(reporting): preserve coverage timeout headroom"
+    },
+    {
+      "sha": "d300c61a8812400363b8cd5812f88fa2b66a6a02",
+      "parents": [
+        "2a45bafddd28afe9e6013a715289c2e1d9b208db"
+      ],
+      "message": "fix(reporting): validate buyer frozen histories (#1222)\n\n* fix(reporting): validate buyer frozen histories\n\n* fix(reporting): preserve incomplete buyer read evidence\n\n* fix(reporting): bound ambiguous history counts\n\n* test(reporting): cover PG finality denominator proof\n\n* test(reporting): load frozen histories in publication checks\n\n* fix(reporting): check delivery-only adjustment evidence"
+    },
+    {
+      "sha": "02a1961d1966f2a1fe98eddee9f11edfe2a0fd75",
+      "parents": [
+        "d300c61a8812400363b8cd5812f88fa2b66a6a02"
+      ],
+      "message": "fix(reporting): reuse staged payloads across source observations (#1224)\n\n* fix(reporting): reuse staged payloads across source observations\n\n* docs(reporting): clarify memory staging loss and ledger reads\n\n* chore(ci): run staging checks against main\n\n* test(reporting): assert account-scoped staging refs\n\n* test(reporting): explain staging race settlement\n\n* fix(reporting): bound staging fsync to store root\n\n* fix(reporting): bound staging root durability sync\n\n* fix(reporting): verify staging ancestor boundary"
+    },
+    {
+      "sha": "2bfbca4b9c7505e5f7dc37d7c7f17bdb10ecfdd5",
+      "parents": [
+        "02a1961d1966f2a1fe98eddee9f11edfe2a0fd75"
+      ],
+      "message": "feat(reporting): compose provisional source lifecycle (#1225)\n\n* feat(reporting): compose provisional source lifecycle\n\n* style(reporting): wrap inline storage validation strings\n\n* test(reporting): bind B2.4 wheel check to historical modules\n\n* test(reporting): include service context in migration catalog\n\n* feat(reporting): enforce live source authorization at dispatch and publish\n\n* test(reporting): account for scheduled provisional refreshes\n\n* fix(reporting): keep discovery probes from revoking dispatch turns\n\n* refactor(reporting): drop superseded source authorization grant model\n\n* fix(reporting): share the source publication transaction with inline seals\n\n* test(reporting): narrow inline storage error assertions\n\n* fix(reporting): defer inline storage error imports to execution\n\n* test(reporting): authorize publication clock fixtures\n\n* fix(reporting): reject live source mapping changes\n\n* fix(ci): allow production gate cleanup headroom"
+    }
+  ]
+}

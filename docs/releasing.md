@@ -76,13 +76,19 @@ A single-parent commit cannot use that wrapper to bypass validation. PR runs
 also check the PR title/body and individual non-merge commits. Future breaking
 `!` commits require a `BREAKING CHANGE:` footer in the actual commit.
 
-The sole historical footer exception is the already-merged #1174 squash commit
-`6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac`, and only with its exact subject
-`fix(reporting)!: scope configuration generations by account (#1174)`.
-Its breaking title and reviewed PR migration note carry the release signal;
-its historical missing footer is not a new release blocker. Another commit
-with that title receives no exception. Preserve its history and the
-[account-qualified generation migration notes](reporting-release-notes.md#account-qualified-configuration-identity).
+Two already-merged commits have historical footer exceptions, each bound to
+both the exact commit SHA and its committed conventional subject:
+
+- #1174 squash `6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac`:
+  `fix(reporting)!: scope configuration generations by account (#1174)`.
+- #1192 merge `34c8f6d929aeac3407e2f595104a8e903e572623`:
+  `feat(reporting)!: enable production tier status and ownership` in its merge body.
+
+Their breaking titles and reviewed PR migration notes carry the release signal;
+their historical missing footers are not new release blockers. Another commit
+with either title receives no exception. Preserve their history and the
+[account-qualified generation migration notes](reporting-release-notes.md#account-qualified-configuration-identity)
+and [production migration sequence](reporting-production.md#migration-drain-and-activation).
 
 The current pinned [Release Please 17.6.0 prerelease strategy](https://github.com/googleapis/release-please/blob/v17.6.0/src/versioning-strategies/prerelease.ts) increments an
 existing prerelease's suffix. From `8.0.0-beta.15`, the staged recommendation is

@@ -31,11 +31,17 @@ CONVENTIONAL = re.compile(
     r"(?:\([^()\n]+\))?(?P<breaking>!)?: (?P<description>\S.*)$"
 )
 GITHUB_MERGE = re.compile(r"Merge pull request #[1-9][0-9]* from [^\s/]+/\S+")
-# This already-merged squash commit predates the guard. Its breaking subject
-# and reviewed PR migration note retain the release signal. No other commit,
-# including one with the same subject, inherits this historical exception.
-LEGACY_BREAKING_COMMIT = "6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac"
-LEGACY_BREAKING_SUBJECT = "fix(reporting)!: scope configuration generations by account (#1174)"
+# These already-merged commits predate the guard. Their breaking subjects
+# and reviewed PR migration notes retain the release signal. No other commit,
+# including one with the same subject, inherits these historical exceptions.
+HISTORICAL_BREAKING_SUBJECTS = {
+    "6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac": (
+        "fix(reporting)!: scope configuration generations by account (#1174)"
+    ),
+    "34c8f6d929aeac3407e2f595104a8e903e572623": (
+        "feat(reporting)!: enable production tier status and ownership"
+    ),
+}
 
 
 def git(*arguments: str) -> str:
@@ -62,8 +68,10 @@ def validate_message(message: str, *, commit_sha: str | None = None) -> None:
     # the actual description remain forbidden by the repository's parser rule.
     description = re.sub(r" \(#[1-9][0-9]*\)$", "", match["description"])
     require(description and not any(c in description for c in '()"'), "unsafe release description")
-    legacy_footer = commit_sha == LEGACY_BREAKING_COMMIT and subject == LEGACY_BREAKING_SUBJECT
-    if match["breaking"] and not legacy_footer:
+    historical_footer_exception = (
+        commit_sha is not None and HISTORICAL_BREAKING_SUBJECTS.get(commit_sha) == subject
+    )
+    if match["breaking"] and not historical_footer_exception:
         require(
             re.search(r"(?m)^BREAKING(?: CHANGE|-CHANGE): \S.+$", body),
             "breaking subject requires its BREAKING CHANGE footer in the actual commit",
