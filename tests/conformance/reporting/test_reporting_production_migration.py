@@ -25,12 +25,18 @@ from .test_reporting_feed_migration import fairness
 
 
 def manifests():
-    return {
+    required = {
         package: json.loads(
             files("adcp.reporting." + package).joinpath("required_schema.json").read_text()
         )
         for package in ("materializer", "receipts", "feed", "projection", "production")
     }
+    required["production"].update(
+        json.loads(
+            files("adcp.reporting.production").joinpath("service_context_schema.json").read_text()
+        )
+    )
+    return required
 
 
 def original_rows(image, before):
