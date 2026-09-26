@@ -1,9 +1,17 @@
 # Releasing the Python SDK
 
-The #1198 guard is implemented independently and **must merge last, after the
-reporting stack and #1172**. Rebase, review the installed acceptance suite against
-the integrated reporting contract, and validate the final exact head before
-merging. This implementation does not authorize stack integration or publication.
+The independent #1198 guard (#1200) already merged at
+`a9bc11c94e7f188d9a442def20c64f76a11b0cab`; retain it. The release-readiness
+follow-up **must merge last, after the approved reporting foundations, AdCP rc.4,
+and frozen installed foundation harness**, with independent security review of
+the final exact integrated head. Preserve reviewed stack ancestry through the
+coordinator's two-parent merges; do not change the integration strategy.
+
+This staged prerelease does **not** complete #1172 or #1182. Acceptance of
+`client.reporting`, `ReliableReportingService`, and provisional re-read remains
+open for their later full rollout. Do not claim stable 8.0 or full RC closure
+from foundation acceptance. Implementation and CI success do not authorize
+publication or external configuration changes.
 
 Workflow **204238826**, `.github/workflows/release-please.yml`, stays
 `disabled_manually` permanently. Its new definition is a failing tombstone.
@@ -30,15 +38,52 @@ both the dispatch SHA and workflow-definition SHA. Only a dispatch of
 `refs/heads/main` in this repository, on attempt 1, can proceed. Current main is
 read again at the end of each gate. A protection or API read error stops the run.
 
-All effective required status checks need an explicit App binding, exact SHA,
+Required checks from **both** the effective ruleset inventory and the separate
+`GET /branches/main` protection summary need an explicit App binding, exact SHA,
 `completed/success`, and completion within 24 hours. The protected runtime CI floor
 cannot disappear through configuration changes. The selected `ci.yml` main-push
 run and every job in its selected, still-current attempt must also succeed;
-required runtime check IDs must belong to that run. Missing, skipped, neutral,
+required runtime and policy check IDs must belong to that run. Missing, skipped, neutral,
 cancelled, failed, ambiguous, or incomplete evidence is never success. The
 invocation and installed acceptance expire after 24 hours, including approval
 waits. A fresh successful CI attempt can be selected explicitly; a later attempt
 invalidates the previously selected one.
+
+The native `IPR Policy / Signature` CI job follows the
+[central signature policy](https://github.com/adcontextprotocol/adcp/blob/82a671607c92945f0fec513c4375af583fdea914/signatures/README.md)
+and reads the ledger at one
+resolved immutable `adcontextprotocol/adcp` main SHA. For every first-parent
+integration after the last published source
+`3e76aa54623529a3dda01cd690b8a5c287c75641` (beta.15), it verifies the unique
+merged PR, exact merge SHA, base repository/main, and the author's numeric GitHub
+ID against the canonical agreement records. That historical floor never advances
+automatically. The canonical policy requires the PR author's agreement and
+exempts authenticated bot accounts. Unknown authors, signatures recorded after
+merge, direct pushes without an associated merged PR, and unreadable or ambiguous
+records fail. No PR status or context name is used as a signature. The job has
+only read permissions; GitHub Actions supplies the authenticated App 15368
+check-run identity. The existing PR/comment workflow still records signatures;
+after signing, rerun ordinary CI if its read-only check previously failed.
+
+`Validate conventional commit format` checks the actual subjects **and bodies**
+of all those main integrations, including two-parent merge commits. PR runs
+also check the PR title/body and individual non-merge commits. A breaking `!`
+subject requires its `BREAKING CHANGE:` footer in the actual commit. In
+particular, #1174 must integrate with:
+
+```text
+fix(reporting)!: scope configuration generations by account (#1174)
+
+BREAKING CHANGE: generation_key returns ReportingConfigurationGenerationKey instead of a two-tuple. Use its named fields.
+```
+
+The current pinned [Release Please 17.6.0 prerelease strategy](https://github.com/googleapis/release-please/blob/v17.6.0/src/versioning-strategies/prerelease.ts) increments an
+existing prerelease's suffix. From `8.0.0-beta.15`, the staged recommendation is
+**`8.0.0-beta.16` / PEP 440 `8.0.0b16`**, including the breaking foundation change.
+`prerelease-type: rc` does not rename an existing beta suffix. An intentional
+channel change needs a reviewed Release Please version instruction and its
+normal proposal, not a standalone `pyproject.toml` edit. Review the proposed
+manifest, project version and changelog together before the release merge.
 
 Acceptance builds exactly one wheel and one sdist. It verifies the normalized
 project/Release Please version, distribution metadata, SHA-256 hashes, every
@@ -51,6 +96,63 @@ errors, or skips reject acceptance. New reporting conformance files participate
 automatically; their dependencies and full #1172 contract need review on the
 integrated head. This suite is not an assertion that the unmerged stack's separate
 cross-language or independent-review acceptance has completed.
+
+For the staged release, the old reporting directory alone is insufficient.
+Acceptance must run the frozen real-process/PostgreSQL four-language-quadrant
+foundation corpus, including stable/skew repetitions back-to-back, against
+each installed wheel and sdist. Use the harness owner's actual applicability
+contract; do not label raw transport as semantic reconciliation or invent
+managed-delivery coverage for Core-only peers. The final integration must bind
+that corpus, package pins and complete results into the existing acceptance
+manifest and recheck them in both writers and recovery. Until that frozen
+implementation is wired and independently accepted, publication is blocked.
+
+**#1199 freeze blocker, confirmed by its owner on 2026-09-22:** no harness
+commit or acceptance result contract is frozen. The development runner currently
+marks every cell incomplete and always emits `acceptance: false`; it is not wired
+into these release workflows. Accepted Python `1f953c40d761be71d11fde84c78359ff2074fe7c`
+still has typed explicit-scope and exact-revision request blockers. The controlling
+TypeScript rc.42 pin lacks the public Core buyer API and has managed
+official-precedence failures; supplemental rc.44 is not a substitute. Several
+required semantic, retry/activity, skew and CLI/storyboard lanes and immutable CI
+pinning remain unfinished. Wait for the owning fixes, accepted immutable inputs,
+frozen complete harness and final integrated review. Do not construct a success
+adapter around development results or treat the old installed tests as that proof.
+
+The frozen contract must resolve the blocking candidate and supported previous
+TypeScript pins to exact versions, tarball integrity and npm-generated locks, and
+record the actual Node 22.12.0 SDK floor executable. Existing floating `latest`
+and `[adcp-3.0, latest]` CI results are not candidate interoperability acceptance.
+Keep latest TypeScript/Python canaries visible and nonblocking, outside the
+selected blocking main CI run whose jobs must all succeed. Preserve legacy
+compatibility, resolving and recording the exact identity of any blocking floor,
+and require the declared unsupported-version errors.
+
+Resolve the complete five-storyboard inventory from **each exact installed pin**:
+`reliable_reporting_managed_delivery`, `reliable_reporting_reconciled_billing`,
+`reporting_consumer_status`, `reporting_core`, and `reporting_core_declaration`.
+Persist each storyboard's step/stateful counts and assert complete execution
+against that resolved inventory. The experts measured 64 steps/61 stateful at
+rc.38, but **89 steps/84 stateful at rc.42 and rc.44**. The rc.38 count is historical
+evidence, not an acceptance target or permission to run a subset. Provenance
+verification and signing/DDL tests are separate evidence from the complete matrix.
+The experts verified rc.42/rc.44 npm signatures and source-to-tarball attestations;
+record their actual Node 24.19.0 verification tooling separately from the Node
+22.12.0 execution floor. TypeScript's public seller composition exists; its
+configuration work and incomplete matrix execution must not be described as
+missing SDK primitives. Require the canonical validator to be a function, without
+an optional/truthy fallback.
+
+Candidate Python wheels and sdists must be installed by **local exact path and
+SHA-256**, bound to accepted source SHA/tree and locked dependencies/runtime.
+The accepted development source still declares occupied `8.0.0b15`; never obtain
+the candidate by resolving `adcp==8.0.0b15` from PyPI. Published beta.15, each expert's
+independent build of `1f953`, corrected source, and the final integrated/versioned
+main build are distinct inputs with their own provenance and fresh acceptance.
+Even identical versions and source inventories cannot substitute different bytes;
+the writer and recovery regressions explicitly reject that substitution. The
+final frozen harness must enforce the same negative, dependency identity and
+artifact binding in its own result contract.
 
 The immutable `release-acceptance-RUN_ID-1` artifact contains the two distributions
 and `acceptance.json`: source SHA/tree, invocation/CI attempt, version, file hashes,
@@ -138,20 +240,118 @@ this operator trust boundary is unacceptable, a separately reviewed policy
 verifier is a design prerequisite; do not weaken the gate or grant an
 administrative writer token to the build job.
 
-**Observed configuration blockers on 2026-09-20:** effective main rules require
-`IPR Policy / Signature` and `Validate conventional commit format`. On main
-`f6e9c15333db8e657ba96a79d806194dfc0e0447`, the first is absent and the second
-is skipped; they currently run as PR policy. No release environment or main
-freeze existed. The guard intentionally cannot authorize that state. Provide
-reviewed, real exact-main successful checks without weakening protection or
-substituting PR/parent checks. The classic branch-protection endpoint returned
-403; effective rules were readable through `/rules/branches/main`. An inaccessible
-administrative endpoint is a read limitation, not an exemption or approval.
-The rules also retain PR reviews and CodeQL merge protection. GitHub evaluates
-code-scanning merge protection separately from status checks; the guard does
-not equate an `Analyze` job with that policy's result. Ordinary protected merges
-and independent exact-head review remain required. Administrative rule-suite
-history also returned 403 with this workspace's integration credential.
+**Observed external blockers on 2026-09-22:** the only visible environment is
+`github-pages`; the release environments and main freeze are not configured.
+The coordinator's authorized `PUT .../environments/release-proposal` returned
+HTTP 403 `Resource not accessible by integration`, with no change. A reported
+repository `permissions.admin: true` does not grant an integration token the
+endpoint's Administration/write permission. Do not retry with that same
+integration or ask for credentials in chat. Use a separately authorized operator
+with the actual endpoint capability. Variables metadata also returned 403:
+`RELEASE_PUBLICATION_ENABLED`, the freeze attestation, and App variables are
+**unknown**, not proven absent. Dedicated App/PyPI trust must be verified by their
+authorized administrators. The new workflows are already `active`, but were not
+dispatched; workflow 204238826 remains `disabled_manually`.
+
+The native main policy producers in this follow-up must actually succeed on the
+final integrated main; local tests or old PR statuses do not supply those check
+runs. The full classic branch-protection settings endpoint returned 403, but
+`GET /branches/main` exposes a separate readable summary. On 2026-09-22 it listed
+17 contexts versus 14 in `/rules/branches/main`, adding literal `check / check`
+from App **15368**, `CodeQL` from App **57789**, and `GitGuardian Security Checks`
+from App **46505**. The guard enforces both inventories without name aliases or
+App substitution; missing context-to-App bindings or unreadable inventories fail.
+The rules also retain PR reviews and separate CodeQL scanning merge protection.
+An inaccessible administrative endpoint is a read limitation, not an exemption.
+
+The #1174 head `6c74a458b8ee2a34c47c154186b950faed50f4fa` has no literal
+`check / check` or `CodeQL` evidence in the complete check/status inventory.
+The IPR workflow formerly called reusable job `check` from caller job `check`;
+hardening commit `688b3e4c6f4551f7f04d4ce68f6a69a5ee943523` replaced that call with
+a pinned local job named `check`. This matches GitHub's documented
+[reusable-job naming](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/troubleshooting-rules),
+and explains a possible obsolete protected name; it does not authorize changing
+the rule or generating a success alias. An authorized administrator must verify
+the intended IPR binding and review any migration to the real producer.
+
+The visible `Analyze` jobs belong to **Code Quality**, run `35042345063`, path
+`dynamic/github-code-quality/codeql`, with `analysis-kinds: code-quality` and
+`python.quality.sarif`. The coordinator retained the original log with SHA-256
+`5bebe1a8c9e917b77ceec59d97e8f728adcd0cca623cdeaa53989a49b78c08b4`.
+These Actions/App 15368 jobs are not security CodeQL/App 57789 evidence. The
+distinct active security producer is workflow **280935553**,
+`dynamic/github-code-scanning/codeql`; its head-filtered run inventory reported
+zero runs for that #1174 head. The security/default-setup/analysis and rule-suite
+APIs remain 403, so the full reason for the blocked merge is not established.
+An authorized security administrator must inspect the configured scanner and
+actual PR/current-main results through the supported CodeQL setup path, then
+resolve its protection binding if needed. GitHub distinguishes
+[analysis jobs from code-scanning results](https://docs.github.com/en/code-security/how-tos/manage-security-alerts/manage-code-scanning-alerts/triage-alerts-in-pull-requests).
+No scanner dispatch, rerun, settings change, fake native Actions check or
+protection change is authorized by this audit. Ordinary protected merges and
+independent exact-head review remain required.
+
+### Concrete operator setup
+
+Environment/branch-policy and ruleset changes require repository
+[Administration/write capability](https://docs.github.com/en/rest/deployments/environments#create-or-update-an-environment). Repository variables require Variables/write;
+environment variables/secrets require Environments/write. Legacy run retirement
+requires Actions/write; credential retirement requires the owning App/PyPI
+administrator. None of these capabilities is granted to acceptance jobs.
+
+For **each** of `release-proposal` and `release-publish`, an authorized operator
+can use this reviewed environment request body, then add the branch policy:
+
+```json
+{
+  "wait_timer": 0,
+  "prevent_self_review": true,
+  "can_admins_bypass": false,
+  "reviewers": [{"type": "User", "id": 134922}],
+  "deployment_branch_policy": {
+    "protected_branches": false,
+    "custom_branch_policies": true
+  }
+}
+```
+
+```bash
+# Operator only, after resolving the recorded 403; do not run from acceptance.
+gh api --method PUT repos/adcontextprotocol/adcp-client-python/environments/release-proposal --input reviewed-environment.json
+gh api --method POST repos/adcontextprotocol/adcp-client-python/environments/release-proposal/deployment-branch-policies -f name=main -f type=branch
+# Repeat those two requests for release-publish, then GET both environments
+# and all branch-policy pages to verify the exact settings and no extra policy.
+```
+
+Reviewer ID 134922 is `bokelley`. This workspace's API actor is also `bokelley`;
+with self-review prohibited, a dispatch by that actor needs a different authorized
+reviewer. Alternatively a different authorized actor can dispatch for that
+reviewer. Do not disable self-review protection to resolve the mismatch.
+
+Install a **dedicated proposal App** only on `adcp-client-python`, with Contents
+and Pull requests write and no main-rule/tag-creation bypass. Store its ID as
+`RELEASE_PROPOSAL_APP_ID` and its private key as
+`RELEASE_PROPOSAL_APP_PRIVATE_KEY` only in `release-proposal`, using the secrets
+UI or encrypted environment-secret endpoint. Never copy the shared IPR App key
+or print a key in a command, log, PR or chat. Verify the installation repository
+selection, permissions and environment metadata before dispatch.
+
+In the existing PyPI `adcp` project's **Publishing** settings, verify a GitHub
+[Trusted Publisher](https://docs.pypi.org/trusted-publishers/adding-a-publisher/)
+with owner `adcontextprotocol`, repository `adcp-client-python`,
+workflow filename `release-publish.yml`, and environment `release-publish`.
+The new workflow uses protected-environment OIDC and attestations, never
+`PYPY_API_TOKEN`. Retire legacy trust/credentials only through the separate
+historical audit below. Verify tag creation permits the designated publisher
+but excludes the proposal App, and retain separate no-update/no-delete tag
+protection; do not grant administrator bypass.
+
+Complete integration and fresh CI **before** applying the no-bypass main freeze.
+Then record the exact ruleset revision/target attestation in repository variable
+`RELEASE_MAIN_FREEZE`. Keep `RELEASE_PUBLICATION_ENABLED` false until final
+installed foundation acceptance, independent review, and operator cutover are
+complete. The proposal and release-PR merge remain separate windows: drain and
+unfreeze for the ordinary protected merge, then freeze and attest the new SHA.
 
 ## Disable, drain and retire historical definitions
 
@@ -180,10 +380,50 @@ These actions require separate operator authorization; none are performed by the
 guard or its implementation PR. If historical writers cannot be retired, **do
 not enable the new publisher**. This is an external deployment blocker.
 
+At the 2026-09-22 audit, all 718 retained legacy runs were terminal, but **69**
+were still inside the rerun window. The latest is `34921539723`, created at
+`2026-09-15T02:31:57Z`, source `3e76aa54623529a3dda01cd690b8a5c287c75641`.
+Without authorized retirement, the guard rejects until **after
+2026-10-15T02:31:57Z**, provided no newer invocation exists.
+
+The narrow retirement sequence for an authorized operator is:
+
+1. Re-inventory every page of workflow 204238826 runs while it stays disabled;
+   drain any newly nonterminal run and repeat the inventory.
+2. Before deletion, retain each eligible run's metadata, every attempt/job log,
+   source workflow at its recorded SHA, artifact IDs/digests/bytes where still
+   available, and published package/release provenance/attestations. Record
+   unavailable or expired evidence explicitly. Keep checksums outside Actions
+   retention; deleting the run must not destroy the only audit copy.
+3. Audit the reachable old PyPI credentials, App keys and writable job tokens.
+   Have the credential owners retire/isolate those old capabilities without
+   breaking the central IPR signature recorder or the new dedicated proposal App.
+4. Only after evidence preservation and separate authorization, delete the
+   enumerated rerunnable legacy runs, or wait out their original 30-day windows.
+   Do not delete unrelated CI, tags, releases, package files or attestations.
+5. Re-read the full run inventory and disabled state. The guard must find no
+   nonterminal/recent legacy run before the new publisher can be exposed.
+
+Read-only preparation uses the existing APIs, not a new archive protocol:
+
+```bash
+gh api --paginate repos/adcontextprotocol/adcp-client-python/actions/workflows/204238826/runs > legacy-runs.json
+gh api repos/adcontextprotocol/adcp-client-python/actions/runs/34921539723 > legacy-run-34921539723.json
+gh api repos/adcontextprotocol/adcp-client-python/actions/runs/34921539723/attempts/1/logs > legacy-run-34921539723-attempt-1.zip
+gh api --paginate repos/adcontextprotocol/adcp-client-python/actions/runs/34921539723/artifacts > legacy-run-34921539723-artifacts.json
+gh api repos/adcontextprotocol/adcp-client-python/actions/workflows/204238826 --jq .state
+```
+
+Enumerate all attempts and eligible runs from the fresh inventory; the example
+run is not the complete retirement list. No deletion or credential mutation is
+performed by this follow-up.
+
 ## Proposal, release merge, final validation and publication
 
-1. Finish the reporting stack and #1172, then merge this independently reviewed
-   guard last. Leave the legacy workflow disabled. Record implementation commit
+1. Finish the approved foundation/rc.4 stack and frozen installed harness, then
+   merge the independently reviewed readiness correction last. #1172/#1182 remain
+   open for their later service/provisional-read rollout. Leave the legacy
+   workflow disabled. Record implementation commit
    `M_impl`, its successful main-push CI run/attempt, and independent review.
 2. Complete proposal prerequisites, freeze main, and dispatch `release-proposal.yml`
    on ref `main` with those explicit identities. Review `acceptance.json` and the

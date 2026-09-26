@@ -34,8 +34,10 @@ RELEASE_BRANCHES = {
 }
 # A protection edit must not silently remove the runtime CI floor. Additional
 # required checks are discovered live and must also pass, without skip/neutral
-# exceptions (including the currently PR-only policy checks).
+# exceptions. The real policy jobs must belong to the selected main CI attempt.
 CI_FLOOR = {
+    "IPR Policy / Signature",
+    "Validate conventional commit format",
     "Test Python 3.10",
     "Test Python 3.11",
     "Test Python 3.12",
@@ -283,7 +285,11 @@ def validate_freeze(api: GitHub, rules: list[dict[str, Any]], target: str, now: 
 
 
 def validate_checks(
-    rules: list[dict[str, Any]], checks: list[dict[str, Any]], target: str, now: datetime
+    rules: list[dict[str, Any]],
+    checks: list[dict[str, Any]],
+    target: str,
+    now: datetime,
+    branch_protection: dict[str, Any],
 ) -> None:
     required = [
         check
@@ -292,8 +298,22 @@ def validate_checks(
         for check in rule["parameters"]["required_status_checks"]
     ]
     require(CI_FLOOR <= {check["context"] for check in required}, "protected CI floor is missing")
+    # The branch summary exposes classic requirements omitted by the ruleset
+    # endpoint. Never infer that a different job name or App satisfies one.
+    contexts = branch_protection.get("contexts")
+    bindings = branch_protection.get("checks")
+    if not isinstance(contexts, list) or not isinstance(bindings, list):
+        raise ReleaseRejectedError("branch protection check inventory is unreadable")
+    require(
+        set(contexts) == {check["context"] for check in bindings},
+        "branch protection App binding inventory is incomplete",
+    )
+    required.extend(
+        {"context": check["context"], "integration_id": check.get("app_id")} for check in bindings
+    )
     for expected in required:
-        require(expected["integration_id"] is not None, "required check has no trusted App binding")
+        app_id = expected["integration_id"]
+        require(type(app_id) is int and app_id > 0, "required check has no trusted App binding")
         matches = [
             check
             for check in checks
@@ -331,6 +351,11 @@ def gate(api: GitHub, context: Context, now: datetime | None = None) -> dict[str
     if context.operation == "publish":
         validate_legacy_retirement(api, now)
     require(api.repo("git/ref/heads/main")["object"]["sha"] == context.target, "stale main target")
+    branch = api.repo("branches/main")
+    require(
+        branch["name"] == "main" and branch["commit"]["sha"] == context.target,
+        "branch protection summary belongs to another target",
+    )
     rules = api.pages("rules/branches/main")
     validate_freeze(api, rules, context.target, now)
     validate_environment(api, context.operation)
@@ -362,7 +387,9 @@ def gate(api: GitHub, context: Context, now: datetime | None = None) -> dict[str
         )
         fresh(job["completed_at"], now)
     checks = api.pages(f"commits/{context.target}/check-runs?filter=latest", "check_runs")
-    validate_checks(rules, checks, context.target, now)
+    validate_checks(
+        rules, checks, context.target, now, branch["protection"]["required_status_checks"]
+    )
     job_checks = {job["check_run_url"] for job in jobs}
     for check in checks:
         if check["name"] in CI_FLOOR:
