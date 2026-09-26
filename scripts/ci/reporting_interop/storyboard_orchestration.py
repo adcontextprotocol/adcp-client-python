@@ -539,6 +539,7 @@ class OwnedProcess:
             try:
                 os.close(gate_write)
             except OSError:
+                # Best-effort descriptor cleanup must not replace the primary spawn error.
                 pass
             try:
                 if process.poll() is None:
@@ -608,6 +609,7 @@ class OwnedProcess:
             try:
                 self.process.wait(timeout=0)
             except subprocess.TimeoutExpired:
+                # A live child is expected during this zero-timeout polling probe.
                 pass
             if self.process.poll() is not None and not self._live_members():
                 return True
