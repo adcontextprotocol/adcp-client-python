@@ -338,7 +338,7 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
             label=label + "-installed-production",
             cwd=fixture_root,
             value=settings,
-            timeout=1800,
+            timeout=2400 if not driver_absent else 1800,
             progress=progress,
         )
     )

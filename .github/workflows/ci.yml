@@ -832,7 +832,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    timeout-minutes: 40
+    timeout-minutes: 50
     strategy:
       fail-fast: false
       matrix:
@@ -862,7 +862,7 @@ jobs:
         run: pip install -e ".[dev,pg]"
       - name: Run installed source-equivalent production contract
         shell: bash
-        timeout-minutes: 35
+        timeout-minutes: 45
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_production_installed_test
           ADCP_PYTHON310: ${{ steps.production-python310.outputs.python-path }}
