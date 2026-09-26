@@ -223,6 +223,14 @@ async def _user_lifespan_hooks(
                 task.cancel()
         stop.set()
         error, cancellation = await _settle_lifespan_task(task)
+        startup_error = ready.result() if ready.done() else None
+        if startup_error is not None and (
+            primary_error is None or isinstance(primary_error, asyncio.CancelledError)
+        ):
+            # A cancellation can win the wait for ``ready`` after the hook
+            # task has already recorded a startup failure. Keep that failure
+            # primary once cleanup has settled.
+            raise startup_error
         if (
             ended_early
             and error is not None
