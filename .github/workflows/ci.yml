@@ -764,7 +764,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    timeout-minutes: 35
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:16
@@ -786,7 +786,8 @@ jobs:
         run: pip install -e ".[dev,pg]"
       - name: Run complete production and projection conformance
         shell: bash
-        timeout-minutes: 30
+        # A passing suite plus harness cleanup can exceed 30 minutes.
+        timeout-minutes: 40
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_production_test
         run: |
