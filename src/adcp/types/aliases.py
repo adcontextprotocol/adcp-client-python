@@ -2070,9 +2070,10 @@ Applied to Assets94.assets via _forward_compat._apply_forward_compat().
 #     totals view.
 #   - core.notification_config.Authentication makes ``credentials`` optional;
 #     the other four Authentication variants require it.
-#   - the four ``Unit`` enums measure different dimensions (duration, overlay
-#     positioning, real-estate area, vehicle distance). ``adcp.types.DimensionUnit``
-#     is a separate, already-unambiguous enum and is not part of this collision.
+#   - the legacy inline duration ``Unit`` and the three remaining ``Unit``
+#     enums measure different dimensions. ``DurationUnit`` keeps its public
+#     identity when the schema moves the duration vocabulary to a shared enum.
+#     ``adcp.types.DimensionUnit`` is a separate, already-unambiguous enum.
 from adcp.types.generated_poc.account.sync_accounts_response import (
     Account as SyncAccountsAccount,
 )
@@ -2106,9 +2107,15 @@ from adcp.types.generated_poc.core.account import (
 from adcp.types.generated_poc.core.canonical_proposal import (
     TotalBudgetGuidance as CanonicalProposalTotalBudgetGuidance,
 )
-from adcp.types.generated_poc.core.duration import (
-    Unit as DurationUnit,
-)
+
+try:
+    from adcp.types.generated_poc.enums.duration_unit import DurationUnit  # type: ignore[import-not-found,unused-ignore]
+except ModuleNotFoundError as exc:
+    if exc.name != "adcp.types.generated_poc.enums.duration_unit":
+        raise
+    from adcp.types.generated_poc.core.duration import (
+        Unit as DurationUnit,
+    )
 from adcp.types.generated_poc.media_buy.change_term_constraints import (
     MediaBuyChangeTermConstraints1 as BudgetChangeConstraints,
 )
