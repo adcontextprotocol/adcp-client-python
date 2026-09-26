@@ -430,7 +430,14 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
     source.set(second.start, InlineFetchResult(rows=[], data_through=second.end))
     turn = await _run_worker_at(ledger, source, now=second.end + timedelta(minutes=30))
     assert len(turn.obligations_committed) == 1
-    assert len(turn.revisions_committed) == 1
+    # The source omits an explicit restatement window, so the SDK's default
+    # policy also schedules another read of the first period on this turn.
+    first_revisions = await ledger.list_revisions(
+        account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    assert len(first_revisions) == 2
+    automatic = next(item for item in first_revisions if item.reporting_revision_id != revision_id)
+    assert automatic.supersedes_reporting_revision_id == revision_id
 
     zero_obligation = await ledger.find_obligation(
         account_id=ACCOUNT,
@@ -444,6 +451,10 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
         account_id=ACCOUNT, reporting_obligation_id=zero_obligation.reporting_obligation_id
     )
     assert [item.row_count for item in zero_revisions] == [0]
+    assert set(turn.revisions_committed) == {
+        automatic.reporting_revision_id,
+        zero_revisions[0].reporting_revision_id,
+    }
 
     settled = await _reconcile(ledger, expected=_expected_periods(2))
     assert settled.definitive is True, settled.obligations
@@ -495,8 +506,8 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
     # A buyer reconciling a scope containing that period is not definitive.
     assert (await _reconcile(ledger, expected=_expected_periods(3))).definitive is False
 
-    # 10. A restatement supersedes the first period's snapshot rather than
-    #     editing it. Both revisions remain; only the new one is current.
+    # 10. A restatement supersedes the first period's current snapshot rather
+    #     than editing it. All revisions remain; only the new one is current.
     source.set(
         first.start,
         InlineFetchResult(
@@ -515,8 +526,8 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
     chain = await ledger.list_revisions(
         account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
     )
-    assert len(chain) == 2
-    assert restated.supersedes_reporting_revision_id == revision_id
+    assert len(chain) == 3
+    assert restated.supersedes_reporting_revision_id == automatic.reporting_revision_id
     # The superseded revision is still retained and still readable: a consumer
     # that already cited it must be able to fetch exactly what it cited.
     superseded = await ledger.read_revision_rows(
