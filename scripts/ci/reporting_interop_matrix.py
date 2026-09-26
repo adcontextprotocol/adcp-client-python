@@ -29,6 +29,12 @@ from typing import Any
 DEFAULT_MANIFEST = Path(__file__).with_name("reporting_interop_inputs.json")
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 NPM_REGISTRY = "https://registry.npmjs.org/"
+VERSION_COMMAND_TIMEOUT_SECONDS = 30
+PROBE_COMMAND_TIMEOUT_SECONDS = 60
+SETUP_COMMAND_TIMEOUT_SECONDS = 120
+PACKAGE_INSTALL_TIMEOUT_SECONDS = 600
+COSIGN_VERIFY_TIMEOUT_SECONDS = 120
+GITHUB_API_TIMEOUT_SECONDS = 60
 MUTABLE_VERSIONS = {"latest", "next", "rc", "beta", "alpha", "canary", "main", "master", "head"}
 HEX_40 = re.compile(r"^[0-9a-f]{40}$")
 HEX_64 = re.compile(r"^[0-9a-f]{64}$")
@@ -504,9 +510,10 @@ def _verify_protocol(role: str, item: Mapping[str, Any], output: Path) -> dict[s
     cosign = shutil.which("cosign")
     if not cosign:
         raise InputError("cosign is required to verify signed protocol inputs")
-    cosign_version = subprocess.run(
-        [cosign, "version", "--json"], check=True, text=True, capture_output=True
-    ).stdout.strip()
+    cosign_version = _run_text(
+        [cosign, "version", "--json"],
+        timeout_seconds=VERSION_COMMAND_TIMEOUT_SECONDS,
+    )
     argv = [
         cosign,
         "verify-blob",
@@ -520,11 +527,13 @@ def _verify_protocol(role: str, item: Mapping[str, Any], output: Path) -> dict[s
         "https://token.actions.githubusercontent.com",
         str(paths["source"]),
     ]
-    completed = subprocess.run(argv, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    if completed.returncode != 0:
-        raise InputError(f"cosign rejected protocol {role}: {completed.stdout.strip()}")
     cosign_output = output / f"protocol-{role}-cosign.log"
-    cosign_output.write_text(completed.stdout, encoding="utf-8")
+    completed = _run_logged(
+        argv,
+        cwd=output,
+        log=cosign_output,
+        timeout_seconds=COSIGN_VERIFY_TIMEOUT_SECONDS,
+    )
     return {
         "version": item["version"],
         "target_commit": item["target_commit"],
@@ -541,21 +550,58 @@ def _verify_protocol(role: str, item: Mapping[str, Any], output: Path) -> dict[s
     }
 
 
-def _run_logged(argv: list[str], *, cwd: Path, log: Path) -> subprocess.CompletedProcess[str]:
-    completed = subprocess.run(
-        argv,
-        cwd=cwd,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-    )
+def _timeout_output(error: subprocess.TimeoutExpired) -> str:
+    output = error.stdout or ""
+    return output.decode("utf-8", errors="replace") if isinstance(output, bytes) else output
+
+
+def _run_logged(
+    argv: list[str],
+    *,
+    cwd: Path,
+    log: Path,
+    timeout_seconds: int,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        completed = subprocess.run(
+            argv,
+            cwd=cwd,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as error:
+        log.write_text(_timeout_output(error), encoding="utf-8")
+        raise InputError(
+            f"command timed out after {timeout_seconds}s: {' '.join(argv)}; see {log}"
+        ) from error
+    except OSError as error:
+        raise InputError(f"cannot run command {' '.join(argv)}: {error}") from error
     log.write_text(completed.stdout, encoding="utf-8")
     if completed.returncode != 0:
         raise InputError(
-            f"installed baseline command failed ({completed.returncode}): {' '.join(argv)}; "
-            f"see {log}"
+            f"command failed ({completed.returncode}): {' '.join(argv)}; " f"see {log}"
         )
     return completed
+
+
+def _run_text(argv: list[str], *, timeout_seconds: int) -> str:
+    try:
+        return subprocess.run(
+            argv,
+            check=True,
+            text=True,
+            capture_output=True,
+            timeout=timeout_seconds,
+        ).stdout.strip()
+    except subprocess.TimeoutExpired as error:
+        raise InputError(f"command timed out after {timeout_seconds}s: {' '.join(argv)}") from error
+    except subprocess.CalledProcessError as error:
+        detail = error.stderr.strip() if error.stderr else str(error)
+        raise InputError(f"command failed: {detail}") from error
+    except OSError as error:
+        raise InputError(f"cannot run command {' '.join(argv)}: {error}") from error
 
 
 def _retained(path: Path) -> dict[str, Any]:
@@ -593,12 +639,14 @@ def _installed_baseline(
         [str(uv), "venv", "--python", str(python_executable), str(venv)],
         cwd=install_root,
         log=install_root / "python-venv.log",
+        timeout_seconds=SETUP_COMMAND_TIMEOUT_SECONDS,
     )
     cell_python = venv / "bin" / "python"
     _run_logged(
         [str(uv), "pip", "install", "--python", str(cell_python), str(python_wheel)],
         cwd=install_root,
         log=install_root / "python-install.log",
+        timeout_seconds=PACKAGE_INSTALL_TIMEOUT_SECONDS,
     )
     python_probe = _run_logged(
         [
@@ -615,6 +663,7 @@ def _installed_baseline(
         ],
         cwd=install_root,
         log=install_root / "python-probe.json",
+        timeout_seconds=PROBE_COMMAND_TIMEOUT_SECONDS,
     )
     python_probe_value = json.loads(python_probe.stdout)
     if (
@@ -627,9 +676,15 @@ def _installed_baseline(
         [str(uv), "pip", "freeze", "--python", str(cell_python)],
         cwd=install_root,
         log=install_root / "python-freeze.txt",
+        timeout_seconds=SETUP_COMMAND_TIMEOUT_SECONDS,
     )
 
-    _run_logged([str(npm), "init", "-y"], cwd=node_root, log=install_root / "npm-init.log")
+    _run_logged(
+        [str(npm), "init", "-y"],
+        cwd=node_root,
+        log=install_root / "npm-init.log",
+        timeout_seconds=PROBE_COMMAND_TIMEOUT_SECONDS,
+    )
     _run_logged(
         [
             str(npm),
@@ -642,6 +697,7 @@ def _installed_baseline(
         ],
         cwd=node_root,
         log=install_root / "npm-install.log",
+        timeout_seconds=PACKAGE_INSTALL_TIMEOUT_SECONDS,
     )
     node_probe = _run_logged(
         [
@@ -660,6 +716,7 @@ def _installed_baseline(
         ],
         cwd=node_root,
         log=install_root / "node-probe.json",
+        timeout_seconds=PROBE_COMMAND_TIMEOUT_SECONDS,
     )
     node_probe_value = json.loads(node_probe.stdout)
     if (
@@ -672,6 +729,7 @@ def _installed_baseline(
         [str(npm), "ls", "--all", "--json"],
         cwd=node_root,
         log=install_root / "npm-tree.json",
+        timeout_seconds=SETUP_COMMAND_TIMEOUT_SECONDS,
     )
 
     retained_paths = [
@@ -693,12 +751,12 @@ def _installed_baseline(
         "typescript": node_probe_value,
         "runtime": {
             "python": python_probe.args[0],
-            "node": subprocess.run(
-                [str(node), "--version"], check=True, text=True, capture_output=True
-            ).stdout.strip(),
-            "npm": subprocess.run(
-                [str(npm), "--version"], check=True, text=True, capture_output=True
-            ).stdout.strip(),
+            "node": _run_text(
+                [str(node), "--version"], timeout_seconds=VERSION_COMMAND_TIMEOUT_SECONDS
+            ),
+            "npm": _run_text(
+                [str(npm), "--version"], timeout_seconds=VERSION_COMMAND_TIMEOUT_SECONDS
+            ),
             "os_release_sha256": _sha(Path("/etc/os-release").read_bytes(), "sha256"),
         },
         "dependency_counts": {
@@ -780,9 +838,20 @@ def verify_available(
     return evidence
 
 
-def _run_json(argv: Iterable[str]) -> Any:
+def _run_json(argv: Iterable[str], *, timeout_seconds: int) -> Any:
+    command = list(argv)
     try:
-        completed = subprocess.run(list(argv), check=True, text=True, capture_output=True)
+        completed = subprocess.run(
+            command,
+            check=True,
+            text=True,
+            capture_output=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise InputError(
+            f"command timed out after {timeout_seconds}s: {' '.join(command)}"
+        ) from error
     except (OSError, subprocess.CalledProcessError) as error:
         detail = (
             error.stderr.strip()
@@ -793,7 +862,7 @@ def _run_json(argv: Iterable[str]) -> Any:
     try:
         return json.loads(completed.stdout)
     except json.JSONDecodeError as error:
-        raise InputError(f"command did not return JSON: {' '.join(argv)}") from error
+        raise InputError(f"command did not return JSON: {' '.join(command)}") from error
 
 
 def monitor_typescript(manifest: Mapping[str, Any]) -> dict[str, Any]:
@@ -819,7 +888,10 @@ def monitor_typescript(manifest: Mapping[str, Any]) -> dict[str, Any]:
     if proposed == forbidden:
         raise InputError("proposed TypeScript candidate equals the forbidden prior release")
 
-    pr = _run_json(("gh", "api", f"repos/{repository}/pulls/{release_pr}"))
+    pr = _run_json(
+        ("gh", "api", f"repos/{repository}/pulls/{release_pr}"),
+        timeout_seconds=GITHUB_API_TIMEOUT_SECONDS,
+    )
     body = str(pr.get("body") or "")
     body_version = re.search(r"@adcp/sdk@([0-9A-Za-z.-]+)", body)
     if not body_version or body_version.group(1) != proposed:
@@ -851,7 +923,8 @@ def monitor_typescript(manifest: Mapping[str, Any]) -> dict[str, Any]:
             "gh",
             "api",
             f"repos/{repository}/actions/runs?head_sha={merge_commit}&event=push&per_page=100",
-        )
+        ),
+        timeout_seconds=GITHUB_API_TIMEOUT_SECONDS,
     )
     workflow_runs = _object(runs, "release workflow runs").get("workflow_runs")
     if not isinstance(workflow_runs, list):

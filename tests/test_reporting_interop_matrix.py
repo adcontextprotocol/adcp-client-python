@@ -4,6 +4,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -102,6 +103,47 @@ def test_baseline_is_explicitly_non_acceptance() -> None:
     assert baseline["version"] == "8.0.0b15"
     assert baseline["protocol"] == "3.2.0-rc.3"
     assert baseline["acceptance"] is False
+
+
+def test_logged_command_timeout_fails_closed_and_retains_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    command = ["uv", "pip", "install", "fixture.whl"]
+    observed: dict[str, object] = {}
+
+    def time_out(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        observed.update(kwargs)
+        raise subprocess.TimeoutExpired(argv, kwargs["timeout"], output=b"partial output\n")
+
+    monkeypatch.setattr(matrix.subprocess, "run", time_out)
+    log = tmp_path / "install.log"
+
+    with pytest.raises(matrix.InputError, match=r"command timed out after 7s: uv pip install"):
+        matrix._run_logged(
+            command,
+            cwd=tmp_path,
+            log=log,
+            timeout_seconds=7,
+        )
+
+    assert observed["timeout"] == 7
+    assert log.read_text(encoding="utf-8") == "partial output\n"
+
+
+def test_json_command_timeout_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    command = ["gh", "api", "repos/example/project/pulls/1"]
+    observed: dict[str, object] = {}
+
+    def time_out(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        observed.update(kwargs)
+        raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+
+    monkeypatch.setattr(matrix.subprocess, "run", time_out)
+
+    with pytest.raises(matrix.InputError, match=r"command timed out after 11s: gh api"):
+        matrix._run_json(command, timeout_seconds=11)
+
+    assert observed["timeout"] == 11
 
 
 def complete_inputs() -> dict:

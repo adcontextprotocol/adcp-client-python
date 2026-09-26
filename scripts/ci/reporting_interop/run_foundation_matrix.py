@@ -68,6 +68,9 @@ TS_CORE_PRIVATE_ENV = {
 NARROW_RUNTIME_ENV_KEYS = frozenset(
     {"PATH", "LANG", "LC_ALL", "TZ", "TMPDIR", "TEMP", "TMP", "SYSTEMROOT", "WINDIR"}
 )
+DATABASE_OPERATION_TIMEOUT_SECONDS = 5
+STORYBOARD_EXECUTION_TIMEOUT_SECONDS = 1_500
+STORYBOARD_SHUTDOWN_TIMEOUT_SECONDS = 30
 
 
 class HarnessError(RuntimeError):
@@ -446,27 +449,70 @@ def _node_database_url(admin_url: str, name: str) -> str:
     return f"postgresql://{credentials}{host}:{port}/{quote(name, safe='')}{suffix}"
 
 
-def _create_database(admin_url: str, name: str) -> dict[str, str]:
-    with psycopg.connect(admin_url, autocommit=True) as connection:
+def _database_connect(dsn: str, *, autocommit: bool):
+    milliseconds = DATABASE_OPERATION_TIMEOUT_SECONDS * 1_000
+    return psycopg.connect(
+        dsn,
+        autocommit=autocommit,
+        connect_timeout=DATABASE_OPERATION_TIMEOUT_SECONDS,
+        options=f"-c statement_timeout={milliseconds} -c lock_timeout={milliseconds}",
+    )
+
+
+def _create_database(admin_url: str, name: str) -> dict[str, Any]:
+    with _database_connect(admin_url, autocommit=True) as connection:
         statement = sql.SQL(
             "CREATE DATABASE {} TEMPLATE template0 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C'"
         ).format(sql.Identifier(name))
         connection.execute(statement)
     url = _database_url(admin_url, name)
-    with psycopg.connect(url) as connection:
+    with _database_connect(url, autocommit=False) as connection:
         row = connection.execute(
-            "SELECT current_database(), pg_encoding_to_char(encoding), datcollate "
+            "SELECT current_database(), pg_encoding_to_char(encoding), datcollate, "
+            "current_setting('data_directory'), pg_postmaster_start_time()::text, "
+            "(SELECT system_identifier::text FROM pg_control_system()) "
             "FROM pg_database WHERE datname=current_database()"
         ).fetchone()
         version = connection.execute("SHOW server_version").fetchone()
-    if row != (name, "UTF8", "C") or version is None:
+    if (
+        row is None
+        or row[:3] != (name, "UTF8", "C")
+        or not isinstance(row[3], str)
+        or not row[3]
+        or not isinstance(row[4], str)
+        or not row[4]
+        or not isinstance(row[5], str)
+        or not row[5]
+        or version is None
+    ):
         raise HarnessError(f"database identity is not UTF8/C: {row}")
-    return {"name": row[0], "encoding": row[1], "collation": row[2], "version": version[0]}
+    return {
+        "name": row[0],
+        "encoding": row[1],
+        "collation": row[2],
+        "version": version[0],
+        "cluster_identity": {
+            "system_identifier": row[5],
+            "data_directory": row[3],
+            "postmaster_started_at": row[4],
+        },
+    }
 
 
 def _drop_database(admin_url: str, name: str) -> None:
-    with psycopg.connect(admin_url, autocommit=True) as connection:
+    with _database_connect(admin_url, autocommit=True) as connection:
         connection.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(name)))
+
+
+def _drop_databases(admin_url: str, created: list[str]) -> None:
+    failures: list[str] = []
+    for name in reversed(created):
+        try:
+            _drop_database(admin_url, name)
+        except Exception as error:  # noqa: BLE001 - attempt every exact owned database
+            failures.append(f"{name}: {error}")
+    if failures:
+        raise HarnessError("database cleanup failed: " + "; ".join(failures))
 
 
 def _wait_port(process: subprocess.Popen[bytes], port: int, timeout: float = 30) -> None:
@@ -953,7 +999,7 @@ def _run_signing_vectors(
         text=True,
         timeout=30,
     ).stdout
-    with psycopg.connect(database_url, autocommit=True) as connection:
+    with _database_connect(database_url, autocommit=True) as connection:
         connection.execute(migration)
     result_path = output / "signing-vectors.json"
     stderr_path = output / "signing-vectors.stderr.log"
@@ -978,7 +1024,7 @@ def _run_signing_vectors(
         raise HarnessError(f"signing vector totals changed: {report.get('totals')}")
     return {
         "status": "passed",
-        "database": database_identity,
+        "database_identity": database_identity,
         "result": report,
         "evidence": [
             _retained(result_path, output),
@@ -1522,7 +1568,7 @@ def _run_python_control(
             "reason": (
                 "Core control passed; the cell's full declared scenario set is not implemented"
             ),
-            "database": database_identity,
+            "database_identity": database_identity,
             "runtime": _runtime_identity(runtime, artifact),
             "result": result,
             "entrypoints": {
@@ -1560,6 +1606,7 @@ def _run_python_control(
                     "Candidate TypeScript Core reconciliation passed; the cell's full declared "
                     "scenario set remains incomplete"
                 ),
+                "database_identity": database_identity,
                 "result": ts_gap,
             }
         )
@@ -1658,7 +1705,7 @@ def _run_ts_core_control(
         "cell_complete": False,
         "acceptance": False,
         "reason": "Core control passed; Managed Delivery and the full scenario set remain open",
-        "database": database_identity,
+        "database_identity": database_identity,
         "seller_process_identity": seller_process_identity,
         "seller_artifact_identity": seller_artifact_identity,
         "python_runtime": _runtime_identity(runtime, artifact),
@@ -1696,12 +1743,90 @@ def _run_ts_core_control(
             if install.role == "candidate"
             else "rc.44 supplemental Core lane only; it is not the blocking pin"
         ),
+        "database_identity": database_identity,
         "seller_process_identity": seller_process_identity,
         "seller_artifact_identity": seller_artifact_identity,
         "result": ts_result,
         "evidence": evidence,
     }
     return [py_cell, ts_cell]
+
+
+def _timeout_text(value: str | bytes | None) -> str:
+    if value is None:
+        return ""
+    return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value
+
+
+def _run_storyboard_process(
+    command: list[str],
+    *,
+    cwd: Path,
+    stdout_path: Path,
+    stderr_path: Path,
+    timeout_seconds: int,
+    shutdown_timeout_seconds: int,
+) -> subprocess.CompletedProcess[str]:
+    process = subprocess.Popen(
+        command,
+        cwd=cwd,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired as timeout_error:
+        stdout = _timeout_text(timeout_error.stdout)
+        stderr = _timeout_text(timeout_error.stderr)
+        cleanup_failures: list[str] = []
+        if process.poll() is None:
+            try:
+                # SIGINT gives the orchestration process a catchable exception,
+                # allowing its own seller/database finally blocks to settle.
+                os.killpg(process.pid, signal.SIGINT)
+            except ProcessLookupError:
+                pass
+            except OSError as error:
+                cleanup_failures.append(f"SIGINT: {error}")
+        try:
+            final_stdout, final_stderr = process.communicate(timeout=shutdown_timeout_seconds)
+            stdout = final_stdout or stdout
+            stderr = final_stderr or stderr
+        except subprocess.TimeoutExpired as term_error:
+            stdout = _timeout_text(term_error.stdout) or stdout
+            stderr = _timeout_text(term_error.stderr) or stderr
+            if process.poll() is None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                except OSError as error:
+                    cleanup_failures.append(f"SIGKILL: {error}")
+            try:
+                final_stdout, final_stderr = process.communicate(timeout=shutdown_timeout_seconds)
+                stdout = final_stdout or stdout
+                stderr = final_stderr or stderr
+            except subprocess.TimeoutExpired as kill_error:
+                stdout = _timeout_text(kill_error.stdout) or stdout
+                stderr = _timeout_text(kill_error.stderr) or stderr
+                cleanup_failures.append("process group did not exit after SIGKILL")
+        stdout_path.write_text(stdout, encoding="utf-8")
+        stderr_path.write_text(stderr, encoding="utf-8")
+        detail = (
+            "; process-group cleanup failed: " + "; ".join(cleanup_failures)
+            if cleanup_failures
+            else ""
+        )
+        raise HarnessError(
+            f"storyboard orchestration timed out after {timeout_seconds}s{detail}; "
+            f"see {stdout_path} and {stderr_path}"
+        ) from timeout_error
+    stdout_path.write_text(stdout, encoding="utf-8")
+    stderr_path.write_text(stderr, encoding="utf-8")
+    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
 
 
 def _run_storyboard_server(
@@ -1720,37 +1845,36 @@ def _run_storyboard_server(
     orchestration_output = output / "orchestration"
     stdout_path = output / "orchestration.stdout.log"
     stderr_path = output / "orchestration.stderr.log"
-    completed = subprocess.run(
-        [
-            sys.executable,
-            "-I",
-            str(STORYBOARD_ORCHESTRATION),
-            "--node-runtime",
-            str(node),
-            "--node-sha256",
-            _sha256(node),
-            "--typescript-install",
-            str(install.root),
-            "--typescript-tarball",
-            str(archive.path),
-            "--typescript-role",
-            install.role,
-            "--inventory-json",
-            str(inventory_path),
-            "--external-pg-admin-dsn",
-            admin_url,
-            "--output",
-            str(orchestration_output),
-            "--execute",
-        ],
+    command = [
+        sys.executable,
+        "-I",
+        str(STORYBOARD_ORCHESTRATION),
+        "--node-runtime",
+        str(node),
+        "--node-sha256",
+        _sha256(node),
+        "--typescript-install",
+        str(install.root),
+        "--typescript-tarball",
+        str(archive.path),
+        "--typescript-role",
+        install.role,
+        "--inventory-json",
+        str(inventory_path),
+        "--external-pg-admin-dsn",
+        admin_url,
+        "--output",
+        str(orchestration_output),
+        "--execute",
+    ]
+    completed = _run_storyboard_process(
+        command,
         cwd=ROOT,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        timeout=1_500,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        timeout_seconds=STORYBOARD_EXECUTION_TIMEOUT_SECONDS,
+        shutdown_timeout_seconds=STORYBOARD_SHUTDOWN_TIMEOUT_SECONDS,
     )
-    stdout_path.write_text(completed.stdout, encoding="utf-8")
-    stderr_path.write_text(completed.stderr, encoding="utf-8")
     result_path = orchestration_output / "results.json"
     if completed.returncode == 2 or not result_path.is_file():
         raise HarnessError(
@@ -1977,7 +2101,7 @@ def _run_candidate_python_previous_ts(
             "core_reporting": "passed",
             "actionable_unsupported": "not_triggered_for_supported_core_contract",
         },
-        "database": database_identity,
+        "database_identity": database_identity,
         "seller_process_identity": {
             "pid": ready["pid"],
             "start_token": ready["process_start_token"],
@@ -2081,7 +2205,7 @@ def _run_previous_python_candidate_ts(
             "released Python rc.3 rejects explicit rc.4 before transport; remaining applicable "
             "cell scenarios still require execution"
         ),
-        "database": database_identity,
+        "database_identity": database_identity,
         "seller_process_identity": {
             "pid": ready["pid"],
             "start_token": ready["process_start_token"],
@@ -2147,10 +2271,28 @@ def _execution_credit_errors(contract: dict[str, Any], observed: dict[str, Any])
         ):
             errors.append("seller_runtime_identity_does_not_match_cell_server")
     database_identity = observed.get("database_identity")
-    if not isinstance(database_identity, dict) or not {
-        "name",
-        "cluster_identity",
-    }.issubset(database_identity):
+    cluster_identity = (
+        database_identity.get("cluster_identity") if isinstance(database_identity, dict) else None
+    )
+    if (
+        not isinstance(database_identity, dict)
+        or not isinstance(database_identity.get("name"), str)
+        or not database_identity["name"]
+        or not isinstance(cluster_identity, dict)
+        or not {
+            "system_identifier",
+            "data_directory",
+            "postmaster_started_at",
+        }.issubset(cluster_identity)
+        or any(
+            not isinstance(cluster_identity.get(field), str) or not cluster_identity[field]
+            for field in (
+                "system_identifier",
+                "data_directory",
+                "postmaster_started_at",
+            )
+        )
+    ):
         errors.append("database_identity_missing")
 
     protocol = contract.get("protocol_contract")
@@ -2524,8 +2666,7 @@ def main() -> None:
                 )
     finally:
         if not args.keep_databases:
-            for database in reversed(created):
-                _drop_database(args.pg_admin_url, database)
+            _drop_databases(args.pg_admin_url, created)
 
     applicability = json.loads(APPLICABILITY.read_text(encoding="utf-8"))
     execution_accounting = _execution_accounting(applicability, cells)

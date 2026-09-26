@@ -24,6 +24,23 @@ sys.modules[SPEC.name] = orchestration
 SPEC.loader.exec_module(orchestration)
 
 
+def load_foundation_runner(monkeypatch: pytest.MonkeyPatch, name: str):
+    fake_psycopg = types.ModuleType("psycopg")
+    fake_psycopg.sql = SimpleNamespace()
+    fake_conninfo = types.ModuleType("psycopg.conninfo")
+    fake_conninfo.conninfo_to_dict = lambda _value: {}
+    fake_conninfo.make_conninfo = lambda **_value: "postgresql://fixture/database"
+    monkeypatch.setitem(sys.modules, "psycopg", fake_psycopg)
+    monkeypatch.setitem(sys.modules, "psycopg.conninfo", fake_conninfo)
+    runner_path = ROOT / "scripts/ci/reporting_interop/run_foundation_matrix.py"
+    spec = importlib.util.spec_from_file_location(name, runner_path)
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = runner
+    spec.loader.exec_module(runner)
+    return runner
+
+
 def inventory() -> dict:
     rows = []
     for storyboard_id, steps, stateful, _server_kind in orchestration.REQUIRED_STORYBOARDS:
@@ -414,6 +431,224 @@ def test_cleanup_failure_is_blocking_even_after_success() -> None:
     )
     assert rows == [{"id": "one", "fully_executed": True}]
     assert errors == ["cleanup: drop failed"]
+
+
+def test_foundation_database_connect_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = load_foundation_runner(monkeypatch, "reporting_matrix_bounded_connect_test")
+    calls: list[tuple[str, dict[str, object]]] = []
+    sentinel = object()
+
+    def connect(dsn: str, **kwargs: object) -> object:
+        calls.append((dsn, kwargs))
+        return sentinel
+
+    monkeypatch.setattr(runner.psycopg, "connect", connect, raising=False)
+
+    assert runner._database_connect("postgresql://fixture/admin", autocommit=True) is sentinel
+    assert calls == [
+        (
+            "postgresql://fixture/admin",
+            {
+                "autocommit": True,
+                "connect_timeout": runner.DATABASE_OPERATION_TIMEOUT_SECONDS,
+                "options": "-c statement_timeout=5000 -c lock_timeout=5000",
+            },
+        )
+    ]
+
+
+def test_foundation_database_identity_matches_execution_credit_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = load_foundation_runner(monkeypatch, "reporting_matrix_database_identity_test")
+    executions: list[object] = []
+
+    class Result:
+        def __init__(self, row: tuple[str, ...] | None = None) -> None:
+            self.row = row
+
+        def fetchone(self) -> tuple[str, ...] | None:
+            return self.row
+
+    class Connection:
+        def __init__(self, rows: list[tuple[str, ...] | None]) -> None:
+            self.rows = iter(rows)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def execute(self, statement: object) -> Result:
+            executions.append(statement)
+            return Result(next(self.rows))
+
+    class Statement:
+        def format(self, *_args: object):
+            return self
+
+    connections = iter(
+        [
+            Connection([None]),
+            Connection(
+                [
+                    (
+                        "cell_database",
+                        "UTF8",
+                        "C",
+                        "/owned/postgres/data",
+                        "2026-09-26 12:34:56+00",
+                        "7491234567890123456",
+                    ),
+                    ("16.14",),
+                ]
+            ),
+        ]
+    )
+    monkeypatch.setattr(
+        runner,
+        "sql",
+        SimpleNamespace(SQL=lambda _value: Statement(), Identifier=lambda value: value),
+    )
+    monkeypatch.setattr(
+        runner,
+        "_database_connect",
+        lambda _dsn, *, autocommit: next(connections),
+    )
+    monkeypatch.setattr(
+        runner,
+        "_database_url",
+        lambda _admin_url, _name: "postgresql://fixture/cell_database",
+    )
+
+    identity = runner._create_database("postgresql://fixture/admin", "cell_database")
+
+    assert identity == {
+        "name": "cell_database",
+        "encoding": "UTF8",
+        "collation": "C",
+        "version": "16.14",
+        "cluster_identity": {
+            "system_identifier": "7491234567890123456",
+            "data_directory": "/owned/postgres/data",
+            "postmaster_started_at": "2026-09-26 12:34:56+00",
+        },
+    }
+    assert len(executions) == 3
+
+    contract = {
+        "id": "q1",
+        "contract_id": "Q1",
+        "server": {"language": "typescript", "package_role": "candidate"},
+    }
+    observed = {
+        "id": "q1",
+        "target_contract_id": "Q1",
+        "execution_attempted": True,
+        "required_cell_credit": True,
+        "seller_process_identity": {
+            "pid": 1,
+            "start_token": "1",
+            "startup_proof_sha256": "a" * 64,
+        },
+        "seller_artifact_identity": {
+            "language": "typescript",
+            "package_role": "candidate",
+            "runtime_identity_sha256": "b" * 64,
+            "artifact_identity_sha256": "c" * 64,
+        },
+        "database_identity": identity,
+    }
+    assert "database_identity_missing" not in runner._execution_credit_errors(contract, observed)
+    observed["required_cell_credit"] = False
+    assert "observed_control_disclaims_required_credit" in runner._execution_credit_errors(
+        contract, observed
+    )
+
+
+def test_foundation_database_cleanup_attempts_every_owned_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = load_foundation_runner(monkeypatch, "reporting_matrix_cleanup_test")
+    attempted: list[str] = []
+
+    def drop(_admin_url: str, name: str) -> None:
+        attempted.append(name)
+        if name != "middle":
+            raise RuntimeError(f"cannot drop {name}")
+
+    monkeypatch.setattr(runner, "_drop_database", drop)
+
+    with pytest.raises(
+        runner.HarnessError,
+        match=r"database cleanup failed: last: cannot drop last; first: cannot drop first",
+    ):
+        runner._drop_databases(
+            "postgresql://fixture/admin",
+            ["first", "middle", "last"],
+        )
+
+    assert attempted == ["last", "middle", "first"]
+
+
+def test_foundation_storyboard_timeout_terminates_owned_process_group(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = load_foundation_runner(monkeypatch, "reporting_matrix_storyboard_timeout_test")
+    popen_kwargs: dict[str, object] = {}
+    timeouts: list[int] = []
+    signals: list[tuple[int, signal.Signals]] = []
+
+    class Process:
+        pid = 4242
+        returncode: int | None = None
+
+        def communicate(self, *, timeout: int):
+            timeouts.append(timeout)
+            if len(timeouts) < 3:
+                raise subprocess.TimeoutExpired(
+                    ["storyboard"],
+                    timeout,
+                    output=b"partial stdout\n",
+                    stderr=b"partial stderr\n",
+                )
+            return ("final stdout\n", "final stderr\n")
+
+        def poll(self) -> int | None:
+            return self.returncode
+
+    process = Process()
+
+    def popen(_command: list[str], **kwargs: object) -> Process:
+        popen_kwargs.update(kwargs)
+        return process
+
+    def killpg(pid: int, sent_signal: signal.Signals) -> None:
+        signals.append((pid, sent_signal))
+        if sent_signal == signal.SIGKILL:
+            process.returncode = -signal.SIGKILL
+
+    monkeypatch.setattr(runner.subprocess, "Popen", popen)
+    monkeypatch.setattr(runner.os, "killpg", killpg)
+    stdout = tmp_path / "storyboard.stdout.log"
+    stderr = tmp_path / "storyboard.stderr.log"
+
+    with pytest.raises(runner.HarnessError, match="storyboard orchestration timed out"):
+        runner._run_storyboard_process(
+            ["storyboard"],
+            cwd=tmp_path,
+            stdout_path=stdout,
+            stderr_path=stderr,
+            timeout_seconds=3,
+            shutdown_timeout_seconds=2,
+        )
+
+    assert popen_kwargs["start_new_session"] is True
+    assert signals == [(4242, signal.SIGINT), (4242, signal.SIGKILL)]
+    assert timeouts == [3, 2, 2]
+    assert stdout.read_text(encoding="utf-8") == "final stdout\n"
+    assert stderr.read_text(encoding="utf-8") == "final stderr\n"
 
 
 def test_storyboard_timeout_retains_partial_output_and_settles_child(
@@ -1576,7 +1811,14 @@ def test_foundation_accounting_rejects_id_only_rc4_and_negative_skew_credit(
             "runtime_identity_sha256": "c" * 64,
             "artifact_identity_sha256": "d" * 64,
         },
-        "database_identity": {"name": "database-1", "cluster_identity": "cluster-1"},
+        "database_identity": {
+            "name": "database-1",
+            "cluster_identity": {
+                "system_identifier": "cluster-1",
+                "data_directory": "/owned/cluster-1",
+                "postmaster_started_at": "2026-09-26 00:00:00+00",
+            },
+        },
         "cell_complete": True,
     }
     rows = runner._execution_accounting(
@@ -1670,7 +1912,14 @@ def test_foundation_accounting_requires_fresh_identity_and_positive_semantics(
             "runtime_identity_sha256": "c" * 64,
             "artifact_identity_sha256": "d" * 64,
         },
-        "database_identity": {"name": "database-1", "cluster_identity": "cluster-1"},
+        "database_identity": {
+            "name": "database-1",
+            "cluster_identity": {
+                "system_identifier": "cluster-1",
+                "data_directory": "/owned/cluster-1",
+                "postmaster_started_at": "2026-09-26 00:00:00+00",
+            },
+        },
         "observed_protocol": "3.2.0-rc.6",
         "polarity": "positive_semantic",
         "cell_complete": True,
