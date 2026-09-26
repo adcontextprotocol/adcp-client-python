@@ -871,13 +871,7 @@ class ReportingProducer:
                 f"this producer declares no source offering for {finality} reporting",
             )
 
-        from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
-
-        constituents = (
-            await self._store.producer_constituents(configuration, obligation)
-            if isinstance(self._store, ReportingProducerProgress)
-            else None
-        )
+        constituents = await self._admitted_source_constituents(configuration, obligation)
 
         checkpoint_store = self._restatement_store() if track_settling else None
         checkpoint = (
@@ -928,7 +922,11 @@ class ReportingProducer:
                 "snapshot" if request.publication_class == "PROVISIONAL_SNAPSHOT" else "official"
             )
         cancel = asyncio.Event()
-        execution = asyncio.create_task(self._execute_source(configuration, request, cancel=cancel))
+        execution = asyncio.create_task(
+            self._execute_source(
+                configuration, request, admitted_constituents=constituents, cancel=cancel
+            )
+        )
         try:
             result = await asyncio.wait_for(
                 asyncio.shield(execution),
@@ -991,8 +989,24 @@ class ReportingProducer:
             acquisition=acquisition,
         )
 
+    async def _admitted_source_constituents(
+        self, configuration: ReportingConfiguration, obligation: ReportingObligationRecord
+    ) -> tuple[ReportingConstituent, ...] | None:
+        from adcp.reporting.ledger.producer_progress import ReportingProducerProgress
+        from adcp.reporting.production.contracts import _SourceAuthorizationRevokedError
+
+        if not isinstance(self._store, ReportingProducerProgress):
+            return None
+        try:
+            return await self._store.producer_constituents(configuration, obligation)
+        except _SourceAuthorizationRevokedError:
+            source_revoked(configuration.account_id)
+
     def _check_source_authorization(
-        self, configuration: ReportingConfiguration, offering_id: str
+        self,
+        configuration: ReportingConfiguration,
+        offering_id: str,
+        admitted_constituents: tuple[ReportingConstituent, ...] | None,
     ) -> None:
         from adcp.reporting.materializer.contracts import failure
         from adcp.reporting.production.contracts import (
@@ -1010,6 +1024,11 @@ class ReportingProducer:
                 if type(binding) is not ReportingProductionSourceBinding:
                     raise failure("BINDING_MISMATCH")
                 binding.check(configuration, self._source.capabilities, offering_id)
+                if (
+                    admitted_constituents is not None
+                    and binding.constituents() != admitted_constituents
+                ):
+                    raise failure("BINDING_MISMATCH")
             except _SourceAuthorizationRevokedError:
                 raise
             except Exception:
@@ -1021,6 +1040,7 @@ class ReportingProducer:
         configuration: ReportingConfiguration,
         offering_id: str,
         *,
+        admitted_constituents: tuple[ReportingConstituent, ...] | None,
         seals: ReportingSealStore | None = None,
     ) -> AsyncIterator[InlineSealPublisher | None]:
         from adcp.reporting.production.contracts import ReportingProductionSource
@@ -1032,7 +1052,7 @@ class ReportingProducer:
         if publication is None:
             raise TypeError("production source publication requires an SDK account lock")
         async with publication(configuration.account_id, seals=seals) as publish_seal:
-            self._check_source_authorization(configuration, offering_id)
+            self._check_source_authorization(configuration, offering_id, admitted_constituents)
             yield publish_seal
 
     async def _execute_source(
@@ -1040,6 +1060,7 @@ class ReportingProducer:
         configuration: ReportingConfiguration,
         request: ReportingSourceSliceRequestV1,
         *,
+        admitted_constituents: tuple[ReportingConstituent, ...] | None,
         cancel: asyncio.Event,
     ) -> ReportingSourceExecutorResult | _InlineStorageFailure:
         from adcp.reporting.inline_storage import InlineStorageError
@@ -1048,12 +1069,17 @@ class ReportingProducer:
             with bind_inline_publication(
                 configuration.account_id,
                 lambda seals: self._source_publication(
-                    configuration, request.offering_id, seals=seals
+                    configuration,
+                    request.offering_id,
+                    admitted_constituents=admitted_constituents,
+                    seals=seals,
                 ),
             ):
                 # Check inside the executing task: scheduling it is not dispatch.
                 # Revocation never cancels a fetch that has already started.
-                self._check_source_authorization(configuration, request.offering_id)
+                self._check_source_authorization(
+                    configuration, request.offering_id, admitted_constituents
+                )
                 return await self._source.execute(request, cancel=cancel)
         except InlineStorageError as error:
             return _InlineStorageFailure(error.code)
@@ -1080,7 +1106,13 @@ class ReportingProducer:
         )
         if configuration is None:
             raise LedgerConflictError("HISTORY_UNAVAILABLE", "source generation is unavailable")
-        async with self._source_publication(configuration, offering_id):
+        # Read immutable admission scope before taking the publication lock. It
+        # is not an authorization grant: the callback is checked again inside
+        # the lock against this exact mapping, including on replay.
+        constituents = await self._admitted_source_constituents(configuration, obligation)
+        async with self._source_publication(
+            configuration, offering_id, admitted_constituents=constituents
+        ):
             yield
 
     def _restatement_store(self) -> RestatementCheckpointStore:

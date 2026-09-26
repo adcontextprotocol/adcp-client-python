@@ -8,7 +8,7 @@ from functools import partial
 import pytest
 
 from adcp.reporting.ledger import InMemoryReportingLedgerStore
-from adcp.reporting.materializer import reference_verifier
+from adcp.reporting.materializer import ReportingWriterError, reference_verifier
 from adcp.reporting.service import ReliableReportingService, ReportingAccountContext
 
 from ._generation_support import END, configuration, isolated_reporting_pool
@@ -115,6 +115,86 @@ async def test_dispatch_rechecks_after_acquisition_reservation(backend, tmp_path
         restored = await source_turn(h.production)
         assert len(restored.revisions_committed) == 1
         assert len(source.dispatched) == 1
+
+
+@pytest.mark.parametrize("backend", ["memory", "postgres"])
+async def test_remapping_after_reservation_prevents_dispatch(backend, tmp_path, monkeypatch):
+    async with harness(backend, tmp_path / "destination.sqlite") as h:
+        await h.production.activate(account_id=h.item.config.account_id)
+        source = h.production.offerings[0].producer._source
+        reserve = h.store.reserve_provisional_acquisition
+
+        async def remap_after_reservation(acquisition):
+            result = await reserve(acquisition)
+            source.bind_generation(h.item.config, product_id="catalog-5820")
+            return result
+
+        monkeypatch.setattr(h.store, "reserve_provisional_acquisition", remap_after_reservation)
+        with pytest.raises(ReportingWriterError, match="BINDING_MISMATCH"):
+            await source_turn(h.production)
+        assert source.dispatched == []
+        await assert_unpublished(h)
+
+        monkeypatch.setattr(h.store, "reserve_provisional_acquisition", reserve)
+        source.bind_generation(h.item.config, product_id="catalog-7391")
+        restored = await source_turn(h.production)
+        assert len(restored.revisions_committed) == 1
+        assert len(source.dispatched) == 1
+
+
+@pytest.mark.parametrize("backend", ["memory", "postgres"])
+@pytest.mark.parametrize("boundary", ["fetch", "seal_lock", "ledger_lock"])
+async def test_remapping_during_publication_refuses_result_and_allows_retry(
+    backend, boundary, tmp_path, monkeypatch
+):
+    async with harness(backend, tmp_path / "destination.sqlite") as h:
+        await h.production.activate(account_id=h.item.config.account_id)
+        source = h.production.offerings[0].producer._source
+        publication = h.store._source_publication
+        publications = 0
+
+        @asynccontextmanager
+        async def remap_under_lock(account_id, **kwargs):
+            nonlocal publications
+            async with publication(account_id, **kwargs) as publish_seal:
+                publications += 1
+                if (boundary, publications) in (("seal_lock", 1), ("ledger_lock", 2)):
+                    source.bind_generation(h.item.config, product_id="catalog-5820")
+                yield publish_seal
+
+        monkeypatch.setattr(h.store, "_source_publication", remap_under_lock)
+        source.release.clear()
+        running = asyncio.create_task(source_turn(h.production))
+        try:
+            await asyncio.wait_for(source.started.wait(), 10)
+            if boundary == "fetch":
+                source.bind_generation(h.item.config, product_id="catalog-5820")
+            assert not running.done()
+        finally:
+            source.release.set()
+        with pytest.raises(ReportingWriterError, match="BINDING_MISMATCH"):
+            await asyncio.wait_for(running, 10)
+        assert not source.cancelled
+        assert len(source.requests) == 1
+        await assert_unpublished(h)
+        request = source.dispatched[0]
+        seal = await source.inline._seals.get(
+            account_id=request.identity.account_id,
+            source_execution_key=request.identity.source_execution_key,
+        )
+        assert (seal is not None) == (boundary == "ledger_lock")
+
+        monkeypatch.setattr(h.store, "_source_publication", publication)
+        source.bind_generation(h.item.config, product_id="catalog-7391")
+        source.rows = reference_rows(2)
+        restored = await source_turn(h.production)
+        assert len(restored.revisions_committed) == 1
+        assert source.dispatched[1].identity == request.identity
+        # A seal made before remapping can replay only after fresh authorization.
+        # Refusal at the seal boundary must acquire the changed rows on retry.
+        expected_rows = 1 if boundary == "ledger_lock" else 2
+        assert (await revisions(h))[0].row_count == expected_rows
+        assert len(source.requests) == expected_rows
 
 
 @pytest.mark.parametrize("backend", ["memory", "postgres"])
