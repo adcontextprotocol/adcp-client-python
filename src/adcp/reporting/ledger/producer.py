@@ -37,6 +37,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, TypeAlias
 
+from adcp.reporting._settlement import cancel_and_settle
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import (
     ReportingCurrencyError,
@@ -832,13 +833,22 @@ class ReportingProducer:
             constituents=constituents,
         )
         cancel = asyncio.Event()
+        execution = asyncio.create_task(self._source.execute(request, cancel=cancel))
         try:
             result = await asyncio.wait_for(
-                self._source.execute(request, cancel=cancel),
+                asyncio.shield(execution),
                 timeout=self._offerings.slice_timeout.total_seconds(),
             )
+        except asyncio.CancelledError:
+            cancel.set()
+            await cancel_and_settle(execution)
+            raise
         except asyncio.TimeoutError:
             cancel.set()
+            # wait_for's own cancellation join can be interrupted by a second
+            # cancellation of this producer (notably on Python 3.10). Retain
+            # the execution explicitly until even synchronous work has settled.
+            await cancel_and_settle(execution)
             turn.slices_failed.append(obligation.reporting_obligation_id)
             self._note_escalation(obligation, turn, now=now)
             return None

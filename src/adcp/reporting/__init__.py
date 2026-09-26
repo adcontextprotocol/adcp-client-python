@@ -92,6 +92,21 @@ if TYPE_CHECKING:
     from adcp.reporting.service import (
         ReportingAdapter as ReportingAdapter,
     )
+    from adcp.reporting.service_lifecycle import (
+        ReliableReportingServiceError as ReliableReportingServiceError,
+    )
+    from adcp.reporting.service_lifecycle import (
+        ReliableReportingShutdownTimeoutError as ReliableReportingShutdownTimeoutError,
+    )
+    from adcp.reporting.service_lifecycle import (
+        ReliableReportingState as ReliableReportingState,
+    )
+    from adcp.reporting.service_lifecycle import (
+        ReliableReportingUnavailableError as ReliableReportingUnavailableError,
+    )
+    from adcp.reporting.service_lifecycle import (
+        ReportingServiceResource as ReportingServiceResource,
+    )
     from adcp.reporting.testing import (
         DeterministicReportingClock as DeterministicReportingClock,
     )
@@ -121,6 +136,14 @@ _LAZY_SUBMODULES = frozenset(
 _LAZY_EXPORTS = {
     "ReliableReportingConfigurationError": ("service", "ReliableReportingConfigurationError"),
     "ReliableReportingService": ("service", "ReliableReportingService"),
+    "ReliableReportingServiceError": ("service_lifecycle", "ReliableReportingServiceError"),
+    "ReliableReportingShutdownTimeoutError": (
+        "service_lifecycle",
+        "ReliableReportingShutdownTimeoutError",
+    ),
+    "ReliableReportingState": ("service_lifecycle", "ReliableReportingState"),
+    "ReliableReportingUnavailableError": ("service_lifecycle", "ReliableReportingUnavailableError"),
+    "ReportingServiceResource": ("service_lifecycle", "ReportingServiceResource"),
     "ReportingAccountContext": ("service", "ReportingAccountContext"),
     "ReportingAdapter": ("service", "ReportingAdapter"),
     "DeterministicReportingClock": ("testing", "DeterministicReportingClock"),
@@ -161,6 +184,11 @@ __all__ = [
     "ReportingTier",
     "ReliableReportingConfigurationError",
     "ReliableReportingService",
+    "ReliableReportingServiceError",
+    "ReliableReportingShutdownTimeoutError",
+    "ReliableReportingState",
+    "ReliableReportingUnavailableError",
+    "ReportingServiceResource",
     "ReportingAccountContext",
     "ReportingAdapter",
     "DeterministicReportingClock",

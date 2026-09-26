@@ -44,6 +44,14 @@ from adcp.reporting.ledger import (
     WorkerTurn,
 )
 from adcp.reporting.ledger.store import LedgerConflictError, decode_cursor
+from adcp.reporting.service_lifecycle import (
+    ReliableReportingServiceError,
+    ReliableReportingShutdownTimeoutError,
+    ReliableReportingState,
+    ReliableReportingUnavailableError,
+    ReportingServiceResource,
+    _ServiceLifecycle,
+)
 from adcp.reporting.source import (
     AuthoritativeOfferingV1,
     ProvisionalSnapshotOfferingV1,
@@ -56,7 +64,11 @@ __all__ = [
     "AdapterRegistration",
     "ReliableReportingConfigurationError",
     "ReliableReportingService",
+    "ReliableReportingServiceError",
+    "ReliableReportingShutdownTimeoutError",
+    "ReliableReportingState",
     "ReliableReportingTurn",
+    "ReliableReportingUnavailableError",
     "ReportingAccountContext",
     "ReportingAdapter",
     "ReportingAdapterRegistry",
@@ -64,6 +76,7 @@ __all__ = [
     "ReportingCallerResolver",
     "ReportingContextResolver",
     "ReportingReceiptHandler",
+    "ReportingServiceResource",
     "ReportingWorkerErrorHandler",
 ]
 
@@ -320,7 +333,13 @@ class ReliableReportingTurn:
 
 
 class ReliableReportingService:
-    """High-level owner of adapters, ledger handlers, workers, and lifecycle."""
+    """High-level owner of adapters, ledger handlers, workers, and lifecycle.
+
+    Admitted calls own a task so transport cancellation cannot interrupt their
+    cleanup. Invoke them outside caller-owned ledger transactions; use the
+    low-level store API when composing an ambient transaction batch. Injected
+    resources are borrowed unless explicitly transferred via ``owned_resources``.
+    """
 
     def __init__(
         self,
@@ -339,6 +358,7 @@ class ReliableReportingService:
         receipt_handler: ReportingReceiptHandler | None = None,
         reconciled_billing: bool = False,
         worker_error_handler: ReportingWorkerErrorHandler | None = None,
+        owned_resources: Sequence[ReportingServiceResource] = (),
     ) -> None:
         effective_clock = clock or (lambda: datetime.now(timezone.utc))
         self.store = store
@@ -361,9 +381,13 @@ class ReliableReportingService:
             ReportingConfigurationGenerationKey, ReportingConfiguration
         ] = {}
         self._initialized = False
-        self._closed = False
-        self._worker_task: asyncio.Task[None] | None = None
+        self._configuration_lock = asyncio.Lock()
         self._turn_lock = asyncio.Lock()
+        self._lifecycle = _ServiceLifecycle(
+            self._initialize,
+            resources=owned_resources,
+            configuration_error=ReliableReportingConfigurationError,
+        )
 
     @classmethod
     def memory(
@@ -406,8 +430,14 @@ class ReliableReportingService:
 
     async def configure(self, configuration: ReportingConfiguration) -> None:
         """Resolve trusted account facts once and freeze this generation's route."""
-        if self._closed:
-            raise RuntimeError("the reporting service is closed")
+
+        async def configure() -> None:
+            async with self._configuration_lock:
+                await self._configure(configuration)
+
+        await self._lifecycle.call(configure, before_start=True)
+
+    async def _configure(self, configuration: ReportingConfiguration) -> None:
         key = configuration.generation_key
         existing = self._bindings.get(key)
         if existing is not None:
@@ -546,42 +576,52 @@ class ReliableReportingService:
             )
 
     async def initialize(self) -> None:
-        if self._closed:
-            raise RuntimeError("the reporting service is closed")
-        if self._initialized:
-            return
+        """Prepare resources once; start/run_worker opens reporting admission."""
+        await self._lifecycle.initialize()
+
+    async def _initialize(self) -> None:
         self.validate()
-        await self.store.create_schema()
-        for configuration in self._pending_configurations.values():
-            await self.store.put_configuration(configuration)
-        self._pending_configurations.clear()
-        self.sources.freeze()
-        self._initialized = True
+        async with self._configuration_lock:
+            await self.store.create_schema()
+            for configuration in self._pending_configurations.values():
+                await self.store.put_configuration(configuration)
+            self._pending_configurations.clear()
+            self.sources.freeze()
+            self._initialized = True
 
     async def start(self) -> None:
         await self.initialize()
-        if self._worker_interval is not None and self._worker_task is None:
-            self._worker_task = asyncio.create_task(
-                self._worker_loop(), name="adcp-reliable-reporting"
-            )
+        await self._lifecycle.activate(
+            self._worker_loop if self._worker_interval is not None else None
+        )
 
-    async def close(self) -> None:
-        self._closed = True
-        if self._worker_task is not None:
-            self._worker_task.cancel()
-            try:
-                await self._worker_task
-            except asyncio.CancelledError:
-                pass
-            self._worker_task = None
-        for component in (
-            self._notification_worker,
-            self._materialization_worker,
-            self._receipt_handler,
-        ):
-            close = getattr(component, "close", None)
-            if close is not None:
-                await _resolve(close())
+    @property
+    def state(self) -> ReliableReportingState:
+        """Current process lifecycle; STOPPING retains all unsettled ownership."""
+        return self._lifecycle.state
+
+    @property
+    def ready(self) -> bool:
+        """Whether this process admits work (not a durable-tier graph proof)."""
+        return self._lifecycle.ready
+
+    @property
+    def failure(self) -> ReliableReportingServiceError | None:
+        """Sanitized first terminal lifecycle failure, if any."""
+        return self._lifecycle.failure
+
+    async def close(self, *, timeout: float | None = None) -> None:
+        """Reject new work, drain admitted operations, then close owned resources.
+
+        A timeout or cancelled waiter leaves the shared shutdown running and the
+        service STOPPING until settlement. Injected components are borrowed;
+        transfer lifetime explicitly with ``owned_resources`` to close them here.
+        """
+        await self._lifecycle.close(timeout=timeout)
+
+    async def wait(self) -> None:
+        """Wait for shutdown and raise a typed failure if supervision failed."""
+        await self._lifecycle.wait()
 
     async def __aenter__(self) -> ReliableReportingService:
         await self.start()
@@ -592,33 +632,40 @@ class ReliableReportingService:
 
     async def _worker_loop(self) -> None:
         assert self._worker_interval is not None
-        while True:
+        while not self._lifecycle.stopping:
             try:
                 await self.run_worker()
             except Exception as error:
-                # A composition bug outside the isolated producer/extension
-                # turns must be visible, but must not silently kill the
-                # lifecycle-owned scheduler forever.
-                await self._report_worker_error("service", error)
-            await asyncio.sleep(self._worker_interval.total_seconds())
+                # Configuration and extension failures are isolated inside a
+                # turn. Only a failure of the scheduler itself stops service.
+                if not self._lifecycle.stopping:
+                    await self._lifecycle.fail("service")
+                    await self._report_worker_error("service", error)
+                return
+            await self._lifecycle.wait_for_stop(self._worker_interval.total_seconds())
 
     async def _report_worker_error(self, component: str, error: BaseException) -> None:
-        logger.error(
-            "Reliable Reporting worker component %s failed",
-            component,
-            exc_info=(type(error), error, error.__traceback__),
-        )
+        # Preserve the adopter callback's detailed identity and original error,
+        # without writing account identifiers or provider bodies to SDK logs.
+        logger.error("Reliable Reporting worker component %s failed", component.split(":", 1)[0])
         if self._worker_error_handler is None:
             return
         try:
             await _resolve(self._worker_error_handler(component, error))
         except Exception:
-            logger.exception("Reliable Reporting worker error handler failed")
+            logger.error("Reliable Reporting worker error handler failed")
 
     async def run_worker(self, *, now: datetime | None = None) -> ReliableReportingTurn:
         """Route one turn across every frozen configuration generation."""
         await self.initialize()
+        await self._lifecycle.activate()
+        return await self._lifecycle.call(lambda: self._run_worker(now=now))
+
+    async def _run_worker(self, *, now: datetime | None) -> ReliableReportingTurn:
         async with self._turn_lock:
+            # A turn admitted before STOPPING may have waited behind another
+            # turn. It must not start fresh work after that turn has drained.
+            self._lifecycle.require_ready()
             turn = ReliableReportingTurn()
             for key, binding in sorted(
                 self._bindings.items(),
@@ -628,6 +675,8 @@ class ReliableReportingService:
                     item[0].delivery_config_version,
                 ),
             ):
+                if self._lifecycle.stopping:
+                    break
                 try:
                     turn.configurations[key] = await binding.producer.run_configuration(
                         binding.configuration, now=now
@@ -645,6 +694,8 @@ class ReliableReportingService:
                 ("notification", self._notification_worker),
             )
             for name, extension in extensions:
+                if self._lifecycle.stopping:
+                    break
                 if extension is not None:
                     try:
                         result = await extension.run_once()
@@ -677,6 +728,9 @@ class ReliableReportingService:
     async def get_reporting_status(
         self, request: Any, context: Any | None = None
     ) -> dict[str, Any]:
+        return await self._lifecycle.call(lambda: self._get_reporting_status(request, context))
+
+    async def _get_reporting_status(self, request: Any, context: Any | None) -> dict[str, Any]:
         caller = await self.caller_for(request, context)
         return await ReportingStatusHandler(
             self.store,
@@ -687,6 +741,9 @@ class ReliableReportingService:
     async def sync_reporting_status(
         self, request: Any, context: Any | None = None
     ) -> dict[str, Any]:
+        return await self._lifecycle.call(lambda: self._sync_reporting_status(request, context))
+
+    async def _sync_reporting_status(self, request: Any, context: Any | None) -> dict[str, Any]:
         if not self._consumer_status_enabled:
             raise ReliableReportingConfigurationError("consumer status ingest is disabled")
         caller = await self.caller_for(request, context)
@@ -699,6 +756,9 @@ class ReliableReportingService:
     async def sync_reporting_receipts(
         self, request: Any, context: Any | None = None
     ) -> dict[str, Any]:
+        return await self._lifecycle.call(lambda: self._sync_reporting_receipts(request, context))
+
+    async def _sync_reporting_receipts(self, request: Any, context: Any | None) -> dict[str, Any]:
         if self._receipt_handler is None:
             raise ReliableReportingConfigurationError("reporting receipt handling is disabled")
         caller = await self.caller_for(request, context)
@@ -709,6 +769,9 @@ class ReliableReportingService:
     async def get_revision_content(
         self, request: Any, context: Any | None = None
     ) -> dict[str, Any]:
+        return await self._lifecycle.call(lambda: self._get_revision_content(request, context))
+
+    async def _get_revision_content(self, request: Any, context: Any | None) -> dict[str, Any]:
         payload = _wire(request)
         revision_id = payload.get("reporting_revision_id")
         if not revision_id:
@@ -765,10 +828,8 @@ class ReliableReportingService:
 
     def capability_block(self) -> dict[str, Any]:
         """Project only components and offerings this service actually installed."""
-        if not self._bindings:
-            raise ReliableReportingConfigurationError(
-                "at least one configured reporting generation is required for capabilities"
-            )
+        if not self.ready or not self._bindings:
+            return {}
         offerings: dict[str, dict[str, Any]] = {}
         for binding in self._bindings.values():
             offering = _thaw(binding.context.capability_offering)
@@ -800,8 +861,11 @@ class ReliableReportingService:
     def inject_capabilities(self, response: Any) -> dict[str, Any]:
         """Merge the truthful reporting block into a base capability response."""
         payload = _wire(response)
+        block = self.capability_block()
+        if not block:
+            return payload
         media_buy = dict(payload.get("media_buy") or {})
-        media_buy["reporting_delivery"] = self.capability_block()
+        media_buy["reporting_delivery"] = block
         payload["media_buy"] = media_buy
         protocols = [str(item) for item in payload.get("supported_protocols") or []]
         if "media_buy" not in protocols:
