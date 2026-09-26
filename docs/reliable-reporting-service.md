@@ -136,9 +136,20 @@ both managed delivery and receipts. Capability output is derived from the
 components actually installed.
 
 Unexpected failures are isolated by configuration or extension, logged, and
-included on `ReliableReportingTurn`. A configured `worker_error_handler` can
-page or emit telemetry; the lifecycle worker continues with its next turn
-instead of silently stopping.
+included on `ReliableReportingTurn.configuration_errors` or `extension_errors`.
+Other configurations and extensions still run, and the background scheduler
+retries on its next turn. These failures do not change service readiness.
+`worker_error_handler(component, error)` receives the original exception and
+the component name: `configuration:{account_id}:{delivery_config_id}@{version}`,
+`materialization`, or `notification`. SDK logs contain only the component kind;
+adopter callbacks control any further diagnostics. A callback failure is logged
+without interrupting the remaining work.
+
+Failures outside an individual configuration or extension turn stop the
+background scheduler, notify the callback as `service` with the original error,
+and withdraw readiness. Startup, scheduler, and resource cleanup failures are
+terminal: after admitted work settles, `wait()` raises a sanitized
+`ReliableReportingServiceError`. Restart those services with a new instance.
 
 `run_worker()` is also available for an external scheduler. Calls within one
 service process are serialized. Ledger writes are convergent, but deployments

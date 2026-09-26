@@ -45,7 +45,6 @@ from adcp.reporting.ledger import (
 )
 from adcp.reporting.ledger.store import LedgerConflictError, decode_cursor
 from adcp.reporting.service_lifecycle import (
-    FailureComponent,
     ReliableReportingServiceError,
     ReliableReportingShutdownTimeoutError,
     ReliableReportingState,
@@ -608,7 +607,7 @@ class ReliableReportingService:
 
     @property
     def failure(self) -> ReliableReportingServiceError | None:
-        """Sanitized first unexpected failure, if any."""
+        """Sanitized first terminal lifecycle failure, if any."""
         return self._lifecycle.failure
 
     async def close(self, *, timeout: float | None = None) -> None:
@@ -634,12 +633,21 @@ class ReliableReportingService:
     async def _worker_loop(self) -> None:
         assert self._worker_interval is not None
         while not self._lifecycle.stopping:
-            await self.run_worker()
+            try:
+                await self.run_worker()
+            except Exception as error:
+                # Configuration and extension failures are isolated inside a
+                # turn. Only a failure of the scheduler itself stops service.
+                if not self._lifecycle.stopping:
+                    await self._lifecycle.fail("service")
+                    await self._report_worker_error("service", error)
+                return
             await self._lifecycle.wait_for_stop(self._worker_interval.total_seconds())
 
-    async def _report_worker_error(self, component: FailureComponent) -> None:
-        error = await self._lifecycle.fail(component)
-        logger.error("Reliable Reporting worker stopped: %s", error)
+    async def _report_worker_error(self, component: str, error: BaseException) -> None:
+        # Preserve the adopter callback's detailed identity and original error,
+        # without writing account identifiers or provider bodies to SDK logs.
+        logger.error("Reliable Reporting worker component %s failed", component.split(":", 1)[0])
         if self._worker_error_handler is None:
             return
         try:
@@ -673,10 +681,14 @@ class ReliableReportingService:
                     turn.configurations[key] = await binding.producer.run_configuration(
                         binding.configuration, now=now
                     )
-                except Exception:
-                    await self._report_worker_error("configuration")
-                    assert self.failure is not None
-                    raise self.failure from None
+                except Exception as error:
+                    turn.configuration_errors[key] = error
+                    await self._report_worker_error(
+                        "configuration:"
+                        f"{key.account_id}:{key.delivery_config_id}@"
+                        f"{key.delivery_config_version}",
+                        error,
+                    )
             extensions = (
                 ("materialization", self._materialization_worker),
                 ("notification", self._notification_worker),
@@ -687,12 +699,10 @@ class ReliableReportingService:
                 if extension is not None:
                     try:
                         result = await extension.run_once()
-                    except Exception:
-                        await self._report_worker_error(
-                            "materialization" if name == "materialization" else "notification"
-                        )
-                        assert self.failure is not None
-                        raise self.failure from None
+                    except Exception as error:
+                        turn.extension_errors[name] = error
+                        await self._report_worker_error(name, error)
+                        continue
                     if result is not None:
                         turn.extension_results.append(result)
             return turn

@@ -15,9 +15,11 @@ from adcp.reporting.service import ReportingContextResolver
 
 
 class AsyncResource(Protocol):
-    async def open(self) -> None: ...
+    async def open(self) -> None:
+        pass
 
-    async def close(self) -> None: ...
+    async def close(self) -> None:
+        pass
 
 
 def compose(

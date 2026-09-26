@@ -17,16 +17,17 @@ from adcp.reporting.fixtures import (
     redacted_snapshot_request,
 )
 from adcp.reporting.ledger import (
+    InMemoryReportingLedgerStore,
     ReportingConfiguration,
     ReportingConfigurationGenerationKey,
     ReportingDefinitionBinding,
     ReportingScheduleSpec,
     ReportingStatusCaller,
 )
+from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.service import (
     ReliableReportingConfigurationError,
     ReliableReportingService,
-    ReliableReportingServiceError,
     ReliableReportingState,
     ReportingAccountContext,
 )
@@ -279,8 +280,82 @@ async def test_startup_rejects_impossible_component_combinations() -> None:
         ).initialize()
 
 
-async def test_background_worker_reports_an_error_and_stops_admitting_work() -> None:
-    errors: list[tuple[str, str]] = []
+async def test_worker_isolates_configuration_and_extension_errors_and_retries() -> None:
+    configuration_error = LedgerConflictError("LEASE_LOST", "secret-store-body")
+    errors: list[tuple[str, BaseException]] = []
+
+    class FlakyLedger(InMemoryReportingLedgerStore):
+        failed = False
+
+        async def find_obligation(self, **kwargs: Any) -> Any:
+            if kwargs["account_id"] == "account-a" and not self.failed:
+                self.failed = True
+                raise configuration_error
+            return await super().find_obligation(**kwargs)
+
+    class FlakyWorker:
+        def __init__(self, name: str) -> None:
+            self.name = name
+            self.error = RuntimeError(f"secret-{name}-body")
+            self.calls = 0
+
+        async def run_once(self) -> str:
+            self.calls += 1
+            if self.calls == 1:
+                raise self.error
+            return self.name
+
+    materializer = FlakyWorker("materialization")
+    notifier = FlakyWorker("notification")
+    service = ReliableReportingService(
+        store=FlakyLedger(),
+        account_context=_account_context,
+        clock=lambda: NOW,
+        materialization_worker=materializer,
+        notification_worker=notifier,
+        notification_attempt_store=object(),
+        worker_error_handler=lambda component, error: errors.append((component, error)),
+    )
+    adapter = ScriptedReportingAdapter(redacted_capabilities(), [_rows(10), _rows(20)])
+    service.sources.register("gam", adapter)
+    failed_config = _configuration(account_id="account-a")
+    healthy_config = _configuration(account_id="account-b")
+    await service.configure(failed_config)
+    await service.configure(healthy_config)
+    try:
+        first = await service.run_worker()
+        assert first.configuration_errors == {failed_config.generation_key: configuration_error}
+        assert set(first.configurations) == {healthy_config.generation_key}
+        assert first.configurations[healthy_config.generation_key].revisions_committed
+        assert first.extension_errors == {
+            "materialization": materializer.error,
+            "notification": notifier.error,
+        }
+        assert first.did_work
+        assert errors == [
+            ("configuration:account-a:gam-delivery@1", configuration_error),
+            ("materialization", materializer.error),
+            ("notification", notifier.error),
+        ]
+        assert service.ready
+        assert service.failure is None
+
+        recovered = await service.run_worker()
+        assert not recovered.configuration_errors
+        assert not recovered.extension_errors
+        assert recovered.configurations[failed_config.generation_key].revisions_committed
+        assert recovered.extension_results == ["materialization", "notification"]
+        assert len(adapter.calls) == 2
+        assert service.ready
+    finally:
+        await service.close()
+    await service.wait()
+
+
+async def test_background_worker_reports_an_error_and_recovers_on_the_next_turn() -> None:
+    errors: list[tuple[str, BaseException]] = []
+    failure = RuntimeError("temporary materializer failure")
+    recovered = asyncio.Event()
 
     class FlakyWorker:
         calls = 0
@@ -288,11 +363,12 @@ async def test_background_worker_reports_an_error_and_stops_admitting_work() -> 
         async def run_once(self) -> str:
             self.calls += 1
             if self.calls == 1:
-                raise RuntimeError("temporary materializer failure")
+                raise failure
+            recovered.set()
             return "recovered"
 
     async def capture(component: str, error: BaseException) -> None:
-        errors.append((component, str(error)))
+        errors.append((component, error))
 
     worker = FlakyWorker()
     service = ReliableReportingService.memory(
@@ -303,15 +379,16 @@ async def test_background_worker_reports_an_error_and_stops_admitting_work() -> 
     )
     await service.start()
     try:
-        with pytest.raises(ReliableReportingServiceError, match="materialization"):
-            await asyncio.wait_for(service.wait(), timeout=1)
+        await asyncio.wait_for(recovered.wait(), timeout=2)
+        assert errors == [("materialization", failure)]
+        assert worker.calls >= 2
+        assert service.ready
+        assert service.failure is None
     finally:
         await service.close()
 
-    assert errors == [("materialization", "reporting service failed (materialization)")]
-    assert worker.calls == 1
-    assert service.state is ReliableReportingState.FAILED
-    assert not service.ready
+    await service.wait()
+    assert service.state is ReliableReportingState.CLOSED
 
 
 async def test_configuration_rejects_unregistered_routes_and_mutated_generations() -> None:

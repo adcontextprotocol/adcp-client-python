@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import threading
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +23,7 @@ from adcp.reporting.service import (
     ReliableReportingServiceError,
     ReliableReportingShutdownTimeoutError,
     ReliableReportingState,
+    ReliableReportingTurn,
     ReliableReportingUnavailableError,
     ReportingServiceResource,
 )
@@ -453,13 +454,17 @@ async def test_installed_receipt_admission_drains_before_owned_cleanup(fail_work
 
     class Materializer:
         async def run_once(self) -> None:
+            return None
+
+    class BrokenScheduler(ReliableReportingService):
+        async def run_worker(self, *, now: datetime | None = None) -> ReliableReportingTurn:
             await entered.wait()
-            raise RuntimeError("secret-worker-body")
+            raise RuntimeError("secret-scheduler-body")
 
     async def close_owned() -> None:
         order.append("resource-closed")
 
-    service = ReliableReportingService.memory(
+    service = BrokenScheduler.memory(
         account_context=_account_context,
         caller_resolver=lambda _request, _context: ReportingStatusCaller("account", "buyer"),
         materialization_worker=Materializer(),
@@ -489,7 +494,7 @@ async def test_installed_receipt_admission_drains_before_owned_cleanup(fail_work
     assert result == {"request_id": "kept"}
     assert order == ["receipt-settled", "resource-closed"]
     if fail_worker:
-        with pytest.raises(ReliableReportingServiceError, match="materialization"):
+        with pytest.raises(ReliableReportingServiceError, match="service"):
             await service.wait()
 
 
@@ -547,12 +552,16 @@ async def test_repeated_rpc_cancellation_cannot_interrupt_transaction_cleanup() 
     assert closed.is_set()
 
 
-async def test_failure_withdraws_installed_capabilities_and_redacts_diagnostics(
+@pytest.mark.parametrize("fail_scheduler", [False, True])
+async def test_only_scheduler_failure_withdraws_capabilities_and_sdk_logs_stay_redacted(
     caplog: Any,
+    fail_scheduler: bool,
 ) -> None:
     entered = asyncio.Event()
     release = asyncio.Event()
-    errors: list[str] = []
+    reported = asyncio.Event()
+    errors: list[tuple[str, BaseException]] = []
+    failure = RuntimeError("secret-provider-body https://destination.test/?token=secret")
 
     class Worker:
         calls = 0
@@ -561,7 +570,15 @@ async def test_failure_withdraws_installed_capabilities_and_redacts_diagnostics(
             self.calls += 1
             entered.set()
             await release.wait()
-            raise RuntimeError("secret-provider-body https://destination.test/?token=secret")
+            raise failure
+
+    class Service(ReliableReportingService):
+        async def run_worker(self, *, now: datetime | None = None) -> ReliableReportingTurn:
+            if fail_scheduler:
+                entered.set()
+                await release.wait()
+                raise failure
+            return await super().run_worker(now=now)
 
     class Handler(ADCPHandler):
         async def get_adcp_capabilities(self, params: Any, context: Any = None) -> Any:
@@ -569,11 +586,12 @@ async def test_failure_withdraws_installed_capabilities_and_redacts_diagnostics(
 
     worker = Worker()
 
-    def report_error(_component: str, error: BaseException) -> None:
-        errors.append(str(error))
+    def report_error(component: str, error: BaseException) -> None:
+        errors.append((component, error))
+        reported.set()
         raise RuntimeError("secret-error-handler-body")
 
-    service = ReliableReportingService.memory(
+    service = Service.memory(
         account_context=_account_context,
         clock=lambda: NOW,
         materialization_worker=worker,
@@ -589,16 +607,29 @@ async def test_failure_withdraws_installed_capabilities_and_redacts_diagnostics(
     await service.start()
     await asyncio.wait_for(entered.wait(), 2)
     assert (await handler.get_adcp_capabilities({}))["media_buy"]["reporting_delivery"]["supported"]
-    release.set()
-    with pytest.raises(ReliableReportingServiceError, match="materialization"):
-        await asyncio.wait_for(service.wait(), 2)
-    assert worker.calls == 1
-    assert not service.ready
-    assert "reporting_delivery" not in (await handler.get_adcp_capabilities({})).get(
-        "media_buy", {}
-    )
+    try:
+        release.set()
+        await asyncio.wait_for(reported.wait(), 2)
+        if fail_scheduler:
+            with pytest.raises(ReliableReportingServiceError, match="service"):
+                await asyncio.wait_for(service.wait(), 2)
+            assert not service.ready
+            assert "secret" not in repr(service.failure)
+            assert "reporting_delivery" not in (await handler.get_adcp_capabilities({})).get(
+                "media_buy", {}
+            )
+        else:
+            assert service.ready
+            assert service.failure is None
+            assert (await handler.get_adcp_capabilities({}))["media_buy"]["reporting_delivery"][
+                "supported"
+            ]
+    finally:
+        release.set()
+        await service.close()
+    assert worker.calls == (0 if fail_scheduler else 1)
     assert "secret" not in caplog.text
-    assert errors == ["reporting service failed (materialization)"]
+    assert errors == [("service" if fail_scheduler else "materialization", failure)]
 
 
 async def test_configure_during_startup_is_serialized_without_losing_an_accepted_generation() -> (

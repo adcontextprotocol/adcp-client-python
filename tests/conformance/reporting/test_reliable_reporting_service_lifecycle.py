@@ -27,6 +27,75 @@ from ._generation_support import isolated_reporting_pool
 
 
 @pytest.mark.parametrize("autocommit", [False, True])
+async def test_configuration_database_error_isolated_and_retried(autocommit: bool) -> None:
+    async with isolated_reporting_pool(autocommit=autocommit) as pool:
+        from psycopg import OperationalError
+
+        async with pool.connection() as connection:
+            row = await (await connection.execute("SELECT clock_timestamp()")).fetchone()
+        now = row[0]
+        boundary = now.replace(minute=0, second=0, microsecond=0)
+        errors: list[tuple[str, BaseException]] = []
+
+        class FlakyLedger(PgReportingLedgerStore):
+            failure: OperationalError | None = None
+
+            async def find_obligation(self, **kwargs: Any) -> Any:
+                if kwargs["account_id"] == "account-a" and self.failure is None:
+                    # Raise a real driver OperationalError inside a transaction;
+                    # its rollback must not prevent the next account from running.
+                    try:
+                        async with pool.connection() as connection:
+                            await connection.execute(
+                                "DO $$ BEGIN RAISE EXCEPTION 'temporary ledger failure' "
+                                "USING ERRCODE = '08006'; END $$"
+                            )
+                    except OperationalError as error:
+                        self.failure = error
+                        raise
+                return await super().find_obligation(**kwargs)
+
+        ledger = FlakyLedger(pool=pool)
+        service = ReliableReportingService(
+            store=ledger,
+            account_context=_account_context,
+            clock=lambda: now,
+            worker_error_handler=lambda component, error: errors.append((component, error)),
+        )
+        adapter = ScriptedReportingAdapter(redacted_capabilities(), [_rows(11), _rows(12)])
+        service.sources.register("gam", adapter)
+        configurations = [
+            replace(
+                _configuration(account_id=account),
+                activated_at=boundary - timedelta(hours=3) + timedelta(minutes=20),
+                deactivated_at=boundary - timedelta(hours=1),
+            )
+            for account in ("account-a", "account-b")
+        ]
+        for configuration in configurations:
+            await service.configure(configuration)
+        failed_key, healthy_key = (item.generation_key for item in configurations)
+        try:
+            first = await service.run_worker()
+            assert isinstance(ledger.failure, OperationalError)
+            assert first.configuration_errors == {failed_key: ledger.failure}
+            assert set(first.configurations) == {healthy_key}
+            assert len(first.configurations[healthy_key].revisions_committed) == 1
+            assert errors == [("configuration:account-a:gam-delivery@1", ledger.failure)]
+            assert service.ready
+            assert service.failure is None
+
+            recovered = await service.run_worker()
+            assert not recovered.configuration_errors
+            assert len(recovered.configurations[failed_key].revisions_committed) == 1
+            assert len(adapter.calls) == 2
+            assert service.ready
+        finally:
+            await service.close()
+        await service.wait()
+
+
+@pytest.mark.parametrize("autocommit", [False, True])
 @pytest.mark.parametrize("cancel_call", [False, True])
 async def test_stop_settles_public_configuration_transaction_before_owned_cleanup(
     autocommit: bool, cancel_call: bool
