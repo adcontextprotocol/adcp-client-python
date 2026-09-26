@@ -453,9 +453,7 @@ class OwnedProcess:
         self._identity_reader = identity_reader
         self._member_reader = member_reader
         self._pidfd_open = pidfd_open or os.pidfd_open
-        self._pidfd_signal = pidfd_signal or (
-            lambda descriptor, sig: signal.pidfd_send_signal(descriptor, sig)
-        )
+        self._pidfd_signal = pidfd_signal or signal.pidfd_send_signal
         self._pidfd_close = pidfd_close
         self.pidfd = pidfd
         self.death_proven = process.poll() is not None
@@ -487,9 +485,7 @@ class OwnedProcess:
 
         assert_process_ownership_supported()
         open_pidfd = pidfd_open or os.pidfd_open
-        send_pidfd = pidfd_signal or (
-            lambda descriptor, sig: signal.pidfd_send_signal(descriptor, sig)
-        )
+        send_pidfd = pidfd_signal or signal.pidfd_send_signal
         gate_read, gate_write = os.pipe()
         inherited = tuple(kwargs.pop("pass_fds", ()))
         launcher = (
@@ -508,7 +504,7 @@ class OwnedProcess:
         ]
         try:
             process = popen(wrapped, pass_fds=(*inherited, gate_read), **kwargs)
-        except BaseException:
+        except (Exception, KeyboardInterrupt, SystemExit):
             os.close(gate_read)
             os.close(gate_write)
             raise
@@ -1107,13 +1103,13 @@ def _run_owned_to_files(
                 f"{stdout_path} and {stderr_path}"
             )
             primary.__cause__ = error
-        except BaseException as error:  # preserve interrupts while guaranteeing owned cleanup
+        except (Exception, KeyboardInterrupt, SystemExit) as error:
             primary = error
         finally:
             if owned is not None:
                 try:
                     owned.stop(shutdown_timeout)
-                except BaseException as error:
+                except (Exception, KeyboardInterrupt, SystemExit) as error:
                     cleanup = error
     if primary is not None and cleanup is not None:
         raise OrchestrationError(
@@ -1233,13 +1229,13 @@ def _run_case(
                     {"node_path": str(inputs.node), "node_sha256": inputs.node_sha256}
                 ),
             }
-        except BaseException as error:
+        except (Exception, KeyboardInterrupt, SystemExit) as error:
             primary = error
         finally:
             if process is not None:
                 try:
                     process.stop(shutdown_timeout)
-                except BaseException as error:
+                except (Exception, KeyboardInterrupt, SystemExit) as error:
                     cleanup = error
     if primary is not None and cleanup is not None:
         raise OrchestrationError(
@@ -1368,18 +1364,18 @@ def execute(inputs: FixedInputs, args: argparse.Namespace) -> dict[str, Any]:
             admin_dsn = local.start()
         owner = DatabaseOwner(admin_dsn, secrets.token_hex(6), args.startup_timeout)
         rows, errors = execute_case_sequence(inputs.cases, run, lambda: None)
-    except BaseException as error:
+    except (Exception, KeyboardInterrupt, SystemExit) as error:
         primary = error
     finally:
         if owner is not None:
             try:
                 owner.close()
-            except BaseException as error:
+            except (Exception, KeyboardInterrupt, SystemExit) as error:
                 cleanup_errors.append(f"database cleanup: {error}")
         if local is not None:
             try:
                 local.close()
-            except BaseException as error:
+            except (Exception, KeyboardInterrupt, SystemExit) as error:
                 cleanup_errors.append(f"PostgreSQL cleanup: {error}")
     if primary is not None and cleanup_errors:
         raise OrchestrationError(

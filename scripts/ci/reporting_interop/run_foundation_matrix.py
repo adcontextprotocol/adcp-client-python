@@ -993,8 +993,7 @@ def _python_webhook_vector_dir(runtime: PythonRuntime) -> Path:
             str(runtime.executable),
             "-I",
             "-c",
-            "import adcp,pathlib; print(pathlib.Path(adcp.__file__).parent / "
-            "'_compliance/3.2.0-rc.4/test-vectors/webhook-signing')",
+            "import adcp,pathlib; print(pathlib.Path(adcp.__file__).parent / '_compliance/3.2.0-rc.4/test-vectors/webhook-signing')",
         ],
         check=True,
         capture_output=True,

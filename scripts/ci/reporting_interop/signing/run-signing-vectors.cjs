@@ -7,7 +7,7 @@ const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const { mintEphemeralEd25519Key } = require('@adcp/sdk/signing/testing');
-const { signRequest, computeContentDigest, requestSigningEncodingForVersion } = require('@adcp/sdk/signing/client');
+const { signRequest, requestSigningEncodingForVersion } = require('@adcp/sdk/signing/client');
 const { verifyWebhookRequest } = require('@adcp/sdk/webhooks');
 const { CLOCK_SKEW_TOLERANCE_SECONDS, MAX_SIGNATURE_WINDOW_SECONDS, ALLOWED_ALGS,
         MANDATORY_COMPONENTS, WEBHOOK_MANDATORY_COMPONENTS } = require('@adcp/sdk/signing/server');
