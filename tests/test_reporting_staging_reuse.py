@@ -162,6 +162,28 @@ async def test_existing_corrupt_payload_is_never_claimed_or_overwritten(
         assert staging._objects[("account-redacted", *pair)] == b"ro"
 
 
+async def test_staging_under_traversable_unreadable_ancestor(tmp_path: Path) -> None:
+    if os.name != "posix" or os.geteuid() == 0:
+        pytest.skip("requires POSIX directory permissions for an unprivileged process")
+    restricted = tmp_path / "restricted"
+    owned = restricted / "app"
+    owned.mkdir(parents=True)
+    restricted.chmod(0o711)
+    values = dict(
+        account_id="account-redacted", source_execution_key="key", ordinal=0, payload=b"rows"
+    )
+    try:
+        root = owned / "staging"
+        staging = FileSystemStagingStore(root)
+        pair = await staging.stage(**values)
+        assert await read_payload(staging, pair) == b"rows"
+        # A fresh instance must also reuse the retained bytes without opening
+        # the unreadable ancestor during its first root durability check.
+        assert await FileSystemStagingStore(root).stage(**values) == pair
+    finally:
+        restricted.chmod(0o700)
+
+
 async def test_legacy_opaque_ref_keeps_its_existing_path_after_new_staging(tmp_path: Path) -> None:
     account = "account-redacted"
     reference = "old-acquisition.0"

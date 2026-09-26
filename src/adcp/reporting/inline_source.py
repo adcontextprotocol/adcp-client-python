@@ -536,8 +536,19 @@ class FileSystemStagingStore:
         with self._root_sync_lock:
             if self._root_synced:
                 return
+            missing: list[Path] = []
+            boundary = self._root
+            while not boundary.is_dir():
+                missing.append(boundary)
+                parent = boundary.parent
+                if parent == boundary:
+                    raise FileNotFoundError("no existing parent for staging root")
+                boundary = parent
             self._root.mkdir(parents=True, exist_ok=True)
-            for path in (self._root, *self._root.parents):
+            # A created directory's name is committed by syncing its parent.
+            # The first pre-existing ancestor is sufficient; ancestors above
+            # it may be traversable but unreadable to the staging process.
+            for path in (*missing, boundary) if missing else (self._root,):
                 descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
                 try:
                     os.fsync(descriptor)
