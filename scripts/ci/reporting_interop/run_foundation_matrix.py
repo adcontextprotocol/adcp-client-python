@@ -1782,15 +1782,16 @@ def _run_storyboard_process(
         stdout = _timeout_text(timeout_error.stdout)
         stderr = _timeout_text(timeout_error.stderr)
         cleanup_failures: list[str] = []
-        if process.poll() is None:
-            try:
-                # SIGINT gives the orchestration process a catchable exception,
-                # allowing its own seller/database finally blocks to settle.
-                os.killpg(process.pid, signal.SIGINT)
-            except ProcessLookupError:
-                pass
-            except OSError as error:
-                cleanup_failures.append(f"SIGINT: {error}")
+        try:
+            # The direct child may already have exited while a descendant keeps
+            # its pipes open, so group cleanup must not depend on process.poll().
+            # SIGINT gives the orchestration process a catchable exception,
+            # allowing its own seller/database finally blocks to settle.
+            os.killpg(process.pid, signal.SIGINT)
+        except ProcessLookupError:
+            pass
+        except OSError as error:
+            cleanup_failures.append(f"SIGINT: {error}")
         try:
             final_stdout, final_stderr = process.communicate(timeout=shutdown_timeout_seconds)
             stdout = final_stdout or stdout
@@ -1798,13 +1799,12 @@ def _run_storyboard_process(
         except subprocess.TimeoutExpired as term_error:
             stdout = _timeout_text(term_error.stdout) or stdout
             stderr = _timeout_text(term_error.stderr) or stderr
-            if process.poll() is None:
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                except OSError as error:
-                    cleanup_failures.append(f"SIGKILL: {error}")
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            except OSError as error:
+                cleanup_failures.append(f"SIGKILL: {error}")
             try:
                 final_stdout, final_stderr = process.communicate(timeout=shutdown_timeout_seconds)
                 stdout = final_stdout or stdout

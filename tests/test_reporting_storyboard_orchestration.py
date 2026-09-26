@@ -592,7 +592,7 @@ def test_foundation_database_cleanup_attempts_every_owned_name(
     assert attempted == ["last", "middle", "first"]
 
 
-def test_foundation_storyboard_timeout_terminates_owned_process_group(
+def test_foundation_storyboard_timeout_kills_sigint_resistant_descendant_group(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     runner = load_foundation_runner(monkeypatch, "reporting_matrix_storyboard_timeout_test")
@@ -626,7 +626,11 @@ def test_foundation_storyboard_timeout_terminates_owned_process_group(
 
     def killpg(pid: int, sent_signal: signal.Signals) -> None:
         signals.append((pid, sent_signal))
-        if sent_signal == signal.SIGKILL:
+        if sent_signal == signal.SIGINT:
+            # The direct child exits, but a resistant descendant keeps the
+            # captured pipes open until the process group is killed.
+            process.returncode = 0
+        else:
             process.returncode = -signal.SIGKILL
 
     monkeypatch.setattr(runner.subprocess, "Popen", popen)
@@ -649,6 +653,53 @@ def test_foundation_storyboard_timeout_terminates_owned_process_group(
     assert timeouts == [3, 2, 2]
     assert stdout.read_text(encoding="utf-8") == "final stdout\n"
     assert stderr.read_text(encoding="utf-8") == "final stderr\n"
+
+
+def test_foundation_storyboard_timeout_signals_group_after_parent_exits(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = load_foundation_runner(monkeypatch, "reporting_matrix_exited_parent_timeout_test")
+    signals: list[tuple[int, signal.Signals]] = []
+
+    class Process:
+        pid = 4343
+        returncode = 1
+        calls = 0
+
+        def communicate(self, *, timeout: int):
+            self.calls += 1
+            if self.calls == 1:
+                raise subprocess.TimeoutExpired(
+                    ["storyboard"],
+                    timeout,
+                    output=b"parent exited\n",
+                    stderr=b"descendant retained pipe\n",
+                )
+            return ("settled stdout\n", "settled stderr\n")
+
+        def poll(self) -> int:
+            return self.returncode
+
+    process = Process()
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *_args, **_kwargs: process)
+    monkeypatch.setattr(
+        runner.os,
+        "killpg",
+        lambda pid, sent_signal: signals.append((pid, sent_signal)),
+    )
+
+    with pytest.raises(runner.HarnessError, match="storyboard orchestration timed out"):
+        runner._run_storyboard_process(
+            ["storyboard"],
+            cwd=tmp_path,
+            stdout_path=tmp_path / "stdout.log",
+            stderr_path=tmp_path / "stderr.log",
+            timeout_seconds=3,
+            shutdown_timeout_seconds=2,
+        )
+
+    assert signals == [(4343, signal.SIGINT)]
+    assert process.calls == 2
 
 
 def test_storyboard_timeout_retains_partial_output_and_settles_child(
