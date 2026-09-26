@@ -881,9 +881,18 @@ def test_ts_version_and_abort_helpers_fail_closed_without_sdk_execution() -> Non
         }}), /first failure/);
         assert.equal(boundary.signal.aborted, true);
         boundary.dispose();
+        process.stdout.write('ts-version-abort-helpers-complete\\n');
       }})().catch(error => {{ console.error(error); process.exitCode = 1; }});
     """
-    subprocess.run(["node", "-e", script], check=True, cwd=ROOT)
+    completed = subprocess.run(
+        ["node", "-e", script],
+        check=True,
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert completed.stdout.splitlines() == ["ts-version-abort-helpers-complete"]
     assert "urllib.request.urlopen" in receiver_server
     assert '"normative_019_match"' in receiver_client
     assert '"blocking_acceptance"' in receiver_client
