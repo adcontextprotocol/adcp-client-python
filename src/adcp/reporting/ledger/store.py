@@ -773,6 +773,12 @@ class InMemoryReportingLedgerStore:
         async with self._mutation():
             yield self
 
+    @asynccontextmanager
+    async def _source_publication(self, account_id: str) -> AsyncIterator[None]:
+        # The memory mutation lock serializes all accounts, including seals.
+        async with self._mutation():
+            yield
+
     def _record_notification(self, event: ReportingDomainEvent) -> None:
         if self._notification_state is not None:
             self._notification_state.enqueue(event)

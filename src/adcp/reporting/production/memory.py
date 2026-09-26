@@ -160,24 +160,23 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
         return dict(json.loads(raw)) if raw is not None else None
 
     def _configuration_lease_eligible(self, configuration: ReportingConfiguration) -> bool:
-        if configuration.account_id not in self._production_accounts:
-            return False
-        producer_key = self._production_generations.get(configuration.generation_key)
-        binding = self._production_source_bindings.get(configuration.generation_key)
-        if producer_key not in self._owner()._producer_keys() or binding is None:
-            return False
         try:
-            self._owner()._check_source_binding(configuration, producer_key, binding.document())
+            self._check_source_generation(configuration)
         except Exception:
             return False
         return True
 
     def _check_source_generation(self, configuration: ReportingConfiguration) -> None:
+        producer_key = self._production_generations.get(configuration.generation_key)
+        binding = self._production_source_bindings.get(configuration.generation_key)
         if (
-            not self._configuration_lease_eligible(configuration)
+            configuration.account_id not in self._production_accounts
+            or producer_key not in self._owner()._producer_keys()
+            or binding is None
             or self._configurations.get(configuration.generation_key) != configuration
         ):
             raise LedgerConflictError("HISTORY_UNAVAILABLE", "producer generation is unavailable")
+        self._owner()._check_source_binding(configuration, producer_key, binding.document())
 
     def _wake_obligation(self, account_id: str, obligation_id: str) -> None:
         super()._wake_obligation(account_id, obligation_id)

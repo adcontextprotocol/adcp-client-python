@@ -226,6 +226,14 @@ class PgReportingLedgerStore:
             finally:
                 _BOUND_CONNECTION.reset(token)
 
+    @asynccontextmanager
+    async def _source_publication(self, account_id: str) -> AsyncIterator[None]:
+        # Keep the live authorization check and ledger commit on the same
+        # account transaction, including commits replayed after a restart.
+        async with self.transaction(), self._connection() as connection:
+            await self._lock_account(connection, account_id)
+            yield
+
     async def create_schema(self) -> None:
         """Create or upgrade the ledger atomically, serializing concurrent boots.
 

@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from adcp.reporting._source_authorization import require_account_work, source_revoked
 from adcp.reporting._timestamp import aware_timestamp
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger.delivery_models import ReportingDestinationBinding
@@ -22,6 +23,7 @@ from adcp.reporting.materializer.verification import _same_definition
 from adcp.reporting.production.contracts import (
     ReportingProductionSource,
     ReportingProductionSourceBinding,
+    _SourceAuthorizationRevokedError,
 )
 from adcp.reporting.source import (
     AuthoritativeOfferingV1,
@@ -229,15 +231,20 @@ class ReportingProductionOffering:
     def source_binding(
         self, configuration: ReportingConfiguration
     ) -> ReportingProductionSourceBinding:
+        require_account_work(configuration.account_id)
         try:
             capabilities = self.check_source(effective=True)
             source = self.producer._source
             assert isinstance(source, ReportingProductionSource)
             binding = source.configuration_binding(configuration)
+            if binding is None:
+                source_revoked(configuration.account_id)
             if type(binding) is not ReportingProductionSourceBinding:
                 raise failure("BINDING_MISMATCH")
             binding.check(configuration, capabilities, self.source_offering_id)
             return binding
+        except _SourceAuthorizationRevokedError:
+            raise
         except Exception:
             raise failure("BINDING_MISMATCH") from None
 

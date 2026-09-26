@@ -12,7 +12,12 @@ from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger.delivery_models import ReportingDestinationBinding
 from adcp.reporting.ledger.models import ReportingConfiguration, ReportingConfigurationGenerationKey
 from adcp.reporting.ledger.store import _config_payload
-from adcp.reporting.materializer.contracts import ReportingWriterCapability, failure
+from adcp.reporting.materializer.contracts import (
+    ReportingWriterCapability,
+    ReportingWriterError,
+    ReportingWriterFailure,
+    failure,
+)
 from adcp.reporting.production.source_registry import ReportingProductionSourceContext
 from adcp.reporting.source import (
     MediaBuyConstituentV1,
@@ -222,15 +227,36 @@ class ReportingProductionSourceBinding:
         )
 
 
+class _SourceAuthorizationRevokedError(ReportingWriterError):
+    """Stop this account's source work for the current scheduling turn."""
+
+    def __init__(self) -> None:
+        super().__init__(ReportingWriterFailure("BINDING_MISMATCH"))
+
+
 @runtime_checkable
 class ReportingProductionSource(ReportingSourceExecutor, Protocol):
     """A source with an authenticated generation mapping available before I/O.
 
     Discovery may precede any account binding. Admission and every source turn
     require the applicable binding, obtained from the source's trusted account
-    configuration. Returning ``None`` withdraws authorization for new work.
+    configuration. The SDK calls ``configuration_binding`` immediately before
+    dispatch and again under the account lock before sealing or publishing the
+    result, including replay after a restart. Returning ``None`` discards that
+    result without a success checkpoint and stops this account's remaining
+    work for the turn. Restoring the binding permits work on the next turn.
+
+    An in-flight fetch is allowed to finish: revocation takes effect at the next
+    dispatch or publish. Adopters own any caching or latency inside their
+    callback; the SDK does not retain an authorization grant.
     """
 
     def configuration_binding(
         self, configuration: ReportingConfiguration
-    ) -> ReportingProductionSourceBinding | None: ...
+    ) -> ReportingProductionSourceBinding | None:
+        """Return the current trusted binding, or ``None`` to deny source work.
+
+        Adopters own callback caching and latency. In-flight fetches finish;
+        revocation takes effect at the next dispatch or publish.
+        """
+        raise NotImplementedError

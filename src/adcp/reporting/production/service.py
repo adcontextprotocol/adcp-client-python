@@ -12,6 +12,7 @@ from dataclasses import dataclass, replace
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
+from adcp.reporting._source_authorization import source_turn
 from adcp.reporting.ledger.delivery_models import ReportingDestinationBinding
 from adcp.reporting.ledger.models import ReportingConfiguration
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
@@ -641,13 +642,14 @@ class ReportingProductionSupport:
             while not self._stop.is_set():
                 # Each producer leases a generation through the reviewed fair
                 # indexed acquisition path; no account enumeration is required.
-                for producer in dict.fromkeys(o.producer for o in self.offerings):
-                    boundary = "producer"
-                    token = self._producer_turn.set(producer)
-                    try:
-                        await producer.run_worker()
-                    finally:
-                        self._producer_turn.reset(token)
+                with source_turn():
+                    for producer in dict.fromkeys(o.producer for o in self.offerings):
+                        boundary = "producer"
+                        token = self._producer_turn.set(producer)
+                        try:
+                            await producer.run_worker()
+                        finally:
+                            self._producer_turn.reset(token)
                 boundary = "materializer"
                 await self.materializer.run_once()
                 boundary = "projection"

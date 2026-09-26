@@ -32,12 +32,19 @@ import asyncio
 import hashlib
 import inspect
 import logging
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 from adcp.reporting._settlement import cancel_and_settle
+from adcp.reporting._source_authorization import (
+    bind_inline_publication,
+    require_account_work,
+    source_revoked,
+    source_turn,
+)
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import (
     ReportingCurrencyError,
@@ -354,6 +361,12 @@ class ReportingProducer:
         Returns immediately with an empty turn when nothing is leasable, so a
         caller can back off rather than spin.
         """
+        with source_turn():
+            return await self._run_leased_turn()
+
+    async def _run_leased_turn(self) -> WorkerTurn:
+        from adcp.reporting.production.contracts import _SourceAuthorizationRevokedError
+
         now = self._clock()
         leased = await self._store.lease_period_close(
             worker_id=self._worker_id, now=now, lease_seconds=self._lease_seconds
@@ -375,8 +388,13 @@ class ReportingProducer:
             )
             if configuration is None:
                 return turn
+            require_account_work(configuration.account_id)
             await self._close_elapsed_periods(configuration, turn, now=now)
             await self._acquire_pending(configuration, turn, now=now)
+        except _SourceAuthorizationRevokedError:
+            # Keep pending acquisitions retryable. Authorization may be
+            # restored on the next turn; it is not a history failure.
+            return turn
         finally:
             await self._store.release_period_close(leased, worker_id=self._worker_id)
         return turn
@@ -397,10 +415,17 @@ class ReportingProducer:
         Most adopters should continue using :meth:`run_worker`, whose store
         lease chooses a configuration automatically.
         """
+        from adcp.reporting.production.contracts import _SourceAuthorizationRevokedError
+
         boundary = now or self._clock()
         turn = WorkerTurn()
-        await self._close_elapsed_periods(configuration, turn, now=boundary)
-        await self._acquire_pending(configuration, turn, now=boundary)
+        with source_turn():
+            try:
+                require_account_work(configuration.account_id)
+                await self._close_elapsed_periods(configuration, turn, now=boundary)
+                await self._acquire_pending(configuration, turn, now=boundary)
+            except _SourceAuthorizationRevokedError:
+                return turn
         return turn
 
     # -- step 1: obligations before reports ------------------------------
@@ -895,7 +920,7 @@ class ReportingProducer:
                 "snapshot" if request.publication_class == "PROVISIONAL_SNAPSHOT" else "official"
             )
         cancel = asyncio.Event()
-        execution = asyncio.create_task(self._source.execute(request, cancel=cancel))
+        execution = asyncio.create_task(self._execute_source(configuration, request, cancel=cancel))
         try:
             result = await asyncio.wait_for(
                 asyncio.shield(execution),
@@ -950,6 +975,87 @@ class ReportingProducer:
             turn=turn,
             acquisition=acquisition,
         )
+
+    def _check_source_authorization(
+        self, configuration: ReportingConfiguration, offering_id: str
+    ) -> None:
+        from adcp.reporting.materializer.contracts import failure
+        from adcp.reporting.production.contracts import (
+            ReportingProductionSource,
+            ReportingProductionSourceBinding,
+            _SourceAuthorizationRevokedError,
+        )
+
+        require_account_work(configuration.account_id)
+        if isinstance(self._source, ReportingProductionSource):
+            try:
+                binding = self._source.configuration_binding(configuration)
+                if binding is None:
+                    source_revoked(configuration.account_id)
+                if type(binding) is not ReportingProductionSourceBinding:
+                    raise failure("BINDING_MISMATCH")
+                binding.check(configuration, self._source.capabilities, offering_id)
+            except _SourceAuthorizationRevokedError:
+                raise
+            except Exception:
+                raise failure("BINDING_MISMATCH") from None
+
+    @asynccontextmanager
+    async def _source_publication(
+        self, configuration: ReportingConfiguration, offering_id: str
+    ) -> AsyncIterator[None]:
+        from adcp.reporting.production.contracts import ReportingProductionSource
+
+        if not isinstance(self._source, ReportingProductionSource):
+            yield
+            return
+        publication = getattr(self._store, "_source_publication", None)
+        if publication is None:
+            raise TypeError("production source publication requires an SDK account lock")
+        async with publication(configuration.account_id):
+            self._check_source_authorization(configuration, offering_id)
+            yield
+
+    async def _execute_source(
+        self,
+        configuration: ReportingConfiguration,
+        request: ReportingSourceSliceRequestV1,
+        *,
+        cancel: asyncio.Event,
+    ) -> ReportingSourceExecutorResult:
+        with bind_inline_publication(
+            configuration.account_id,
+            lambda: self._source_publication(configuration, request.offering_id),
+        ):
+            # Check inside the executing task: scheduling it is not dispatch.
+            # Revocation never cancels a fetch that has already started.
+            self._check_source_authorization(configuration, request.offering_id)
+            return await self._source.execute(request, cancel=cancel)
+
+    @asynccontextmanager
+    async def _revision_publication(
+        self, obligation: ReportingObligationRecord, offering_id: str
+    ) -> AsyncIterator[None]:
+        from adcp.reporting.production.contracts import ReportingProductionSource
+
+        if not isinstance(self._source, ReportingProductionSource):
+            yield
+            return
+        configuration = next(
+            (
+                candidate
+                for candidate in await self._store.list_configurations(
+                    account_id=obligation.account_id,
+                    delivery_config_ids=[obligation.delivery_config_id],
+                )
+                if candidate.generation_key == obligation.generation_key
+            ),
+            None,
+        )
+        if configuration is None:
+            raise LedgerConflictError("HISTORY_UNAVAILABLE", "source generation is unavailable")
+        async with self._source_publication(configuration, offering_id):
+            yield
 
     def _restatement_store(self) -> RestatementCheckpointStore:
         explicit = all(
@@ -1142,36 +1248,37 @@ class ReportingProducer:
             source_publication_id=manifest.publication_id,
             source_manifest_sha256=manifest.content_fingerprint.split(":", 1)[-1],
         )
-        if self._revision_verifier is not None:
-            from adcp.reporting.materializer.publication import verified_publication
+        async with self._revision_publication(obligation, manifest.offering_id):
+            if self._revision_verifier is not None:
+                from adcp.reporting.materializer.publication import verified_publication
 
-            revision = verified_publication(self._revision_verifier, obligation, revision, rows)
-        if acquisition is None:
-            committed = await self._store.commit_revision(revision, rows)
-        else:
-            # ``now`` is the publication anchor, sampled after row acquisition.
-            # The bounds check above already rejects acquired_at after now.
-            checked_at = _utc(now)
-            boundary = manifest.finality_evidence.provisional_until or (
-                _utc(obligation.period.end) + acquisition.policy.window
-            )
-            next_due = (
-                min(checked_at + acquisition.policy.cadence, _utc(boundary))
-                if finality == "snapshot" and checked_at < _utc(boundary)
-                else None
-            )
-            committed = await self._observation_store().commit_provisional_observation(
-                ProvisionalObservation(
-                    acquisition,
-                    revision_id,
-                    checked_at,
-                    _utc(boundary),
-                    next_due,
-                    manifest.model_dump_json(),
-                ),
-                revision,
-                rows,
-            )
+                revision = verified_publication(self._revision_verifier, obligation, revision, rows)
+            if acquisition is None:
+                committed = await self._store.commit_revision(revision, rows)
+            else:
+                # ``now`` is the publication anchor, sampled after row acquisition.
+                # The bounds check above already rejects acquired_at after now.
+                checked_at = _utc(now)
+                boundary = manifest.finality_evidence.provisional_until or (
+                    _utc(obligation.period.end) + acquisition.policy.window
+                )
+                next_due = (
+                    min(checked_at + acquisition.policy.cadence, _utc(boundary))
+                    if finality == "snapshot" and checked_at < _utc(boundary)
+                    else None
+                )
+                committed = await self._observation_store().commit_provisional_observation(
+                    ProvisionalObservation(
+                        acquisition,
+                        revision_id,
+                        checked_at,
+                        _utc(boundary),
+                        next_due,
+                        manifest.model_dump_json(),
+                    ),
+                    revision,
+                    rows,
+                )
         turn.revisions_committed.append(committed.reporting_revision_id)
         return committed
 

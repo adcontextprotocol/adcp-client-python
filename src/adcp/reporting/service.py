@@ -22,6 +22,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel
 
+from adcp.reporting._source_authorization import source_turn
 from adcp.reporting.inline_source import (
     InlineFetchResult,
     InlineReportingSource,
@@ -743,28 +744,29 @@ class ReliableReportingService:
             # turn. It must not start fresh work after that turn has drained.
             self._lifecycle.require_ready()
             turn = ReliableReportingTurn()
-            for key, binding in sorted(
-                self._bindings.items(),
-                key=lambda item: (
-                    item[0].account_id,
-                    item[0].delivery_config_id,
-                    item[0].delivery_config_version,
-                ),
-            ):
-                if self._lifecycle.stopping:
-                    break
-                try:
-                    turn.configurations[key] = await binding.producer.run_configuration(
-                        binding.configuration, now=now
-                    )
-                except Exception as error:
-                    turn.configuration_errors[key] = error
-                    await self._report_worker_error(
-                        "configuration:"
-                        f"{key.account_id}:{key.delivery_config_id}@"
-                        f"{key.delivery_config_version}",
-                        error,
-                    )
+            with source_turn():
+                for key, binding in sorted(
+                    self._bindings.items(),
+                    key=lambda item: (
+                        item[0].account_id,
+                        item[0].delivery_config_id,
+                        item[0].delivery_config_version,
+                    ),
+                ):
+                    if self._lifecycle.stopping:
+                        break
+                    try:
+                        turn.configurations[key] = await binding.producer.run_configuration(
+                            binding.configuration, now=now
+                        )
+                    except Exception as error:
+                        turn.configuration_errors[key] = error
+                        await self._report_worker_error(
+                            "configuration:"
+                            f"{key.account_id}:{key.delivery_config_id}@"
+                            f"{key.delivery_config_version}",
+                            error,
+                        )
             extensions = (
                 ("materialization", self._materialization_worker),
                 ("notification", self._notification_worker),

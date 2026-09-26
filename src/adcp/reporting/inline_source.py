@@ -74,6 +74,7 @@ from typing import Any, Literal, Protocol, TypeAlias, runtime_checkable
 from pydantic import TypeAdapter, ValidationError
 
 from adcp.reporting._settlement import settle_task
+from adcp.reporting._source_authorization import inline_publication
 from adcp.reporting.currency import (
     ReportingCurrencyError,
     validate_currency,
@@ -893,36 +894,37 @@ class InlineReportingSource:
             row_count=len(result.rows),
         )
 
-        manifest = self._seal_manifest(
-            request,
-            observed_at=observed_at,
-            data_through=data_through,
-            staged=staged,
-            constituents=constituents,
-            cells=cells,
-            coverage_status=coverage_status,
-            explicit_zero=explicit_zero,
-            row_count=len(result.rows),
-            control_totals=control_totals,
-            warnings=warnings,
-            provisional_until=result.provisional_until,
-        )
+        async with inline_publication(request.identity.account_id):
+            manifest = self._seal_manifest(
+                request,
+                observed_at=observed_at,
+                data_through=data_through,
+                staged=staged,
+                constituents=constituents,
+                cells=cells,
+                coverage_status=coverage_status,
+                explicit_zero=explicit_zero,
+                row_count=len(result.rows),
+                control_totals=control_totals,
+                warnings=warnings,
+                provisional_until=result.provisional_until,
+            )
 
-        manifest_bytes = encode_source_batch_manifest_v1(manifest)
-        reference = source_batch_manifest_reference_v1(
-            f"{self._staged_commit_prefix}.{manifest.publication_id}", manifest_bytes
-        )
-        winner = await self._seals.put(
-            account_id=request.identity.account_id,
-            source_execution_key=request.identity.source_execution_key,
-            sealed=SealedSlice(reference=reference, manifest_bytes=manifest_bytes),
-        )
-        # A concurrent worker may have sealed first; its bytes are the
-        # publication, and returning ours instead would make the same key
-        # resolve two ways.
-        return ReportingSourceExecutorResult.completed(
-            request=request, manifest=winner.reference, manifest_bytes=winner.manifest_bytes
-        )
+            manifest_bytes = encode_source_batch_manifest_v1(manifest)
+            reference = source_batch_manifest_reference_v1(
+                f"{self._staged_commit_prefix}.{manifest.publication_id}", manifest_bytes
+            )
+            winner = await self._seals.put(
+                account_id=request.identity.account_id,
+                source_execution_key=request.identity.source_execution_key,
+                sealed=SealedSlice(reference=reference, manifest_bytes=manifest_bytes),
+            )
+            # A concurrent worker may have sealed first; its bytes are the
+            # publication, and returning ours instead would make the same key
+            # resolve two ways.
+            return ReportingSourceExecutorResult.completed(
+                request=request, manifest=winner.reference, manifest_bytes=winner.manifest_bytes
+            )
 
     def _derive_statuses(
         self,
