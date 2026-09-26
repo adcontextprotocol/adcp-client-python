@@ -63,6 +63,7 @@ import hashlib
 import json
 import os
 import tempfile
+import threading
 from collections.abc import Awaitable, Callable, Collection, Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
@@ -474,6 +475,8 @@ class FileSystemStagingStore:
 
     def __init__(self, root: Path | str) -> None:
         self._root = Path(root)
+        self._root_sync_lock = threading.Lock()
+        self._root_synced = False
 
     def _path(self, account_id: str, object_ref: str, object_generation: str) -> Path:
         # The account is part of the path so an authorization bug cannot become
@@ -494,17 +497,17 @@ class FileSystemStagingStore:
         await settle_task(asyncio.create_task(asyncio.to_thread(self._write, target, payload)))
         return object_ref, digest
 
-    @classmethod
-    def _write(cls, target: Path, payload: bytes) -> None:
+    def _write(self, target: Path, payload: bytes) -> None:
+        self._ensure_root_durable()
         try:
-            cls._verify_existing(target, payload)
+            self._verify_existing(target, payload)
         except FileNotFoundError:
             pass
         else:
             # Another writer may have linked the complete file but not yet
             # synced its name/ancestors. A reuse must complete that durability
             # barrier itself before returning a successful pair.
-            cls._sync_directory(target.parent)
+            self._sync_directory(target.parent)
             return
         target.parent.mkdir(parents=True, exist_ok=True)
         handle, temporary = tempfile.mkstemp(dir=str(target.parent))
@@ -514,9 +517,9 @@ class FileSystemStagingStore:
                 stream.flush()
                 os.fsync(stream.fileno())
             try:
-                cls._publish_file(Path(temporary), target)
+                self._publish_file(Path(temporary), target)
             except FileExistsError:
-                cls._verify_existing(target, payload)
+                self._verify_existing(target, payload)
         finally:
             Path(temporary).unlink(missing_ok=True)
         # Sync after unlink: both the final link and removal of our temporary
@@ -524,7 +527,23 @@ class FileSystemStagingStore:
         # (or a concurrent publisher) may have just created those directories.
         # If any sync fails, the complete file is retained for verified retry,
         # but no successful pair escapes to the source's seal operation.
-        cls._sync_directory(target.parent)
+        self._sync_directory(target.parent)
+
+    def _ensure_root_durable(self) -> None:
+        # The root itself may be created on the first stage. Commit its name
+        # and any newly created parent names once; subsequent stages only need
+        # to sync the directories inside this store's root.
+        with self._root_sync_lock:
+            if self._root_synced:
+                return
+            self._root.mkdir(parents=True, exist_ok=True)
+            for path in (self._root, *self._root.parents):
+                descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+                try:
+                    os.fsync(descriptor)
+                finally:
+                    os.close(descriptor)
+            self._root_synced = True
 
     @staticmethod
     def _verify_existing(target: Path, payload: bytes) -> None:
@@ -537,14 +556,17 @@ class FileSystemStagingStore:
     def _publish_file(temporary: Path, target: Path) -> None:
         os.link(temporary, target)
 
-    @staticmethod
-    def _sync_directory(directory: Path) -> None:
-        for path in (directory, *directory.parents):
+    def _sync_directory(self, directory: Path) -> None:
+        path = directory
+        while True:
             descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
             try:
                 os.fsync(descriptor)
             finally:
                 os.close(descriptor)
+            if path == self._root:
+                break
+            path = path.parent
 
     async def read(
         self,

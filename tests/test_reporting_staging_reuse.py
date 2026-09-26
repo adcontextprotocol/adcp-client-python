@@ -187,6 +187,34 @@ async def test_legacy_opaque_ref_keeps_its_existing_path_after_new_staging(tmp_p
     assert await read_payload(staging, legacy) == await read_payload(staging, current)
 
 
+async def test_filesystem_reuse_syncs_only_through_store_root(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    root = tmp_path / "new" / "staging"
+    staging = FileSystemStagingStore(root)
+    opened: list[Path] = []
+    original_open = os.open
+
+    def record_open(path: Any, *args: Any, **kwargs: Any) -> int:
+        opened.append(Path(path))
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", record_open)
+    values = dict(
+        account_id="account-redacted", source_execution_key="first", ordinal=0, payload=b"rows"
+    )
+    reference, generation = await staging.stage(**values)
+    assert root in opened and root.parent in opened  # initial root creation is durable
+
+    opened.clear()
+    assert await staging.stage(**{**values, "source_execution_key": "reuse"}) == (
+        reference,
+        generation,
+    )
+    target = staging._path(values["account_id"], reference, generation)
+    assert opened == [target.parent, target.parent.parent, root]
+
+
 async def test_pending_writer_and_cancelled_caller_cannot_replace_a_complete_winner(
     tmp_path: Path,
 ) -> None:
@@ -293,14 +321,13 @@ async def test_failed_publication_does_not_seal_and_retry_verifies_complete_byte
             if failing and phase == "after_link":
                 raise OSError("injected publication failure")
 
-        @staticmethod
-        def _sync_directory(directory: Path) -> None:
+        def _sync_directory(self, directory: Path) -> None:
             if failing and phase == "directory_sync":
                 # The temporary name must be removed before committing the
                 # final directory state; no failed stage may seal a manifest.
                 assert len([path for path in directory.iterdir() if path.is_file()]) == 1
                 raise OSError("injected directory fsync failure")
-            FileSystemStagingStore._sync_directory(directory)
+            super()._sync_directory(directory)
 
     staging = Failing(tmp_path)
     source = InlineReportingSource(
@@ -402,14 +429,13 @@ class Staging(FileSystemStagingStore):
             print(json.dumps(event), flush=True)
             sys.stdin.buffer.read(1)
         FileSystemStagingStore._publish_file(temporary, target)
-    @staticmethod
-    def _sync_directory(directory):
+    def _sync_directory(self, directory):
         if mode == 'linked':
             files = list(directory.iterdir())
             print(json.dumps({'phase': 'linked', 'files': len(files),
                               'complete_final': files[0].suffix == '.bin'}), flush=True)
             sys.stdin.buffer.read(1)
-        FileSystemStagingStore._sync_directory(directory)
+        super()._sync_directory(directory)
 
 async def main():
     staging = Staging(root)
