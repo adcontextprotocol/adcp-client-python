@@ -15,6 +15,7 @@ from adcp.types import GetReportingStatusRequest
 from ._durable_materializer_support import durable_case
 from ._feed_support import MountedFeed, feed_request, mixed_case, second_consumer
 from ._projection_support import projection_harness
+from ._receipt_support import adjustment_for, receipt_case
 from .test_reporting_notification_outbox import statement
 
 
@@ -22,6 +23,33 @@ from .test_reporting_notification_outbox import statement
 def _a2a_compat_send_and_aggregate():
     # These mounts require the real async-generator transport, not the unit mock shim.
     pass
+
+
+@pytest.mark.parametrize("backend", ["memory", "postgres"])
+@pytest.mark.parametrize("protocol", ["mcp", "a2a"])
+async def test_delivery_only_adjustment_blocks_definitive_without_receipt_counts(backend, protocol):
+    async with projection_harness(backend) as h:
+        s = await receipt_case(h, billing=False, reconciliation_mode="delivery_only")
+        await adjustment_for(h, s)
+        await h.projection.activate(account_id=s.obligation.account_id)
+        mounted = MountedFeed(h)
+        mounted.authorize(s)
+        request = GetReportingStatusRequest.model_validate(feed_request(s, limit=1))
+        async with mounted.sdk_clients("1.0") as (clients, observed):
+            ledger = await load_reporting_ledger(clients[protocol], request)
+            obligation = ledger.obligations[0]
+            assert obligation.health.value == "complete"
+            assert obligation.reconciliation_mode.value == "delivery_only"
+            assert obligation.pending_adjustment_count is None
+            assert obligation.adjustment_receipt_count is None
+            assert obligation.accepted_adjustment_receipt_count is None
+            assert len(ledger.adjustments) == 1
+            assert ledger.adjustment_receipts == []
+            assert all(params["pagination"]["max_results"] == 1 for _, _, params in observed)
+            result = evaluate_reporting_ledger(ledger, expected_periods=[], now=h.clock())
+            assert not result.definitive
+            assert not result.obligations[0].definitive
+            assert result.obligations[0].reasons == ("MISSING_MATCHING_ADJUSTMENT_RECEIPT",)
 
 
 @pytest.mark.parametrize("feedback", [False, True])

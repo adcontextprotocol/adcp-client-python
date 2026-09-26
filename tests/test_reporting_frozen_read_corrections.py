@@ -20,6 +20,8 @@ from tests.test_reporting_frozen_read_safety import (
     NOW,
     SECRET,
     Pages,
+    _adjustment_receipt,
+    _counts,
     _expected,
     _history,
     _load,
@@ -27,6 +29,65 @@ from tests.test_reporting_frozen_read_safety import (
     _request,
     _with_status,
 )
+
+
+@pytest.mark.parametrize("explicit", [False, True])
+@pytest.mark.parametrize("declare_pending", [False, True])
+@pytest.mark.parametrize(
+    "evidence", ["missing", "rejected", "accepted", "accepted-leaf", "partial"]
+)
+async def test_delivery_only_adjustments_require_each_accepted_current_leaf(
+    explicit, declare_pending, evidence
+):
+    raw = _history(adjustments=True)
+    raw["receipts"] = []
+    if evidence == "missing":
+        raw["adjustment_receipts"] = []
+    elif evidence == "rejected":
+        raw["adjustment_receipts"] = [_adjustment_receipt(status="rejected")]
+    elif evidence == "accepted-leaf":
+        raw["adjustment_receipts"] = [
+            _adjustment_receipt(supersedes_reporting_receipt_id="adjustment-receipt-rejected"),
+            _adjustment_receipt(
+                reporting_receipt_id="adjustment-receipt-rejected", status="rejected"
+            ),
+        ]
+    elif evidence == "partial":
+        second = deepcopy(raw["adjustments"][0])
+        second["reporting_adjustment_id"] = "adjustment-unreceipted"
+        raw["adjustments"].append(second)
+    _counts(raw)
+    owner = raw["periods"][0]
+    owner.update(reconciliation_mode="delivery_only", reconciliation_status="not_required")
+    for item in [owner, *raw["materializations"], *raw["scope"]["delivery_config_generations"]]:
+        item["feed_purpose"] = "analytics"
+    owner["schedule"].update(period_anchor=owner["period"]["start"], period_timezone="UTC")
+    # These counts do not apply in delivery-only mode. Adjustment evidence must
+    # remain a separate condition even when the seller omits the pending count.
+    for field in (
+        "receipt_count",
+        "accepted_receipt_count",
+        "adjustment_receipt_count",
+        "accepted_adjustment_receipt_count",
+    ):
+        owner.pop(field)
+    accepted = evidence in {"accepted", "accepted-leaf"}
+    if declare_pending:
+        owner["pending_adjustment_count"] = int(not accepted)
+    validator = get_named_validator("core/reporting-obligation.json", version="3.2.0-rc.6")
+    assert validator is not None
+    assert list(validator.iter_errors(owner)) == []
+
+    result = evaluate_reporting_ledger(
+        await _load(raw, explicit=explicit),
+        expected_periods=[replace(_expected()[0], feed_purpose="analytics")],
+        now=NOW,
+    )
+    assert result.definitive is accepted
+    assert result.obligations[0].definitive is accepted
+    assert result.obligations[0].reasons == (
+        () if accepted else ("MISSING_MATCHING_ADJUSTMENT_RECEIPT",)
+    )
 
 
 def _distinct_histories(count: int, *, distinction: str = "campaigns") -> dict[str, Any]:

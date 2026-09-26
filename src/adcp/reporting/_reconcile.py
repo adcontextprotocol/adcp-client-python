@@ -1625,6 +1625,8 @@ def evaluate_reporting_ledger(
             # the newest artifact selected independently for current readability.
             if receipt is None or _enum(receipt.status) != "accepted":
                 reasons.append("MISSING_MATCHING_CONSUMER_RECEIPT")
+        if revision:
+            # Applicable corrections need accepted current evidence in either mode.
             applicable = index.adjustments_by_revision.get(revision.reporting_revision_id, [])
             if any(
                 (
