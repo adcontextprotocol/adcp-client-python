@@ -210,6 +210,9 @@ def _obligation(identifier: str = "obligation-billing") -> dict[str, object]:
         "successful_materialization_count": 1,
         "receipt_count": 0,
         "accepted_receipt_count": 0,
+        "adjustment_count": 0,
+        "adjustment_receipt_count": 0,
+        "accepted_adjustment_receipt_count": 0,
         "issues": [],
         "resource_retained_until": "2026-12-01T00:00:00Z",
     }
@@ -292,6 +295,20 @@ def _response(receipts: list[dict[str, object]] | None = None) -> dict[str, obje
         "receipts": receipts,
         "pagination": {"has_more": False, "total_count": 3 + len(receipts)},
     }
+
+
+def _full_finality_scope(raw):
+    # Include a second generation with a snapshot requirement; no obligation
+    # from that generation is expected in these billing-only vectors.
+    raw["scope"]["finality"] = ["snapshot", "official"]
+    raw["scope"]["feed_purposes"].append("pacing")
+    raw["scope"]["delivery_config_generations"].append(
+        {
+            "delivery_config_id": "pacing-feed",
+            "delivery_config_version": 1,
+            "feed_purpose": "pacing",
+        }
+    )
 
 
 class _Client:
@@ -1045,12 +1062,11 @@ def test_consumer_billing_mismatch_creates_rejected_receipt() -> None:
 
 @pytest.mark.asyncio
 async def test_missing_expected_period_prevents_definitive_result() -> None:
-    ledger = await load_reporting_ledger(
-        _Client(),
-        GetReportingStatusRequest.model_validate(
-            {"account": {"account_id": "account-1"}, "view": "periods"}
-        ),
-    )
+    raw = _response()
+    # The requested/returned horizon must include the independently expected July period.
+    raw["scope"]["period_start"] = "2026-07-01T00:00:00Z"
+    _full_finality_scope(raw)
+    ledger = await _ledger_from(raw)
     result = evaluate_reporting_ledger(
         ledger,
         expected_periods=[
@@ -1073,12 +1089,10 @@ async def test_missing_expected_period_prevents_definitive_result() -> None:
 
 @pytest.mark.asyncio
 async def test_same_feed_period_cannot_hide_a_missing_campaign() -> None:
-    ledger = await load_reporting_ledger(
-        _Client(),
-        GetReportingStatusRequest.model_validate(
-            {"account": {"account_id": "account-1"}, "view": "periods"}
-        ),
-    )
+    raw = _response()
+    raw["scope"]["media_buy_ids"].append("buy-3")
+    _full_finality_scope(raw)
+    ledger = await _ledger_from(raw)
     result = evaluate_reporting_ledger(
         ledger,
         expected_periods=[
@@ -1117,19 +1131,14 @@ async def test_revision_campaign_scope_must_match_obligation() -> None:
                 data=GetReportingStatusResponse.model_validate(deepcopy(raw)),
             )
 
-    ledger = await load_reporting_ledger(
-        ScopeMismatchClient(),
-        GetReportingStatusRequest.model_validate(
-            {"account": {"account_id": "account-1"}, "view": "periods"}
-        ),
-    )
-    result = evaluate_reporting_ledger(
-        ledger,
-        expected_periods=[],
-        now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
-    )
-    assert not result.definitive
-    assert "REVISION_SCOPE_MISMATCH" in result.obligations[0].reasons
+    with pytest.raises(ReportingReconciliationError) as error:
+        await load_reporting_ledger(
+            ScopeMismatchClient(),
+            GetReportingStatusRequest.model_validate(
+                {"account": {"account_id": "account-1"}, "view": "periods"}
+            ),
+        )
+    assert error.value.code == "INVALID_LEDGER_DEPENDENCY"
 
 
 @pytest.mark.asyncio
@@ -1207,19 +1216,14 @@ async def test_incomplete_associated_history_prevents_definitive_result() -> Non
                 data=GetReportingStatusResponse.model_validate(deepcopy(raw)),
             )
 
-    ledger = await load_reporting_ledger(
-        IncompleteClient(),
-        GetReportingStatusRequest.model_validate(
-            {"account": {"account_id": "account-1"}, "view": "periods"}
-        ),
-    )
-    result = evaluate_reporting_ledger(
-        ledger,
-        expected_periods=[],
-        now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
-    )
-    assert not result.definitive
-    assert "ASSOCIATED_HISTORY_INCOMPLETE" in result.obligations[0].reasons
+    with pytest.raises(ReportingReconciliationError) as error:
+        await load_reporting_ledger(
+            IncompleteClient(),
+            GetReportingStatusRequest.model_validate(
+                {"account": {"account_id": "account-1"}, "view": "periods"}
+            ),
+        )
+    assert error.value.code == "LEDGER_COUNT_MISMATCH"
 
 
 @pytest.mark.asyncio
@@ -1249,24 +1253,19 @@ async def test_one_revision_cannot_materialize_under_two_obligations() -> None:
                 data=GetReportingStatusResponse.model_validate(deepcopy(raw)),
             )
 
-    ledger = await load_reporting_ledger(
-        FanoutClient(),
-        GetReportingStatusRequest.model_validate(
-            {"account": {"account_id": "account-1"}, "view": "periods"}
-        ),
-    )
-    result = evaluate_reporting_ledger(
-        ledger,
-        expected_periods=[],
-        now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
-    )
-    assert not result.definitive
-    assert all("REVISION_SCOPE_MISMATCH" in item.reasons for item in result.obligations)
+    with pytest.raises(ReportingReconciliationError) as error:
+        await load_reporting_ledger(
+            FanoutClient(),
+            GetReportingStatusRequest.model_validate(
+                {"account": {"account_id": "account-1"}, "view": "periods"}
+            ),
+        )
+    assert error.value.code == "INVALID_LEDGER_DEPENDENCY"
 
 
 @pytest.mark.parametrize("finality", ["official", "snapshot"])
 @pytest.mark.parametrize("delivery", ["absent", "pending", "failed", "available"])
-def test_current_publication_is_selected_before_its_materialization(
+async def test_current_publication_is_selected_before_its_materialization(
     finality: str, delivery: str
 ) -> None:
     raw = _response()
@@ -1306,17 +1305,7 @@ def test_current_publication_is_selected_before_its_materialization(
         materialization_count=len(raw["materializations"]),
         successful_materialization_count=2 if delivery == "available" else 1,
     )
-    response = GetReportingStatusResponse.model_validate(raw)
-    ledger = ReportingLedger(
-        response.ledger_snapshot_id,
-        response.ledger_as_of,
-        response.account_id,
-        response.scope,
-        response.periods,
-        response.revisions,
-        response.materializations,
-        response.receipts,
-    )
+    ledger = await _ledger_from(raw)
     result = evaluate_reporting_ledger(
         ledger, expected_periods=[], now=datetime.fromisoformat("2026-09-03T00:00:00+00:00")
     )
@@ -1343,17 +1332,32 @@ def _snapshot_revision(identifier: str, supersedes: str | None = None) -> dict[s
     return revision
 
 
-def _ledger_from(raw: dict[str, object]) -> ReportingLedger:
+async def _ledger_from(raw: dict[str, object]) -> ReportingLedger:
     response = GetReportingStatusResponse.model_validate(raw)
-    return ReportingLedger(
-        response.ledger_snapshot_id,
-        response.ledger_as_of,
-        response.account_id,
-        response.scope,
-        response.periods,
-        response.revisions,
-        response.materializations,
-        response.receipts,
+    response.pagination.total_count = sum(
+        len(getattr(response, name) or [])
+        for name in (
+            "periods",
+            "revisions",
+            "materializations",
+            "receipts",
+            "adjustments",
+            "adjustment_receipts",
+            "consumer_statuses",
+        )
+    )
+
+    class FrozenClient:
+        async def get_reporting_status(
+            self, request: GetReportingStatusRequest
+        ) -> TaskResult[GetReportingStatusResponse]:
+            return TaskResult(status=TaskStatus.COMPLETED, data=response)
+
+    return await load_reporting_ledger(
+        FrozenClient(),
+        GetReportingStatusRequest.model_validate(
+            {"account": {"account_id": response.account_id}, "view": "periods"}
+        ),
     )
 
 
@@ -1361,7 +1365,9 @@ def _ledger_from(raw: dict[str, object]) -> ReportingLedger:
     "topology,reason",
     [("fork", "AMBIGUOUS_REVISION_CHAIN"), ("cycle", "INCOMPLETE_REVISION_CHAIN")],
 )
-def test_official_close_cannot_mask_a_broken_snapshot_history(topology: str, reason: str) -> None:
+async def test_official_close_cannot_mask_a_broken_snapshot_history(
+    topology: str, reason: str
+) -> None:
     """Snapshot topology is judged on its own, not skipped once an official exists."""
     raw = _response()
     raw["periods"][0].update(
@@ -1382,7 +1388,7 @@ def test_official_close_cannot_mask_a_broken_snapshot_history(topology: str, rea
         ]
     raw["revisions"] = [*snapshots, deepcopy(REVISION)]
     result = evaluate_reporting_ledger(
-        _ledger_from(raw),
+        await _ledger_from(raw),
         expected_periods=[],
         now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
     )
@@ -1390,7 +1396,7 @@ def test_official_close_cannot_mask_a_broken_snapshot_history(topology: str, rea
     assert reason in result.obligations[0].reasons
 
 
-def test_identical_scope_obligations_each_keep_their_own_materialized_publication() -> None:
+async def test_identical_scope_obligations_each_keep_their_own_materialized_publication() -> None:
     """``ReportingRevision`` carries no obligation, so use materialization ownership."""
     raw = _response()
     first, second = _obligation("obligation-a"), _obligation("obligation-b")
@@ -1420,7 +1426,7 @@ def test_identical_scope_obligations_each_keep_their_own_materialized_publicatio
         materializations.append(attempt)
     raw.update(periods=[first, second], revisions=revisions, materializations=materializations)
     result = evaluate_reporting_ledger(
-        _ledger_from(raw),
+        await _ledger_from(raw),
         expected_periods=[],
         now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
     )
@@ -1431,7 +1437,7 @@ def test_identical_scope_obligations_each_keep_their_own_materialized_publicatio
     ]
 
 
-def test_unowned_publication_never_falls_back_to_an_older_materialized_snapshot() -> None:
+async def test_unowned_publication_never_falls_back_to_an_older_materialized_snapshot() -> None:
     """A newer unmaterialized official wins; an unresolvable owner fails closed."""
     raw = _response()
     first, second = _obligation("obligation-a"), _obligation("obligation-b")
@@ -1472,7 +1478,7 @@ def test_unowned_publication_never_falls_back_to_an_older_materialized_snapshot(
         materializations=[stale, other],
     )
     result = evaluate_reporting_ledger(
-        _ledger_from(raw),
+        await _ledger_from(raw),
         expected_periods=[],
         now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
     )
@@ -1487,7 +1493,7 @@ def test_unowned_publication_never_falls_back_to_an_older_materialized_snapshot(
     assert "AMBIGUOUS_REVISION_CHAIN" in unresolved.reasons
 
 
-def test_native_commit_requires_a_native_version_resource_descriptor() -> None:
+async def test_native_commit_requires_a_native_version_resource_descriptor() -> None:
     """Matching refs and an observed path do not make a mutable location immutable."""
     raw = _response()
     raw["periods"][0].update(
@@ -1523,7 +1529,7 @@ def test_native_commit_requires_a_native_version_resource_descriptor() -> None:
     }
     raw["materializations"] = [attempt]
     result = evaluate_reporting_ledger(
-        _ledger_from(raw),
+        await _ledger_from(raw),
         expected_periods=[],
         now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
     )
@@ -1532,7 +1538,7 @@ def test_native_commit_requires_a_native_version_resource_descriptor() -> None:
 
 
 @pytest.mark.parametrize("finality", ["official", "snapshot"])
-def test_publication_selection_rejects_multiple_current_revisions(finality: str) -> None:
+async def test_publication_selection_rejects_multiple_current_revisions(finality: str) -> None:
     raw = _response()
     first = deepcopy(REVISION)
     second = deepcopy(REVISION)
@@ -1544,17 +1550,7 @@ def test_publication_selection_rejects_multiple_current_revisions(finality: str)
                 revision.pop(key)
     raw["periods"][0].update(required_finality=finality, revision_count=2)
     raw["revisions"] = [first, second]
-    response = GetReportingStatusResponse.model_validate(raw)
-    ledger = ReportingLedger(
-        response.ledger_snapshot_id,
-        response.ledger_as_of,
-        response.account_id,
-        response.scope,
-        response.periods,
-        response.revisions,
-        response.materializations,
-        response.receipts,
-    )
+    ledger = await _ledger_from(raw)
     result = evaluate_reporting_ledger(ledger, expected_periods=[])
     assert not result.definitive
     assert "AMBIGUOUS_REVISION_CHAIN" in result.obligations[0].reasons
@@ -1716,20 +1712,14 @@ async def test_superseded_revision_must_be_present() -> None:
                 data=GetReportingStatusResponse.model_validate(deepcopy(raw)),
             )
 
-    ledger = await load_reporting_ledger(
-        IncompleteRevisionChainClient(),
-        GetReportingStatusRequest.model_validate(
-            {"account": {"account_id": "account-1"}, "view": "periods"}
-        ),
-    )
-    result = evaluate_reporting_ledger(
-        ledger,
-        expected_periods=[],
-        now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
-    )
-
-    assert not result.definitive
-    assert "INCOMPLETE_REVISION_CHAIN" in result.obligations[0].reasons
+    with pytest.raises(ReportingReconciliationError) as error:
+        await load_reporting_ledger(
+            IncompleteRevisionChainClient(),
+            GetReportingStatusRequest.model_validate(
+                {"account": {"account_id": "account-1"}, "view": "periods"}
+            ),
+        )
+    assert error.value.code == "INVALID_LEDGER_DEPENDENCY"
 
 
 @pytest.mark.asyncio

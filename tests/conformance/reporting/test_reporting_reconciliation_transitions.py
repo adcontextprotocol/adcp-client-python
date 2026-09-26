@@ -9,7 +9,7 @@ from datetime import timedelta
 
 import pytest
 
-from adcp.reporting import ReportingLedger, evaluate_reporting_ledger
+from adcp.reporting import evaluate_reporting_ledger, load_reporting_ledger
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger import (
     LedgerConflictError,
@@ -26,7 +26,8 @@ from adcp.reporting.ledger import (
     revision_to_wire,
 )
 from adcp.reporting.ledger.delivery_models import DeliveryMethod, VerificationProfile
-from adcp.types import GetReportingStatusResponse, ReportingReceipt
+from adcp.types import GetReportingStatusRequest, GetReportingStatusResponse, ReportingReceipt
+from adcp.types.core import TaskResult, TaskStatus
 
 from ._generation_support import END, NOW, configuration
 from ._reconciliation_support import Clock, Store, scenario
@@ -66,6 +67,8 @@ async def test_generated_projections_are_accepted_by_buyer_reconciler(
         successful_materialization_count=1,
         receipt_count=1,
         accepted_receipt_count=1,
+        adjustment_receipt_count=0,
+        accepted_adjustment_receipt_count=0,
         resource_retained_until=s.delivery.resource_retained_until.isoformat(),
     )
     result["revisions"] = [revision_to_wire(s.revision, obligation=s.obligation)]
@@ -73,15 +76,18 @@ async def test_generated_projections_are_accepted_by_buyer_reconciler(
     result["receipts"] = [receipt_to_wire(receipt)]
     result["pagination"]["total_count"] = 4
     response = GetReportingStatusResponse.model_validate(result)
-    ledger = ReportingLedger(
-        response.ledger_snapshot_id,
-        response.ledger_as_of,
-        response.account_id,
-        response.scope,
-        response.periods,
-        response.revisions,
-        response.materializations,
-        response.receipts,
+
+    class FrozenClient:
+        async def get_reporting_status(
+            self, request: GetReportingStatusRequest
+        ) -> TaskResult[GetReportingStatusResponse]:
+            return TaskResult(status=TaskStatus.COMPLETED, data=response)
+
+    ledger = await load_reporting_ledger(
+        FrozenClient(),
+        GetReportingStatusRequest.model_validate(
+            {"account": {"account_id": "acct_a"}, "view": "periods"}
+        ),
     )
     verdict = evaluate_reporting_ledger(ledger, expected_periods=[], now=NOW)
     assert verdict.definitive, verdict.obligations

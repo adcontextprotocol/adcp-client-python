@@ -11,8 +11,8 @@ from pydantic import ValidationError
 
 from adcp.reporting import (
     ExpectedReportingPeriod,
-    ReportingLedger,
     evaluate_reporting_ledger,
+    load_reporting_ledger,
 )
 from adcp.reporting.conformance import validate_reporting_source_execution
 from adcp.reporting.ledger import (
@@ -28,7 +28,8 @@ from adcp.reporting.ledger import (
 )
 from adcp.reporting.materializer import ReportingWriterCapability, reference_verifier
 from adcp.reporting.source import SourceBatchManifestV1, parse_verified_source_batch_manifest_v1
-from adcp.types import GetReportingStatusResponse
+from adcp.types import GetReportingStatusRequest, GetReportingStatusResponse
+from adcp.types.core import TaskResult
 from adcp.validation.schema_loader import get_named_validator
 
 from ._generation_support import END, START, isolated_reporting_pool
@@ -147,29 +148,35 @@ async def setup(
 
 
 async def public_outcome(store, config):
-    payload = await ReportingStatusHandler(store).handle(
-        {
-            "adcp_version": "3.2-rc.6",
-            "account": {"account_id": config.account_id},
-            "view": "periods",
-            "period": {"start": START.isoformat(), "end": END.isoformat()},
-        },
-        caller=ReportingStatusCaller(account_id=config.account_id, consumer_id="clock-buyer"),
-    )
-    response = GetReportingStatusResponse.model_validate(payload)
+    handler = ReportingStatusHandler(store)
+    caller = ReportingStatusCaller(account_id=config.account_id, consumer_id="clock-buyer")
     validator = get_named_validator("core/reporting-revision.json", version="3.2.0-rc.6")
     assert validator is not None
-    for revision in payload["revisions"]:
-        validator.validate(revision)
-    ledger = ReportingLedger(
-        ledger_snapshot_id=response.ledger_snapshot_id,
-        ledger_as_of=response.ledger_as_of,
-        account_id=response.account_id,
-        scope=response.scope,
-        obligations=response.periods,
-        revisions=response.revisions,
-        materializations=response.materializations,
-        receipts=response.receipts,
+
+    class StatusClient:
+        async def get_reporting_status(self, request):
+            payload = await handler.handle(
+                request.model_dump(mode="json", exclude_none=True), caller=caller
+            )
+            for revision in payload["revisions"]:
+                validator.validate(revision)
+            return TaskResult(
+                success=True,
+                data=GetReportingStatusResponse.model_validate(payload),
+                status="completed",
+            )
+
+    ledger = await load_reporting_ledger(
+        StatusClient(),
+        GetReportingStatusRequest.model_validate(
+            {
+                "adcp_version": "3.2-rc.6",
+                "account": {"account_id": config.account_id},
+                "view": "periods",
+                "period": {"start": START.isoformat(), "end": END.isoformat()},
+                "pagination": {"max_results": 1},
+            }
+        ),
     )
     expected = [
         ExpectedReportingPeriod(
@@ -183,7 +190,7 @@ async def public_outcome(store, config):
             END.isoformat(),
         )
     ]
-    return response, evaluate_reporting_ledger(ledger, expected_periods=expected)
+    return evaluate_reporting_ledger(ledger, expected_periods=expected)
 
 
 @pytest.mark.parametrize("observed", [END, TURN, TURN + timedelta(seconds=1)])
@@ -201,8 +208,8 @@ async def test_creation_follows_acquisition_and_staged_read(store, tmp_path, obs
         object_reader=source.reader,
         clock=clock,
     )
-    response, outcome = await public_outcome(store, config)
-    revision = response.revisions[0]
+    outcome = await public_outcome(store, config)
+    revision = outcome.ledger.revisions[0]
     assert outcome.definitive, [o.reasons for o in outcome.obligations]
     assert request.period.source_read_cutoff_at == TURN
     assert revision.created_at == PUBLISHED
@@ -221,8 +228,8 @@ async def test_real_clock_observation_after_dispatch_is_definitive(store, tmp_pa
         result=result,
         object_reader=source.reader,
     )
-    response, outcome = await public_outcome(store, config)
-    revision = response.revisions[0]
+    outcome = await public_outcome(store, config)
+    revision = outcome.ledger.revisions[0]
     assert outcome.definitive, [o.reasons for o in outcome.obligations]
     assert request.period.source_read_cutoff_at < manifest.observed_at <= revision.created_at
     assert revision.observed_at == revision.finalized_at == manifest.observed_at
