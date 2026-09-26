@@ -262,6 +262,78 @@ def test_two_parent_main_merge_preserves_reviewed_ancestry_and_checks_actual_foo
             policies.conventional("push", target, {})
 
 
+@pytest.mark.parametrize(
+    ("body", "accepted"),
+    [
+        ("feat: reviewed reporting", True),
+        (BREAKING_SUBJECT + "\n\n" + BREAKING_FOOTER, True),
+        ("", False),
+        ("Reporting changes without a conventional message", False),
+        (BREAKING_SUBJECT, False),
+    ],
+)
+def test_github_merge_checks_conventional_message_stored_in_commit(
+    history: list[str], body: str, accepted: bool
+) -> None:
+    policies.git("checkout", "-b", "reviewed-reporting", history[0])
+    policies.git(
+        "-c", "core.hooksPath=/dev/null", "commit", "--allow-empty", "-m", "feat: reporting"
+    )
+    policies.git("checkout", "-b", "integration", history[-1])
+    policies.git(
+        "-c",
+        "core.hooksPath=/dev/null",
+        "merge",
+        "--no-ff",
+        "reviewed-reporting",
+        "-m",
+        "Merge pull request #1175 from example/reviewed-reporting\n\n" + body,
+    )
+    target = policies.git("rev-parse", "HEAD")
+    if accepted:
+        assert policies.conventional("push", target, {})["commits"][-1] == target
+    else:
+        with pytest.raises(RuntimeError):
+            policies.conventional("push", target, {})
+
+
+def test_single_parent_commit_cannot_impersonate_github_merge(history: list[str]) -> None:
+    policies.git(
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "--allow-empty",
+        "-m",
+        "Merge pull request #1175 from example/reviewed-reporting\n\nfeat: reporting",
+    )
+    with pytest.raises(RuntimeError, match="not a conventional commit"):
+        policies.conventional("push", policies.git("rev-parse", "HEAD"), {})
+
+
+@pytest.mark.parametrize(
+    ("commit_sha", "subject", "accepted"),
+    [
+        ("6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac", BREAKING_SUBJECT, True),
+        ("a" * 40, BREAKING_SUBJECT, False),
+        (None, BREAKING_SUBJECT, False),
+        (
+            "6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac",
+            "fix(reporting)!: different breaking change (#1174)",
+            False,
+        ),
+    ],
+)
+def test_historical_footer_exception_requires_exact_commit_and_subject(
+    commit_sha: str | None, subject: str, accepted: bool
+) -> None:
+    message = subject + "\n\nHistorical migration described in the PR."
+    if accepted:
+        policies.validate_message(message, commit_sha=commit_sha)
+    else:
+        with pytest.raises(RuntimeError, match="BREAKING CHANGE footer"):
+            policies.validate_message(message, commit_sha=commit_sha)
+
+
 def test_pr_policy_uses_live_numeric_author_and_exact_head(history: list[str]) -> None:
     api = PolicyAPI(history)
     pr = api.data["pulls/1174"]

@@ -30,6 +30,12 @@ CONVENTIONAL = re.compile(
     r"^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)"
     r"(?:\([^()\n]+\))?(?P<breaking>!)?: (?P<description>\S.*)$"
 )
+GITHUB_MERGE = re.compile(r"Merge pull request #[1-9][0-9]* from [^\s/]+/\S+")
+# This already-merged squash commit predates the guard. Its breaking subject
+# and reviewed PR migration note retain the release signal. No other commit,
+# including one with the same subject, inherits this historical exception.
+LEGACY_BREAKING_COMMIT = "6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac"
+LEGACY_BREAKING_SUBJECT = "fix(reporting)!: scope configuration generations by account (#1174)"
 
 
 def git(*arguments: str) -> str:
@@ -47,7 +53,7 @@ def main_commits(target: str) -> list[str]:
     return commits
 
 
-def validate_message(message: str) -> None:
+def validate_message(message: str, *, commit_sha: str | None = None) -> None:
     subject, _, body = message.partition("\n")
     match = CONVENTIONAL.fullmatch(subject)
     require(match is not None, "commit subject is not a conventional commit")
@@ -56,11 +62,23 @@ def validate_message(message: str) -> None:
     # the actual description remain forbidden by the repository's parser rule.
     description = re.sub(r" \(#[1-9][0-9]*\)$", "", match["description"])
     require(description and not any(c in description for c in '()"'), "unsafe release description")
-    if match["breaking"]:
+    legacy_footer = commit_sha == LEGACY_BREAKING_COMMIT and subject == LEGACY_BREAKING_SUBJECT
+    if match["breaking"] and not legacy_footer:
         require(
             re.search(r"(?m)^BREAKING(?: CHANGE|-CHANGE): \S.+$", body),
             "breaking subject requires its BREAKING CHANGE footer in the actual commit",
         )
+
+
+def validate_commit(sha: str) -> None:
+    parents, _, message = git("show", "-s", "--format=%P%n%B", sha).partition("\n")
+    subject, _, body = message.partition("\n")
+    if len(parents.split()) == 2 and GITHUB_MERGE.fullmatch(subject):
+        # GitHub's default merge subject is a wrapper. The conventional PR
+        # message is stored in the merge body; validate those committed bytes,
+        # including any breaking footer, rather than a mutable current PR title.
+        message = body.lstrip("\n")
+    validate_message(message, commit_sha=sha)
 
 
 def event_context() -> tuple[str, str, dict[str, Any]]:
@@ -102,7 +120,7 @@ def conventional(kind: str, target: str, event: dict[str, Any]) -> dict[str, Any
         require(commits, "PR has no commits to validate")
     for sha in commits:
         try:
-            validate_message(git("show", "-s", "--format=%B", sha))
+            validate_commit(sha)
         except RuntimeError as error:
             raise RuntimeError(f"invalid integrated commit {sha}: {error}") from error
     return {"target_sha": target, "commits": commits, "policy": "conventional-commits"}

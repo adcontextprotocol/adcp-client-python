@@ -132,6 +132,20 @@ Activation preserves epoch-zero work identities and permanently quarantined
 readiness events. It does not promote old work or backfill an external
 idempotency history. Only new qualified work enters the production epoch.
 
+## Release commit-policy rollout
+
+The #1201 guard validates conventional messages for main integrations after
+published beta.15, including the conventional message and footer stored in a
+normal two-parent GitHub merge. Future breaking commits require a
+`BREAKING CHANGE:` footer. Historical IPR checks retain the same beta.15 floor.
+
+Only the already-merged #1174 squash commit
+`6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac`, with the exact subject
+`fix(reporting)!: scope configuration generations by account (#1174)`, is exempt
+from the footer requirement. Its breaking title and PR migration note retain
+the release signal; no date-based or moving-history exemption applies. The
+account-qualified generation migration above still applies.
+
 ## Operational limits
 
 - Positive schema-proof caches reduce repeated catalog discovery. They do not

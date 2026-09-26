@@ -64,17 +64,25 @@ only read permissions; GitHub Actions supplies the authenticated App 15368
 check-run identity. The existing PR/comment workflow still records signatures;
 after signing, rerun ordinary CI if its read-only check previously failed.
 
-`Validate conventional commit format` checks the actual subjects **and bodies**
-of all those main integrations, including two-parent merge commits. PR runs
-also check the PR title/body and individual non-merge commits. A breaking `!`
-subject requires its `BREAKING CHANGE:` footer in the actual commit. In
-particular, #1174 must integrate with:
+`Validate conventional commit format` checks actual commit subjects **and
+bodies** for the main integrations after published beta.15. Historical IPR
+checks retain that same floor. There is no moving date or commit-range cutoff
+for grandfathering commit messages.
 
-```text
-fix(reporting)!: scope configuration generations by account (#1174)
+Normal GitHub two-parent merges use a `Merge pull request ...` subject. For
+those commits, the check validates the conventional message stored in the merge
+body, including its breaking footer; it never substitutes the current PR title.
+A single-parent commit cannot use that wrapper to bypass validation. PR runs
+also check the PR title/body and individual non-merge commits. Future breaking
+`!` commits require a `BREAKING CHANGE:` footer in the actual commit.
 
-BREAKING CHANGE: generation_key returns ReportingConfigurationGenerationKey instead of a two-tuple. Use its named fields.
-```
+The sole historical footer exception is the already-merged #1174 squash commit
+`6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac`, and only with its exact subject
+`fix(reporting)!: scope configuration generations by account (#1174)`.
+Its breaking title and reviewed PR migration note carry the release signal;
+its historical missing footer is not a new release blocker. Another commit
+with that title receives no exception. Preserve its history and the
+[account-qualified generation migration notes](reporting-release-notes.md#account-qualified-configuration-identity).
 
 The current pinned [Release Please 17.6.0 prerelease strategy](https://github.com/googleapis/release-please/blob/v17.6.0/src/versioning-strategies/prerelease.ts) increments an
 existing prerelease's suffix. From `8.0.0-beta.15`, the staged recommendation is
