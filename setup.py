@@ -16,12 +16,14 @@ _CURRENT_SCHEMA_BUNDLE = (
     else ".".join(_PINNED_ADCP_VERSION.split(".")[:2])
 )
 _BUNDLED_SCHEMA_VERSIONS = tuple(
-    dict.fromkeys(("2.5", "3.0", "3.1", "3.2.0-beta.6", "3.2.0-rc.3", _CURRENT_SCHEMA_BUNDLE))
+    dict.fromkeys(
+        ("2.5", "3.0", "3.1", "3.2.0-beta.6", "3.2.0-rc.3", "3.2.0-rc.6", _CURRENT_SCHEMA_BUNDLE)
+    )
 )
 
 
 class BuildPy(_build_py):
-    """Copy supported schema bundles into the wheel build directory.
+    """Copy current and historical offline bundles into the wheel build directory.
 
     Release jobs pre-populate ``src/adcp/_schemas``. PEP 517 VCS installs do
     not run that release preparation step, so copying from the tracked cache

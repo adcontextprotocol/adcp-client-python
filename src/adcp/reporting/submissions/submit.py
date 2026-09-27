@@ -8,6 +8,7 @@ from math import isfinite
 from typing import Protocol, TypeVar
 
 from adcp.reporting.submissions.models import (
+    _VERSION,
     ReportingReceiptSubmission,
     ReportingSubmissionCode,
     ReportingSubmissionError,
@@ -112,8 +113,11 @@ async def submit_reporting_receipts(
     The caller must reconsider the deferred plan against fresh seller history.
 
     A transport failure, timeout, failed task or malformed response leaves the
-    chunk uncertain and returns pending=True. Retry uses the exact durable body
-    and idempotency key. Cancellation propagates with the intent still retained.
+    chunk uncertain and returns pending=True. Retry within the live protocol
+    version uses the exact durable body and idempotency key. A pending intent
+    from a retired version remains readable and byte-identical but is refused
+    before transport; it is never rewritten as a new-version request.
+    Cancellation propagates with the intent still retained.
     Storage failure raises a closed error; resume the stored scope because the
     last commit may have succeeded. There is no expiry/abandon/replacement path.
 
@@ -139,6 +143,10 @@ async def submit_reporting_receipts(
         raise ReportingSubmissionError(ReportingSubmissionCode.NOT_FOUND)
     _check_state(state, scope)
     deferred = proposed is not None and proposed.submission_id != state.submission_id
+    if state.pending and state.adcp_version != _VERSION:
+        # An unresolved older reservation retains its exact wire bytes, but
+        # the current SDK must not issue a new request under a retired pin.
+        raise ReportingSubmissionError(ReportingSubmissionCode.INVALID_PLAN)
     while state.pending:
         await _authorize(client, authorizer, scope)
         chunk = state.confirmed_chunks
