@@ -12,12 +12,14 @@ import subprocess
 import tempfile
 import time
 import zipfile
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import pytest
 
 from ._generation_support import isolated_reporting_pool
 from ._production_packaging import copied_fixtures, production_modules, source_basis
+from ._rc6_continuation_process import fresh_read_after_legacy_refusals
 from .test_reporting_feed_installed_pg import (
     b1_wheels,
     built_distribution,
@@ -30,6 +32,51 @@ from .test_reporting_notification_packaging import ROOT, run_step
 __all__ = ["b1_wheels", "built_distribution", "feed_wheels", "installed_feed"]
 B24 = "34c8f6d929aeac3407e2f595104a8e903e572623"
 B24_TREE = "2dd33404cb50e6d87ae875ccfa1c983e7faabd44"
+
+
+async def test_fresh_rc7_read_reuses_initialized_mcp_session():
+    class Mount:
+        contexts = 0
+        active = None
+
+        def __init__(self):
+            self.calls = []
+
+        @asynccontextmanager
+        async def client(self):
+            assert self.contexts == 0
+            self.contexts += 1
+            self.active = object()
+            try:
+                yield self.active
+            finally:
+                self.active = None
+
+        async def mcp(self, client, request):
+            assert client is self.active
+            self.calls.append(("mcp", request["adcp_version"]))
+            if request["adcp_version"] == "3.2-rc.6":
+                return 200, {"errors": [{"code": "VERSION_UNSUPPORTED"}]}
+            return 200, {"health": "complete", "ledger_snapshot_id": "fresh"}
+
+        async def a2a(self, client, request):
+            assert client is self.active
+            self.calls.append(("a2a", request["adcp_version"]))
+            return 200, {"errors": [{"code": "VERSION_UNSUPPORTED"}]}
+
+    mount = Mount()
+    result = await fresh_read_after_legacy_refusals(
+        mount, "account-one", ({"pagination": {"cursor": "old"}}, {"changes_after": "old"})
+    )
+    assert result == {"health": "complete", "ledger_snapshot_id": "fresh"}
+    assert mount.contexts == 1 and mount.active is None
+    assert mount.calls == [
+        ("mcp", "3.2-rc.6"),
+        ("a2a", "3.2-rc.6"),
+        ("mcp", "3.2-rc.6"),
+        ("a2a", "3.2-rc.6"),
+        ("mcp", "3.2-rc.7"),
+    ]
 
 
 def installer(python):

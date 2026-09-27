@@ -27,6 +27,32 @@ def verify_installation(settings):
     return origins
 
 
+async def fresh_read_after_legacy_refusals(mount, account_id, positions):
+    """Use one initialized MCP session for legacy refusals and the fresh read."""
+    from tests.conformance.reporting._receipt_transport import error_code
+
+    async with mount.client() as client:
+        for position in positions:
+            request = {
+                "adcp_version": "3.2-rc.6",
+                "account": {"account_id": account_id},
+                "view": "periods",
+                **position,
+            }
+            for call in (mount.mcp, mount.a2a):
+                _, rejected = await call(client, request)
+                assert error_code(rejected) == "VERSION_UNSUPPORTED", rejected
+        _, current = await mount.mcp(
+            client,
+            {
+                "adcp_version": "3.2-rc.7",
+                "account": {"account_id": account_id},
+                "view": "periods",
+            },
+        )
+    return current
+
+
 async def main(settings):
     origins = verify_installation(settings)
     from psycopg_pool import AsyncConnectionPool
@@ -45,7 +71,6 @@ async def main(settings):
         configuration,
         revision_for,
     )
-    from tests.conformance.reporting._receipt_transport import error_code
     from tests.conformance.reporting._reliable_support import ManualClock
 
     consumer = "https://buyer.example.test/installed-rc6"
@@ -111,45 +136,34 @@ async def main(settings):
                 raise AssertionError("current runtime mounted an unsupported rc.6 pin")
             new_mount = mounted("3.2-rc.7")
             version_boundary = None
-            async with new_mount.client() as client:
-                for position in (
-                    {"pagination": {"max_results": 1, "cursor": first["pagination"]["cursor"]}},
-                    {"changes_after": prior["checkpoint"]},
-                ):
-                    request = {
-                        "adcp_version": "3.2-rc.6",
-                        "account": {"account_id": config.account_id},
-                        "view": "periods",
-                        **position,
-                    }
-                    for call in (new_mount.mcp, new_mount.a2a):
-                        _, rejected = await call(client, request)
-                        assert error_code(rejected) == "VERSION_UNSUPPORTED", rejected
-                    # An authenticated position still reports the captured
-                    # version boundary when presented to a supported rc.7 read.
-                    try:
-                        await store.read_reporting_feed(
-                            {**request, "adcp_version": "3.2-rc.7"}, caller=caller
-                        )
-                    except ReportingFeedError as exc:
-                        assert exc.code == "REPORTING_FEED_VERSION_MISMATCH"
-                        version_boundary = exc.code
-                    else:
-                        raise AssertionError("cross-version stored position was accepted")
-            async with new_mount.client() as client:
-                _, current = await new_mount.mcp(
-                    client,
-                    {
-                        "adcp_version": "3.2-rc.7",
-                        "account": {"account_id": config.account_id},
-                        "view": "periods",
-                    },
-                )
-                assert current["health"] == "complete"
-                assert current["ledger_snapshot_id"] != first["ledger_snapshot_id"]
-                get_named_validator(
-                    "media-buy/get-reporting-status-response.json", version="3.2-rc.7"
-                ).validate(current)
+            positions = (
+                {"pagination": {"max_results": 1, "cursor": first["pagination"]["cursor"]}},
+                {"changes_after": prior["checkpoint"]},
+            )
+            current = await fresh_read_after_legacy_refusals(
+                new_mount, config.account_id, positions
+            )
+            assert current["health"] == "complete"
+            assert current["ledger_snapshot_id"] != first["ledger_snapshot_id"]
+            get_named_validator(
+                "media-buy/get-reporting-status-response.json", version="3.2-rc.7"
+            ).validate(current)
+            for position in positions:
+                # An authenticated position still reports the captured version
+                # boundary when presented to a supported rc.7 read.
+                request = {
+                    "adcp_version": "3.2-rc.7",
+                    "account": {"account_id": config.account_id},
+                    "view": "periods",
+                    **position,
+                }
+                try:
+                    await store.read_reporting_feed(request, caller=caller)
+                except ReportingFeedError as exc:
+                    assert exc.code == "REPORTING_FEED_VERSION_MISMATCH"
+                    version_boundary = exc.code
+                else:
+                    raise AssertionError("cross-version stored position was accepted")
             preserved = await store.read_reporting_feed_snapshot(
                 first["ledger_snapshot_id"], caller=caller
             )
