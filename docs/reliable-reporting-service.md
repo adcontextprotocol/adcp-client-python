@@ -186,5 +186,9 @@ checks replay identity plus every staged byte. `DeterministicReportingClock`
 and `ScriptedReportingAdapter` support settling-window and failure-injection
 tests without sleeping.
 
+The [adapter testing guide](reporting-adapter-testing.md) adds named failure
+points, sync/async barriers, injectable PostgreSQL staging/seals, and reusable
+exact-read assertions after service recreation or durable recovery.
+
 See [`examples/reliable_reporting_adapters.py`](../examples/reliable_reporting_adapters.py)
 for compact GAM-like and FreeWheel-like adapter definitions.

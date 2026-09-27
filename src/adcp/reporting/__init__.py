@@ -111,7 +111,28 @@ if TYPE_CHECKING:
         DeterministicReportingClock as DeterministicReportingClock,
     )
     from adcp.reporting.testing import (
+        FaultInjectingReportingSealStore as FaultInjectingReportingSealStore,
+    )
+    from adcp.reporting.testing import (
+        FaultInjectingReportingStagingStore as FaultInjectingReportingStagingStore,
+    )
+    from adcp.reporting.testing import (
+        ReportingFailurePlan as ReportingFailurePlan,
+    )
+    from adcp.reporting.testing import (
+        ReportingLifecycleSnapshot as ReportingLifecycleSnapshot,
+    )
+    from adcp.reporting.testing import (
+        ReportingTestBarrier as ReportingTestBarrier,
+    )
+    from adcp.reporting.testing import (
         ScriptedReportingAdapter as ScriptedReportingAdapter,
+    )
+    from adcp.reporting.testing import (
+        assert_reporting_lifecycle_replay as assert_reporting_lifecycle_replay,
+    )
+    from adcp.reporting.testing import (
+        capture_reporting_lifecycle as capture_reporting_lifecycle,
     )
     from adcp.reporting.testing import (
         run_reporting_adapter_conformance as run_reporting_adapter_conformance,
@@ -147,7 +168,14 @@ _LAZY_EXPORTS = {
     "ReportingAccountContext": ("service", "ReportingAccountContext"),
     "ReportingAdapter": ("service", "ReportingAdapter"),
     "DeterministicReportingClock": ("testing", "DeterministicReportingClock"),
+    "FaultInjectingReportingSealStore": ("testing", "FaultInjectingReportingSealStore"),
+    "FaultInjectingReportingStagingStore": ("testing", "FaultInjectingReportingStagingStore"),
+    "ReportingFailurePlan": ("testing", "ReportingFailurePlan"),
+    "ReportingLifecycleSnapshot": ("testing", "ReportingLifecycleSnapshot"),
+    "ReportingTestBarrier": ("testing", "ReportingTestBarrier"),
     "ScriptedReportingAdapter": ("testing", "ScriptedReportingAdapter"),
+    "assert_reporting_lifecycle_replay": ("testing", "assert_reporting_lifecycle_replay"),
+    "capture_reporting_lifecycle": ("testing", "capture_reporting_lifecycle"),
     "run_reporting_adapter_conformance": ("testing", "run_reporting_adapter_conformance"),
 }
 
@@ -192,7 +220,14 @@ __all__ = [
     "ReportingAccountContext",
     "ReportingAdapter",
     "DeterministicReportingClock",
+    "FaultInjectingReportingSealStore",
+    "FaultInjectingReportingStagingStore",
+    "ReportingFailurePlan",
+    "ReportingLifecycleSnapshot",
+    "ReportingTestBarrier",
     "ScriptedReportingAdapter",
+    "assert_reporting_lifecycle_replay",
+    "capture_reporting_lifecycle",
     "run_reporting_adapter_conformance",
     "build_reporting_receipt",
     "evaluate_reporting_ledger",
