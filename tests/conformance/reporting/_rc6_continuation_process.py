@@ -93,6 +93,7 @@ async def main(settings):
 
         prior = settings.get("prior")
         if prior is not None:
+            from adcp.exceptions import ConfigurationError
             from adcp.reporting.feed.errors import ReportingFeedError
 
             first = prior["pages"][0]
@@ -102,10 +103,15 @@ async def main(settings):
             document = canonical_json_utf8_v1(snapshot.to_storage())
             assert hashlib.sha256(document).hexdigest() == prior["snapshot_sha256"]
             assert json.loads(snapshot.filters_json)["adcp_version"] == "3.2-rc.6"
-            old_mount = mounted("3.2-rc.6")
+            try:
+                mounted("3.2-rc.6")
+            except ConfigurationError:
+                pass
+            else:
+                raise AssertionError("current runtime mounted an unsupported rc.6 pin")
             new_mount = mounted("3.2-rc.7")
             version_boundary = None
-            async with old_mount.client() as client:
+            async with new_mount.client() as client:
                 for position in (
                     {"pagination": {"max_results": 1, "cursor": first["pagination"]["cursor"]}},
                     {"changes_after": prior["checkpoint"]},
@@ -116,7 +122,7 @@ async def main(settings):
                         "view": "periods",
                         **position,
                     }
-                    for call in (old_mount.mcp, old_mount.a2a):
+                    for call in (new_mount.mcp, new_mount.a2a):
                         _, rejected = await call(client, request)
                         assert error_code(rejected) == "VERSION_UNSUPPORTED", rejected
                     # An authenticated position still reports the captured
@@ -169,7 +175,7 @@ async def main(settings):
                 "snapshot_bytes": len(document),
                 "version_boundary": version_boundary,
                 "checkpoint": prior["checkpoint"],
-                "fresh_version": current["adcp_version"],
+                "fresh_version": new_mount.version,
                 "fresh_snapshot_id": current["ledger_snapshot_id"],
             }
 
