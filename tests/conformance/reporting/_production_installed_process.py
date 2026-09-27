@@ -37,6 +37,7 @@ async def main(settings):
     from tests.conformance.reporting._production_support import production_harness
     from tests.conformance.reporting._production_transport import MountedProduction
     from tests.conformance.reporting._projection_support import drain
+    from tests.conformance.reporting._receipt_transport import error_code
     from tests.conformance.reporting.test_reporting_production_lock_order import source_turn
 
     async with AsyncConnectionPool(
@@ -246,6 +247,13 @@ async def main(settings):
                     )
                     await asyncio.to_thread(sys.stdin.readline)
                     raise AssertionError("activated process must be killed")
+                # The old cursor has no version binding, so it remains a
+                # valid public continuation after the rc.7 upgrade. The
+                # rc.6 receipt request is version-bound durable history.
+                assert (
+                    await h.store.ingest_receipt_batch(settings["receipt_request"], caller=caller)
+                    == settings["receipt_response"]
+                )
                 old_walks = []
                 new_walks = []
                 for transport in ("mcp", "a2a-0.3", "a2a-1.0"):
@@ -255,13 +263,13 @@ async def main(settings):
                     assert caps["media_buy"]["reporting_delivery"]["reconciled_billing"] is True
                     old_walks.append(await walk(client, settings["continuation"], transport))
                     new_walks.append(await walk(client, settings["new_continuation"], transport))
-                    _, replay = await mount.call(
+                    _, receipt_refusal = await mount.call(
                         client,
                         "sync_reporting_receipts",
                         settings["receipt_request"],
                         transport=transport,
                     )
-                    assert replay == settings["receipt_response"]
+                    assert error_code(receipt_refusal) == "VERSION_UNSUPPORTED", receipt_refusal
                 assert old_walks[0] == old_walks[1] == old_walks[2]
                 assert new_walks[0] == new_walks[1] == new_walks[2]
                 assert all(page_revision_ownership(p) is None for p in old_walks[0]["pages"])

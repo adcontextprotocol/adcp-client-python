@@ -128,7 +128,12 @@ async def main(settings):
                         s["id"] for s in (await client.get(path)).json()["skills"]
                     } == expected
                     assert feed_condition_4
-                if settings["action"] == "receipt":
+                if settings["action"] == "receipt_refused":
+                    _, response = await mount.mcp(client, settings["request"])
+                    code = transport.error_code(response)
+                    assert code == "VERSION_UNSUPPORTED", response
+                    result = {"error_code": code}
+                elif settings["action"] == "receipt":
                     _, response = await mount.mcp(client, settings["request"])
                     assert response["results"]
                     for v1 in (False, True):

@@ -6,6 +6,7 @@ from datetime import timedelta
 
 import pytest
 
+from adcp._version import resolve_adcp_version
 from adcp.reporting.ledger import (
     ReportingAdjustmentRecord,
     ReportingControlTotalRecord,
@@ -54,7 +55,9 @@ async def receipt_case(h, **kwargs):
 
 def request_for(s, *, key="receipt-batch-0001", **changes):
     return {
-        "adcp_version": "3.2-rc.7",
+        # These fixtures are copied into frozen installed wheels during rolling
+        # tests. Emit the version of the SDK actually running the fixture.
+        "adcp_version": resolve_adcp_version(None),
         "account": {"account_id": s.obligation.account_id},
         "idempotency_key": key,
         "receipts": [receipt_to_wire(s.receipt)],

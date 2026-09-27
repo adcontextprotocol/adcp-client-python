@@ -7,6 +7,7 @@ from dataclasses import replace
 
 import pytest
 
+from adcp._version import resolve_adcp_version
 from adcp.reporting.feed import InMemoryReportingFeedStore
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryScope
 from adcp.reporting.receipts import ReportingReceiptHandler
@@ -55,10 +56,11 @@ async def feeds(request):
         yield h
 
 
-async def mixed_case(h, **kwargs):
+async def mixed_case(h, *, adcp_version=None, **kwargs):
     s = await receipt_case(h, **kwargs)
     adjustment = await adjustment_for(h, s)
-    req = request_for(s, adjustment_receipts=[adjustment])
+    request_changes = {"adcp_version": adcp_version} if adcp_version is not None else {}
+    req = request_for(s, adjustment_receipts=[adjustment], **request_changes)
     result = await h.store.ingest_receipt_batch(req, caller=s.binding.principal)
     assert [r["result"] for r in result["results"]] == ["recorded", "recorded"]
     return s, req, result
@@ -66,7 +68,7 @@ async def mixed_case(h, **kwargs):
 
 def feed_request(s, *, limit=1, **kwargs):
     return {
-        "adcp_version": "3.2-rc.7",
+        "adcp_version": resolve_adcp_version(None),
         "view": "periods",
         "account": {"account_id": s.obligation.account_id},
         "pagination": {"max_results": limit},

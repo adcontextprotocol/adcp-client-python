@@ -194,7 +194,7 @@ async def test_actual_parent_page_one_to_installed_activation_sigkill_and_comple
     python, script, current = production_install
     evidence_key = f"{old['sha'][:12]}-{current['distribution']}-{int(notifications)}"
     async with feed_harness("postgres", notifications=notifications) as h:
-        case, receipt_request, receipt_response = await mixed_case(h)
+        case, receipt_request, receipt_response = await mixed_case(h, adcp_version="3.2-rc.6")
         # Seed public ordinary records on the parent schema. The memory fixture
         # supplies only deterministic input values and a provider grant; the
         # installed parent, below, creates the actual attempt and durable work.
@@ -257,14 +257,15 @@ async def test_actual_parent_page_one_to_installed_activation_sigkill_and_comple
             "helper": old_helper,
             "installed": old,
         }
-        async with feed_process(h, case, feed_request(case), pause="committed", **options) as child:
+        old_feed_request = feed_request(case, adcp_version="3.2-rc.6")
+        async with feed_process(h, case, old_feed_request, pause="committed", **options) as child:
             first = (await child.event("committed"))["result"]
             await child.kill()
             assert child.process.returncode == -9
         snapshot = await h.store.read_reporting_feed_snapshot(
             first["ledger_snapshot_id"], caller=case.binding.principal
         )
-        expected = await walk(h.store, feed_request(case), case.binding.principal, first=first)
+        expected = await walk(h.store, old_feed_request, case.binding.principal, first=first)
         # Change actual live evidence while the original binary's frozen pages
         # stay open. No reconstruction of its original representation is used.
         await h.store.set_revision_readable(
@@ -358,7 +359,8 @@ async def test_actual_parent_page_one_to_installed_activation_sigkill_and_comple
             pause=False,
             new_revision_after_snapshot=revision_id,
             continuation=feed_request(
-                case, pagination={"cursor": first["pagination"]["cursor"], "max_results": 1}
+                case,
+                pagination={"cursor": first["pagination"]["cursor"], "max_results": 1},
             ),
             new_continuation=feed_request(
                 case,

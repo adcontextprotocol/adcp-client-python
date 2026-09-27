@@ -99,7 +99,7 @@ def test_actual_approved_b23_installed_negative_and_preservation_controls(approv
 
 
 @pytest.mark.parametrize("notifications", [False, True])
-async def test_actual_b23_to_child_installed_restart_preserves_pages_and_receipt_replay(
+async def test_actual_b23_to_child_installed_restart_preserves_history_and_refuses_old_pin(
     approved_b23, installed_feed, notifications
 ):
     _, parent_python, parent_script, parent_helper, parent, _ = approved_b23
@@ -112,7 +112,8 @@ async def test_actual_b23_to_child_installed_restart_preserves_pages_and_receipt
     }
     new = {"python": python, "script": script, "helper": helper, "installed": current}
     async with feed_harness("postgres", notifications=notifications) as h:
-        s, receipt_request, receipt_response = await mixed_case(h)
+        s, receipt_request, receipt_response = await mixed_case(h, adcp_version="3.2-rc.6")
+        old_feed_request = feed_request(s, adcp_version="3.2-rc.6")
         # The approved binary really mounts the ingress and returns its durable
         # replay before it writes page one; fixtures only supply populated data.
         async with feed_process(h, s, receipt_request, action="receipt", **old) as child:
@@ -120,13 +121,13 @@ async def test_actual_b23_to_child_installed_restart_preserves_pages_and_receipt
             hardening_operation_1 = await asyncio.wait_for(child.process.wait(), 5)
             assert hardening_operation_1 == 0
         assert admitted["result"] == receipt_response
-        async with feed_process(h, s, feed_request(s), pause="committed", **old) as child:
+        async with feed_process(h, s, old_feed_request, pause="committed", **old) as child:
             first = (await child.event("committed"))["result"]
             await child.kill()
         original = await h.store.read_reporting_feed_snapshot(
             first["ledger_snapshot_id"], caller=s.binding.principal
         )
-        expected = await walk(h.store, feed_request(s), s.binding.principal, first=first)
+        expected = await walk(h.store, old_feed_request, s.binding.principal, first=first)
         await h.store.set_revision_readable(
             account_id=s.obligation.account_id,
             reporting_revision_id=s.revision.reporting_revision_id,
@@ -151,6 +152,9 @@ async def test_actual_b23_to_child_installed_restart_preserves_pages_and_receipt
         )
         assert ready["result"]["feed_objects"] == 33
         before = without_feed(await h.image())
+        # The retained rc.6 cursor is readable by the upgraded ledger. New
+        # public work uses rc.7 and starts a separate snapshot.
+        assert (await walk(h.store, old_feed_request, s.binding.principal, first=first)) == expected
         continuation = feed_request(
             s, pagination={"cursor": first["pagination"]["cursor"], "max_results": 1}
         )
@@ -159,17 +163,32 @@ async def test_actual_b23_to_child_installed_restart_preserves_pages_and_receipt
                 h, s, continuation, action="walk", transport="a2a", v1=v1, **new
             ) as child:
                 continued = await child.event("done")
-                hardening_operation_3 = await asyncio.wait_for(child.process.wait(), 5)
-                assert hardening_operation_3 == 0
+                assert await asyncio.wait_for(child.process.wait(), 5) == 0
             assert continued["result"]["pages"] == expected[0][1:]
             assert continued["result"]["binding"] == original.binding
             assert continued["result"]["version"] == original.representation_version
             assert continued["result"]["ownership_mode"] == original.ownership_mode == "absent"
-        async with feed_process(h, s, receipt_request, action="receipt", **new) as child:
+        for v1 in (False, True):
+            async with feed_process(
+                h, s, feed_request(s), action="walk", transport="a2a", v1=v1, **new
+            ) as child:
+                continued = await child.event("done")
+                hardening_operation_3 = await asyncio.wait_for(child.process.wait(), 5)
+                assert hardening_operation_3 == 0
+            assert (
+                continued["result"]["pages"][0]["ledger_snapshot_id"] != first["ledger_snapshot_id"]
+            )
+        # rc.6 remains a durable history format, not a live server pin on the
+        # rc.7 wheel. Public replay refuses it before touching stored bytes.
+        async with feed_process(h, s, receipt_request, action="receipt_refused", **new) as child:
             replayed = await child.event("done")
             hardening_operation_2 = await asyncio.wait_for(child.process.wait(), 5)
             assert hardening_operation_2 == 0
-        assert replayed["result"] == receipt_response
+        assert replayed["result"] == {"error_code": "VERSION_UNSUPPORTED"}
+        assert (
+            await h.store.ingest_receipt_batch(receipt_request, caller=s.binding.principal)
+            == receipt_response
+        )
         assert without_feed(await h.image()) == before
         assert (
             await h.store.read_reporting_feed_snapshot(
