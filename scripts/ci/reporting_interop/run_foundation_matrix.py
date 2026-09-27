@@ -312,7 +312,7 @@ def _runtime_identity(runtime: PythonRuntime, artifact: PythonArtifact) -> dict[
         "dist=distribution('adcp'); direct_raw=dist.read_text('direct_url.json'); "
         "members={p.as_posix():hashlib.sha256(dist.locate_file(p).read_bytes()).hexdigest() "
         "for p in (dist.files or []) if p.as_posix().startswith('adcp/') "
-        "and dist.locate_file(p).is_file()}; "
+        "and not p.as_posix().endswith('.pyc') and dist.locate_file(p).is_file()}; "
         "print(json.dumps({'python':sys.version.split()[0],'adcp':version('adcp'),"
         "'installed_distributions':packages,'direct_url':json.loads(direct_raw) "
         "if direct_raw else None,'sdk_member_count':len(members),"

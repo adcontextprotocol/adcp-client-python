@@ -223,7 +223,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
-    needs: [pg-conformance, pg-reporting-status, pg-reporting-materializer, pg-reporting-receipts, pg-reporting-receipt-compatibility, pg-reporting-feed, pg-reporting-feed-compatibility, pg-reporting-feed-installed, pg-reporting-production, pg-reporting-production-compatibility, pg-reporting-production-installed]
+    needs: [pg-conformance, pg-reporting-status, pg-reporting-materializer, pg-reporting-receipts, pg-reporting-receipt-compatibility, pg-reporting-feed, pg-reporting-feed-compatibility, pg-reporting-feed-installed, pg-reporting-production, pg-reporting-production-compatibility, pg-reporting-production-installed, reporting-installed-artifact-matrix]
     if: ${{ always() }}
     steps:
       - name: Require every Postgres conformance lane
@@ -239,8 +239,9 @@ jobs:
           PRODUCTION_RESULT: ${{ needs.pg-reporting-production.result }}
           PRODUCTION_COMPATIBILITY_RESULT: ${{ needs.pg-reporting-production-compatibility.result }}
           PRODUCTION_INSTALLED_RESULT: ${{ needs.pg-reporting-production-installed.result }}
+          REPORTING_INTEROP_RESULT: ${{ needs.reporting-installed-artifact-matrix.result }}
         run: |
-          if [ "$PG_RESULT" != "success" ] || [ "$STATUS_RESULT" != "success" ] || [ "$MATERIALIZER_RESULT" != "success" ] || [ "$RECEIPTS_RESULT" != "success" ] || [ "$RECEIPT_COMPATIBILITY_RESULT" != "success" ] || [ "$FEED_RESULT" != "success" ] || [ "$FEED_COMPATIBILITY_RESULT" != "success" ] || [ "$FEED_INSTALLED_RESULT" != "success" ] || [ "$PRODUCTION_RESULT" != "success" ] || [ "$PRODUCTION_COMPATIBILITY_RESULT" != "success" ] || [ "$PRODUCTION_INSTALLED_RESULT" != "success" ]; then
+          if [ "$PG_RESULT" != "success" ] || [ "$STATUS_RESULT" != "success" ] || [ "$MATERIALIZER_RESULT" != "success" ] || [ "$RECEIPTS_RESULT" != "success" ] || [ "$RECEIPT_COMPATIBILITY_RESULT" != "success" ] || [ "$FEED_RESULT" != "success" ] || [ "$FEED_COMPATIBILITY_RESULT" != "success" ] || [ "$FEED_INSTALLED_RESULT" != "success" ] || [ "$PRODUCTION_RESULT" != "success" ] || [ "$PRODUCTION_COMPATIBILITY_RESULT" != "success" ] || [ "$PRODUCTION_INSTALLED_RESULT" != "success" ] || [ "$REPORTING_INTEROP_RESULT" != "success" ]; then
             echo "Postgres conformance matrix result: $PG_RESULT"
             echo "Reporting status conformance result: $STATUS_RESULT"
             echo "Durable materializer conformance result: $MATERIALIZER_RESULT"
@@ -252,6 +253,7 @@ jobs:
             echo "pg-reporting-production result: $PRODUCTION_RESULT"
             echo "pg-reporting-production-compatibility result: $PRODUCTION_COMPATIBILITY_RESULT"
             echo "pg-reporting-production-installed result: $PRODUCTION_INSTALLED_RESULT"
+            echo "Installed reporting interop 2x2 result: $REPORTING_INTEROP_RESULT"
             exit 1
           fi
           echo "All Postgres conformance lanes passed"
@@ -1296,6 +1298,8 @@ jobs:
     name: Reliable reporting installed artifacts — baseline 2x2
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:16
@@ -1389,6 +1393,7 @@ jobs:
     name: Reliable reporting installed-artifact 2x2
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions: {}
     needs: reporting-installed-artifact-matrix
     if: ${{ !cancelled() }}
     steps:

@@ -44,10 +44,15 @@ re-pointed to rc.7.
   #2972 timing/discovery correction. Rc.47 remains a separate development
   source lead, and rc.45 remains the historical executable input. No prior
   result transfers to rc.48.
-- Previous compatible TypeScript skew input: exact `@adcp/sdk@14.0.0-rc.41`,
+- Previous baseline TypeScript skew input: exact `@adcp/sdk@14.0.0-rc.41`,
   integrity
   `sha512-Qfs+ujKBpIjf7m9jcuzxvN/XCXUssxhR5xCvxCq4oqMR3aMJjnuTgzjxltPtv+A6LOxwmX1ia8sMRdhVSehdBg==`,
-  from the checked-in `scripts/ci/reporting_interop/npm/rc41/` lock. The
+  from the checked-in `scripts/ci/reporting_interop/npm/rc41/` lock. Rc.41
+  does not export the reporting Core reconciler and therefore cannot be the
+  positive stable-side input for final acceptance. The final rerun needs an
+  explicitly selected published compatible TypeScript artifact; choosing a
+  prerelease such as rc.47 for that role is a product-policy decision, not an
+  implicit harness substitution. The
   previous Python input is the released b15 wheel installed by local path and
   asserted as SHA-256 `608636a4fe774bc4846b5bb0eab6367d0b8e69f6f371aa6085845d9f8329f48f`;
   its occupied version string is never used as candidate identity.
@@ -88,11 +93,14 @@ seller processes. Every cell's acceptance polarity remains
 never earns acceptance credit. The current baseline therefore passes its
 declared published-artifact behavior while issue acceptance remains false at
 one of four positive cells. Final acceptance requires a newly published
-#1172-integrated Python artifact, rc.7 alignment after #1229, and a rerun from
-integrated `main`.
+#1172-integrated Python artifact, rc.7 alignment after #1229, an explicitly
+selected published compatible TypeScript stable-side artifact, and a rerun
+from integrated `main`.
 
 `run_installed_artifact_matrix.py` executes this cross-product and
-`Reliable reporting installed-artifact 2x2` is its dedicated CI aggregate.
+`Reliable reporting installed-artifact 2x2` is its dedicated CI aggregate;
+the same execution result is also propagated into the ruleset-required
+`Postgres conformance tests (Postgres 16)` aggregate.
 The existing reference-seller storyboard aggregate is unrelated and supplies
 no #1199 credit.
 

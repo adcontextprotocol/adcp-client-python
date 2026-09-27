@@ -25,19 +25,24 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 DEFAULT_CONTRACT = HERE / "installed_artifact_cells.json"
 CLIENT_TIMEOUT_SECONDS = 60
-
-_FOUNDATION_SPEC = importlib.util.spec_from_file_location(
-    "reporting_interop_foundation", HERE / "run_foundation_matrix.py"
-)
-if _FOUNDATION_SPEC is None or _FOUNDATION_SPEC.loader is None:
-    raise RuntimeError("cannot load the reporting interop foundation runner")
-foundation = importlib.util.module_from_spec(_FOUNDATION_SPEC)
-sys.modules[_FOUNDATION_SPEC.name] = foundation
-_FOUNDATION_SPEC.loader.exec_module(foundation)
+BASELINE_PHASE = "baseline_before_rc7_and_1172"
+foundation: Any = None
 
 
 class MatrixError(RuntimeError):
     """The installed-artifact baseline did not match its declared contract."""
+
+
+def _load_foundation() -> Any:
+    spec = importlib.util.spec_from_file_location(
+        "reporting_interop_foundation", HERE / "run_foundation_matrix.py"
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("cannot load the reporting interop foundation runner")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def _path(value: str) -> Path:
@@ -187,6 +192,46 @@ def _classify_seller_failure(stderr: str) -> str:
     )
 
 
+def _cross_cell_isolation_errors(rows: list[dict[str, Any]]) -> list[str]:
+    errors: list[str] = []
+    databases = []
+    for row in rows:
+        identity = row.get("database_identity", {})
+        cluster = identity.get("cluster_identity", {})
+        databases.append(
+            (
+                identity.get("name"),
+                cluster.get("system_identifier"),
+                cluster.get("postmaster_started_at"),
+            )
+        )
+    sellers = [
+        (
+            row.get("seller_process_identity", {}).get("pid"),
+            row.get("seller_process_identity", {}).get("start_token"),
+        )
+        for row in rows
+    ]
+    output_directories = [row.get("output_directory") for row in rows]
+    if any(not all(identity) for identity in databases):
+        errors.append("every cell must retain its database and cluster identity")
+    if len(set(databases)) != len(databases):
+        errors.append("required cells must not reuse a database identity")
+    if any(not pid or not start for pid, start in sellers):
+        errors.append("every cell must retain its seller process identity")
+    if len(set(sellers)) != len(sellers):
+        errors.append("required cells must not reuse a seller process identity")
+    if any(not directory for directory in output_directories):
+        errors.append("every cell must retain its output directory identity")
+    if len(set(output_directories)) != len(output_directories):
+        errors.append("required cells must not reuse an output directory")
+    return errors
+
+
+def _gate_passes(*, phase: str, baseline_complete: bool, issue_acceptance: bool) -> bool:
+    return baseline_complete if phase == BASELINE_PHASE else issue_acceptance
+
+
 def _run_cell(
     cell: dict[str, Any],
     *,
@@ -287,6 +332,7 @@ def _run_cell(
         "typescript_role": typescript_role,
         "database_identity": database_identity,
         "seller_process_identity": process_identity,
+        "output_directory": output.name,
         "client_exit_code": client_exit,
         "result": result,
         "evidence": evidence,
@@ -294,6 +340,8 @@ def _run_cell(
 
 
 def main() -> None:
+    global foundation
+    foundation = _load_foundation()
     args = _arguments()
     contract = _load_contract(args.contract)
     args.output = args.output.absolute()
@@ -348,9 +396,17 @@ def main() -> None:
         if not args.keep_databases:
             foundation._drop_databases(args.pg_admin_url, created)
 
-    baseline_complete = len(rows) == 4 and all(row["baseline_match"] for row in rows)
+    isolation_errors = _cross_cell_isolation_errors(rows)
+    baseline_complete = (
+        len(rows) == 4 and all(row["baseline_match"] for row in rows) and not isolation_errors
+    )
     positive_cells = [row["id"] for row in rows if row["positive_semantic"]]
     issue_acceptance = baseline_complete and len(positive_cells) == 4
+    gate_passed = _gate_passes(
+        phase=contract["phase"],
+        baseline_complete=baseline_complete,
+        issue_acceptance=issue_acceptance,
+    )
     report = {
         "schema_version": 1,
         "phase": contract["phase"],
@@ -359,6 +415,8 @@ def main() -> None:
         "status": "baseline_passed" if baseline_complete else "baseline_failed",
         "acceptance": issue_acceptance,
         "blocking_acceptance": issue_acceptance,
+        "gate_passed": gate_passed,
+        "cross_cell_isolation_errors": isolation_errors,
         "required_cell_count": 4,
         "executed_cell_count": len(rows),
         "positive_semantic_cells": positive_cells,
@@ -389,7 +447,7 @@ def main() -> None:
     report_path = args.output / "results.json"
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(report, sort_keys=True))
-    if not baseline_complete:
+    if not gate_passed:
         raise SystemExit(1)
 
 

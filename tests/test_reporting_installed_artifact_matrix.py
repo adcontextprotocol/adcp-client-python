@@ -5,8 +5,11 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/ci/reporting_interop/run_installed_artifact_matrix.py"
+CI_WORKFLOW = ROOT / ".github/workflows/ci.yml"
 SPEC = importlib.util.spec_from_file_location("installed_artifact_matrix", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 matrix = importlib.util.module_from_spec(SPEC)
@@ -66,3 +69,93 @@ def test_manifest_keeps_baseline_expectations_separate_from_acceptance() -> None
         "positive_semantic"
     ) == 1
     assert "integrated_main_rerun" in contract["acceptance_contract"]["final_rerun_prerequisites"]
+    assert (
+        "positive_typescript_stable_artifact_selected"
+        in contract["acceptance_contract"]["final_rerun_prerequisites"]
+    )
+
+
+def test_gate_requires_issue_acceptance_after_baseline_phase() -> None:
+    assert matrix._gate_passes(
+        phase=matrix.BASELINE_PHASE,
+        baseline_complete=True,
+        issue_acceptance=False,
+    )
+    assert not matrix._gate_passes(
+        phase="integrated_required_acceptance",
+        baseline_complete=True,
+        issue_acceptance=False,
+    )
+    assert matrix._gate_passes(
+        phase="integrated_required_acceptance",
+        baseline_complete=True,
+        issue_acceptance=True,
+    )
+
+
+def test_cross_cell_isolation_rejects_reused_database_or_process() -> None:
+    rows = [
+        {
+            "database_identity": {
+                "name": f"db_{index}",
+                "cluster_identity": {
+                    "system_identifier": "cluster-a",
+                    "postmaster_started_at": "2026-09-27 00:00:00+00",
+                },
+            },
+            "seller_process_identity": {"pid": 100 + index, "start_token": f"start-{index}"},
+            "output_directory": f"cell-{index}",
+        }
+        for index in range(4)
+    ]
+    assert matrix._cross_cell_isolation_errors(rows) == []
+
+    rows[1]["database_identity"] = rows[0]["database_identity"]
+    rows[3]["seller_process_identity"] = rows[2]["seller_process_identity"]
+    rows[2]["output_directory"] = rows[1]["output_directory"]
+    assert matrix._cross_cell_isolation_errors(rows) == [
+        "required cells must not reuse a database identity",
+        "required cells must not reuse a seller process identity",
+        "required cells must not reuse an output directory",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("missing_key", "expected_error"),
+    [
+        ("database_identity", "every cell must retain its database and cluster identity"),
+        ("seller_process_identity", "every cell must retain its seller process identity"),
+        ("output_directory", "every cell must retain its output directory identity"),
+    ],
+)
+def test_cross_cell_isolation_requires_observed_identities(
+    missing_key: str, expected_error: str
+) -> None:
+    row = {
+        "database_identity": {
+            "name": "db",
+            "cluster_identity": {
+                "system_identifier": "cluster",
+                "postmaster_started_at": "2026-09-27 00:00:00+00",
+            },
+        },
+        "seller_process_identity": {"pid": 100, "start_token": "start"},
+        "output_directory": "cell",
+    }
+    del row[missing_key]
+
+    assert expected_error in matrix._cross_cell_isolation_errors([row])
+
+
+def test_required_postgres_gate_depends_on_installed_artifact_matrix() -> None:
+    workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+    gate_start = workflow.index("  pg-conformance-required-gate:")
+    gate_end = workflow.index("\n  pg-reporting-status:", gate_start)
+    gate = workflow[gate_start:gate_end]
+
+    assert "reporting-installed-artifact-matrix" in gate
+    assert (
+        "REPORTING_INTEROP_RESULT: "
+        "${{ needs.reporting-installed-artifact-matrix.result }}" in gate
+    )
+    assert '[ "$REPORTING_INTEROP_RESULT" != "success" ]' in gate
