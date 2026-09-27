@@ -1025,6 +1025,7 @@ def test_uncertain_create_is_retained_for_exact_name_cleanup(
 def test_database_owner_returns_node_postgres_uri_after_psycopg_validation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    pytest.importorskip("psycopg")
     owner = orchestration.DatabaseOwner(
         "user=fixture password='s p/a' host=127.0.0.1 port=55491 dbname=postgres",
         "abc123",
@@ -1055,6 +1056,7 @@ def test_database_owner_returns_node_postgres_uri_after_psycopg_validation(
 def test_node_database_url_materializes_libpq_default_user(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    pytest.importorskip("psycopg")
     monkeypatch.setattr(orchestration.getpass, "getuser", lambda: "fixture-user")
 
     assert (
