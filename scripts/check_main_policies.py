@@ -15,10 +15,67 @@ import json
 import os
 import re
 import subprocess
+import urllib.request
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from scripts.release_gate import REPOSITORY, SHA, GitHub, require, timestamp
+REPOSITORY = "adcontextprotocol/adcp-client-python"
+SHA = re.compile(r"[0-9a-f]{40}")
+
+
+class ReleaseRejectedError(RuntimeError):
+    """A read-only main policy could not verify its input."""
+
+
+def require(condition: Any, message: str) -> None:
+    if not condition:
+        raise ReleaseRejectedError(message)
+
+
+def timestamp(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    require(parsed.tzinfo is not None, "timestamp must include a timezone")
+    return parsed
+
+
+class GitHub:
+    """Read-only GitHub API client for the two ordinary CI policies."""
+
+    def __init__(self, token: str) -> None:
+        require(token, "GH_TOKEN is required")
+        self.token = token
+
+    def request(self, path: str, method: str = "GET", body: Any = None) -> Any:
+        require(method == "GET" and body is None, "policy API is read-only")
+        request = urllib.request.Request(
+            "https://api.github.com" + path,
+            headers={
+                "Authorization": f"Bearer {self.token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.load(response)
+
+    def repo(self, suffix: str, method: str = "GET", body: Any = None) -> Any:
+        return self.request(f"/repos/{REPOSITORY}/{suffix}", method, body)
+
+    def pages(self, suffix: str, key: str | None = None) -> list[Any]:
+        items: list[Any] = []
+        separator = "&" if "?" in suffix else "?"
+        for page in range(1, 101):
+            response = self.repo(f"{suffix}{separator}per_page=100&page={page}")
+            batch = response if key is None else response[key]
+            require(isinstance(batch, list), "invalid paginated API response")
+            items.extend(batch)
+            if len(batch) < 100:
+                if key is not None:
+                    require(len(items) == response["total_count"], "incomplete API inventory")
+                return items
+        raise ReleaseRejectedError("API inventory exceeds the pagination limit")
+
 
 ROOT = Path(__file__).resolve().parent.parent
 LEDGER_REPOSITORY = "adcontextprotocol/adcp"

@@ -128,11 +128,10 @@ context-echo path.
 - Test locally with `python -m build` before relying on CI
 
 **Release Please Workflow**
-- Legacy workflow 204238826 stays disabled; its definition is a failing tombstone.
-- `release-proposal.yml` accepts an explicit current-main SHA and creates only a release PR.
-- `release-publish.yml` repeats exact-main CI/artifact/installed acceptance after the release PR merges, then requires environment approval.
-- Follow [docs/releasing.md](docs/releasing.md) for historical-run retirement, operator configuration, the main freeze, publication, and guarded recovery.
-- Requires proper `[project.scripts]` entry point in pyproject.toml for CLI tools
+- A push to `main` opens or updates the normal Release Please PR using the GitHub App token.
+- Merge the reviewed release PR after CI; Release Please creates its tag and GitHub release.
+- `release-publish.yml` waits for exact-commit CI, builds and checks distributions, then awaits `release-publish` environment approval before PyPI Trusted Publishing.
+- Follow [docs/releasing.md](docs/releasing.md) for setup, approval, and verification.
 
 **Entry Points for CLI Tools**
 ```toml

@@ -1,24 +1,53 @@
 name: Release Please
 
-# Workflow 204238826 is deliberately retired, not renamed or re-enabled.
-# Historical runs retain their old code: see docs/releasing.md before enabling
-# the NEW publisher. This tombstone cannot make historical runs safe.
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 
-permissions: {}
+permissions:
+  contents: read
+  actions: write # Queue the main-branch publication workflow for a created release.
 
 concurrency:
-  group: retired-release-please
+  group: release-please-main
   cancel-in-progress: false
 
 jobs:
-  retired:
-    name: Refuse the retired workflow
+  release:
     runs-on: ubuntu-24.04
-    timeout-minutes: 1
+    timeout-minutes: 15
     steps:
-      - name: Refuse the retired publication entry point
-        run: |
-          echo 'Release Please is retired. Use the guarded proposal or publication workflow.' >&2
-          exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Mint release PR App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.RELEASE_PROPOSAL_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PROPOSAL_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: adcp-client-python
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Open or update the release PR, or create its release after merge
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          target-branch: main
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      - name: Normalize the release PR's PEP 440 version
+        if: steps.release.outputs.prs_created == 'true'
+        run: python3 -m scripts.normalize_pyproject_prerelease --release-prs
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PROPOSAL_PRS: ${{ steps.release.outputs.prs }}
+      - name: Queue publication for the created release
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+        run: gh workflow run release-publish.yml --ref main -f release_sha="$RELEASE_SHA" -f tag_name="$RELEASE_TAG"

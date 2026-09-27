@@ -14,7 +14,7 @@ import pytest
 import yaml
 
 from scripts import check_main_policies as policies
-from scripts.release_gate import ReleaseRejectedError
+from scripts.check_main_policies import ReleaseRejectedError
 
 LEDGER_SHA = "d" * 40
 BREAKING_SUBJECT = "fix(reporting)!: scope configuration generations by account (#1174)"
