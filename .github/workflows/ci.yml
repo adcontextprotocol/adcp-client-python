@@ -194,6 +194,8 @@ jobs:
                      tests/conformance/decisioning/test_pg_task_webhook_outbox.py \
                      tests/conformance/decisioning/test_pg_reference_workflow_queue.py \
                      tests/conformance/reporting/ \
+                     tests/test_reporting_storyboard_orchestration.py::test_database_owner_returns_node_postgres_uri_after_psycopg_validation \
+                     tests/test_reporting_storyboard_orchestration.py::test_node_database_url_materializes_libpq_default_user \
                      --ignore=tests/conformance/reporting/test_reporting_notification_process_matrix.py \
                      --ignore-glob='tests/conformance/reporting/test_reporting_status_*.py' \
                      --ignore=tests/conformance/reporting/test_reporting_materializer_rolling.py \

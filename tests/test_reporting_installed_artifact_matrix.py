@@ -159,3 +159,11 @@ def test_required_postgres_gate_depends_on_installed_artifact_matrix() -> None:
         "${{ needs.reporting-installed-artifact-matrix.result }}" in gate
     )
     assert '[ "$REPORTING_INTEROP_RESULT" != "success" ]' in gate
+    assert (
+        "tests/test_reporting_storyboard_orchestration.py::"
+        "test_database_owner_returns_node_postgres_uri_after_psycopg_validation" in workflow
+    )
+    assert (
+        "tests/test_reporting_storyboard_orchestration.py::"
+        "test_node_database_url_materializes_libpq_default_user" in workflow
+    )
