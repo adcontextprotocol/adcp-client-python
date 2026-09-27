@@ -21,8 +21,8 @@ One-time setup:
 - In PyPI → adcp → Publishing, add a Trusted Publisher for owner
   `adcontextprotocol`, repository `adcp-client-python`, workflow
   `release-publish.yml`, and environment `release-publish`.
-- Keep the existing `RELEASE_PROPOSAL_APP_ID` variable and
-  `RELEASE_PROPOSAL_APP_PRIVATE_KEY` secret available to `release-please.yml`.
+- Keep the existing `IPR_APP_ID` and `IPR_APP_PRIVATE_KEY` secrets available to
+  `release-please.yml`.
   The App needs repository contents and pull-request write access.
 
 If publication fails, fix the cause and rerun `release-publish.yml` for the same
