@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.0.0-beta.17](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.16...v8.0.0-beta.17) (2026-09-27)
+
+
+### Features
+
+* **protocol:** adopt signed AdCP 3.2 rc.7 as default ([#1229](https://github.com/adcontextprotocol/adcp-client-python/issues/1229)) ([c45a2c7](https://github.com/adcontextprotocol/adcp-client-python/commit/c45a2c768b0d4afac9926930fb62c2ca225138c4))
+
 ## [8.0.0-beta.16](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.15...v8.0.0-beta.16) (2026-09-27)
 
 
