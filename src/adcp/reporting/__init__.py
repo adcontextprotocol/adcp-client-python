@@ -78,6 +78,7 @@ if TYPE_CHECKING:
     from adcp.reporting import materializer as materializer
     from adcp.reporting import revision_selection as revision_selection
     from adcp.reporting import service as service
+    from adcp.reporting import service_production as service_production
     from adcp.reporting import source as source
     from adcp.reporting import testing as testing
     from adcp.reporting.service import (
@@ -107,6 +108,12 @@ if TYPE_CHECKING:
     from adcp.reporting.service_lifecycle import (
         ReportingServiceResource as ReportingServiceResource,
     )
+    from adcp.reporting.service_production import (
+        ReportingProductionOptions as ReportingProductionOptions,
+    )
+    from adcp.reporting.service_production import (
+        ReportingServiceOffering as ReportingServiceOffering,
+    )
     from adcp.reporting.testing import (
         DeterministicReportingClock as DeterministicReportingClock,
     )
@@ -128,6 +135,7 @@ _LAZY_SUBMODULES = frozenset(
         "materializer",
         "revision_selection",
         "service",
+        "service_production",
         "source",
         "testing",
     }
@@ -146,6 +154,8 @@ _LAZY_EXPORTS = {
     "ReportingServiceResource": ("service_lifecycle", "ReportingServiceResource"),
     "ReportingAccountContext": ("service", "ReportingAccountContext"),
     "ReportingAdapter": ("service", "ReportingAdapter"),
+    "ReportingProductionOptions": ("service_production", "ReportingProductionOptions"),
+    "ReportingServiceOffering": ("service_production", "ReportingServiceOffering"),
     "DeterministicReportingClock": ("testing", "DeterministicReportingClock"),
     "ScriptedReportingAdapter": ("testing", "ScriptedReportingAdapter"),
     "run_reporting_adapter_conformance": ("testing", "run_reporting_adapter_conformance"),

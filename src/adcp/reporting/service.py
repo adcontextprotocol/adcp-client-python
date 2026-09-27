@@ -62,7 +62,9 @@ from adcp.reporting.source import (
 )
 
 if TYPE_CHECKING:
+    from adcp.reporting.production.contracts import ReportingProductionSourceBinding
     from adcp.reporting.production.service import ReportingProductionSupport
+    from adcp.reporting.service_production import ReportingProductionOptions
 
 __all__ = [
     "AdapterRegistration",
@@ -228,11 +230,39 @@ class AdapterRegistration:
     adapter: ReportingAdapter | None = None
 
 
+class _AuthorizedInlineSource(InlineReportingSource):
+    """Forward the adopter's existing production authority without caching it."""
+
+    def __init__(
+        self,
+        *,
+        configuration_binding: Callable[
+            [ReportingConfiguration], ReportingProductionSourceBinding | None
+        ],
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self._configuration_binding = configuration_binding
+
+    def configuration_binding(
+        self, configuration: ReportingConfiguration
+    ) -> ReportingProductionSourceBinding | None:
+        return self._configuration_binding(configuration)
+
+
 class ReportingAdapterRegistry:
     """Named source adapters available to one service process."""
 
-    def __init__(self, *, clock: Callable[[], datetime]) -> None:
+    def __init__(
+        self,
+        *,
+        clock: Callable[[], datetime],
+        staging: ReportingStagingStore | None = None,
+        seals: ReportingSealStore | None = None,
+    ) -> None:
         self._clock = clock
+        self._staging = staging
+        self._seals = seals
         self._registrations: dict[str, AdapterRegistration] = {}
         self._frozen = False
 
@@ -243,17 +273,36 @@ class ReportingAdapterRegistry:
         *,
         staging: ReportingStagingStore | None = None,
         seals: ReportingSealStore | None = None,
+        constituent_of: (
+            Callable[[Mapping[str, Any], ReportingSourceSliceRequestV1], str | None] | None
+        ) = None,
     ) -> AdapterRegistration:
-        """Register a small adapter and wrap it in the manifest executor."""
+        """Wrap a small adapter using this service's default source storage.
+
+        Managed adapters also implement the existing production source method
+        ``configuration_binding(configuration)``. It is forwarded on every
+        authorization check, without an SDK cache: revocation takes effect at
+        the next dispatch or publish. Adopters own callback caching and latency.
+        Explicit stores are borrowed and must have their schemas prepared.
+        ``constituent_of`` supports row contracts with custom constituent keys;
+        otherwise rows use media_buy_id, package_id, product_id or constituent_id.
+        """
         if not isinstance(adapter, ReportingAdapter):
             raise TypeError("adapter must expose capabilities and fetch_slice(request)")
-        staging = staging or InMemoryStagingStore()
-        executor = InlineReportingSource(
+        if staging is None:
+            staging = self._staging if self._staging is not None else InMemoryStagingStore()
+        if seals is None:
+            seals = self._seals if self._seals is not None else InMemorySealStore()
+        authority = getattr(adapter, "configuration_binding", None)
+        source_type = _AuthorizedInlineSource if callable(authority) else InlineReportingSource
+        executor = source_type(
             capabilities=adapter.capabilities,
             fetch=adapter.fetch_slice,
             staging=staging,
-            seals=seals or InMemorySealStore(),
+            seals=seals,
+            constituent_of=constituent_of,
             clock=self._clock,
+            **({"configuration_binding": authority} if callable(authority) else {}),
         )
         return self.register_executor(
             name,
@@ -363,10 +412,27 @@ class ReliableReportingService:
         reconciled_billing: bool = False,
         worker_error_handler: ReportingWorkerErrorHandler | None = None,
         owned_resources: Sequence[ReportingServiceResource] = (),
+        production: ReportingProductionOptions | None = None,
     ) -> None:
+        if production is not None and (
+            caller_resolver is not None
+            or producer_factory is not ReportingProducer
+            or worker_interval is not None
+            or materialization_worker is not None
+            or notification_worker is not None
+            or notification_attempt_store is not None
+            or receipt_handler is not None
+            or reconciled_billing
+            or worker_error_handler is not None
+        ):
+            raise ReliableReportingConfigurationError(
+                "production options compose their own workers, admission and receipt handlers"
+            )
         effective_clock = clock or (lambda: datetime.now(timezone.utc))
         self.store = store
         self._production: ReportingProductionSupport | None = None
+        self._production_options = production
+        self._initialize_source_storage: Callable[[], Awaitable[None]] | None = None
         self.sources = ReportingAdapterRegistry(clock=effective_clock)
         self._context_resolver = account_context
         self._caller_resolver = caller_resolver or self._default_caller
@@ -390,7 +456,11 @@ class ReliableReportingService:
         self._turn_lock = asyncio.Lock()
         self._lifecycle = _ServiceLifecycle(
             self._initialize,
-            resources=owned_resources,
+            resources=(
+                (*owned_resources, ReportingServiceResource(close=self._close_production))
+                if production is not None
+                else owned_resources
+            ),
             configuration_error=ReliableReportingConfigurationError,
         )
 
@@ -443,14 +513,23 @@ class ReliableReportingService:
         account_context: ReportingContextResolver,
         caller_resolver: ReportingCallerResolver | None = None,
         clock: Callable[[], datetime] | None = None,
+        production: ReportingProductionOptions | None = None,
         **kwargs: Any,
     ) -> ReliableReportingService:
         """Create a deterministic in-memory service for tests and pilots."""
+        from adcp.reporting.production.memory import InMemoryReportingProductionStore
+
+        store = (
+            InMemoryReportingProductionStore(clock=clock, notifications=production.notifications)
+            if production is not None
+            else InMemoryReportingLedgerStore(clock=clock)
+        )
         return cls(
-            store=InMemoryReportingLedgerStore(clock=clock),
+            store=store,
             account_context=account_context,
             caller_resolver=caller_resolver,
             clock=clock,
+            production=production,
             **kwargs,
         )
 
@@ -462,22 +541,72 @@ class ReliableReportingService:
         account_context: ReportingContextResolver,
         caller_resolver: ReportingCallerResolver | None = None,
         clock: Callable[[], datetime] | None = None,
+        production: ReportingProductionOptions | None = None,
         **kwargs: Any,
     ) -> ReliableReportingService:
-        """Create a production ledger service over a caller-owned async pool."""
-        from adcp.reporting.ledger.pg import PgReportingLedgerStore
+        """Create durable ledger, staging and seal stores over a borrowed pool.
 
-        return cls(
-            store=PgReportingLedgerStore(pool=pool, clock=clock),
+        ``production`` additionally composes the managed pipeline, receipts and
+        optional signed notifications when ``install`` freezes registered sources.
+        Startup installs all SDK-owned schemas. Explicit source-store overrides
+        remain the adopter's responsibility. No pool is opened or closed here.
+        """
+        from adcp.reporting.inline_storage import PgReportingSealStore, PgReportingStagingStore
+        from adcp.reporting.ledger.pg import PgReportingLedgerStore
+        from adcp.reporting.production.pg import PgReportingProductionStore
+
+        store = (
+            PgReportingProductionStore(
+                pool=pool, clock=clock, notifications=production.notifications
+            )
+            if production is not None
+            else PgReportingLedgerStore(pool=pool, clock=clock)
+        )
+        service = cls(
+            store=store,
             account_context=account_context,
             caller_resolver=caller_resolver,
             clock=clock,
+            production=production,
             **kwargs,
         )
+        staging = PgReportingStagingStore(pool=pool)
+        service.sources = ReportingAdapterRegistry(
+            clock=service._clock, staging=staging, seals=PgReportingSealStore(pool=pool)
+        )
+        service._initialize_source_storage = staging.create_schema
+        return service
+
+    def _compose_production(self) -> None:
+        if self._production_options is None or self._production is not None:
+            return
+        from adcp.reporting.production.memory import InMemoryReportingProductionStore
+        from adcp.reporting.production.pg import PgReportingProductionStore
+
+        if not isinstance(
+            self.store, (InMemoryReportingProductionStore, PgReportingProductionStore)
+        ):
+            raise ReliableReportingConfigurationError(
+                "production options require a memory or postgres production store"
+            )
+        self._production = self._production_options._compose(
+            store=self.store,
+            sources=self.sources,
+            account_context=self._context_resolver,
+            clock=self._clock,
+            escalation=self._escalation,
+            consumer_status_enabled=self._consumer_status_enabled,
+        )
+        self._production._service_lifecycle = self._lifecycle
+        self.sources.freeze()
+
+    async def _close_production(self) -> None:
+        if self._production is not None:
+            await self._production.aclose()
 
     async def configure(self, configuration: ReportingConfiguration) -> None:
         """Resolve trusted account facts once and freeze this generation's route."""
-        if self._production is not None:
+        if self._production is not None or self._production_options is not None:
             raise ReliableReportingConfigurationError(
                 "production requires typed sync_accounts admission"
             )
@@ -609,7 +738,8 @@ class ReliableReportingService:
 
     def validate(self) -> None:
         """Fail fast on tier combinations the configured components cannot honor."""
-        if self._production is not None and self.sources.names:
+        self._compose_production()
+        if self._production is not None and self._production_options is None and self.sources.names:
             raise ReliableReportingConfigurationError(
                 "production adapters must belong to its frozen source registry"
             )
@@ -638,6 +768,8 @@ class ReliableReportingService:
         self.validate()
         async with self._configuration_lock:
             await self.store.create_schema()
+            if self._initialize_source_storage is not None:
+                await self._initialize_source_storage()
             for configuration in self._pending_configurations.values():
                 await self.store.put_configuration(configuration)
             self._pending_configurations.clear()
@@ -732,7 +864,7 @@ class ReliableReportingService:
 
     async def run_worker(self, *, now: datetime | None = None) -> ReliableReportingTurn:
         """Route one turn across every frozen configuration generation."""
-        if self._production is not None:
+        if self._production is not None or self._production_options is not None:
             raise ReliableReportingConfigurationError("production workers are owned by start/close")
         await self.initialize()
         await self._lifecycle.activate()
@@ -965,6 +1097,7 @@ class ReliableReportingService:
 
     def install(self, platform: Any) -> Any:
         """Install ready-to-use reporting handlers on an existing platform instance."""
+        self._compose_production()
         if self._production is not None:
             self._production.handler.bind_application(platform)
             return self._production.handler

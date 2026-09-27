@@ -108,9 +108,24 @@ asserted only in the request body.
 
 ## PostgreSQL production wiring
 
+The PostgreSQL factory installs ledger, source staging, and replay-seal schemas
+in the caller's pool. Ordinary adapter registrations use those durable stores;
+restart replay reads the sealed bytes without refetching the source. Open the
+pool before starting the service and close it after service shutdown settles.
+
+Pass `ReportingProductionOptions` to compose the managed materializer, status
+projection, exact reads, consumer/receipt handlers, and optional signed
+notification workers. Adopters supply domain declarations and their actual
+destination, verifier registry, trusted account task and authorization callbacks.
+The SDK constructs the component graph:
+
 ```python
 from psycopg_pool import AsyncConnectionPool
-from adcp.reporting import ReliableReportingService
+from adcp.reporting import (
+    ReliableReportingService,
+    ReportingProductionOptions,
+    ReportingServiceOffering,
+)
 
 pool = AsyncConnectionPool(DATABASE_URL, open=False)
 await pool.open()
@@ -118,23 +133,73 @@ await pool.open()
 reporting = ReliableReportingService.postgres(
     pool=pool,
     account_context=resolve_reporting_context,
-    caller_resolver=resolve_authenticated_caller,
-    worker_interval=timedelta(minutes=1),
-    materialization_worker=managed_delivery_worker,   # optional tier
-    notification_worker=notification_worker,          # optional extension
-    notification_attempt_store=notification_attempts,
-    receipt_handler=receipt_handler,                   # optional tier
-    reconciled_billing=True,
-    worker_error_handler=report_reporting_worker_error,
+    consumer_status_enabled=True,
+    production=ReportingProductionOptions(
+        offerings=(
+            ReportingServiceOffering(
+                adapter="gam",
+                offering=gam_public_offering,       # ReportingDeliveryOffering
+                profile=gam_execution_profile,      # ProducerOfferings
+                source_offering_id=gam_source_offering_id,
+                verification_key=gam_verifier.key,
+            ),
+        ),
+        destination=warehouse_provider,             # ReportingProductionDestination
+        registry=verifier_registry,                 # ReportingRevisionVerifierRegistry
+        configuration_task=account_task,            # ReportingProductionConfigurationTask
+        resolve_account=authorize_reporting_account,
+    ),
 )
+reporting.sources.register("gam", gam_adapter)
+platform = reporting.install(platform)
+# Mount the returned handler on MCP/A2A before reporting.start().
+# Use reporting.start / reporting.close as the application's lifespan hooks.
 ```
 
-The PostgreSQL factory makes the ledger durable; it does not make the default
-adapter staging or replay-seal stores durable. Production adapters should pass
-durable `staging=` and `seals=` implementations to `sources.register`, or use
-`sources.register_executor` for a custom executor and object reader. Committed revision rows are retained in the ledger for exact reads. Durable
-staging and seals are needed to recover interrupted acquisitions and replay
-previously sealed source results across a restart.
+Each registered production adapter needs at least one public offering. Multiple
+public offerings for an adapter share its fixed execution profile and verifier;
+different adapters may reuse a local source offering ID. Profiles include the
+source scope, currency, metric/dimension sets, and snapshot/official selections.
+Admission checks trusted account context against the selected profile and
+persists it once per generation. Restart recovery uses the stored route.
+
+Managed adapters also implement the existing
+`ReportingProductionSource.configuration_binding(configuration)` method. Return
+the current source binding, including the exact media-buy/product mapping, or
+`None` when unauthorized. The wrapper forwards this callback before dispatch and
+again under the account lock before seal/publication. Revocation or remapping
+discards in-flight results; restoring the admitted mapping allows the next turn
+to retry. **Revocation takes effect at the next dispatch or publish.** Adopters
+own any caching and latency inside the callback. A fetch already in progress is
+allowed to return. Buyer-facing feed and destination authorization still run on
+each request and session.
+
+To enable signed push, set `notifications=True` and provide `subscriptions`,
+`cipher` (`ReportingEnvelopeCipher`), and `signing` (`ReportingProductionSigning`)
+on the options. All three are required together. The factory owns the outboxes,
+attempt storage and workers for source, materialization and status events.
+With only `notifications=True`, events are retained for polling without claiming
+push delivery. Consumer status is controlled by the service's
+`consumer_status_enabled` argument. Reconciled Billing follows the validated
+official offering, receipt method, and destination contracts; a flag cannot
+promote an unsupported provider. The memory factory accepts the same options
+for conformance, but never advertises durable Managed/Reconciled guarantees.
+
+Use the typed `sync_accounts` admission callback for this composition, rather
+than `configure()`. Production workers belong to `start()`/`close()`; the Core
+`run_worker()` entry point is not used. See the
+[production guide](reporting-production.md) for account admission and provider
+contracts, and [the wiring example](../examples/reporting_service_production.py).
+
+## Advanced composition
+
+`postgres()` without production options remains the Core factory. Advanced
+adopters can still inject workers and receipt handlers, pass explicit
+`staging=`/`seals=` to `sources.register`, use `constituent_of=` for a custom row
+identity, or register a complete executor and object reader. Explicit stores are
+borrowed; initialize their schemas yourself. `from_production()` continues to
+own an already composed production graph. Keep injected components separate
+from `production=` options, which own that graph themselves.
 
 Managed delivery, notification, and receipt components are replaceable
 extensions. Startup rejects combinations that cannot be advertised honestly,
