@@ -122,11 +122,12 @@ def inspect_distribution(wheel, source):
         for name, raw in assets.items():
             assert archive.read("adcp/reporting/" + name) == raw
             assert sdist.extractfile(f"{prefix}/src/adcp/reporting/{name}").read() == raw
-        for path in sorted((ROOT / "src/adcp/_compliance/3.2.0-rc.6").rglob("*")):
-            if path.is_file():
-                name = path.relative_to(ROOT / "src").as_posix()
-                assert archive.read(name) == path.read_bytes()
-                assert sdist.extractfile(f"{prefix}/src/{name}").read() == path.read_bytes()
+        for version in ("3.2.0-rc.6", "3.2.0-rc.7"):
+            for path in sorted((ROOT / "src/adcp/_compliance" / version).rglob("*")):
+                if path.is_file():
+                    name = path.relative_to(ROOT / "src").as_posix()
+                    assert archive.read(name) == path.read_bytes()
+                    assert sdist.extractfile(f"{prefix}/src/{name}").read() == path.read_bytes()
     return modules, {name: hashlib.sha256(raw).hexdigest() for name, raw in assets.items()}
 
 
@@ -321,7 +322,7 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
                 ).hexdigest()
                 for name in SCHEMAS
             }
-            for version in ("3.2.0-rc.6",)
+            for version in ("3.2.0-rc.6", "3.2.0-rc.7")
         },
         "historical_reference_schema": historical_schema_fixture(root),
         "tests": [str(p.relative_to(ROOT)) for p in tests],

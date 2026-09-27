@@ -126,7 +126,7 @@ def client_for(uri, account):
             auth_header="Authorization",
             auth_type="bearer",
         ),
-        adcp_version="3.2.0-rc.6",
+        adcp_version="3.2.0-rc.7",
     )
 
 

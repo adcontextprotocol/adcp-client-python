@@ -1,4 +1,4 @@
-"""Actual installed B2.4 page one and rc.6 continuation in separate processes."""
+"""Actual installed B2.4 rc.6 snapshot and current rc.7 refusal in separate processes."""
 
 from __future__ import annotations
 
@@ -91,6 +91,88 @@ async def main(settings):
             )
             return result
 
+        prior = settings.get("prior")
+        if prior is not None:
+            from adcp.reporting.feed.errors import ReportingFeedError
+
+            first = prior["pages"][0]
+            snapshot = await store.read_reporting_feed_snapshot(
+                first["ledger_snapshot_id"], caller=caller
+            )
+            document = canonical_json_utf8_v1(snapshot.to_storage())
+            assert hashlib.sha256(document).hexdigest() == prior["snapshot_sha256"]
+            assert json.loads(snapshot.filters_json)["adcp_version"] == "3.2-rc.6"
+            old_mount = mounted("3.2-rc.6")
+            new_mount = mounted("3.2-rc.7")
+            version_boundary = None
+            async with old_mount.client() as client:
+                for position in (
+                    {"pagination": {"max_results": 1, "cursor": first["pagination"]["cursor"]}},
+                    {"changes_after": prior["checkpoint"]},
+                ):
+                    request = {
+                        "adcp_version": "3.2-rc.6",
+                        "account": {"account_id": config.account_id},
+                        "view": "periods",
+                        **position,
+                    }
+                    for call in (old_mount.mcp, old_mount.a2a):
+                        _, rejected = await call(client, request)
+                        assert error_code(rejected) == "VERSION_UNSUPPORTED", rejected
+                    # An authenticated position still reports the captured
+                    # version boundary when presented to a supported rc.7 read.
+                    try:
+                        await store.read_reporting_feed(
+                            {**request, "adcp_version": "3.2-rc.7"}, caller=caller
+                        )
+                    except ReportingFeedError as exc:
+                        assert exc.code == "REPORTING_FEED_VERSION_MISMATCH"
+                        version_boundary = exc.code
+                    else:
+                        raise AssertionError("cross-version stored position was accepted")
+            async with new_mount.client() as client:
+                _, current = await new_mount.mcp(
+                    client,
+                    {
+                        "adcp_version": "3.2-rc.7",
+                        "account": {"account_id": config.account_id},
+                        "view": "periods",
+                    },
+                )
+                assert current["health"] == "complete"
+                assert current["ledger_snapshot_id"] != first["ledger_snapshot_id"]
+                get_named_validator(
+                    "media-buy/get-reporting-status-response.json", version="3.2-rc.7"
+                ).validate(current)
+            preserved = await store.read_reporting_feed_snapshot(
+                first["ledger_snapshot_id"], caller=caller
+            )
+            assert canonical_json_utf8_v1(preserved.to_storage()) == document
+            async with pool.connection() as connection:
+                row = await (
+                    await connection.execute(
+                        "SELECT document,content_sha256 FROM reporting_projection_feed_snapshots"
+                        " WHERE account_id=%s AND consumer_id=%s AND snapshot_id=%s",
+                        (caller.account_id, caller.consumer_id, first["ledger_snapshot_id"]),
+                    )
+                ).fetchone()
+            assert row is not None and row[0].encode("utf-8") == document
+            assert row[1] == prior["snapshot_sha256"]
+            return {
+                "phase": settings["phase"],
+                "python": sys.version,
+                "modules": origins,
+                "artifact": settings["artifact"],
+                "pages": prior["pages"],
+                "pages_sha256": prior["pages_sha256"],
+                "snapshot_sha256": prior["snapshot_sha256"],
+                "snapshot_bytes": len(document),
+                "version_boundary": version_boundary,
+                "checkpoint": prior["checkpoint"],
+                "fresh_version": current["adcp_version"],
+                "fresh_snapshot_id": current["ledger_snapshot_id"],
+            }
+
         old_mount = mounted("3.2-rc.6")
         req = {
             "adcp_version": "3.2-rc.6",
@@ -98,16 +180,12 @@ async def main(settings):
             "view": "periods",
             "pagination": {"max_results": 1},
         }
-        prior = settings.get("prior")
         pages = []
-        if prior is not None:
-            pages.append(prior["pages"][0])
-            req["pagination"]["cursor"] = prior["pages"][0]["pagination"]["cursor"]
         async with old_mount.sdk_clients("1.0") as (clients, observed):
             # Replay each page over the same public transport: protobuf Struct
             # can preserve a JSON integer as an equivalent float. The stored
             # snapshot byte check below is independent of transport spelling.
-            protocol = "a2a" if pages else "mcp"
+            protocol = "mcp"
             for _ in range(20):
                 result = await clients[protocol].get_reporting_status(
                     GetReportingStatusRequest.model_validate(req)
@@ -157,75 +235,6 @@ async def main(settings):
             ).encode("utf-8")
         ).hexdigest()
         version_boundary = None
-        if prior is not None:
-            assert pages == prior["pages"]
-            assert digest == prior["snapshot_sha256"] and raw_digest == prior["pages_sha256"]
-            new_mount = mounted("3.2-rc.6")
-            async with new_mount.client() as client:
-                from adcp.reporting.feed.errors import ReportingFeedError
-
-                for position in (
-                    {"pagination": {"max_results": 1, "cursor": first["pagination"]["cursor"]}},
-                    {"changes_after": checkpoint},
-                ):
-                    assert ("pagination" in position) != ("changes_after" in position)
-                    # The stored boundary remains authenticated and version-bound.
-                    try:
-                        await store.read_reporting_feed(
-                            {
-                                "account": req["account"],
-                                "view": "periods",
-                                **position,
-                                "adcp_version": "3.2-rc.3",
-                            },
-                            caller=caller,
-                        )
-                    except ReportingFeedError as exc:
-                        assert exc.code == "REPORTING_FEED_VERSION_MISMATCH"
-                        version_boundary = exc.code
-                    else:
-                        raise AssertionError("cross-version stored position was accepted")
-                    for call in (new_mount.mcp, new_mount.a2a):
-                        _, rejected = await call(
-                            client,
-                            {
-                                "account": req["account"],
-                                "view": "periods",
-                                **position,
-                                "adcp_version": "3.2-rc.3",
-                            },
-                        )
-                        assert error_code(rejected) == "VERSION_UNSUPPORTED", rejected
-                # New rc.6 captures obey their own schema and omit the field.
-                _, current = await new_mount.mcp(
-                    client,
-                    {
-                        "adcp_version": "3.2-rc.6",
-                        "account": {"account_id": config.account_id},
-                        "view": "periods",
-                    },
-                )
-                assert current["health"] == "complete" and "next_expected_at" not in current
-                for schema in (
-                    "media-buy/get-reporting-status-response.json",
-                    "bundled/media-buy/get-reporting-status-response.json",
-                ):
-                    get_named_validator(schema, version="3.2-rc.6").validate(current)
-            async with old_mount.client() as client:
-                _, resumed = await old_mount.a2a(
-                    client,
-                    {
-                        "adcp_version": "3.2-rc.6",
-                        "account": {"account_id": config.account_id},
-                        "view": "periods",
-                        "changes_after": checkpoint,
-                    },
-                )
-                assert "changes_checkpoint" in resumed, resumed
-            preserved = await store.read_reporting_feed_snapshot(
-                first["ledger_snapshot_id"], caller=caller
-            )
-            assert canonical_json_utf8_v1(preserved.to_storage()) == document
         return {
             "phase": settings["phase"],
             "python": sys.version,

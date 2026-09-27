@@ -175,7 +175,7 @@ async def test_actual_old_readers_and_writers_before_and_after_receipt_migration
                 observed_canonical_content_digest=verification.canonical_content_digest,
             )
             request = {
-                "adcp_version": "3.2-rc.6",
+                "adcp_version": "3.2-rc.7",
                 "account": {"account_id": case.config.account_id},
                 "idempotency_key": "historical-mixed-receipts",
                 "receipts": [receipt_to_wire(receipt)],

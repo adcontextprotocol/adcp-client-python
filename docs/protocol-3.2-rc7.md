@@ -19,8 +19,11 @@ The current reporting summary and receipt shapes retain their rc.6 behavior.
 
 The rc.6 and rc.3 bundles remain available for offline validation. They are not
 advertised as live client or reporting mount pins; new mounts select rc.7.
-Existing stored rc.6 snapshots and records are not rewritten. As before,
-continuation requires the bound version and authorization checks; a signed
+Existing stored rc.6 snapshots and records are not rewritten. An rc.7 runtime
+refuses an explicit rc.6 live mount or continuation, including after restart;
+an rc.7 read cannot reuse an rc.6 cursor or checkpoint. A new rc.7 read creates
+its own snapshot. As before, continuation requires the bound version and
+authorization checks; a signed
 legacy unversioned representation-v1 feed checkpoint may continue only with
 the same captured filters and no ownership mode. See the
 [rc.6 history notes](protocol-3.2-rc6.md) and

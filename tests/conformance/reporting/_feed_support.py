@@ -66,7 +66,7 @@ async def mixed_case(h, **kwargs):
 
 def feed_request(s, *, limit=1, **kwargs):
     return {
-        "adcp_version": "3.2-rc.6",
+        "adcp_version": "3.2-rc.7",
         "view": "periods",
         "account": {"account_id": s.obligation.account_id},
         "pagination": {"max_results": limit},

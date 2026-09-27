@@ -1,4 +1,4 @@
-"""The rc.6 forecast contract at producer, frozen store and public boundaries."""
+"""The current 3.2 forecast contract at producer, frozen store and public boundaries."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from ._receipt_transport import error_code
 from .test_reporting_schedule_schema import formats
 
 RC3 = "3.2-rc.3"
-RC6 = "3.2-rc.6"
+CURRENT = "3.2-rc.7"
 CONSUMER = "https://buyer.example.test/agent"
 
 
@@ -36,7 +36,7 @@ def _a2a_compat_send_and_aggregate():
 
 
 @pytest.mark.parametrize("backend", ["memory", "postgres"])
-@pytest.mark.parametrize("version", [RC6])
+@pytest.mark.parametrize("version", [CURRENT])
 async def test_production_discovery_advertises_its_usable_reporting_pin(backend, version, tmp_path):
     from ._production_support import production_harness
     from ._production_transport import MountedProduction
@@ -55,7 +55,7 @@ async def test_production_discovery_advertises_its_usable_reporting_pin(backend,
                 assert caps["adcp_version"] == version
 
 
-@pytest.mark.parametrize("version", ["3.0", "3.1", RC3, "3.2-rc.4", "3.2-rc.7"])
+@pytest.mark.parametrize("version", ["3.0", "3.1", RC3, "3.2-rc.4", "3.2-rc.6"])
 async def test_production_mount_rejects_releases_without_reporting_schemas(version, tmp_path):
     from adcp.exceptions import ConfigurationError
 
@@ -75,7 +75,7 @@ async def test_warm_production_proof_cannot_hide_a_changed_protocol_pin(
     from ._production_support import production_harness
     from ._production_transport import MountedProduction
 
-    async with production_harness("postgres", tmp_path / "pin.sqlite", adcp_version=RC6) as h:
+    async with production_harness("postgres", tmp_path / "pin.sqlite", adcp_version=CURRENT) as h:
         mounted = MountedProduction(h)
         mounted.authorize(h.item)
         async with mounted.client() as client:
@@ -89,8 +89,8 @@ async def test_warm_production_proof_cannot_hide_a_changed_protocol_pin(
                 _, after = await mounted.call(
                     client, "get_adcp_capabilities", {}, transport=transport
                 )
-                assert after["adcp_version"] == RC6
-                assert after["adcp"]["supported_versions"] == [RC6]
+                assert after["adcp_version"] == CURRENT
+                assert after["adcp"]["supported_versions"] == [CURRENT]
                 assert not after.get("media_buy", {}).get("reporting_delivery")
 
 
@@ -151,7 +151,7 @@ async def test_complete_forecast_uses_period_start_without_creating_future_work(
         handler = ReportingStatusHandler(h.store)
         caller = ReportingStatusCaller(config.account_id, CONSUMER)
         old = handler.render_snapshot(request(RC3), caller=caller, snapshot=captured)
-        new = handler.render_snapshot(request(RC6), caller=caller, snapshot=captured)
+        new = handler.render_snapshot(request(CURRENT), caller=caller, snapshot=captured)
         default = handler.render_snapshot({}, caller=caller, snapshot=captured)
         assert old["next_expected_at"] == "2026-09-01T02:00:00Z"
         assert new["next_expected_at"] == default["next_expected_at"] == "2026-09-01T01:00:00Z"
@@ -165,20 +165,20 @@ async def test_complete_forecast_uses_period_start_without_creating_future_work(
             "media-buy/get-reporting-status-response.json",
             "bundled/media-buy/get-reporting-status-response.json",
         ):
-            raw = get_named_validator(relative, version=RC6)
+            raw = get_named_validator(relative, version=CURRENT)
             assert raw is not None
             raw.validate(new)
         adoption_operation_1 = await h.image() == before
         assert adoption_operation_1
         await h.store.put_configuration(replace(config, deactivated_at=START))
         h.clock.now += timedelta(hours=8)
-        assert handler.render_snapshot(request(RC6), caller=caller, snapshot=captured) == new
+        assert handler.render_snapshot(request(CURRENT), caller=caller, snapshot=captured) == new
         assert handler.render_snapshot(request(RC3), caller=caller, snapshot=captured) == old
 
 
 @pytest.mark.parametrize("backend", ["memory", "postgres"])
 @pytest.mark.parametrize("mode", ["core", "projection"])
-@pytest.mark.parametrize("version", [RC6])
+@pytest.mark.parametrize("version", [CURRENT])
 @pytest.mark.parametrize("complete", [False, True])
 async def test_mounted_summary_periods_schema_and_client_use_the_same_pin(
     backend, mode, version, complete, monkeypatch
@@ -206,7 +206,7 @@ async def test_mounted_summary_periods_schema_and_client_use_the_same_pin(
                     get_validator("get_reporting_status", "sync", version=version).validate(raw)
                     if complete and view == "summary":
                         assert raw["next_expected_at"] == (
-                            "2026-09-01T01:00:00Z" if version == RC6 else "2026-09-01T02:00:00Z"
+                            "2026-09-01T01:00:00Z" if version == CURRENT else "2026-09-01T02:00:00Z"
                         )
                         assert raw["obligation_counts"]["total"] == 0
                     elif complete and view == "periods":
@@ -229,7 +229,7 @@ async def test_mounted_summary_periods_schema_and_client_use_the_same_pin(
                     data = result.data.model_dump(mode="json", exclude_none=True)
                     assert data["next_expected_at"] == (
                         "2026-09-01T01:00:00Z"
-                        if complete and version == RC6
+                        if complete and version == CURRENT
                         else "2026-09-01T02:00:00Z"
                     )
                 assert observed and all(p[2]["adcp_version"] == version for p in observed)
@@ -238,7 +238,7 @@ async def test_mounted_summary_periods_schema_and_client_use_the_same_pin(
 
 
 @pytest.mark.parametrize("backend", ["memory", "postgres"])
-@pytest.mark.parametrize("version", [RC3, RC6])
+@pytest.mark.parametrize("version", [RC3, CURRENT])
 async def test_frozen_continuations_retain_bytes_and_reject_cross_version_positions(
     backend, version, monkeypatch
 ):
@@ -254,7 +254,7 @@ async def test_frozen_continuations_retain_bytes_and_reject_cross_version_positi
         )
         document = canonical_json_utf8_v1(snapshot.to_storage())
         assert ("next_expected_at" in first) == (version == RC3)
-        other = RC6 if version == RC3 else RC3
+        other = CURRENT if version == RC3 else RC3
         pagination = {"max_results": 1, "cursor": first["pagination"]["cursor"]}
         for position in (
             {"pagination": pagination},
@@ -308,12 +308,12 @@ async def test_frozen_continuations_retain_bytes_and_reject_cross_version_positi
                 assert error_code(crossed) == "VERSION_UNSUPPORTED", crossed
                 error = crossed["adcp_error"] if "adcp_error" in crossed else crossed["errors"][0]
                 assert error["details"]["claimed_version"] == other
-                assert RC6 in error["details"]["supported_versions"]
+                assert CURRENT in error["details"]["supported_versions"]
                 assert RC3 not in error["details"]["supported_versions"]
 
 
 @pytest.mark.parametrize("backend", ["memory", "postgres"])
-@pytest.mark.parametrize("version", [RC6])
+@pytest.mark.parametrize("version", [CURRENT])
 async def test_status_notification_mount_pin_controls_rendering_without_optional_validation(
     backend, version
 ):
@@ -342,10 +342,10 @@ async def test_status_notification_mount_pin_controls_rendering_without_optional
             for call in (mounted.mcp, mounted.a2a):
                 _, result = await call(client, request(version))
                 assert result["next_expected_at"] == (
-                    "2026-09-01T01:00:00Z" if version == RC6 else "2026-09-01T02:00:00Z"
+                    "2026-09-01T01:00:00Z" if version == CURRENT else "2026-09-01T02:00:00Z"
                 )
                 validator_for(schema)(schema, format_checker=formats()).validate(result)
-                _, rejected = await call(client, request(RC3 if version == RC6 else RC6))
+                _, rejected = await call(client, request(RC3 if version == CURRENT else CURRENT))
                 assert error_code(rejected) == "VERSION_UNSUPPORTED", rejected
 
 
@@ -384,7 +384,7 @@ async def test_rc6_nearest_captured_generation_and_historical_scope_filters(back
         handler = ReportingStatusHandler(h.store)
         caller = ReportingStatusCaller("acct_a", CONSUMER)
         before = await h.image()
-        common = {"adcp_version": RC6, "view": "summary"}
+        common = {"adcp_version": CURRENT, "view": "summary"}
         expected = {
             "next_expected_at": "2026-09-01T00:45:00Z",
             "health": "complete",
@@ -412,7 +412,7 @@ async def test_rc6_nearest_captured_generation_and_historical_scope_filters(back
             assert result.get("next_expected_at") == forecast
             assert result["ledger_as_of"] == "2026-09-01T00:30:00Z"
             get_named_validator(
-                "media-buy/get-reporting-status-response.json", version=RC6
+                "media-buy/get-reporting-status-response.json", version=CURRENT
             ).validate(result)
         assert all(original[key] == value for key, value in expected.items())
         adoption_operation_3 = await h.image() == before
@@ -455,7 +455,7 @@ async def test_rc6_period_start_forecast_retains_civil_dst_and_offset_instants(
         caller = ReportingStatusCaller(config.account_id, CONSUMER)
         handler = ReportingStatusHandler(h.store)
         snapshot = await h.store.read_status_snapshot(account_id=config.account_id)
-        result = handler.render_snapshot(request(RC6), caller=caller, snapshot=snapshot)
+        result = handler.render_snapshot(request(CURRENT), caller=caller, snapshot=snapshot)
         assert result["next_expected_at"] == following
         assert result["obligation_counts"]["total"] == 0 and result["health"] == "complete"
         boundary = datetime.fromisoformat(following.replace("Z", "+00:00"))
@@ -465,16 +465,16 @@ async def test_rc6_period_start_forecast_retains_civil_dst_and_offset_instants(
         assert obligations[0].period.expected_at == boundary + timedelta(hours=1)
         revision, rows = revision_for(obligations[0])
         await h.store.commit_revision(revision, rows)
-        next_day = await handler.handle(request(RC6), caller=caller)
+        next_day = await handler.handle(request(CURRENT), caller=caller)
         assert next_day["next_expected_at"] == (boundary + timedelta(days=1)).isoformat().replace(
             "+00:00", "Z"
         )
         assert next_day["obligation_counts"]["total"] == 1
-        assert handler.render_snapshot(request(RC6), caller=caller, snapshot=snapshot) == result
+        assert handler.render_snapshot(request(CURRENT), caller=caller, snapshot=snapshot) == result
 
 
 @pytest.mark.parametrize("backend", ["memory", "postgres"])
-@pytest.mark.parametrize("version", [RC6])
+@pytest.mark.parametrize("version", [CURRENT])
 @pytest.mark.parametrize("reconciled", [False, True])
 async def test_admitted_producer_verified_artifact_and_receipt_keep_the_future_summary(
     backend, version, reconciled, tmp_path
@@ -561,7 +561,7 @@ async def test_admitted_producer_verified_artifact_and_receipt_keep_the_future_s
             assert not idle.slices_failed and not idle.revisions_committed
             assert len(producer._source.requests) == 1
             before_work = await h.works()
-            expectation = anchor if version == RC6 else anchor + timedelta(hours=2)
+            expectation = anchor if version == CURRENT else anchor + timedelta(hours=2)
             for transport in ("mcp", "a2a-0.3", "a2a-1.0"):
                 for view in ("summary", "periods"):
                     _, page = await mounted.call(
@@ -569,7 +569,7 @@ async def test_admitted_producer_verified_artifact_and_receipt_keep_the_future_s
                     )
                     assert page["health"] == "complete", page
                     get_validator("get_reporting_status", "sync", version=version).validate(page)
-                    if version == RC6:
+                    if version == CURRENT:
                         for relative in (
                             "media-buy/get-reporting-status-response.json",
                             "bundled/media-buy/get-reporting-status-response.json",
@@ -580,7 +580,7 @@ async def test_admitted_producer_verified_artifact_and_receipt_keep_the_future_s
                             "+00:00", "Z"
                         )
                         assert page["obligation_counts"]["total"] == 1
-                    elif version == RC6:
+                    elif version == CURRENT:
                         assert "next_expected_at" not in page
             adoption_operation_4 = await h.works() == before_work
             assert adoption_operation_4

@@ -78,5 +78,5 @@ async def test_legacy_unversioned_walk_survives_activation_and_current_protocol(
         )
         assert newer.snapshot_id != snapshot.snapshot_id
         assert newer.after == snapshot.through
-        assert json.loads(newer.filters_json)["adcp_version"] == "3.2-rc.6"
+        assert json.loads(newer.filters_json)["adcp_version"] == "3.2-rc.7"
         assert newer.representation_version == 2

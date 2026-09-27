@@ -166,7 +166,7 @@ def execute(python, script, settings, evidence, label):
 
 
 @pytest.mark.parametrize("notifications", [False, True])
-async def test_actual_accepted_b24_snapshot_to_rc6_installed_restart(
+async def test_actual_accepted_b24_snapshot_refused_by_rc7_installed_restart(
     rc6_installed_boundary, notifications
 ):
     old_python, python, script, old, current, evidence = rc6_installed_boundary
@@ -194,3 +194,5 @@ async def test_actual_accepted_b24_snapshot_to_rc6_installed_restart(
             assert result["snapshot_sha256"] == first["snapshot_sha256"]
             assert result["checkpoint"] == first["checkpoint"]
             assert result["version_boundary"] == "REPORTING_FEED_VERSION_MISMATCH"
+            assert result["fresh_version"] == "3.2-rc.7"
+            assert result["fresh_snapshot_id"] != first["pages"][0]["ledger_snapshot_id"]
