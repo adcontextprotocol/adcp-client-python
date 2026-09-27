@@ -11,10 +11,11 @@ deploying these changes. They collect the historical comparison boundaries,
 feature-tier requirements and operational limits; final release qualification
 remains separate from the integrated source.
 
-The default protocol remains AdCP 3.2.0-rc.6. Set `ReportingProductionSupport`'s
-`adcp_version="3.2-rc.6"` or omit the pin for the packaged default. Historical
-rc.3 schemas are available offline but are not advertised as a live reporting
-contract. See [signed inputs and history boundaries](protocol-3.2-rc6.md) for
+The default protocol is AdCP 3.2.0-rc.7. Set `ReportingProductionSupport`'s
+`adcp_version="3.2-rc.7"` or omit the pin for the packaged default. Historical
+rc.3 and rc.6 schemas are available offline but are not advertised as live reporting
+contracts. See [rc.7 adoption](protocol-3.2-rc7.md) and
+[signed rc.6 inputs and history boundaries](protocol-3.2-rc6.md) for
 version-aligned mounts and integrated-parent continuation limits. Existing
 schema manifests and stored snapshot bytes are unchanged.
 
@@ -184,7 +185,7 @@ rejection is never a materializer retry signal.
 A generation owes only complete periods whose start is at or after activation
 and strictly before deactivation. A period already begun at deactivation remains
 owed in full, including its SLA. The producer and captured feed use the same rule.
-For the current `3.2-rc.6` contract, an open summary's `next_expected_at` is its
+For the current `3.2-rc.7` contract, an open summary's `next_expected_at` is its
 nearest future obligation due time. A **complete summary** instead reports the
 nearest future period **start**, strictly after the captured `ledger_as_of`,
 across the committed generations in scope. It is absent when no such period

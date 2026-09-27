@@ -128,7 +128,7 @@ class ReportingReceiptHandler(ADCPHandler[ToolContext]):
         if not is_adcp_version_at_least(self._adcp_version, "3.2-rc.6"):
             raise ConfigurationError(
                 "reporting mounts require a supported AdCP 3.2 reporting contract; "
-                "use 3.2-rc.6 or omit the pin for the packaged default"
+                "use 3.2-rc.7 or omit the pin for the packaged default"
             )
 
     def get_adcp_version(self) -> str:

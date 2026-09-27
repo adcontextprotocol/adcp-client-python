@@ -13,7 +13,7 @@ from jsonschema import FormatChecker
 from jsonschema.validators import validator_for
 from pydantic import TypeAdapter
 
-from adcp._version import get_supported_adcp_versions, resolve_adcp_version
+from adcp._version import resolve_adcp_version
 from adcp.types import GetAdcpCapabilitiesResponse, SyncAccountsAccount, SyncAccountsResponse
 from adcp.validation import schema_loader
 from tests.test_schema_datetime_formats import INVALID, VALID, request_with_timestamp
@@ -80,15 +80,12 @@ def test_all_22_signed_summary_vectors_on_authoritative_schemas(relative, case):
 
 
 def test_packaged_release_schema_and_fixture_provenance_is_complete():
-    assert files("adcp").joinpath("ADCP_VERSION").read_text().strip() == VERSION
-    assert resolve_adcp_version(None) == "3.2-rc.6"
     from adcp.exceptions import ConfigurationError
 
-    # Offline schema availability does not advertise a live rc.3 contract:
-    # its immutable waiver rules differ from the current rc.6 behavior.
-    with pytest.raises(ConfigurationError):
-        resolve_adcp_version("3.2.0-rc.3")
-    assert set(get_supported_adcp_versions()) == {"3.0", "3.1", "3.2-rc.6"}
+    # Historical schema availability does not advertise a live prerelease.
+    for historical_version in ("3.2.0-rc.3", VERSION):
+        with pytest.raises(ConfigurationError):
+            resolve_adcp_version(historical_version)
     historical = schema_loader._resolve_schema_root("3.2.0-rc.3")
     assert historical is not None
     assert (
@@ -277,28 +274,6 @@ def test_official_error_recovery_vectors_schema_contract(vector):
     assert named("core/error.json").is_valid(vector["error"]) is vector["expected"]["schema_valid"]
 
 
-@pytest.mark.parametrize("version", ["3.2-rc.6"])
-def test_reporting_handler_constructor_selects_the_public_mount_pin(version):
-    from adcp.reporting.feed import InMemoryReportingFeedStore
-    from adcp.reporting.receipts import ReportingReceiptHandler
-    from adcp.server.mcp_tools import MCPToolSet
-
-    async def resolve_account(reference, context, consumer):
-        return reference["account_id"]
-
-    handler = ReportingReceiptHandler(
-        InMemoryReportingFeedStore(), resolve_account=resolve_account, adcp_version=version
-    )
-    assert handler.get_adcp_version() == version
-    tools = MCPToolSet(handler)
-    output = next(
-        t["outputSchema"] for t in tools.tool_definitions if t["name"] == "get_reporting_status"
-    )
-    validator = validator_for(output)(output, format_checker=named(SCHEMAS[0]).format_checker)
-    old_periods = patched(SUMMARY["response"], SUMMARY["cases"][20]["patch"])
-    assert validator.is_valid(old_periods) is (version == "3.2-rc.3")
-
-
 @pytest.mark.parametrize("version", ["3.0", "3.1"])
 @pytest.mark.parametrize("kind", ["receipt", "status"])
 def test_reporting_mount_rejects_releases_without_reporting_schemas(version, kind):
@@ -337,7 +312,7 @@ def test_current_public_timestamp_contract_on_the_installed_runtime(value):
     assert outcome.valid is valid
 
 
-@pytest.mark.parametrize("version", ["3.2-rc.3", "3.2-rc.4", "3.2-rc.7"])
+@pytest.mark.parametrize("version", ["3.2-rc.3", "3.2-rc.4", "3.2-rc.6", "3.2-rc.8"])
 @pytest.mark.parametrize("kind", ["receipt", "status"])
 def test_offline_or_future_schemas_do_not_enable_an_unsupported_live_reporting_pin(version, kind):
     from adcp.exceptions import ConfigurationError

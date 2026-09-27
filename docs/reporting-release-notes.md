@@ -67,23 +67,24 @@ reauthorization and per-session destination authorization.
 
 ## Current and historical protocol versions
 
-Live reporting mounts and callers use AdCP `3.2-rc.6`, whose bundle spelling is
-`3.2.0-rc.6`. Omit an explicit pin to use the packaged default, or configure the
+Live reporting mounts and callers use AdCP `3.2-rc.7`, whose bundle spelling is
+`3.2.0-rc.7`. Omit an explicit pin to use the packaged default, or configure the
 current supported reporting version consistently across the composition and
 its mounts. Cross-cohort reporting requests are rejected even when optional
 request validation is disabled.
 
-Historical beta.6 and rc.3 schema bundles support offline validation and
+Historical beta.6, rc.3 and rc.6 schema bundles support offline validation and
 retained historical walks. Their presence does not enable a historical live
 mount or client pin. In rc.6, an exactly scoped bilateral waiver can retire
 the public mismatch and project underlying seller health while retaining the
 consumer evidence; rc.3 forbids waiver alone from clearing that health. The
 current implementation therefore cannot advertise the historical live contract.
 
-The explicit rc.6 mount minimum does not remove a previously accepted
+The rc.6 feature minimum does not remove a previously accepted
 configuration from the integrated SDK: its shared version resolver already
 rejected older prerelease pins before the mount's minimum-version check.
-See [signed protocol inputs and history boundaries](protocol-3.2-rc6.md)
+See [rc.7 adoption](protocol-3.2-rc7.md) and
+[signed rc.6 inputs and history boundaries](protocol-3.2-rc6.md)
 for bundle identity, versioned status and continuation rules.
 
 ## Choose the installed feature tier
