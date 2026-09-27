@@ -16,6 +16,10 @@ from pathlib import Path
 import pytest
 
 
+def assert_installed_schema_keys(schemas, pinned):
+    assert set(schemas) == {"3.2.0-rc.6", pinned}
+
+
 def main(settings):
     root = Path(settings["fixtures"])
     workspace = Path(settings["workspace"])
@@ -57,7 +61,7 @@ def main(settings):
     from adcp.validation import schema_loader
 
     enter_phase("installed_current_schemas")
-    assert set(settings["schemas"]) == {schema_loader._sdk_pinned_bundle_key()}
+    assert_installed_schema_keys(settings["schemas"], schema_loader._sdk_pinned_bundle_key())
     for version, schemas in settings["schemas"].items():
         resolved = schema_loader._resolve_schema_root(version)
         assert resolved is not None

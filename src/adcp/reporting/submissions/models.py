@@ -386,6 +386,25 @@ def _validated_requests(submission: ReportingReceiptSubmission) -> tuple[bytes, 
     return result
 
 
+def is_completed_legacy_replay(
+    prior: ReportingReceiptSubmission, proposed: ReportingReceiptSubmission
+) -> bool:
+    """Match a completed rc.6 intent to its rc.7 proposal without changing its bytes.
+
+    Both plans must already have passed full submission validation. Their IDs
+    exclude the request version, so compare the frozen items as well as the ID.
+    Pending old requests are never eligible for a cross-version replay.
+    """
+    return (
+        not prior.pending
+        and prior.adcp_version == "3.2-rc.6"
+        and proposed.adcp_version == _VERSION
+        and prior.scope == proposed.scope
+        and prior.submission_id == proposed.submission_id
+        and json.loads(prior._plan)["items"] == json.loads(proposed._plan)["items"]
+    )
+
+
 def _confirmation_key(
     submission: ReportingReceiptSubmission, request: bytes, chunk: bytes
 ) -> tuple[bytes, ...]:

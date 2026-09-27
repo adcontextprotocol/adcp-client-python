@@ -30,8 +30,9 @@ the same captured filters and no ownership mode. See the
 [reporting release notes](reporting-release-notes.md) for those boundaries.
 
 Durable buyer receipt submission plans made under rc.6 also keep their exact
-request and confirmation bytes. Completed plans remain readable, and a new
-rc.7 reservation can follow them. An unresolved rc.6 plan remains readable but
-the rc.7 SDK refuses to send its pending request (`INVALID_SUBMISSION_PLAN`),
+request and confirmation bytes. Completed plans remain readable; retrying their
+original receipt list returns the old completed result, even after another rc.7
+plan completes. A new rc.7 reservation can follow them. An unresolved rc.6 plan
+remains readable, but the rc.7 SDK refuses to send its pending request (`INVALID_SUBMISSION_PLAN`),
 even when a new proposal is offered. It never rewrites an uncertain request or
 its idempotency key to rc.7.

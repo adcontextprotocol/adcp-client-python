@@ -7,11 +7,25 @@ import shutil
 import pytest
 
 from ._generation_support import require_rolling_database
-from ._production_packaging import installed_production
+from ._production_installed import assert_installed_schema_keys
+from ._production_packaging import installed_production, production_schema_hashes
 from .test_reporting_materializer_packaging import b1_wheels, built_distribution
 from .test_reporting_notification_packaging import run_step
 
 __all__ = ["b1_wheels", "built_distribution"]
+
+
+def test_installed_schema_input_retains_rc6_and_current_rc7():
+    from adcp.validation import schema_loader
+
+    schemas = production_schema_hashes()
+    pinned = schema_loader._sdk_pinned_bundle_key()
+    assert pinned == "3.2.0-rc.7"
+    assert_installed_schema_keys(schemas, pinned)
+    with pytest.raises(AssertionError):
+        assert_installed_schema_keys({pinned: schemas[pinned]}, pinned)
+    with pytest.raises(AssertionError):
+        assert_installed_schema_keys({**schemas, "3.2.0-rc.3": {}}, pinned)
 
 
 @pytest.mark.parametrize("kind", ["vcs", "sdist"])

@@ -12,6 +12,7 @@ from adcp.reporting.submissions.models import (
     ReportingSubmissionScope,
     confirm_submission,
     freeze_response,
+    is_completed_legacy_replay,
     validate_submission,
 )
 from adcp.types import SyncReportingReceiptsResponse
@@ -33,9 +34,10 @@ class ReportingSubmissionIntentStore(Protocol):
     async def reserve(self, proposed: ReportingReceiptSubmission) -> ReportingReceiptSubmission:
         """Atomically reserve or return the scope's earlier unresolved intent.
 
-        A different proposal must not replace an uncertain request. An exact
-        already completed proposal returns its retained outcomes. Preserve all
-        request bytes, chunk keys/order and confirmed outcomes across restart.
+        A different proposal must not replace an uncertain request. An already
+        completed proposal for the same frozen receipt items returns its retained
+        outcomes across the rc.6 to rc.7 upgrade. Preserve all old request bytes,
+        chunk keys/order and confirmed outcomes across restart.
         """
         ...
 
@@ -101,7 +103,10 @@ class InMemoryReportingSubmissionIntentStore:
             prior = self._submissions.get(key)
             if prior is not None:
                 validate_submission(prior)
-                if prior._plan != proposed._plan or prior.scope != proposed.scope:
+                if prior.scope != proposed.scope or (
+                    prior._plan != proposed._plan
+                    and not is_completed_legacy_replay(prior, proposed)
+                ):
                     raise ReportingSubmissionError(ReportingSubmissionCode.HISTORY_CORRUPT)
                 return prior
             self._submissions[key] = proposed

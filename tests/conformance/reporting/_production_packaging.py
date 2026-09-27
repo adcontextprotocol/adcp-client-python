@@ -37,6 +37,17 @@ SCHEMAS = (
     "protocol/get-adcp-capabilities-response.json",
     "bundled/protocol/get-adcp-capabilities-response.json",
 )
+RETAINED_SCHEMA_VERSIONS = ("3.2.0-rc.6", "3.2.0-rc.7")
+
+
+def production_schema_hashes():
+    return {
+        version: {
+            name: hashlib.sha256((ROOT / "schemas/cache" / version / name).read_bytes()).hexdigest()
+            for name in SCHEMAS
+        }
+        for version in RETAINED_SCHEMA_VERSIONS
+    }
 
 
 def production_modules():
@@ -122,7 +133,7 @@ def inspect_distribution(wheel, source):
         for name, raw in assets.items():
             assert archive.read("adcp/reporting/" + name) == raw
             assert sdist.extractfile(f"{prefix}/src/adcp/reporting/{name}").read() == raw
-        for version in ("3.2.0-rc.6", "3.2.0-rc.7"):
+        for version in RETAINED_SCHEMA_VERSIONS:
             for path in sorted((ROOT / "src/adcp/_compliance" / version).rglob("*")):
                 if path.is_file():
                     name = path.relative_to(ROOT / "src").as_posix()
@@ -315,15 +326,7 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
         "label": label,
         "modules": modules,
         "assets": assets,
-        "schemas": {
-            version: {
-                name: hashlib.sha256(
-                    (ROOT / "schemas/cache" / version / name).read_bytes()
-                ).hexdigest()
-                for name in SCHEMAS
-            }
-            for version in ("3.2.0-rc.6", "3.2.0-rc.7")
-        },
+        "schemas": production_schema_hashes(),
         "historical_reference_schema": historical_schema_fixture(root),
         "tests": [str(p.relative_to(ROOT)) for p in tests],
         "driver_absent": driver_absent,

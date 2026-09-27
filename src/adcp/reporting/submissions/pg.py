@@ -23,6 +23,7 @@ from adcp.reporting.submissions.models import (
     decode_submission,
     encode_submission,
     freeze_response,
+    is_completed_legacy_replay,
     validate_submission,
 )
 from adcp.types import SyncReportingReceiptsResponse
@@ -257,7 +258,9 @@ class PgReportingSubmissionIntentStore:
             if current is not None and current.pending:
                 return current
             if previous is not None:
-                if previous._plan != proposed._plan:
+                if previous._plan != proposed._plan and not is_completed_legacy_replay(
+                    previous, proposed
+                ):
                     raise ReportingSubmissionError(ReportingSubmissionCode.HISTORY_CORRUPT)
                 return previous
             async with self._pool.connection() as connection, connection.transaction():
