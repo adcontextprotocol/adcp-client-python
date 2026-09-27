@@ -3,6 +3,7 @@ name: Release Please
 on:
   push:
     branches: [main]
+  workflow_dispatch: # Run once after re-enabling the previously disabled workflow.
 
 permissions:
   contents: read

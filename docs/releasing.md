@@ -4,6 +4,8 @@ Release Please opens or updates the release PR after a push to `main`. It uses t
 release App credential so the release PR receives normal CI. The workflow
 normalizes the proposed `pyproject.toml` prerelease version to PEP 440. Review
 and merge that PR once its required checks and reviews pass.
+After re-enabling a disabled Release Please workflow, run it once manually on
+`main` to process the current head; subsequent main pushes start it automatically.
 
 On the merge, Release Please creates the tag and GitHub release, then starts
 `release-publish.yml` on `main`. The publish workflow waits for successful CI on

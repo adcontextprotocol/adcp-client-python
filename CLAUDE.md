@@ -129,6 +129,7 @@ context-echo path.
 
 **Release Please Workflow**
 - A push to `main` opens or updates the normal Release Please PR using the GitHub App token.
+- An input-free manual run on `main` bootstraps the workflow after it is re-enabled.
 - Merge the reviewed release PR after CI; Release Please creates its tag and GitHub release.
 - `release-publish.yml` waits for exact-commit CI, builds and checks distributions, then awaits `release-publish` environment approval before PyPI Trusted Publishing.
 - Follow [docs/releasing.md](docs/releasing.md) for setup, approval, and verification.
