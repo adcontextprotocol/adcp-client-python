@@ -200,7 +200,7 @@ def validate_external_dsn(dsn: str, *, allow_non_loopback: bool) -> None:
 def _typescript_pin(role: str) -> Mapping[str, Any]:
     pins = _load_json(PINS)
     key = {
-        "candidate": "development_candidate_rc47",
+        "candidate": "candidate_rc48",
         "historical_candidate": "historical_candidate_rc45",
         "previous": "previous_compatible",
         "lead": "newer_rc_lead",

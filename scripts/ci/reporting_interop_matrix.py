@@ -284,9 +284,7 @@ def validate_manifest(manifest: Mapping[str, Any], *, acceptance: bool) -> Valid
             "artifacts.typescript.candidate.version",
         )
         if observed != proposed:
-            raise InputError(
-                "artifacts.typescript.candidate must match the exact release proposed by #2979"
-            )
+            raise InputError("artifacts.typescript.candidate must match the exact pending release")
 
     raw_cells = manifest.get("cells")
     if not isinstance(raw_cells, list) or len(raw_cells) != 4:
@@ -896,11 +894,8 @@ def monitor_typescript(manifest: Mapping[str, Any]) -> dict[str, Any]:
     body_version = re.search(r"@adcp/sdk@([0-9A-Za-z.-]+)", body)
     if not body_version or body_version.group(1) != proposed:
         raise InputError(f"release PR does not propose exactly @adcp/sdk@{proposed}")
-    if (
-        expected_source[:7] not in body
-        or _object(pr.get("base"), "release PR base").get("ref") != "main"
-    ):
-        raise InputError("release PR is not bound to the expected source change on main")
+    if _object(pr.get("base"), "release PR base").get("ref") != "main":
+        raise InputError("release PR is not targeted at main")
     result: dict[str, Any] = {
         "ready": False,
         "acceptance": False,
@@ -918,6 +913,12 @@ def monitor_typescript(manifest: Mapping[str, Any]) -> dict[str, Any]:
         return result
 
     merge_commit = _digest(pr.get("merge_commit_sha"), "release PR merge_commit_sha", HEX_40)
+    comparison = _run_json(
+        ("gh", "api", f"repos/{repository}/compare/{expected_source}...{merge_commit}"),
+        timeout_seconds=GITHUB_API_TIMEOUT_SECONDS,
+    )
+    if comparison.get("status") not in {"ahead", "identical"} or comparison.get("behind_by") != 0:
+        raise InputError("release commit does not contain the expected source change")
     runs = _run_json(
         (
             "gh",

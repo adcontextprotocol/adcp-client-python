@@ -573,7 +573,7 @@ def _buyer_environment(token: str, *, parent: Mapping[str, str] | None = None) -
 def _typescript_pin(install: TypeScriptInstall) -> dict[str, Any]:
     pins = json.loads(PINS.read_text(encoding="utf-8"))["typescript"]
     key = {
-        "candidate": "development_candidate_rc47",
+        "candidate": "candidate_rc48",
         "historical_candidate": "historical_candidate_rc45",
         "previous": "previous_compatible",
         "lead": "newer_rc_lead",

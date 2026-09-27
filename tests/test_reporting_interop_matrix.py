@@ -28,7 +28,8 @@ def test_preparation_manifest_keeps_exact_required_cross_product() -> None:
     result = matrix.validate_manifest(inputs(), acceptance=False)
 
     assert result.ready is False
-    assert result.missing == ("python.stable", "python.candidate", "typescript.candidate")
+    assert result.missing == ("python.stable", "python.candidate")
+    assert inputs()["artifacts"]["typescript"]["candidate"]["version"] == "14.0.0-rc.48"
     assert [
         tuple(cell[key] for key in ("id", "python", "typescript", "protocol"))
         for cell in inputs()["cells"]
@@ -87,6 +88,28 @@ def test_rc41_cannot_be_substituted_for_corrected_candidate() -> None:
     candidate = copy.deepcopy(value["artifacts"]["typescript"]["stable"])
     with pytest.raises(matrix.InputError, match="cannot substitute"):
         matrix._validate_typescript("candidate", candidate)
+
+
+def test_published_candidate_must_include_the_source_correction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    value = inputs()
+
+    def github_reply(command: tuple[str, ...], *, timeout_seconds: int) -> dict:
+        assert timeout_seconds > 0
+        if "/pulls/" in command[2]:
+            return {
+                "body": "## @adcp/sdk@14.0.0-rc.48",
+                "base": {"ref": "main"},
+                "merged": True,
+                "merge_commit_sha": "b" * 40,
+            }
+        assert "/compare/" in command[2]
+        return {"status": "diverged", "behind_by": 1}
+
+    monkeypatch.setattr(matrix, "_run_json", github_reply)
+    with pytest.raises(matrix.InputError, match="does not contain the expected source"):
+        matrix.monitor_typescript(value)
 
 
 def test_npm_integrity_must_be_sha512() -> None:
@@ -180,9 +203,7 @@ def complete_inputs() -> dict:
             ),
             "requirements_lock_sha256": ("7" if role == "stable" else "8") * 64,
         }
-    candidate = copy.deepcopy(value["artifacts"]["typescript"]["stable"])
-    candidate["version"] = "14.0.0-rc.42"
-    candidate["tarball_url"] = "https://registry.npmjs.org/@adcp/sdk/-/sdk-14.0.0-rc.42.tgz"
+    candidate = copy.deepcopy(value["artifacts"]["typescript"]["candidate"])
     candidate["shasum"] = "4" * 40
     value["artifacts"]["typescript"]["candidate"] = candidate
     for role in ("stable", "candidate"):

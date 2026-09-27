@@ -12,9 +12,9 @@ The reviewed coordinates are in `scripts/ci/reporting_interop/pins.json`.
 This harness source is ported to accepted Python main
 `940c95e0c2d93758ed334b3edff59cbe933362d4`. Its retained execution pins do
 not move from source ancestry alone. PR #1208 head `a124afd3` still has no
-final artifact pin. Published TypeScript rc.47 is selected only as the
-developmental rc.6-aligned Q1-Q4 candidate; it has not been installed, locked,
-executed, promoted, or accepted by this harness.
+final artifact pin. Published TypeScript rc.48 is the locked rc.6-aligned Q1-Q4
+candidate. Its package bytes have been compared with an exact npm installation;
+the matrix itself has not run or passed on this candidate.
 
 - Python development candidate: exact PR #1208 head `25e0c7278a19493345975881d1578c76fc64dc1b`,
   tree `bcc4ad30ea4ee43d7b82f39e12f60b5a3ac2aead`, built as an installed wheel or
@@ -32,17 +32,17 @@ executed, promoted, or accepted by this harness.
   rc.45 evidence. Rc.45 pins protocol rc.4 and is therefore ineligible for
   required rc.6 Q-cell credit even when its archive and installed members are
   intact.
-- Developmentally selected TypeScript rc.6 candidate:
-  `@adcp/sdk@14.0.0-rc.47`, SHA-256
-  `1b14aeddab973809f1850e189f833ef645d061e25c82d74046c97fd92d346e49`,
+- Selected TypeScript rc.6 candidate:
+  `@adcp/sdk@14.0.0-rc.48`, SHA-256
+  `420c1fa36128f3c3285234f58096a74c5668b74ffbf12804d6603c370083149b`,
   integrity
-  `sha512-Zi2r9CZ2HJmB7i8XTlt5Z1QrVq+nnKkTcl8fSQUkjsi3ChhVtR24BIu/6Gg7yz5ctBWfMR2Lxqn4wv8kh3Wygw==`,
-  registry git head `b0d2886f0f5b8668fc134568c4cd22a4ef89e2fa`, and tree
-  `12515822c5814dcf2a0bb3c4d92e7b3ad023df46`. Independent source review
-  approved the frozen calendar behavior and T1 correction. This coordinate
-  is not executable harness input until its own lock and complete installed
-  member binding are selected; rc.45 cannot substitute for that missing input.
-  No executable row is rebound from rc.45 and no prior result transfers.
+  `sha512-mK6NpfFRm1f/0SoVxvyG9Snm78IXDfyNl3gAlWp5lVIzLHZcdwfDemNKIl5O6hjh9OugRwD4Chlax3Li9efHZw==`,
+  registry git head `3f3a0132480b2fd99d656c680ea12d4ad2b3c26d`.
+  The exact lock is under `scripts/ci/reporting_interop/npm/rc48/`; all 6,274
+  installed package files matched the registry archive. Rc.48 includes the
+  #2972 timing/discovery correction. Rc.47 remains a separate development
+  source lead, and rc.45 remains the historical executable input. No prior
+  result transfers to rc.48.
 - Previous compatible TypeScript skew input: exact `@adcp/sdk@14.0.0-rc.41`,
   integrity
   `sha512-Qfs+ujKBpIjf7m9jcuzxvN/XCXUssxhR5xCvxCq4oqMR3aMJjnuTgzjxltPtv+A6LOxwmX1ia8sMRdhVSehdBg==`,
@@ -145,10 +145,10 @@ The current composition gaps are distinct:
   durability evidence. PostgreSQL snapshots still use their own clock. The
   pinned rc.45 producer rejects changing-offset source timezones and plans fixed
   millisecond periods. The calendar correction is merged at `f3c7accb` and
-  published as rc.47, so this is no longer described as an open source defect.
-  Exact rc.47 byte qualification/selection and literal storyboard execution are
-  still pending: `probe_scheduler_dst` remains mandatory and uncredited, and no
-  precomputed boundary is substituted for it.
+  published in rc.47 and retained in the selected rc.48 package, so this is no
+  longer described as an open source defect. Literal rc.48 storyboard execution
+  is still pending: `probe_scheduler_dst` remains mandatory and uncredited, and
+  no precomputed boundary is substituted for it.
 - `reporting_consumer_status` requires the public `sync_reporting_status`
   task, advertised `consumer_status_task`, consumer-scoped ledger state, and
   the same lifecycle controller. The controlled fixture now composes the real
@@ -261,9 +261,9 @@ package's `pg` extra:
   --python-dependency-runtime floor=/path/to/floor-venv/bin/python,2.13.0,2.0.0,wheel \
   --python-dependency-runtime current=/path/to/current-venv/bin/python,2.13.5,2.2.0,wheel \
   --node-runtime /path/to/node-22.12.0 \
-  --typescript-install candidate=/path/to/future-selected-exact-rc47-npm-install \
+  --typescript-install candidate=/path/to/exact-rc48-npm-install \
   --typescript-install previous=/path/to/exact-rc41-npm-install \
-  --typescript-archive candidate=/path/to/future-selected-sdk-14.0.0-rc.47.tgz \
+  --typescript-archive candidate=/path/to/sdk-14.0.0-rc.48.tgz \
   --typescript-archive previous=/path/to/sdk-14.0.0-rc.41.tgz \
   --pg-admin-url postgresql://USER:PASSWORD@HOST:PORT/postgres \
   --output .context/reporting-interop/foundation-run

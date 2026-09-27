@@ -136,7 +136,7 @@ def test_wrong_node_or_package_identity_fails_before_execution(tmp_path: Path) -
     args.node_sha256 = orchestration.sha256(node)
     with pytest.raises(
         orchestration.OrchestrationError,
-        match="rc.6 candidate identity.*no selected executable lock/member binding",
+        match="TypeScript lock hash mismatch",
     ):
         orchestration.validate_fixed_inputs(args)
 
@@ -1286,7 +1286,7 @@ def test_matrix_binds_complete_typescript_install_to_its_role_archive(
         json.dumps(
             {
                 "typescript": {
-                    "development_candidate_rc47": {
+                    "candidate_rc48": {
                         "version": "14.0.0-test",
                         "integrity": integrity,
                         "tarball_sha256": runner._sha256(archive),
@@ -1334,8 +1334,8 @@ def test_storyboard_candidate_map_refuses_historical_rc45_substitution(
         json.dumps(
             {
                 "typescript": {
-                    "development_candidate_rc47": {
-                        "version": "14.0.0-rc.47",
+                    "candidate_rc48": {
+                        "version": "14.0.0-rc.48",
                         "protocol": "3.2.0-rc.6",
                         "executable_harness_input": False,
                     },
@@ -1349,7 +1349,7 @@ def test_storyboard_candidate_map_refuses_historical_rc45_substitution(
         encoding="utf-8",
     )
     monkeypatch.setattr(orchestration, "PINS", pins)
-    assert orchestration._typescript_pin("candidate")["version"] == "14.0.0-rc.47"
+    assert orchestration._typescript_pin("candidate")["version"] == "14.0.0-rc.48"
     assert orchestration._typescript_pin("historical_candidate")["version"] == "14.0.0-rc.45"
 
 

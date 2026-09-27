@@ -143,9 +143,9 @@
             "ReportingProducerV1.installConfiguration",
             "ReportingProducerV1.planObligations"
           ],
-          "implementation": "rc47_development_selected_execution_pending",
+          "implementation": "rc48_selected_execution_pending",
           "rc45_limitation": "The pinned rc.45 public source module exposes the interval-zero origin and UTC-offset probes, but no civil-time next-boundary generator. Its ReportingProducerV1 plans fixed periodMilliseconds intervals and rejects source_timezone configurations when reportingUtcOffsetChangesV1 detects a DST transition, so rc.45 cannot produce the storyboard's 23-hour and 25-hour New York days.",
-          "current_source_disposition": "The frozen calendar correction is independently source-approved and exact rc.47 registry bytes are selected for developmental Q1-Q4 qualification. The harness has not locked, installed, or executed rc.47, so the mandatory step remains unexecuted rather than an open source defect.",
+          "current_source_disposition": "The frozen calendar correction is retained in the exact rc.48 registry package selected for Q1-Q4 qualification. Its archive and npm install match, but the mandatory scheduler storyboard has not been executed and remains uncredited.",
           "source_boundary": [
             "dist/lib/reporting/source/source.d.ts:1549-1573",
             "dist/lib/reporting/ledger/producer.js:940-979",

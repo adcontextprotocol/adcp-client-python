@@ -44,7 +44,14 @@
         "integrity": "sha512-Qfs+ujKBpIjf7m9jcuzxvN/XCXUssxhR5xCvxCq4oqMR3aMJjnuTgzjxltPtv+A6LOxwmX1ia8sMRdhVSehdBg==",
         "shasum": "394b62123fb31c02aeec92f7f12874142fac9a09"
       },
-      "candidate": null
+      "candidate": {
+        "package": "@adcp/sdk",
+        "version": "14.0.0-rc.48",
+        "integrity": "sha512-mK6NpfFRm1f/0SoVxvyG9Snm78IXDfyNl3gAlWp5lVIzLHZcdwfDemNKIl5O6hjh9OugRwD4Chlax3Li9efHZw==",
+        "shasum": "25e909abe31b9171c4b2f0a61004f955d5b1de05",
+        "registry": "https://registry.npmjs.org/",
+        "tarball_url": "https://registry.npmjs.org/@adcp/sdk/-/sdk-14.0.0-rc.48.tgz"
+      }
     }
   },
   "pending": {
@@ -52,9 +59,9 @@
     "python_candidate": "Pin the accepted rc.4 replacement plus #1172 artifact only after its immutable build and acceptance identity exist.",
     "typescript_candidate": {
       "repository": "adcontextprotocol/adcp-client",
-      "release_pr": 2979,
+      "release_pr": 3030,
       "source_merge_commit": "3d8c3dfec6d0b325d602964e067703f05408d76f",
-      "proposed_version": "14.0.0-rc.42",
+      "proposed_version": "14.0.0-rc.48",
       "forbidden_substitute": "14.0.0-rc.41"
     }
   },

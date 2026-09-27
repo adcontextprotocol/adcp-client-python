@@ -421,6 +421,21 @@ def test_exact_candidate_pins_are_immutable_and_keep_source_separate() -> None:
     assert locked_sdk["version"] == typescript["version"]
     assert locked_sdk["integrity"] == typescript["integrity"]
 
+    selected = pins["typescript"]["candidate_rc48"]
+    assert selected["version"] == "14.0.0-rc.48"
+    assert selected["integrity"] == (
+        "sha512-mK6NpfFRm1f/0SoVxvyG9Snm78IXDfyNl3gAlWp5lVIzLHZcdwfDemNKIl5O6hjh9OugRwD4Chlax3Li9efHZw=="
+    )
+    assert selected["protocol"] == "3.2.0-rc.6"
+    assert selected["executable_harness_input"] is True
+    selected_lock = ROOT / selected["package_lock"]
+    assert hashlib.sha256(selected_lock.read_bytes()).hexdigest() == selected["package_lock_sha256"]
+    selected_locked_sdk = json.loads(selected_lock.read_text())["packages"][
+        "node_modules/@adcp/sdk"
+    ]
+    assert selected_locked_sdk["version"] == selected["version"]
+    assert selected_locked_sdk["integrity"] == selected["integrity"]
+
     development = pins["typescript"]["development_candidate_rc47"]
     assert development["version"] == "14.0.0-rc.47"
     assert development["protocol"] == "3.2.0-rc.6"
@@ -541,7 +556,7 @@ def test_runner_executes_skew_storyboards_and_receiver_contracts_fail_closed() -
     )
     assert any(
         operation["operation"] == "probe_scheduler_dst"
-        and operation["implementation"] == "rc47_development_selected_execution_pending"
+        and operation["implementation"] == "rc48_selected_execution_pending"
         and any(
             boundary.endswith("producer.js:940-979") for boundary in operation["source_boundary"]
         )

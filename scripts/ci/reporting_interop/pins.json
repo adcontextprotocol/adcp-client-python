@@ -135,6 +135,35 @@
     }
   },
   "typescript": {
+    "candidate_rc48": {
+      "package": "@adcp/sdk",
+      "version": "14.0.0-rc.48",
+      "tarball": "https://registry.npmjs.org/@adcp/sdk/-/sdk-14.0.0-rc.48.tgz",
+      "integrity": "sha512-mK6NpfFRm1f/0SoVxvyG9Snm78IXDfyNl3gAlWp5lVIzLHZcdwfDemNKIl5O6hjh9OugRwD4Chlax3Li9efHZw==",
+      "shasum": "25e909abe31b9171c4b2f0a61004f955d5b1de05",
+      "tarball_sha256": "420c1fa36128f3c3285234f58096a74c5668b74ffbf12804d6603c370083149b",
+      "tarball_bytes": 19763811,
+      "tarball_members": 6274,
+      "registry_git_head": "3f3a0132480b2fd99d656c680ea12d4ad2b3c26d",
+      "source_tree": "757909a072d7181f0cce0c39f0a7b584bf8e197c",
+      "source_correction_pr": 2972,
+      "source_correction_merge_commit": "3d8c3dfec6d0b325d602964e067703f05408d76f",
+      "release_pr": 3030,
+      "package_lock": "scripts/ci/reporting_interop/npm/rc48/package-lock.json",
+      "package_lock_sha256": "431fcc5b38c28b52ed772a80ec148e848a5e0e2e9a39e2bcc1a7bf235a0d6fcc",
+      "protocol": "3.2.0-rc.6",
+      "package_engines_node": "^20.19.0 || >=22.12.0",
+      "development_runtime_pin": "22.12.0",
+      "selection_scope": "rc6_aligned_candidate_Q1_Q4",
+      "executable_harness_input": true,
+      "transitive_lock": "scripts/ci/reporting_interop/npm/rc48/package-lock.json",
+      "installed_member_binding": {
+        "member_count": 6274,
+        "manifest_sha256": "17fffd769ea636bc0206975c9fee478cb3f8b0ce1858af01353b431f5c185c06"
+      },
+      "qualification": "registry_archive_and_exact_npm_lock_selected; matrix_execution_pending",
+      "acceptance": false
+    },
     "development_candidate_rc47": {
       "package": "@adcp/sdk",
       "version": "14.0.0-rc.47",
