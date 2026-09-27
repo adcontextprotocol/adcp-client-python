@@ -1,5 +1,127 @@
 # Changelog
 
+## [8.0.0-beta.16](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.15...v8.0.0-beta.16) (2026-09-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* **reporting:** InlineFetchResult currency and provisional_until must be passed by keyword. The six earlier positional arguments retain their order; the source-adapter guide includes the migration example.
+* **reporting:** scope configuration generations by account ([#1174](https://github.com/adcontextprotocol/adcp-client-python/issues/1174))
+* **protocol:** SyncAccountsAccount brand, operator and status are nullable for the rc.4 reference/error forms, and item error lists must be nonempty. The default reporting contract is rc.4; retained rc.3 walks require an explicit rc.3 mount and client pin. Existing snapshots are not rewritten.
+
+### test
+
+* **reporting:** integrate currency and metric evidence ([#1177](https://github.com/adcontextprotocol/adcp-client-python/issues/1177)) ([5dc746a](https://github.com/adcontextprotocol/adcp-client-python/commit/5dc746a89aebcfc4d9158632cca60668d27c45e9))
+
+
+### Features
+
+* **protocol:** adopt signed AdCP 3.2.0-rc.4 ([61d6290](https://github.com/adcontextprotocol/adcp-client-python/commit/61d62902f01b8213d057215035c2974f3beafa0a))
+* **reporting:** add adapter-first reliable reporting service ([#1210](https://github.com/adcontextprotocol/adcp-client-python/issues/1210)) ([25c297d](https://github.com/adcontextprotocol/adcp-client-python/commit/25c297d663e70287f6abd8a0f954e17a8ab4d340))
+* **reporting:** add destination verification and strict revision selection ([5487f2b](https://github.com/adcontextprotocol/adcp-client-python/commit/5487f2bdef23c5102118b305be9e868228f6ce61))
+* **reporting:** add destination verification and strict revision selection ([a89f990](https://github.com/adcontextprotocol/adcp-client-python/commit/a89f9900f9e69827161d51c6cd4a4afec74c9107)), closes [#1167](https://github.com/adcontextprotocol/adcp-client-python/issues/1167)
+* **reporting:** add transactional notification outbox ([99de6ac](https://github.com/adcontextprotocol/adcp-client-python/commit/99de6acb62ce67679c8d92aa5b64af7295af5f25)), closes [#1168](https://github.com/adcontextprotocol/adcp-client-python/issues/1168)
+* **reporting:** add transactional notification outbox ([#1178](https://github.com/adcontextprotocol/adcp-client-python/issues/1178)) ([17ee407](https://github.com/adcontextprotocol/adcp-client-python/commit/17ee407ae3978c8a2bb54437287afbf9dafb8130))
+* **reporting:** automate source settling windows ([#1209](https://github.com/adcontextprotocol/adcp-client-python/issues/1209)) ([fba5515](https://github.com/adcontextprotocol/adcp-client-python/commit/fba5515825b671c29c969e67ed982a606eab5208))
+* **reporting:** compose provisional source lifecycle ([#1225](https://github.com/adcontextprotocol/adcp-client-python/issues/1225)) ([2bfbca4](https://github.com/adcontextprotocol/adcp-client-python/commit/2bfbca4b9c7505e5f7dc37d7c7f17bdb10ecfdd5))
+* **reporting:** enable production tier status and ownership ([614d513](https://github.com/adcontextprotocol/adcp-client-python/commit/614d513caf2512b7e2bb56942cbef4251da3f0eb))
+* **reporting:** expose durable webhook activity ([198d50e](https://github.com/adcontextprotocol/adcp-client-python/commit/198d50e61c74fb82aedbf2c77e06a0e200b91db6)), closes [#1168](https://github.com/adcontextprotocol/adcp-client-python/issues/1168)
+* **reporting:** expose durable webhook activity ([#1183](https://github.com/adcontextprotocol/adcp-client-python/issues/1183)) ([0f34c66](https://github.com/adcontextprotocol/adcp-client-python/commit/0f34c666ac1961e9832fce43ef0ef6937b3c1dde))
+* **reporting:** ingest receipts with authenticated durable replay ([09fd87f](https://github.com/adcontextprotocol/adcp-client-python/commit/09fd87f79a746665d828dea66b3a1dd9d1fc189e))
+* **reporting:** ingest receipts with authenticated durable replay ([3e61150](https://github.com/adcontextprotocol/adcp-client-python/commit/3e611508f0b773286784284e3b545a063c6e2675))
+* **reporting:** integrate signed rc6 fixtures and lease progress ([940c95e](https://github.com/adcontextprotocol/adcp-client-python/commit/940c95e0c2d93758ed334b3edff59cbe933362d4))
+* **reporting:** materialize revisions with durable fenced work ([3fd6212](https://github.com/adcontextprotocol/adcp-client-python/commit/3fd62121c96a074e3ea458c30c5224d6a586f169))
+* **reporting:** materialize revisions with durable fenced work ([f84a4d2](https://github.com/adcontextprotocol/adcp-client-python/commit/f84a4d221140d504096d7445bad0392a0deea8c4)), closes [#1167](https://github.com/adcontextprotocol/adcp-client-python/issues/1167)
+* **reporting:** persist authorized frozen reporting feeds ([2d777ac](https://github.com/adcontextprotocol/adcp-client-python/commit/2d777ace7b4bf8be519ce0abd4fd0a25ed4f1da7))
+* **reporting:** persist authorized frozen reporting feeds ([4cc4697](https://github.com/adcontextprotocol/adcp-client-python/commit/4cc46970e0a1f04624fb84d9275213571a636b41))
+* **reporting:** persist buyer receipt submission intents ([#1219](https://github.com/adcontextprotocol/adcp-client-python/issues/1219)) ([e77a401](https://github.com/adcontextprotocol/adcp-client-python/commit/e77a401309be2397347cc4bd6bb5b6d45ddb33f1))
+* **reporting:** persist managed delivery reconciliation records ([eac9b1b](https://github.com/adcontextprotocol/adcp-client-python/commit/eac9b1b000c8faa56c19cc4cd9df83ba1ad688e9))
+* **reporting:** persist managed delivery reconciliation records ([#1176](https://github.com/adcontextprotocol/adcp-client-python/issues/1176)) ([4823dff](https://github.com/adcontextprotocol/adcp-client-python/commit/4823dfff7ae94924419a745e0152547460dcdf42))
+* **reporting:** persist scheduled provisional observations ([#1221](https://github.com/adcontextprotocol/adcp-client-python/issues/1221)) ([2a45baf](https://github.com/adcontextprotocol/adcp-client-python/commit/2a45bafddd28afe9e6013a715289c2e1d9b208db))
+* **reporting:** preserve raw adjustment evidence for receipts ([#1220](https://github.com/adcontextprotocol/adcp-client-python/issues/1220)) ([c67b97e](https://github.com/adcontextprotocol/adcp-client-python/commit/c67b97e02afcb387a5c9b6c06caa0904d43efcd8))
+* **reporting:** project durable status notifications ([967b6e2](https://github.com/adcontextprotocol/adcp-client-python/commit/967b6e286301d7e5d089aea6fdbb90bea8ee5a16))
+* **reporting:** project durable status notifications ([ac12610](https://github.com/adcontextprotocol/adcp-client-python/commit/ac12610db94068d79264024338792be8b365610c))
+* **reporting:** support per-metric source availability evidence ([2037b40](https://github.com/adcontextprotocol/adcp-client-python/commit/2037b40e27965b8546b8c490b67d64707248c720))
+
+
+### Bug Fixes
+
+* **ci:** install SQLAlchemy with asyncio support ([8e9c7fd](https://github.com/adcontextprotocol/adcp-client-python/commit/8e9c7fd83ed14df84e7d3156a74341553de82f83))
+* **ci:** separate receipt rolling inputs before pytest ([624c100](https://github.com/adcontextprotocol/adcp-client-python/commit/624c1001ed42a210462ddb6de76806f9c1a81fc8))
+* **decisioning:** integrate reviewed sanitized fallback hygiene ([25e0c72](https://github.com/adcontextprotocol/adcp-client-python/commit/25e0c7278a19493345975881d1578c76fc64dc1b))
+* **decisioning:** return sanitized details on narrowing failure ([fe1a1cb](https://github.com/adcontextprotocol/adcp-client-python/commit/fe1a1cbd070bc94ec32685026ad39ec55058dc73))
+* **release:** gate publishing on accepted main artifacts ([#1200](https://github.com/adcontextprotocol/adcp-client-python/issues/1200)) ([a9bc11c](https://github.com/adcontextprotocol/adcp-client-python/commit/a9bc11c94e7f188d9a442def20c64f76a11b0cab))
+* **release:** restore minimal beta publishing flow ([#1227](https://github.com/adcontextprotocol/adcp-client-python/issues/1227)) ([6b23769](https://github.com/adcontextprotocol/adcp-client-python/commit/6b237696a1d5f627f728040ae65c4d671884b792))
+* **release:** verify all protected main policies ([#1201](https://github.com/adcontextprotocol/adcp-client-python/issues/1201)) ([06b16a0](https://github.com/adcontextprotocol/adcp-client-python/commit/06b16a0930573012ac4b969abbe3ab529ed4e5b4))
+* **reporting:** adopt rc.6 exact waiver semantics ([00f8b55](https://github.com/adcontextprotocol/adcp-client-python/commit/00f8b5592ff41a057737b572f0a1d69e8d634eb9))
+* **reporting:** align receipt fixtures with the rc.6 contract ([c4494c6](https://github.com/adcontextprotocol/adcp-client-python/commit/c4494c63b080dd44c4c36307d2942bc25c899411))
+* **reporting:** align signed adoption with integrated rc6 contracts ([b58cc18](https://github.com/adcontextprotocol/adcp-client-python/commit/b58cc1814ab8ee9346cc50ffd3ed17a71883ad30))
+* **reporting:** apply rc.3 configuration lifecycle and keep issue returns ([21bf443](https://github.com/adcontextprotocol/adcp-client-python/commit/21bf443e7d850d1800ec8a6f2e4abec1c8f85541)), closes [#1168](https://github.com/adcontextprotocol/adcp-client-python/issues/1168)
+* **reporting:** bind reconciliation evidence in the database and judge snapshot topology ([3c405a2](https://github.com/adcontextprotocol/adcp-client-python/commit/3c405a21f978ed9d3208611bb4a7a8434a056933))
+* **reporting:** bind restatement checkpoints to source transactions ([09ad29c](https://github.com/adcontextprotocol/adcp-client-python/commit/09ad29c1cff1e09b30ac8596f38ecb45a5656d1b))
+* **reporting:** bind transport-equivalent numeric feed filters ([44f9e72](https://github.com/adcontextprotocol/adcp-client-python/commit/44f9e72eccc48e5c204e0faf8adc793e8563ac59))
+* **reporting:** cache schema proofs and retain safe receipt diagnostics ([e16eb8c](https://github.com/adcontextprotocol/adcp-client-python/commit/e16eb8cf3074cabd45aab42840950f05ad6d2b43))
+* **reporting:** cache schema proofs and retain safe receipt diagnostics ([3ae6c33](https://github.com/adcontextprotocol/adcp-client-python/commit/3ae6c330b1f958de7c3d6ea7a5a8da1db015da6c)), closes [#1167](https://github.com/adcontextprotocol/adcp-client-python/issues/1167)
+* **reporting:** chain snapshot restatements past an official close ([cc5c097](https://github.com/adcontextprotocol/adcp-client-python/commit/cc5c097c979034de9824ea6b32dce07cf22b2e5b))
+* **reporting:** close materializer entry-point diagnostics ([0e22e05](https://github.com/adcontextprotocol/adcp-client-python/commit/0e22e059639b7ca60bd38b8bc4ac0b9846bf3996))
+* **reporting:** compose service capabilities outside producer extras ([58c8299](https://github.com/adcontextprotocol/adcp-client-python/commit/58c82997ef82b8b5a5996eaa070c142fa488ba87))
+* **reporting:** enforce exact reconciliation graph and isolated feeds ([c44095e](https://github.com/adcontextprotocol/adcp-client-python/commit/c44095e3b457c44931eacc8a0da21ddf442229fd))
+* **reporting:** freeze currency on reporting obligations ([7bd5b8f](https://github.com/adcontextprotocol/adcp-client-python/commit/7bd5b8f6a7ad4f74d46ed6d0de8a56dd70316111))
+* **reporting:** freeze currency on reporting obligations ([#1175](https://github.com/adcontextprotocol/adcp-client-python/issues/1175)) ([0164f90](https://github.com/adcontextprotocol/adcp-client-python/commit/0164f907f558fc628fc913ff40bc9574856393ec))
+* **reporting:** give period-close leasing a durable total fairness order ([74b338d](https://github.com/adcontextprotocol/adcp-client-python/commit/74b338d81653f4f65bc1520e638da10225f199f3)), closes [#1167](https://github.com/adcontextprotocol/adcp-client-python/issues/1167)
+* **reporting:** give period-close leasing a durable total fairness order ([b71927a](https://github.com/adcontextprotocol/adcp-client-python/commit/b71927a2a0a9e5ce1dae0cf0a7f62a359c26b722)), closes [#1167](https://github.com/adcontextprotocol/adcp-client-python/issues/1167)
+* **reporting:** include settling checkpoints in outbox readiness ([9fc1d53](https://github.com/adcontextprotocol/adcp-client-python/commit/9fc1d53ff0df189ea83de19f093e830297cfe58e))
+* **reporting:** integrate production settling and rc6 boundaries ([8b2418a](https://github.com/adcontextprotocol/adcp-client-python/commit/8b2418a542341f804f75beb0c1817dc080c02987))
+* **reporting:** integrate reviewed late-account progress ([34cc4b4](https://github.com/adcontextprotocol/adcp-client-python/commit/34cc4b4c1f8886cbe22c1884c650143ad4220a96))
+* **reporting:** integrate reviewed publication timestamp correction ([3f4ae61](https://github.com/adcontextprotocol/adcp-client-python/commit/3f4ae61d7988b831e3c7f5507b8a69460539aa3c))
+* **reporting:** integrate reviewed reporting and signing corrections ([5fd5433](https://github.com/adcontextprotocol/adcp-client-python/commit/5fd54334e92057c9d7457a7aa87b5dd7d1e49330))
+* **reporting:** isolate unresolved currency and partial monetary rows ([ff584b6](https://github.com/adcontextprotocol/adcp-client-python/commit/ff584b6fbe3436e7afa4980a14e2e5e4004a06a3))
+* **reporting:** join reviewed currency and metric evidence roots ([6c7ffa5](https://github.com/adcontextprotocol/adcp-client-python/commit/6c7ffa506612e5fa33a6adc4b097987aea2303c5))
+* **reporting:** keep an unreachable withdrawal from wedging money totals ([037de4a](https://github.com/adcontextprotocol/adcp-client-python/commit/037de4ac822ecefb2f95d32c15c297fb4c45d683))
+* **reporting:** keep legacy control totals when no cell is declared ([7fd88c6](https://github.com/adcontextprotocol/adcp-client-python/commit/7fd88c6710c26211484032bdd0e51fcd1077e6ed))
+* **reporting:** keep projection dirty work on public materializations ([1b066a5](https://github.com/adcontextprotocol/adcp-client-python/commit/1b066a5f6bb0dd63d28352a8b6c28437bc1790cc))
+* **reporting:** keep settling evidence keyword-only on integration ([8b384af](https://github.com/adcontextprotocol/adcp-client-python/commit/8b384afd45403662097a97d3c6ab4aad5ce6856e))
+* **reporting:** make schema fingerprints independent of database locale ([ede1189](https://github.com/adcontextprotocol/adcp-client-python/commit/ede11897b170a17ea0b4d45bc78208df5b50e086))
+* **reporting:** order materializer accounts by native timestamps ([8ea0dbe](https://github.com/adcontextprotocol/adcp-client-python/commit/8ea0dbe46aafa356a40bb256dbb97316487c2468))
+* **reporting:** pin every frozen-artifact CI job to a C-collated cluster ([7795d2b](https://github.com/adcontextprotocol/adcp-client-python/commit/7795d2bdb5677cbafd69f029e08eff4d7adb8959)), closes [#1168](https://github.com/adcontextprotocol/adcp-client-python/issues/1168)
+* **reporting:** pin the A/B rolling gate to a C-collated database ([f453c38](https://github.com/adcontextprotocol/adcp-client-python/commit/f453c38a3c049ad6128c235ad73a55b74d129798)), closes [#1168](https://github.com/adcontextprotocol/adcp-client-python/issues/1168)
+* **reporting:** pin TypeScript interop candidate to rc.48 ([#1226](https://github.com/adcontextprotocol/adcp-client-python/issues/1226)) ([a1b4c73](https://github.com/adcontextprotocol/adcp-client-python/commit/a1b4c737c267bc85bac367d028d8c5de02bc7420))
+* **reporting:** preserve incremental boundaries and explicit wire defaults ([e06a6bc](https://github.com/adcontextprotocol/adcp-client-python/commit/e06a6bc0166c9ea24bd5d274e93a2d63abdda833))
+* **reporting:** preserve PostgreSQL lease progress and instrument installed gates ([1f953c4](https://github.com/adcontextprotocol/adcp-client-python/commit/1f953c40d761be71d11fde84c78359ff2074fe7c))
+* **reporting:** preserve readiness across webhook activity composition ([46191d3](https://github.com/adcontextprotocol/adcp-client-python/commit/46191d308ad949bff21696f04c4b4892e0f6884a))
+* **reporting:** preserve status errors and release feed writer locks ([50e35f0](https://github.com/adcontextprotocol/adcp-client-python/commit/50e35f0ae3540f19b40e8fc460f5870dfe018bf9))
+* **reporting:** preserve typed selectors and exact feed numbers ([8dc98c7](https://github.com/adcontextprotocol/adcp-client-python/commit/8dc98c7ecaedabaa1612aa6e8744562a6682035a))
+* **reporting:** qualify hardening against integrated feed baseline ([ab12e15](https://github.com/adcontextprotocol/adcp-client-python/commit/ab12e1511058f0a9e75a8228f650d9a302423640))
+* **reporting:** qualify materializer against integrated baselines ([2fed642](https://github.com/adcontextprotocol/adcp-client-python/commit/2fed6422090ba65bd5dd2a8ed3fde0ac561b8579))
+* **reporting:** qualify receipt gates against integrated baselines ([c7c4f09](https://github.com/adcontextprotocol/adcp-client-python/commit/c7c4f09d0fdf6e46e2b9e601d69b639fcf233b28))
+* **reporting:** reconcile currency branch with merged main ([8f9dbf5](https://github.com/adcontextprotocol/adcp-client-python/commit/8f9dbf5c6a2f45eab2e8b6604d8e004dd40b7fad))
+* **reporting:** reconcile frozen feed gates and fixtures with main ([e7fdb02](https://github.com/adcontextprotocol/adcp-client-python/commit/e7fdb02dd29075154af180e8aab7495ae7dcce88))
+* **reporting:** require status conformance in the PG gate ([ee9dd83](https://github.com/adcontextprotocol/adcp-client-python/commit/ee9dd83af66b8175a061c688053af1636d8ba07b))
+* **reporting:** restore progress for late materializer accounts ([dba15b6](https://github.com/adcontextprotocol/adcp-client-python/commit/dba15b6b0dd8063d38c2df4196491ae64d9720ae))
+* **reporting:** retain unversioned feed continuations ([bb29216](https://github.com/adcontextprotocol/adcp-client-python/commit/bb2921619762175adcc101ca09c74bd52cc196a8))
+* **reporting:** reuse staged payloads across source observations ([#1224](https://github.com/adcontextprotocol/adcp-client-python/issues/1224)) ([02a1961](https://github.com/adcontextprotocol/adcp-client-python/commit/02a1961d1966f2a1fe98eddee9f11edfe2a0fd75))
+* **reporting:** roll back rejected default-off issue scope moves ([8b19e8a](https://github.com/adcontextprotocol/adcp-client-python/commit/8b19e8a1973c76f7e684b0c9ed312e8a8a5dd217)), closes [#1168](https://github.com/adcontextprotocol/adcp-client-python/issues/1168)
+* **reporting:** rotate in-memory period-close leases across accounts ([6c74a45](https://github.com/adcontextprotocol/adcp-client-python/commit/6c74a458b8ee2a34c47c154186b950faed50f4fa))
+* **reporting:** scope configuration generations by account ([91fa278](https://github.com/adcontextprotocol/adcp-client-python/commit/91fa2786efdd3117ce2c1a875ede7431767d7e87))
+* **reporting:** scope configuration generations by account ([#1174](https://github.com/adcontextprotocol/adcp-client-python/issues/1174)) ([6c5ee7b](https://github.com/adcontextprotocol/adcp-client-python/commit/6c5ee7b29ef9d548ae2bb3665032e0c53a8146ac))
+* **reporting:** settle service lifecycle before resource cleanup ([#1218](https://github.com/adcontextprotocol/adcp-client-python/issues/1218)) ([a9719c6](https://github.com/adcontextprotocol/adcp-client-python/commit/a9719c6ba78f68b8a83ee143a7eff58989978030))
+* **reporting:** stop and diagnose failed production workers ([e3a44d2](https://github.com/adcontextprotocol/adcp-client-python/commit/e3a44d281d019ebf6aec738c2cfe18f8bba97462))
+* **reporting:** surface caller-argument errors instead of unknown effects ([d1d3b13](https://github.com/adcontextprotocol/adcp-client-python/commit/d1d3b1330f13f777426b65aff46d6a3921fa591b))
+* **reporting:** timestamp revisions after source acquisition ([26151fc](https://github.com/adcontextprotocol/adcp-client-python/commit/26151fc50ef4f3e24308f6cef1304b8faf8603d0))
+* **reporting:** use shipped signing fixtures and scoped generator imports ([a124afd](https://github.com/adcontextprotocol/adcp-client-python/commit/a124afd3b72f3fb81e30e40b298222a683e71d5f))
+* **reporting:** validate buyer frozen histories ([#1222](https://github.com/adcontextprotocol/adcp-client-python/issues/1222)) ([d300c61](https://github.com/adcontextprotocol/adcp-client-python/commit/d300c61a8812400363b8cd5812f88fa2b66a6a02))
+* **server:** settle lifespan cleanup after startup failures ([#1223](https://github.com/adcontextprotocol/adcp-client-python/issues/1223)) ([7c5a123](https://github.com/adcontextprotocol/adcp-client-python/commit/7c5a12397a27041bd76fce07e9ffafec4efa2295))
+* **signing:** classify revocation checker trust failures ([ccb7713](https://github.com/adcontextprotocol/adcp-client-python/commit/ccb7713fdef0baa87931b3640757f57a6a47808f))
+* **signing:** emit webhook signatures as unpadded Base64URL ([b203bbc](https://github.com/adcontextprotocol/adcp-client-python/commit/b203bbcff51cb648c1fd605224fb74e5a3465a8f))
+* **signing:** integrate reviewed revocation checker classification ([7af5699](https://github.com/adcontextprotocol/adcp-client-python/commit/7af569985174235739be4007e693d10ccb604817))
+* **signing:** reject mixed webhook signature alphabets before verification ([ddaa474](https://github.com/adcontextprotocol/adcp-client-python/commit/ddaa474705b332943f10cc0e74baa637ee90a4df))
+* **types:** restore targeting overlay input compatibility ([#1190](https://github.com/adcontextprotocol/adcp-client-python/issues/1190)) ([f6e9c15](https://github.com/adcontextprotocol/adcp-client-python/commit/f6e9c15333db8e657ba96a79d806194dfc0e0447))
+
+
+### Performance Improvements
+
+* **schema:** reuse immutable MCP materializations ([decfb4e](https://github.com/adcontextprotocol/adcp-client-python/commit/decfb4eb53845c22b019466b4167293f6c6181c7))
+
 ## [8.0.0-beta.15](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.14...v8.0.0-beta.15) (2026-09-15)
 
 
