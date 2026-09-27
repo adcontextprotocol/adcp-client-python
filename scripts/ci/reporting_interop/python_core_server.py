@@ -32,8 +32,6 @@ from adcp.server import serve
 from adcp.server.auth import BearerTokenAuth, Principal, auth_context_factory
 from adcp.server.responses import capabilities_response, sync_accounts_response
 
-ADCP_VERSION = "3.2.0-rc.4"
-WIRE_ADCP_VERSION = "3.2-rc.4"
 FIXED_NOW = datetime(2026, 9, 3, tzinfo=timezone.utc)
 PERIOD_START = datetime(2026, 8, 1, tzinfo=timezone.utc)
 PERIOD_END = PERIOD_START + timedelta(days=1)
@@ -176,8 +174,8 @@ class CoreHandler(ReportingStatusNotificationHandler):
             idempotency={"supported": False},
             # capabilities_response normalizes the packaged three-component
             # SDK version to the protocol's release-precision wire spelling.
-            adcp_version=ADCP_VERSION,
-            supported_versions=[WIRE_ADCP_VERSION],
+            adcp_version=self._adcp_version,
+            supported_versions=[self._adcp_version],
         )
         response["experimental_features"] = ["media_buy.reporting_delivery"]
         response["media_buy"] = {
@@ -280,9 +278,7 @@ def main() -> None:
             metadata={"account_id": account_id, "consumer_id": consumer_id},
         )
 
-    handler = CoreHandler(
-        ReportingStatusHandler(store), resolve_caller=resolve_caller, adcp_version=ADCP_VERSION
-    )
+    handler = CoreHandler(ReportingStatusHandler(store), resolve_caller=resolve_caller)
     serve(
         handler,
         name="reporting-interop-python-core",

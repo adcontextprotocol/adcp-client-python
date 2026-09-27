@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "issue": 1199,
+  "phase": "baseline_before_rc7_and_1172",
+  "acceptance_contract": {
+    "required_cell_count": 4,
+    "required_polarity": "positive_semantic",
+    "final_rerun_prerequisites": [
+      "track_1_rc7_merged_and_protocol_repointed",
+      "issue_1172_merged",
+      "final_python_candidate_published",
+      "integrated_main_rerun"
+    ]
+  },
+  "cells": [
+    {
+      "id": "python-stable__typescript-stable",
+      "python_role": "stable",
+      "typescript_role": "stable",
+      "required": true,
+      "required_polarity": "positive_semantic",
+      "baseline_expected_outcome": "expected_unsupported_python_seller"
+    },
+    {
+      "id": "python-stable__typescript-candidate",
+      "python_role": "stable",
+      "typescript_role": "candidate",
+      "required": true,
+      "required_polarity": "positive_semantic",
+      "baseline_expected_outcome": "expected_unsupported_python_seller"
+    },
+    {
+      "id": "python-candidate__typescript-stable",
+      "python_role": "candidate",
+      "typescript_role": "stable",
+      "required": true,
+      "required_polarity": "positive_semantic",
+      "baseline_expected_outcome": "expected_unsupported_typescript_client"
+    },
+    {
+      "id": "python-candidate__typescript-candidate",
+      "python_role": "candidate",
+      "typescript_role": "candidate",
+      "required": true,
+      "required_polarity": "positive_semantic",
+      "baseline_expected_outcome": "positive_semantic"
+    }
+  ],
+  "artifacts": {
+    "python": {
+      "stable": {
+        "package": "adcp",
+        "version": "8.0.0b15",
+        "protocol": "3.2.0-rc.3",
+        "wheel_url": "https://files.pythonhosted.org/packages/8b/63/cf3d7b2885126771009f6da3786ba564fcae7e910568c93f06cf672d2f5e/adcp-8.0.0b15-py3-none-any.whl",
+        "wheel_sha256": "608636a4fe774bc4846b5bb0eab6367d0b8e69f6f371aa6085845d9f8329f48f",
+        "wheel_bytes": 40403241,
+        "sdk_member_count": 4528,
+        "sdk_member_manifest_sha256": "ade1092cf7275e25f752174b1dce0758d56b4d27bef65005508b8fe419e3a8aa"
+      },
+      "candidate": {
+        "package": "adcp",
+        "version": "8.0.0b16",
+        "protocol": "3.2.0-rc.6",
+        "wheel_url": "https://files.pythonhosted.org/packages/97/07/74355b24ace6d7618cd330cc970a0ba24f82673e5e1e1e7767d153f73989/adcp-8.0.0b16-py3-none-any.whl",
+        "wheel_sha256": "7589a546cacdddce3a7a827adaa11d4ccab34768c558689b1c6850b85cd098b1",
+        "wheel_bytes": 89996534,
+        "sdk_member_count": 7843,
+        "sdk_member_manifest_sha256": "51a37d87a8f61e77ff6815f661728c84d16c85d7430ab1987d3a3bd6a84dceab"
+      }
+    },
+    "typescript": {
+      "stable": {
+        "package": "@adcp/sdk",
+        "version": "14.0.0-rc.41",
+        "protocol": "3.2.0-rc.4",
+        "tarball_url": "https://registry.npmjs.org/@adcp/sdk/-/sdk-14.0.0-rc.41.tgz",
+        "tarball_sha256": "c9bb1e22b63dfedf6bc1ae9c07d1a1312465489671e9841dd5f1425b817b0a90",
+        "tarball_bytes": 19458232,
+        "integrity": "sha512-Qfs+ujKBpIjf7m9jcuzxvN/XCXUssxhR5xCvxCq4oqMR3aMJjnuTgzjxltPtv+A6LOxwmX1ia8sMRdhVSehdBg==",
+        "package_lock": "scripts/ci/reporting_interop/npm/rc41/package-lock.json",
+        "package_lock_sha256": "2059bd6794ff8f2f06f5ec83187ba7de5607f262b9b0a18a4d0d0be5682efa74",
+        "installed_member_count": 6183,
+        "installed_member_manifest_sha256": "5a9212d3b5077ca0005b5b0afe53607eb4f65f3c2f6f5fcda7c5837092edc82e"
+      },
+      "candidate": {
+        "package": "@adcp/sdk",
+        "version": "14.0.0-rc.48",
+        "protocol": "3.2.0-rc.6",
+        "tarball_url": "https://registry.npmjs.org/@adcp/sdk/-/sdk-14.0.0-rc.48.tgz",
+        "tarball_sha256": "420c1fa36128f3c3285234f58096a74c5668b74ffbf12804d6603c370083149b",
+        "tarball_bytes": 19763811,
+        "integrity": "sha512-mK6NpfFRm1f/0SoVxvyG9Snm78IXDfyNl3gAlWp5lVIzLHZcdwfDemNKIl5O6hjh9OugRwD4Chlax3Li9efHZw==",
+        "package_lock": "scripts/ci/reporting_interop/npm/rc48/package-lock.json",
+        "package_lock_sha256": "431fcc5b38c28b52ed772a80ec148e848a5e0e2e9a39e2bcc1a7bf235a0d6fcc",
+        "installed_member_count": 6274,
+        "installed_member_manifest_sha256": "17fffd769ea636bc0206975c9fee478cb3f8b0ce1858af01353b431f5c185c06"
+      }
+    }
+  }
+}

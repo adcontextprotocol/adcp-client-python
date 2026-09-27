@@ -91,11 +91,26 @@ function accountContext(request, extra) {
   const accountId = account?.account_id;
   const operator = account?.operator;
   const selectedFixture = accountId === ACCOUNT_ID || operator === STORYBOARD_OPERATOR;
-  if (!selectedFixture || account?.sandbox !== true ||
-      !extra?.authInfo?.extra?.accounts?.includes(ACCOUNT_ID)) {
-    throw new Error('caller is not authorized for the managed reporting sandbox account');
+  const authenticatedFixture = extra?.authInfo?.extra?.accounts?.includes(ACCOUNT_ID) === true;
+  if (!selectedFixture || account?.sandbox !== true || !authenticatedFixture) {
+    throw new Error(
+      'caller is not authorized for the managed reporting sandbox account ' +
+      `(selected_fixture=${selectedFixture}, sandbox=${account?.sandbox === true}, ` +
+      `authenticated_fixture=${authenticatedFixture})`,
+    );
   }
   return { account: { account_id: ACCOUNT_ID }, consumer_id: extra.authInfo.extra.consumer_id };
+}
+
+function controllerContext(extra) {
+  // TOOL_INPUT_SHAPE intentionally contains only scenario/params/context/ext,
+  // so the MCP validator strips the authored account selector before this
+  // custom controller handler runs.  Bind this sandbox-only seam to the
+  // unique per-run bearer scope instead; ordinary reporting tools continue to
+  // require the explicit sandbox account through accountContext().
+  if (extra?.authInfo?.extra?.accounts?.includes(ACCOUNT_ID) !== true) {
+    throw new Error('caller is not authorized for the managed reporting controller');
+  }
 }
 
 function validateAdvertisedCapabilities(api, fixture, adcpVersion,
@@ -140,7 +155,7 @@ function createAgent(api, fixture, advertised) {
       description: 'Drive declared managed reporting sandbox transitions.',
       inputSchema: api.server.TOOL_INPUT_SHAPE,
     }, async (input, extra) => {
-      accountContext(input, extra);
+      controllerContext(extra);
       const result = await fixture.controller(input.scenario, input.params?.operation);
       return api.server.toMcpResponse({ status: 'completed', ...result, context: input.context });
     });

@@ -136,11 +136,7 @@ def _sha256(path: Path) -> str:
 
 
 def _selected_python_build() -> dict[str, Any]:
-    candidate = json.loads(PINS.read_text(encoding="utf-8"))["python"]["candidate"]
-    for build in candidate["known_independent_builds"]:
-        if build["builder"] == "reporting_interop_harness":
-            return build
-    raise HarnessError("pins omit the reporting-interop harness build identity")
+    return json.loads(PINS.read_text(encoding="utf-8"))["python"]["candidate"]
 
 
 def _python_wheel_sdk_identity(path: Path) -> dict[str, Any]:
@@ -190,7 +186,7 @@ def _expected_python_member_identity(
 def _validate_python_artifact_inputs(artifacts: dict[str, PythonArtifact]) -> None:
     build = _selected_python_build()
     expected = {
-        "wheel": build["vcs_wheel_sha256"],
+        "wheel": build["wheel_sha256"],
         "sdist": build["sdist_sha256"],
     }
     for route, artifact in artifacts.items():
@@ -705,7 +701,7 @@ def _ts_core_buyer_command(
         "--expected-integrity",
         pin["integrity"],
         "--adcp-version",
-        "3.2.0-rc.4",
+        pin["protocol"],
         "--endpoint",
         endpoint,
         "--auth-env",
@@ -751,7 +747,7 @@ def _ts_server_command(
         "--expected-integrity",
         pin["integrity"],
         "--adcp-version",
-        "3.2.0-rc.4",
+        pin["protocol"],
         "--host",
         "127.0.0.1",
         "--port",
@@ -897,6 +893,7 @@ def _python_core_client_command(
     executable: Path,
     *,
     endpoint: str,
+    protocol: str,
     expect_unsupported: bool = False,
 ) -> list[str]:
     command = [
@@ -910,7 +907,7 @@ def _python_core_client_command(
         "--account",
         "interop-account-a",
         "--adcp-version",
-        "3.2.0-rc.4",
+        protocol,
     ]
     if expect_unsupported:
         command.append("--expect-unsupported")
@@ -1030,13 +1027,18 @@ def _run_signing_vectors(
     }
 
 
-def _python_webhook_vector_dir(runtime: PythonRuntime) -> Path:
+def _python_webhook_vector_dir(runtime: PythonRuntime, protocol: str) -> Path:
     completed = subprocess.run(
         [
             str(runtime.executable),
             "-I",
             "-c",
-            "import adcp,pathlib; print(pathlib.Path(adcp.__file__).parent / '_compliance/3.2.0-rc.4/test-vectors/webhook-signing')",
+            (
+                "import adcp,pathlib,sys; "
+                "print(pathlib.Path(adcp.__file__).parent / "
+                "f'_compliance/{sys.argv[1]}/test-vectors/webhook-signing')"
+            ),
+            protocol,
         ],
         check=True,
         capture_output=True,
@@ -1045,7 +1047,7 @@ def _python_webhook_vector_dir(runtime: PythonRuntime) -> Path:
     )
     path = Path(completed.stdout.strip())
     if not path.is_dir():
-        raise HarnessError(f"Python rc.4 webhook vectors are unavailable: {path}")
+        raise HarnessError(f"Python {protocol} webhook vectors are unavailable: {path}")
     return path
 
 
@@ -1057,10 +1059,14 @@ def _run_protocol_webhook_vectors(
     install: TypeScriptInstall,
     output: Path,
 ) -> dict[str, Any]:
+    protocol = _typescript_pin(install)["protocol"]
+    python_protocol = _selected_python_build()["protocol"]
+    if python_protocol != protocol:
+        raise HarnessError("installed Python and TypeScript webhook protocols differ")
     python_results: list[dict[str, Any]] = []
     reference_entries: dict[str, str] | None = None
     for runtime in runtimes:
-        vector_dir = _python_webhook_vector_dir(runtime)
+        vector_dir = _python_webhook_vector_dir(runtime, protocol)
         aggregate, entries = _tree_aggregate_sha256(vector_dir)
         if aggregate != WEBHOOK_VECTORS_AGGREGATE_SHA256:
             raise HarnessError(f"Python webhook vector aggregate changed for {runtime.route}")
@@ -1117,10 +1123,10 @@ def _run_protocol_webhook_vectors(
 
     ts_vector_dir = (
         install.root
-        / "node_modules/@adcp/sdk/compliance/cache/3.2.0-rc.4/test-vectors/webhook-signing"
+        / f"node_modules/@adcp/sdk/compliance/cache/{protocol}/test-vectors/webhook-signing"
     )
     if not ts_vector_dir.is_dir():
-        raise HarnessError("TypeScript rc.4 webhook vectors are unavailable")
+        raise HarnessError(f"TypeScript {protocol} webhook vectors are unavailable")
     ts_aggregate, ts_entries = _tree_aggregate_sha256(ts_vector_dir)
     if (
         ts_aggregate != WEBHOOK_VECTORS_AGGREGATE_SHA256
@@ -1154,7 +1160,7 @@ def _run_protocol_webhook_vectors(
     return {
         "status": "verifier_corpus_28_of_29_receiver_contract_required",
         "corpus": {
-            "owner": "protocol_3.2.0_rc4",
+            "owner": f"protocol_{protocol.replace('.', '_').replace('-', '_')}",
             "aggregate_sha256": WEBHOOK_VECTORS_AGGREGATE_SHA256,
             "files": len(ts_entries),
             "trees_byte_identical": True,
@@ -1205,13 +1211,14 @@ def _run_cross_language_webhook_signing(
     install: TypeScriptInstall,
     output: Path,
 ) -> dict[str, Any]:
+    protocol = _typescript_pin(install)["protocol"]
     ts_vector_dir = (
         install.root
-        / "node_modules/@adcp/sdk/compliance/cache/3.2.0-rc.4/test-vectors/webhook-signing"
+        / f"node_modules/@adcp/sdk/compliance/cache/{protocol}/test-vectors/webhook-signing"
     )
     python_rows: list[dict[str, Any]] = []
     for runtime in runtimes:
-        vector_dir = _python_webhook_vector_dir(runtime)
+        vector_dir = _python_webhook_vector_dir(runtime, protocol)
         sample = _run_json(
             [str(runtime.executable), "-I", str(WEBHOOK_SIGN_PYTHON), str(vector_dir)],
             cwd=output,
@@ -1302,7 +1309,7 @@ def _run_cross_language_webhook_signing(
                 "-I",
                 str(WEBHOOK_VERIFY_PYTHON),
                 str(ts_sample_path),
-                str(_python_webhook_vector_dir(runtime)),
+                str(_python_webhook_vector_dir(runtime, protocol)),
             ],
             cwd=output,
             env=os.environ.copy(),
@@ -1411,6 +1418,7 @@ def _run_resource_location_comparison(
             "double-pct-encoded",
             "http-plain",
             "https-clean",
+            "kv-assignment",
             "pct-encoded-query",
             "protocol-relative",
         ]
@@ -1436,7 +1444,7 @@ def _run_resource_location_comparison(
             "python_probe": _retained(RESOURCE_PYTHON, ROOT),
             "typescript_probe": _retained(RESOURCE_TYPESCRIPT, ROOT),
         },
-        "totals": {"sentinels": 17, "agree": 10, "diverge": 7},
+        "totals": {"sentinels": 17, "agree": 9, "diverge": 8},
         "divergence_ids": divergences,
         "python": python_results,
         "typescript": {
@@ -1482,6 +1490,7 @@ def _run_python_control(
     node: Path | None,
     candidate_ts: TypeScriptInstall | None,
 ) -> list[dict[str, Any]]:
+    protocol = _selected_python_build()["protocol"]
     database_identity = _create_database(admin_url, database)
     database_url = _node_database_url(admin_url, database)
     port = _free_port()
@@ -1519,7 +1528,7 @@ def _run_python_control(
                     "--account",
                     "interop-account-a",
                     "--adcp-version",
-                    "3.2.0-rc.4",
+                    protocol,
                 ],
                 cwd=output,
                 text=True,
@@ -1551,13 +1560,13 @@ def _run_python_control(
             _stop(process)
     cells = [
         {
-            "id": "supplemental_shared_rc4__candidate_py_client__candidate_py_server",
+            "id": "supplemental_candidate__candidate_py_client__candidate_py_server",
             "target_contract_id": "Q1",
             "target_cell_id": "candidate_py_client__candidate_py_server",
-            "control_classification": "historical_rc4_shared_seller_control",
+            "control_classification": "candidate_core_shared_seller_control",
             "required_cell_credit": False,
             "execution_attempted": True,
-            "observed_protocol": "3.2.0-rc.4",
+            "observed_protocol": protocol,
             "shared_seller_database": True,
             "status": "partial_pass",
             "cell_complete": False,
@@ -1588,13 +1597,13 @@ def _run_python_control(
     if ts_gap is not None:
         cells.append(
             {
-                "id": "supplemental_shared_rc4__candidate_ts_client__candidate_py_server",
+                "id": "supplemental_candidate__candidate_ts_client__candidate_py_server",
                 "target_contract_id": "Q2",
                 "target_cell_id": "candidate_ts_client__candidate_py_server",
-                "control_classification": "historical_rc4_shared_seller_control",
+                "control_classification": "candidate_core_shared_seller_control",
                 "required_cell_credit": False,
                 "execution_attempted": True,
-                "observed_protocol": "3.2.0-rc.4",
+                "observed_protocol": protocol,
                 "shared_seller_database": True,
                 "status": "partial_pass",
                 "cell_complete": False,
@@ -1655,7 +1664,11 @@ def _run_ts_core_control(
             )
             endpoint = f"http://127.0.0.1:{port}/mcp"
             python_result = _run_json(
-                _python_core_client_command(runtime.executable, endpoint=endpoint),
+                _python_core_client_command(
+                    runtime.executable,
+                    endpoint=endpoint,
+                    protocol=pin["protocol"],
+                ),
                 cwd=output,
                 env=_buyer_environment(credentials.token_a),
             )
@@ -1899,13 +1912,14 @@ def _run_webhook_receiver_refresh(
     *,
     output: Path,
 ) -> dict[str, Any]:
+    protocol = _selected_python_build()["protocol"]
     results: list[dict[str, Any]] = []
     for runtime in runtimes:
         route_root = output / f"webhook-receiver-{runtime.route}"
         route_root.mkdir()
         receiver_port = _free_port()
         issuer_port = _free_port()
-        vector_dir = _python_webhook_vector_dir(runtime)
+        vector_dir = _python_webhook_vector_dir(runtime, protocol)
         stdout_path = route_root / "receiver.stdout.log"
         stderr_path = route_root / "receiver.stderr.log"
         result_path = route_root / "result.json"
@@ -2072,6 +2086,7 @@ def _run_candidate_python_previous_ts(
                 _python_core_client_command(
                     runtime.executable,
                     endpoint=f"http://127.0.0.1:{port}/mcp",
+                    protocol=_typescript_pin(install)["protocol"],
                 ),
                 cwd=output,
                 env=_buyer_environment(credentials.token_a),
@@ -2171,6 +2186,7 @@ def _run_previous_python_candidate_ts(
                 _python_core_client_command(
                     previous.executable,
                     endpoint=f"http://127.0.0.1:{port}/mcp",
+                    protocol=_typescript_pin(install)["protocol"],
                     expect_unsupported=True,
                 ),
                 cwd=output,

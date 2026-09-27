@@ -9,18 +9,19 @@ It is not final compatibility acceptance. Issue #1172 service composition,
 
 The reviewed coordinates are in `scripts/ci/reporting_interop/pins.json`.
 
-This harness source is ported to accepted Python main
-`940c95e0c2d93758ed334b3edff59cbe933362d4`. Its retained execution pins do
-not move from source ancestry alone. PR #1208 head `a124afd3` still has no
-final artifact pin. Published TypeScript rc.48 is the locked rc.6-aligned Q1-Q4
-candidate. Its package bytes have been compared with an exact npm installation;
-the matrix itself has not run or passed on this candidate.
+The baseline input is published Python `adcp==8.0.0b16` from release commit
+`8ca7dfe09facd3b4744665447e16a80474f021d7` and published TypeScript rc.48.
+The baseline is not final #1199 acceptance: the required aggregate must run
+again on integrated `main` after #1172 closes and after the protocol input is
+re-pointed to rc.7.
 
-- Python development candidate: exact PR #1208 head `25e0c7278a19493345975881d1578c76fc64dc1b`,
-  tree `bcc4ad30ea4ee43d7b82f39e12f60b5a3ac2aead`, built as an installed wheel or
-  sdist-derived wheel before publication. Registry publication is not required
-  for this prepublication candidate; the bytes supplied to a run are.
-- Retained historical executable TypeScript input: exact published
+- Python baseline candidate: exact PyPI `adcp==8.0.0b16` wheel SHA-256
+  `7589a546cacdddce3a7a827adaa11d4ccab34768c558689b1c6850b85cd098b1`
+  and sdist SHA-256
+  `b971a13d1461c010150c7f89a0246ab23ce38fb1962fb42164f8356af9deaab2`.
+  Both installed routes contain 7,843 identical `adcp/` members with manifest
+  SHA-256 `51a37d87a8f61e77ff6815f661728c84d16c85d7430ab1987d3a3bd6a84dceab`.
+- Retained historical executable TypeScript input (supplemental controls only): exact published
   `@adcp/sdk@14.0.0-rc.45`, SHA-256
   `a0952ed8edaaad958bdb8f474c4f5cb68333ee272e7a8f3419d12930e9c57e6b`,
   integrity
@@ -50,8 +51,9 @@ the matrix itself has not run or passed on this candidate.
   previous Python input is the released b15 wheel installed by local path and
   asserted as SHA-256 `608636a4fe774bc4846b5bb0eab6367d0b8e69f6f371aa6085845d9f8329f48f`;
   its occupied version string is never used as candidate identity.
-- Protocol: signed `3.2.0-rc.4` bundle SHA-256
-  `773bee016d279345d6fae91a0ce684a22ca9b81c2edd2cdb9a71dbfea65954d2`.
+- Current live protocol input: packaged `3.2.0-rc.6`. Track 1 PR #1229
+  will select rc.7 as the live/default input; this branch must be rebased and
+  rerun after that merge. Rc.4 remains historical validation input only.
 - Runtime floors: CPython 3.10 and Node 22.12.0. Provenance tooling that needs a
   newer Node runtime is separate from the interoperability floor.
 
@@ -60,17 +62,41 @@ own locks and results. Neither is a substitute for rc.45, and rc.45 does not
 retroactively change their results. PyPI `adcp==7.0.2` is a visible unsupported
 latest-stable canary, not a reporting pass.
 
-The candidate still declares the already published `8.0.0b15` version. A
-candidate runtime must therefore expose `direct_url.json` for the exact local
-artifact path supplied to the runner; version-only or index-resolved installs
-are rejected. Each independently built artifact retains its own SHA-256,
-source tree, dependency set, and runtime identity. It is not conflated with
-the smaller released b15 artifacts or another exact-source build. Matching
-installed members or reconciliation files are supplementary content evidence
-only: they never replace the full wheel, sdist, or npm-tarball digest/SRI for
-the specific artifact under test.
+Each candidate runtime must expose `direct_url.json` for the exact downloaded
+PyPI artifact path supplied to the runner; version-only or index-resolved
+installs are rejected. The wheel and sdist retain their distinct SHA-256 and
+common installed-member manifest, dependency set, and runtime identity.
+Installed-member evidence never replaces the full wheel, sdist, or npm-tarball
+digest/SRI for the specific artifact under test.
 
 ## Required topology
+
+Issue #1199's installed-artifact acceptance topology is declared separately in
+`installed_artifact_cells.json`. It is the Python seller artifact × TypeScript
+client artifact cross-product, not the Q1-Q4 language-role topology:
+
+| Cell | Installed Python seller | Installed TypeScript client | Baseline result |
+| --- | --- | --- | --- |
+| `python-stable__typescript-stable` | PyPI b15 | npm rc.41 | expected unsupported: b15 has no reporting status-server surface |
+| `python-stable__typescript-candidate` | PyPI b15 | npm rc.48 | expected unsupported: b15 has no reporting status-server surface |
+| `python-candidate__typescript-stable` | PyPI b16 | npm rc.41 | expected unsupported after real MCP HTTP: rc.41 has no Core reconciler export |
+| `python-candidate__typescript-candidate` | PyPI b16 | npm rc.48 | positive semantic Core reconciliation |
+
+All four cells are required to execute with distinct PostgreSQL databases and
+seller processes. Every cell's acceptance polarity remains
+`positive_semantic`; an expected unsupported result is a baseline control and
+never earns acceptance credit. The current baseline therefore passes its
+declared published-artifact behavior while issue acceptance remains false at
+one of four positive cells. Final acceptance requires a newly published
+#1172-integrated Python artifact, rc.7 alignment after #1229, and a rerun from
+integrated `main`.
+
+`run_installed_artifact_matrix.py` executes this cross-product and
+`Reliable reporting installed-artifact 2x2` is its dedicated CI aggregate.
+The existing reference-seller storyboard aggregate is unrelated and supplies
+no #1199 credit.
+
+The foundation language-role topology remains useful supplemental coverage:
 
 `scripts/ci/reporting_interop/applicability.json` declares the cells before
 execution:
@@ -211,7 +237,7 @@ missing-export result. Core availability does not satisfy managed lanes.
 `run_foundation_matrix.py` launches the Python and TypeScript public Core
 sellers in separate processes and fresh UTF8/C PostgreSQL databases. It runs
 both supplied Python artifact routes against both seller languages and
-exercises rc.45's native TypeScript Core buyer API over actual HTTP. It also
+exercises rc.48's native TypeScript Core buyer API over actual HTTP. It also
 executes the two
 pinned skew controls, every resolved reporting storyboard ID, and a public
 Python `WebhookReceiver` with a live loopback revocation-list fetch, issuer
@@ -393,9 +419,10 @@ and visible canaries.
   rc.42 pin admits
   bare JWTs, cloud key identifiers, and percent-encoded presigned forms that
   the Python seller rejects. The Python buyer does not re-validate these
-  locations, and Python's provider-native-only rule is deliberately stricter,
-  so the complete 17-case in-process comparison is retained as one visible
-  nonblocking TypeScript hardening advisory, not seven equivalent defects or a
+  locations, and Python's provider-native-only rule is deliberately stricter.
+  Rc.48 also accepts the synthetic `kv-assignment` required-reject detector, so
+  the complete 17-case in-process comparison now records eight divergences as
+  one visible nonblocking TypeScript hardening advisory, not eight equivalent defects or a
   quadrant result. Future hardening needs a compatibility/false-positive
   budget and bounded decoding that preserves legitimate native locations; a
   blanket parse-failure rejection is not assigned. This advisory never waives

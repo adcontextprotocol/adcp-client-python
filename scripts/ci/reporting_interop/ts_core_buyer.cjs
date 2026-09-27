@@ -164,8 +164,8 @@ async function run() {
   const rawFacts = {
     account_id: page.account_id,
     ledger_as_of: page.ledger_as_of,
-    obligation_count: page.periods.length,
-    revision_count: page.revisions.length,
+    obligation_count: Array.isArray(page.periods) ? page.periods.length : null,
+    revision_count: Array.isArray(page.revisions) ? page.revisions.length : null,
   };
   if (!hasCoreApi) {
     if (!expectMissing) process.exitCode = 1;
@@ -180,11 +180,18 @@ async function run() {
         version: context.installed.version,
       },
       raw_facts: rawFacts,
+      response_shape: {
+        periods: Array.isArray(page.periods),
+        revisions: Array.isArray(page.revisions),
+      },
       runtime: { node: process.version },
       schema_version: 1,
       semantic_lane_complete: false,
       status: 'unsupported',
     };
+  }
+  if (!Array.isArray(page.periods) || !Array.isArray(page.revisions)) {
+    throw new Error('reporting-status response omitted Core periods or revisions');
   }
   const recoveryWindow = capability?.media_buy?.reporting_delivery?.automated_recovery_window_seconds;
   if (!Number.isSafeInteger(recoveryWindow) || recoveryWindow < 0) {

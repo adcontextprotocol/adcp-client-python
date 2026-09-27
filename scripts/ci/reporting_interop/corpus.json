@@ -224,7 +224,7 @@
       "id": "foundation.packaging.reject_version_only_candidate",
       "area": "packaging",
       "stage": "foundation",
-      "expectation": "Candidate Python installs use a local wheel or sdist path whose SHA-256, accepted source commit/tree, dependency record, and CPython runtime are bound into evidence; resolving the occupied 8.0.0b15 version from an index must fail the candidate identity gate."
+      "expectation": "Candidate Python installs use a downloaded local wheel or sdist path whose exact PyPI URL, SHA-256, release commit/tree, installed member manifest, dependency record, and CPython runtime are bound into evidence; a version-only or mismatched artifact input must fail the candidate identity gate."
     },
     {
       "id": "foundation.transport.response_headers_metadata",

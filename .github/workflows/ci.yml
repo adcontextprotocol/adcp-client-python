@@ -1292,6 +1292,114 @@ jobs:
           fi
           echo "Reference seller storyboard matrix passed"
 
+  reporting-installed-artifact-matrix:
+    name: Reliable reporting installed artifacts — baseline 2x2
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      - name: Set up Node 22.12.0
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22.12.0"
+
+      - name: Materialize exact installed artifact inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          INPUT_ROOT="${RUNNER_TEMP}/reporting-1199-inputs"
+          mkdir -p "${INPUT_ROOT}/python" "${INPUT_ROOT}/ts-stable" "${INPUT_ROOT}/ts-candidate"
+
+          curl --fail --silent --show-error --location \
+            https://files.pythonhosted.org/packages/8b/63/cf3d7b2885126771009f6da3786ba564fcae7e910568c93f06cf672d2f5e/adcp-8.0.0b15-py3-none-any.whl \
+            --output "${INPUT_ROOT}/python/adcp-8.0.0b15-py3-none-any.whl"
+          curl --fail --silent --show-error --location \
+            https://files.pythonhosted.org/packages/97/07/74355b24ace6d7618cd330cc970a0ba24f82673e5e1e1e7767d153f73989/adcp-8.0.0b16-py3-none-any.whl \
+            --output "${INPUT_ROOT}/python/adcp-8.0.0b16-py3-none-any.whl"
+          echo "608636a4fe774bc4846b5bb0eab6367d0b8e69f6f371aa6085845d9f8329f48f  ${INPUT_ROOT}/python/adcp-8.0.0b15-py3-none-any.whl" | sha256sum --check
+          echo "7589a546cacdddce3a7a827adaa11d4ccab34768c558689b1c6850b85cd098b1  ${INPUT_ROOT}/python/adcp-8.0.0b16-py3-none-any.whl" | sha256sum --check
+          python -m venv "${INPUT_ROOT}/python/stable"
+          python -m venv "${INPUT_ROOT}/python/candidate"
+          "${INPUT_ROOT}/python/stable/bin/pip" install \
+            "${INPUT_ROOT}/python/adcp-8.0.0b15-py3-none-any.whl[pg]"
+          "${INPUT_ROOT}/python/candidate/bin/pip" install \
+            "${INPUT_ROOT}/python/adcp-8.0.0b16-py3-none-any.whl[pg]"
+
+          cp scripts/ci/reporting_interop/npm/rc41/package.json \
+            scripts/ci/reporting_interop/npm/rc41/package-lock.json "${INPUT_ROOT}/ts-stable/"
+          cp scripts/ci/reporting_interop/npm/rc48/package.json \
+            scripts/ci/reporting_interop/npm/rc48/package-lock.json "${INPUT_ROOT}/ts-candidate/"
+          curl --fail --silent --show-error --location \
+            https://registry.npmjs.org/@adcp/sdk/-/sdk-14.0.0-rc.41.tgz \
+            --output "${INPUT_ROOT}/ts-stable/sdk-14.0.0-rc.41.tgz"
+          curl --fail --silent --show-error --location \
+            https://registry.npmjs.org/@adcp/sdk/-/sdk-14.0.0-rc.48.tgz \
+            --output "${INPUT_ROOT}/ts-candidate/sdk-14.0.0-rc.48.tgz"
+          echo "c9bb1e22b63dfedf6bc1ae9c07d1a1312465489671e9841dd5f1425b817b0a90  ${INPUT_ROOT}/ts-stable/sdk-14.0.0-rc.41.tgz" | sha256sum --check
+          echo "420c1fa36128f3c3285234f58096a74c5668b74ffbf12804d6603c370083149b  ${INPUT_ROOT}/ts-candidate/sdk-14.0.0-rc.48.tgz" | sha256sum --check
+          npm ci --prefix "${INPUT_ROOT}/ts-stable" --ignore-scripts --no-audit --no-fund
+          npm ci --prefix "${INPUT_ROOT}/ts-candidate" --ignore-scripts --no-audit --no-fund
+
+      - name: Run installed Python seller x TypeScript client baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          INPUT_ROOT="${RUNNER_TEMP}/reporting-1199-inputs"
+          "${INPUT_ROOT}/python/candidate/bin/python" -I \
+            scripts/ci/reporting_interop/run_installed_artifact_matrix.py \
+            --python-stable-runtime "${INPUT_ROOT}/python/stable/bin/python" \
+            --python-stable-artifact "${INPUT_ROOT}/python/adcp-8.0.0b15-py3-none-any.whl" \
+            --python-candidate-runtime "${INPUT_ROOT}/python/candidate/bin/python" \
+            --python-candidate-artifact "${INPUT_ROOT}/python/adcp-8.0.0b16-py3-none-any.whl" \
+            --typescript-stable-install "${INPUT_ROOT}/ts-stable" \
+            --typescript-stable-archive "${INPUT_ROOT}/ts-stable/sdk-14.0.0-rc.41.tgz" \
+            --typescript-candidate-install "${INPUT_ROOT}/ts-candidate" \
+            --typescript-candidate-archive "${INPUT_ROOT}/ts-candidate/sdk-14.0.0-rc.48.tgz" \
+            --node-runtime "$(command -v node)" \
+            --pg-admin-url postgresql://postgres@127.0.0.1:5432/postgres \
+            --output "${RUNNER_TEMP}/reporting-installed-artifact-matrix"
+
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reporting-installed-artifact-matrix-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/reporting-installed-artifact-matrix
+          if-no-files-found: warn
+
+  reporting-installed-artifact-required-gate:
+    name: Reliable reporting installed-artifact 2x2
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: reporting-installed-artifact-matrix
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Require the installed artifact baseline
+        run: |
+          if [ "${{ needs.reporting-installed-artifact-matrix.result }}" != "success" ]; then
+            echo "Installed artifact baseline result: ${{ needs.reporting-installed-artifact-matrix.result }}"
+            exit 1
+          fi
+          echo "Installed artifact baseline passed"
+
   v3-reference-seller-tests:
     name: v3 reference seller — pytest (respx-mocked upstream)
     runs-on: ubuntu-latest

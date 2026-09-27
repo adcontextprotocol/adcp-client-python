@@ -373,29 +373,21 @@ def test_exact_candidate_pins_are_immutable_and_keep_source_separate() -> None:
     python = pins["python"]["candidate"]
     typescript = pins["typescript"]["historical_candidate_rc45"]
 
-    assert python["source_commit"] == "25e0c7278a19493345975881d1578c76fc64dc1b"
-    assert python["source_tree"] == "bcc4ad30ea4ee43d7b82f39e12f60b5a3ac2aead"
-    assert python["source_parents"] == [
-        "7af569985174235739be4007e693d10ccb604817",
-        "fe1a1cbd070bc94ec32685026ad39ec55058dc73",
-    ]
-    assert python["adoption_base"] == "1f953c40d761be71d11fde84c78359ff2074fe7c"
-    assert python["build_kind"] == "prepublication_exact_pr1208_head"
-    assert python["version_string_occupied"] is True
-    assert "local_path_plus_sha256" in python["artifact_policy"]
-    assert len(python["known_independent_builds"]) == 3
-    harness_build = next(
-        row
-        for row in python["known_independent_builds"]
-        if row["builder"] == "reporting_interop_harness"
+    assert python["version"] == "8.0.0b16"
+    assert python["source_commit"] == "8ca7dfe09facd3b4744665447e16a80474f021d7"
+    assert python["source_tree"] == "6f4b1fbf66242c86c05902add7c645d71932141a"
+    assert python["build_kind"] == "published_pypi_release"
+    assert python["registry"] == "https://pypi.org/simple/adcp/"
+    assert python["wheel_sha256"] == (
+        "7589a546cacdddce3a7a827adaa11d4ccab34768c558689b1c6850b85cd098b1"
     )
-    assert harness_build["all_member_manifest_sha256"] == (
-        "397b9b58ad4e72d68e1380a5ad86ff9a76852ca873c3466b78d7c9890035cfa5"
+    assert python["sdist_sha256"] == (
+        "b971a13d1461c010150c7f89a0246ab23ce38fb1962fb42164f8356af9deaab2"
     )
-    assert harness_build["sdk_member_manifest_sha256"] == (
-        "0ed3b8de391a04be9aee477c6db11aa82e0edca12b1651ab9935dc83ba73b333"
+    assert python["sdk_member_count"] == 7_843
+    assert python["sdk_member_manifest_sha256"] == (
+        "51a37d87a8f61e77ff6815f661728c84d16c85d7430ab1987d3a3bd6a84dceab"
     )
-    assert "registry" not in python
     controls = python["development_dependency_controls"]
     assert {(row["pydantic"], row["mcp"]) for row in controls} == {
         ("2.13.0", "2.0.0"),
@@ -1248,18 +1240,16 @@ def test_official_precedence_probe_inputs_preserve_supplied_bytes() -> None:
 
 def test_official_precedence_candidate_adapter_is_separate_and_exact() -> None:
     root = DATA / "official_precedence"
-    candidate = json.loads((root / "pins-rc45.json").read_text())
+    candidate = json.loads((DATA / "pins.json").read_text())["typescript"]["candidate_rc48"]
     adapter = (root / "repro-candidate.cjs").read_text()
 
-    assert candidate["version"] == "14.0.0-rc.45"
-    assert candidate["tarballSha256"] == (
-        "a0952ed8edaaad958bdb8f474c4f5cb68333ee272e7a8f3419d12930e9c57e6b"
+    assert candidate["version"] == "14.0.0-rc.48"
+    assert candidate["tarball_sha256"] == (
+        "420c1fa36128f3c3285234f58096a74c5668b74ffbf12804d6603c370083149b"
     )
-    assert candidate["fixtureSha256"] == (
-        "dc16c44297a315122c4450bdb4c7278b5635894f7a60fb0266456b8d083da013"
-    )
-    assert "require('./pins.json')" in adapter
-    assert "require('./pins-rc45.json')" in adapter
+    assert "../pins.json" in adapter
+    assert "candidate_rc48" in adapter
+    assert "require('./pins-rc45.json')" not in adapter
     assert "require('./repro-rc42.cjs')" in adapter
 
 

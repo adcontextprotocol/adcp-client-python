@@ -49,52 +49,24 @@
   "python": {
     "candidate": {
       "package": "adcp",
-      "version": "8.0.0b15",
-      "source_commit": "25e0c7278a19493345975881d1578c76fc64dc1b",
-      "source_tree": "bcc4ad30ea4ee43d7b82f39e12f60b5a3ac2aead",
-      "source_parents": [
-        "7af569985174235739be4007e693d10ccb604817",
-        "fe1a1cbd070bc94ec32685026ad39ec55058dc73"
-      ],
-      "adoption_base": "1f953c40d761be71d11fde84c78359ff2074fe7c",
-      "build_kind": "prepublication_exact_pr1208_head",
-      "artifact_policy": "local_path_plus_sha256_plus_source_tree_plus_dependency_runtime_record",
-      "version_string_occupied": true,
-      "known_independent_builds": [
-        {
-          "builder": "sdk_owner_reference",
-          "vcs_wheel_sha256": "0e7e189b98a1e512c6273547c341a458dcebcc15691268178bddf56e42385a28",
-          "sdist_wheel_sha256": "b6a7a68f188b021e2bc11c8fa6b4e86aff7eaf1311c7eeb2d6ad90c7d60133fc",
-          "wheel_bytes": 89865398,
-          "sdist_sha256": "c77b77a19a2a2eb5fc5804b7dcf500ae06cf87994ec4d8d441275bc7e5c06c91",
-          "sdist_bytes": 84213583
-        },
-        {
-          "builder": "python_expert",
-          "installed_wheel_sha256": "5beb75ed7ef9a406184c3049efd67e87d08d05c46fa1a4b28eab09a7271bc268",
-          "wheel_bytes": 89865399,
-          "qualification": "separate_six_case_public_composition_evidence_not_matrix_coverage"
-        },
-        {
-          "builder": "reporting_interop_harness",
-          "vcs_wheel_sha256": "11987e93f01dfab250071238fd78d94fa646a2de2c468a38396a7103ba19c327",
-          "sdist_wheel_sha256": "a5afc1a02a91ec6a0f06bc301c0d92d2a1013173786274f0620bcfdcd5175e73",
-          "wheel_bytes": 89865398,
-          "sdist_sha256": "b52f7bd8bf25361ccbca98705a7201744cd30e252c171fa91aa829731fce83b1",
-          "sdist_bytes": 84200303,
-          "wheel_member_count": 7813,
-          "sdk_member_count": 7807,
-          "all_member_manifest_sha256": "397b9b58ad4e72d68e1380a5ad86ff9a76852ca873c3466b78d7c9890035cfa5",
-          "sdk_member_manifest_sha256": "0ed3b8de391a04be9aee477c6db11aa82e0edca12b1651ab9935dc83ba73b333",
-          "metadata_sha256": "cfae23f8b2a21b0425a7122dfea285d7a1edf0afdb9428b995df3919d95ca28a",
-          "build": {
-            "python": "3.10.21",
-            "build": "1.6.1",
-            "setuptools": "84.0.0",
-            "wheel": "0.48.0"
-          }
-        }
-      ],
+      "version": "8.0.0b16",
+      "tag": "v8.0.0-beta.16",
+      "source_commit": "8ca7dfe09facd3b4744665447e16a80474f021d7",
+      "source_tree": "6f4b1fbf66242c86c05902add7c645d71932141a",
+      "build_kind": "published_pypi_release",
+      "artifact_policy": "exact_registry_url_plus_sha256_plus_installed_member_manifest",
+      "registry": "https://pypi.org/simple/adcp/",
+      "wheel_url": "https://files.pythonhosted.org/packages/97/07/74355b24ace6d7618cd330cc970a0ba24f82673e5e1e1e7767d153f73989/adcp-8.0.0b16-py3-none-any.whl",
+      "wheel_sha256": "7589a546cacdddce3a7a827adaa11d4ccab34768c558689b1c6850b85cd098b1",
+      "wheel_bytes": 89996534,
+      "sdist_url": "https://files.pythonhosted.org/packages/4f/da/a28b326027be7be2ffe5c7aeb4ef69512676701d2189073dcd40d1f8ba21/adcp-8.0.0b16.tar.gz",
+      "sdist_sha256": "b971a13d1461c010150c7f89a0246ab23ce38fb1962fb42164f8356af9deaab2",
+      "sdist_bytes": 84411474,
+      "sdk_member_count": 7843,
+      "sdk_member_manifest_sha256": "51a37d87a8f61e77ff6815f661728c84d16c85d7430ab1987d3a3bd6a84dceab",
+      "wheel_member_count": 7849,
+      "wheel_member_manifest_sha256": "71088aede23b143408e63e640a3c66f8f4244bd29a36d2bf82b5c04d3ab72300",
+      "metadata_sha256": "4ecc5b7c14b679a1917e41fb29c66c83b0ed4a062af6bb0d6d300fc71857afce",
       "development_dependency_controls": [
         {
           "python": "3.10.21",
@@ -111,7 +83,7 @@
           "lock_sha256": "1e6d45d094fd24b61e749ed0d658ed1d9f6a5e54e7977bc8cbefe3fcabeccb69"
         }
       ],
-      "protocol": "3.2.0-rc.4",
+      "protocol": "3.2.0-rc.6",
       "python_floor": "3.10"
     },
     "previous_released": {

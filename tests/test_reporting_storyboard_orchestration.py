@@ -1022,6 +1022,47 @@ def test_uncertain_create_is_retained_for_exact_name_cleanup(
     assert len(statements) == 2
 
 
+def test_database_owner_returns_node_postgres_uri_after_psycopg_validation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner = orchestration.DatabaseOwner(
+        "user=fixture password='s p/a' host=127.0.0.1 port=55491 dbname=postgres",
+        "abc123",
+        timeout=1,
+    )
+
+    class Result:
+        def fetchone(self):
+            return ("adcp_story_abc123_2",)
+
+    class Connection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def execute(self, _statement):
+            return Result()
+
+    monkeypatch.setattr(owner, "_connect", lambda *_args, **_kwargs: Connection())
+
+    database_url = owner.create(2)
+
+    assert database_url == ("postgresql://fixture:s%20p%2Fa@127.0.0.1:55491/adcp_story_abc123_2")
+
+
+def test_node_database_url_materializes_libpq_default_user(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(orchestration.getpass, "getuser", lambda: "fixture-user")
+
+    assert (
+        orchestration._node_database_url("host=127.0.0.1 port=55491 dbname=postgres", "owned-db")
+        == "postgresql://fixture-user@127.0.0.1:55491/owned-db"
+    )
+
+
 def test_postgres_started_then_setup_failed_still_runs_cleanup(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1582,7 +1623,14 @@ def test_foundation_handoffs_use_narrow_environments_for_every_scoped_route(
 
     pins = tmp_path / "pins.json"
     pins.write_text(
-        json.dumps({"python": {"previous_released": {"wheel_sha256": "previous-wheel-hash"}}}),
+        json.dumps(
+            {
+                "python": {
+                    "candidate": {"protocol": "3.2.0-rc.6"},
+                    "previous_released": {"wheel_sha256": "previous-wheel-hash"},
+                }
+            }
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(runner, "PINS", pins)

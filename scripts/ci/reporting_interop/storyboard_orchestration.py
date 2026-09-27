@@ -10,6 +10,7 @@ not matrix or release acceptance; the aggregate gate owns that decision.
 from __future__ import annotations
 
 import argparse
+import getpass
 import hashlib
 import json
 import math
@@ -28,7 +29,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlencode, urlsplit
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
@@ -804,6 +805,34 @@ def _database_url(admin_dsn: str, database: str) -> str:
     return make_conninfo(**fields)
 
 
+def _node_database_url(admin_dsn: str, database: str) -> str:
+    """Return a PostgreSQL URI suitable for the TypeScript ``pg`` client.
+
+    Psycopg accepts both keyword conninfo strings and URIs.  Node's ``pg``
+    connectionString parser requires the URI form, so do not pass the libpq
+    keyword form returned by :func:`make_conninfo` across that boundary.
+    """
+
+    from psycopg.conninfo import conninfo_to_dict
+
+    fields = conninfo_to_dict(admin_dsn)
+    # libpq defaults an omitted user to the operating-system user.  Node's
+    # startup packet does not, so preserve that effective identity explicitly.
+    user = quote(fields.pop("user", getpass.getuser()), safe="")
+    password = fields.pop("password", None)
+    credentials = user
+    if password is not None:
+        credentials += f":{quote(password, safe='')}"
+    if credentials:
+        credentials += "@"
+    host = fields.pop("host", "127.0.0.1")
+    port = fields.pop("port", "5432")
+    fields.pop("dbname", None)
+    query = urlencode(fields)
+    suffix = f"?{query}" if query else ""
+    return f"postgresql://{credentials}{host}:{port}/{quote(database, safe='')}{suffix}"
+
+
 class DatabaseOwner:
     def __init__(self, admin_dsn: str, run_id: str, timeout: float) -> None:
         self.admin_dsn = admin_dsn
@@ -843,7 +872,7 @@ class DatabaseOwner:
             row = connection.execute("SELECT current_database()").fetchone()
         if row != (name,):
             raise OrchestrationError(f"created database identity mismatch: {row}")
-        return database_dsn
+        return _node_database_url(self.admin_dsn, name)
 
     def close(self) -> None:
         from psycopg import sql
