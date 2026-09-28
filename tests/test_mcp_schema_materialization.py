@@ -298,19 +298,20 @@ async def test_mutation_cannot_change_mounted_discovery_registration_or_validati
     assert hashlib.sha256(canonical(repeated)).hexdigest() == (EXPECTED_PUBLIC_SHA256[version])
 
 
-def test_cached_rc6_schema_retains_all_signed_summary_and_period_controls():
+def test_cached_rc7_schema_retains_all_signed_summary_and_period_controls():
     from tests.test_rc6_adoption import patched
 
+    version = "3.2.0-rc.7"
     fixture = json.loads(
         files("adcp")
-        .joinpath("_compliance", PINS[1], "test-vectors/reporting-summary/complete-summary.json")
+        .joinpath("_compliance", version, "test-vectors/reporting-summary/complete-summary.json")
         .read_bytes()
     )
-    cold = loader.get_mcp_schema("get_reporting_status", "sync", version=PINS[1])
+    cold = loader.get_mcp_schema("get_reporting_status", "sync", version=version)
     saved = canonical(cold)
     assert cold is not None
     cold.clear()
-    warm = loader.get_mcp_schema("get_reporting_status", "sync", version=PINS[1])
+    warm = loader.get_mcp_schema("get_reporting_status", "sync", version=version)
     assert canonical(warm) == saved
     checker = FormatChecker()
     checker.checks("date-time")(loader._is_rfc3339_date_time)
