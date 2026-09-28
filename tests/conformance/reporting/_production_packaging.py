@@ -317,6 +317,7 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
             "tests/test_reporting_production_public.py",
             "tests/test_schema_datetime_formats.py",
             "tests/test_mcp_schema_materialization.py",
+            "tests/test_purchase_continuation_unbundled.py",
         )
     ]
     evidence = Path(os.environ.get("ADCP_PRODUCTION_EVIDENCE", str(root / "production-evidence")))

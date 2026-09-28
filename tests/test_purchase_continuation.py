@@ -47,12 +47,12 @@ def _cases() -> list[dict[str, Any]]:
     return json.loads(_VECTORS.read_text())["cases"]
 
 
-def test_all_signed_compact_projection_vectors_validate_against_beta4() -> None:
+def test_all_signed_compact_projection_vectors_validate_against_current_schema() -> None:
     vectors = json.loads(_VECTORS.read_text())
     projections = [case["compact_projection"] for case in vectors["cases"]]
     projections += [case["compact_projection"] for case in vectors["listed_purchase_cases"]]
     for projection in projections:
-        outcome = validate_response("request_proposals", projection, version="3.2-beta.4")
+        outcome = validate_response("request_proposals", projection, version="3.2.0-rc.7")
         assert outcome.valid, outcome.issues
 
 
@@ -2277,7 +2277,8 @@ async def test_sqlite_migrates_pre_release_tombstone_schema_before_purge(
         for trigger_name in trigger_names:
             conn.execute(f'DROP TRIGGER "{trigger_name}"')
         conn.execute("DROP TABLE adcp_compat_issuance_tombstones")
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE adcp_compat_issuance_tombstones (
                 token_hash TEXT PRIMARY KEY,
                 principal_id TEXT NOT NULL,
@@ -2286,7 +2287,8 @@ async def test_sqlite_migrates_pre_release_tombstone_schema_before_purge(
                 legacy_equivalence_hash TEXT NOT NULL,
                 retired_at TEXT NOT NULL
             )
-            """)
+            """
+        )
         conn.execute(
             "CREATE UNIQUE INDEX adcp_compat_issuance_tombstones_issuance_idx "
             "ON adcp_compat_issuance_tombstones (principal_id, issuance_fingerprint) "
