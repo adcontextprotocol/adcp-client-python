@@ -9,7 +9,11 @@ from typing import Any
 import pytest
 
 import adcp
-from adcp.compat import InMemoryCompatibilityContinuationStore
+from adcp.compat import (
+    CompatibilityContinuationError,
+    CompatibilityContinuationErrorCode,
+    InMemoryCompatibilityContinuationStore,
+)
 from adcp.validation import (
     get_bundle_adcp_version,
     schema_loader,
@@ -20,17 +24,13 @@ from tests.test_purchase_continuation import (
     _cases,
     _coordinator,
     _issue,
-    _success_for,
     _success_result,
 )
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("result_kind", ["completed", "working"])
-async def test_v25_continuation_without_bundled_schema(
-    monkeypatch: pytest.MonkeyPatch, result_kind: str
-) -> None:
-    case = copy.deepcopy(next(case for case in _cases() if case["source_version"] == "2.5.3"))
+@pytest.fixture
+def unavailable_v25_schema(monkeypatch: pytest.MonkeyPatch) -> None:
+    case = next(case for case in _cases() if case["source_version"] == "2.5.3")
     package_root = Path(adcp.__file__).resolve()
     checkout_root = Path(__file__).resolve().parents[1]
     if package_root.is_relative_to(checkout_root):
@@ -59,14 +59,22 @@ async def test_v25_continuation_without_bundled_schema(
         == "skipped"
     )
 
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("result_kind", ["completed", "failed"])
+async def test_v25_continuation_without_bundled_schema(
+    unavailable_v25_schema: None, result_kind: str
+) -> None:
+    case = copy.deepcopy(next(case for case in _cases() if case["source_version"] == "2.5.3"))
+
     calls = 0
 
-    def execute(ctx: Any) -> dict[str, Any]:
+    def execute(_ctx: Any) -> dict[str, Any]:
         nonlocal calls
         calls += 1
-        if result_kind == "working":
-            return {"status": "working", "task_id": "legacy-task-25"}
-        return _success_for(ctx, "legacy-buy-25")
+        if result_kind == "failed":
+            return {"errors": [{"code": "INVALID_REQUEST", "message": "Rejected"}]}
+        return _success_result("2.5.3", "legacy-buy-25")
 
     coordinator = _coordinator(InMemoryCompatibilityContinuationStore(), execute)
     await _issue(coordinator, case)
@@ -83,11 +91,39 @@ async def test_v25_continuation_without_bundled_schema(
     assert first == replay
     assert calls == 1
     assert first == (
-        {"status": "working", "task_id": "legacy-task-25"}
-        if result_kind == "working"
+        {"errors": [{"code": "INVALID_REQUEST", "message": "Rejected"}]}
+        if result_kind == "failed"
         else _success_result("2.5.3", "legacy-buy-25")
     )
     operation = await coordinator.get_legacy_purchase_operation_by_idempotency_key(
         case["continuation_input"]["idempotency_key"], principal_id="principal-acme"
     )
-    assert operation.state.value == ("pending" if result_kind == "working" else "succeeded")
+    assert operation.state.value == result_kind.replace("completed", "succeeded")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        {"status": "failed", "message": "Rejected"},
+        {"status": "working", "task_id": "legacy-task-25"},
+        {"status": "failed", "media_buy_id": "false-success", "buyer_ref": "b", "packages": []},
+    ],
+)
+async def test_unbundled_v25_never_records_unvalidated_success(
+    unavailable_v25_schema: None, invalid: dict[str, Any]
+) -> None:
+    case = copy.deepcopy(next(case for case in _cases() if case["source_version"] == "2.5.3"))
+    coordinator = _coordinator(InMemoryCompatibilityContinuationStore(), lambda _ctx: invalid)
+    await _issue(coordinator, case)
+    with pytest.raises(CompatibilityContinuationError) as caught:
+        await coordinator.continue_legacy_purchase(
+            case["continuation_input"],
+            principal_id="principal-acme",
+            target_binding="seller-session-acme",
+        )
+    assert caught.value.code == CompatibilityContinuationErrorCode.INVALID_LEGACY_RESPONSE
+    operation = await coordinator.get_legacy_purchase_operation_by_idempotency_key(
+        case["continuation_input"]["idempotency_key"], principal_id="principal-acme"
+    )
+    assert operation.state.value == "ambiguous"

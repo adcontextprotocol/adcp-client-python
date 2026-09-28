@@ -1757,10 +1757,9 @@ def _validated_result(
                 for issue in outcome.issues
             ],
         )
-    if outcome.variant in {"submitted", "working", "input-required"} or (
-        outcome.variant == "skipped"
-        and payload.get("status") in {"submitted", "working", "input-required"}
-    ):
+    if outcome.variant == "skipped":
+        _validate_unbundled_v25_result(payload, source_adcp_version)
+    if outcome.variant in {"submitted", "working", "input-required"}:
         state = CompatibilityOperationState.PENDING
     elif "errors" in payload:
         state = CompatibilityOperationState.FAILED
@@ -1781,6 +1780,43 @@ def _validated_result(
             raise _invalid_legacy_response(source_adcp_version, [])
     _validate_persistable_payload(payload, context="legacy result")
     return payload, state
+
+
+def _validate_unbundled_v25_result(payload: JsonObject, version: str) -> None:
+    """Retain the 2.5 success/error boundary without shipping its full schema."""
+
+    if "errors" in payload:
+        errors = payload["errors"]
+        valid_errors = (
+            isinstance(errors, list)
+            and bool(errors)
+            and all(
+                isinstance(error, Mapping)
+                and isinstance(error.get("code"), str)
+                and isinstance(error.get("message"), str)
+                for error in errors
+            )
+        )
+        if (
+            not valid_errors
+            or any(key in payload for key in ("media_buy_id", "buyer_ref", "packages"))
+            or payload.get("status") not in (None, "failed")
+        ):
+            raise _invalid_legacy_response(version, [])
+        return
+
+    packages = payload.get("packages")
+    if (
+        not isinstance(payload.get("media_buy_id"), str)
+        or not isinstance(payload.get("buyer_ref"), str)
+        or not isinstance(packages, list)
+        or not all(
+            isinstance(package, Mapping) and isinstance(package.get("package_id"), str)
+            for package in packages
+        )
+        or payload.get("status") not in (None, "completed")
+    ):
+        raise _invalid_legacy_response(version, [])
 
 
 def _aware_utc(value: datetime, *, field: str) -> datetime:
