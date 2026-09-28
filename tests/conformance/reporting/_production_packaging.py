@@ -37,7 +37,7 @@ SCHEMAS = (
     "protocol/get-adcp-capabilities-response.json",
     "bundled/protocol/get-adcp-capabilities-response.json",
 )
-RETAINED_SCHEMA_VERSIONS = ("3.2.0-rc.6", "3.2.0-rc.7")
+RETAINED_SCHEMA_VERSIONS = ("3.2.0-rc.7",)
 
 
 def production_schema_hashes():
@@ -236,7 +236,7 @@ def historical_schema_fixtures(root):
     """
     assert not root.resolve().is_relative_to(ROOT.resolve())
     references = []
-    for version in ("3.2.0-beta.6", "3.2.0-rc.3"):
+    for version in ("3.2.0-beta.6", "3.2.0-rc.3", "3.2.0-rc.6"):
         source = ROOT / "schemas/cache" / version
         destination = root / "schemas/cache" / version
         expected = {
@@ -316,7 +316,6 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
             "tests/conformance/signing/test_revocation_checker_boundary.py",
             "tests/test_reporting_production_public.py",
             "tests/test_schema_datetime_formats.py",
-            "tests/test_rc6_adoption.py",
             "tests/test_mcp_schema_materialization.py",
         )
     ]

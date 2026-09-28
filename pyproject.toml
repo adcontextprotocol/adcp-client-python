@@ -211,16 +211,10 @@ adcp = [
     # AdCP JSON schemas, mirrored from ``schemas/cache/`` by
     # ``scripts/bundle_schemas.py`` so the wheel ships them for
     # ``adcp.validation.schema_loader``.
-    "_schemas/2.5/**/*.json",
     "_schemas/3.0/**/*.json",
     "_schemas/3.1/**/*.json",
-    "_schemas/3.2.0-rc.6/**/*.json",
     "_schemas/3.2.0-rc.7/**/*.json",
     # Exact signed compliance inputs plus their immutable release provenance.
-    "_compliance/3.2.0-rc.6/**/*.json",
-    "_compliance/3.2.0-rc.6/**/*.jsonl",
-    "_compliance/3.2.0-rc.6/**/*.yaml",
-    "_compliance/3.2.0-rc.6/**/*.md",
     "_compliance/3.2.0-rc.7/**/*.json",
     "_compliance/3.2.0-rc.7/**/*.jsonl",
     "_compliance/3.2.0-rc.7/**/*.yaml",

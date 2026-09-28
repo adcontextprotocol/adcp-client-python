@@ -17,7 +17,7 @@ import pytest
 
 
 def assert_installed_schema_keys(schemas, pinned):
-    assert set(schemas) == {"3.2.0-rc.6", pinned}
+    assert set(schemas) == {pinned}
 
 
 def main(settings):

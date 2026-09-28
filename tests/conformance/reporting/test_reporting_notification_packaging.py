@@ -242,7 +242,7 @@ def built_distribution(tmp_path_factory, request):
     )
     pin = (ROOT / "src/adcp/ADCP_VERSION").read_text().strip()
     current = pin if "-" in pin else ".".join(pin.split(".")[:2])
-    for version in dict.fromkeys(("2.5", "3.0", "3.1", "3.2.0-rc.6", current)):
+    for version in dict.fromkeys(("3.0", "3.1", current)):
         shutil.copytree(
             ROOT / "schemas" / "cache" / version, project / "schemas" / "cache" / version
         )

@@ -44,12 +44,15 @@ def test_distribution_size_accepts_both_artifacts(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("artifact", ["wheel", "sdist"])
-def test_distribution_rejects_retired_schema_members(tmp_path: Path, artifact: str) -> None:
+@pytest.mark.parametrize("version", ["2.5", "3.2.0-beta.6", "3.2.0-rc.3", "3.2.0-rc.6"])
+def test_distribution_rejects_retired_schema_members(
+    tmp_path: Path, artifact: str, version: str
+) -> None:
     wheel = tmp_path / "adcp-1-py3-none-any.whl"
     source = tmp_path / "adcp-1.tar.gz"
-    wheel_name = "adcp/_schemas/3.2.0-rc.3/index.json" if artifact == "wheel" else "adcp/x.py"
+    wheel_name = f"adcp/_schemas/{version}/index.json" if artifact == "wheel" else "adcp/x.py"
     source_name = (
-        "adcp-1/schemas/cache/3.2.0-beta.6/index.json" if artifact == "sdist" else "adcp-1/x.py"
+        f"adcp-1/schemas/cache/{version}/index.json" if artifact == "sdist" else "adcp-1/x.py"
     )
     with zipfile.ZipFile(wheel, "w") as archive:
         archive.writestr(wheel_name, "{}")

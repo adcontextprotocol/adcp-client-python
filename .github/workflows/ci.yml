@@ -1020,9 +1020,9 @@ jobs:
               for child in schema_root.iterdir()
               if child.is_dir()
           }
-          # Retain only the previous and current 3.2 candidate bundles offline.
+          # Ship released 3.0/3.1 and only the current 3.2 candidate offline.
           assert packaged_versions == {
-              "2.5", "3.0", "3.1", "3.2.0-rc.6", current_bundle
+              "3.0", "3.1", current_bundle
           }
           error_schema = json.loads(
               (schema_root / current_bundle / "enums/error-code.json").read_text(encoding="utf-8")
