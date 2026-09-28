@@ -1,10 +1,10 @@
 # Reliable Reporting upgrade and release notes
 
-These notes describe the integrated changes prepared for the next SDK 8
-prerelease. The release version, published distributions, complete service
-acceptance and Python/TypeScript interoperability qualification are still
-pending. Include these boundaries in the reviewed release proposal; merging
-this document does not publish or qualify a package.
+## 8.0.0 release candidate
+
+`adcp` 8.0.0rc1 freezes the SDK API for 8.0.0. The final 8.0.0 release
+follows AdCP 3.2.0 final. The release candidate includes AdCP 3.0, 3.1 and
+3.2.0-rc.7 schema bundles.
 
 ## Account-qualified configuration identity
 
