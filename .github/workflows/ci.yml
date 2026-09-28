@@ -993,6 +993,7 @@ jobs:
           # The default build path creates the sdist first, then builds the
           # wheel from that sdist. This covers both VCS and sdist consumers.
           python -m build --outdir dist/
+          python scripts/ci/check_distribution_size.py dist/
           pip install dist/*.whl
 
       - name: Verify VCS-built wheel schemas
@@ -1019,9 +1020,9 @@ jobs:
               for child in schema_root.iterdir()
               if child.is_dir()
           }
-          # Preserve historical beta.6, rc.3 and rc.6 schemas offline.
+          # Retain only the previous and current 3.2 candidate bundles offline.
           assert packaged_versions == {
-              "2.5", "3.0", "3.1", "3.2.0-beta.6", "3.2.0-rc.3", "3.2.0-rc.6", current_bundle
+              "2.5", "3.0", "3.1", "3.2.0-rc.6", current_bundle
           }
           error_schema = json.loads(
               (schema_root / current_bundle / "enums/error-code.json").read_text(encoding="utf-8")

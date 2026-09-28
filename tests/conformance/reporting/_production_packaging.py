@@ -226,31 +226,33 @@ def source_basis(wheel, source, *, evidence, label):
     return basis
 
 
-def historical_schema_fixture(root):
-    """Copy immutable rc.3 reference inputs, never claim them as wheel contents.
+def historical_schema_fixtures(root):
+    """Copy superseded reference inputs separately from wheel contents.
 
     The installed suite retains historical rejection and correction controls.
-    rc.3 is no longer a shipped bundle. The existing source-layout fallback
-    can read these explicit test inputs without changing installed SDK code,
-    its current bundle, or the public protocol-version allowlist.
+    These versions are no longer shipped bundles. The source-layout fallback
+    can read explicit test inputs without changing installed SDK code or the
+    public protocol-version allowlist.
     """
-    version = "3.2.0-rc.3"
-    source = ROOT / "schemas/cache" / version
-    destination = root / "schemas/cache" / version
     assert not root.resolve().is_relative_to(ROOT.resolve())
-    expected = {
-        str(p.relative_to(source)): hashlib.sha256(p.read_bytes()).hexdigest()
-        for p in sorted(source.rglob("*.json"))
-    }
-    assert expected
-    if not destination.exists():
-        shutil.copytree(source, destination)
-    actual = {
-        str(p.relative_to(destination)): hashlib.sha256(p.read_bytes()).hexdigest()
-        for p in sorted(destination.rglob("*.json"))
-    }
-    assert actual == expected
-    return {"version": version, "root": str(destination), "files": expected}
+    references = []
+    for version in ("3.2.0-beta.6", "3.2.0-rc.3"):
+        source = ROOT / "schemas/cache" / version
+        destination = root / "schemas/cache" / version
+        expected = {
+            str(p.relative_to(source)): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in sorted(source.rglob("*.json"))
+        }
+        assert expected
+        if not destination.exists():
+            shutil.copytree(source, destination)
+        actual = {
+            str(p.relative_to(destination)): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in sorted(destination.rglob("*.json"))
+        }
+        assert actual == expected
+        references.append({"version": version, "root": str(destination), "files": expected})
+    return references
 
 
 def installed_production(root, python, wheel, source, *, label, driver_absent):
@@ -327,7 +329,7 @@ def installed_production(root, python, wheel, source, *, label, driver_absent):
         "modules": modules,
         "assets": assets,
         "schemas": production_schema_hashes(),
-        "historical_reference_schema": historical_schema_fixture(root),
+        "historical_reference_schemas": historical_schema_fixtures(root),
         "tests": [str(p.relative_to(ROOT)) for p in tests],
         "driver_absent": driver_absent,
         "python": [3, 10],

@@ -7,6 +7,7 @@ import importlib.metadata
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -70,33 +71,35 @@ def main(settings):
         for name, expected in schemas.items():
             assert hashlib.sha256((schema_root / name).read_bytes()).hexdigest() == expected
     enter_phase("historical_reference_schemas")
-    reference = settings["historical_reference_schema"]
-    reference_root = Path(reference["root"])
-    assert not reference_root.is_relative_to(Path(sys.prefix))
-    assert not reference_root.is_relative_to(workspace)
-    assert reference["version"] not in settings["schemas"]
-    historical_resolved = schema_loader._resolve_schema_root(reference["version"])
-    assert historical_resolved is not None
-    historical_root = historical_resolved.root
-    assert historical_root.is_relative_to(Path(sys.prefix))
-    assert not historical_root.is_relative_to(workspace)
-    assert historical_root != reference_root
+    references = settings["historical_reference_schemas"]
+    installed_historical = []
 
-    def historical_manifest():
+    def schema_manifest(path):
         return {
-            str(p.relative_to(historical_root)): hashlib.sha256(p.read_bytes()).hexdigest()
-            for p in sorted(historical_root.rglob("*.json"))
+            str(p.relative_to(path)): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in sorted(path.rglob("*.json"))
         }
 
-    assert historical_manifest() == reference["files"]
-
-    def reference_manifest():
-        return {
-            str(p.relative_to(reference_root)): hashlib.sha256(p.read_bytes()).hexdigest()
-            for p in sorted(reference_root.rglob("*.json"))
-        }
-
-    assert reference_manifest() == reference["files"]
+    for reference in references:
+        version = reference["version"]
+        reference_root = Path(reference["root"])
+        assert not reference_root.is_relative_to(Path(sys.prefix))
+        assert not reference_root.is_relative_to(workspace)
+        assert version not in settings["schemas"]
+        # The wheel excludes superseded bundles. Place immutable test inputs
+        # under the venv's source-layout fallback before running old vectors.
+        assert schema_loader._resolve_schema_root(version) is None
+        fixture_root = Path(sys.prefix) / "schemas" / "cache" / version
+        shutil.copytree(reference_root, fixture_root)
+        historical_resolved = schema_loader._resolve_schema_root(version)
+        assert historical_resolved is not None
+        historical_root = historical_resolved.root
+        assert historical_root == fixture_root
+        actual = schema_manifest(historical_root)
+        assert actual == reference["files"]
+        installed_historical.append(
+            {"version": version, "root": str(historical_root), "files": len(actual)}
+        )
     enter_phase("optional_driver_boundary")
     if settings["driver_absent"]:
         assert importlib.util.find_spec("psycopg") is None
@@ -105,7 +108,7 @@ def main(settings):
     else:
         assert os.environ.get("ADCP_PG_TEST_URL")
     reference_inputs = evidence / (settings["label"] + "-historical-schema-inputs.json")
-    reference_bytes = (json.dumps(reference, indent=2, sort_keys=True) + "\n").encode()
+    reference_bytes = (json.dumps(references, indent=2, sort_keys=True) + "\n").encode()
     reference_inputs.write_bytes(reference_bytes)
     identity = {
         "python": sys.version,
@@ -118,22 +121,11 @@ def main(settings):
         "wheel_sha256": settings["wheel_sha256"],
         "assets": settings["assets"],
         "schemas": settings["schemas"],
-        "historical_reference_schema": {
-            "version": reference["version"],
-            "root": str(reference_root),
-            "origin": (
-                "copied immutable test reference; independently compared with "
-                "the packaged historical bundle"
-            ),
-            "files": len(reference["files"]),
+        "historical_reference_schemas": {
+            "origin": "copied immutable test fixtures outside the wheel",
             "inputs": str(reference_inputs),
             "inputs_sha256": hashlib.sha256(reference_bytes).hexdigest(),
-        },
-        "installed_historical_schema": {
-            "version": reference["version"],
-            "root": str(historical_root),
-            "origin": "installed distribution",
-            "files": len(reference["files"]),
+            "versions": installed_historical,
         },
         "driver_absent": settings["driver_absent"],
     }
@@ -210,8 +202,10 @@ def main(settings):
     for name, module in tuple(sys.modules.items()):
         if (name == "adcp" or name.startswith("adcp.")) and getattr(module, "__file__", None):
             assert Path(module.__file__).resolve().is_relative_to(Path(sys.prefix))
-    assert reference_manifest() == reference["files"]
-    assert historical_manifest() == reference["files"]
+    for reference in references:
+        assert schema_manifest(Path(reference["root"])) == reference["files"]
+        fixture_path = Path(sys.prefix) / "schemas/cache" / reference["version"]
+        assert schema_manifest(fixture_path) == reference["files"]
     progress.start("complete")
     progress.close()
     journal = progress.path.with_suffix(".jsonl")
