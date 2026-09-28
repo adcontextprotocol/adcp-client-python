@@ -689,6 +689,7 @@ def _ts_core_buyer_command(
     *,
     endpoint: str,
     expect_missing: bool,
+    wire_adcp_version: str | None = None,
 ) -> list[str]:
     pin = _typescript_pin(install)
     command = [
@@ -701,7 +702,7 @@ def _ts_core_buyer_command(
         "--expected-integrity",
         pin["integrity"],
         "--adcp-version",
-        pin["protocol"],
+        wire_adcp_version or pin["protocol"],
         "--endpoint",
         endpoint,
         "--auth-env",

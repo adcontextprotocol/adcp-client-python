@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""Run #1199's installed Python seller x TypeScript client 2x2 baseline.
+"""Run #1199's installed Python seller x TypeScript client 2x2 matrix.
 
 The four cells in this runner are deliberately distinct from the foundation
 Q1-Q4 language-role quadrants.  Each cell owns a fresh PostgreSQL database and
-Python seller process.  The current published stable artifacts are expected to
-refuse the reporting-Core lane; those negative controls can make the baseline
-job reproducible but can never satisfy the issue's positive-semantic
-acceptance contract.
+Python seller process. Final acceptance requires positive semantic results
+from all four cells and distinct durable resources for each cell.
 """
 
 from __future__ import annotations
@@ -30,7 +28,7 @@ foundation: Any = None
 
 
 class MatrixError(RuntimeError):
-    """The installed-artifact baseline did not match its declared contract."""
+    """The installed-artifact matrix did not match its declared contract."""
 
 
 def _load_foundation() -> Any:
@@ -232,9 +230,18 @@ def _gate_passes(*, phase: str, baseline_complete: bool, issue_acceptance: bool)
     return baseline_complete if phase == BASELINE_PHASE else issue_acceptance
 
 
+def _seller_wire_version(contract: dict[str, Any], python_role: str) -> str:
+    """Send the installed seller's protocol, which can differ across Python lanes."""
+    version = contract["artifacts"]["python"][python_role]["protocol"]
+    if not isinstance(version, str) or not version:
+        raise MatrixError(f"Python {python_role} artifact has no protocol version")
+    return version
+
+
 def _run_cell(
     cell: dict[str, Any],
     *,
+    wire_adcp_version: str,
     python_input: tuple[foundation.PythonRuntime, foundation.PythonArtifact],
     typescript_input: tuple[foundation.TypeScriptInstall, foundation.TypeScriptArchive],
     node: Path,
@@ -292,7 +299,8 @@ def _run_cell(
                     node,
                     install,
                     endpoint=f"http://127.0.0.1:{port}/mcp",
-                    expect_missing=typescript_role == "stable",
+                    expect_missing=expected == "expected_unsupported_typescript_client",
+                    wire_adcp_version=wire_adcp_version,
                 )
                 client_exit, result = _client_result(
                     command,
@@ -384,6 +392,7 @@ def main() -> None:
             rows.append(
                 _run_cell(
                     cell,
+                    wire_adcp_version=_seller_wire_version(contract, cell["python_role"]),
                     python_input=python_inputs[cell["python_role"]],
                     typescript_input=typescript_inputs[cell["typescript_role"]],
                     node=args.node_runtime,
@@ -407,12 +416,16 @@ def main() -> None:
         baseline_complete=baseline_complete,
         issue_acceptance=issue_acceptance,
     )
+    if contract["phase"] == BASELINE_PHASE:
+        status = "baseline_passed" if baseline_complete else "baseline_failed"
+    else:
+        status = "acceptance_passed" if issue_acceptance else "acceptance_failed"
     report = {
         "schema_version": 1,
         "phase": contract["phase"],
         "run_id": run_id,
         "baseline_complete": baseline_complete,
-        "status": "baseline_passed" if baseline_complete else "baseline_failed",
+        "status": status,
         "acceptance": issue_acceptance,
         "blocking_acceptance": issue_acceptance,
         "gate_passed": gate_passed,

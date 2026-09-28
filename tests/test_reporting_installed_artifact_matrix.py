@@ -54,24 +54,41 @@ def test_negative_controls_cannot_be_classified_as_positive_semantic() -> None:
 
 def test_stable_python_failure_matches_only_the_pinned_missing_surface() -> None:
     expected = (
-        "Traceback... ModuleNotFoundError: No module named " "'adcp.reporting.ledger.status_server'"
+        "Traceback... ModuleNotFoundError: No module named 'adcp.reporting.ledger.status_server'"
     )
 
     assert matrix._classify_seller_failure(expected) == "expected_unsupported_python_seller"
     assert matrix._classify_seller_failure("connection refused") == "unexpected_seller_failure"
 
 
-def test_manifest_keeps_baseline_expectations_separate_from_acceptance() -> None:
+def test_manifest_requires_four_positive_installed_artifact_cells() -> None:
     contract = json.loads(matrix.DEFAULT_CONTRACT.read_text(encoding="utf-8"))
 
     assert contract["acceptance_contract"]["required_cell_count"] == 4
+    assert contract["phase"] != matrix.BASELINE_PHASE
     assert [cell["baseline_expected_outcome"] for cell in contract["cells"]].count(
         "positive_semantic"
-    ) == 1
+    ) == 4
+    assert contract["artifacts"]["python"]["stable"]["version"] == "8.0.0b16"
+    assert contract["artifacts"]["python"]["candidate"]["version"] == "8.0.0b18"
+    assert contract["artifacts"]["python"]["candidate"]["protocol"] == "3.2.0-rc.7"
+    assert contract["artifacts"]["typescript"]["stable"]["version"] == "14.0.0-rc.47"
     assert "integrated_main_rerun" in contract["acceptance_contract"]["final_rerun_prerequisites"]
     assert (
         "positive_typescript_stable_artifact_selected"
         in contract["acceptance_contract"]["final_rerun_prerequisites"]
+    )
+
+
+def test_wire_version_tracks_the_python_seller_in_each_skew_lane() -> None:
+    contract = matrix._load_contract(matrix.DEFAULT_CONTRACT)
+    contract["artifacts"]["python"]["candidate"]["protocol"] = "3.2.0-rc.7"
+
+    assert matrix._seller_wire_version(contract, "stable") == "3.2.0-rc.6"
+    assert matrix._seller_wire_version(contract, "candidate") == "3.2.0-rc.7"
+    assert (
+        matrix._seller_wire_version(contract, "candidate")
+        != contract["artifacts"]["typescript"]["stable"]["protocol"]
     )
 
 
@@ -155,8 +172,7 @@ def test_required_postgres_gate_depends_on_installed_artifact_matrix() -> None:
 
     assert "reporting-installed-artifact-matrix" in gate
     assert (
-        "REPORTING_INTEROP_RESULT: "
-        "${{ needs.reporting-installed-artifact-matrix.result }}" in gate
+        "REPORTING_INTEROP_RESULT: ${{ needs.reporting-installed-artifact-matrix.result }}" in gate
     )
     assert '[ "$REPORTING_INTEROP_RESULT" != "success" ]' in gate
     assert (

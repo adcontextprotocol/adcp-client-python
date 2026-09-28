@@ -373,20 +373,20 @@ def test_exact_candidate_pins_are_immutable_and_keep_source_separate() -> None:
     python = pins["python"]["candidate"]
     typescript = pins["typescript"]["historical_candidate_rc45"]
 
-    assert python["version"] == "8.0.0b16"
-    assert python["source_commit"] == "8ca7dfe09facd3b4744665447e16a80474f021d7"
-    assert python["source_tree"] == "6f4b1fbf66242c86c05902add7c645d71932141a"
+    assert python["version"] == "8.0.0b18"
+    assert python["source_commit"] == "4d066171cdda2a802a71d4776c1c51132d5baff7"
+    assert python["source_tree"] == "a8f75ebb71bb4df6ccee170ec847e45f0120f93f"
     assert python["build_kind"] == "published_pypi_release"
     assert python["registry"] == "https://pypi.org/simple/adcp/"
     assert python["wheel_sha256"] == (
-        "7589a546cacdddce3a7a827adaa11d4ccab34768c558689b1c6850b85cd098b1"
+        "3eabf30fbdae298111f3bbb4f4efb36f193dd08d7845217948ed211d7476e2c3"
     )
     assert python["sdist_sha256"] == (
-        "b971a13d1461c010150c7f89a0246ab23ce38fb1962fb42164f8356af9deaab2"
+        "d1bdb7e6c19e0e61432c0b300dfcd8f990d93f096964c4c8ad1401a68cc8bb50"
     )
-    assert python["sdk_member_count"] == 7_843
+    assert python["sdk_member_count"] == 4_644
     assert python["sdk_member_manifest_sha256"] == (
-        "51a37d87a8f61e77ff6815f661728c84d16c85d7430ab1987d3a3bd6a84dceab"
+        "6c32ffbaf5d7df2cfa153ae3ded161dd4a9e68e0df29b2445b8a91bb5647cf86"
     )
     controls = python["development_dependency_controls"]
     assert {(row["pydantic"], row["mcp"]) for row in controls} == {
@@ -455,9 +455,12 @@ def test_exact_candidate_pins_are_immutable_and_keep_source_separate() -> None:
         "can_substitute_for_transitive_lock": False,
     }
     assert pins["protocol"]["required_contract"] == {
-        "version": "3.2.0-rc.6",
-        "bundle_selected": False,
-        "status": "required_alignment_not_a_selected_protocol_bundle",
+        "version": "3.2.0-rc.7",
+        "source_commit": "4ca13ae5cb65dff40aa514619f677293616522cd",
+        "bundle_url": "https://adcontextprotocol.org/protocol/3.2.0-rc.7.tgz",
+        "bundle_sha256": "942b24c66500839b3db21e74f69f2fe34d6ac18f898acc1f67aa126e35547994",
+        "bundle_selected": True,
+        "status": "live_default_protocol_bundle",
     }
     assert pins["protocol"]["historical_fixture_rc4"]["version"] == "3.2.0-rc.4"
     latest = pins["typescript"]["latest_canary"]
@@ -473,17 +476,25 @@ def test_exact_candidate_pins_are_immutable_and_keep_source_separate() -> None:
 def test_previous_typescript_skew_pin_is_exact_and_locked() -> None:
     previous = load("pins.json")["typescript"]["previous_compatible"]
 
-    assert previous["version"] == "14.0.0-rc.41"
+    assert previous["version"] == "14.0.0-rc.47"
     assert previous["version"] not in {"latest", "rc", "adcp-3.1"}
-    assert previous["protocol"] == "3.2.0-rc.4"
+    assert previous["protocol"] == "3.2.0-rc.6"
     assert previous["tarball_sha256"] == (
-        "c9bb1e22b63dfedf6bc1ae9c07d1a1312465489671e9841dd5f1425b817b0a90"
+        "1b14aeddab973809f1850e189f833ef645d061e25c82d74046c97fd92d346e49"
     )
+    assert previous["installed_member_binding"] == {
+        "member_count": 6261,
+        "manifest_sha256": "81f661470397bd9d02ceb640710f728804cecd0b4d06660301540531df054593",
+    }
     lock = ROOT / previous["package_lock"]
     assert hashlib.sha256(lock.read_bytes()).hexdigest() == previous["package_lock_sha256"]
     locked_sdk = json.loads(lock.read_text())["packages"]["node_modules/@adcp/sdk"]
     assert locked_sdk["version"] == previous["version"]
     assert locked_sdk["integrity"] == previous["integrity"]
+
+    historical = load("pins.json")["typescript"]["historical_previous_rc41"]
+    assert historical["version"] == "14.0.0-rc.41"
+    assert historical["protocol"] == "3.2.0-rc.4"
 
 
 def test_runner_executes_skew_storyboards_and_receiver_contracts_fail_closed() -> None:
@@ -677,12 +688,12 @@ def test_ts_version_and_abort_helpers_fail_closed_without_sdk_execution() -> Non
     script = f"""
       const assert = require('node:assert/strict');
       const nodeCrypto = require('node:crypto');
-      const version = require({json.dumps(str(DATA / 'ts_adcp_version.cjs'))});
-      const abort = require({json.dumps(str(DATA / 'ts_probe_abort.cjs'))});
-      const controlled = require({json.dumps(str(DATA / 'ts_controlled_reporting_server.cjs'))});
-      const managed = require({json.dumps(str(DATA / 'ts_managed_reporting_server.cjs'))});
-      const core = require({json.dumps(str(DATA / 'ts_core_server.cjs'))});
-      const privateInputsModule = require({json.dumps(str(DATA / 'ts_private_inputs.cjs'))});
+      const version = require({json.dumps(str(DATA / "ts_adcp_version.cjs"))});
+      const abort = require({json.dumps(str(DATA / "ts_probe_abort.cjs"))});
+      const controlled = require({json.dumps(str(DATA / "ts_controlled_reporting_server.cjs"))});
+      const managed = require({json.dumps(str(DATA / "ts_managed_reporting_server.cjs"))});
+      const core = require({json.dumps(str(DATA / "ts_core_server.cjs"))});
+      const privateInputsModule = require({json.dumps(str(DATA / "ts_private_inputs.cjs"))});
       assert.equal(version.wireAdcpVersion('3.2.0-rc.6'), '3.2-rc.6');
       assert.equal(version.wireAdcpVersion('3.1.20'), '3.1');
       assert.equal(version.wireAdcpVersion('3.2.1'), '3.2');

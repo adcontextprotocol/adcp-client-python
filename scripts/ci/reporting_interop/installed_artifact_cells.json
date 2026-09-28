@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "issue": 1199,
-  "phase": "baseline_before_rc7_and_1172",
+  "phase": "integrated_required_acceptance",
   "acceptance_contract": {
     "required_cell_count": 4,
     "required_polarity": "positive_semantic",
     "final_rerun_prerequisites": [
       "track_1_rc7_merged_and_protocol_repointed",
-      "issue_1172_merged",
+      "issue_1172_implementation_merged",
       "final_python_candidate_published",
       "positive_typescript_stable_artifact_selected",
       "integrated_main_rerun"
@@ -20,7 +20,7 @@
       "typescript_role": "stable",
       "required": true,
       "required_polarity": "positive_semantic",
-      "baseline_expected_outcome": "expected_unsupported_python_seller"
+      "baseline_expected_outcome": "positive_semantic"
     },
     {
       "id": "python-stable__typescript-candidate",
@@ -28,7 +28,7 @@
       "typescript_role": "candidate",
       "required": true,
       "required_polarity": "positive_semantic",
-      "baseline_expected_outcome": "expected_unsupported_python_seller"
+      "baseline_expected_outcome": "positive_semantic"
     },
     {
       "id": "python-candidate__typescript-stable",
@@ -36,7 +36,7 @@
       "typescript_role": "stable",
       "required": true,
       "required_polarity": "positive_semantic",
-      "baseline_expected_outcome": "expected_unsupported_typescript_client"
+      "baseline_expected_outcome": "positive_semantic"
     },
     {
       "id": "python-candidate__typescript-candidate",
@@ -51,16 +51,6 @@
     "python": {
       "stable": {
         "package": "adcp",
-        "version": "8.0.0b15",
-        "protocol": "3.2.0-rc.3",
-        "wheel_url": "https://files.pythonhosted.org/packages/8b/63/cf3d7b2885126771009f6da3786ba564fcae7e910568c93f06cf672d2f5e/adcp-8.0.0b15-py3-none-any.whl",
-        "wheel_sha256": "608636a4fe774bc4846b5bb0eab6367d0b8e69f6f371aa6085845d9f8329f48f",
-        "wheel_bytes": 40403241,
-        "sdk_member_count": 4528,
-        "sdk_member_manifest_sha256": "ade1092cf7275e25f752174b1dce0758d56b4d27bef65005508b8fe419e3a8aa"
-      },
-      "candidate": {
-        "package": "adcp",
         "version": "8.0.0b16",
         "protocol": "3.2.0-rc.6",
         "wheel_url": "https://files.pythonhosted.org/packages/97/07/74355b24ace6d7618cd330cc970a0ba24f82673e5e1e1e7767d153f73989/adcp-8.0.0b16-py3-none-any.whl",
@@ -68,21 +58,31 @@
         "wheel_bytes": 89996534,
         "sdk_member_count": 7843,
         "sdk_member_manifest_sha256": "51a37d87a8f61e77ff6815f661728c84d16c85d7430ab1987d3a3bd6a84dceab"
+      },
+      "candidate": {
+        "package": "adcp",
+        "version": "8.0.0b18",
+        "protocol": "3.2.0-rc.7",
+        "wheel_url": "https://files.pythonhosted.org/packages/bc/cf/c796c2e7cd01e52ad82b90108aacdf960418c2cda0409198442cd1e8356b/adcp-8.0.0b18-py3-none-any.whl",
+        "wheel_sha256": "3eabf30fbdae298111f3bbb4f4efb36f193dd08d7845217948ed211d7476e2c3",
+        "wheel_bytes": 41453193,
+        "sdk_member_count": 4644,
+        "sdk_member_manifest_sha256": "6c32ffbaf5d7df2cfa153ae3ded161dd4a9e68e0df29b2445b8a91bb5647cf86"
       }
     },
     "typescript": {
       "stable": {
         "package": "@adcp/sdk",
-        "version": "14.0.0-rc.41",
-        "protocol": "3.2.0-rc.4",
-        "tarball_url": "https://registry.npmjs.org/@adcp/sdk/-/sdk-14.0.0-rc.41.tgz",
-        "tarball_sha256": "c9bb1e22b63dfedf6bc1ae9c07d1a1312465489671e9841dd5f1425b817b0a90",
-        "tarball_bytes": 19458232,
-        "integrity": "sha512-Qfs+ujKBpIjf7m9jcuzxvN/XCXUssxhR5xCvxCq4oqMR3aMJjnuTgzjxltPtv+A6LOxwmX1ia8sMRdhVSehdBg==",
-        "package_lock": "scripts/ci/reporting_interop/npm/rc41/package-lock.json",
-        "package_lock_sha256": "2059bd6794ff8f2f06f5ec83187ba7de5607f262b9b0a18a4d0d0be5682efa74",
-        "installed_member_count": 6183,
-        "installed_member_manifest_sha256": "5a9212d3b5077ca0005b5b0afe53607eb4f65f3c2f6f5fcda7c5837092edc82e"
+        "version": "14.0.0-rc.47",
+        "protocol": "3.2.0-rc.6",
+        "tarball_url": "https://registry.npmjs.org/@adcp/sdk/-/sdk-14.0.0-rc.47.tgz",
+        "tarball_sha256": "1b14aeddab973809f1850e189f833ef645d061e25c82d74046c97fd92d346e49",
+        "tarball_bytes": 19686924,
+        "integrity": "sha512-Zi2r9CZ2HJmB7i8XTlt5Z1QrVq+nnKkTcl8fSQUkjsi3ChhVtR24BIu/6Gg7yz5ctBWfMR2Lxqn4wv8kh3Wygw==",
+        "package_lock": "scripts/ci/reporting_interop/npm/rc47/package-lock.json",
+        "package_lock_sha256": "2f62e22374e69362042923e7f960a28a4abb8a3ac429653a90e47cccba74294a",
+        "installed_member_count": 6261,
+        "installed_member_manifest_sha256": "81f661470397bd9d02ceb640710f728804cecd0b4d06660301540531df054593"
       },
       "candidate": {
         "package": "@adcp/sdk",

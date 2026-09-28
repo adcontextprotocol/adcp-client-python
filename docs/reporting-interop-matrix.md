@@ -1,71 +1,33 @@
 # Reliable Reporting foundation interoperability
 
-This is the staged-foundation qualification harness for
+This is the installed-artifact interoperability harness for
 [#1199](https://github.com/adcontextprotocol/adcp-client-python/issues/1199).
-It is not final compatibility acceptance. Issue #1172 service composition,
-`client.reporting`, and #1182 provisional re-read remain explicitly deferred.
+The four required cells use published Python and TypeScript packages, fresh
+PostgreSQL databases, and separate seller processes. The required aggregate
+passes only when every cell completes positive semantic reconciliation.
 
 ## Immutable inputs
 
-The reviewed coordinates are in `scripts/ci/reporting_interop/pins.json`.
+The exact artifact URLs, hashes, installed-member manifests, npm locks, and
+protocol versions are in `scripts/ci/reporting_interop/pins.json` and
+`installed_artifact_cells.json`. The prior-compatible sides are published
+Python `adcp==8.0.0b16` and TypeScript `@adcp/sdk@14.0.0-rc.47`; the
+candidate sides are published Python `adcp==8.0.0b18` and corrected
+TypeScript `@adcp/sdk@14.0.0-rc.48`. Brian approved compatible prereleases for
+the prior sides, conditional on all four cells passing. The candidate Python
+package includes the rc.7 protocol adoption; the prior package and both
+TypeScript packages retain their own published protocol identities.
 
-The baseline input is published Python `adcp==8.0.0b16` from release commit
-`8ca7dfe09facd3b4744665447e16a80474f021d7` and published TypeScript rc.48.
-The baseline is not final #1199 acceptance: the required aggregate must run
-again on integrated `main` after #1172 closes and after the protocol input is
-re-pointed to rc.7.
+Each Python runtime is installed from the exact pinned wheel path. Each
+TypeScript runtime is installed from the checked-in exact npm lock, and every
+installed SDK member must match its pinned registry archive. Version strings
+alone do not qualify an artifact. CPython 3.10 and Node 22.12.0 are the
+matrix runtime floors.
 
-- Python baseline candidate: exact PyPI `adcp==8.0.0b16` wheel SHA-256
-  `7589a546cacdddce3a7a827adaa11d4ccab34768c558689b1c6850b85cd098b1`
-  and sdist SHA-256
-  `b971a13d1461c010150c7f89a0246ab23ce38fb1962fb42164f8356af9deaab2`.
-  Both installed routes contain 7,843 identical `adcp/` members with manifest
-  SHA-256 `51a37d87a8f61e77ff6815f661728c84d16c85d7430ab1987d3a3bd6a84dceab`.
-- Retained historical executable TypeScript input (supplemental controls only): exact published
-  `@adcp/sdk@14.0.0-rc.45`, SHA-256
-  `a0952ed8edaaad958bdb8f474c4f5cb68333ee272e7a8f3419d12930e9c57e6b`,
-  integrity
-  `sha512-ywglF0pBXDUfxW6IUdXMf+xKAkIKFezxKf+Jq7gDuY2NdqCg6Ctgi496pUYk23oFiBEe8NRjzWadjWzSo/+J7w==`,
-  publishing commit `94171fe20d632f027eb362604c715ed361fadb51`, and
-  approved tree `8d3c29d9a1779f04520c33cdc9ed3e15e5296cdd`. Its harness-owned
-  lock is checked in under `scripts/ci/reporting_interop/npm/rc45/`. Rc.42
-  remains the exact historical Matrix12 candidate and is never rewritten as
-  rc.45 evidence. Rc.45 pins protocol rc.4 and is therefore ineligible for
-  required rc.6 Q-cell credit even when its archive and installed members are
-  intact.
-- Selected TypeScript rc.6 candidate:
-  `@adcp/sdk@14.0.0-rc.48`, SHA-256
-  `420c1fa36128f3c3285234f58096a74c5668b74ffbf12804d6603c370083149b`,
-  integrity
-  `sha512-mK6NpfFRm1f/0SoVxvyG9Snm78IXDfyNl3gAlWp5lVIzLHZcdwfDemNKIl5O6hjh9OugRwD4Chlax3Li9efHZw==`,
-  registry git head `3f3a0132480b2fd99d656c680ea12d4ad2b3c26d`.
-  The exact lock is under `scripts/ci/reporting_interop/npm/rc48/`; all 6,274
-  installed package files matched the registry archive. Rc.48 includes the
-  #2972 timing/discovery correction. Rc.47 remains a separate development
-  source lead, and rc.45 remains the historical executable input. No prior
-  result transfers to rc.48.
-- Previous baseline TypeScript skew input: exact `@adcp/sdk@14.0.0-rc.41`,
-  integrity
-  `sha512-Qfs+ujKBpIjf7m9jcuzxvN/XCXUssxhR5xCvxCq4oqMR3aMJjnuTgzjxltPtv+A6LOxwmX1ia8sMRdhVSehdBg==`,
-  from the checked-in `scripts/ci/reporting_interop/npm/rc41/` lock. Rc.41
-  does not export the reporting Core reconciler and therefore cannot be the
-  positive stable-side input for final acceptance. The final rerun needs an
-  explicitly selected published compatible TypeScript artifact; choosing a
-  prerelease such as rc.47 for that role is a product-policy decision, not an
-  implicit harness substitution. The
-  previous Python input is the released b15 wheel installed by local path and
-  asserted as SHA-256 `608636a4fe774bc4846b5bb0eab6367d0b8e69f6f371aa6085845d9f8329f48f`;
-  its occupied version string is never used as candidate identity.
-- Current live protocol input: packaged `3.2.0-rc.6`. Track 1 PR #1229
-  will select rc.7 as the live/default input; this branch must be rebased and
-  rerun after that merge. Rc.4 remains historical validation input only.
-- Runtime floors: CPython 3.10 and Node 22.12.0. Provenance tooling that needs a
-  newer Node runtime is separate from the interoperability floor.
-
-Historical rc.42 and supplemental rc.44 identities remain recorded with their
-own locks and results. Neither is a substitute for rc.45, and rc.45 does not
-retroactively change their results. PyPI `adcp==7.0.2` is a visible unsupported
-latest-stable canary, not a reporting pass.
+Historical b15/rc.41 inputs remain in the foundation record. They lack the
+reporting surfaces required for a positive stable cell and are not substituted
+for the approved prior-compatible artifacts. Supplemental and latest-version
+canaries remain non-blocking.
 
 Each candidate runtime must expose `direct_url.json` for the exact downloaded
 PyPI artifact path supplied to the runner; version-only or index-resolved
@@ -80,22 +42,18 @@ Issue #1199's installed-artifact acceptance topology is declared separately in
 `installed_artifact_cells.json`. It is the Python seller artifact × TypeScript
 client artifact cross-product, not the Q1-Q4 language-role topology:
 
-| Cell | Installed Python seller | Installed TypeScript client | Baseline result |
+| Cell | Installed Python seller | Installed TypeScript client | Required result |
 | --- | --- | --- | --- |
-| `python-stable__typescript-stable` | PyPI b15 | npm rc.41 | expected unsupported: b15 has no reporting status-server surface |
-| `python-stable__typescript-candidate` | PyPI b15 | npm rc.48 | expected unsupported: b15 has no reporting status-server surface |
-| `python-candidate__typescript-stable` | PyPI b16 | npm rc.41 | expected unsupported after real MCP HTTP: rc.41 has no Core reconciler export |
-| `python-candidate__typescript-candidate` | PyPI b16 | npm rc.48 | positive semantic Core reconciliation |
+| `python-stable__typescript-stable` | PyPI b16 | npm rc.47 | positive semantic Core reconciliation |
+| `python-stable__typescript-candidate` | PyPI b16 | npm rc.48 | positive semantic Core reconciliation |
+| `python-candidate__typescript-stable` | PyPI b18 | npm rc.47 | positive semantic Core reconciliation |
+| `python-candidate__typescript-candidate` | PyPI b18 | npm rc.48 | positive semantic Core reconciliation |
 
-All four cells are required to execute with distinct PostgreSQL databases and
-seller processes. Every cell's acceptance polarity remains
-`positive_semantic`; an expected unsupported result is a baseline control and
-never earns acceptance credit. The current baseline therefore passes its
-declared published-artifact behavior while issue acceptance remains false at
-one of four positive cells. Final acceptance requires a newly published
-#1172-integrated Python artifact, rc.7 alignment after #1229, an explicitly
-selected published compatible TypeScript stable-side artifact, and a rerun
-from integrated `main`.
+All four cells run from clean installed environments with distinct PostgreSQL
+databases and seller processes. A missing reporting surface or an expected
+unsupported result is a failure in this final phase. The matrix must be rerun
+on integrated `main` with #1172's factory and lifecycle implementation merged;
+no earlier branch run transfers to that final acceptance.
 
 `run_installed_artifact_matrix.py` executes this cross-product and
 `Reliable reporting installed-artifact 2x2` is its dedicated CI aggregate;
@@ -104,7 +62,11 @@ the same execution result is also propagated into the ruleset-required
 The existing reference-seller storyboard aggregate is unrelated and supplies
 no #1199 credit.
 
-The foundation language-role topology remains useful supplemental coverage:
+## Historical foundation topology
+
+The foundation language-role topology remains supplemental coverage from the
+earlier rc.6 qualification. Its Q/S results do not replace the four installed
+artifact cells above:
 
 `scripts/ci/reporting_interop/applicability.json` declares the cells before
 execution:
@@ -351,9 +313,9 @@ probes and contains no authentication consumer. Its fixture bytes and finding
 semantics remain unchanged: no ignore, history rewrite, rule weakening,
 obfuscation, alert dismissal, or substitution is made here.
 
-The current result is deliberately `incomplete`; it cannot be wired into a
-release acceptance gate yet. Candidate Python currently reconciles the rc.41
-Core seller over real MCP HTTP. Released Python b15 rejects the explicit rc.4
+The historical foundation result was `incomplete` and did not qualify the
+four-cell release gate. Its candidate Python reconciled the rc.41
+Core seller over real MCP HTTP. Released Python b15 rejected the explicit rc.4
 candidate server request during public client construction with an actionable
 supported-version error and no transport mutation. Those are concrete skew
 scenario results, but neither completes the remaining applicable scenario set
@@ -362,7 +324,7 @@ Delivery/Reconciled Billing semantics, server-only durability/security
 scenarios, complete resolved storyboard steps through the required controller,
 and visible canaries.
 
-## Current blocking findings
+## Historical foundation findings
 
 - Historical rc.42 official precedence remains red with no exemption: all 17 adapted
   inputs validate against both public rc.4 validators, but only five controls
