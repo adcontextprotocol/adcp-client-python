@@ -52,6 +52,21 @@ def test_full_gate_requires_four_positive_isolated_cells() -> None:
     assert not matrix._blocking_acceptance(leaked)
 
 
+def test_required_installed_job_runs_both_core_and_full_lifecycle_stages() -> None:
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    job_start = workflow.index("  reporting-installed-artifact-matrix:")
+    job_end = workflow.index("\n  reporting-installed-artifact-required-gate:", job_start)
+    job = workflow[job_start:job_end]
+    gate_end = workflow.index("\n  v3-reference-seller-tests:", job_end)
+    gate = workflow[job_end:gate_end]
+
+    assert "run_installed_artifact_matrix.py" in job
+    assert "run_full_installed_artifact_matrix.py" in job
+    assert "pytest==9.0.2" in job
+    assert "needs: reporting-installed-artifact-matrix" in gate
+    assert 'needs.reporting-installed-artifact-matrix.result }}" != "success"' in gate
+
+
 def _full_evidence() -> dict:
     return {
         "receipt": {
