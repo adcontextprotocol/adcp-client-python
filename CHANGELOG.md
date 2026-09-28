@@ -1,5 +1,17 @@
 # Changelog
 
+## [8.0.0-rc.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.18...v8.0.0-rc.1) (2026-09-28)
+
+
+### docs
+
+* **release:** note the 8.0.0 release candidate ([#1238](https://github.com/adcontextprotocol/adcp-client-python/issues/1238)) ([1a59739](https://github.com/adcontextprotocol/adcp-client-python/commit/1a597394ded26e45fbd756e1af0658c9e788660c))
+
+
+### Features
+
+* **reporting:** require positive installed artifact interop matrix ([#1230](https://github.com/adcontextprotocol/adcp-client-python/issues/1230)) ([4ceeffe](https://github.com/adcontextprotocol/adcp-client-python/commit/4ceeffe5f93c0b3f85596f3210c818211d36cfd0))
+
 ## [8.0.0-beta.18](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.17...v8.0.0-beta.18) (2026-09-28)
 
 
