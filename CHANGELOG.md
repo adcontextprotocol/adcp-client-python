@@ -1,5 +1,18 @@
 # Changelog
 
+## [8.0.0-beta.18](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.17...v8.0.0-beta.18) (2026-09-28)
+
+
+### Features
+
+* **reporting:** add public failure and lifecycle test helpers ([#1232](https://github.com/adcontextprotocol/adcp-client-python/issues/1232)) ([ac5e432](https://github.com/adcontextprotocol/adcp-client-python/commit/ac5e43295a448b95ed27bf8cc128ef7bbe72efe5))
+* **reporting:** compose PostgreSQL services from adapters ([#1231](https://github.com/adcontextprotocol/adcp-client-python/issues/1231)) ([65be431](https://github.com/adcontextprotocol/adcp-client-python/commit/65be431a809dd2a74297fcc6cc23cdccf8a60728))
+
+
+### Bug Fixes
+
+* **packaging:** keep release artifacts below PyPI limit ([#1235](https://github.com/adcontextprotocol/adcp-client-python/issues/1235)) ([103885b](https://github.com/adcontextprotocol/adcp-client-python/commit/103885b23a368bd378a247f4dbc1ff220aefc712))
+
 ## [8.0.0-beta.17](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.16...v8.0.0-beta.17) (2026-09-27)
 
 
