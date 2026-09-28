@@ -1348,9 +1348,9 @@ jobs:
           python -m venv "${INPUT_ROOT}/python/stable"
           python -m venv "${INPUT_ROOT}/python/candidate"
           "${INPUT_ROOT}/python/stable/bin/pip" install --retries 5 --timeout 30 \
-            "${INPUT_ROOT}/python/adcp-8.0.0b16-py3-none-any.whl[pg]"
+            "${INPUT_ROOT}/python/adcp-8.0.0b16-py3-none-any.whl[pg]" pytest==9.0.2
           "${INPUT_ROOT}/python/candidate/bin/pip" install --retries 5 --timeout 30 \
-            "${INPUT_ROOT}/python/adcp-8.0.0b18-py3-none-any.whl[pg]"
+            "${INPUT_ROOT}/python/adcp-8.0.0b18-py3-none-any.whl[pg]" pytest==9.0.2
 
           cp scripts/ci/reporting_interop/npm/rc47/package.json \
             scripts/ci/reporting_interop/npm/rc47/package-lock.json "${INPUT_ROOT}/ts-stable/"
@@ -1390,11 +1390,32 @@ jobs:
             --pg-admin-url postgresql://postgres@127.0.0.1:5432/postgres \
             --output "${RUNNER_TEMP}/reporting-installed-artifact-matrix"
 
+      - name: Run installed full reporting lifecycle 2x2
+        shell: bash
+        run: |
+          set -euo pipefail
+          INPUT_ROOT="${RUNNER_TEMP}/reporting-1199-inputs"
+          "${INPUT_ROOT}/python/candidate/bin/python" -I \
+            scripts/ci/reporting_interop/run_full_installed_artifact_matrix.py \
+            --python-stable-runtime "${INPUT_ROOT}/python/stable/bin/python" \
+            --python-stable-artifact "${INPUT_ROOT}/python/adcp-8.0.0b16-py3-none-any.whl" \
+            --python-candidate-runtime "${INPUT_ROOT}/python/candidate/bin/python" \
+            --python-candidate-artifact "${INPUT_ROOT}/python/adcp-8.0.0b18-py3-none-any.whl" \
+            --typescript-stable-install "${INPUT_ROOT}/ts-stable" \
+            --typescript-stable-archive "${INPUT_ROOT}/ts-stable/sdk-14.0.0-rc.47.tgz" \
+            --typescript-candidate-install "${INPUT_ROOT}/ts-candidate" \
+            --typescript-candidate-archive "${INPUT_ROOT}/ts-candidate/sdk-14.0.0-rc.48.tgz" \
+            --node-runtime "$(command -v node)" \
+            --pg-admin-url postgresql://postgres@127.0.0.1:5432/postgres \
+            --output "${RUNNER_TEMP}/reporting-full-installed-artifact-matrix"
+
       - if: always()
         uses: actions/upload-artifact@v7
         with:
           name: reporting-installed-artifact-matrix-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/reporting-installed-artifact-matrix
+          path: |
+            ${{ runner.temp }}/reporting-installed-artifact-matrix
+            ${{ runner.temp }}/reporting-full-installed-artifact-matrix
           if-no-files-found: warn
 
   reporting-installed-artifact-required-gate:

@@ -1,0 +1,81 @@
+{
+  "expected_outcome": {
+    "definitive": true,
+    "inspection_calls": 0,
+    "obligation_count": 1,
+    "reasons_absent": [
+      "consumer_status_pending",
+      "receipt_required"
+    ]
+  },
+  "expected_periods": [
+    {
+      "automatedRecoveryWindowSeconds": 21600,
+      "canonicalization": {
+        "id": "reference-jcs-rows-v1",
+        "primaryKeys": [
+          "row_id"
+        ],
+        "sha256": "5566f62a29487d54d755e4e9c35c97661bb243d158d4bf7a712fb1c7eb3bcb80",
+        "uri": "https://contracts.example.test/reference-canonicalization.json"
+      },
+      "coverage": {
+        "covered_package_ids": [],
+        "fully_covered_media_buy_ids": [
+          "mb_acct_a"
+        ],
+        "media_buy_ids": [
+          "mb_acct_a"
+        ],
+        "package_ids": [],
+        "partially_covered_media_buy_ids": [],
+        "status": "full",
+        "unknown_media_buy_ids": [],
+        "unknown_package_ids": [],
+        "unsupported_media_buy_ids": [],
+        "unsupported_package_ids": []
+      },
+      "coverageRequirement": "full",
+      "deliveryConfigId": "daily",
+      "deliveryConfigVersion": 1,
+      "deliveryMethod": "warehouse_materialization",
+      "deliverySlaSeconds": 3600,
+      "destinationRef": "destination",
+      "feedPurpose": "billing",
+      "mediaBuyIds": [
+        "mb_acct_a"
+      ],
+      "officialFinality": {
+        "basis": "source_final",
+        "policyId": "fixture-official-v1"
+      },
+      "periodEnd": "2026-09-01T01:00:00Z",
+      "periodSourceTimezone": "UTC",
+      "periodStart": "2026-09-01T00:00:00Z",
+      "reconciliationMode": "consumer_receipt",
+      "reportDefinitionId": "reference-report-v1",
+      "reportDefinitionSha256": "2c988a2c008b84097be962248c433dc3acd9663372f89a4b1c7c1235ee635785",
+      "reportDefinitionUri": "https://contracts.example.test/reference-definition.json",
+      "reportingProfile": "paid_media_delivery",
+      "requiredFinality": "official",
+      "schemaDialect": "https://json-schema.org/draft/2020-12/schema",
+      "schemaRefPolicy": "local_fragment_only",
+      "schemaSha256": "aa4927d97b5e5889c4d79bd5461da81657cafea75a61d266ab452bfa0fc5d799",
+      "schemaUri": "https://contracts.example.test/reference-row-schema.json",
+      "schemaVersion": "1.0.0",
+      "verificationProfile": "canonical_digest"
+    }
+  ],
+  "now": "2026-09-28T07:31:39.502842Z",
+  "request": {
+    "account": {
+      "account_id": "acct_a"
+    },
+    "period": {
+      "end": "2026-09-01T01:00:00Z",
+      "start": "2026-09-01T00:00:00Z"
+    },
+    "view": "periods"
+  },
+  "schema_version": 1
+}
