@@ -112,6 +112,12 @@ The PostgreSQL factory installs ledger, source staging, and replay-seal schemas
 in the caller's pool. Ordinary adapter registrations use those durable stores;
 restart replay reads the sealed bytes without refetching the source. Open the
 pool before starting the service and close it after service shutdown settles.
+This is a change for existing `postgres()` callers, including those that do not
+enable `production`: `initialize()` now bootstraps `reporting_inline_objects`
+and `reporting_inline_seals` in addition to the ledger schema. Before upgrading,
+ensure the pool's startup role can run that source-schema DDL. A DDL-restricted
+runtime role cannot use this factory's schema bootstrap until its deployment
+grants or startup sequence are updated.
 
 Pass `ReportingProductionOptions` to compose the managed materializer, status
 projection, exact reads, consumer/receipt handlers, and optional signed

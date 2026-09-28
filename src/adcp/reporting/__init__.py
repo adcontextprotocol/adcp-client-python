@@ -201,6 +201,8 @@ __all__ = [
     "ReportingServiceResource",
     "ReportingAccountContext",
     "ReportingAdapter",
+    "ReportingProductionOptions",
+    "ReportingServiceOffering",
     "DeterministicReportingClock",
     "ScriptedReportingAdapter",
     "run_reporting_adapter_conformance",
