@@ -1335,35 +1335,41 @@ jobs:
           INPUT_ROOT="${RUNNER_TEMP}/reporting-1199-inputs"
           mkdir -p "${INPUT_ROOT}/python" "${INPUT_ROOT}/ts-stable" "${INPUT_ROOT}/ts-candidate"
 
-          curl --fail --silent --show-error --location \
+          curl --fail --silent --show-error --location --retry 4 --retry-delay 5 \
+            --retry-connrefused --connect-timeout 15 --max-time 180 \
             https://files.pythonhosted.org/packages/97/07/74355b24ace6d7618cd330cc970a0ba24f82673e5e1e1e7767d153f73989/adcp-8.0.0b16-py3-none-any.whl \
             --output "${INPUT_ROOT}/python/adcp-8.0.0b16-py3-none-any.whl"
-          curl --fail --silent --show-error --location \
+          curl --fail --silent --show-error --location --retry 4 --retry-delay 5 \
+            --retry-connrefused --connect-timeout 15 --max-time 180 \
             https://files.pythonhosted.org/packages/bc/cf/c796c2e7cd01e52ad82b90108aacdf960418c2cda0409198442cd1e8356b/adcp-8.0.0b18-py3-none-any.whl \
             --output "${INPUT_ROOT}/python/adcp-8.0.0b18-py3-none-any.whl"
           echo "7589a546cacdddce3a7a827adaa11d4ccab34768c558689b1c6850b85cd098b1  ${INPUT_ROOT}/python/adcp-8.0.0b16-py3-none-any.whl" | sha256sum --check
           echo "3eabf30fbdae298111f3bbb4f4efb36f193dd08d7845217948ed211d7476e2c3  ${INPUT_ROOT}/python/adcp-8.0.0b18-py3-none-any.whl" | sha256sum --check
           python -m venv "${INPUT_ROOT}/python/stable"
           python -m venv "${INPUT_ROOT}/python/candidate"
-          "${INPUT_ROOT}/python/stable/bin/pip" install \
+          "${INPUT_ROOT}/python/stable/bin/pip" install --retries 5 --timeout 30 \
             "${INPUT_ROOT}/python/adcp-8.0.0b16-py3-none-any.whl[pg]"
-          "${INPUT_ROOT}/python/candidate/bin/pip" install \
+          "${INPUT_ROOT}/python/candidate/bin/pip" install --retries 5 --timeout 30 \
             "${INPUT_ROOT}/python/adcp-8.0.0b18-py3-none-any.whl[pg]"
 
           cp scripts/ci/reporting_interop/npm/rc47/package.json \
             scripts/ci/reporting_interop/npm/rc47/package-lock.json "${INPUT_ROOT}/ts-stable/"
           cp scripts/ci/reporting_interop/npm/rc48/package.json \
             scripts/ci/reporting_interop/npm/rc48/package-lock.json "${INPUT_ROOT}/ts-candidate/"
-          curl --fail --silent --show-error --location \
+          curl --fail --silent --show-error --location --retry 4 --retry-delay 5 \
+            --retry-connrefused --connect-timeout 15 --max-time 180 \
             https://registry.npmjs.org/@adcp/sdk/-/sdk-14.0.0-rc.47.tgz \
             --output "${INPUT_ROOT}/ts-stable/sdk-14.0.0-rc.47.tgz"
-          curl --fail --silent --show-error --location \
+          curl --fail --silent --show-error --location --retry 4 --retry-delay 5 \
+            --retry-connrefused --connect-timeout 15 --max-time 180 \
             https://registry.npmjs.org/@adcp/sdk/-/sdk-14.0.0-rc.48.tgz \
             --output "${INPUT_ROOT}/ts-candidate/sdk-14.0.0-rc.48.tgz"
           echo "1b14aeddab973809f1850e189f833ef645d061e25c82d74046c97fd92d346e49  ${INPUT_ROOT}/ts-stable/sdk-14.0.0-rc.47.tgz" | sha256sum --check
           echo "420c1fa36128f3c3285234f58096a74c5668b74ffbf12804d6603c370083149b  ${INPUT_ROOT}/ts-candidate/sdk-14.0.0-rc.48.tgz" | sha256sum --check
-          npm ci --prefix "${INPUT_ROOT}/ts-stable" --ignore-scripts --no-audit --no-fund
-          npm ci --prefix "${INPUT_ROOT}/ts-candidate" --ignore-scripts --no-audit --no-fund
+          npm ci --prefix "${INPUT_ROOT}/ts-stable" --ignore-scripts --no-audit --no-fund \
+            --fetch-retries=5 --fetch-retry-mintimeout=5000 --fetch-retry-maxtimeout=30000
+          npm ci --prefix "${INPUT_ROOT}/ts-candidate" --ignore-scripts --no-audit --no-fund \
+            --fetch-retries=5 --fetch-retry-mintimeout=5000 --fetch-retry-maxtimeout=30000
 
       - name: Run installed Python seller x TypeScript client positive 2x2
         shell: bash
