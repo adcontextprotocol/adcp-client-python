@@ -63,3 +63,17 @@ def test_distribution_rejects_retired_schema_members(
         archive.addfile(member, io.BytesIO(body))
     with pytest.raises(ValueError, match="retired schema bundle"):
         check_retired_schema_bundles(wheel, source)
+
+
+def test_distribution_rejects_retired_release_metadata(tmp_path: Path) -> None:
+    wheel = tmp_path / "adcp-1-py3-none-any.whl"
+    source = tmp_path / "adcp-1.tar.gz"
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.writestr("adcp/x.py", "")
+    with tarfile.open(source, "w:gz") as archive:
+        body = b"{}"
+        member = tarfile.TarInfo("adcp-1/schemas/releases/3.2.0-rc.6.json")
+        member.size = len(body)
+        archive.addfile(member, io.BytesIO(body))
+    with pytest.raises(ValueError, match="retired schema bundle 3.2.0-rc.6"):
+        check_retired_schema_bundles(wheel, source)

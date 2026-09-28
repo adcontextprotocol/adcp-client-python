@@ -35,7 +35,8 @@ def check_retired_schema_bundles(wheel: Path, source: Path) -> None:
         source_members = archive.getnames()
     for artifact, members in ((wheel, wheel_members), (source, source_members)):
         for name in members:
-            retired = RETIRED_BUNDLES.intersection(Path(name).parts)
+            path = Path(name)
+            retired = RETIRED_BUNDLES.intersection((*path.parts, path.stem))
             if retired:
                 raise ValueError(
                     f"{artifact.name} contains retired schema bundle {sorted(retired)[0]}"

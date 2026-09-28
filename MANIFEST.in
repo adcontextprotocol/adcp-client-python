@@ -28,4 +28,5 @@ prune schemas/cache/2.5
 prune schemas/cache/3.2.0-beta.6
 prune schemas/cache/3.2.0-rc.3
 prune schemas/cache/3.2.0-rc.6
-recursive-include schemas/releases *.json
+prune schemas/releases
+include schemas/releases/3.2.0-rc.7.json
