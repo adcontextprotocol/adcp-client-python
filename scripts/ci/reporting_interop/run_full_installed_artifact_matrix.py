@@ -206,7 +206,9 @@ def _run_cell(
         ) as error:
             issues.append(f"cell_process_failed:{type(error).__name__}:{error}")
         finally:
-            foundation._stop(process)
+            # Shutdown verifies the durable notification retry against PostgreSQL.
+            # Give that bounded work time to write evidence before SIGKILL.
+            foundation._stop(process, grace_seconds=90)
     if webhook_path.is_file():
         try:
             webhook = json.loads(webhook_path.read_text(encoding="utf-8"))

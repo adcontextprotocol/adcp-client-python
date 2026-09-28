@@ -1462,12 +1462,12 @@ def _run_resource_location_comparison(
     }
 
 
-def _stop(process: subprocess.Popen[bytes]) -> None:
+def _stop(process: subprocess.Popen[bytes], *, grace_seconds: float = 10) -> None:
     if process.poll() is not None:
         return
     try:
         os.killpg(process.pid, signal.SIGTERM)
-        process.wait(timeout=10)
+        process.wait(timeout=grace_seconds)
     except subprocess.TimeoutExpired:
         os.killpg(process.pid, signal.SIGKILL)
         process.wait(timeout=5)
