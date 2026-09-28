@@ -7,7 +7,6 @@ import importlib.metadata
 import importlib.util
 import json
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -86,15 +85,13 @@ def main(settings):
         assert not reference_root.is_relative_to(Path(sys.prefix))
         assert not reference_root.is_relative_to(workspace)
         assert version not in settings["schemas"]
-        # The wheel excludes superseded bundles. Place immutable test inputs
-        # under the venv's source-layout fallback before running old vectors.
-        assert schema_loader._resolve_schema_root(version) is None
-        fixture_root = Path(sys.prefix) / "schemas" / "cache" / version
-        shutil.copytree(reference_root, fixture_root)
+        # The wheel excludes superseded bundles. The immutable test input
+        # remains available through the existing source-layout fallback.
+        assert not (files("adcp") / "_schemas" / version / "bundled").is_dir()
         historical_resolved = schema_loader._resolve_schema_root(version)
         assert historical_resolved is not None
         historical_root = historical_resolved.root
-        assert historical_root == fixture_root
+        assert historical_root == reference_root
         actual = schema_manifest(historical_root)
         assert actual == reference["files"]
         installed_historical.append(
@@ -204,8 +201,9 @@ def main(settings):
             assert Path(module.__file__).resolve().is_relative_to(Path(sys.prefix))
     for reference in references:
         assert schema_manifest(Path(reference["root"])) == reference["files"]
-        fixture_path = Path(sys.prefix) / "schemas/cache" / reference["version"]
-        assert schema_manifest(fixture_path) == reference["files"]
+        resolved = schema_loader._resolve_schema_root(reference["version"])
+        assert resolved is not None
+        assert schema_manifest(resolved.root) == reference["files"]
     progress.start("complete")
     progress.close()
     journal = progress.path.with_suffix(".jsonl")
