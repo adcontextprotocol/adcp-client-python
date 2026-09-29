@@ -1,6 +1,14 @@
-"""Static contract for the public canonical CreativeAsset binding (issue #1141)."""
+"""Public canonical model identity and closed format-kind types (#1141/#1241)."""
 
-from adcp.types import CanonicalFormatKind, CreativeAsset, CreativeManifest, DeliveryCreative
+from typing_extensions import assert_type
+
+from adcp.types import (
+    CanonicalFormatKind,
+    Creative,
+    CreativeAsset,
+    CreativeManifest,
+    DeliveryCreative,
+)
 from adcp.types.canonical_creative import CanonicalBoundaryModel
 
 
@@ -14,14 +22,20 @@ asset = CreativeAsset.model_validate(
     {
         "creative_id": "creative-1",
         "name": "Creative",
-        "format_kind": "future_canonical_format",
+        "format_kind": "image",
         "assets": {},
     }
 )
-format_kind: CanonicalFormatKind | str = asset.format_kind
+assert_type(asset.format_kind, CanonicalFormatKind)
+
+
+def listed_kind(creative: Creative) -> CanonicalFormatKind:
+    assert_type(creative.format_kind, CanonicalFormatKind)
+    return creative.format_kind
+
 
 manifest = CreativeManifest(assets={})
-manifest_kind: CanonicalFormatKind | str | None = manifest.format_kind
+assert_type(manifest.format_kind, CanonicalFormatKind | None)
 
 delivery = DeliveryCreative(
     creative_id="creative-1",

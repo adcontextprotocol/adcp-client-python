@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### ⚠ BREAKING CHANGES
+
+* **types:** `CreativeAsset.format_kind`, `Creative.format_kind`, and
+  `CreativeManifest.format_kind` now reject values outside `CanonicalFormatKind`.
+  Valid strings still normalize to enum members. Update stored and incoming
+  creative kinds using the [migration guide](docs/canonical-format-kinds-migration.md).
+  This closes [#1241](https://github.com/adcontextprotocol/adcp-client-python/issues/1241).
+
 ## [8.0.0-rc.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.18...v8.0.0-rc.1) (2026-09-28)
 
 

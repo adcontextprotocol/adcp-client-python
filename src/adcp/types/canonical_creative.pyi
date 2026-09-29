@@ -76,16 +76,16 @@ class Product(CanonicalBoundaryModel):
 
 class CreativeAsset(CanonicalBoundaryModel):
     creative_id: str
-    format_kind: CanonicalFormatKind | str
+    format_kind: CanonicalFormatKind
     format_option_ref: Any
 
 class Creative(CanonicalBoundaryModel):
     creative_id: str
-    format_kind: CanonicalFormatKind | str
+    format_kind: CanonicalFormatKind
     format_option_ref: Any
 
 class CreativeManifest(CanonicalBoundaryModel):
-    format_kind: CanonicalFormatKind | str | None = ...
+    format_kind: CanonicalFormatKind | None = ...
     assets: dict[str, Any]
 
 class CreativeVariant(CanonicalBoundaryModel):
