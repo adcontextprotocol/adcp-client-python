@@ -67,7 +67,6 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
 )
 from adcp.types.generated_poc.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.generated_poc.core.canonical_product import PublisherDomain
-from adcp.types.generated_poc.core.creative_manifest import CreativeManifest
 from adcp.types.generated_poc.core.format import Format
 from adcp.types.generated_poc.core.media_buy_features import MediaBuyFeatures
 from adcp.types.generated_poc.core.targeting import TargetingOverlay
@@ -256,16 +255,8 @@ def _apply_forward_compat() -> None:
     # Refresh its cached nested validator as well as the package model itself.
     CreateMediaBuyRequest.model_rebuild(force=True)
 
-    # Canonical format kinds are an open enum on consumer boundaries. Preserve
-    # values introduced by a newer protocol revision instead of rejecting the
-    # entire creative manifest. Known values still coerce to the StrEnum arm.
-    _patch_model_field(
-        CreativeManifest,
-        "format_kind",
-        _OpenCanonicalFormatKind | None,
-    )
-    CreativeManifest.model_rebuild(force=True)
-
+    # Delivery readback retains unknown future kinds. CreativeAsset, Creative,
+    # and CreativeManifest validate their declared closed canonical enum.
     _patch_model_field(
         DeliveryCreative,
         "format_kind",

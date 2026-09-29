@@ -1,10 +1,12 @@
-"""Regression tests for open-enum canonical format kinds (issue #1140)."""
+"""Closed creative format kinds and tolerant delivery readback (issues #1241/#1140)."""
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 
 import pytest
+from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
 from adcp.types import (
@@ -12,10 +14,15 @@ from adcp.types import (
     Creative,
     CreativeAsset,
     CreativeManifest,
+    CreativeVariant,
     DeliveryCreative,
     Format,
+    SyncCreativesRequest,
 )
 from adcp.types.aliases import DeliveryCreative as AliasDeliveryCreative
+from adcp.types.creative import Creative as PartialCreative
+from adcp.types.creative import CreativeAsset as PartialCreativeAsset
+from adcp.types.creative import CreativeManifest as PartialCreativeManifest
 
 FUTURE_FORMAT_KIND = "future_canonical_format"
 
@@ -55,25 +62,129 @@ def _creative_manifest(format_kind: str) -> CreativeManifest:
 
 @pytest.mark.parametrize(
     "factory",
-    [_creative_asset, _creative, _delivery_creative, _creative_manifest],
+    [_creative_asset, _creative, _creative_manifest],
 )
-def test_unknown_format_kind_is_preserved(factory) -> None:
-    model = factory(FUTURE_FORMAT_KIND)
+@pytest.mark.parametrize("value", [FUTURE_FORMAT_KIND, "totally_bogus", "IMAGE", ""])
+def test_unknown_format_kind_is_rejected(factory, value) -> None:
+    with pytest.raises(ValidationError) as error:
+        factory(value)
 
-    assert model.format_kind == FUTURE_FORMAT_KIND
-    assert type(model.format_kind) is str
-    assert model.model_dump(mode="json")["format_kind"] == FUTURE_FORMAT_KIND
+    assert [(detail["loc"], detail["type"]) for detail in error.value.errors()] == [
+        (("format_kind",), "enum")
+    ]
+
+
+@pytest.mark.parametrize("factory", [_creative_asset, _creative, _creative_manifest])
+@pytest.mark.parametrize("json_input", [False, True], ids=["python", "json"])
+def test_raw_creative_validation_rejects_unknown_format_kind(factory, json_input) -> None:
+    model = factory("image")
+    payload = model.model_dump(mode="json", exclude_unset=True)
+    payload["format_kind"] = FUTURE_FORMAT_KIND
+
+    with pytest.raises(ValidationError) as error:
+        if json_input:
+            type(model).model_validate_json(json.dumps(payload))
+        else:
+            type(model).model_validate(payload)
+
+    assert error.value.errors()[0]["loc"] == ("format_kind",)
+
+
+@pytest.mark.parametrize("factory", [_creative_asset, _creative, _creative_manifest])
+def test_creative_validation_schema_rejects_unknown_format_kind(factory) -> None:
+    model = factory("image")
+    validator = Draft202012Validator(type(model).model_json_schema())
+    payload = model.model_dump(mode="json", exclude_unset=True)
+    validator.validate(payload)
+
+    payload["format_kind"] = FUTURE_FORMAT_KIND
+    errors = list(validator.iter_errors(payload))
+    assert errors
+    assert all(list(error.path) == ["format_kind"] for error in errors)
+
+
+@pytest.mark.parametrize(
+    ("public", "partial"),
+    [
+        (CreativeAsset, PartialCreativeAsset),
+        (Creative, PartialCreative),
+        (CreativeManifest, PartialCreativeManifest),
+    ],
+)
+def test_partial_imports_use_the_same_creative_models(public, partial) -> None:
+    assert public is partial
+
+
+@pytest.mark.parametrize("factory", [_creative_asset, _creative])
+def test_creative_format_kind_remains_required_and_non_nullable(factory) -> None:
+    model = factory("image")
+    payload = model.model_dump(mode="json", exclude_unset=True)
+    del payload["format_kind"]
+    with pytest.raises(ValidationError) as missing:
+        type(model).model_validate(payload)
+    assert missing.value.errors()[0]["loc"] == ("format_kind",)
+    assert missing.value.errors()[0]["type"] == "missing"
+
+    payload["format_kind"] = None
+    with pytest.raises(ValidationError) as null:
+        type(model).model_validate(payload)
+    assert null.value.errors()[0]["loc"] == ("format_kind",)
+
+
+def test_manifest_format_kind_keeps_its_optional_default() -> None:
+    omitted = CreativeManifest(assets={})
+    explicit = CreativeManifest(assets={}, format_kind=None)
+    assert omitted.format_kind is None
+    assert explicit.format_kind is None
+    assert "format_kind" not in omitted.model_dump(exclude_unset=True)
+    assert explicit.model_dump(exclude_unset=True, exclude_none=False)["format_kind"] is None
+
+
+@pytest.mark.parametrize("json_input", [False, True], ids=["python", "json"])
+def test_sync_request_rejects_unknown_creative_format_kind(json_input) -> None:
+    payload = {
+        "account": {"account_id": "account-1"},
+        "idempotency_key": "creative-sync-idempotency-1",
+        "creatives": [_creative_asset("image").model_dump(mode="json", exclude_unset=True)],
+    }
+    SyncCreativesRequest.model_validate(payload)
+    payload["creatives"][0]["format_kind"] = FUTURE_FORMAT_KIND
+
+    with pytest.raises(ValidationError) as error:
+        if json_input:
+            SyncCreativesRequest.model_validate_json(json.dumps(payload))
+        else:
+            SyncCreativesRequest.model_validate(payload)
+    assert error.value.errors()[0]["loc"] == ("creatives", 0, "format_kind")
+
+
+@pytest.mark.parametrize("model", [CreativeVariant, DeliveryCreative])
+def test_nested_manifest_rejects_unknown_format_kind(model) -> None:
+    variant = {"variant_id": "variant-1", "manifest": {"assets": {}, "format_kind": "image"}}
+    payload = (
+        variant
+        if model is CreativeVariant
+        else {"creative_id": "creative-1", "variants": [variant]}
+    )
+    model.model_validate(payload)
+    variant["manifest"]["format_kind"] = FUTURE_FORMAT_KIND
+
+    with pytest.raises(ValidationError) as error:
+        model.model_validate(payload)
+    assert error.value.errors()[0]["loc"][-2:] == ("manifest", "format_kind")
 
 
 @pytest.mark.parametrize(
     "factory",
     [_creative_asset, _creative, _delivery_creative, _creative_manifest],
 )
-def test_known_format_kind_still_coerces_to_enum(factory) -> None:
-    model = factory("image")
+@pytest.mark.parametrize("kind", list(CanonicalFormatKind))
+def test_known_format_kind_still_coerces_to_enum(factory, kind) -> None:
+    model = factory(kind.value)
 
-    assert model.format_kind is CanonicalFormatKind.image
-    assert model.model_dump(mode="json")["format_kind"] == "image"
+    assert model.format_kind is kind
+    assert model.model_dump(mode="json")["format_kind"] == kind.value
+    assert type(model).model_validate_json(model.model_dump_json()).format_kind is kind
 
 
 def test_delivery_creative_alias_is_open_and_keeps_its_identity() -> None:

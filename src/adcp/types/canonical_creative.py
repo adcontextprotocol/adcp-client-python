@@ -588,24 +588,18 @@ Product = _canonical_clone(
 CreativeAsset = _canonical_clone(
     "CreativeAsset",
     _CanonicalCreativeWire,
-    overrides={"format_kind": (_OpenCanonicalFormatKind, Field())},
+    overrides={"format_kind": (CanonicalFormatKind, Field())},
 )
 
 Creative = _canonical_clone(
     "Creative",
     _CanonicalListedCreative,
-    overrides={"format_kind": (_OpenCanonicalFormatKind, Field())},
+    overrides={"format_kind": (CanonicalFormatKind, Field())},
 )
 
 _CreativeManifestBase = _canonical_clone(
     "_CreativeManifestBase",
     _CanonicalCreativeManifestWire,
-    overrides={
-        "format_kind": (
-            _OpenCanonicalFormatKind | None,
-            copy.deepcopy(_CanonicalCreativeManifestWire.model_fields["format_kind"]),
-        )
-    },
 )
 
 
