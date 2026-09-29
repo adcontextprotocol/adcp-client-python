@@ -90,7 +90,7 @@ def sparse_fetch(request: ReportingSourceSliceRequestV1) -> InlineFetchResult:
             item.constituent_id: {
                 "impressions": MetricEvidence.present(request.period.end),
                 "clicks": MetricEvidence.explicit_zero(data_through=request.period.end),
-                "spend": MetricEvidence.unavailable("billing_pending"),
+                "spend": MetricEvidence.delayed("billing_pending"),
             }
             for item in request.coverage.constituents
         },
@@ -161,12 +161,12 @@ async def test_colliding_accounts_keep_sparse_metric_evidence_and_staging_isolat
             clock=h.clock,
         )
         assert manifest.currency == obligation.currency == h.currencies[account]
-        assert manifest.row_count == 1 and manifest.coverage.status == "full"
+        assert manifest.row_count == 1 and manifest.coverage.status == "partial"
         cells = {cell.metric: cell for cell in manifest.metric_availability}
         assert {name: cell.status for name, cell in cells.items()} == {
             "impressions": "present",
             "clicks": "explicit_zero",
-            "spend": "unsupported",
+            "spend": "delayed",
         }
         assert cells["spend"].reason == "billing_pending" and cells["spend"].data_through is None
         assert [total.model_dump(exclude_none=True) for total in manifest.control_totals] == [
@@ -302,12 +302,12 @@ async def test_one_unavailable_spend_cell_suppresses_only_its_metric_total(
         (cell.constituent_id, cell.status)
         for cell in manifest.metric_availability
         if cell.metric == "spend"
-    } == {(constituents[0].constituent_id, "explicit_zero"), ("second", "unsupported")}
+    } == {(constituents[0].constituent_id, "explicit_zero"), ("second", "delayed")}
     assert [(t.name, t.value) for t in manifest.control_totals] == [
         ("impressions", "10"),
         ("clicks", "0"),
     ]
-    assert [item.status for item in manifest.coverage.constituents] == ["present", "present"]
+    assert [item.status for item in manifest.coverage.constituents] == ["present", "partial"]
 
 
 def _with_second_constituent(
@@ -379,7 +379,7 @@ async def test_a_no_row_unavailable_spend_cell_still_commits_its_neighbour_subto
                 "spend": (
                     MetricEvidence.present(request.period.end)
                     if item is first
-                    else MetricEvidence.unavailable("billing_pending")
+                    else MetricEvidence.delayed("billing_pending")
                 ),
             }
             for item in (first, second)
@@ -392,7 +392,7 @@ async def test_a_no_row_unavailable_spend_cell_still_commits_its_neighbour_subto
         (cell.constituent_id, cell.status)
         for cell in manifest.metric_availability
         if cell.metric == "spend"
-    } == {(first.constituent_id, "present"), (second.constituent_id, "unsupported")}
+    } == {(first.constituent_id, "present"), (second.constituent_id, "delayed")}
     spend = [
         (total.value, total.unit, total.value_type)
         for total in manifest.control_totals
@@ -437,7 +437,7 @@ async def test_a_withdrawn_money_cell_its_own_rows_contradict_fails_before_stagi
         ],
         currency=request.currency,
         cell_availability={
-            first.constituent_id: {"spend": MetricEvidence(status=status, reason="billing_pending")}
+            first.constituent_id: {"spend": MetricEvidence(status=status, reason="not_measured")}
         },
     )
     with pytest.raises(ValueError, match=f"{status} contradicts a monetary value"):
@@ -512,7 +512,7 @@ async def test_a_custom_frozen_monetary_metric_is_distinguished_like_spend(
                     "clicks": (
                         available
                         if item is first
-                        else MetricEvidence.unavailable("measurement_pending")
+                        else MetricEvidence.delayed("measurement_pending")
                     ),
                 }
                 for item in (first, second)

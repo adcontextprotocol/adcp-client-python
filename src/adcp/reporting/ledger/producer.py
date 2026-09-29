@@ -87,6 +87,7 @@ from adcp.reporting.source import (
     ReportingSourceSliceRequestV1,
     ReportingSourceStagedObjectReader,
     SourceBatchManifestV1,
+    _validate_metric_applicability,
     coverage_denominator_fingerprint_v1,
     iso_duration_milliseconds_v1,
     parse_verified_source_batch_manifest_v1,
@@ -1213,6 +1214,15 @@ class ReportingProducer:
         """
         obligation = await self._stored_obligation(obligation)
         self._validate_manifest_currency(obligation, manifest)
+        if any(cell.status == "unsupported" for cell in manifest.metric_availability):
+            try:
+                offering = self._source.capabilities.offering(manifest.offering_id)
+                _validate_metric_applicability(offering.metrics, manifest.metric_availability)
+            except (KeyError, ValueError):
+                raise LedgerConflictError(
+                    "MANIFEST_MISMATCH",
+                    "unsupported cells require partial metric support with a reason",
+                ) from None
         now = now or self._clock()
         turn = turn or WorkerTurn()
         existing = await self._store.list_revisions(

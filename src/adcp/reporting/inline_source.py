@@ -101,6 +101,7 @@ from adcp.reporting.source import (
     SourceBatchManifestV1,
     SourceBatchObjectV1,
     SourceControlTotalV1,
+    _validate_metric_applicability,
     deterministic_source_publication_id_v1,
     encode_source_batch_manifest_v1,
     publication_content_fingerprint_v1,
@@ -1172,6 +1173,7 @@ class InlineReportingSource:
                     constituent=item, status=status, data_through=watermark, reason=reason
                 )
             )
+        _validate_metric_applicability(offering.metrics, cells)
         return constituents, cells
 
     def _seal_manifest(

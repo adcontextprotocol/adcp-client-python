@@ -60,6 +60,8 @@ def _capabilities() -> ReportingSourceCapabilitiesV1:
                 "metrics": [
                     MetricOfferingV1(
                         name=metric,
+                        support="partial",
+                        reason="inventory_dependent",
                         semantic_contract_id=f"fixture.{offering.offering_id}.{metric}",
                         semantic_contract_version=str(index + 1),
                         semantic_contract_sha256=str(index + 1) * 64,
@@ -367,6 +369,51 @@ async def test_full_request_with_missing_or_delayed_cells_fails_without_staging(
 class _NoStaging(InMemoryStagingStore):
     async def stage(self, **kwargs: Any) -> tuple[str, str]:
         pytest.fail("invalid evidence must be rejected before staging")
+
+
+@pytest.mark.parametrize("explicit", [False, True], ids=["constituent-default", "cell-override"])
+@pytest.mark.parametrize("expected", ["full", "partial"])
+async def test_exact_support_rejects_unsupported_before_staging_or_sealing(
+    explicit: bool, expected: str
+) -> None:
+    payload = _capabilities().model_dump(mode="json")
+    for offering in payload["offerings"]:
+        for metric in offering["metrics"]:
+            metric.update(support="exact", reason=None)
+    payload["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(payload)
+    request = _request()
+    request = request.model_copy(
+        update={"coverage": request.coverage.model_copy(update={"expected": expected})}
+    )
+    answer = (
+        InlineFetchResult(
+            rows=[ROW],
+            cell_availability={
+                CID: {"completed_views": MetricEvidence.unavailable("not_video_inventory")}
+            },
+        )
+        if explicit
+        else InlineFetchResult(rows=[], unavailable_constituents={CID: "not_applicable"})
+    )
+    seals = InMemorySealStore()
+    source = InlineReportingSource(
+        capabilities=ReportingSourceCapabilitiesV1.model_validate(payload),
+        fetch=lambda req: answer,
+        staging=_NoStaging(),
+        seals=seals,
+        clock=lambda: OBSERVED_AT,
+    )
+    with pytest.raises(
+        ValueError, match="unsupported cells require partial metric support with a reason"
+    ):
+        await source.execute(request, cancel=asyncio.Event())
+    assert (
+        await seals.get(
+            account_id=request.identity.account_id,
+            source_execution_key=request.identity.source_execution_key,
+        )
+        is None
+    )
 
 
 class _RepeatedMapping(Mapping[str, Any]):
@@ -741,6 +788,10 @@ async def test_declared_zero_without_a_row_value_does_not_manufacture_a_total() 
 @pytest.mark.parametrize("pattern", ["unsupported", "delayed"])
 async def test_bulk_helpers_cover_only_the_requested_metric(pattern: str) -> None:
     request = _request(second=True)
+    if pattern == "unsupported":
+        request = request.model_copy(
+            update={"coverage": request.coverage.model_copy(update={"expected": "full"})}
+        )
     through = request.period.source_read_cutoff_at - timedelta(hours=4)
     overrides = (
         metric_unsupported_everywhere(request, "completed_views", "not_video_inventory")
@@ -753,6 +804,11 @@ async def test_bulk_helpers_cover_only_the_requested_metric(pattern: str) -> Non
         ),
         request,
     )
+    assert manifest.coverage.status == ("full" if pattern == "unsupported" else "partial")
+    assert {item.status for item in manifest.coverage.constituents} == {
+        "present" if pattern == "unsupported" else "partial"
+    }
+    assert "completed_views" not in {total.name for total in manifest.control_totals}
     for cell in manifest.metric_availability:
         if cell.metric == "completed_views":
             assert cell.status == pattern

@@ -1,7 +1,8 @@
 """Adopter patterns: typed synchronous/asynchronous fetches and metric evidence.
 
 These adapters assume an offering requesting impressions, clicks, viewability,
-and completed_views. The SDK supplies each metric's semantic-contract identity.
+and completed_views, with partial support and a reason for completed_views.
+The SDK supplies each metric's semantic-contract identity.
 """
 
 from collections.abc import Awaitable, Callable, Mapping, Sequence

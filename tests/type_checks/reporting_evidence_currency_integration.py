@@ -21,7 +21,7 @@ def fetch(request: ReportingSourceSliceRequestV1) -> InlineFetchResult:
         item.constituent_id: {
             "impressions": MetricEvidence.present(through),
             "clicks": MetricEvidence.explicit_zero(data_through=through),
-            "spend": MetricEvidence.unavailable("billing_pending"),
+            "spend": MetricEvidence.delayed("billing_pending"),
         }
         for item in request.coverage.constituents
     }

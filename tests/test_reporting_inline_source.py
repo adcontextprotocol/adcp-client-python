@@ -30,7 +30,12 @@ from adcp.reporting.inline_source import (
     InMemorySealStore,
     InMemoryStagingStore,
 )
-from adcp.reporting.source import ReportingSourceError, ReportingSourceSliceRequestV1
+from adcp.reporting.source import (
+    ReportingSourceCapabilitiesV1,
+    ReportingSourceError,
+    ReportingSourceSliceRequestV1,
+    reporting_source_capabilities_sha256_v1,
+)
 
 ROW = {
     "media_buy_id": "media-buy-redacted",
@@ -48,7 +53,8 @@ OBSERVED_AT = datetime(2026, 11, 6, 12, 0, tzinfo=timezone.utc)
 
 def _source(fetch: Any, **kwargs: Any) -> InlineReportingSource:
     kwargs.setdefault("clock", lambda: OBSERVED_AT)
-    return InlineReportingSource(capabilities=redacted_capabilities(), fetch=fetch, **kwargs)
+    kwargs.setdefault("capabilities", redacted_capabilities())
+    return InlineReportingSource(fetch=fetch, **kwargs)
 
 
 def _partial(request: ReportingSourceSliceRequestV1) -> ReportingSourceSliceRequestV1:
@@ -175,13 +181,19 @@ async def test_an_uncovered_constituent_is_missing_not_zero() -> None:
 
 async def test_a_known_unsupported_scope_is_reported_as_unsupported() -> None:
     request = _partial(redacted_snapshot_request())
+    payload = redacted_capabilities().model_dump(mode="json")
+    for offering in payload["offerings"]:
+        for metric in offering["metrics"]:
+            metric.update(support="partial", reason="inventory_dependent")
+    payload["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(payload)
     source = _source(
         lambda _request: InlineFetchResult(
             rows=[],
             unavailable_constituents={
                 "campaign-redacted-1": "Media buy lives on another ad server"
             },
-        )
+        ),
+        capabilities=ReportingSourceCapabilitiesV1.model_validate(payload),
     )
     manifest = await validate_reporting_source_execution(
         capabilities=source.capabilities,

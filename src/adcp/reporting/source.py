@@ -1057,6 +1057,17 @@ class ReportingMetricAvailabilityV1(_Frozen):
         return self
 
 
+def _validate_metric_applicability(
+    metrics: Sequence[MetricOfferingV1], cells: Sequence[ReportingMetricAvailabilityV1]
+) -> None:
+    """Only declared conditional support permits an inapplicable cell."""
+    conditional = {
+        metric.name for metric in metrics if metric.support == "partial" and metric.reason
+    }
+    if any(cell.status == "unsupported" and cell.metric not in conditional for cell in cells):
+        raise ValueError("unsupported cells require partial metric support with a reason")
+
+
 class SourceBatchCoverageV1(_Frozen):
     """The slice's coverage roll-up plus its per-constituent evidence."""
 
@@ -1503,11 +1514,11 @@ class SourceBatchManifestV1(_Frozen):
                 "metric availability must carry one record per constituent-metric cell"
             )
         by_constituent: dict[str, set[str]] = {}
-        available_constituents: set[str] = set()
+        applicable_constituents: set[str] = set()
         for cell in self.metric_availability:
             by_constituent.setdefault(cell.constituent_id, set()).add(cell.metric)
-            if cell.status in _AVAILABLE_STATUSES:
-                available_constituents.add(cell.constituent_id)
+            if cell.status != "unsupported":
+                applicable_constituents.add(cell.constituent_id)
         published_metrics = {metric for _, metric in cells}
         statuses = {item.constituent_id: item.status for item in self.coverage.constituents}
         for constituent_id, status in statuses.items():
@@ -1516,10 +1527,8 @@ class SourceBatchManifestV1(_Frozen):
                     f"constituent {constituent_id!r} needs one availability record for every "
                     "published metric"
                 )
-            if status in _AVAILABLE_STATUSES and constituent_id not in available_constituents:
-                raise ValueError(
-                    "available constituent requires at least one present or explicit-zero metric"
-                )
+            if status != "unsupported" and constituent_id not in applicable_constituents:
+                raise ValueError("a constituent without applicable metrics must be unsupported")
         for cell in self.metric_availability:
             constituent_status = statuses.get(cell.constituent_id)
             if constituent_status is None:

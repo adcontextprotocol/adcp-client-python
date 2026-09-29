@@ -37,6 +37,19 @@ adapter builds that evidence from the defaults and `cell_availability`
 overrides; use an override for each inapplicable or unready cell. An offering's
 `unavailable` metrics cannot pass source conformance.
 
+Only a metric declared with `support: partial` and a stable offering reason may
+emit `unsupported` cells. Declaring `exact` support promises applicability;
+use `missing` or `delayed` when that measurement has not arrived. The inline
+adapter rejects contradictory evidence before staging, and both producer
+admission and source conformance enforce the same rule for custom executors.
+For example, an exact-support spend metric awaiting billing must use
+`MetricEvidence.delayed("billing_pending")` and retain partial coverage.
+
+If a conditional metric is `unsupported` in every constituent, the batch can
+still have full coverage when every constituent has other applicable, complete
+measurements. Every cell of the inapplicable metric retains its `unsupported`
+evidence, including its reason and lack of watermark.
+
 | Constructor | Meaning and required evidence |
 | --- | --- |
 | `MetricEvidence.present(data_through)` | Measured values through a timezone-aware watermark. Every matched row for the constituent must carry a non-null value for this metric. |
@@ -71,9 +84,11 @@ coverage.
 
 An all-`unsupported` constituent has zero applicable metrics. It remains
 `unsupported`, with a reason and no watermark, and cannot satisfy full
-coverage. A result containing only such constituents has coverage `none`,
-never an observed zero. A partial-coverage request can retain that diagnostic
-result; a full-coverage request returns `PARTIAL_RESULT` without publishing.
+coverage. A manifest cannot label that constituent `partial` either. A result
+containing only such constituents has coverage `none`, never an observed zero.
+A partial-coverage request can retain that diagnostic result; a full-coverage
+request returns `PARTIAL_RESULT` without publishing. Conformance rejects a
+completed `none` result for a full-coverage request.
 
 Explicit watermarks are bounded by period end, source read cutoff, and the
 observation instant. A watermark before the period is rejected. An explicit
