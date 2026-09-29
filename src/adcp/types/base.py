@@ -274,8 +274,12 @@ class AdCPBaseModel(BaseModel):
     # the handful of models actually used are paid for.
     model_config = ConfigDict(extra=_EXTRA_POLICY, defer_build=True)
 
+    # Pydantic derives serialization JSON Schema from the model fields only when
+    # this serializer's return is unannotated. Even ``-> Any`` erases the shape.
     @model_serializer(mode="wrap")
-    def _notification_config_wire_defaults(self, handler: SerializerFunctionWrapHandler) -> Any:
+    def _notification_config_wire_defaults(  # type: ignore[no-untyped-def]
+        self, handler: SerializerFunctionWrapHandler
+    ):
         """Retain the unrelated product default only for product subscriptions.
 
         Reporting capability defaults and tier validation live in their own

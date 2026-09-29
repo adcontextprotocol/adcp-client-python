@@ -73,3 +73,9 @@ def test_unrelated_model_keeps_its_defaults():
     }
     assert model.model_dump() == expected
     assert json.loads(model.model_dump_json()) == expected
+
+
+def test_notification_config_serialization_schema_retains_fields():
+    schema = NotificationConfig.model_json_schema(mode="serialization")
+    assert schema["type"] == "object"
+    assert {"subscriber_id", "url", "event_types"} <= schema["properties"].keys()
