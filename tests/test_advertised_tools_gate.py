@@ -19,6 +19,7 @@ These tests lock the contract.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
@@ -300,6 +301,38 @@ def test_create_mcp_server_advertise_all_restores_full_surface():
     # Full ADCP surface minus comply_test_controller (which is
     # gated behind include_test_controller=True).
     assert len(tool_names) >= 50
+
+
+def test_create_mcp_server_threads_input_schema_mode():
+    """The compatibility escape hatch reaches registered MCP tools."""
+
+    class _SchemaModeHandler(ADCPHandler):
+        advertised_tools = {"get_products"}
+
+        async def get_products(self, params, context=None):
+            return {"products": []}
+
+    compact_mcp = create_mcp_server(_SchemaModeHandler(), name="compact-agent")
+    inline_mcp = create_mcp_server(
+        _SchemaModeHandler(),
+        name="inline-agent",
+        schema_mode="inline",
+    )
+
+    compact = next(
+        tool.parameters
+        for tool in compact_mcp._tool_manager.list_tools()
+        if tool.name == "get_products"
+    )
+    inline = next(
+        tool.parameters
+        for tool in inline_mcp._tool_manager.list_tools()
+        if tool.name == "get_products"
+    )
+
+    assert "$defs" in compact
+    assert '"$ref"' not in json.dumps(inline)
+    assert '"$defs"' not in json.dumps(inline)
 
 
 def test_adcp_agent_executor_defaults_to_override_filter():

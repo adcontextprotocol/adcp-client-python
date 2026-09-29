@@ -22,7 +22,7 @@ import copy
 import difflib
 import logging
 from collections.abc import Callable, Iterable
-from typing import Any
+from typing import Any, Literal
 
 from adcp.server._hooks import (
     PreValidationHookChain,
@@ -49,6 +49,17 @@ from adcp.validation.schema_loader import (
 )
 
 logger = logging.getLogger(__name__)
+
+SchemaMode = Literal["compact", "defs", "inline"]
+"""Shape used for Pydantic-derived MCP input discovery schemas.
+
+``compact`` keeps every top-level request field while pruning optional fields
+inside nested objects. ``defs`` keeps the complete Pydantic schema with local
+``$ref`` references, and ``inline`` preserves the historical fully expanded
+shape for clients that do not resolve JSON Schema references.
+"""
+
+_SCHEMA_MODES: frozenset[str] = frozenset({"compact", "defs", "inline"})
 
 
 def _looks_like_sync_media_buy_success(method_name: str, result: dict[str, Any]) -> bool:
@@ -1616,17 +1627,74 @@ def _copy_json_without_aliases(value: Any) -> Any:
     return value
 
 
+def _prune_to_required_fields(schema: dict[str, Any], *, _is_root: bool = True) -> dict[str, Any]:
+    """Compact a Pydantic schema without losing its request surface.
+
+    Every root request property is retained, including optional fields. Inside
+    nested objects only required properties remain. When optional properties
+    are omitted from an object that otherwise rejects unknown fields, the
+    compact discovery shape is opened with ``additionalProperties: true`` so
+    it remains a permissive description of payloads accepted by the complete
+    runtime Pydantic model.
+
+    The transform operates only on Pydantic's JSON Schema output; it never
+    substitutes hand-written tool shapes.
+    """
+
+    required_value = schema.get("required")
+    required = set(required_value) if isinstance(required_value, list) else set()
+    properties = schema.get("properties")
+    dropped_optional_properties = False
+
+    result: dict[str, Any] = {}
+    for key, value in schema.items():
+        if key == "properties" and isinstance(properties, dict):
+            selected = properties
+            if not _is_root:
+                selected = {
+                    name: field_schema
+                    for name, field_schema in properties.items()
+                    if name in required
+                }
+                dropped_optional_properties = len(selected) != len(properties)
+            result[key] = {
+                name: _prune_schema_node(field_schema, is_root=False)
+                for name, field_schema in selected.items()
+            }
+            continue
+        result[key] = _prune_schema_node(value, is_root=False)
+
+    if dropped_optional_properties and result.get("additionalProperties") is False:
+        result["additionalProperties"] = True
+    return result
+
+
+def _prune_schema_node(value: Any, *, is_root: bool) -> Any:
+    """Recursive implementation for :func:`_prune_to_required_fields`."""
+    if isinstance(value, dict):
+        return _prune_to_required_fields(value, _is_root=is_root)
+    if isinstance(value, list):
+        return [_prune_schema_node(item, is_root=False) for item in value]
+    return value
+
+
 def _model_to_json_schema(
-    model_type: Any, *, allow_root_union: bool = False
+    model_type: Any,
+    *,
+    allow_root_union: bool = False,
+    schema_mode: SchemaMode = "inline",
 ) -> dict[str, Any] | None:
-    """Generate a flat JSON Schema for a Pydantic model or union.
+    """Generate a JSON Schema for a Pydantic model or union.
 
     * Plain ``BaseModel`` subclasses use ``model_json_schema()``.
     * Union / Optional types use ``TypeAdapter`` so discriminated unions
       and aliases (``CreateMediaBuyResponse = ...Response1 | ...Response2``)
       generate as ``anyOf``.
-    * ``$ref`` nodes are inlined (see :func:`_inline_refs`) so MCP
-      clients that don't resolve references see the full surface.
+    * ``schema_mode="compact"`` keeps all root fields and prunes optional
+      nested fields while retaining local ``$defs`` references.
+    * ``schema_mode="defs"`` keeps Pydantic's complete local ``$defs``.
+    * ``schema_mode="inline"`` expands ``$ref`` nodes (see
+      :func:`_inline_refs`) for clients that don't resolve references.
 
     When ``allow_root_union`` is ``False`` (the default — used for input
     schemas), only an unconditional object root is accepted. Root unions,
@@ -1649,6 +1717,9 @@ def _model_to_json_schema(
     except Exception:
         return None
 
+    if not isinstance(schema, dict):
+        return None
+
     schema.pop("title", None)
 
     if not allow_root_union:
@@ -1666,6 +1737,15 @@ def _model_to_json_schema(
         if schema.get("type") != "object" or unsupported_root_keywords.intersection(schema):
             return None
 
+    if schema_mode not in _SCHEMA_MODES:
+        raise ValueError(
+            f"schema_mode must be one of {sorted(_SCHEMA_MODES)!r}, got {schema_mode!r}"
+        )
+
+    if schema_mode == "defs":
+        return schema
+    if schema_mode == "compact":
+        return _prune_to_required_fields(schema)
     try:
         return _inline_refs(schema)
     except Exception:
@@ -1674,6 +1754,8 @@ def _model_to_json_schema(
 
 def _generate_pydantic_schemas(
     tool_names: Iterable[str] | None = None,
+    *,
+    schema_mode: SchemaMode = "compact",
 ) -> dict[str, dict[str, Any]]:
     """Generate JSON schemas from Pydantic request models.
 
@@ -1882,7 +1964,11 @@ def _generate_pydantic_schemas(
         # Input schemas must be flat ``type: "object"`` — root-level
         # ``anyOf`` / ``$ref`` schemas are skipped so the hand-crafted
         # stub stays in place.
-        schema = _model_to_json_schema(request_type, allow_root_union=False)
+        schema = _model_to_json_schema(
+            request_type,
+            allow_root_union=False,
+            schema_mode=schema_mode,
+        )
         if schema is None:
             logger.debug(
                 "Pydantic input-schema generation skipped for %s, using hand-crafted schema",
@@ -2310,6 +2396,7 @@ def get_tools_for_handler(
     *,
     advertise_all: bool = False,
     adcp_version: str | None = None,
+    schema_mode: SchemaMode = "compact",
     _include_schemas: bool = True,
 ) -> list[dict[str, Any]]:
     """Return tool definitions the handler will actually answer.
@@ -2347,10 +2434,21 @@ def get_tools_for_handler(
             ``get_adcp_version()`` / ``_adcp_version`` pin is used when
             available. Class-only introspection retains the current generated
             model surface.
+        schema_mode: Pydantic-derived input discovery shape. ``"compact"``
+            (default) keeps every root request field and required nested fields,
+            ``"defs"`` keeps the complete schema with local references, and
+            ``"inline"`` preserves the historical fully expanded schema.
+            Version-pinned handlers continue to advertise their exact bundled
+            wire schemas.
 
     Returns:
         Filtered list of tool definitions.
     """
+    if schema_mode not in _SCHEMA_MODES:
+        raise ValueError(
+            f"schema_mode must be one of {sorted(_SCHEMA_MODES)!r}, got {schema_mode!r}"
+        )
+
     cls = handler if isinstance(handler, type) else type(handler)
     instance = handler if not isinstance(handler, type) else None
 
@@ -2414,6 +2512,15 @@ def get_tools_for_handler(
         # startup compact. Public definitions remain ordinary independently
         # mutable JSON values, matching the pre-memoization behavior.
         definitions = [_copy_json_without_aliases(tool) for tool in selected]
+        if schema_mode != "compact":
+            alternate_inputs = _generate_pydantic_schemas(
+                (definition["name"] for definition in definitions),
+                schema_mode=schema_mode,
+            )
+            for definition in definitions:
+                alternate = alternate_inputs.get(definition["name"])
+                if alternate is not None:
+                    definition["inputSchema"] = alternate
         for definition in definitions:
             if definition["name"] == "sync_reporting_receipts":
                 from adcp.reporting.receipts.wire import receipt_schema
@@ -3358,6 +3465,7 @@ class MCPToolSet:
         pre_validation_hooks: PreValidationHooks | None = None,
         response_enhancer: ResponseEnhancer | None = None,
         adcp_version: str | None = None,
+        schema_mode: SchemaMode = "compact",
     ):
         """Create tool set from handler.
 
@@ -3377,6 +3485,8 @@ class MCPToolSet:
             response_enhancer: Optional server-wide :data:`ResponseEnhancer`
                 applied to every successful response. See
                 :func:`create_tool_caller`.
+            schema_mode: Pydantic-derived input discovery shape. See
+                :func:`get_tools_for_handler`.
         """
         self.handler = handler
         resolved_adcp_version = _resolve_handler_adcp_version(handler, adcp_version)
@@ -3384,6 +3494,7 @@ class MCPToolSet:
             handler,
             advertise_all=advertise_all,
             adcp_version=resolved_adcp_version,
+            schema_mode=schema_mode,
         )
         self._tools: dict[str, Callable[..., Any]] = {}
 
@@ -3437,6 +3548,7 @@ def create_mcp_tools(
     pre_validation_hooks: PreValidationHooks | None = None,
     response_enhancer: ResponseEnhancer | None = None,
     adcp_version: str | None = None,
+    schema_mode: SchemaMode = "compact",
 ) -> MCPToolSet:
     """Create MCP tools from an ADCP handler.
 
@@ -3481,6 +3593,10 @@ def create_mcp_tools(
         adcp_version: Trusted server protocol pin for version-scoped
             ``tools/list`` schemas. Decorator-built handlers carry this pin
             automatically; class-based handlers can pass it here.
+        schema_mode: Pydantic-derived input discovery shape. ``"compact"``
+            is bounded and complete at the request root; use ``"defs"`` for
+            the full referenced schema or ``"inline"`` for legacy clients
+            that do not resolve local JSON Schema references.
 
     Returns:
         MCPToolSet with tool definitions and handlers.
@@ -3492,4 +3608,5 @@ def create_mcp_tools(
         pre_validation_hooks=pre_validation_hooks,
         response_enhancer=response_enhancer,
         adcp_version=adcp_version,
+        schema_mode=schema_mode,
     )

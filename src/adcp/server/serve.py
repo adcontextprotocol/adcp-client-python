@@ -39,6 +39,7 @@ from adcp.server.helpers import ResponseEnhancer
 from adcp.server.mcp_sessions import ADCPStreamableHTTPSessionManager
 from adcp.server.mcp_tools import (
     _HANDLER_TOOLS,
+    SchemaMode,
     _resolve_handler_adcp_version,
     create_tool_caller,
     get_tools_for_handler,
@@ -2418,6 +2419,7 @@ def create_mcp_server(
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
+    schema_mode: SchemaMode = "compact",
     streaming_responses: bool = False,
     stateless_http: bool = False,
     session_idle_timeout: float | None = 1800.0,
@@ -2471,6 +2473,11 @@ def create_mcp_server(
             :func:`~adcp.server.get_tools_for_handler` for semantics;
             use ``True`` for spec-compliance storyboards or when you
             deliberately want to expose a ``not_supported`` tool.
+        schema_mode: Pydantic-derived MCP input discovery shape.
+            ``"compact"`` (default) keeps every root request field while
+            bounding nested detail; ``"defs"`` keeps the complete referenced
+            schema; ``"inline"`` preserves the historical fully expanded
+            shape for clients that do not resolve local JSON Schema references.
         host: Network interface to bind to. Defaults to the ``ADCP_HOST``
             environment variable, then ``"0.0.0.0"`` (all interfaces).
             Use ``"127.0.0.1"`` for local-only development.
@@ -2645,6 +2652,7 @@ def create_mcp_server(
         context_factory=context_factory,
         middleware=middleware,
         advertise_all=advertise_all,
+        schema_mode=schema_mode,
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
         response_enhancer=response_enhancer,
@@ -2797,6 +2805,7 @@ def _register_handler_tools(
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
+    schema_mode: SchemaMode = "compact",
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     pre_validation_hooks: PreValidationHooks | None = None,
     response_enhancer: ResponseEnhancer | None = None,
@@ -2812,6 +2821,7 @@ def _register_handler_tools(
         handler,
         advertise_all=advertise_all,
         adcp_version=resolved_adcp_version,
+        schema_mode=schema_mode,
     )
     registered: list[str] = []
     for tool_def in tool_defs:
