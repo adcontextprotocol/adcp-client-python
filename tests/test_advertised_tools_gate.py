@@ -330,7 +330,8 @@ def test_create_mcp_server_threads_input_schema_mode():
         if tool.name == "get_products"
     )
 
-    assert "$defs" in compact
+    assert '"$ref"' not in json.dumps(compact)
+    assert '"$defs"' not in json.dumps(compact)
     assert '"$ref"' not in json.dumps(inline)
     assert '"$defs"' not in json.dumps(inline)
 

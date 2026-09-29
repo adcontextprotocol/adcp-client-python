@@ -118,6 +118,39 @@ def test_compact_pruning_keeps_root_fields_and_opens_pruned_nested_objects() -> 
     assert nested["additionalProperties"] is True
 
 
+def test_compact_pruning_keeps_pydantic_targeting_overlay_contract() -> None:
+    schema = {
+        "type": "object",
+        "properties": {
+            "packages": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "product_id": {"type": "string"},
+                        "targeting_overlay": {
+                            "anyOf": [{"type": "object"}, {"type": "null"}],
+                            "default": None,
+                        },
+                        "optional_nested": {"type": "integer"},
+                    },
+                    "required": ["product_id"],
+                },
+            },
+        },
+    }
+
+    compact = _prune_to_required_fields(schema)
+    package = compact["properties"]["packages"]["items"]
+
+    assert set(package["properties"]) == {"product_id", "targeting_overlay"}
+    assert (
+        package["properties"]["targeting_overlay"]
+        == schema["properties"]["packages"]["items"]["properties"]["targeting_overlay"]
+    )
+
+
 def test_input_schemas_match_pydantic_generation() -> None:
     """tools/list schemas must byte-match fresh generation — no silent drift."""
     fresh = _generate_pydantic_schemas()
@@ -201,7 +234,8 @@ def test_public_toolset_schema_mode_escape_hatch() -> None:
     compact = next(tool["inputSchema"] for tool in compact_tools if tool["name"] == "get_products")
     inline = next(tool["inputSchema"] for tool in inline_tools if tool["name"] == "get_products")
 
-    assert "$defs" in compact
+    assert '"$ref"' not in json.dumps(compact)
+    assert '"$defs"' not in json.dumps(compact)
     assert '"$ref"' not in json.dumps(inline)
     assert '"$defs"' not in json.dumps(inline)
 
@@ -353,7 +387,8 @@ def test_schema_modes_keep_the_same_pydantic_root_surface() -> None:
 
     root_fields = {mode: set(schema["properties"]) for mode, schema in schemas.items()}
     assert root_fields["compact"] == root_fields["defs"] == root_fields["inline"]
-    assert "$defs" in schemas["compact"]
+    assert '"$ref"' not in json.dumps(schemas["compact"])
+    assert '"$defs"' not in json.dumps(schemas["compact"])
     assert "$defs" in schemas["defs"]
     assert '"$ref"' not in json.dumps(schemas["inline"])
     assert '"$defs"' not in json.dumps(schemas["inline"])

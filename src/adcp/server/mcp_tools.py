@@ -54,12 +54,21 @@ SchemaMode = Literal["compact", "defs", "inline"]
 """Shape used for Pydantic-derived MCP input discovery schemas.
 
 ``compact`` keeps every top-level request field while pruning optional fields
-inside nested objects. ``defs`` keeps the complete Pydantic schema with local
-``$ref`` references, and ``inline`` preserves the historical fully expanded
-shape for clients that do not resolve JSON Schema references.
+inside nested objects. It is fully inlined after pruning so clients do not
+need local ``$ref`` support. ``defs`` keeps the complete Pydantic schema with
+local references, and ``inline`` preserves the historical fully expanded
+shape.
 """
 
 _SCHEMA_MODES: frozenset[str] = frozenset({"compact", "defs", "inline"})
+
+# These optional nested fields are part of the advertised mutation contract,
+# even though the surrounding request models do not require them. Their schema
+# bodies still come directly from Pydantic; this set only prevents the compact
+# transform from discarding those real input fields. In particular,
+# ``targeting_overlay`` is an input-only bridge whose exact advertised shape is
+# protected by tests/test_targeting_overlay_schema.py.
+_COMPACT_NESTED_DISCOVERY_FIELDS: frozenset[str] = frozenset({"targeting_overlay"})
 
 
 def _looks_like_sync_media_buy_success(method_name: str, result: dict[str, Any]) -> bool:
@@ -1631,11 +1640,11 @@ def _prune_to_required_fields(schema: dict[str, Any], *, _is_root: bool = True) 
     """Compact a Pydantic schema without losing its request surface.
 
     Every root request property is retained, including optional fields. Inside
-    nested objects only required properties remain. When optional properties
-    are omitted from an object that otherwise rejects unknown fields, the
-    compact discovery shape is opened with ``additionalProperties: true`` so
-    it remains a permissive description of payloads accepted by the complete
-    runtime Pydantic model.
+    nested objects only required properties and protected mutation-discovery
+    fields remain. When optional properties are omitted from an object that
+    otherwise rejects unknown fields, the compact discovery shape is opened
+    with ``additionalProperties: true`` so it remains a permissive description
+    of payloads accepted by the complete runtime Pydantic model.
 
     The transform operates only on Pydantic's JSON Schema output; it never
     substitutes hand-written tool shapes.
@@ -1654,11 +1663,15 @@ def _prune_to_required_fields(schema: dict[str, Any], *, _is_root: bool = True) 
                 selected = {
                     name: field_schema
                     for name, field_schema in properties.items()
-                    if name in required
+                    if name in required or name in _COMPACT_NESTED_DISCOVERY_FIELDS
                 }
                 dropped_optional_properties = len(selected) != len(properties)
             result[key] = {
-                name: _prune_schema_node(field_schema, is_root=False)
+                name: (
+                    _copy_json_without_aliases(field_schema)
+                    if name in _COMPACT_NESTED_DISCOVERY_FIELDS
+                    else _prune_schema_node(field_schema, is_root=False)
+                )
                 for name, field_schema in selected.items()
             }
             continue
@@ -1690,8 +1703,8 @@ def _model_to_json_schema(
     * Union / Optional types use ``TypeAdapter`` so discriminated unions
       and aliases (``CreateMediaBuyResponse = ...Response1 | ...Response2``)
       generate as ``anyOf``.
-    * ``schema_mode="compact"`` keeps all root fields and prunes optional
-      nested fields while retaining local ``$defs`` references.
+    * ``schema_mode="compact"`` expands local references, keeps all root
+      fields, and prunes optional nested fields.
     * ``schema_mode="defs"`` keeps Pydantic's complete local ``$defs``.
     * ``schema_mode="inline"`` expands ``$ref`` nodes (see
       :func:`_inline_refs`) for clients that don't resolve references.
@@ -1745,7 +1758,10 @@ def _model_to_json_schema(
     if schema_mode == "defs":
         return schema
     if schema_mode == "compact":
-        return _prune_to_required_fields(schema)
+        try:
+            return _prune_to_required_fields(_inline_refs(schema))
+        except Exception:
+            return None
     try:
         return _inline_refs(schema)
     except Exception:
