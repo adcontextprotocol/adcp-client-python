@@ -58,7 +58,8 @@ def executor():
 
 def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
     """``PlatformHandler.advertised_tools`` includes every wire tool
-    across all 10 Protocol families. Without this, the breadth-sprint
+    across all 10 Protocol families and the optional reporting service.
+    Without this, the breadth-sprint
     Protocols were dead code at runtime — buyers would 404 on
     ``build_creative``, ``get_signals``, etc."""
     expected = {
@@ -72,6 +73,10 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "provide_performance_feedback",
         "list_creative_formats",
         "list_creatives",
+        # Reliable reporting (advertised only when the service enables each tool)
+        "get_reporting_status",
+        "sync_reporting_status",
+        "sync_reporting_receipts",
         # AdCP 3.2 compact lifecycle (advertised subset is capability-filtered)
         "list_products",
         "request_proposals",
@@ -135,6 +140,9 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
 @pytest.mark.parametrize(
     "tool_name",
     [
+        "get_reporting_status",
+        "sync_reporting_status",
+        "sync_reporting_receipts",
         "build_creative_legacy",
         "preview_creative_legacy",
         "get_creative_delivery",
@@ -174,7 +182,7 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
     ],
 )
 def test_handler_shim_method_exists(tool_name: str) -> None:
-    """Every advertised non-sales tool has a corresponding shim method
+    """Every optional reporting and non-sales tool has a corresponding shim method
     on PlatformHandler. Without this, ``tools/list`` advertises tools
     the handler can't actually dispatch — buyer-facing 404."""
     assert hasattr(
