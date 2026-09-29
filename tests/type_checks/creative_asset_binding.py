@@ -42,4 +42,4 @@ delivery = DeliveryCreative(
     format_kind="future_canonical_format",
     variants=[],
 )
-delivery_kind: CanonicalFormatKind | str | None = delivery.format_kind
+assert_type(delivery.format_kind, CanonicalFormatKind | str | None)
