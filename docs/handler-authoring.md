@@ -55,6 +55,25 @@ Pass ``advertise_all=True`` to ``serve()`` / ``create_mcp_server()`` /
 storyboards, agents that deliberately signal
 ``not_supported`` on specific tools).
 
+### MCP input-schema migration
+
+The default MCP ``schema_mode="compact"`` keeps ``tools/list`` responses
+small by using local JSON Schema ``$ref`` entries and ``$defs``. MCP clients
+must resolve those references before inspecting nested input fields. If a
+client does not resolve local JSON Schema references, use the compatibility
+escape hatch when constructing the MCP server:
+
+```python
+from adcp.server import create_mcp_server
+
+mcp = create_mcp_server(MyAgent(), schema_mode="inline")
+```
+
+``schema_mode="inline"`` restores the historical, reference-free input
+schema at the cost of a substantially larger ``tools/list`` response.
+``schema_mode="defs"`` is also available when a client resolves references
+and needs the complete, unpruned Pydantic schema graph.
+
 **Custom handler bases — declare ``advertised_tools``.** The override
 filter works perfectly for direct ``ADCPHandler`` subclasses and the
 specialized bases (``GovernanceHandler``, ``ContentStandardsHandler``,
