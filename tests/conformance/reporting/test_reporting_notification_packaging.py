@@ -11,8 +11,10 @@ import signal
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 import zipfile
+from contextlib import nullcontext
 from pathlib import Path
 
 import pytest
@@ -76,19 +78,32 @@ def run_step(command, *, label, cwd, value=None, timeout=120, progress=None):
     if progress is not None:
         environment["PGAPPNAME"] = progress.application
         command = progress.command(command)
-    process = subprocess.Popen(
-        command,
-        cwd=cwd,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        start_new_session=True,
-        env=environment,
+    payload = json.dumps(value) if value is not None else None
+    # Progress polling may time out before communicate finishes writing a large
+    # input. Give monitored children a complete private input file and EOF so a
+    # slow reader cannot strand the remaining input between polling calls.
+    input_context = (
+        tempfile.TemporaryFile(mode="w+", encoding="utf-8")
+        if progress is not None and payload is not None
+        else nullcontext(None)
     )
+    with input_context as input_file:
+        if input_file is not None and payload is not None:
+            input_file.write(payload)
+            input_file.seek(0)
+            payload = None
+        process = subprocess.Popen(
+            command,
+            cwd=cwd,
+            stdin=input_file if input_file is not None else subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+            env=environment,
+        )
     print(f"notification_distribution stage={label} pid={process.pid} started", flush=True)
     try:
-        payload = json.dumps(value) if value is not None else None
         if progress is None:
             stdout, stderr = process.communicate(payload, timeout=timeout)
         else:

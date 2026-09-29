@@ -1,5 +1,6 @@
 """Deliberate installed-child stalls retain phase evidence and drain ownership."""
 
+import hashlib
 import json
 import os
 import secrets
@@ -82,6 +83,28 @@ print(json.dumps({'pytest_exit': int(code)}))
         "passed",
     ]
     assert events[-1]["completed"] == 1
+
+
+def test_installed_progress_delivers_large_input_after_multiple_polls(tmp_path, capsys):
+    value = {"manifest": "private-manifest-canary" + "\u03bb" * 65536}
+    raw = json.dumps(value).encode()
+    body = (
+        "import hashlib,json,sys,time;time.sleep(0.25);"
+        "raw=sys.stdin.buffer.read();"
+        "print(json.dumps({'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()}))"
+    )
+    result = run_step(
+        [sys.executable, "-I", "-c", body],
+        label="delayed_large_input",
+        cwd=tmp_path,
+        value=value,
+        timeout=10,
+        progress=ProgressMonitor(
+            tmp_path / "progress.json", phase_seconds={"startup": 5}, poll_seconds=0.02
+        ),
+    )
+    assert json.loads(result) == {"bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest()}
+    assert "private-manifest-canary" not in capsys.readouterr().out
 
 
 @pytest.mark.skipif(not Path("/proc").is_dir(), reason="Linux process ownership diagnostics")
