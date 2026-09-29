@@ -347,7 +347,7 @@ def test_a_clear_survives_on_sync_creatives_localization() -> None:
                 {
                     "creative_id": "cr-1",
                     "name": "Creative One",
-                    "format_kind": "third_party_tag",
+                    "format_kind": "display_tag",
                     "status": "approved",
                     "assets": {},
                     "created_date": "2026-09-01T00:00:00Z",
