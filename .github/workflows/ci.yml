@@ -1000,6 +1000,15 @@ jobs:
           python scripts/ci/check_distribution_size.py dist/
           pip install dist/*.whl
 
+      - name: Verify prerelease dependency resolution imports server
+        run: |
+          python -m venv "$RUNNER_TEMP/adcp-prerelease-smoke"
+          "$RUNNER_TEMP/adcp-prerelease-smoke/bin/python" -m pip install --pre dist/*.whl
+          (
+            cd "$RUNNER_TEMP"
+            "$RUNNER_TEMP/adcp-prerelease-smoke/bin/python" -I -c 'import adcp.server; import httpx; assert hasattr(httpx, "AsyncClient")'
+          )
+
       - name: Verify VCS-built wheel schemas
         working-directory: /tmp
         run: |

@@ -27,7 +27,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "httpx>=0.24.0",
+    "httpx>=0.24.0,<1.0",
     # httpcore is a transitive dep of httpx, but we import from it
     # directly (``adcp.signing.ip_pinned_transport`` subclasses
     # ``SyncBackend`` / ``AnyIOBackend`` from ``httpcore._backends.*``).
