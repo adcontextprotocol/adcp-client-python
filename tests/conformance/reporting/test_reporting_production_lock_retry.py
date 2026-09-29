@@ -154,8 +154,14 @@ async def test_lock_timeout_retries_are_bounded_and_outer_transaction_stays_owne
                     patch.setattr(psycopg.AsyncConnection, "execute", observe)
                     with pytest.raises(psycopg.errors.LockNotAvailable):
                         if caller_transaction:
-                            async with store.transaction():
-                                await asyncio.wait_for(producer(store).run_worker(), 3)
+
+                            async def run_in_owned_transaction():
+                                async with store.transaction():
+                                    await producer(store).run_worker()
+
+                            # Python 3.10 wait_for creates a child Task. The
+                            # transaction and worker must share that Task.
+                            await asyncio.wait_for(run_in_owned_transaction(), 3)
                         else:
                             await asyncio.wait_for(producer(store).run_worker(), 3)
         assert len(failures) == attempts
