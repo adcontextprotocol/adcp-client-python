@@ -24,6 +24,7 @@ from adcp.reporting.source import (
     MetricOfferingV1,
     ReportingSourceCapabilitiesV1,
     ReportingSourceSliceRequestV1,
+    parse_verified_source_batch_manifest_v1,
     reporting_source_capabilities_sha256_v1,
 )
 from adcp.reporting.testing import DeterministicReportingClock
@@ -393,3 +394,69 @@ async def test_full_core_publication_does_not_turn_zero_applicable_metrics_into_
         )
         == ()
     )
+
+
+@pytest.mark.parametrize("diagnostic_coverage", ["none", "partial"])
+async def test_custom_executor_cannot_complete_a_full_request_with_diagnostic_coverage(
+    conditional_service: ReliableReportingService,
+    diagnostic_coverage: str,
+) -> None:
+    service = conditional_service
+    adapter = _ConditionalAdapter(
+        "unsupported",
+        unsupported_buys=(
+            ("display-buy", "video-buy") if diagnostic_coverage == "none" else ("display-buy",)
+        ),
+        exact_metrics=(),
+    )
+    inner = service.sources.register("partial", adapter)
+
+    class DiagnosticExecutor:
+        capabilities = adapter.capabilities
+
+        async def execute(self, request, *, cancel, heartbeat=None):
+            assert request.coverage.expected == "full"
+            diagnostic_request = request.model_copy(
+                update={"coverage": request.coverage.model_copy(update={"expected": "partial"})}
+            )
+            return await inner.executor.execute(
+                diagnostic_request, cancel=cancel, heartbeat=heartbeat
+            )
+
+    registration = service.sources.register_executor(
+        "conditional", DiagnosticExecutor(), object_reader=inner.object_reader
+    )
+    config = replace(configuration("eur"), media_buy_ids=("display-buy", "video-buy"))
+    await service.configure(config)
+    turn = await service.run_worker(now=NOW)
+
+    assert not turn.configurations
+    assert set(turn.configuration_errors) == {config.generation_key}
+    error = turn.configuration_errors[config.generation_key]
+    assert isinstance(error, LedgerConflictError) and error.code == "MANIFEST_MISMATCH"
+    (diagnostic_request,) = adapter.calls
+    assert (
+        await service.store.list_revisions(
+            account_id="eur",
+            reporting_obligation_id=diagnostic_request.identity.reporting_obligation_id,
+        )
+        == ()
+    )
+    request = diagnostic_request.model_copy(
+        update={"coverage": diagnostic_request.coverage.model_copy(update={"expected": "full"})}
+    )
+    assert registration.object_reader is not None
+    result = await registration.executor.execute(request, cancel=asyncio.Event())
+    assert result.ok and result.response is not None and result.manifest_bytes is not None
+    manifest = parse_verified_source_batch_manifest_v1(
+        result.response.manifest, result.manifest_bytes
+    )
+    assert manifest.coverage.status == diagnostic_coverage
+    with pytest.raises(ReportingSourceConformanceError, match="full-coverage request"):
+        await validate_reporting_source_execution(
+            capabilities=registration.executor.capabilities,
+            request=request,
+            result=result,
+            object_reader=registration.object_reader,
+            clock=lambda: NOW,
+        )

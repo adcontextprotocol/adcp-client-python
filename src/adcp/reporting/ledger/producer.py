@@ -968,6 +968,11 @@ class ReportingProducer:
             return None
 
         manifest = self._verified_manifest(result)
+        if request.coverage.expected == "full" and manifest.coverage.status != "full":
+            raise LedgerConflictError(
+                "MANIFEST_MISMATCH",
+                "a full-coverage request cannot complete with partial or missing coverage",
+            )
         self._validate_manifest_currency(obligation, manifest)
         rows = await self._read_rows(request, manifest)
         # ``now`` freezes dispatch/lease/cutoff decisions, not publication.
