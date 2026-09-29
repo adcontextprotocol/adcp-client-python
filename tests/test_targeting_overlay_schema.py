@@ -45,7 +45,9 @@ def test_advertised_targeting_mutations_keep_input_only_schema(tool: str) -> Non
     # TypeAdapter. The session fixture also invokes this with every tool.
     _ensure_pydantic_schemas_applied(_TARGETING_PATHS)
     advertised = next(t["inputSchema"] for t in ADCP_TOOL_DEFINITIONS if t["name"] == tool)
-    nodes = dict(_targeting_nodes(advertised))
+    # Compact discovery may retain local references. Resolve them before
+    # comparing the semantic input surface and its historical use-site paths.
+    nodes = dict(_targeting_nodes(_inline_refs(advertised)))
     assert nodes.keys() == _TARGETING_PATHS[tool], tool
 
     # Independent mutation-only reference. Canonical create/update schemas

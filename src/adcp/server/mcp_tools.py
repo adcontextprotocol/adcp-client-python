@@ -53,14 +53,15 @@ logger = logging.getLogger(__name__)
 SchemaMode = Literal["compact", "defs", "inline"]
 """Shape used for Pydantic-derived MCP input discovery schemas.
 
-``compact`` keeps every top-level request field while pruning optional fields
-inside nested objects. It is fully inlined after pruning so clients do not
-need local ``$ref`` support. ``defs`` keeps the complete Pydantic schema with
+``compact`` keeps every top-level request field, required nested fields, and a
+small discovery floor while pruning optional nested detail. It retains only
+reachable local references. ``defs`` keeps the complete Pydantic schema with
 local references, and ``inline`` preserves the historical fully expanded
-shape.
+shape for clients that do not resolve references.
 """
 
 _SCHEMA_MODES: frozenset[str] = frozenset({"compact", "defs", "inline"})
+_SCHEMA_LITERAL_KEYS: frozenset[str] = frozenset({"const", "default", "examples"})
 
 # These optional nested fields are part of the advertised mutation contract,
 # even though the surrounding request models do not require them. Their schema
@@ -1636,19 +1637,144 @@ def _copy_json_without_aliases(value: Any) -> Any:
     return value
 
 
-def _prune_to_required_fields(schema: dict[str, Any], *, _is_root: bool = True) -> dict[str, Any]:
+def _local_ref_names(value: Any) -> set[str]:
+    """Collect definition names referenced by a JSON Schema fragment."""
+    names: set[str] = set()
+    if isinstance(value, dict):
+        ref = value.get("$ref")
+        if isinstance(ref, str) and ref.startswith("#/$defs/"):
+            names.add(ref.removeprefix("#/$defs/"))
+        for key, item in value.items():
+            if key != "$defs" and key not in _SCHEMA_LITERAL_KEYS:
+                names.update(_local_ref_names(item))
+    elif isinstance(value, list):
+        for item in value:
+            names.update(_local_ref_names(item))
+    return names
+
+
+def _protected_definition_names(schema: dict[str, Any]) -> frozenset[str]:
+    """Find transitive definitions used by protected discovery fields."""
+    direct: set[str] = set()
+
+    def _visit(value: Any) -> None:
+        if isinstance(value, dict):
+            properties = value.get("properties")
+            if isinstance(properties, dict):
+                for name in _COMPACT_NESTED_DISCOVERY_FIELDS:
+                    if name in properties:
+                        direct.update(_local_ref_names(properties[name]))
+            for key, item in value.items():
+                if key not in _SCHEMA_LITERAL_KEYS:
+                    _visit(item)
+        elif isinstance(value, list):
+            for item in value:
+                _visit(item)
+
+    _visit(schema)
+    defs = schema.get("$defs")
+    if not isinstance(defs, dict):
+        return frozenset()
+
+    protected: set[str] = set()
+    pending = list(direct)
+    while pending:
+        name = pending.pop()
+        if name in protected or name not in defs:
+            continue
+        protected.add(name)
+        pending.extend(_local_ref_names(defs[name]) - protected)
+    return frozenset(protected)
+
+
+def _is_scalar_discovery_schema(
+    schema: Any,
+    defs: dict[str, Any],
+    *,
+    _seen: frozenset[str] = frozenset(),
+) -> bool:
+    """Return whether a field is a scalar (or nullable scalar) schema."""
+    if not isinstance(schema, dict):
+        return False
+    if schema.get("type") in {"boolean", "integer", "number", "string"}:
+        return True
+    if "const" in schema and not isinstance(schema["const"], (dict, list)):
+        return True
+
+    ref = schema.get("$ref")
+    if isinstance(ref, str) and ref.startswith("#/$defs/"):
+        name = ref.removeprefix("#/$defs/")
+        if name in _seen or name not in defs:
+            return False
+        return _is_scalar_discovery_schema(
+            defs[name],
+            defs,
+            _seen=_seen | {name},
+        )
+
+    for keyword in ("anyOf", "oneOf"):
+        branches = schema.get(keyword)
+        if not isinstance(branches, list):
+            continue
+        non_null = [
+            branch
+            for branch in branches
+            if not (isinstance(branch, dict) and branch.get("type") == "null")
+        ]
+        return bool(non_null) and all(
+            _is_scalar_discovery_schema(branch, defs, _seen=_seen) for branch in non_null
+        )
+    return False
+
+
+def _drop_unreachable_defs(schema: dict[str, Any]) -> dict[str, Any]:
+    """Remove definitions that the compact root can no longer reach."""
+    defs = schema.get("$defs")
+    if not isinstance(defs, dict):
+        return schema
+
+    result = {key: value for key, value in schema.items() if key != "$defs"}
+    reachable: set[str] = set()
+    pending = list(_local_ref_names(result))
+    while pending:
+        name = pending.pop()
+        if name in reachable or name not in defs:
+            continue
+        reachable.add(name)
+        pending.extend(_local_ref_names(defs[name]) - reachable)
+    if reachable:
+        result["$defs"] = {
+            name: definition for name, definition in defs.items() if name in reachable
+        }
+    return result
+
+
+def _prune_to_required_fields(
+    schema: dict[str, Any],
+    *,
+    _is_root: bool = True,
+    _defs: dict[str, Any] | None = None,
+    _protected_defs: frozenset[str] | None = None,
+) -> dict[str, Any]:
     """Compact a Pydantic schema without losing its request surface.
 
     Every root request property is retained, including optional fields. Inside
-    nested objects only required properties and protected mutation-discovery
-    fields remain. When optional properties are omitted from an object that
-    otherwise rejects unknown fields, the compact discovery shape is opened
-    with ``additionalProperties: true`` so it remains a permissive description
-    of payloads accepted by the complete runtime Pydantic model.
+    nested objects required properties, scalar optionals, and protected
+    mutation-discovery fields remain. Protected fields keep their complete
+    referenced Pydantic model graph. When optional properties are omitted from
+    an object that otherwise rejects unknown fields, the compact discovery
+    shape is opened with ``additionalProperties: true`` so it remains a
+    permissive description of payloads accepted by the runtime model.
 
     The transform operates only on Pydantic's JSON Schema output; it never
     substitutes hand-written tool shapes.
     """
+
+    if _defs is None:
+        raw_defs = schema.get("$defs")
+        _defs = raw_defs if isinstance(raw_defs, dict) else {}
+    if _protected_defs is None:
+        _protected_defs = _protected_definition_names(schema)
 
     required_value = schema.get("required")
     required = set(required_value) if isinstance(required_value, list) else set()
@@ -1657,37 +1783,86 @@ def _prune_to_required_fields(schema: dict[str, Any], *, _is_root: bool = True) 
 
     result: dict[str, Any] = {}
     for key, value in schema.items():
+        if key in _SCHEMA_LITERAL_KEYS:
+            result[key] = _copy_json_without_aliases(value)
+            continue
+        if key == "$defs" and isinstance(value, dict):
+            result[key] = {
+                name: (
+                    _copy_json_without_aliases(definition)
+                    if name in _protected_defs
+                    else _prune_to_required_fields(
+                        definition,
+                        _is_root=False,
+                        _defs=_defs,
+                        _protected_defs=_protected_defs,
+                    )
+                )
+                for name, definition in value.items()
+            }
+            continue
         if key == "properties" and isinstance(properties, dict):
             selected = properties
             if not _is_root:
                 selected = {
                     name: field_schema
                     for name, field_schema in properties.items()
-                    if name in required or name in _COMPACT_NESTED_DISCOVERY_FIELDS
+                    if name in required
+                    or name in _COMPACT_NESTED_DISCOVERY_FIELDS
+                    or _is_scalar_discovery_schema(field_schema, _defs)
                 }
                 dropped_optional_properties = len(selected) != len(properties)
             result[key] = {
                 name: (
                     _copy_json_without_aliases(field_schema)
                     if name in _COMPACT_NESTED_DISCOVERY_FIELDS
-                    else _prune_schema_node(field_schema, is_root=False)
+                    else _prune_schema_node(
+                        field_schema,
+                        is_root=False,
+                        defs=_defs,
+                        protected_defs=_protected_defs,
+                    )
                 )
                 for name, field_schema in selected.items()
             }
             continue
-        result[key] = _prune_schema_node(value, is_root=False)
+        result[key] = _prune_schema_node(
+            value,
+            is_root=False,
+            defs=_defs,
+            protected_defs=_protected_defs,
+        )
 
     if dropped_optional_properties and result.get("additionalProperties") is False:
         result["additionalProperties"] = True
     return result
 
 
-def _prune_schema_node(value: Any, *, is_root: bool) -> Any:
+def _prune_schema_node(
+    value: Any,
+    *,
+    is_root: bool,
+    defs: dict[str, Any],
+    protected_defs: frozenset[str],
+) -> Any:
     """Recursive implementation for :func:`_prune_to_required_fields`."""
     if isinstance(value, dict):
-        return _prune_to_required_fields(value, _is_root=is_root)
+        return _prune_to_required_fields(
+            value,
+            _is_root=is_root,
+            _defs=defs,
+            _protected_defs=protected_defs,
+        )
     if isinstance(value, list):
-        return [_prune_schema_node(item, is_root=False) for item in value]
+        return [
+            _prune_schema_node(
+                item,
+                is_root=False,
+                defs=defs,
+                protected_defs=protected_defs,
+            )
+            for item in value
+        ]
     return value
 
 
@@ -1703,8 +1878,9 @@ def _model_to_json_schema(
     * Union / Optional types use ``TypeAdapter`` so discriminated unions
       and aliases (``CreateMediaBuyResponse = ...Response1 | ...Response2``)
       generate as ``anyOf``.
-    * ``schema_mode="compact"`` expands local references, keeps all root
-      fields, and prunes optional nested fields.
+    * ``schema_mode="compact"`` keeps reachable local references, all root
+      fields, required nested fields, scalar optionals, and protected input
+      surfaces while pruning other optional nested detail.
     * ``schema_mode="defs"`` keeps Pydantic's complete local ``$defs``.
     * ``schema_mode="inline"`` expands ``$ref`` nodes (see
       :func:`_inline_refs`) for clients that don't resolve references.
@@ -1758,10 +1934,7 @@ def _model_to_json_schema(
     if schema_mode == "defs":
         return schema
     if schema_mode == "compact":
-        try:
-            return _prune_to_required_fields(_inline_refs(schema))
-        except Exception:
-            return None
+        return _drop_unreachable_defs(_prune_to_required_fields(schema))
     try:
         return _inline_refs(schema)
     except Exception:
@@ -1779,6 +1952,9 @@ def _generate_pydantic_schemas(
     then generates JSON Schema via ``model_json_schema()``. This produces
     spec-accurate schemas with proper field types, descriptions,
     required fields, and nested ``$defs``.
+
+    ``schema_mode`` selects the compact referenced discovery shape, the full
+    Pydantic definition graph, or the historical fully inlined graph.
 
     The result is applied to ``ADCP_TOOL_DEFINITIONS`` lazily on first
     ``tools/list`` call by :func:`_ensure_pydantic_schemas_applied`. Any tool whose generation
@@ -2451,9 +2627,10 @@ def get_tools_for_handler(
             available. Class-only introspection retains the current generated
             model surface.
         schema_mode: Pydantic-derived input discovery shape. ``"compact"``
-            (default) keeps every root request field and required nested fields,
-            ``"defs"`` keeps the complete schema with local references, and
-            ``"inline"`` preserves the historical fully expanded schema.
+            (default) keeps every root request field, required nested fields,
+            scalar optionals, and protected mutation surfaces; ``"defs"``
+            keeps the complete schema with local references, and ``"inline"``
+            preserves the historical fully expanded schema.
             Version-pinned handlers continue to advertise their exact bundled
             wire schemas.
 

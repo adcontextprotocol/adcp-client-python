@@ -101,7 +101,10 @@ def test_compact_pruning_keeps_root_fields_and_opens_pruned_nested_objects() -> 
                 "additionalProperties": False,
                 "properties": {
                     "required_nested": {"type": "string"},
-                    "optional_nested": {"type": "integer"},
+                    "optional_complex": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                    },
                 },
                 "required": ["required_nested"],
             },
@@ -116,6 +119,75 @@ def test_compact_pruning_keeps_root_fields_and_opens_pruned_nested_objects() -> 
     assert set(nested["properties"]) == {"required_nested"}
     assert nested["required"] == ["required_nested"]
     assert nested["additionalProperties"] is True
+
+
+def test_compact_pruning_keeps_scalar_optional_discovery_floor() -> None:
+    schema = {
+        "type": "object",
+        "properties": {
+            "container": {
+                "type": "object",
+                "properties": {
+                    "optional_scalar": {"type": "integer"},
+                    "optional_nullable_scalar": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                    "optional_complex": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                    },
+                },
+            }
+        },
+    }
+
+    compact = _prune_to_required_fields(schema)
+    properties = compact["properties"]["container"]["properties"]
+
+    assert set(properties) == {"optional_scalar", "optional_nullable_scalar"}
+
+
+def test_compact_pruning_does_not_rewrite_literal_schema_values() -> None:
+    example = {
+        "properties": {"example_only": "value"},
+        "required": ["example_only"],
+    }
+    schema = {
+        "type": "object",
+        "properties": {"required_root": {"type": "string"}},
+        "required": ["required_root"],
+        "examples": [example],
+        "default": example,
+    }
+
+    compact = _prune_to_required_fields(schema)
+
+    assert compact["examples"] == [example]
+    assert compact["default"] == example
+
+
+def test_compact_generation_drops_unreachable_definitions() -> None:
+    class ModelWithOrphanDefinition:
+        @classmethod
+        def model_json_schema(cls):
+            return {
+                "type": "object",
+                "properties": {"item": {"$ref": "#/$defs/Reachable"}},
+                "$defs": {
+                    "Reachable": {
+                        "type": "object",
+                        "properties": {"id": {"type": "string"}},
+                        "required": ["id"],
+                    },
+                    "Orphaned": {
+                        "type": "object",
+                        "properties": {"unused": {"type": "string"}},
+                    },
+                },
+            }
+
+    compact = _model_to_json_schema(ModelWithOrphanDefinition, schema_mode="compact")
+
+    assert compact is not None
+    assert set(compact["$defs"]) == {"Reachable"}
 
 
 def test_compact_pruning_keeps_pydantic_targeting_overlay_contract() -> None:
@@ -133,7 +205,10 @@ def test_compact_pruning_keeps_pydantic_targeting_overlay_contract() -> None:
                             "anyOf": [{"type": "object"}, {"type": "null"}],
                             "default": None,
                         },
-                        "optional_nested": {"type": "integer"},
+                        "optional_complex": {
+                            "type": "array",
+                            "items": {"type": "object"},
+                        },
                     },
                     "required": ["product_id"],
                 },
@@ -234,8 +309,8 @@ def test_public_toolset_schema_mode_escape_hatch() -> None:
     compact = next(tool["inputSchema"] for tool in compact_tools if tool["name"] == "get_products")
     inline = next(tool["inputSchema"] for tool in inline_tools if tool["name"] == "get_products")
 
-    assert '"$ref"' not in json.dumps(compact)
-    assert '"$defs"' not in json.dumps(compact)
+    assert "$defs" in compact
+    assert '"$ref"' in json.dumps(compact)
     assert '"$ref"' not in json.dumps(inline)
     assert '"$defs"' not in json.dumps(inline)
 
@@ -370,6 +445,19 @@ def test_media_buy_seller_input_schemas_stay_within_discovery_budget() -> None:
         sizes[largest_name] < 250_000
     ), f"largest inputSchema is {largest_name}: {sizes[largest_name]:,} bytes"
 
+    def max_depth(value) -> int:
+        if isinstance(value, dict):
+            return 1 + max((max_depth(item) for item in value.values()), default=0)
+        if isinstance(value, list):
+            return 1 + max((max_depth(item) for item in value), default=0)
+        return 0
+
+    depths = {name: max_depth(schema) for name, schema in schemas.items()}
+    deepest_name = max(depths, key=depths.__getitem__)
+    assert (
+        depths[deepest_name] <= 20
+    ), f"deepest inputSchema is {deepest_name}: {depths[deepest_name]} levels"
+
 
 # ---------------------------------------------------------------------------
 # $defs inlining invariants (closes #208)
@@ -387,13 +475,20 @@ def test_schema_modes_keep_the_same_pydantic_root_surface() -> None:
 
     root_fields = {mode: set(schema["properties"]) for mode, schema in schemas.items()}
     assert root_fields["compact"] == root_fields["defs"] == root_fields["inline"]
-    assert '"$ref"' not in json.dumps(schemas["compact"])
-    assert '"$defs"' not in json.dumps(schemas["compact"])
+    assert "$defs" in schemas["compact"]
+    assert '"$ref"' in json.dumps(schemas["compact"])
     assert "$defs" in schemas["defs"]
     assert '"$ref"' not in json.dumps(schemas["inline"])
     assert '"$defs"' not in json.dumps(schemas["inline"])
     assert len(json.dumps(schemas["compact"])) < len(json.dumps(schemas["defs"]))
     assert len(json.dumps(schemas["defs"])) < len(json.dumps(schemas["inline"]))
+
+
+def test_inline_mode_is_ref_free_for_every_input_schema() -> None:
+    for tool_name, schema in _generate_pydantic_schemas(schema_mode="inline").items():
+        serialized = json.dumps(schema)
+        assert '"$ref"' not in serialized, tool_name
+        assert '"$defs"' not in serialized, tool_name
 
 
 def test_no_dollar_refs_or_defs_in_any_advertised_output_schema() -> None:
