@@ -638,12 +638,26 @@ CreativeVariant = _canonical_clone(
     overrides={"manifest": (CreativeManifest | None, Field(default=None))},
 )
 
+# A seller validates submitted manifests against the closed canonical enum.
+# Delivery is readback of what another seller served, so an unknown future
+# kind must remain representable without widening the public input models.
+_DeliveryCreativeManifest = _canonical_clone(
+    "_DeliveryCreativeManifest",
+    _CanonicalCreativeManifestWire,
+    overrides={"format_kind": (_OpenCanonicalFormatKind | None, Field(default=None))},
+)
+_DeliveryCreativeVariant = _canonical_clone(
+    "_DeliveryCreativeVariant",
+    _LegacyCreativeVariant,
+    overrides={"manifest": (_DeliveryCreativeManifest | None, Field(default=None))},
+)
+
 DeliveryCreative = _canonical_clone(
     "DeliveryCreative",
     _LegacyDeliveryCreative,
     overrides={
         "format_kind": (_OpenCanonicalFormatKind | None, Field(default=None)),
-        "variants": (list[CreativeVariant], Field()),
+        "variants": (list[_DeliveryCreativeVariant], Field()),
     },
 )
 

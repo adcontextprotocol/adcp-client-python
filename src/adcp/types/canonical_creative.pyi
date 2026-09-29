@@ -91,10 +91,17 @@ class CreativeManifest(CanonicalBoundaryModel):
 class CreativeVariant(CanonicalBoundaryModel):
     manifest: CreativeManifest | None
 
+class _DeliveryCreativeManifest(CanonicalBoundaryModel):
+    format_kind: CanonicalFormatKind | str | None = ...
+    assets: dict[str, Any]
+
+class _DeliveryCreativeVariant(CanonicalBoundaryModel):
+    manifest: _DeliveryCreativeManifest | None
+
 class DeliveryCreative(CanonicalBoundaryModel):
     creative_id: str
     format_kind: CanonicalFormatKind | str | None
-    variants: list[CreativeVariant]
+    variants: list[_DeliveryCreativeVariant]
 
 class CreativeFilters(CanonicalBoundaryModel): ...
 class ProductFilters(CanonicalBoundaryModel): ...
