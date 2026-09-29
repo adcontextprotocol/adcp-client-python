@@ -17,6 +17,7 @@ from adcp.types import (
     CreativeVariant,
     DeliveryCreative,
     Format,
+    GetCreativeDeliveryResponse,
     SyncCreativesRequest,
 )
 from adcp.types.aliases import DeliveryCreative as AliasDeliveryCreative
@@ -158,20 +159,51 @@ def test_sync_request_rejects_unknown_creative_format_kind(json_input) -> None:
     assert error.value.errors()[0]["loc"] == ("creatives", 0, "format_kind")
 
 
-@pytest.mark.parametrize("model", [CreativeVariant, DeliveryCreative])
-def test_nested_manifest_rejects_unknown_format_kind(model) -> None:
+def test_public_variant_rejects_unknown_manifest_format_kind() -> None:
     variant = {"variant_id": "variant-1", "manifest": {"assets": {}, "format_kind": "image"}}
-    payload = (
-        variant
-        if model is CreativeVariant
-        else {"creative_id": "creative-1", "variants": [variant]}
-    )
-    model.model_validate(payload)
+    CreativeVariant.model_validate(variant)
     variant["manifest"]["format_kind"] = FUTURE_FORMAT_KIND
 
     with pytest.raises(ValidationError) as error:
-        model.model_validate(payload)
+        CreativeVariant.model_validate(variant)
     assert error.value.errors()[0]["loc"][-2:] == ("manifest", "format_kind")
+
+
+def test_unknown_nested_manifest_kind_round_trips_in_delivery_readback() -> None:
+    payload = {
+        "currency": "USD",
+        "reporting_period": {
+            "start": "2026-09-01T00:00:00Z",
+            "end": "2026-09-02T00:00:00Z",
+        },
+        "creatives": [
+            {
+                "creative_id": "creative-1",
+                "format_kind": FUTURE_FORMAT_KIND,
+                "variants": [
+                    {
+                        "variant_id": "variant-1",
+                        "manifest": {"assets": {}, "format_kind": FUTURE_FORMAT_KIND},
+                    }
+                ],
+            }
+        ],
+    }
+    delivery = GetCreativeDeliveryResponse.model_validate(payload)
+    manifest = delivery.creatives[0].variants[0].manifest
+    assert manifest is not None
+    assert type(manifest) is not CreativeManifest
+    assert type(delivery.creatives[0].variants[0]) is not CreativeVariant
+    assert manifest.format_kind == FUTURE_FORMAT_KIND
+
+    encoded = delivery.model_dump_json()
+    assert GetCreativeDeliveryResponse.model_validate_json(encoded).model_dump(mode="json") == (
+        delivery.model_dump(mode="json")
+    )
+
+    with pytest.raises(ValidationError) as error:
+        CreativeManifest.model_validate(payload["creatives"][0]["variants"][0]["manifest"])
+    assert error.value.errors()[0]["loc"] == ("format_kind",)
 
 
 @pytest.mark.parametrize(
