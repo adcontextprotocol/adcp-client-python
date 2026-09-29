@@ -26,8 +26,16 @@ return InlineFetchResult(
 
 This publishes one `partial` constituent with four independent metric cells.
 It can complete a request whose `coverage.expected` is `partial`. A `full`
-request receives retryable `PARTIAL_RESULT` and no publication until every
-requested cell is available.
+request receives retryable `PARTIAL_RESULT` while `viewability` is delayed.
+When every applicable cell is available, the constituent is `present` and can
+satisfy full coverage even though `completed_views` remains `unsupported`.
+
+Offering metrics with `support: partial` are requestable alongside `exact`
+metrics in both the service and source conformance. Every requested cell must
+still have manifest evidence with the offering's semantic contract. The inline
+adapter builds that evidence from the defaults and `cell_availability`
+overrides; use an override for each inapplicable or unready cell. An offering's
+`unavailable` metrics cannot pass source conformance.
 
 | Constructor | Meaning and required evidence |
 | --- | --- |
@@ -35,7 +43,7 @@ requested cell is available.
 | `MetricEvidence.explicit_zero(data_through=...)` | An observed zero. The watermark defaults to the fetch watermark. Any supplied values must be finite numeric zeros. |
 | `MetricEvidence.missing(reason)` | No answer for this metric. A stable reason is required; a watermark is forbidden. |
 | `MetricEvidence.delayed(reason, data_through=...)` | Not ready yet. A stable reason is required; retain a known watermark when available. |
-| `MetricEvidence.unavailable(reason)` | The source cannot measure this metric for this constituent. Emits the existing wire status `unsupported`; a reason is required and a watermark is forbidden. |
+| `MetricEvidence.unavailable(reason)` | This metric is inapplicable to this constituent. Emits `unsupported`; a reason is required and a watermark is forbidden. Use `missing` or `delayed` for an applicable measurement that has not arrived. |
 
 Evidence is immutable. Direct `MetricEvidence(...)` construction enforces the
 same invariants. Reasons use the existing manifest format: bounded ASCII,
@@ -56,8 +64,16 @@ behavior. Omitted cells inherit their constituent's status, reason, and
 watermark. Explicit cells take precedence over `covered_constituent_ids` and
 `unavailable_constituents`, including explicit measurements for an otherwise
 missing constituent. Coverage is then reconciled from the resolved cells:
-uniform statuses stay uniform, present plus explicit-zero is `present`, and
-other mixtures are `partial`.
+uniform statuses stay uniform. A mixture of `present`, `explicit_zero`, and
+`unsupported` cells is `present` if at least one cell is available. Other
+mixtures are `partial`; missing, delayed, and stale cells still prevent full
+coverage.
+
+An all-`unsupported` constituent has zero applicable metrics. It remains
+`unsupported`, with a reason and no watermark, and cannot satisfy full
+coverage. A result containing only such constituents has coverage `none`,
+never an observed zero. A partial-coverage request can retain that diagnostic
+result; a full-coverage request returns `PARTIAL_RESULT` without publishing.
 
 Explicit watermarks are bounded by period end, source read cutoff, and the
 observation instant. A watermark before the period is rejected. An explicit

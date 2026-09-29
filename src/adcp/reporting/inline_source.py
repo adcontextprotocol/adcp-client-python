@@ -15,9 +15,10 @@ evidence, and byte-identical replay.
 For uneven metric support, return :class:`InlineFetchResult` with
 ``cell_availability={constituent_id: {metric_name: MetricEvidence(...)}}``.
 Omitted cells retain the constituent defaults. Explicit evidence controls each
-cell independently and mixed cells make the constituent partial. A cell that
-withdraws a metric its own constituent's rows report withdraws that metric's
-control total, so no total ever sums a disclaimed value; a cell that staged no
+cell independently. Unsupported cells are inapplicable: alongside available
+cells they do not make the constituent partial. A cell that withdraws a metric
+its own constituent's rows report withdraws that metric's control total, so no
+total ever sums a disclaimed value; a cell that staged no
 rows reaches no sum and leaves its neighbours' subtotal intact. Money has no
 such choice -- see ``monetary_metrics`` on :class:`InlineReportingSource`.
 Metric semantics always come from the selected SDK offering.
@@ -285,11 +286,13 @@ class InlineFetchResult:
     Keys are the frozen request's constituent IDs, which need not equal media
     buy IDs. Omitted cells retain the derived constituent status and watermark.
     Explicit cells override even missing/unsupported constituent defaults;
-    mixed availability promotes the constituent to ``partial``. The SDK still
-    applies the source cutoff, observation ceiling, and authoritative freshness
-    gate. A cell watermark may advance the batch watermark without advancing
-    other cells. This is an adapter surface, not the manifest's wire-format
-    ``metric_availability`` list.
+    unsupported cells do not demote otherwise available coverage. With no
+    applicable cells, the constituent stays ``unsupported`` and cannot satisfy
+    full coverage. Other mixed availability promotes it to ``partial``. The
+    SDK still applies the source cutoff, observation ceiling, and authoritative
+    freshness gate. A cell watermark may advance the batch watermark without
+    advancing other cells. This is an adapter surface, not the manifest's
+    wire-format ``metric_availability`` list.
 
     Unknown keys, duplicate mapping entries, invalid evidence, contradictory
     explicit zeros, and a withdrawn *monetary* cell whose own constituent's rows
@@ -1139,9 +1142,13 @@ class InlineReportingSource:
             reason = fallback_reason
             if overrides.get(constituent_id):
                 cell_statuses = {cell.status for cell in constituent_cells}
-                if len(cell_statuses) == 1:
+                if cell_statuses == {"unsupported"}:
+                    # Zero applicable metrics is no coverage evidence, not a
+                    # vacuously complete measurement or an observed zero.
+                    status = "unsupported"
+                elif len(cell_statuses) == 1:
                     status = constituent_cells[0].status
-                elif cell_statuses <= _AVAILABLE:
+                elif cell_statuses <= _AVAILABLE | {"unsupported"}:
                     status = "present"
                 else:
                     status = "partial"

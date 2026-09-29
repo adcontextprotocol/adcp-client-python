@@ -218,7 +218,9 @@ async def test_explicit_cells_override_constituent_defaults(fallback: str) -> No
     assert cells["impressions"].status == explicit.status
     assert cells["impressions"].reason == explicit.reason
     assert {cells[metric].status for metric in METRICS[1:]} == {fallback}
-    assert manifest.coverage.constituents[0].status == "partial"
+    assert manifest.coverage.constituents[0].status == (
+        "present" if fallback in {"present", "unsupported"} else "partial"
+    )
 
 
 async def test_explicit_cells_can_replace_all_missing_constituent_defaults() -> None:
@@ -291,7 +293,58 @@ async def test_zero_row_mixed_unavailability_has_no_manufactured_measurements() 
     }
 
 
-async def test_full_request_with_mixed_cells_fails_without_staging() -> None:
+@pytest.mark.parametrize("authoritative", [False, True], ids=["snapshot", "official"])
+@pytest.mark.parametrize("available", ["present", "explicit_zero"])
+async def test_unsupported_cells_do_not_demote_full_coverage(
+    authoritative: bool, available: str
+) -> None:
+    request = _request(authoritative=authoritative)
+    request = request.model_copy(
+        update={"coverage": request.coverage.model_copy(update={"expected": "full"})}
+    )
+    rows = [
+        {
+            "media_buy_id": "media-buy-redacted",
+            **{metric: 10 if available == "present" else 0 for metric in METRICS[:-1]},
+        }
+    ]
+    watermark = min(request.period.end, request.period.source_read_cutoff_at)
+    manifest = await _seal(
+        InlineFetchResult(
+            rows=rows,
+            cell_availability={
+                CID: {
+                    **{
+                        metric: MetricEvidence(status=available, data_through=watermark)
+                        for metric in METRICS[:-1]
+                    },
+                    "completed_views": MetricEvidence.unavailable("not_video_inventory"),
+                }
+            },
+        ),
+        request,
+    )
+    assert manifest.coverage.status == "full"
+    constituent = manifest.coverage.constituents[0]
+    assert (constituent.status, constituent.data_through, constituent.reason) == (
+        "present",
+        watermark,
+        None,
+    )
+    assert not manifest.explicit_zero  # A normalized measurement row, not a batch-wide zero.
+    assert {total.name for total in manifest.control_totals} == set(METRICS[:-1])
+    unsupported = manifest.metric_availability[-1]
+    assert (unsupported.status, unsupported.reason, unsupported.data_through) == (
+        "unsupported",
+        "not_video_inventory",
+        None,
+    )
+
+
+@pytest.mark.parametrize("status", ["missing", "delayed"])
+async def test_full_request_with_missing_or_delayed_cells_fails_without_staging(
+    status: str,
+) -> None:
     request = _request()
     request = request.model_copy(
         update={"coverage": request.coverage.model_copy(update={"expected": "full"})}
@@ -299,9 +352,9 @@ async def test_full_request_with_mixed_cells_fails_without_staging() -> None:
     source = _source(
         lambda req: InlineFetchResult(
             rows=[ROW],
-            cell_availability=metric_unsupported_everywhere(
-                req, "completed_views", "not_video_inventory"
-            ),
+            cell_availability={
+                CID: {"completed_views": MetricEvidence(status=status, reason="not_ready")}
+            },
         ),
         staging=_NoStaging(),
     )
@@ -615,7 +668,8 @@ async def test_a_covered_zero_row_constituent_keeps_zeros_only_for_its_available
         ),
         request,
     )
-    assert manifest.coverage.constituents[1].status == "partial"
+    assert manifest.coverage.status == "full"
+    assert manifest.coverage.constituents[1].status == "present"
     assert not manifest.explicit_zero
     for cell in manifest.metric_availability:
         if cell.constituent_id == SECOND_CID:

@@ -235,10 +235,11 @@ _BACKOFF_EVIDENCE_CODES = frozenset({"RATE_LIMITED", "QUOTA_EXHAUSTED", "PROVIDE
 _AVAILABLE_STATUSES = frozenset({"present", "explicit_zero"})
 
 #: A constituent's roll-up status constrains what its metric cells may claim.
-#: ``partial`` is the only genuinely mixed roll-up: its cells keep independent
-#: statuses precisely so a consumer can select a compatible subset.
+#: Unsupported cells are inapplicable and may accompany available cells in a
+#: present constituent. Other unavailable cells still require a degraded
+#: roll-up, retaining their independent evidence for consumers.
 _CONSTITUENT_ALLOWS_METRIC: Mapping[str, frozenset[str]] = {
-    "present": frozenset({"present", "explicit_zero"}),
+    "present": frozenset({"present", "explicit_zero", "unsupported"}),
     "explicit_zero": frozenset({"explicit_zero"}),
     "unsupported": frozenset({"unsupported"}),
     "delayed": frozenset({"unsupported", "delayed", "missing"}),
@@ -1502,15 +1503,22 @@ class SourceBatchManifestV1(_Frozen):
                 "metric availability must carry one record per constituent-metric cell"
             )
         by_constituent: dict[str, set[str]] = {}
+        available_constituents: set[str] = set()
         for cell in self.metric_availability:
             by_constituent.setdefault(cell.constituent_id, set()).add(cell.metric)
+            if cell.status in _AVAILABLE_STATUSES:
+                available_constituents.add(cell.constituent_id)
         published_metrics = {metric for _, metric in cells}
         statuses = {item.constituent_id: item.status for item in self.coverage.constituents}
-        for constituent_id in statuses:
+        for constituent_id, status in statuses.items():
             if by_constituent.get(constituent_id, set()) != published_metrics:
                 raise ValueError(
                     f"constituent {constituent_id!r} needs one availability record for every "
                     "published metric"
+                )
+            if status in _AVAILABLE_STATUSES and constituent_id not in available_constituents:
+                raise ValueError(
+                    "available constituent requires at least one present or explicit-zero metric"
                 )
         for cell in self.metric_availability:
             constituent_status = statuses.get(cell.constituent_id)

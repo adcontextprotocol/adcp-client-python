@@ -221,11 +221,14 @@ def _validate_request_against_capabilities(
             "the selected offering does not support immutable corrections",
         )
 
-    exact_metrics = {metric.name for metric in offering.metrics if metric.support == "exact"}
+    requestable_metrics = {
+        metric.name for metric in offering.metrics if metric.support in {"exact", "partial"}
+    }
     for metric in request.requested_metrics:
-        if metric not in exact_metrics:
+        if metric not in requestable_metrics:
             raise _fail(
-                "CAPABILITY_MISMATCH", f"requested metric {metric!r} is not exact in the offering"
+                "CAPABILITY_MISMATCH",
+                f"requested metric {metric!r} is not supported in the offering",
             )
     exact_dimensions = {
         dimension.name for dimension in offering.dimensions if dimension.support == "exact"

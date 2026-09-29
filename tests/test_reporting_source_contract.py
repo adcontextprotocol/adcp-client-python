@@ -42,6 +42,7 @@ from adcp.reporting.source import (
     encode_source_batch_manifest_v1,
     parse_verified_source_batch_manifest_v1,
     publication_content_fingerprint_v1,
+    reporting_source_capabilities_sha256_v1,
     source_batch_manifest_reference_v1,
 )
 
@@ -143,6 +144,33 @@ async def test_metric_outside_the_offering_is_refused() -> None:
             object_reader=reader,
         )
     assert error.value.code == "CAPABILITY_MISMATCH"
+
+
+@pytest.mark.parametrize("support", ["partial", "unavailable"])
+async def test_conditional_metric_support_is_requestable_but_unavailable_is_not(
+    support: str,
+) -> None:
+    payload = redacted_capabilities().model_dump(mode="json")
+    for offering in payload["offerings"]:
+        for metric in offering["metrics"]:
+            metric.update(support=support, reason="inventory_dependent")
+    payload["capabilities_sha256"] = reporting_source_capabilities_sha256_v1(payload)
+    capabilities = ReportingSourceCapabilitiesV1.model_validate(payload)
+    request = redacted_snapshot_request()
+    result, manifest, reader = redacted_completed_result(request)
+    if support == "unavailable":
+        with pytest.raises(ReportingSourceConformanceError) as error:
+            await validate_reporting_source_execution(
+                capabilities=capabilities, request=request, result=result, object_reader=reader
+            )
+        assert error.value.code == "CAPABILITY_MISMATCH"
+    else:
+        assert (
+            await validate_reporting_source_execution(
+                capabilities=capabilities, request=request, result=result, object_reader=reader
+            )
+            == manifest
+        )
 
 
 async def test_slice_wider_than_the_offering_window_is_refused() -> None:
@@ -389,6 +417,33 @@ async def test_metric_status_cannot_contradict_its_constituent() -> None:
     ]
     with pytest.raises(ValidationError, match="contradicts constituent status"):
         _rebind(manifest, metric_availability=contradictory)
+
+
+@pytest.mark.parametrize("status", ["missing", "delayed", "stale", "partial"])
+def test_full_constituent_cannot_hide_unavailable_applicable_cells(status: str) -> None:
+    _, manifest, _ = redacted_completed_result(redacted_snapshot_request())
+    cells = [
+        manifest.metric_availability[0].model_copy(
+            update={"status": status, "reason": "not_ready", "data_through": None}
+        ),
+        *manifest.metric_availability[1:],
+    ]
+    with pytest.raises(ValidationError, match="contradicts constituent status"):
+        _rebind(manifest, metric_availability=cells)
+
+
+def test_full_constituent_needs_at_least_one_applicable_metric() -> None:
+    _, manifest, _ = redacted_completed_result(redacted_snapshot_request())
+    cells = [
+        cell.model_copy(
+            update={"status": "unsupported", "reason": "not_applicable", "data_through": None}
+        )
+        for cell in manifest.metric_availability
+    ]
+    # Without a zero-denominator guard, allowing unsupported cells under a
+    # present constituent would let an entirely unsupported result claim full.
+    with pytest.raises(ValidationError):
+        _rebind(manifest, metric_availability=cells)
 
 
 # -- errors -----------------------------------------------------------------

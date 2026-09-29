@@ -161,7 +161,7 @@ async def test_colliding_accounts_keep_sparse_metric_evidence_and_staging_isolat
             clock=h.clock,
         )
         assert manifest.currency == obligation.currency == h.currencies[account]
-        assert manifest.row_count == 1 and manifest.coverage.status == "partial"
+        assert manifest.row_count == 1 and manifest.coverage.status == "full"
         cells = {cell.metric: cell for cell in manifest.metric_availability}
         assert {name: cell.status for name, cell in cells.items()} == {
             "impressions": "present",
@@ -307,7 +307,7 @@ async def test_one_unavailable_spend_cell_suppresses_only_its_metric_total(
         ("impressions", "10"),
         ("clicks", "0"),
     ]
-    assert [item.status for item in manifest.coverage.constituents] == ["present", "partial"]
+    assert [item.status for item in manifest.coverage.constituents] == ["present", "present"]
 
 
 def _with_second_constituent(
