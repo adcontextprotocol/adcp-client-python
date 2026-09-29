@@ -367,21 +367,71 @@ class ReportingProducer:
         """Run one leased turn. Safe to call from cron, a loop, or a supervisor.
 
         Returns immediately with an empty turn when nothing is leasable, so a
-        caller can back off rather than spin.
+        caller can back off rather than spin. Standalone PostgreSQL turns retry
+        deadlocks and lock timeouts at most twice, after rollback and fenced
+        release. Each retry must acquire a new lease; other failures propagate.
         """
-        with source_turn():
-            return await self._run_leased_turn()
+        from adcp.reporting.ledger.pg import PgReportingLedgerStore
 
-    async def _run_leased_turn(self) -> WorkerTurn:
+        retryable = (
+            self._store._worker_lock_errors()
+            if isinstance(self._store, PgReportingLedgerStore)
+            else ()
+        )
+        for attempt in range(3):
+            leased = None
+            with source_turn():
+                try:
+                    now = self._clock()
+                    leased = await self._store.lease_period_close(
+                        worker_id=self._worker_id, now=now, lease_seconds=self._lease_seconds
+                    )
+                    turn = WorkerTurn(leased=leased)
+                    if leased is None:
+                        return turn
+                    await self._work_leased_configuration(leased, turn, now=now)
+                except retryable:
+                    # Store transactions have already exited/rolled back. A
+                    # committed lease is released only under its original fence;
+                    # a competitor may win before the next acquisition.
+                    if leased is not None:
+                        await self._release_worker_lease(leased, retryable)
+                    if attempt == 2:
+                        raise
+                except BaseException as original:
+                    if leased is not None:
+                        try:
+                            await self._release_worker_lease(leased, retryable)
+                        except retryable:
+                            # Never turn an immutable-content conflict or
+                            # cancellation into a retryable cleanup failure.
+                            raise original from None
+                    raise
+                else:
+                    # Exhausted release retries escape from here, rather than
+                    # starting another turn or reporting a false empty success.
+                    await self._release_worker_lease(leased, retryable)
+                    return turn
+            await asyncio.sleep(0.05 * (2**attempt))
+        raise AssertionError("unreachable worker retry")  # pragma: no cover
+
+    async def _release_worker_lease(
+        self, leased: LeasedConfiguration, retryable: tuple[type[Exception], ...]
+    ) -> None:
+        for attempt in range(3):
+            try:
+                await self._store.release_period_close(leased, worker_id=self._worker_id)
+                return
+            except retryable:
+                if attempt == 2:
+                    raise
+            await asyncio.sleep(0.05 * (2**attempt))
+
+    async def _work_leased_configuration(
+        self, leased: LeasedConfiguration, turn: WorkerTurn, *, now: datetime
+    ) -> None:
         from adcp.reporting.production.contracts import _SourceAuthorizationRevokedError
 
-        now = self._clock()
-        leased = await self._store.lease_period_close(
-            worker_id=self._worker_id, now=now, lease_seconds=self._lease_seconds
-        )
-        turn = WorkerTurn(leased=leased)
-        if leased is None:
-            return turn
         try:
             configuration = next(
                 (
@@ -395,17 +445,14 @@ class ReportingProducer:
                 None,
             )
             if configuration is None:
-                return turn
+                return
             require_account_work(configuration.account_id)
             await self._close_elapsed_periods(configuration, turn, now=now)
             await self._acquire_pending(configuration, turn, now=now)
         except _SourceAuthorizationRevokedError:
             # Keep pending acquisitions retryable. Authorization may be
             # restored on the next turn; it is not a history failure.
-            return turn
-        finally:
-            await self._store.release_period_close(leased, worker_id=self._worker_id)
-        return turn
+            return
 
     async def run_configuration(
         self,

@@ -273,6 +273,7 @@ class PgReportingProductionStore(PgReportingProjectionStore):
         following: _ProducerSample | None = None
         result = None
         async with self._connection() as connection, connection.transaction():
+            await self._bound_lock_waits(connection)
             # Discover a bounded set without locking configuration rows. The
             # inherited configuration trigger takes the account lock, so that
             # lock must precede the row lock here, just as it does in activation.
@@ -357,9 +358,12 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                 acquired = await (
                     await connection.execute(
                         "UPDATE reporting_configurations SET lease_worker_id=%s,lease_expires_at=%s"
-                        " WHERE account_id=%s AND delivery_config_id=%s"
-                        " AND delivery_config_version=%s"
-                        " AND (lease_expires_at IS NULL OR lease_expires_at<=%s)"
+                        " WHERE (account_id,delivery_config_id,delivery_config_version) = ("
+                        " SELECT c.account_id,c.delivery_config_id,c.delivery_config_version"
+                        " FROM reporting_configurations c WHERE c.account_id=%s"
+                        " AND c.delivery_config_id=%s AND c.delivery_config_version=%s"
+                        " AND (c.lease_expires_at IS NULL OR c.lease_expires_at<=%s)"
+                        " FOR UPDATE OF c SKIP LOCKED)"
                         " RETURNING account_id",
                         (worker_id, expires, *row, moment),
                     )

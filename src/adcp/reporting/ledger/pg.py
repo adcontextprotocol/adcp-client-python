@@ -448,8 +448,30 @@ class PgReportingLedgerStore:
         )
 
     @staticmethod
+    async def _bound_lock_waits(connection: Any) -> None:
+        # set_config(..., true) is SET LOCAL: the cap ends with this transaction
+        # (or savepoint rollback) and never lengthens an adopter's shorter limit.
+        # SKIP LOCKED does not skip relation, FK, trigger, or advisory-lock waits.
+        await connection.execute(
+            "SELECT set_config('lock_timeout',"
+            " LEAST(COALESCE(NULLIF(setting::integer,0),5000),5000)::text,true)"
+            " FROM pg_settings WHERE name='lock_timeout'"
+        )
+
+    def _worker_lock_errors(self) -> tuple[type[Exception], ...]:
+        from psycopg.errors import DeadlockDetected, LockNotAvailable
+
+        bound = _BOUND_CONNECTION.get()
+        if bound is not None and bound[:2] == (self._pool, asyncio.current_task()):
+            # The adopter owns the outer rollback and any locks acquired before
+            # our savepoint. Only standalone worker turns may reacquire a lease.
+            return ()
+        return (DeadlockDetected, LockNotAvailable)
+
+    @staticmethod
     async def _lock_account(connection: Any, account_id: str) -> None:
         """Serialize this account's feed appends so seq order == commit order."""
+        await PgReportingLedgerStore._bound_lock_waits(connection)
         await connection.execute(
             "SELECT pg_advisory_xact_lock(hashtext(%s))", (f"adcp.reporting:{account_id}",)
         )
@@ -2080,6 +2102,7 @@ class PgReportingLedgerStore:
             # account acquisition, including acquisitions that find a stale row.
             can_wait = connection.info.transaction_status == TransactionStatus.IDLE
             async with connection.transaction():
+                await self._bound_lock_waits(connection)
                 # A materializer installed by any participant adds an AFTER UPDATE
                 # trigger taking the account lock. Sample without row locks, then take
                 # that account lock before locking a configuration. The base store can

@@ -6,6 +6,24 @@
 follows AdCP 3.2.0 final. The release candidate includes AdCP 3.0, 3.1 and
 3.2.0-rc.7 schema bundles.
 
+## PostgreSQL worker contention
+
+Producer account and lease operations now cap lock waits at five seconds per
+lock, using transaction-local settings and respecting shorter adopter limits.
+The admitted producer skips locked configuration rows after acquiring the
+account lock, including when the materializer trigger is installed.
+Standalone `ReportingProducer.run_worker()` retries only PostgreSQL deadlock
+and lock-timeout failures, with at most three attempts and 50/100 ms backoff.
+Every retry follows rollback and fenced lease release, then reacquires a lease;
+it does not reuse a cancelled lease or bypass immutable-content validation.
+An adopter-owned outer transaction is not retried. Persistent failures still
+reach the existing worker failure boundary.
+
+These are internal worker retries, not transport request retries. They do not
+change request idempotency keys or make unpinned `sync_reporting_status` calls
+share an idempotency-cache entry. See the
+[production recovery rules](reporting-production.md#recovery-and-operational-boundaries).
+
 ## Account-qualified configuration identity
 
 `ReportingConfiguration.generation_key` now returns the frozen

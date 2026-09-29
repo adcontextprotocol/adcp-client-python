@@ -31,6 +31,7 @@ async def test_activation_and_producer_actual_trigger_lock_order(
         support, store, item = h.production, h.store, h.item
         locked, release, executing = asyncio.Event(), asyncio.Event(), asyncio.Event()
         pids = {}
+        detected_deadlocks = []
         original_step = support.projection._activation_step_on
         original_execute = psycopg.AsyncConnection.execute
         original_lease = store.lease_period_close.__func__
@@ -53,7 +54,11 @@ async def test_activation_and_producer_actual_trigger_lock_order(
             ):
                 pids["producer"] = connection.info.backend_pid
                 executing.set()
-            return await original_execute(connection, query, *args, **kwargs)
+            try:
+                return await original_execute(connection, query, *args, **kwargs)
+            except psycopg.errors.DeadlockDetected:
+                detected_deadlocks.append(connection.info.backend_pid)
+                raise
 
         async def wait_for_actual_trigger_wait():
             await asyncio.wait_for(executing.wait(), 5)
@@ -128,7 +133,10 @@ async def test_activation_and_producer_actual_trigger_lock_order(
                 await asyncio.gather(*tasks, return_exceptions=True)
         assert store.lease_period_close.__func__ is original_lease
         deadlocks = [r for r in results if isinstance(r, psycopg.errors.DeadlockDetected)]
-        assert len(deadlocks) == int(wrong_order)
+        # A producer victim now retries only after its real transaction rolls
+        # back. Activation still propagates its cancellation to the caller.
+        # Count the actual server error, including an internally retried victim.
+        assert len(detected_deadlocks) == int(wrong_order)
         assert all(not isinstance(r, BaseException) or r in deadlocks for r in results)
 
         async with h.pool.connection() as c:
@@ -186,7 +194,7 @@ async def test_activation_and_producer_actual_trigger_lock_order(
                     "production_lock_order": "wrong_order_control" if wrong_order else "restored",
                     "actual_trigger": True,
                     "observed_trigger_wait": wrong_order,
-                    "deadlocks": len(deadlocks),
+                    "deadlocks": len(detected_deadlocks),
                     "backend_pids": pids,
                     "at": datetime.now(timezone.utc).isoformat(),
                     "rollback_or_commit_verified": True,

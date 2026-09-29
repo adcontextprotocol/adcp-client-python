@@ -249,11 +249,32 @@ cycle. Timed-out waits roll back to a savepoint; cancellation propagates and the
 previous timeout setting is restored. Sampling advances past busy prefixes;
 lease eligibility and durable fairness ranks remain transactional. Release
 waits for its account and still requires the original worker and expiry fence.
+Both shared and admitted producer acquisitions apply a transaction-local
+five-second `lock_timeout` before sampling or locking. Account-lock operations
+apply the same cap before their advisory lock and subsequent row, checkpoint,
+foreign-key and trigger work. A smaller configured timeout remains in force;
+commit or rollback restores the session setting. The admitted producer also
+uses `FOR UPDATE SKIP LOCKED` after its account try-lock, so a configuration
+locked by another transaction cannot hold up the rest of its sample. Neither
+path takes a configuration row before the account lock; the unchanged
+`reporting_materializer_source_dirty()` trigger re-enters that same lock.
 The lock-order regression keeps a frozen copy of the old row-first acquisition
 as a negative control, proves a real PostgreSQL deadlock and rollback, then proves
 both activation and a subsequent production producer turn complete. Separate
 regressions exercise the public shared-store paths without replacing SDK methods.
-Neither control adds runtime deadlock retries.
+Standalone `ReportingProducer.run_worker()` makes at most three attempts for
+PostgreSQL `DeadlockDetected` (`40P01`) or `LockNotAvailable` (`55P03`), waiting
+50 ms then 100 ms between attempts. The failed transaction rolls back before
+retry. A committed lease is released under its original worker/expiry fence,
+and the next attempt reacquires and rechecks eligibility; a competing worker's
+new lease cannot be stolen. Lease release has its own three-attempt bound.
+Exhausted release retries propagate without starting another turn. Immutable
+content conflicts, other errors and cancellation are never retried or replaced
+by a cleanup lock error. Calls inside an adopter-owned `store.transaction()`
+propagate lock errors for the adopter to roll back; the SDK does not retry that
+outer transaction. Source dispatch and authorization checks run afresh on a
+retried turn; committed revisions, observations and checkpoints retain their
+existing identity and immutability checks.
 Lease acquisition, release and recovery are bookkeeping, not new reporting
 observations or materializer targets. The production PostgreSQL path retains
 the inherited trigger and cancels only its lease-only candidate increment in
@@ -343,11 +364,11 @@ finish under its existing transaction and deadline rules. Drain with `aclose()`,
 repair the failed component and construct fresh support to recover; the failed
 instance never silently restarts or regains its capability claim. A failing log
 sink cannot prevent the stop latch or change the safe public error.
-A PostgreSQL deadlock escaping an owned worker follows this same fail-stop
-policy after its transaction rolls back; there is no automatic deadlock retry.
-Investigate the competing writer's lock order, drain the failed support, and
-construct fresh support after correcting it. Retained pending work and fencing
-rules continue to govern recovery.
+A PostgreSQL lock failure that exhausts the producer's bounded retries follows
+this same fail-stop policy. Other owned worker boundaries still propagate their
+errors without automatic retries. Investigate the competing writer's lock order,
+drain the failed support, and construct fresh support after correcting it.
+Retained pending work and fencing rules continue to govern recovery.
 The [receipt ingress](reporting-receipt-ingress.md),
 [frozen feed](reporting-frozen-feed.md) and original materializer recovery
 contracts continue to apply.
