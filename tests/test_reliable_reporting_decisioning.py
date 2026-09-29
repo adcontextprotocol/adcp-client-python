@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from adcp.decisioning import Account, AdcpError, LazyPlatformRouter
+from adcp.decisioning import Account, AdcpError, AuthInfo, LazyPlatformRouter
 from adcp.decisioning.serve import create_adcp_server_from_platform
 from adcp.reporting.fixtures import redacted_capabilities
 from adcp.reporting.service import ReliableReportingConfigurationError, ReliableReportingService
@@ -16,6 +16,7 @@ from adcp.reporting.testing import ScriptedReportingAdapter
 from adcp.server.auth import current_principal
 from adcp.server.base import ToolContext
 from adcp.server.mcp_tools import get_tools_for_handler
+from adcp.signing import VerifiedSigner
 from adcp.types import (
     GetAdcpCapabilitiesRequest,
     GetMediaBuyDeliveryRequest,
@@ -39,9 +40,21 @@ ACCOUNT = "account-redacted"
 REF = {"account_id": ACCOUNT}
 
 
-def _tool_context() -> ToolContext:
+def _tool_context(principal: str, *, signed: bool) -> ToolContext:
     # The decisioning serve() context factory supplies this transport metadata.
-    return ToolContext(metadata={"adcp.auth_info": {"principal": current_principal.get()}})
+    current_principal.set(None if signed else principal)
+    if signed:
+        auth_info = AuthInfo.from_verified_signer(
+            VerifiedSigner(
+                key_id=f"{principal}#key-1",
+                alg="ed25519",
+                label="sig1",
+                verified_at=NOW.timestamp(),
+                agent_url=principal,
+            )
+        )
+        return ToolContext(metadata={"adcp.auth_info": auth_info})
+    return ToolContext(metadata={"adcp.auth_info": {"principal": principal}})
 
 
 class _AuthorizedAccounts:
@@ -54,7 +67,12 @@ class _AuthorizedAccounts:
         principal = auth_info.principal if auth_info is not None else None
         account_id = (ref or {}).get("account_id")
         self.calls.append((account_id, principal))
-        if account_id != ACCOUNT or principal not in {"buyer-1", "buyer-2"}:
+        if account_id != ACCOUNT or principal not in {
+            "buyer-1",
+            "buyer-2",
+            "https://buyer-1.example.test",
+            "https://buyer-2.example.test",
+        }:
             raise AdcpError("UNAUTHORIZED", message="account denied", recovery="terminal")
         return Account(id=ACCOUNT, metadata={"tenant_id": "tenant-a"})
 
@@ -71,9 +89,17 @@ class _SalesPlatform(_SyncSalesPlatform):
 
 
 @pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("signed", [False, True], ids=["bearer", "signed-request"])
 async def test_install_dispatches_reporting_with_account_auth_and_preserves_delivery(
     lazy: bool,
+    signed: bool,
 ) -> None:
+    buyer_1 = "https://buyer-1.example.test" if signed else "buyer-1"
+    buyer_2 = "https://buyer-2.example.test" if signed else "buyer-2"
+
+    def context_for(principal: str) -> ToolContext:
+        return _tool_context(principal, signed=signed)
+
     service = ReliableReportingService.memory(
         account_context=_account_context, clock=lambda: NOW, consumer_status_enabled=True
     )
@@ -99,7 +125,7 @@ async def test_install_dispatches_reporting_with_account_auth_and_preserves_deli
         ReliableReportingService.memory(account_context=_account_context).install(installed)
     handler, executor, _ = create_adcp_server_from_platform(installed, validate_at_init=False)
     await service.start()
-    token = current_principal.set("buyer-1")
+    token = current_principal.set(None)
     try:
         tools = {item["name"] for item in get_tools_for_handler(handler, _include_schemas=False)}
         assert {"get_reporting_status", "sync_reporting_status", "get_media_buy_delivery"} <= tools
@@ -120,24 +146,19 @@ async def test_install_dispatches_reporting_with_account_auth_and_preserves_deli
         sync = SyncReportingStatusRequest.model_validate(
             {"account": REF, "idempotency_key": "reporting-status-0001", "statuses": [statement]}
         )
-        result = await handler.sync_reporting_status(sync, _tool_context())
+        result = await handler.sync_reporting_status(sync, context_for(buyer_1))
         assert result["results"][0]["result"] == "recorded"
-        own = await service.store.list_consumer_statuses(account_id=ACCOUNT, consumer_id="buyer-1")
+        own = await service.store.list_consumer_statuses(account_id=ACCOUNT, consumer_id=buyer_1)
         assert len(own) == 1
-        current_principal.set("buyer-2")
         status_request = GetReportingStatusRequest.model_validate(
             {"account": REF, "view": "periods"}
         )
-        other = await handler.get_reporting_status(status_request, _tool_context())
+        other = await handler.get_reporting_status(status_request, context_for(buyer_2))
         assert other["consumer_statuses"] == []
-        result = await handler.sync_reporting_status(sync, _tool_context())
+        result = await handler.sync_reporting_status(sync, context_for(buyer_2))
         assert result["results"][0]["result"] == "recorded"
         assert (
-            len(
-                await service.store.list_consumer_statuses(
-                    account_id=ACCOUNT, consumer_id="buyer-2"
-                )
-            )
+            len(await service.store.list_consumer_statuses(account_id=ACCOUNT, consumer_id=buyer_2))
             == 1
         )
 
@@ -147,32 +168,30 @@ async def test_install_dispatches_reporting_with_account_auth_and_preserves_deli
         exact = GetMediaBuyDeliveryRequest.model_validate(
             {"account": REF, "reporting_revision_id": revision_id}
         )
-        content = await handler.get_media_buy_delivery(exact, _tool_context())
+        content = await handler.get_media_buy_delivery(exact, context_for(buyer_2))
         assert content["reporting_rows"] == _rows(10)
         # Reporting doesn't instantiate lazy tenants or fall through to their
         # aggregate provider, which might return a different reporting scope.
         assert creations == []
         assert child.delivery_threads == []
 
-        current_principal.set("denied-buyer")
         for method, request in (
             (handler.get_reporting_status, status_request),
             (handler.get_media_buy_delivery, exact),
             (handler.sync_reporting_status, sync),
         ):
             with pytest.raises(AdcpError) as error:
-                await method(request, _tool_context())
+                await method(request, context_for("denied-buyer"))
             assert error.value.code == "UNAUTHORIZED"
-        current_principal.set("buyer-1")
         with pytest.raises(AdcpError) as error:
             await handler.get_media_buy_delivery(
                 exact.model_copy(update={"account": {"account_id": "other-account"}}),
-                _tool_context(),
+                context_for(buyer_1),
             )
         assert error.value.code == "UNAUTHORIZED"
 
         aggregate = await handler.get_media_buy_delivery(
-            GetMediaBuyDeliveryRequest.model_validate({"account": REF}), _tool_context()
+            GetMediaBuyDeliveryRequest.model_validate({"account": REF}), context_for(buyer_1)
         )
         assert aggregate == {"media_buy_deliveries": []}
         assert child.delivery_threads and child.delivery_threads[0] != threading.get_ident()
@@ -180,7 +199,7 @@ async def test_install_dispatches_reporting_with_account_auth_and_preserves_deli
             GetProductsRequest.model_validate(
                 {"account": REF, "buying_mode": "brief", "brief": "A campaign"}
             ),
-            _tool_context(),
+            context_for(buyer_1),
         )
         assert products["products"][0]["product_id"] == "prod-reporting"
         assert creations == (["tenant-a"] if lazy else [])

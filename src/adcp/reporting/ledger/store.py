@@ -293,7 +293,7 @@ class ReportingLedgerStore(Protocol):
         This administrative API is never exposed through buyer task handlers;
         those continue to use account-scoped reads after authorization.
         """
-        ...
+        raise NotImplementedError
 
     # -- obligations -----------------------------------------------------
 

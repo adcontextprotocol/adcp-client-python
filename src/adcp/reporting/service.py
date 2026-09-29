@@ -1021,20 +1021,29 @@ class ReliableReportingService:
         # RequestContext is duck-typed here: importing decisioning.context at
         # module scope would cycle through the decisioning reporting helpers.
         # Its caller_identity is a per-account cache key, not a buyer identity.
-        account = getattr(context, "account", None)
-        if account is not None:
-            from adcp.server.auth import current_principal
-
-            account_id = getattr(account, "id", None)
-            consumer_id = current_principal.get()
-        else:
+        if hasattr(context, "account_id"):
+            # AccountAwareToolContext.account is an opaque adopter object;
+            # resolve_account_into_context supplies its stable id separately.
             account_id = getattr(context, "account_id", None)
             consumer_id = getattr(context, "caller_identity", None)
+        else:
+            from adcp.server.auth import current_principal
+
+            account_id = getattr(getattr(context, "account", None), "id", None)
+            consumer_id = current_principal.get()
+            if consumer_id is None:
+                # Signed requests carry their verified identity on AuthInfo,
+                # without populating the bearer middleware's ContextVar.
+                auth_principal = getattr(context, "auth_principal", None)
+                auth_info = getattr(context, "auth_info", None)
+                if auth_principal == getattr(auth_info, "principal", None):
+                    consumer_id = auth_principal
         if not account_id or not consumer_id:
             raise ReliableReportingConfigurationError(
                 "default caller resolution requires AccountAwareToolContext.account_id and "
                 "authenticated caller_identity, or RequestContext.account.id and an "
-                "authenticated current_principal; provide caller_resolver for another trust model"
+                "authenticated current_principal or verified auth_principal; "
+                "provide caller_resolver for another trust model"
             )
         return ReportingStatusCaller(account_id=account_id, consumer_id=consumer_id)
 

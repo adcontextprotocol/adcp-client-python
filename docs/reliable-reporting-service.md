@@ -130,9 +130,12 @@ the configurations you admit.
 
 For an `ADCPHandler`, the default caller resolver accepts authenticated transport
 context with `account_id` and `caller_identity`. For a decisioning
-`RequestContext`, it uses the resolved `context.account.id` and
-`adcp.server.auth.current_principal`. The decisioning `caller_identity` is a
-cache key, not the buyer principal. Missing authentication is rejected. Supply
+`RequestContext`, it uses the resolved `context.account.id` and the bearer
+`adcp.server.auth.current_principal`, or `context.auth_principal` backed by the
+request's verified `AuthInfo` for signed requests. Legacy contexts keep their
+`account_id` and `caller_identity` even when their opaque `account` is populated.
+The decisioning `caller_identity` is a cache key, not the buyer principal.
+Missing authentication is rejected. Supply
 `caller_resolver` for a different trusted identity model; never choose consumer
 identity from the request body.
 

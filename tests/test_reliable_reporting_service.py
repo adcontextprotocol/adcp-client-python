@@ -561,6 +561,34 @@ async def test_default_caller_requires_trusted_transport_identity() -> None:
         await service.caller_for({}, SimpleNamespace(account_id="account-redacted"))
 
 
+@pytest.mark.parametrize("principal", [None, "other-buyer"])
+async def test_default_caller_keeps_account_aware_context_after_account_resolution(
+    principal: str | None,
+) -> None:
+    from adcp.server import AccountAwareToolContext
+    from adcp.server.auth import current_principal
+    from adcp.server.helpers import resolve_account_into_context
+
+    account = SimpleNamespace(account_id="account-redacted")
+
+    async def resolve(ref: Any) -> Any:
+        assert ref == {"account_id": "account-redacted"}
+        return account
+
+    context = AccountAwareToolContext(caller_identity="buyer-1")
+    request = {"account": {"account_id": "account-redacted"}, "consumer_id": "other-buyer"}
+    assert await resolve_account_into_context(request, context, resolve) is None
+    assert context.account is account
+    service = ReliableReportingService.memory(account_context=_account_context)
+    token = current_principal.set(principal)
+    try:
+        assert await service.caller_for(request, context) == ReportingStatusCaller(
+            account_id="account-redacted", consumer_id="buyer-1"
+        )
+    finally:
+        current_principal.reset(token)
+
+
 async def test_decisioning_caller_uses_live_principal_not_account_cache_identity() -> None:
     from adcp.decisioning import Account, RequestContext
     from adcp.server.auth import current_principal
