@@ -57,11 +57,29 @@ class FreeWheelAdapter:
 period. `InlineFetchResult` carries watermarks, partial coverage, warnings, and
 source-specific settling evidence. These meanings are deliberately distinct.
 
+An adapter may also return an SDK `GetMediaBuyDeliveryResponse`, including its
+`totals` or `by_package` metrics. The inline wrapper converts finite float and
+Decimal metrics into decimal strings before staging or revision hashing (for
+example, `1.25` becomes `"1.25"`). It rejects non-finite values. This is an SDK
+model conversion, not a change to the canonical row contract: adapters returning
+their own rows must still use integers or decimal strings, never binary floats.
+
 ## Configure trusted routes
 
-Register adapters before initialization, then configure each immutable delivery
-generation. The resolver is called once for a generation; its account, currency,
-timezone, adapter route, source scope, and offering choices are frozen together.
+Register adapters before initialization. Supply `capability_offerings` with each
+registration so a fresh service can advertise its public contracts before any
+account has a delivery configuration. Each entry is a `ReportingDeliveryOffering`
+or its wire mapping, including the buyer-facing schedule and SLA. These cannot
+be inferred from the source's safe fetch cadence. Registration validates the
+offering's pinned definition/schema and finality against the adapter, and freezes
+the declaration. Conflicting declarations for the same public ID are rejected.
+
+Configure each new immutable delivery generation. The resolver is called once
+per generation in each service process; its account, currency, timezone, adapter
+route, source scope, and offering choices are frozen together. Its
+`capability_offering` must match a registered declaration. Existing adopters that
+only supply offerings with account contexts retain that behavior, but must add
+registration-time declarations to enable discovery before first configuration.
 
 ```python
 from datetime import timedelta
@@ -88,23 +106,64 @@ reporting = ReliableReportingService.memory(
     account_context=resolve_reporting_context,
     worker_interval=timedelta(minutes=1),
 )
-reporting.sources.register("gam", GAMAdapter(gam_client, gam_capabilities))
 reporting.sources.register(
-    "freewheel", FreeWheelAdapter(freewheel_client, freewheel_capabilities)
+    "gam", GAMAdapter(gam_client, gam_capabilities),
+    capability_offerings=[gam_public_offering],
+)
+reporting.sources.register(
+    "freewheel", FreeWheelAdapter(freewheel_client, freewheel_capabilities),
+    capability_offerings=[freewheel_public_offering],
 )
 
 for generation in await load_active_reporting_configurations():
     await reporting.configure(generation)
 
 platform = reporting.install(platform)  # use the returned instance
-async with reporting:
-    await serve(platform)
 ```
 
-The default caller resolver accepts only authenticated transport context with
-`account_id` and `caller_identity`. Supply `caller_resolver` when an application
-uses a different trusted identity model; never route status from an account ID
-asserted only in the request body.
+Start and close the service in your application's lifespan. Capabilities appear
+after `start()`, including on a database with no reporting
+generations. Core defaults advertise a six-hour automated recovery window and
+400-day status retention; use the service's `automated_recovery_window` and
+`status_retention_days` options for different first-boot policy, consistent with
+the configurations you admit.
+
+For an `ADCPHandler`, the default caller resolver accepts authenticated transport
+context with `account_id` and `caller_identity`. For a decisioning
+`RequestContext`, it uses the resolved `context.account.id` and
+`adcp.server.auth.current_principal`. The decisioning `caller_identity` is a
+cache key, not the buyer principal. Missing authentication is rejected. Supply
+`caller_resolver` for a different trusted identity model; never choose consumer
+identity from the request body.
+
+## Decisioning platforms and lazy routers
+
+Core `install()` accepts a `DecisioningPlatform`, including `LazyPlatformRouter`:
+
+```python
+from adcp.decisioning import serve
+
+platform = reporting.install(platform)
+# Use reporting.start / reporting.close in your application's lifespan.
+# Keep your usual decisioning auth, registry and other serve() arguments.
+serve(platform, name="my-seller")
+```
+
+The normal dispatcher resolves and authorizes the account before reporting
+status, consumer status, receipts, or exact revision reads. Your `AccountStore`
+continues to own principal-to-account authorization. Consumer status is exposed
+only when enabled; receipts require an installed handler. Aggregate delivery
+and unrelated methods retain their usual routing and thread-pool behavior.
+Reporting calls and first-boot discovery do not instantiate lazy tenants.
+Decisioning validation, including the idempotency-wiring boot guard, still runs.
+Repeated installation of the same service is a no-op; replacing it with a
+different service on the same platform is rejected.
+
+When using `production=`, the service still returns its production `ADCPHandler`.
+For a decisioning application, first call `create_adcp_server_from_platform`,
+pass that handler to `reporting.install`, then mount the returned handler with
+`adcp.server`'s MCP/A2A factory. Retain and close the decisioning executor and
+registry as usual. Do not pass that production handler to `adcp.decisioning.serve`.
 
 ## PostgreSQL production wiring
 
@@ -118,6 +177,19 @@ and `reporting_inline_seals` in addition to the ledger schema. Before upgrading,
 ensure the pool's startup role can run that source-schema DDL. A DDL-restricted
 runtime role cannot use this factory's schema bootstrap until its deployment
 grants or startup sequence are updated.
+
+Core startup also restores persisted configurations automatically. With adapters
+registered, `initialize()` calls the built-in ledger's trusted
+`list_all_configurations()` operation once, across all accounts and generations,
+then resolves account context for each recovered generation. It preserves stored
+activation/retirement boundaries, revisions and producer checkpoints; no new
+`configure()` call or adopter-maintained account enumeration is needed. Retired
+generations remain available for outstanding periods. Register every retained
+generation's adapter before startup; an unavailable route or invalid context
+fails startup instead of silently losing scheduled work. A service with no source
+registrations can still start for retained reads only. Older custom stores without
+the enumeration operation can keep explicit `configure()` startup. Enumeration
+is for service recovery and is never exposed as a buyer task.
 
 Pass `ReportingProductionOptions` to compose the managed materializer, status
 projection, exact reads, consumer/receipt handlers, and optional signed

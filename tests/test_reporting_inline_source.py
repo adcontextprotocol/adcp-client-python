@@ -13,6 +13,7 @@ import threading
 import time
 import warnings
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -128,6 +129,27 @@ async def test_a_typed_source_error_is_returned_verbatim() -> None:
 
     error = validate_reporting_source_failure(await _run(_source(fetch), request), "RATE_LIMITED")
     assert error.retry == "retryable"
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+async def test_delivery_model_nonfinite_totals_fail_at_the_source_boundary(value: float) -> None:
+    response = SimpleNamespace(
+        media_buy_deliveries=[
+            SimpleNamespace(media_buy_id="media-buy-redacted", totals=SimpleNamespace(spend=value))
+        ]
+    )
+    seals = InMemorySealStore()
+    source = _source(lambda _: response, seals=seals)
+    request = redacted_snapshot_request()
+    error = validate_reporting_source_failure(await _run(source, request), "INVALID_REQUEST")
+    assert error.safe_message == "delivery metric spend must be finite"
+    assert (
+        await seals.get(
+            account_id=request.identity.account_id,
+            source_execution_key=request.identity.source_execution_key,
+        )
+        is None
+    )
 
 
 async def test_an_unclassified_exception_is_retryable_and_redacted() -> None:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import Any
@@ -409,6 +409,93 @@ async def test_configuration_rejects_unregistered_routes_and_mutated_generations
         await service.configure(changed)
 
 
+@pytest.mark.parametrize("mismatch", ["definition", "schema", "profile"])
+def test_public_offering_requires_matching_adapter_contract(mismatch: str) -> None:
+    service = ReliableReportingService.memory(account_context=_account_context)
+    offering = _capability_offering("gam")
+    if mismatch == "definition":
+        offering["report_definition_sha256"] = "c" * 64
+    elif mismatch == "schema":
+        offering["reporting_profile"]["schema_sha256"] = "c" * 64
+    else:
+        offering["reporting_profile"]["id"] = "other-profile"
+    with pytest.raises(ReliableReportingConfigurationError, match="no matching snapshot"):
+        service.sources.register(
+            "gam",
+            ScriptedReportingAdapter(redacted_capabilities(), []),
+            capability_offerings=[offering],
+        )
+    assert service.sources.names == ()
+
+
+async def test_public_offering_conflicts_are_rejected_and_identical_ids_are_deduplicated() -> None:
+    service = ReliableReportingService.memory(account_context=_account_context)
+    offering = _capability_offering("gam")
+    for route in ("gam", "freewheel"):
+        service.sources.register(
+            route,
+            ScriptedReportingAdapter(redacted_capabilities(), []),
+            capability_offerings=[offering],
+        )
+    offering["schedule"]["delivery_sla"] = "P1D"
+    with pytest.raises(ReliableReportingConfigurationError, match="conflicting declarations"):
+        service.sources.register(
+            "other",
+            ScriptedReportingAdapter(redacted_capabilities(), []),
+            capability_offerings=[offering],
+        )
+    try:
+        await service.start()
+        assert len(service.capability_block()["offerings"]) == 1
+        assert service.capability_block()["offerings"][0]["schedule"]["delivery_sla"] == "PT10M"
+    finally:
+        await service.close()
+
+
+async def test_configuration_must_honor_its_registered_public_contract() -> None:
+    def resolve(configuration: ReportingConfiguration) -> ReportingAccountContext:
+        offering = _capability_offering("gam")
+        offering["schedule"]["delivery_sla"] = "P1D"
+        return replace(_account_context(configuration), capability_offering=offering)
+
+    service = ReliableReportingService.memory(account_context=resolve)
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(redacted_capabilities(), []),
+        capability_offerings=[_capability_offering("gam")],
+    )
+    with pytest.raises(ReliableReportingConfigurationError, match="registered public offering"):
+        await service.configure(_configuration())
+    assert await service.store.list_all_configurations() == ()
+
+
+@pytest.mark.parametrize("tier", ["managed", "reconciled"])
+async def test_first_boot_offerings_require_their_installed_tier(tier: str) -> None:
+    service = ReliableReportingService.memory(account_context=_account_context)
+    offering = _capability_offering("gam")
+    if tier == "managed":
+        offering["method"] = {
+            "pattern": "file_transfer",
+            "transport": "https",
+            "orchestration": "producer_managed",
+            "destination_modes": ["existing"],
+        }
+    else:
+        offering["reconciliation_mode"] = "consumer_receipt"
+    service.sources.register(
+        "gam",
+        ScriptedReportingAdapter(redacted_capabilities(), []),
+        capability_offerings=[offering],
+    )
+    try:
+        with pytest.raises(ReliableReportingConfigurationError, match="require"):
+            await service.start()
+        assert not service.ready
+        assert service.capability_block() == {}
+    finally:
+        await service.close()
+
+
 def test_account_context_validates_currency_timezone_and_frozen_scope() -> None:
     context = _account_context(_configuration())
     with pytest.raises(TypeError):
@@ -472,3 +559,82 @@ async def test_default_caller_requires_trusted_transport_identity() -> None:
     assert caller == ReportingStatusCaller(account_id="account-redacted", consumer_id="buyer-1")
     with pytest.raises(ReliableReportingConfigurationError, match="authenticated"):
         await service.caller_for({}, SimpleNamespace(account_id="account-redacted"))
+
+
+async def test_decisioning_caller_uses_live_principal_not_account_cache_identity() -> None:
+    from adcp.decisioning import Account, RequestContext
+    from adcp.server.auth import current_principal
+
+    service = ReliableReportingService.memory(account_context=_account_context)
+    context = RequestContext(
+        account=Account(id="account-redacted"),
+        caller_identity="adopter.AccountStore:account-redacted",
+        auth_principal="earlier-principal",
+    )
+    for principal in ("buyer-1", "buyer-2", None):
+        token = current_principal.set(principal)
+        try:
+            # Caller-supplied identity fields must never choose the reader.
+            request = {"account_id": "other-account", "consumer_id": "other-buyer"}
+            if principal is None:
+                with pytest.raises(ReliableReportingConfigurationError, match="authenticated"):
+                    await service.caller_for(request, context)
+            else:
+                assert await service.caller_for(request, context) == ReportingStatusCaller(
+                    account_id="account-redacted", consumer_id=principal
+                )
+        finally:
+            current_principal.reset(token)
+
+
+@pytest.mark.parametrize("with_packages", [False, True])
+async def test_sdk_delivery_floats_publish_canonical_revision(with_packages: bool) -> None:
+    response = GetMediaBuyDeliveryResponse.model_validate(
+        {
+            "reporting_period": {
+                "start": "2026-11-01T02:00:00Z",
+                "end": "2026-11-01T03:00:00Z",
+            },
+            "media_buy_deliveries": [
+                {
+                    "media_buy_id": "media-buy-redacted",
+                    "status": "active",
+                    "totals": {"impressions": 10.0, "spend": 1.25},
+                    "by_package": (
+                        [
+                            {
+                                "package_id": "pkg-1",
+                                "pricing_model": "cpm",
+                                "rate": 1.0,
+                                "currency": "USD",
+                                "impressions": 10.0,
+                                "spend": 1.25,
+                            }
+                        ]
+                        if with_packages
+                        else []
+                    ),
+                }
+            ],
+        }
+    )
+    service = ReliableReportingService.memory(
+        account_context=_account_context,
+        caller_resolver=lambda *_: ReportingStatusCaller("account-redacted", "buyer-1"),
+        clock=lambda: NOW,
+    )
+    service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), [response]))
+    await service.configure(_configuration())
+    try:
+        turn = await service.run_worker()
+        assert not turn.configuration_errors
+        (revision_id,) = turn.configurations[_generation_key("gam")].revisions_committed
+        content = await service.get_revision_content({"reporting_revision_id": revision_id})
+        rows = content["reporting_rows"]
+        assert rows[0]["spend"] == "1.25"
+        assert rows[0]["impressions"] in (10, "10")
+        from adcp.reporting.canonical_json import canonical_json_utf8_v1
+
+        assert canonical_json_utf8_v1(rows)
+    finally:
+        await service.close()

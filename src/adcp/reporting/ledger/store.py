@@ -287,6 +287,14 @@ class ReportingLedgerStore(Protocol):
         self, *, account_id: str, delivery_config_ids: Sequence[str] | None = None
     ) -> tuple[ReportingConfiguration, ...]: ...
 
+    async def list_all_configurations(self) -> tuple[ReportingConfiguration, ...]:
+        """Enumerate retained generations for trusted service startup recovery.
+
+        This administrative API is never exposed through buyer task handlers;
+        those continue to use account-scoped reads after authorization.
+        """
+        ...
+
     # -- obligations -----------------------------------------------------
 
     async def commit_obligation(
@@ -905,6 +913,18 @@ class InMemoryReportingLedgerStore:
             for configuration in self._configurations.values()
             if configuration.account_id == account_id
             and (wanted is None or configuration.delivery_config_id in wanted)
+        )
+
+    async def list_all_configurations(self) -> tuple[ReportingConfiguration, ...]:
+        return tuple(
+            sorted(
+                self._configurations.values(),
+                key=lambda item: (
+                    item.account_id,
+                    item.delivery_config_id,
+                    item.delivery_config_version,
+                ),
+            )
         )
 
     # -- obligations -----------------------------------------------------

@@ -320,46 +320,14 @@ class ReportingProducer:
         this module's docstring warns about, and a buyer that can file
         statements nobody reads believes it has told you.
         """
-        if not consumer_status_task and self._escalation.consumer_mismatch_escalation is not None:
-            raise ValueError(
-                "consumer_mismatch_escalation_seconds requires consumer_status_task: an "
-                "escalation commitment on a loop no buyer can post to is unpublishable"
-            )
-        payload: dict[str, Any] = {
-            "supported": True,
-            "reliable_reporting_version": "1.0",
-            "configuration_task": "sync_accounts",
-            "status_task": "get_reporting_status",
-            # Required whenever reliable_reporting_version is 1.0, and again
-            # whenever consumer_status_task is present. Both fields are `const`
-            # *task names* in the schema, not booleans: a seller advertises
-            # which task serves the capability, so emitting `true` produces a
-            # block that fails its own capabilities schema.
-            "revision_content_task": "get_media_buy_delivery",
-            "offerings": [dict(offering) for offering in offerings],
-            "automated_recovery_window_seconds": int(automated_recovery_window.total_seconds()),
-            "status_retention_days": status_retention_days,
-        }
-        if consumer_status_task:
-            payload["consumer_status_task"] = "sync_reporting_status"
-        payload.update(self._escalation.to_wire())
-        if extra:
-            reserved = {
-                *payload,
-                "consumer_status_task",
-                "managed_delivery",
-                "reconciled_billing",
-                "reporting.delivery_ready",
-                "ledger_notification",
-                "readiness_notification",
-                "status_notification",
-                "supports_webhook_activity",
-                "receipt_task",
-            }
-            if any(key in reserved or key.endswith(("_task", "_notification")) for key in extra):
-                raise ValueError("extra cannot override SDK-owned reporting capabilities")
-            payload.update(extra)
-        return payload
+        return _advertised_reporting_delivery(
+            escalation=self._escalation,
+            consumer_status_task=consumer_status_task,
+            offerings=offerings,
+            automated_recovery_window=automated_recovery_window,
+            status_retention_days=status_retention_days,
+            extra=extra,
+        )
 
     # -- the worker turn -------------------------------------------------
 
@@ -1557,3 +1525,55 @@ def _source_local_date(instant: datetime, timezone_name: str) -> str:
     from zoneinfo import ZoneInfo
 
     return instant.astimezone(ZoneInfo(timezone_name)).strftime("%Y-%m-%d")
+
+
+def _advertised_reporting_delivery(
+    *,
+    escalation: ReportingDeliveryEscalation,
+    consumer_status_task: bool,
+    offerings: Sequence[Mapping[str, Any]],
+    automated_recovery_window: timedelta,
+    status_retention_days: int,
+    extra: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Shared capability projection; discovery does not need a producer binding."""
+    if not consumer_status_task and escalation.consumer_mismatch_escalation is not None:
+        raise ValueError(
+            "consumer_mismatch_escalation_seconds requires consumer_status_task: an "
+            "escalation commitment on a loop no buyer can post to is unpublishable"
+        )
+    payload: dict[str, Any] = {
+        "supported": True,
+        "reliable_reporting_version": "1.0",
+        "configuration_task": "sync_accounts",
+        "status_task": "get_reporting_status",
+        # Required whenever reliable_reporting_version is 1.0, and again
+        # whenever consumer_status_task is present. Both fields are `const`
+        # *task names* in the schema, not booleans: a seller advertises
+        # which task serves the capability, so emitting `true` produces a
+        # block that fails its own capabilities schema.
+        "revision_content_task": "get_media_buy_delivery",
+        "offerings": [dict(offering) for offering in offerings],
+        "automated_recovery_window_seconds": int(automated_recovery_window.total_seconds()),
+        "status_retention_days": status_retention_days,
+    }
+    if consumer_status_task:
+        payload["consumer_status_task"] = "sync_reporting_status"
+    payload.update(escalation.to_wire())
+    if extra:
+        reserved = {
+            *payload,
+            "consumer_status_task",
+            "managed_delivery",
+            "reconciled_billing",
+            "reporting.delivery_ready",
+            "ledger_notification",
+            "readiness_notification",
+            "status_notification",
+            "supports_webhook_activity",
+            "receipt_task",
+        }
+        if any(key in reserved or key.endswith(("_task", "_notification")) for key in extra):
+            raise ValueError("extra cannot override SDK-owned reporting capabilities")
+        payload.update(extra)
+    return payload

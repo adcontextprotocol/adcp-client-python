@@ -1661,6 +1661,10 @@ def _metrics(holder: Any) -> dict[str, Any]:
     Only metrics the holder actually carries: an omitted metric and a measured
     zero are different facts, and flattening the first into the second is how a
     buyer ends up reconciling against a zero that was never reported.
+
+    SDK delivery models expose decimal totals as floats. Convert those at the
+    adapter boundary to exact decimal strings before staging, so the producer
+    can bind the same rows with the safe-integer-only canonical JSON profile.
     """
     if holder is None:
         return {}
@@ -1668,5 +1672,12 @@ def _metrics(holder: Any) -> dict[str, Any]:
     for metric in _DELIVERY_METRICS:
         value = getattr(holder, metric, None)
         if value is not None:
+            if isinstance(value, (float, Decimal)):
+                decimal = _decimal(value)
+                if not decimal.is_finite():
+                    raise ReportingSourceError(
+                        "INVALID_REQUEST", f"delivery metric {metric} must be finite"
+                    )
+                value = _plain(decimal)
             values[metric] = value
     return values

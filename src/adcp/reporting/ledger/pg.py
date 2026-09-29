@@ -596,6 +596,22 @@ class PgReportingLedgerStore:
                 connection, account_id=account_id, delivery_config_ids=delivery_config_ids
             )
 
+    async def list_all_configurations(self) -> tuple[ReportingConfiguration, ...]:
+        """One ordered scan for trusted service recovery, including retired generations."""
+        async with self._connection() as connection:
+            rows = await (
+                await connection.execute(
+                    "SELECT delivery_config_id, delivery_config_version, account_id,"
+                    " report_definition_id, reporting_profile, feed_purpose, required_finality,"
+                    " account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
+                    " automated_recovery_seconds, status_retention_days, definition,"
+                    " authoritative_party"
+                    " FROM reporting_configurations"
+                    " ORDER BY account_id, delivery_config_id, delivery_config_version"
+                )
+            ).fetchall()
+        return tuple(_configuration_from_row(row) for row in rows)
+
     @staticmethod
     async def _list_configurations_on(
         connection: Any, *, account_id: str, delivery_config_ids: Sequence[str] | None = None

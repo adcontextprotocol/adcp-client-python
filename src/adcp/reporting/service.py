@@ -44,6 +44,7 @@ from adcp.reporting.ledger import (
     ReportingStatusHandler,
     WorkerTurn,
 )
+from adcp.reporting.ledger.producer import _advertised_reporting_delivery
 from adcp.reporting.ledger.store import LedgerConflictError, decode_cursor
 from adcp.reporting.service_lifecycle import (
     ReliableReportingServiceError,
@@ -60,6 +61,7 @@ from adcp.reporting.source import (
     ReportingSourceExecutor,
     ReportingSourceSliceRequestV1,
 )
+from adcp.types import ReportingDeliveryOffering
 
 if TYPE_CHECKING:
     from adcp.reporting.production.contracts import ReportingProductionSourceBinding
@@ -228,6 +230,7 @@ class AdapterRegistration:
     executor: ReportingSourceExecutor
     object_reader: ReportingStagingStore | None
     adapter: ReportingAdapter | None = None
+    capability_offerings: tuple[Mapping[str, Any], ...] = ()
 
 
 class _AuthorizedInlineSource(InlineReportingSource):
@@ -276,6 +279,7 @@ class ReportingAdapterRegistry:
         constituent_of: (
             Callable[[Mapping[str, Any], ReportingSourceSliceRequestV1], str | None] | None
         ) = None,
+        capability_offerings: Sequence[ReportingDeliveryOffering | Mapping[str, Any]] = (),
     ) -> AdapterRegistration:
         """Wrap a small adapter using this service's default source storage.
 
@@ -286,6 +290,8 @@ class ReportingAdapterRegistry:
         Explicit stores are borrowed and must have their schemas prepared.
         ``constituent_of`` supports row contracts with custom constituent keys;
         otherwise rows use media_buy_id, package_id, product_id or constituent_id.
+        ``capability_offerings`` declares the public buyer contract before any
+        account configures reporting. Source cadence alone cannot imply its SLA.
         """
         if not isinstance(adapter, ReportingAdapter):
             raise TypeError("adapter must expose capabilities and fetch_slice(request)")
@@ -309,6 +315,7 @@ class ReportingAdapterRegistry:
             executor,
             object_reader=staging,
             adapter=adapter,
+            capability_offerings=capability_offerings,
         )
 
     def register_executor(
@@ -318,6 +325,7 @@ class ReportingAdapterRegistry:
         *,
         object_reader: ReportingStagingStore | None,
         adapter: ReportingAdapter | None = None,
+        capability_offerings: Sequence[ReportingDeliveryOffering | Mapping[str, Any]] = (),
     ) -> AdapterRegistration:
         """Advanced registration for custom manifest/staging implementations."""
         if self._frozen:
@@ -335,7 +343,52 @@ class ReportingAdapterRegistry:
             executor=executor,
             object_reader=object_reader,
             adapter=adapter,
+            capability_offerings=tuple(
+                _freeze(
+                    ReportingDeliveryOffering.model_validate(_wire(item)).model_dump(
+                        mode="json", exclude_none=True
+                    )
+                )
+                for item in capability_offerings
+            ),
         )
+        declared = {
+            str(item["offering_id"]): item
+            for registered in self._registrations.values()
+            for item in registered.capability_offerings
+        }
+        for public in registration.capability_offerings:
+            offering_id = str(public["offering_id"])
+            if offering_id in declared and declared[offering_id] != public:
+                raise ReliableReportingConfigurationError(
+                    f"capability offering {offering_id!r} has conflicting declarations"
+                )
+            declared[offering_id] = public
+            profile = public["reporting_profile"]
+            for finality in public["supported_finality"]:
+                matching = [
+                    source
+                    for source in executor.capabilities.offerings
+                    if (
+                        "snapshot"
+                        if isinstance(source, ProvisionalSnapshotOfferingV1)
+                        else "official"
+                    )
+                    == finality
+                    and source.contract.report_definition_id == public["report_definition_id"]
+                    and source.contract.report_definition_uri == public["report_definition_uri"]
+                    and source.contract.report_definition_sha256
+                    == public["report_definition_sha256"]
+                    and source.contract.reporting_profile == profile["id"]
+                    and source.contract.schema_version == profile["version"]
+                    and source.contract.schema_uri == profile["schema_uri"]
+                    and source.contract.schema_sha256 == profile["schema_sha256"]
+                ]
+                if not matching:
+                    raise ReliableReportingConfigurationError(
+                        f"capability offering {public['offering_id']!r} has no matching "
+                        f"{finality} source contract on adapter {name!r}"
+                    )
         self._registrations[name] = registration
         return registration
 
@@ -413,6 +466,8 @@ class ReliableReportingService:
         worker_error_handler: ReportingWorkerErrorHandler | None = None,
         owned_resources: Sequence[ReportingServiceResource] = (),
         production: ReportingProductionOptions | None = None,
+        automated_recovery_window: timedelta = timedelta(hours=6),
+        status_retention_days: int = 400,
     ) -> None:
         if production is not None and (
             caller_resolver is not None
@@ -439,6 +494,10 @@ class ReliableReportingService:
         self._consumer_status_enabled = consumer_status_enabled
         self._escalation = escalation or ReportingDeliveryEscalation()
         self._clock = effective_clock
+        if automated_recovery_window < timedelta(0) or status_retention_days < 1:
+            raise ReliableReportingConfigurationError("invalid reporting recovery/retention policy")
+        self._automated_recovery_window = automated_recovery_window
+        self._status_retention_days = status_retention_days
         self._worker_interval = worker_interval
         self._producer_factory = producer_factory
         self._materialization_worker = materialization_worker
@@ -617,7 +676,9 @@ class ReliableReportingService:
 
         await self._lifecycle.call(configure, before_start=True)
 
-    async def _configure(self, configuration: ReportingConfiguration) -> None:
+    async def _configure(
+        self, configuration: ReportingConfiguration, *, persist: bool = True
+    ) -> None:
         key = configuration.generation_key
         existing = self._bindings.get(key)
         if existing is not None:
@@ -650,10 +711,11 @@ class ReliableReportingService:
             clock=self._clock,
         )
         binding = _Binding(configuration=configuration, context=context, producer=producer)
-        if self._initialized:
-            await self.store.put_configuration(configuration)
-        else:
-            self._pending_configurations[key] = configuration
+        if persist:
+            if self._initialized:
+                await self.store.put_configuration(configuration)
+            else:
+                self._pending_configurations[key] = configuration
         self._bindings[key] = binding
 
     def _validate_offerings(
@@ -735,6 +797,14 @@ class ReliableReportingService:
             raise ReliableReportingConfigurationError(
                 "advertised capability offering does not support the required finality"
             )
+        if registration.capability_offerings:
+            public = ReportingDeliveryOffering.model_validate(
+                _thaw(context.capability_offering)
+            ).model_dump(mode="json", exclude_none=True)
+            if not any(_thaw(item) == public for item in registration.capability_offerings):
+                raise ReliableReportingConfigurationError(
+                    "account capability offering must match a registered public offering"
+                )
 
     def validate(self) -> None:
         """Fail fast on tier combinations the configured components cannot honor."""
@@ -759,6 +829,20 @@ class ReliableReportingService:
             raise ReliableReportingConfigurationError(
                 "reconciled billing requires managed delivery and a receipt handler"
             )
+        if self._production is None:
+            for name in self.sources.names:
+                for offering in self.sources.get(name).capability_offerings:
+                    if offering.get("method") and self._materialization_worker is None:
+                        raise ReliableReportingConfigurationError(
+                            "managed capability offerings require a materialization worker"
+                        )
+                    if (
+                        offering["reconciliation_mode"] == "consumer_receipt"
+                        and not self._reconciled_billing
+                    ):
+                        raise ReliableReportingConfigurationError(
+                            "consumer_receipt offerings require reconciled billing"
+                        )
 
     async def initialize(self) -> None:
         """Prepare resources once; start/run_worker opens reporting admission."""
@@ -773,6 +857,14 @@ class ReliableReportingService:
             for configuration in self._pending_configurations.values():
                 await self.store.put_configuration(configuration)
             self._pending_configurations.clear()
+            if self._production is None and self.sources.names:
+                # Older custom stores can retain explicit configure() startup.
+                # Built-in stores recover all generations in one scan, without
+                # rewriting their activation, retirement or producer progress.
+                enumerate_configurations = getattr(self.store, "list_all_configurations", None)
+                if callable(enumerate_configurations):
+                    for configuration in await enumerate_configurations():
+                        await self._configure(configuration, persist=False)
             self.sources.freeze()
             if self._production is not None:
                 await self._production.start()
@@ -926,12 +1018,23 @@ class ReliableReportingService:
     @staticmethod
     def _default_caller(request: Any, context: Any | None) -> ReportingStatusCaller:
         del request
-        account_id = getattr(context, "account_id", None)
-        consumer_id = getattr(context, "caller_identity", None)
+        # RequestContext is duck-typed here: importing decisioning.context at
+        # module scope would cycle through the decisioning reporting helpers.
+        # Its caller_identity is a per-account cache key, not a buyer identity.
+        account = getattr(context, "account", None)
+        if account is not None:
+            from adcp.server.auth import current_principal
+
+            account_id = getattr(account, "id", None)
+            consumer_id = current_principal.get()
+        else:
+            account_id = getattr(context, "account_id", None)
+            consumer_id = getattr(context, "caller_identity", None)
         if not account_id or not consumer_id:
             raise ReliableReportingConfigurationError(
                 "default caller resolution requires AccountAwareToolContext.account_id and "
-                "authenticated caller_identity; provide caller_resolver for another trust model"
+                "authenticated caller_identity, or RequestContext.account.id and an "
+                "authenticated current_principal; provide caller_resolver for another trust model"
             )
         return ReportingStatusCaller(account_id=account_id, consumer_id=consumer_id)
 
@@ -1046,11 +1149,23 @@ class ReliableReportingService:
 
     def capability_block(self) -> dict[str, Any]:
         """Project only components and offerings this service actually installed."""
-        if not self.ready or not self._bindings:
+        if not self.ready:
             return {}
         offerings: dict[str, dict[str, Any]] = {}
-        for binding in self._bindings.values():
-            offering = _thaw(binding.context.capability_offering)
+        declarations = [
+            item
+            for name in self.sources.names
+            for item in self.sources.get(name).capability_offerings
+        ]
+        # Preserve pre-registration callers that only supplied their offering
+        # with each account context. New declarations are ready at first boot.
+        declarations.extend(
+            binding.context.capability_offering for binding in self._bindings.values()
+        )
+        for declaration in declarations:
+            offering = ReportingDeliveryOffering.model_validate(_thaw(declaration)).model_dump(
+                mode="json", exclude_none=True
+            )
             offering_id = str(offering["offering_id"])
             existing = offerings.get(offering_id)
             if existing is not None and existing != offering:
@@ -1058,15 +1173,21 @@ class ReliableReportingService:
                     f"capability offering {offering_id!r} has conflicting declarations"
                 )
             offerings[offering_id] = offering
+        if not offerings:
+            return {}
         configurations = [binding.configuration for binding in self._bindings.values()]
-        first = next(iter(self._bindings.values())).producer
-        payload = first.advertised_reporting_delivery(
+        payload = _advertised_reporting_delivery(
+            escalation=self._escalation,
             consumer_status_task=self._consumer_status_enabled,
             offerings=[offerings[key] for key in sorted(offerings)],
             automated_recovery_window=max(
-                item.automated_recovery_window for item in configurations
+                (item.automated_recovery_window for item in configurations),
+                default=self._automated_recovery_window,
             ),
-            status_retention_days=min(item.status_retention_days for item in configurations),
+            status_retention_days=min(
+                (item.status_retention_days for item in configurations),
+                default=self._status_retention_days,
+            ),
         )
         # The service owns these installed-component declarations; they are not
         # caller-provided producer extensions.
@@ -1096,7 +1217,14 @@ class ReliableReportingService:
         return payload
 
     def install(self, platform: Any) -> Any:
-        """Install ready-to-use reporting handlers on an existing platform instance."""
+        """Install reporting on an ADCPHandler or a DecisioningPlatform.
+
+        Core decisioning installations retain the platform's account resolution,
+        dispatcher and boot-time idempotency checks. Pass the returned platform
+        to ``adcp.decisioning.serve`` as usual. Managed production graphs still
+        bind an ADCPHandler and return their exact production handler; use
+        ``create_adcp_server_from_platform`` first for that composition.
+        """
         self._compose_production()
         if self._production is not None:
             self._production.handler.bind_application(platform)
@@ -1104,11 +1232,14 @@ class ReliableReportingService:
         from adcp.server import ADCPHandler
         from adcp.server.mcp_tools import get_tools_for_handler
 
-        if not isinstance(platform, ADCPHandler):
-            raise ReliableReportingConfigurationError(
-                "install() requires an ADCPHandler instance; wire service methods explicitly "
-                "for other frameworks"
-            )
+        decisioning = not isinstance(platform, ADCPHandler)
+        if decisioning:
+            from adcp.decisioning.platform import DecisioningPlatform
+
+            if not isinstance(platform, DecisioningPlatform):
+                raise ReliableReportingConfigurationError(
+                    "install() requires an ADCPHandler or DecisioningPlatform instance"
+                )
         if getattr(platform, "_reliable_reporting_service", None) is self:
             return platform
         if getattr(platform, "_reliable_reporting_service", None) is not None:
@@ -1116,23 +1247,17 @@ class ReliableReportingService:
                 "this platform already has another ReliableReportingService installed"
             )
         original = type(platform)
-        existing_tools = {
-            item["name"] for item in get_tools_for_handler(platform, _include_schemas=False)
-        }
+        existing_tools = (
+            set()
+            if decisioning
+            else {item["name"] for item in get_tools_for_handler(platform, _include_schemas=False)}
+        )
         tools = set(existing_tools)
-        tools.update({"get_reporting_status", "get_media_buy_delivery"})
-        if self._consumer_status_enabled:
-            tools.add("sync_reporting_status")
-        if self._receipt_handler is not None:
-            tools.add("sync_reporting_receipts")
+        tools.update(self.reporting_tools)
 
         service = self
 
         class ReportingInstallMixin:
-            async def get_adcp_capabilities(self, params: Any, context: Any | None = None) -> Any:
-                result = await _resolve(getattr(super(), "get_adcp_capabilities")(params, context))
-                return service.inject_capabilities(result)
-
             async def get_reporting_status(self, params: Any, context: Any | None = None) -> Any:
                 return await service.get_reporting_status(params, context)
 
@@ -1150,17 +1275,34 @@ class ReliableReportingService:
                     )
                 return await service.sync_reporting_receipts(params, context)
 
-            async def get_media_buy_delivery(self, params: Any, context: Any | None = None) -> Any:
+            async def _get_reporting_revision_content(
+                self, params: Any, context: Any | None = None
+            ) -> Any:
+                return await service.get_revision_content(params, context)
+
+        attrs: dict[str, Any] = {"__module__": original.__module__}
+        if not decisioning:
+
+            async def get_adcp_capabilities(
+                instance: Any, params: Any, context: Any | None = None
+            ) -> Any:
+                result = await _resolve(original.get_adcp_capabilities(instance, params, context))
+                return service.inject_capabilities(result)
+
+            async def get_media_buy_delivery(
+                instance: Any, params: Any, context: Any | None = None
+            ) -> Any:
                 if not _wire(params).get("reporting_revision_id"):
                     return await _resolve(
-                        getattr(super(), "get_media_buy_delivery")(params, context)
+                        original.get_media_buy_delivery(instance, params, context)
                     )
                 return await service.get_revision_content(params, context)
 
-        attrs: dict[str, Any] = {
-            "__module__": original.__module__,
-            "advertised_tools": tools,
-        }
+            attrs.update(
+                advertised_tools=tools,
+                get_adcp_capabilities=get_adcp_capabilities,
+                get_media_buy_delivery=get_media_buy_delivery,
+            )
         reporting_methods = {
             "get_adcp_capabilities",
             "get_reporting_status",
@@ -1210,3 +1352,13 @@ class ReliableReportingService:
             platform = replacement
         setattr(platform, "_reliable_reporting_service", self)
         return platform
+
+    @property
+    def reporting_tools(self) -> frozenset[str]:
+        """Core task implementations mounted by ``install`` (independent of readiness)."""
+        tasks = {"get_reporting_status", "get_media_buy_delivery"}
+        if self._consumer_status_enabled:
+            tasks.add("sync_reporting_status")
+        if self._receipt_handler is not None:
+            tasks.add("sync_reporting_receipts")
+        return frozenset(tasks)

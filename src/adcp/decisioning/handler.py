@@ -174,6 +174,7 @@ from adcp.types import (
     GetProductsResponse,
     GetPropertyListRequest,
     GetPropertyListResponse,
+    GetReportingStatusRequest,
     GetRightsRequest,
     GetRightsSuccessResponse,
     GetSignalsRequest,
@@ -208,6 +209,8 @@ from adcp.types import (
     SyncCreativesSuccessResponse,
     SyncPlansRequest,
     SyncPlansResponse,
+    SyncReportingReceiptsRequest,
+    SyncReportingStatusRequest,
     UpdateCollectionListRequest,
     UpdateCollectionListResponse,
     UpdateContentStandardsRequest,
@@ -1267,6 +1270,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         | set(_CONTENT_STANDARDS_ADVERTISED_TOOLS)
         | set(_PROPERTY_LISTS_ADVERTISED_TOOLS)
         | set(_COLLECTION_LISTS_ADVERTISED_TOOLS)
+        | {"get_reporting_status", "sync_reporting_status", "sync_reporting_receipts"}
     )
 
     _agent_type = "decisioning platform"
@@ -1345,6 +1349,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         for wire_name, adopter_name in _OPTIONAL_LEGACY_WIRE_TO_ADOPTER.items():
             if wire_name in serving and not callable(getattr(self._platform, adopter_name, None)):
                 serving.discard(wire_name)
+        reporting = getattr(self._platform, "_reliable_reporting_service", None)
+        if reporting is not None:
+            serving.update(reporting.reporting_tools)
         return frozenset(serving)
 
     def _log_account_tool_dropped(self, tool_name: str, method_name: str) -> None:
@@ -2077,6 +2084,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         from adcp.reporting.outbox.status_support import validate_status_claims
         from adcp.reporting.outbox.support import validate_activity_claims
 
+        reporting = getattr(self._platform, "_reliable_reporting_service", None)
+        if reporting is not None:
+            response = reporting.inject_capabilities(response)
+
         await validate_status_claims(response, support=self._reporting_status, handler=self)
 
         await validate_activity_claims(
@@ -2725,6 +2736,21 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(params.account, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
+        if (
+            getattr(self._platform, "_reliable_reporting_service", None) is not None
+            and params.reporting_revision_id is not None
+        ):
+            return cast(
+                "GetMediaBuyDeliveryResponse",
+                await _invoke_platform_method(
+                    self._platform,
+                    "_get_reporting_revision_content",
+                    params,
+                    ctx,
+                    executor=self._executor,
+                    registry=self._registry,
+                ),
+            )
         # v1.5: hydrate ctx.recipes for the consumed proposal — adapter
         # reads ``ctx.recipes[product_id]`` for per-product delivery
         # logic. Hydrates from the first media_buy_id on the request;
@@ -2746,6 +2772,39 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         )
 
     # ----- Optional sales tools (gated by capabilities + override) -----
+
+    async def _invoke_reporting_method(
+        self, name: str, params: Any, context: ToolContext | None
+    ) -> Any:
+        reporting = getattr(self._platform, "_reliable_reporting_service", None)
+        if reporting is None or name not in reporting.reporting_tools:
+            return self._not_supported(name)
+        tool_ctx = context or ToolContext()
+        account = await self._resolve_account(params.account, tool_ctx)
+        ctx = self._build_ctx(tool_ctx, account)
+        return await _invoke_platform_method(
+            self._platform,
+            name,
+            params,
+            ctx,
+            executor=self._executor,
+            registry=self._registry,
+        )
+
+    async def get_reporting_status(  # type: ignore[override]
+        self, params: GetReportingStatusRequest, context: ToolContext | None = None
+    ) -> Any:
+        return await self._invoke_reporting_method("get_reporting_status", params, context)
+
+    async def sync_reporting_status(  # type: ignore[override]
+        self, params: SyncReportingStatusRequest, context: ToolContext | None = None
+    ) -> Any:
+        return await self._invoke_reporting_method("sync_reporting_status", params, context)
+
+    async def sync_reporting_receipts(  # type: ignore[override]
+        self, params: SyncReportingReceiptsRequest, context: ToolContext | None = None
+    ) -> Any:
+        return await self._invoke_reporting_method("sync_reporting_receipts", params, context)
 
     async def get_media_buys(  # type: ignore[override]
         self,
