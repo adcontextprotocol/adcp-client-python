@@ -24,6 +24,12 @@ from adcp.types.aliases import DeliveryCreative as AliasDeliveryCreative
 from adcp.types.creative import Creative as PartialCreative
 from adcp.types.creative import CreativeAsset as PartialCreativeAsset
 from adcp.types.creative import CreativeManifest as PartialCreativeManifest
+from adcp.types.generated_poc.core.creative_manifest import (
+    CreativeManifest as GeneratedCreativeManifest,
+)
+from adcp.types.generated_poc.creative.get_creative_delivery_response import (
+    GetCreativeDeliveryResponse as GeneratedGetCreativeDeliveryResponse,
+)
 
 FUTURE_FORMAT_KIND = "future_canonical_format"
 
@@ -169,7 +175,17 @@ def test_public_variant_rejects_unknown_manifest_format_kind() -> None:
     assert error.value.errors()[0]["loc"][-2:] == ("manifest", "format_kind")
 
 
-def test_unknown_nested_manifest_kind_round_trips_in_delivery_readback() -> None:
+@pytest.mark.parametrize(
+    ("response_type", "strict_manifest_type"),
+    [
+        (GetCreativeDeliveryResponse, CreativeManifest),
+        (GeneratedGetCreativeDeliveryResponse, GeneratedCreativeManifest),
+    ],
+    ids=["canonical", "generated"],
+)
+def test_unknown_nested_manifest_kind_round_trips_in_delivery_readback(
+    response_type, strict_manifest_type
+) -> None:
     payload = {
         "currency": "USD",
         "reporting_period": {
@@ -189,20 +205,20 @@ def test_unknown_nested_manifest_kind_round_trips_in_delivery_readback() -> None
             }
         ],
     }
-    delivery = GetCreativeDeliveryResponse.model_validate(payload)
+    delivery = response_type.model_validate(payload)
     manifest = delivery.creatives[0].variants[0].manifest
     assert manifest is not None
-    assert type(manifest) is not CreativeManifest
+    assert type(manifest) is not strict_manifest_type
     assert type(delivery.creatives[0].variants[0]) is not CreativeVariant
     assert manifest.format_kind == FUTURE_FORMAT_KIND
 
     encoded = delivery.model_dump_json()
-    assert GetCreativeDeliveryResponse.model_validate_json(encoded).model_dump(mode="json") == (
+    assert response_type.model_validate_json(encoded).model_dump(mode="json") == (
         delivery.model_dump(mode="json")
     )
 
     with pytest.raises(ValidationError) as error:
-        CreativeManifest.model_validate(payload["creatives"][0]["variants"][0]["manifest"])
+        strict_manifest_type.model_validate(payload["creatives"][0]["variants"][0]["manifest"])
     assert error.value.errors()[0]["loc"] == ("format_kind",)
 
 

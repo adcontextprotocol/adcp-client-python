@@ -67,12 +67,21 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
 )
 from adcp.types.generated_poc.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.generated_poc.core.canonical_product import PublisherDomain
+from adcp.types.generated_poc.core.creative_manifest import (
+    CreativeManifest as GeneratedCreativeManifest,
+)
+from adcp.types.generated_poc.core.creative_variant import (
+    CreativeVariant as GeneratedCreativeVariant,
+)
 from adcp.types.generated_poc.core.format import Format
 from adcp.types.generated_poc.core.media_buy_features import MediaBuyFeatures
 from adcp.types.generated_poc.core.targeting import TargetingOverlay
 from adcp.types.generated_poc.core.targeting_input import TargetingOverlayInput
 from adcp.types.generated_poc.creative.get_creative_delivery_response import (
     Creative as DeliveryCreative,
+)
+from adcp.types.generated_poc.creative.get_creative_delivery_response import (
+    GetCreativeDeliveryResponse as GeneratedGetCreativeDeliveryResponse,
 )
 from adcp.types.generated_poc.media_buy.create_media_buy_request import CreateMediaBuyRequest
 from adcp.types.generated_poc.media_buy.package_control import PackageControl
@@ -88,6 +97,14 @@ _OpenCanonicalFormatKind = Annotated[
     CanonicalFormatKind | str,
     Field(union_mode="left_to_right"),
 ]
+
+
+class _DeliveryCreativeManifest(GeneratedCreativeManifest):
+    """Private readback view; the generated public manifest remains strict."""
+
+
+class _DeliveryCreativeVariant(GeneratedCreativeVariant):
+    """Private delivery variant with a tolerant rendered manifest."""
 
 
 def _patch_model_field(model: type[BaseModel], field_name: str, new_annotation: Any) -> None:
@@ -255,14 +272,28 @@ def _apply_forward_compat() -> None:
     # Refresh its cached nested validator as well as the package model itself.
     CreateMediaBuyRequest.model_rebuild(force=True)
 
-    # Delivery readback retains unknown future kinds. CreativeAsset, Creative,
-    # and CreativeManifest validate their declared closed canonical enum.
+    # Delivery readback retains unknown future kinds. Patch private subclasses
+    # for rendered manifests, leaving generated input models strict.
+    _patch_model_field(
+        _DeliveryCreativeManifest,
+        "format_kind",
+        _OpenCanonicalFormatKind | None,
+    )
+    _DeliveryCreativeManifest.model_rebuild(force=True)
+    _patch_model_field(
+        _DeliveryCreativeVariant,
+        "manifest",
+        _DeliveryCreativeManifest | None,
+    )
+    _DeliveryCreativeVariant.model_rebuild(force=True)
     _patch_model_field(
         DeliveryCreative,
         "format_kind",
         _OpenCanonicalFormatKind | None,
     )
+    _patch_model_field(DeliveryCreative, "variants", list[_DeliveryCreativeVariant])
     DeliveryCreative.model_rebuild(force=True)
+    GeneratedGetCreativeDeliveryResponse.model_rebuild(force=True)
 
     _patch_model_field(Format, "assets", list[FormatAssetUnion] | None)
     Format.model_rebuild(force=True)
