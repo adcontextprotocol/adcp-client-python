@@ -71,19 +71,34 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     PublisherDomain as BundledPublisherDomain,
 )
+from adcp.types.generated_poc.core.async_response_data import AdcpAsyncResponseData
 from adcp.types.generated_poc.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.generated_poc.core.canonical_product import PublisherDomain
 from adcp.types.generated_poc.core.creative_manifest import CreativeManifest
 from adcp.types.generated_poc.core.creative_variant import CreativeVariant
 from adcp.types.generated_poc.core.format import Format
+from adcp.types.generated_poc.core.mcp_webhook_payload import McpWebhookPayload
 from adcp.types.generated_poc.core.media_buy_features import MediaBuyFeatures
 from adcp.types.generated_poc.core.targeting import TargetingOverlay
 from adcp.types.generated_poc.core.targeting_input import TargetingOverlayInput
+from adcp.types.generated_poc.core.version_envelope import AdcpVersionEnvelope
 from adcp.types.generated_poc.creative.get_creative_delivery_response import (
     Creative as DeliveryCreative,
 )
 from adcp.types.generated_poc.creative.get_creative_delivery_response import (
     GetCreativeDeliveryResponse,
+)
+from adcp.types.generated_poc.creative.preview_creative_response import PreviewCreativeResponse3
+from adcp.types.generated_poc.media_buy.build_creative_response import (
+    BuildCreativeResponse1,
+    BuildCreativeResponse3,
+    BuildCreativeResponse4,
+)
+from adcp.types.generated_poc.media_buy.build_creative_response import (
+    Creative as BuildCreative,
+)
+from adcp.types.generated_poc.media_buy.build_creative_response import (
+    Variant as BuildCreativeVariant,
 )
 from adcp.types.generated_poc.media_buy.create_media_buy_request import CreateMediaBuyRequest
 from adcp.types.generated_poc.media_buy.package_control import PackageControl
@@ -94,6 +109,13 @@ from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
     AcceptancePolicyDiscovery,
     PrimaryCountry,
 )
+from adcp.types.generated_poc.trusted_match.context_match_response import (
+    ContextMatchResponseRouterPublisher,
+)
+from adcp.types.generated_poc.trusted_match.offer import Offer
+from adcp.types.generated_poc.trusted_match.provider_context_match_response import (
+    ContextMatchResponseProviderRouter,
+)
 
 _OpenCanonicalFormatKind = Annotated[
     CanonicalFormatKind | str,
@@ -101,7 +123,7 @@ _OpenCanonicalFormatKind = Annotated[
 ]
 
 
-class _DeliveryReadbackModel(AdCPBaseModel):
+class _ManifestReadbackModel(AdCPBaseModel):
     """Independent from strict inputs: tolerant instances must not validate as them."""
 
     model_config = ConfigDict(extra="allow")
@@ -114,7 +136,11 @@ class _DeliveryReadbackModel(AdCPBaseModel):
         return data
 
 
-def _delivery_readback_clone(
+class _VersionedManifestReadbackModel(AdcpVersionEnvelope, _ManifestReadbackModel):
+    """Keep the shared version envelope on build response nodes."""
+
+
+def _manifest_readback_clone(
     name: str,
     source: type[AdCPBaseModel],
     overrides: dict[str, Any],
@@ -129,33 +155,57 @@ def _delivery_readback_clone(
     }
     return create_model(
         name,
-        __base__=_DeliveryReadbackModel,
+        __base__=(
+            _VersionedManifestReadbackModel
+            if issubclass(source, AdcpVersionEnvelope)
+            else _ManifestReadbackModel
+        ),
         __module__=__name__,
         __validators__=validators,
         **fields,
     )
 
 
-def _normalize_delivery_manifest(data: Any) -> Any:
+def _normalize_readback_manifest(data: Any) -> Any:
     # Pydantic binds the generated validator proxy to a callable at runtime.
     normalize = cast(Callable[[Any], Any], CreativeManifest._coerce_standalone_assets)
     return normalize(data)
 
 
-_DeliveryManifest = _delivery_readback_clone(
-    "_DeliveryManifest",
+_ReadbackCreativeManifest = _manifest_readback_clone(
+    "_ReadbackCreativeManifest",
     CreativeManifest,
     {"format_kind": _OpenCanonicalFormatKind | None},
     validators={
         # Preserve the generated manifest's standalone-asset normalization,
         # without widening that input model or inheriting from it.
-        "_coerce_standalone_assets": model_validator(mode="before")(_normalize_delivery_manifest),
+        "_coerce_standalone_assets": model_validator(mode="before")(_normalize_readback_manifest),
     },
 )
-_DeliveryVariant = _delivery_readback_clone(
+_DeliveryVariant = _manifest_readback_clone(
     "_DeliveryVariant",
     CreativeVariant,
-    {"manifest": _DeliveryManifest | None},
+    {"manifest": _ReadbackCreativeManifest | None},
+)
+_BuildReadbackVariant = _manifest_readback_clone(
+    "_BuildReadbackVariant",
+    BuildCreativeVariant,
+    {"creative_manifest": _ReadbackCreativeManifest},
+)
+_BuildReadbackCreative = _manifest_readback_clone(
+    "_BuildReadbackCreative",
+    BuildCreative,
+    {
+        # This constraint is inside the optional union in the generated type,
+        # so it must stay on the non-None arm when replacing that annotation.
+        "variants": Annotated[GenericAlias(list, _BuildReadbackVariant), Field(min_length=1)]
+        | None,
+    },
+)
+_ReadbackOffer = _manifest_readback_clone(
+    "_ReadbackOffer",
+    Offer,
+    {"creative_manifest": _ReadbackCreativeManifest | None},
 )
 
 
@@ -324,8 +374,10 @@ def _apply_forward_compat() -> None:
     # Refresh its cached nested validator as well as the package model itself.
     CreateMediaBuyRequest.model_rebuild(force=True)
 
-    # Only delivery readback retains unknown future kinds, including nested
-    # served manifests. Public/generated input manifests stay strict.
+    # All response manifests retain unknown future kinds. Patch the generated
+    # response classes themselves so public aliases and indirect wrappers agree;
+    # public/generated input manifests and direct Creative/CreativeAsset fields
+    # stay strict. Private readback nodes cannot bypass strict input validation.
     _patch_model_field(
         DeliveryCreative,
         "format_kind",
@@ -334,6 +386,28 @@ def _apply_forward_compat() -> None:
     _patch_model_field(DeliveryCreative, "variants", GenericAlias(list, _DeliveryVariant))
     DeliveryCreative.model_rebuild(force=True)
     GetCreativeDeliveryResponse.model_rebuild(force=True)
+
+    _patch_model_field(PreviewCreativeResponse3, "manifest", _ReadbackCreativeManifest | None)
+    PreviewCreativeResponse3.model_rebuild(force=True)
+    _patch_model_field(BuildCreativeResponse1, "creative_manifest", _ReadbackCreativeManifest)
+    BuildCreativeResponse1.model_rebuild(force=True)
+    _patch_model_field(
+        BuildCreativeResponse3, "creative_manifests", GenericAlias(list, _ReadbackCreativeManifest)
+    )
+    BuildCreativeResponse3.model_rebuild(force=True)
+    _patch_model_field(
+        BuildCreativeResponse4, "creatives", GenericAlias(list, _BuildReadbackCreative)
+    )
+    BuildCreativeResponse4.model_rebuild(force=True)
+
+    for response in (ContextMatchResponseRouterPublisher, ContextMatchResponseProviderRouter):
+        _patch_model_field(response, "offers", GenericAlias(list, _ReadbackOffer))
+        response.model_rebuild(force=True)
+
+    # These eager wrappers captured build/preview validators before the patches.
+    # Refresh both levels so completed task callbacks retain typed manifests.
+    AdcpAsyncResponseData.model_rebuild(force=True)
+    McpWebhookPayload.model_rebuild(force=True)
 
     _patch_model_field(Format, "assets", list[FormatAssetUnion] | None)
     Format.model_rebuild(force=True)

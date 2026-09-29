@@ -43,24 +43,39 @@ Adopter-defined formats use the existing `custom` kind with a corresponding
 format declaration's `format_shape` and `format_schema`. Use it when the creative
 conforms to that custom contract, rather than as a fallback for unknown values.
 
-Readback annotations are now `CanonicalFormatKind` for `CreativeAsset` and
+The public input annotations are `CanonicalFormatKind` for `CreativeAsset` and
 `Creative`, and `CanonicalFormatKind | None` for `CreativeManifest`. Remove
-application branches that treat their validated kinds as arbitrary strings.
+application branches that treat kinds validated by these types as arbitrary strings.
 
-## Delivery readback
+## Buyer manifest readback
 
-`DeliveryCreative.format_kind` and the rendered manifest kinds in the canonical
-`GetCreativeDeliveryResponse` remain `CanonicalFormatKind | str | None`.
-Both canonical and legacy delivery
-responses preserve unknown future kinds, including rendered manifests, so a
-new kind does not discard an entire delivery result. Known kinds still normalize
-to enum members. This is tolerant SDK response parsing; it does not widen the
-versioned wire schema's enum.
+The SDK preserves unknown `format_kind` strings when reading manifests returned
+by another agent. Known kinds still normalize to enum members. This applies to
+all manifest-bearing response paths:
 
-Delivery uses private manifest and variant types that are reachable through the
-response and are not exported from `adcp.types`. They are separate from the
-strict public input types. To reuse a served manifest as input, dump it and
-validate it with `CreativeManifest.model_validate(served_manifest.model_dump())`.
-An unknown kind fails this validation; choose a supported kind or upgrade the
-SDK before submitting it. Passing the tolerant instance directly also cannot
-bypass the input validator.
+| Response | Manifest path |
+| --- | --- |
+| Canonical and legacy creative delivery | `creatives[].variants[].manifest` |
+| `LegacyPreviewCreativeResponse3` | `manifest` |
+| `LegacyBuildCreativeResponse1` | `creative_manifest` |
+| `LegacyBuildCreativeResponse3` | `creative_manifests[]` |
+| `LegacyBuildCreativeResponse4` | `creatives[].variants[].creative_manifest` |
+| Trusted-match router and provider responses | `offers[].creative_manifest` |
+
+Completed async build and preview results follow the same rule, including the
+webhook result wrapper. `DeliveryCreative.format_kind` also remains
+`CanonicalFormatKind | str | None`. This is tolerant SDK response parsing; it
+does not widen the versioned wire schema's enum.
+
+Direct `Creative.format_kind` and `CreativeAsset.format_kind` fields remain
+strict, including `ListCreativesResponse.creatives[].format_kind`. The tolerance
+applies to response manifests, not to these directly embedded creative types.
+
+Responses use private manifest views, with private enclosing variants and offers
+where needed. These types are reachable through responses but are not exported
+from `adcp.types`. The public and generated `CreativeManifest` types remain
+strict inputs. To reuse a returned manifest as input, dump it and validate it
+with `CreativeManifest.model_validate(returned_manifest.model_dump())`. An
+unknown kind fails this validation; choose a supported kind or upgrade the SDK
+before submitting it. Passing the tolerant instance directly also cannot bypass
+the input validator.

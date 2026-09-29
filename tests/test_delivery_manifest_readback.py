@@ -1,4 +1,4 @@
-"""Delivery-only tolerance must not weaken creative input validation (#1241)."""
+"""Delivery manifest tolerance must not weaken creative input validation (#1241)."""
 
 from __future__ import annotations
 
