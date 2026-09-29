@@ -1,5 +1,13 @@
 # Changelog
 
+## [8.0.0-rc.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-rc.1...v8.0.0-rc.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* **deps:** cap httpx below 1.0 for prerelease installs ([#1245](https://github.com/adcontextprotocol/adcp-client-python/issues/1245)) ([cba2bfb](https://github.com/adcontextprotocol/adcp-client-python/commit/cba2bfb13f6d366d89d3f5dd9479175affa1d7c7))
+* **types:** retain serialization schema fields ([#1246](https://github.com/adcontextprotocol/adcp-client-python/issues/1246)) ([1131abd](https://github.com/adcontextprotocol/adcp-client-python/commit/1131abd0e26abb38e892941a0f7e0acb9a1358fb))
+
 ## [8.0.0-rc.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.18...v8.0.0-rc.1) (2026-09-28)
 
 
