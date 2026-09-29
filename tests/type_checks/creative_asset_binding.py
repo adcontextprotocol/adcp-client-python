@@ -8,6 +8,7 @@ from adcp.types import (
     CreativeAsset,
     CreativeManifest,
     DeliveryCreative,
+    GetCreativeDeliveryResponse,
 )
 from adcp.types.canonical_creative import CanonicalBoundaryModel
 
@@ -43,3 +44,10 @@ delivery = DeliveryCreative(
     variants=[],
 )
 assert_type(delivery.format_kind, CanonicalFormatKind | str | None)
+
+
+def check_served_manifest(response: GetCreativeDeliveryResponse) -> None:
+    for creative in response.creatives:
+        for variant in creative.variants:
+            if variant.manifest is not None:
+                assert_type(variant.manifest.format_kind, CanonicalFormatKind | str | None)

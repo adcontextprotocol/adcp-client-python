@@ -30,24 +30,30 @@ in-place. It is therefore listed in ALLOWED_FILES in test_import_layering.py.
 from __future__ import annotations
 
 import json
-from copy import copy
+from collections.abc import Callable
+from copy import copy, deepcopy
 from functools import partial
+from types import GenericAlias
 from typing import Annotated, Any, cast, get_args
 
 from pydantic import (
     BaseModel,
+    ConfigDict,
     Field,
     GetCoreSchemaHandler,
     GetPydanticSchema,
     SerializerFunctionWrapHandler,
     ValidationError,
     ValidatorFunctionWrapHandler,
+    create_model,
+    model_validator,
 )
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import SkipJsonSchema
 from pydantic_core import CoreSchema, InitErrorDetails, core_schema
 
 from adcp.types.aliases import FormatAssetUnion, GroupFormatAssetUnion, RepeatableAssetGroup
+from adcp.types.base import AdCPBaseModel
 from adcp.types.canonical_creative import PackageRequest as PublicPackageRequest
 from adcp.types.canonical_creative import PackageUpdate as PublicPackageUpdate
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
@@ -67,12 +73,8 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
 )
 from adcp.types.generated_poc.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.generated_poc.core.canonical_product import PublisherDomain
-from adcp.types.generated_poc.core.creative_manifest import (
-    CreativeManifest as GeneratedCreativeManifest,
-)
-from adcp.types.generated_poc.core.creative_variant import (
-    CreativeVariant as GeneratedCreativeVariant,
-)
+from adcp.types.generated_poc.core.creative_manifest import CreativeManifest
+from adcp.types.generated_poc.core.creative_variant import CreativeVariant
 from adcp.types.generated_poc.core.format import Format
 from adcp.types.generated_poc.core.media_buy_features import MediaBuyFeatures
 from adcp.types.generated_poc.core.targeting import TargetingOverlay
@@ -81,7 +83,7 @@ from adcp.types.generated_poc.creative.get_creative_delivery_response import (
     Creative as DeliveryCreative,
 )
 from adcp.types.generated_poc.creative.get_creative_delivery_response import (
-    GetCreativeDeliveryResponse as GeneratedGetCreativeDeliveryResponse,
+    GetCreativeDeliveryResponse,
 )
 from adcp.types.generated_poc.media_buy.create_media_buy_request import CreateMediaBuyRequest
 from adcp.types.generated_poc.media_buy.package_control import PackageControl
@@ -99,12 +101,62 @@ _OpenCanonicalFormatKind = Annotated[
 ]
 
 
-class _DeliveryCreativeManifest(GeneratedCreativeManifest):
-    """Private readback view; the generated public manifest remains strict."""
+class _DeliveryReadbackModel(AdCPBaseModel):
+    """Independent from strict inputs: tolerant instances must not validate as them."""
+
+    model_config = ConfigDict(extra="allow")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_readback(cls, data: Any) -> Any:
+        if isinstance(data, AdCPBaseModel) and not isinstance(data, cls):
+            return data.model_dump(mode="python")
+        return data
 
 
-class _DeliveryCreativeVariant(GeneratedCreativeVariant):
-    """Private delivery variant with a tolerant rendered manifest."""
+def _delivery_readback_clone(
+    name: str,
+    source: type[AdCPBaseModel],
+    overrides: dict[str, Any],
+    *,
+    validators: dict[str, Any] | None = None,
+) -> type[AdCPBaseModel]:
+    # Copy all field constraints without inheriting the strict source model.
+    # A tolerant subclass would pass its parent's default instance validation.
+    fields: dict[str, Any] = {
+        key: (overrides.get(key, field.annotation), deepcopy(field))
+        for key, field in source.model_fields.items()
+    }
+    return create_model(
+        name,
+        __base__=_DeliveryReadbackModel,
+        __module__=__name__,
+        __validators__=validators,
+        **fields,
+    )
+
+
+def _normalize_delivery_manifest(data: Any) -> Any:
+    # Pydantic binds the generated validator proxy to a callable at runtime.
+    normalize = cast(Callable[[Any], Any], CreativeManifest._coerce_standalone_assets)
+    return normalize(data)
+
+
+_DeliveryManifest = _delivery_readback_clone(
+    "_DeliveryManifest",
+    CreativeManifest,
+    {"format_kind": _OpenCanonicalFormatKind | None},
+    validators={
+        # Preserve the generated manifest's standalone-asset normalization,
+        # without widening that input model or inheriting from it.
+        "_coerce_standalone_assets": model_validator(mode="before")(_normalize_delivery_manifest),
+    },
+)
+_DeliveryVariant = _delivery_readback_clone(
+    "_DeliveryVariant",
+    CreativeVariant,
+    {"manifest": _DeliveryManifest | None},
+)
 
 
 def _patch_model_field(model: type[BaseModel], field_name: str, new_annotation: Any) -> None:
@@ -272,28 +324,16 @@ def _apply_forward_compat() -> None:
     # Refresh its cached nested validator as well as the package model itself.
     CreateMediaBuyRequest.model_rebuild(force=True)
 
-    # Delivery readback retains unknown future kinds. Patch private subclasses
-    # for rendered manifests, leaving generated input models strict.
-    _patch_model_field(
-        _DeliveryCreativeManifest,
-        "format_kind",
-        _OpenCanonicalFormatKind | None,
-    )
-    _DeliveryCreativeManifest.model_rebuild(force=True)
-    _patch_model_field(
-        _DeliveryCreativeVariant,
-        "manifest",
-        _DeliveryCreativeManifest | None,
-    )
-    _DeliveryCreativeVariant.model_rebuild(force=True)
+    # Only delivery readback retains unknown future kinds, including nested
+    # served manifests. Public/generated input manifests stay strict.
     _patch_model_field(
         DeliveryCreative,
         "format_kind",
         _OpenCanonicalFormatKind | None,
     )
-    _patch_model_field(DeliveryCreative, "variants", list[_DeliveryCreativeVariant])
+    _patch_model_field(DeliveryCreative, "variants", GenericAlias(list, _DeliveryVariant))
     DeliveryCreative.model_rebuild(force=True)
-    GeneratedGetCreativeDeliveryResponse.model_rebuild(force=True)
+    GetCreativeDeliveryResponse.model_rebuild(force=True)
 
     _patch_model_field(Format, "assets", list[FormatAssetUnion] | None)
     Format.model_rebuild(force=True)

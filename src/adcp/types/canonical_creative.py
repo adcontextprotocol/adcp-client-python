@@ -638,26 +638,62 @@ CreativeVariant = _canonical_clone(
     overrides={"manifest": (CreativeManifest | None, Field(default=None))},
 )
 
-# A seller validates submitted manifests against the closed canonical enum.
-# Delivery is readback of what another seller served, so an unknown future
-# kind must remain representable without widening the public input models.
-_DeliveryCreativeManifest = _canonical_clone(
-    "_DeliveryCreativeManifest",
+
+_DeliveryCreativeManifestBase = _canonical_clone(
+    "_DeliveryCreativeManifestBase",
     _CanonicalCreativeManifestWire,
-    overrides={"format_kind": (_OpenCanonicalFormatKind | None, Field(default=None))},
+    overrides={
+        "format_kind": (
+            _OpenCanonicalFormatKind | None,
+            copy.deepcopy(_CanonicalCreativeManifestWire.model_fields["format_kind"]),
+        )
+    },
 )
-_DeliveryCreativeVariant = _canonical_clone(
-    "_DeliveryCreativeVariant",
+
+
+class _DeliveryCreativeManifest(_DeliveryCreativeManifestBase):
+    """Tolerant served output, deliberately not a subtype of the strict input."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_readback(cls, data: Any) -> Any:
+        if isinstance(data, AdCPBaseModel) and not isinstance(data, cls):
+            data = data.model_dump(mode="python")
+        return CreativeManifest._normalize_standalone_assets(data)
+
+
+_DeliveryCreativeVariantBase = _canonical_clone(
+    "_DeliveryCreativeVariantBase",
     _LegacyCreativeVariant,
-    overrides={"manifest": (_DeliveryCreativeManifest | None, Field(default=None))},
+    overrides={
+        "manifest": (
+            _DeliveryCreativeManifest | None,
+            copy.deepcopy(_LegacyCreativeVariant.model_fields["manifest"]),
+        )
+    },
 )
+
+
+class _DeliveryCreativeVariant(_DeliveryCreativeVariantBase):
+    """A delivery row whose rendered manifest may use a future format kind."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_readback(cls, data: Any) -> Any:
+        if isinstance(data, AdCPBaseModel) and not isinstance(data, cls):
+            return data.model_dump(mode="python")
+        return data
+
 
 DeliveryCreative = _canonical_clone(
     "DeliveryCreative",
     _LegacyDeliveryCreative,
     overrides={
         "format_kind": (_OpenCanonicalFormatKind | None, Field(default=None)),
-        "variants": (list[_DeliveryCreativeVariant], Field()),
+        "variants": (
+            list[_DeliveryCreativeVariant],
+            copy.deepcopy(_LegacyDeliveryCreative.model_fields["variants"]),
+        ),
     },
 )
 
