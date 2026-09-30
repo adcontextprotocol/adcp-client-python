@@ -2,8 +2,17 @@
 
 Release Please opens or updates the release PR after a push to `main`. It uses the
 release App credential so the release PR receives normal CI. The workflow
-normalizes the proposed `pyproject.toml` prerelease version to PEP 440. Review
-and merge that PR once its required checks and reviews pass.
+normalizes the proposed `pyproject.toml` prerelease version to PEP 440 (a
+no-op for stable versions). Review and merge that PR once its required checks
+and reviews pass.
+
+SDK 8 uses normal SemVer versioning: `release-please-config.json` has no
+`versioning: prerelease`, `prerelease-type`, or `prerelease` keys. To choose an
+exact version (for example the first stable release after an rc series), the
+squash commit that lands on `main` must end its body with a
+`Release-As: X.Y.Z` footer. The repository squashes with the branch commit
+messages as the default body, so check the final message in the merge dialog
+before confirming; the PR title and description alone are not parsed.
 After re-enabling a disabled Release Please workflow, run it once manually on
 `main` to process the current head; subsequent main pushes start it automatically.
 
