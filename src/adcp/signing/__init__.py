@@ -49,6 +49,10 @@ The core names you'll reach for (everything else is for advanced use):
 
 **Sellers** (verifying incoming requests):
 
+* ``serve(request_signature_verification=...)`` — framework verification
+  before dispatch; see :class:`adcp.server.RequestSignatureVerification`
+* :class:`SignerKeyResolver` — maps a ``keyid`` to the buyer agent that
+  owns it (:class:`StaticSignerKeys`, :class:`JwksUriSignerKeys`)
 * :func:`verify_starlette_request` / :func:`verify_flask_request` —
   framework-shaped wrappers around :func:`verify_request_signature`
 * :class:`VerifyOptions` — the knobs (capability, jwks_resolver,
@@ -278,6 +282,12 @@ from adcp.signing.signer import (
     async_sign_request,
     sign_request,
 )
+from adcp.signing.signer_keys import (
+    JwksUriSignerKeys,
+    ResolvedSignerKey,
+    SignerKeyResolver,
+    StaticSignerKeys,
+)
 from adcp.signing.standard_webhooks import (
     StandardWebhookError,
     sign_standard_webhook,
@@ -320,6 +330,10 @@ except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
 
 
 __all__ = [
+    "JwksUriSignerKeys",
+    "ResolvedSignerKey",
+    "SignerKeyResolver",
+    "StaticSignerKeys",
     "ALG_ED25519",
     "ALG_ES256",
     "ALLOWED_ALGS",

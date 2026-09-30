@@ -48,9 +48,11 @@ T = TypeVar("T")
 class AuthInfo:
     """The verified principal authenticated for a request.
 
-    Populated by the framework's signed-request verifier
-    (:func:`adcp.signing.signed_request_verifier`) or a custom
-    ``authenticate=`` callable wired via :func:`adcp.decisioning.serve`.
+    Populated by the framework's request-signature verification
+    (``serve(request_signature_verification=...)`` or
+    ``adcp.decisioning.serve(signer_keys=...)``), the bearer
+    :func:`adcp.server.auth_context_factory`, or a custom
+    ``context_factory``.
     Threaded onto :attr:`RequestContext.auth_info` so platform methods
     can read scopes, key_id, principal, etc., without parsing
     transport headers.
@@ -106,11 +108,16 @@ class AuthInfo:
         typed credential (the SDK deliberately refuses to derive
         ``agent_url`` from the unverified ``principal`` string —
         see ``__post_init__`` for the rationale).
-    :param operator: Operator / transport-tenant label — the AdCP v3
-        operator binding (separate from the buyer agent). Distinct
-        from ``ToolContext.tenant_id`` only for adopters running the
-        AAO community proxy in front of a multi-operator deployment;
-        most adopters leave this ``None``.
+    :param operator: Operator / transport-tenant label an auth layer
+        bound to the *credential* — set only by adopters running the
+        AAO community proxy (or similar) in front of a multi-operator
+        deployment; most adopters leave this ``None`` and the framework
+        never sets it. It is **not** the buyer's operator: for
+        buyer-declared accounts (``require_operator_auth: false``) the
+        operator is part of the request's account reference
+        (``account.operator``), so read it from the request and do not
+        require it on ``AuthInfo`` — a signed or bearer caller will not
+        carry one.
     :param extra: Adopter passthrough for auth-layer fields the SDK
         doesn't model (custom claims, MFA flags, internal session ids).
     """
@@ -221,14 +228,14 @@ class AuthInfo:
                 signer, max_verified_age_s=300.0,
             )
 
-        The verifier MUST surface ``signer.agent_url`` for the
+        The signer MUST carry ``signer.agent_url`` for the
         commercial-identity registry to dispatch — without it, the
-        framework has no key to look up. The verifier is configured
-        with the ``agent_url`` claim shape per the AdCP v3 profile;
-        if it's ``None`` here the verifier wasn't told to extract it
-        and this helper raises :class:`ValueError` with a pointer to
-        the misconfiguration. Buyers don't see this — server boot
-        time error.
+        framework has no key to look up. The verifier does not derive
+        it from the ``keyid``; it echoes ``VerifyOptions.agent_url``.
+        Framework verification fills it from the
+        :class:`adcp.signing.SignerKeyResolver` that mapped the
+        ``keyid``. If it's ``None`` here this helper raises
+        :class:`ValueError` pointing at the misconfiguration.
 
         :param signer: The :class:`VerifiedSigner` returned from
             :func:`adcp.signing.verify_request_signature`.
@@ -236,9 +243,11 @@ class AuthInfo:
             doesn't extract these — adopter middleware fills in
             scopes derived from token introspection or per-key
             policy.
-        :param operator: Operator label for AdCP v3 multi-operator
-            deployments (AAO community proxy). Most adopters leave
-            ``None``.
+        :param operator: Credential-bound operator label for
+            multi-operator proxy deployments. Most adopters leave
+            ``None``; buyer-declared accounts carry the operator in the
+            request's ``account.operator`` instead (see the class
+            docstring).
         :param extra: Adopter passthrough.
         :param max_verified_age_s: Maximum age (seconds) of
             ``signer.verified_at`` permitted at construction time.
@@ -263,11 +272,13 @@ class AuthInfo:
 
         if signer.agent_url is None:
             raise ValueError(
-                "VerifiedSigner.agent_url is None — the AdCP request-signing "
-                "verifier wasn't configured to extract the agent_url claim. "
-                "Set ``VerifyOptions.agent_url=`` (or its source) so the "
-                "verifier surfaces it on success. Without an agent_url, the "
-                "BuyerAgentRegistry has no key to dispatch on."
+                "VerifiedSigner.agent_url is None — a keyid alone does not "
+                "identify the signing buyer agent. Map keyids to agent URLs "
+                "with an adcp.signing.SignerKeyResolver (StaticSignerKeys, "
+                "JwksUriSignerKeys) via serve(request_signature_verification="
+                "...), or set VerifyOptions.agent_url= when verifying by hand. "
+                "Without an agent_url, the BuyerAgentRegistry has no key to "
+                "dispatch on."
             )
         if max_verified_age_s is not None:
             current = now if now is not None else time.time()

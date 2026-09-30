@@ -92,6 +92,7 @@ from starlette.responses import JSONResponse
 
 from adcp.server.base import ToolContext
 from adcp.server.mcp_tools import DISCOVERY_METHODS, DISCOVERY_TOOLS
+from adcp.server.signed_requests import scope_has_verified_signer
 
 logger = logging.getLogger("adcp.server.auth")
 
@@ -471,6 +472,15 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
                 return await call_next(request)
 
             if not bearer:
+                if scope_has_verified_signer(request.scope):
+                    # Framework request-signature verification already
+                    # authenticated this caller; the signed identity is
+                    # overlaid on the ToolContext at dispatch.
+                    principal_token = current_principal.set(None)
+                    tenant_token = current_tenant.set(None)
+                    metadata_token = current_principal_metadata.set(None)
+                    _set_request_state(request, None, None, None)
+                    return await call_next(request)
                 if self._allow_unauthenticated:
                     # Network-trust deployment: no bearer is expected on this
                     # leg — the agent is reachable only via the host's
@@ -1576,6 +1586,12 @@ class A2ABearerAuthMiddleware:
         # reachable only via the host's authenticated proxy). A token that IS
         # present but invalid still falls through to rejection below.
         if self._config.allow_unauthenticated and not self._has_bearer(scope):
+            await self._app(scope, receive, send)
+            return
+
+        # A framework-verified request signature authenticates a caller that
+        # presents no bearer; its identity is overlaid on the ToolContext.
+        if scope_has_verified_signer(scope) and not self._has_bearer(scope):
             await self._app(scope, receive, send)
             return
 

@@ -369,14 +369,24 @@ flows the dispatch helper synthesizes
 `AuthInfo(kind="bearer", principal=...)` from `current_principal`, so
 `ctx.auth_info.kind == "bearer"` is the typed predicate (no
 `ctx.auth_info is None` check needed for authenticated bearer
-traffic). Signed-request flows carry `kind="signed_request"` /
-`"http_sig"` directly from the verifier middleware.
+traffic). Signed-request flows carry `kind="http_sig"` with a typed
+`HttpSigCredential` when the framework verifies signatures
+(`serve(request_signature_verification=...)`, or
+`adcp.decisioning.serve(signer_keys=...)`); see
+[request-signing-migration.md](request-signing-migration.md#framework-verification).
+
+`ctx.auth_info.operator` is a credential-bound label for multi-operator
+proxy deployments and is normally `None`. For buyer-declared accounts
+(`require_operator_auth: false`) the operator travels in the request's
+`account.operator` — read it from there rather than requiring it from
+the authenticated caller.
 
 #### Pattern 2a — custom middleware (when the shipped one doesn't fit)
 
 Subclass `BearerTokenAuthMiddleware` to tighten the discovery bypass,
-add extra headers, or customise the 401 response. For non-bearer auth
-(mTLS, signed requests, API key via header), write a Starlette
+add extra headers, or customise the 401 response. RFC 9421 signed
+requests are handled by the framework (see above). For other non-bearer
+auth (mTLS, API key via header), write a Starlette
 middleware that populates `adcp.server.auth.current_principal` /
 `current_tenant` yourself and keep using `auth_context_factory` — the
 `ContextVar`s are the contract, not the middleware class.

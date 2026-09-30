@@ -174,6 +174,11 @@ from adcp.server.serve import (
     create_mcp_server,
     serve,
 )
+from adcp.server.signed_requests import (
+    RequestSignatureVerification,
+    SignedRequestVerificationMiddleware,
+    current_verified_signer,
+)
 from adcp.server.spec_compat import (
     CANONICAL_CREATIVE_AGENT_URL,
     spec_compat_hooks,
@@ -261,6 +266,10 @@ __all__ = [
     "ASGIMiddlewareEntry",
     "SkillMiddleware",
     "create_a2a_server",
+    # Framework RFC 9421 request-signature verification
+    "RequestSignatureVerification",
+    "SignedRequestVerificationMiddleware",
+    "current_verified_signer",
     # Bearer-token auth middleware (seller-facing recipe)
     "A2ABearerAuthMiddleware",
     "AsyncTokenValidator",

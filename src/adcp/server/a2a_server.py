@@ -568,8 +568,13 @@ class ADCPAgentExecutor(AgentExecutor):
         preserving behavior for sellers who haven't adopted
         ``context_factory=`` yet.
         """
+        from adcp.server.signed_requests import apply_verified_signer
+
+        http_request = _A2A_REQUEST_CONTEXT.get()
         if self._context_factory is None:
-            return _tool_context_from_request(request)
+            ctx = apply_verified_signer(_tool_context_from_request(request), http_request)
+            assert ctx is not None
+            return ctx
 
         from adcp.server.serve import RequestMetadata
 
@@ -577,7 +582,7 @@ class ADCPAgentExecutor(AgentExecutor):
             tool_name=skill_name,
             transport="a2a",
             request_id=request.task_id,
-            request_context=_A2A_REQUEST_CONTEXT.get(),
+            request_context=http_request,
         )
         ctx = self._context_factory(meta)
         if not isinstance(ctx, ToolContext):
@@ -590,6 +595,9 @@ class ADCPAgentExecutor(AgentExecutor):
         # didn't explicitly populate caller_identity in their factory,
         # fall through to ServerCallContext.user (verified by the a2a-sdk
         # auth middleware) rather than silently sending None.
+        verified = apply_verified_signer(ctx, http_request)
+        assert verified is not None
+        ctx = verified
         if ctx.caller_identity is None:
             fallback = _tool_context_from_request(request)
             ctx.caller_identity = fallback.caller_identity

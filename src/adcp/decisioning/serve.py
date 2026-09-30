@@ -55,6 +55,8 @@ if TYPE_CHECKING:
     from adcp.reporting.outbox.status_support import ReportingStatusSupport
     from adcp.reporting.outbox.support import ReportingActivitySupport
     from adcp.signing.brand_authz import BrandAuthorizationResolver
+    from adcp.signing.replay import ReplayStore
+    from adcp.signing.signer_keys import SignerKeyResolver
     from adcp.webhook_sender import WebhookSender
     from adcp.webhook_supervisor import WebhookDeliverySupervisor
 
@@ -508,6 +510,8 @@ def serve(
     account_activity: ReportingActivityProjector | None = None,
     reporting_activity: ReportingActivitySupport | None = None,
     reporting_status: ReportingStatusSupport | None = None,
+    signer_keys: SignerKeyResolver | None = None,
+    signature_replay_store: ReplayStore | None = None,
     **serve_kwargs: Any,
 ) -> None:
     """One-call wrapper — build the handler and serve over MCP.
@@ -598,6 +602,21 @@ def serve(
         The hook receives a shallow copy of the wire args, so it may
         mutate its argument freely or return a new dict — either style
         is safe. Context echo always reflects the original wire input.
+    :param signer_keys: Turns on framework RFC 9421 request-signature
+        verification, enforcing the platform's declared
+        ``capabilities.request_signing`` block (``required_for``,
+        ``warn_for``, ``protocol_methods_*``, ``covers_content_digest``)
+        before dispatch. The :class:`~adcp.signing.SignerKeyResolver` maps
+        each ``keyid`` to its buyer agent URL, which becomes
+        ``ctx.caller_identity`` and the ``http_sig`` credential
+        ``buyer_agent_registry`` resolves. Requires
+        ``request_signing.supported``. See
+        :class:`adcp.server.RequestSignatureVerification`.
+    :param signature_replay_store: Nonce store for ``signer_keys``
+        verification. Defaults to a per-process
+        :class:`~adcp.signing.InMemoryReplayStore`, which is refused in
+        production unless ``ADCP_ALLOW_INMEMORY_REPLAY_STORE=1``; pass a
+        shared store (e.g. ``PgReplayStore``) for multi-replica deployments.
     :param validate_at_init: Forwarded to
         :func:`create_adcp_server_from_platform`. Default ``True``
         runs the capabilities-shape boot validator in sync; pass
@@ -682,6 +701,10 @@ def serve(
             stacklevel=2,
         )
 
+    _configure_request_signature_verification(
+        platform, signer_keys, signature_replay_store, serve_kwargs
+    )
+
     server_name = name or type(platform).__name__
     debug_traffic_source = mock_ad_server.get_traffic if mock_ad_server is not None else None
     if pre_validation_hooks is not None:
@@ -713,6 +736,61 @@ def serve(
         enable_debug_endpoints=enable_debug_endpoints,
         debug_traffic_source=debug_traffic_source,
         **serve_kwargs,
+    )
+
+
+def _configure_request_signature_verification(
+    platform: DecisioningPlatform,
+    signer_keys: SignerKeyResolver | None,
+    replay_store: ReplayStore | None,
+    serve_kwargs: dict[str, Any],
+) -> None:
+    """Build framework signature verification from declared capabilities.
+
+    With ``signer_keys``, derive a
+    :class:`~adcp.server.RequestSignatureVerification` from
+    ``capabilities.request_signing`` so enforcement matches what buyers are
+    told. Without it, warn when the platform declares required signatures
+    that nothing in ``serve()`` enforces — the seller must then verify in
+    its own ``asgi_middleware`` or buyers see handler-level auth errors
+    instead of ``request_signature_required``.
+    """
+    request_signing = platform.capabilities.request_signing
+    if signer_keys is None:
+        if replay_store is not None:
+            raise TypeError("signature_replay_store= requires signer_keys=")
+        if (
+            request_signing is not None
+            and request_signing.supported
+            and (request_signing.required_for or request_signing.protocol_methods_required_for)
+            and serve_kwargs.get("request_signature_verification") is None
+        ):
+            warnings.warn(
+                "DecisioningCapabilities.request_signing declares required_for / "
+                "protocol_methods_required_for, but serve() is not verifying "
+                "request signatures. Pass signer_keys= to have the framework "
+                "reject unsigned requests with request_signature_required and "
+                "populate the caller identity from the verified signer, or verify "
+                "in your own asgi_middleware with adcp.signing.verify_starlette_request.",
+                UserWarning,
+                stacklevel=3,
+            )
+        return
+    if serve_kwargs.get("request_signature_verification") is not None:
+        raise TypeError("pass either signer_keys= or request_signature_verification=, not both")
+    if request_signing is None or not request_signing.supported:
+        raise ValueError(
+            "signer_keys= enables request-signature verification, but "
+            "DecisioningCapabilities.request_signing.supported is not true. "
+            "Declare the request_signing block buyers should sign against."
+        )
+    from adcp.server.signed_requests import RequestSignatureVerification
+
+    overrides: dict[str, Any] = {}
+    if replay_store is not None:
+        overrides["replay_store"] = replay_store
+    serve_kwargs["request_signature_verification"] = RequestSignatureVerification.from_capability(
+        request_signing, signer_keys=signer_keys, **overrides
     )
 
 

@@ -16,6 +16,12 @@ from adcp.signing.verifier import (
     verify_request_signature,
 )
 
+#: ASGI scope key under which a verified :class:`VerifiedSigner` is recorded.
+#: :func:`verify_starlette_request` sets it so framework verification
+#: (``serve(request_signature_verification=...)``) reuses the result rather
+#: than verifying again and rejecting the already-claimed nonce as replayed.
+VERIFIED_SIGNER_SCOPE_KEY = "adcp.signing.verified_signer"
+
 
 def unauthorized_response_headers(exc: SignatureVerificationError) -> dict[str, str]:
     """Headers for the 401 response. Realm is intentionally omitted per spec."""
@@ -67,6 +73,10 @@ async def verify_starlette_request(request: Any, *, options: VerifyOptions) -> V
     ``await request.body()`` yourself downstream; there's no hidden
     side channel on the returned :class:`VerifiedSigner`.
 
+    On success the signer is also recorded at
+    ``request.scope[VERIFIED_SIGNER_SCOPE_KEY]``, so framework verification
+    downstream reuses it instead of claiming the nonce a second time.
+
     Returns
     -------
     VerifiedSigner
@@ -82,7 +92,7 @@ async def verify_starlette_request(request: Any, *, options: VerifyOptions) -> V
         with :func:`unauthorized_response_headers`.
     """
     body = await request.body()
-    return verify_request_signature(
+    signer = verify_request_signature(
         method=request.method,
         url=str(request.url),
         headers=dict(request.headers),
@@ -97,9 +107,14 @@ async def verify_starlette_request(request: Any, *, options: VerifyOptions) -> V
         # regex, so the U-label survives only here.
         raw_headers=getattr(request.headers, "raw", None),
     )
+    scope = getattr(request, "scope", None)
+    if isinstance(scope, dict):
+        scope[VERIFIED_SIGNER_SCOPE_KEY] = signer
+    return signer
 
 
 __all__ = [
+    "VERIFIED_SIGNER_SCOPE_KEY",
     "unauthorized_response_headers",
     "verify_flask_request",
     "verify_starlette_request",

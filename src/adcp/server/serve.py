@@ -44,6 +44,11 @@ from adcp.server.mcp_tools import (
     create_tool_caller,
     get_tools_for_handler,
 )
+from adcp.server.signed_requests import (
+    apply_verified_signer,
+    check_request_signature_verification,
+    wrap_with_signature_verification,
+)
 from adcp.validation.client_hooks import (
     SERVER_DEFAULT_VALIDATION as DEFAULT_VALIDATION,
 )
@@ -69,6 +74,7 @@ if TYPE_CHECKING:
 
     from adcp.server.a2a_server import MessageParser, PublicUrlResolver
     from adcp.server.auth import BearerTokenAuth
+    from adcp.server.signed_requests import RequestSignatureVerification
     from adcp.server.test_controller import TestControllerStore
 
 
@@ -819,6 +825,7 @@ def serve(
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
+    request_signature_verification: RequestSignatureVerification | None = None,
     public_url: str | PublicUrlResolver | None = None,
     on_startup: Sequence[LifespanHook] | None = None,
     on_shutdown: Sequence[LifespanHook] | None = None,
@@ -1065,8 +1072,22 @@ def serve(
             accessible per A2A spec §4.1 — the agent-card route is
             registered separately and never invokes the builder. On
             stdio, ``auth`` is ignored with a warning (no HTTP layer).
-            For non-bearer schemes (mTLS, signed-request derivation),
-            wire your own middleware via ``asgi_middleware=`` instead.
+            For non-bearer schemes (mTLS), wire your own middleware via
+            ``asgi_middleware=`` instead. A request authenticated by
+            ``request_signature_verification`` needs no bearer.
+        request_signature_verification: Optional
+            :class:`~adcp.server.RequestSignatureVerification`. When set,
+            every JSON-RPC POST on the MCP and A2A legs is checked against
+            the RFC 9421 request-signing profile before dispatch: unsigned
+            requests to ``required_for`` operations get ``401`` with
+            ``WWW-Authenticate: Signature error="request_signature_required"``,
+            presented signatures must verify, and a verified signer
+            populates ``ToolContext.caller_identity`` (its agent URL) and
+            ``metadata["adcp.auth_info"]``. Build it with
+            :meth:`~adcp.server.RequestSignatureVerification.from_capability`
+            from the ``request_signing`` block you advertise. Ignored on
+            stdio and legacy SSE. ``adcp.decisioning.serve(signer_keys=...)`` builds it
+            from the platform's capabilities.
         public_url: Public base URL for the A2A agent card
             (``/.well-known/agent-card.json``).  Accepts a static string
             or a :data:`~adcp.server.a2a_server.PublicUrlResolver`
@@ -1178,6 +1199,20 @@ def serve(
         on_startup = config.on_startup
         on_shutdown = config.on_shutdown
 
+    if request_signature_verification is not None:
+        if transport in ("stdio", "sse"):
+            # stdio has no HTTP request; legacy SSE dispatches on a session
+            # task that cannot see the verifying POST, so identity would not
+            # reach handlers.
+            logger.warning(
+                "request_signature_verification ignored on transport=%r; use "
+                "'streamable-http', 'a2a', or 'both'",
+                transport,
+            )
+            request_signature_verification = None
+        else:
+            check_request_signature_verification(request_signature_verification)
+
     # Accept ADCPServerBuilder from adcp_server() decorator pattern
     from adcp.server.builder import ADCPServerBuilder
 
@@ -1241,6 +1276,7 @@ def serve(
             specialisms=specialisms,
             description=description,
             auth=auth,
+            request_signature_verification=request_signature_verification,
             public_url=public_url,
         )
     elif transport in ("streamable-http", "sse", "stdio"):
@@ -1272,6 +1308,7 @@ def serve(
             allowed_origins=allowed_origins,
             enable_dns_rebinding_protection=enable_dns_rebinding_protection,
             auth=auth,
+            request_signature_verification=request_signature_verification,
         )
     elif transport == "both":
         _serve_mcp_and_a2a(
@@ -1306,6 +1343,7 @@ def serve(
             allowed_origins=allowed_origins,
             enable_dns_rebinding_protection=enable_dns_rebinding_protection,
             auth=auth,
+            request_signature_verification=request_signature_verification,
             public_url=public_url,
             on_startup=on_startup,
             on_shutdown=on_shutdown,
@@ -1733,6 +1771,7 @@ def _serve_mcp(
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
+    request_signature_verification: RequestSignatureVerification | None = None,
 ) -> None:
     """Start an MCP server."""
     mcp = create_mcp_server(
@@ -1778,6 +1817,7 @@ def _serve_mcp(
             discovery_specialisms=specialisms,
             discovery_description=description,
             auth=auth,
+            request_signature_verification=request_signature_verification,
         )
     else:
         # stdio — no listening socket, no HTTP layer to authenticate. Auth
@@ -1807,6 +1847,7 @@ def _run_mcp_http(
     discovery_specialisms: list[str] | None = None,
     discovery_description: str | None = None,
     auth: BearerTokenAuth | None = None,
+    request_signature_verification: RequestSignatureVerification | None = None,
 ) -> None:
     """Run FastMCP's HTTP transports with a pre-bound SO_REUSEADDR socket.
 
@@ -1839,6 +1880,9 @@ def _run_mcp_http(
     # operator-supplied asgi_middleware get a turn.
     app = _wrap_mcp_with_auth(app, auth)
     app = _wrap_with_path_normalize(app)
+    # Signature verification sits outside the path normalizer: the signed
+    # ``@target-uri`` is the path the buyer sent, trailing slash included.
+    app = wrap_with_signature_verification(app, request_signature_verification, transport="mcp")
     app = _wrap_with_discovery(
         app,
         name=discovery_name,
@@ -1900,6 +1944,7 @@ def _build_a2a_app(
     specialisms: list[str] | None = None,
     description: str | None = None,
     auth: BearerTokenAuth | None = None,
+    request_signature_verification: RequestSignatureVerification | None = None,
     public_url: str | PublicUrlResolver | None = None,
     include_discovery: bool = True,
 ) -> Any:
@@ -1935,6 +1980,9 @@ def _build_a2a_app(
     # wrappers) so bad tokens 401 before the request hits any
     # operator-supplied layer.
     app = _wrap_a2a_with_auth(app, auth, message_parser=message_parser)
+    app = wrap_with_signature_verification(
+        app, request_signature_verification, transport="a2a", message_parser=message_parser
+    )
     if include_discovery:
         app = _wrap_with_discovery(
             app,
@@ -1972,6 +2020,7 @@ def _serve_a2a(
     specialisms: list[str] | None = None,
     description: str | None = None,
     auth: BearerTokenAuth | None = None,
+    request_signature_verification: RequestSignatureVerification | None = None,
     public_url: str | PublicUrlResolver | None = None,
 ) -> None:
     """Start an A2A server using uvicorn."""
@@ -2001,6 +2050,7 @@ def _serve_a2a(
         specialisms=specialisms,
         description=description,
         auth=auth,
+        request_signature_verification=request_signature_verification,
         public_url=public_url,
     )
     # Intentional public serving socket; authentication is composed by the app.
@@ -2054,6 +2104,7 @@ def _build_mcp_and_a2a_app(
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
+    request_signature_verification: RequestSignatureVerification | None = None,
     public_url: str | PublicUrlResolver | None = None,
     on_startup: Sequence[LifespanHook] | None = None,
     on_shutdown: Sequence[LifespanHook] | None = None,
@@ -2127,6 +2178,9 @@ def _build_mcp_and_a2a_app(
     # unwrapped ``mcp_inner`` reference so the lifespan composer
     # below can reach ``.router.lifespan_context``.
     mcp_app = _wrap_with_path_normalize(mcp_inner)
+    mcp_app = wrap_with_signature_verification(
+        mcp_app, request_signature_verification, transport="mcp"
+    )
 
     # A2A app — built via the a2a-sdk wrapper. It mounts at the root
     # of its own app and handles ``/.well-known/agent.json``, ``/``,
@@ -2163,6 +2217,9 @@ def _build_mcp_and_a2a_app(
     # the A2A wrap returns a new ASGI callable layered on
     # ``a2a_inner``.
     a2a_app = _wrap_a2a_with_auth(a2a_inner, auth, message_parser=message_parser)
+    a2a_app = wrap_with_signature_verification(
+        a2a_app, request_signature_verification, transport="a2a", message_parser=message_parser
+    )
 
     # Lifespan composition: FastMCP's session manager initializes a
     # task group on startup; a2a-sdk's stores have their own init.
@@ -2264,6 +2321,7 @@ def _serve_mcp_and_a2a(
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
+    request_signature_verification: RequestSignatureVerification | None = None,
     public_url: str | PublicUrlResolver | None = None,
     on_startup: Sequence[LifespanHook] | None = None,
     on_shutdown: Sequence[LifespanHook] | None = None,
@@ -2321,6 +2379,7 @@ def _serve_mcp_and_a2a(
         allowed_origins=allowed_origins,
         enable_dns_rebinding_protection=enable_dns_rebinding_protection,
         auth=auth,
+        request_signature_verification=request_signature_verification,
         public_url=public_url,
         on_startup=on_startup,
         on_shutdown=on_shutdown,
@@ -2942,6 +3001,10 @@ def _register_tool(
                     f"context_factory for tool {name!r} returned "
                     f"{type(context).__name__}, not a ToolContext instance"
                 )
+        # Framework-verified request signature (serve(request_signature_
+        # verification=...)): overlay the signer's identity after the factory
+        # so a bearer placeholder is upgraded to the verified agent.
+        context = apply_verified_signer(context, _get_starlette_request_for_dispatch())
 
         async def _call_handler() -> Any:
             return await caller(kwargs, context=context)

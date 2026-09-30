@@ -1546,22 +1546,45 @@ async with client:
         resp = await client.post("https://seller.example.com/mcp", json=payload)
 ```
 
-### Verify incoming requests (FastAPI)
+### Verify incoming requests (framework)
+
+Sellers on `serve()` opt in and the framework verifies before dispatch, enforcing the `request_signing` block they advertise — unsigned `required_for` calls get `401` + `WWW-Authenticate: Signature error="request_signature_required"`, and a verified signer becomes `ctx.caller_identity` (the buyer's agent URL) plus an `http_sig` `AuthInfo` for `BuyerAgentRegistry` dispatch:
+
+```python
+from adcp.decisioning import serve
+from adcp.signing import JwksUriSignerKeys
+
+serve(
+    platform,  # platform.capabilities.request_signing is enforced as declared
+    signer_keys=JwksUriSignerKeys({
+        "https://buyer.example.com": "https://buyer.example.com/.well-known/jwks.json",
+    }),
+    signature_replay_store=replay_store,  # shared store for multi-replica deployments
+)
+```
+
+On `adcp.server.serve`, pass `request_signature_verification=RequestSignatureVerification.from_capability(request_signing, signer_keys=..., replay_store=...)`. See [`docs/request-signing-migration.md`](docs/request-signing-migration.md#framework-verification) for the full behavior.
+
+### Verify incoming requests (FastAPI, by hand)
 
 ```python
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from adcp.signing import (
-    CachingJwksResolver, SignatureVerificationError,
+    CachingJwksResolver, InMemoryReplayStore, SignatureVerificationError,
     VerifierCapability, VerifyOptions,
     unauthorized_response_headers, verify_starlette_request,
 )
 
 jwks = CachingJwksResolver("https://buyer.example.com/.well-known/jwks.json")
 capability = VerifierCapability(
-    covers_content_digest="either",
+    covers_content_digest="required",
     required_for=frozenset({"create_media_buy"}),
 )
+# One store for every request. Omitting `replay_store` from the per-request
+# VerifyOptions gives each request a fresh store, which disables replay
+# protection. Use a shared store (PgReplayStore via the [pg] extra) across replicas.
+replay_store = InMemoryReplayStore()
 
 @app.post("/adcp/create_media_buy")
 async def create_media_buy(request: Request):
@@ -1570,10 +1593,8 @@ async def create_media_buy(request: Request):
         capability=capability,
         operation="create_media_buy",
         jwks_resolver=jwks,
+        replay_store=replay_store,
     )
-    # `replay_store` defaults to a fresh InMemoryReplayStore when omitted.
-    # Wire an explicit shared store (PgReplayStore via [pg] extra, or your
-    # own ReplayStore Protocol implementation) for multi-replica deployments.
     try:
         signer = await verify_starlette_request(request, options=options)
     except SignatureVerificationError as exc:
@@ -1594,8 +1615,9 @@ Rolling signing out against an existing integration is a staged exercise — boo
 
 ### Conformance
 
-The verifier passes all 28 AdCP request-signing conformance vectors (8 positive,
-20 negative). Run them against your signer or verifier:
+The verifier passes the AdCP request-signing conformance vectors bundled under
+`tests/conformance/vectors/request-signing/` (positive, negative, and the 3.2
+profile). Run them against your signer or verifier:
 
 ```bash
 pytest tests/conformance/signing/

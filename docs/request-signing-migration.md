@@ -65,6 +65,64 @@ request_signing = RequestSigning(
 )
 ```
 
+### Framework verification
+
+A seller built on `adcp.server.serve` / `adcp.decisioning.serve` does not need to hand-wire the verifier. Opt in, and the framework verifies every JSON-RPC POST on the MCP and A2A legs **before dispatch**, enforcing the `request_signing` block you advertise:
+
+```python
+from adcp.decisioning import serve
+from adcp.signing import JwksUriSignerKeys, PgReplayStore
+
+serve(
+    platform,  # platform.capabilities.request_signing is the enforced policy
+    signer_keys=JwksUriSignerKeys({
+        "https://buyer.example.com": "https://buyer.example.com/.well-known/jwks.json",
+    }),
+    signature_replay_store=PgReplayStore(pool),  # shared across replicas
+    buyer_agent_registry=registry,
+)
+```
+
+On `adcp.server.serve`, pass the equivalent config explicitly:
+
+```python
+from adcp.server import RequestSignatureVerification, serve
+
+serve(
+    handler,
+    request_signature_verification=RequestSignatureVerification.from_capability(
+        request_signing,  # the same block get_adcp_capabilities returns
+        signer_keys=signer_keys,
+        replay_store=replay_store,
+    ),
+)
+```
+
+What the framework does:
+
+- **Unsigned request to a `required_for` operation** (or a JSON-RPC method in `protocol_methods_required_for`, e.g. `tasks/cancel`) → `401` with `WWW-Authenticate: Signature error="request_signature_required"`. Buyers can tell "you didn't sign" apart from "we don't know you".
+- **Presented signature** → verified against the key the `SignerKeyResolver` maps the `keyid` to; a failure is `401` with the spec error code. `warn_for` operations log the failure and continue without identity, except a partial or malformed `Signature` / `Signature-Input` pair, which always rejects.
+- **Verified signer** → `ToolContext.caller_identity` is the buyer's agent URL and `ctx.auth_info` is `AuthInfo(kind="http_sig", credential=HttpSigCredential(...))`, so `BuyerAgentRegistry.resolve_by_agent_url` resolves the buyer with no seller glue. A signed request needs no bearer token even when `auth=` is configured.
+
+**`keyid` → agent URL.** The verifier checks a signature against a key; it does not know which agent owns that key. A `SignerKeyResolver` supplies that mapping explicitly: `StaticSignerKeys({agent_url: jwks})` for inline keys, `JwksUriSignerKeys({agent_url: jwks_uri})` for published endpoints, or your own async callable returning `ResolvedSignerKey(agent_url, jwk)`. Both shipped resolvers map only the agents you configure; discovering an unknown signer's agent URL is an open spec question ([adcontextprotocol/adcp#7814](https://github.com/adcontextprotocol/adcp/issues/7814)).
+
+**Replay store.** One store serves every request. The default is a per-process `InMemoryReplayStore`, which cannot see nonces claimed by other replicas; with `ADCP_ENV=production` it is refused unless you pass a shared store or set `ADCP_ALLOW_INMEMORY_REPLAY_STORE=1` for a single-process deployment.
+
+**Content digest.** The enforced `covers_content_digest` is the value you declare; declare `"required"` for AdCP 3.2. When it is omitted, enforcement uses the legacy `"either"`.
+
+**Already verifying in your own middleware?** `verify_starlette_request` records its result on the request scope and the framework reuses it rather than claiming the nonce a second time. If you call `verify_request_signature` directly, remove that middleware when you opt in — otherwise the framework sees the nonce as already used and rejects every request as `request_signature_replayed`.
+
+**Behind a TLS terminator**, the signed `@target-uri` is the public `https://` URL. `serve()` runs uvicorn with proxy-header support, which trusts `X-Forwarded-Proto` / `X-Forwarded-For` only from `FORWARDED_ALLOW_IPS` (default `127.0.0.1`). Set `FORWARDED_ALLOW_IPS` to your proxy's address so the ASGI scope reflects the public scheme; otherwise every signature fails as `request_signature_invalid`.
+
+**Current limits:**
+
+- **No bearer fallback on `required_for`.** The spec lets a seller accept an unsigned request to a required operation when a configured fallback authenticator succeeds. Framework verification doesn't offer that yet: a required operation rejects every unsigned request, including ones with a valid bearer token. Move an operation to `required_for` only once every counterparty signs it.
+- **Unauthenticated fallthrough.** `warn_for` failures and unsigned requests to non-required operations continue without identity. With `auth=` configured, bearer auth still applies to them; without it, they reach your handlers unauthenticated, as before.
+- **Mixed credentials.** When a request carries both a bearer token and a valid signature, the signer becomes `caller_identity` and `ctx.auth_info`. A custom `context_factory` that sets a typed credential keeps ownership of identity.
+- **Transports.** Framework verification runs on streamable-HTTP MCP and A2A (including `transport="both"`). It is ignored, with a warning, on stdio and the legacy SSE transport.
+
+The staged rollout below applies unchanged — each step is a change to the `request_signing` block you advertise, and the framework enforces it. The hand-wired snippets are for servers that don't use `serve()`.
+
 ## 2. Staged enforcement (per operation)
 
 Never flip an operation straight from unsigned to required. Stage it through three stops.
@@ -86,9 +144,12 @@ from adcp.signing import (
 
 jwks_resolver = CachingJwksResolver(jwks_uri="https://buyer.example.com/.well-known/jwks.json")
 
-# `replay_store` defaults to a fresh InMemoryReplayStore — single-process
-# deployments don't need to wire one explicitly. Pass an explicit shared
-# store (Redis-backed, custom Postgres) for multi-replica setups.
+# Build the replay store ONCE and share it. `VerifyOptions` is per request
+# (`now` changes), and omitting `replay_store` gives each options instance
+# its own fresh store — which silently disables replay protection. Use a
+# shared store (e.g. PgReplayStore) for multi-replica setups.
+replay_store = InMemoryReplayStore()
+
 options = VerifyOptions(
     now=time.time(),
     capability=VerifierCapability(
@@ -98,6 +159,7 @@ options = VerifyOptions(
     ),
     operation="create_media_buy",
     jwks_resolver=jwks_resolver,
+    replay_store=replay_store,
 )
 
 verified = await verify_starlette_request(request, options=options)
@@ -110,7 +172,7 @@ Success signal: signed requests arrive, `verify_starlette_request` returns a `Ve
 
 Move the operation to `warn_for`. Verification still runs, failures are logged, traffic is unaffected. Watch your failure rate and walk down the long tail of "some counterparty is misbehaving" before flipping to reject.
 
-The spec calls this shadow mode. Python doesn't have a built-in `observe_only` flag yet — approximate by catching `SignatureVerificationError` and logging:
+The spec calls this shadow mode. Framework verification implements it from `warn_for` directly. When hand-wiring, approximate it by catching `SignatureVerificationError` and logging:
 
 ```python
 from adcp.signing import SignatureVerificationError
@@ -141,6 +203,7 @@ options = VerifyOptions(
     ),
     operation="create_media_buy",
     jwks_resolver=jwks_resolver,
+    replay_store=replay_store,
 )
 
 # Remove the step-B shim. Let SignatureVerificationError propagate to your
