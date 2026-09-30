@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, python-adcp-sdk-setup]
+    branches: [main, python-adcp-sdk-setup, release/7.x]
   pull_request:
-    branches: [main]
+    branches: [main, release/7.x]
 
 # Default @adcp/sdk runner alias for storyboard jobs. Tracks the current
 # stable @adcp/sdk release via the ``latest`` npm dist-tag.

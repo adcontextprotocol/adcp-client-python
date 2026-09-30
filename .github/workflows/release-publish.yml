@@ -1,0 +1,86 @@
+name: Release publish
+
+# Maintenance-line copy of main's workflow: publishes 7.x patch releases
+# from release/7.x. Dispatch with --ref release/7.x after tagging.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact commit of the Release Please release
+        required: true
+        type: string
+      tag_name:
+        description: Release Please tag
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: release-publish-${{ inputs.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/release/7.x'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Wait for successful release/7.x CI at the release commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          RELEASE_TAG: ${{ inputs.tag_name }}
+        run: |
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$RELEASE_SHA"
+          git merge-base --is-ancestor "$RELEASE_SHA" HEAD
+          for attempt in {1..130}; do
+            if gh run list --workflow CI --event push --commit "$RELEASE_SHA" --json headSha,headBranch,status,conclusion --limit 20 |
+              jq -e --arg sha "$RELEASE_SHA" 'any(.[]; .headSha == $sha and .headBranch == "release/7.x" and .status == "completed" and .conclusion == "success")'; then
+              git checkout --detach "$RELEASE_SHA"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo 'release/7.x CI did not pass for the release commit' >&2
+          exit 1
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Build and check distributions
+        run: |
+          python -m pip install build twine
+          python -m build
+          python -m twine check dist/*
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-dist
+          path: dist/*
+          if-no-files-found: error
+  publish:
+    needs: build
+    environment: release-publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+        with:
+          packages-dir: dist/
