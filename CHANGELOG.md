@@ -14,6 +14,27 @@
   [migration guide](docs/canonical-format-kinds-migration.md).
   This closes [#1241](https://github.com/adcontextprotocol/adcp-client-python/issues/1241).
 
+## [8.0.0-rc.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-rc.2...v8.0.0-rc.3) (2026-09-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **types:** unknown kinds in public creative/input models now raise Pydantic ValidationError. Known strings still normalize to enum members; required creative kinds and optional manifest defaults are unchanged. See docs/canonical-format-kinds-migration.md for the input/readback boundary and migration guidance.
+* **reporting:** An exact-support metric that emits unsupported evidence now fails instead of publishing partial. Use MetricEvidence.delayed for pending measurements, or declare the metric support: partial with a reason.
+
+### Features
+
+* **reporting:** integrate reliable service with decisioning platforms ([#1251](https://github.com/adcontextprotocol/adcp-client-python/issues/1251)) ([4ada2d8](https://github.com/adcontextprotocol/adcp-client-python/commit/4ada2d87842ca282a2332d1713542457fd396052))
+
+
+### Bug Fixes
+
+* **reporting:** allow conditional metrics under full coverage ([3d7f2f5](https://github.com/adcontextprotocol/adcp-client-python/commit/3d7f2f50f7dd4f27fd3f65bff16cafffc4509b84))
+* **reporting:** bound PostgreSQL worker lock waits and retries ([#1250](https://github.com/adcontextprotocol/adcp-client-python/issues/1250)) ([2e33361](https://github.com/adcontextprotocol/adcp-client-python/commit/2e33361d3bc91a398cd21877b342012a329f7b6e))
+* **server:** bound MCP input schema size ([#1249](https://github.com/adcontextprotocol/adcp-client-python/issues/1249)) ([4608ad2](https://github.com/adcontextprotocol/adcp-client-python/commit/4608ad2fbd93df7a83531c358759b542ff739b60))
+* **types:** enforce closed creative format kinds ([227c527](https://github.com/adcontextprotocol/adcp-client-python/commit/227c527d8f596550fe300701949c3b7dcb66dc7f))
+* **types:** preserve duration unit alias across schema extraction ([#1213](https://github.com/adcontextprotocol/adcp-client-python/issues/1213)) ([e5bcd23](https://github.com/adcontextprotocol/adcp-client-python/commit/e5bcd23086eb3ab09dd74a58b8f9948848c3591c))
+
 ## [8.0.0-rc.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-rc.1...v8.0.0-rc.2) (2026-09-29)
 
 
