@@ -206,9 +206,11 @@ class RetryScheduleEntry:
 class RetryScheduleStore(Protocol):
     """Optional shared retry state for producer source acquisitions."""
 
-    async def get_retry_schedule(self, *, scope_key: str) -> RetryScheduleEntry | None: ...
+    async def get_retry_schedule(self, *, scope_key: str) -> RetryScheduleEntry | None:
+        pass
 
-    async def record_retry_schedule(self, entry: RetryScheduleEntry) -> RetryScheduleEntry: ...
+    async def record_retry_schedule(self, entry: RetryScheduleEntry) -> RetryScheduleEntry:
+        pass
 
 
 @dataclass(frozen=True)
