@@ -1,6 +1,6 @@
-# Migrating an integration from AdCP 3.1 to 3.2 beta
+# Migrating an integration from AdCP 3.1 to 3.2
 
-Python SDK 8 beta supports the AdCP `3.2.0-beta.4` schemas and the compact
+Python SDK 8 supports the AdCP `3.2.1` schemas and the compact
 product/media-buy lifecycle that becomes the foundation of AdCP 4.0. The SDK
 continues to support AdCP 3.0 and 3.1, and the deprecated
 `get_products`/`create_media_buy`/`update_media_buy` lifecycle remains available
@@ -11,17 +11,20 @@ seller may expose only the old lifecycle, a direct-buy subset of the compact
 lifecycle, or the complete proposal lifecycle. Do not infer supported tools
 from the version alone; read `media_buy.lifecycle_tools` or MCP `tools/list`.
 
-## Pin the beta precisely
+## Pin AdCP 3.2
 
-Use the release-precision prerelease identifier while 3.2 is in beta:
+AdCP 3.2.1 is the 3.2 general-availability release. Pin its release-precision
+wire value:
 
 ```python
-client = ADCPClient(agent, adcp_version="3.2-beta.4")
-server = adcp_server("seller", adcp_version="3.2-beta.4")
+client = ADCPClient(agent, adcp_version="3.2")
+server = adcp_server("seller", adcp_version="3.2")
 ```
 
-`"3.2"` intentionally does not alias to a prerelease. Exact prerelease pins
-prevent a deployment from silently changing contracts when 3.2 stable ships.
+Patch releases do not change the wire contract, so `"3.2"` covers 3.2.1 and
+later 3.2 patches. AdCP 3.2.0 was withdrawn; do not target it. Prerelease pins
+such as `"3.2-beta.4"` or `"3.2-rc.7"` are no longer advertised; this SDK
+advertises `3.0`, `3.1` and `3.2`. Replace them with `"3.2"`.
 
 ## Beta.4 integration notes
 

@@ -333,16 +333,18 @@ async with ADCPMultiAgentClient(
 
 ## AdCP version support
 
-The SDK 8 beta line is built against **AdCP 3.2.0-beta.10**, makes canonical
-creatives the primary Python contract, and negotiates AdCP 3.0, 3.1, and the
-exact 3.2 beta wire dialect. The SDK package version and protocol version are
+SDK 8 is built against **AdCP 3.2.1**, the AdCP 3.2 general-availability
+release, and makes canonical creatives the primary Python contract. It
+negotiates AdCP 3.0, 3.1, and 3.2. On the wire, 3.2 is `"3.2"`, because
+`adcp_version` carries release precision only. AdCP 3.2.0 was withdrawn and
+is not a supported target. The SDK package version and protocol version are
 intentionally independent:
 
 ```python
 import adcp
 
-adcp.get_adcp_sdk_version()   # SDK package version, e.g. "8.0.0b11"
-adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.2.0-beta.10"
+adcp.get_adcp_sdk_version()   # SDK package version, e.g. "8.0.0"
+adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.2.1"
 ```
 
 If you talk to an agent on a newer spec than this SDK validates, the response
@@ -360,7 +362,7 @@ forward traffic degrades gracefully rather than failing.
 - **[Reporting source adapters](docs/reporting-source-adapters.md)** - Per-metric availability evidence, coverage, and control totals for inline delivery fetches
 - **[Migrating from SDK 6 to 7](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v6_to_v7.md)** - Breaking API, security, concurrency, and webhook changes
 - **[Migrating from SDK 7 to 8](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v7_to_v8.md)** - Secure webhook defaults and telemetry changes
-- **[Migrating from AdCP 3.1 to 3.2 beta](MIGRATION_ADCP_3.1_TO_3.2.md)** - Compact lifecycle adoption and old/new compatibility matrix
+- **[Migrating from AdCP 3.1 to 3.2](MIGRATION_ADCP_3.1_TO_3.2.md)** - Compact lifecycle adoption and old/new compatibility matrix
 - **[Durable legacy purchase continuations](docs/legacy-purchase-continuations.md)** - Safe products-only compatibility redemption and crash recovery
 - **[Media-buy lifecycle coordinator](docs/media-buy-lifecycle-coordinator.md)** - Negotiated catalog-to-purchase workflow across AdCP 3.0, 3.1, and 3.2; remaining buyer parity is tracked in [#1154](https://github.com/adcontextprotocol/adcp-client-python/issues/1154)
 - **[Media-buy action rights](docs/media-buy-action-rights.md)** - Assess product possibilities, accepted change rights, and currently available actions

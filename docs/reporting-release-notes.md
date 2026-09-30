@@ -1,10 +1,12 @@
 # Reliable Reporting upgrade and release notes
 
-## 8.0.0 release candidate
+## 8.0.0
 
-`adcp` 8.0.0rc1 freezes the SDK API for 8.0.0. The final 8.0.0 release
-follows AdCP 3.2.0 final. The release candidate includes AdCP 3.0, 3.1 and
-3.2.0-rc.7 schema bundles.
+`adcp` 8.0.0 is the first stable SDK 8 release. It targets AdCP 3.2.1, the
+AdCP 3.2 general-availability release (`3.2` on the wire), and ships the
+AdCP 3.0, 3.1 and 3.2.1 schema bundles. The 3.2 release-candidate bundles
+are no longer shipped. AdCP 3.2.0 was withdrawn and is not a supported
+target.
 
 ## PostgreSQL worker contention
 
