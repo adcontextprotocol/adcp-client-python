@@ -153,6 +153,32 @@ class _LoaderState:
         self.mcp_schema_lock = threading.Lock()
         self.registry: dict[str, dict[str, Any]] = {}
         self._registry_loaded = False
+        #: Version segments that canonical ``/schemas/{segment}/`` references
+        #: in this bundle may use. A stable bundle is cached under
+        #: ``MAJOR.MINOR`` while its documents reference the exact release,
+        #: for example ``/schemas/3.2.1/`` inside the ``3.2`` cache.
+        self.path_versions: tuple[str, ...] = (bundle_key,)
+
+
+def _bundle_path_versions(root: _SchemaRoot, bundle_key: str) -> tuple[str, ...]:
+    """Return the bundle key plus the exact release its ``index.json`` declares.
+
+    The declared release is accepted only when it collapses to the same
+    bundle key, so a mislabelled cache can never alias another version.
+    """
+    versions = [bundle_key]
+    try:
+        index = json.loads((root.root / "index.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        return tuple(versions)
+    declared = index.get("adcp_version") if isinstance(index, dict) else None
+    if isinstance(declared, str) and declared != bundle_key:
+        try:
+            if resolve_bundle_key(declared) == bundle_key:
+                versions.append(declared)
+        except ValueError:
+            pass
+    return tuple(versions)
 
 
 # Per-bundle-key state. Each version (``3.0``, ``2.5``, ``3.1.0-beta.1``)
@@ -284,6 +310,7 @@ def _ensure_state(version: str | None = None) -> _LoaderState | None:
             _state_misses.add(bundle_key)
             return None
         new_state = _LoaderState(root, bundle_key)
+        new_state.path_versions = _bundle_path_versions(root, bundle_key)
         new_state.file_index = _build_index(root)
         new_state.source_index = _build_source_index(root)
         new_state.mcp_index = _build_mcp_index(root)
@@ -316,10 +343,11 @@ def _load_schema_registry(state: _LoaderState) -> None:
         # A modular schema need not declare an $id. Canonical references to
         # its bundle path must still resolve locally (for example rc.6's
         # core/version-envelope.json), without relying on CDN availability.
-        canonical_path = f"/schemas/{state.bundle_key}/{relative.as_posix()}"
-        state.registry[f"https://adcontextprotocol.org{canonical_path}"] = schema
-        state.registry[canonical_path] = schema
-        state.registry[f"file://{canonical_path}"] = schema
+        for path_version in state.path_versions:
+            canonical_path = f"/schemas/{path_version}/{relative.as_posix()}"
+            state.registry[f"https://adcontextprotocol.org{canonical_path}"] = schema
+            state.registry[canonical_path] = schema
+            state.registry[f"file://{canonical_path}"] = schema
         state.registry[file.resolve().as_uri()] = schema
         schema_id = schema.get("$id")
         if isinstance(schema_id, str):
@@ -379,6 +407,15 @@ def _make_ref_resolver(state: _LoaderState, base_file: Path, schema: dict[str, A
         )
 
 
+def _bundle_relative_path(state: _LoaderState, path: str) -> Path:
+    """Map a canonical ``/schemas/{version}/...`` path into this bundle."""
+    for path_version in state.path_versions:
+        prefix = f"/schemas/{path_version}/"
+        if path.startswith(prefix):
+            return Path(unquote(path[len(prefix) :]))
+    raise ValueError("schema reference is outside the local version bundle")
+
+
 def _reachable_schema_store(
     state: _LoaderState,
     base_file: Path,
@@ -401,19 +438,13 @@ def _reachable_schema_store(
             return None
         parsed = urlparse(target)
         if parsed.scheme in {"http", "https"}:
-            prefix = f"/schemas/{state.bundle_key}/"
-            if parsed.hostname != "adcontextprotocol.org" or not parsed.path.startswith(prefix):
+            if parsed.hostname != "adcontextprotocol.org":
                 raise ValueError("schema reference is outside the local version bundle")
-            relative = Path(unquote(parsed.path[len(prefix) :]))
-            candidate = root / relative
+            candidate = root / _bundle_relative_path(state, parsed.path)
         elif parsed.scheme:
             raise ValueError("schema reference uses a non-local scheme")
         elif parsed.path.startswith("/schemas/"):
-            bundle_prefix = f"/schemas/{state.bundle_key}/"
-            if not parsed.path.startswith(bundle_prefix):
-                raise ValueError("schema reference is outside the local version bundle")
-            relative = Path(unquote(parsed.path[len(bundle_prefix) :]))
-            candidate = root / relative
+            candidate = root / _bundle_relative_path(state, parsed.path)
         else:
             candidate = current_file.parent / unquote(parsed.path)
         resolved = candidate.resolve()

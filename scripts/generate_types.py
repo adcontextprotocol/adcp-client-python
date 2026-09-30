@@ -47,7 +47,8 @@ def _load_resolve_bundle_key():
 resolve_bundle_key = _load_resolve_bundle_key()
 
 _VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
-_BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())
+_PINNED_VERSION = _VERSION_FILE.read_text().strip()
+_BUNDLE_KEY = resolve_bundle_key(_PINNED_VERSION)
 
 SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY
 OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
@@ -607,6 +608,10 @@ def _run_datamodel_codegen(input_path: Path, output_path: Path) -> subprocess.Co
     with tempfile.TemporaryDirectory(prefix="adcp-codegen-refs-") as mirror:
         cached = Path(mirror) / "adcontextprotocol.org" / "schemas" / _BUNDLE_KEY
         shutil.copytree(SCHEMAS_DIR, cached)
+        if _PINNED_VERSION != _BUNDLE_KEY:
+            # A stable bundle is cached as MAJOR.MINOR, but its absolute
+            # references name the exact release, e.g. /schemas/3.2.1/.
+            (cached.parent / _PINNED_VERSION).symlink_to(cached, target_is_directory=True)
         args.extend(["--http-local-ref-path", mirror])
         return subprocess.run(
             args,

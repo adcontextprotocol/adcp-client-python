@@ -375,3 +375,55 @@ def test_default_version_unchanged_when_arg_omitted(
     explicit_default = get_validator("get_products", "request", version=None)
     omitted = get_validator("get_products", "request")
     assert explicit_default is omitted
+
+
+def _write_exact_release_bundle(root: Path, declared: str, referenced: str) -> None:
+    (root / "index.json").write_text(json.dumps({"adcp_version": declared}), encoding="utf-8")
+    (root / "core" / "exact.json").write_text(
+        json.dumps({"type": "integer", "minimum": 1}), encoding="utf-8"
+    )
+    reference = f"https://adcontextprotocol.org/schemas/{referenced}/core/exact.json"
+    (root / "bundled" / "synthetic-tool-request.json").write_text(
+        json.dumps({"$ref": reference}), encoding="utf-8"
+    )
+
+
+def test_stable_bundle_resolves_references_to_its_exact_release_offline(
+    synthetic_legacy_bundle: tuple[str, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A MAJOR.MINOR cache resolves /schemas/{exact patch}/ refs it declares.
+
+    Stable bundles are cached under ``MAJOR.MINOR`` (``3.2`` for 3.2.1) while
+    their documents reference the exact release (``/schemas/3.2.1/...``).
+    """
+    legacy_key, root = synthetic_legacy_bundle
+    _write_exact_release_bundle(root, "2.5.3", "2.5.3")
+    monkeypatch.setattr(
+        "requests.get", lambda *a, **k: pytest.fail("validation attempted a network request")
+    )
+    validator = get_validator("synthetic_tool", "request", version=legacy_key)
+    assert validator is not None
+    assert validator.is_valid(1)
+    assert not validator.is_valid(0)
+    portable = _loader_mod.get_portable_schema("synthetic_tool", "request", version=legacy_key)
+    assert portable is not None
+
+
+@pytest.mark.parametrize(
+    ("declared", "referenced"),
+    [
+        # A patch release the bundle does not declare is not aliased.
+        ("2.5.3", "2.5.9"),
+        # A mislabelled index cannot alias a different bundle key.
+        ("3.2.1", "3.2.1"),
+    ],
+)
+def test_exact_release_alias_fails_closed_outside_the_declared_release(
+    synthetic_legacy_bundle: tuple[str, Path], declared: str, referenced: str
+) -> None:
+    legacy_key, root = synthetic_legacy_bundle
+    _write_exact_release_bundle(root, declared, referenced)
+    validator = get_validator("synthetic_tool", "request", version=legacy_key)
+    assert validator is not None
+    with pytest.raises(Exception, match="schema reference is not in bundle"):
+        validator.is_valid(1)
