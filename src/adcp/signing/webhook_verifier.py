@@ -47,6 +47,7 @@ from adcp.signing.jwks import JwksResolver
 from adcp.signing.replay import InMemoryReplayStore, ReplayStore
 from adcp.signing.revocation import RevocationChecker, RevocationList
 from adcp.signing.verifier import (
+    RequestBodyMalformedError,
     VerifiedSigner,
     VerifierCapability,
     VerifyOptions,
@@ -172,9 +173,23 @@ def verify_webhook_signature(
         signer: VerifiedSigner = verify_request_signature(
             method=method, url=url, headers=headers, body=body, options=request_options
         )
+    except RequestBodyMalformedError as exc:
+        # Step 14: the signature verified, so keep the sender attached for
+        # audit/dedup attribution rather than collapsing to an anonymous error.
+        raise RequestBodyMalformedError(
+            _retag_to_webhook(exc).code,
+            signer=_as_webhook_sender(exc.signer),
+            step=exc.step,
+            message=str(exc),
+            detail=exc.detail,
+        ) from exc
     except SignatureVerificationError as exc:
         raise _retag_to_webhook(exc) from exc
 
+    return _as_webhook_sender(signer)
+
+
+def _as_webhook_sender(signer: VerifiedSigner) -> VerifiedWebhookSender:
     return VerifiedWebhookSender(
         key_id=signer.key_id,
         alg=signer.alg,

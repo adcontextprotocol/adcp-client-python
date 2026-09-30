@@ -79,6 +79,7 @@ from adcp.signing.webhook_hmac import (
     verify_webhook_hmac,
 )
 from adcp.signing.webhook_verifier import (
+    VerifiedWebhookSender,
     WebhookVerifyOptions,
     verify_webhook_signature,
 )
@@ -669,7 +670,15 @@ class WebhookReceiver:
                     # Step 14: the signature verified (nonce already burned)
                     # but the body is not strict JSON. A body failure, not an
                     # auth failure -- and never a reason to try HMAC.
-                    return None, _reject("body_invalid_json", sender_identity=None)
+                    sender = getattr(exc, "signer", None)
+                    return None, _reject(
+                        "body_invalid_json",
+                        sender_identity=(
+                            sender.as_sender_identity()
+                            if isinstance(sender, VerifiedWebhookSender)
+                            else None
+                        ),
+                    )
                 # Downgrade defense: when 9421 IS present but fails, do NOT
                 # consult HMAC fallback by default. A MITM that stripped a
                 # valid 9421 signature and replaced it with a forged HMAC one

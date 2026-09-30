@@ -1585,7 +1585,9 @@ async def create_media_buy(request: Request):
     # signer.key_id is the verified caller's key identity.
     # signer.parsed_body is the body as parsed by the strict step-14 parser;
     # dispatch on it instead of `await request.json()`, which keeps the last
-    # of two duplicate keys.
+    # of two duplicate keys. It is signed only when signer.body_authenticated
+    # is True (content-digest covered and matched); under "either" a
+    # signature may leave the body unauthenticated.
     ...
 ```
 

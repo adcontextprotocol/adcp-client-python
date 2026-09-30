@@ -9,6 +9,13 @@ the body as parsed by the strict step-14 parser. Route and dispatch on that
 value; do not re-parse the raw bytes with `request.json()` / `get_json()`,
 which keep the last of two duplicate keys and so can read a different
 operation than the one the verifier accepted.
+
+`parsed_body` is guaranteed well-formed, but it is signer-attested only when
+`VerifiedSigner.body_authenticated` is true (the signature covered a matching
+`content-digest`). With `covers_content_digest="either"` a signature may omit
+the digest, which leaves the body unauthenticated. Require
+`body_authenticated` (or advertise `"required"`, mandatory under AdCP 3.2)
+before trusting the body's contents.
 """
 
 from __future__ import annotations
@@ -56,7 +63,8 @@ def verify_flask_request(request: Any, *, options: VerifyOptions) -> VerifiedSig
 
     Returns a `VerifiedSigner` whose `parsed_body` is the strictly parsed
     JSON body (`None` for a bodyless request). Use it instead of
-    `request.get_json()`, which resolves duplicate keys last-wins.
+    `request.get_json()`, which resolves duplicate keys last-wins. The body
+    is signed only when `body_authenticated` is true.
     """
     return verify_request_signature(
         method=request.method,
@@ -77,7 +85,8 @@ async def verify_starlette_request(request: Any, *, options: VerifyOptions) -> V
     verifier succeeds, use :attr:`VerifiedSigner.parsed_body` — the body as
     parsed by the strict step-14 parser. Don't call ``request.json()``:
     it resolves duplicate keys last-wins, which is the parser differential
-    step 14 closes.
+    step 14 closes. The body is signer-attested only when
+    :attr:`VerifiedSigner.body_authenticated` is true.
 
     Returns
     -------

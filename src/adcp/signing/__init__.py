@@ -288,6 +288,7 @@ from adcp.signing.standard_webhooks import (
     decode_secret as decode_standard_webhook_secret,
 )
 from adcp.signing.verifier import (
+    RequestBodyMalformedError,
     SigningProfileVersion,
     VerifiedSigner,
     VerifierCapability,
@@ -397,6 +398,7 @@ __all__ = [
     "REQUEST_SIGNATURE_WINDOW_INVALID",
     "REVOCATION_LIST_TYP",
     "ReplayStore",
+    "RequestBodyMalformedError",
     "ReplayClaimResult",
     "supports_atomic_claim",
     "RevocationChecker",

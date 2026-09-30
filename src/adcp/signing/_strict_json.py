@@ -15,6 +15,12 @@ Beyond duplicate keys at any depth, the parse rejects:
 - anything that is not RFC 8259 JSON, including the ``NaN`` / ``Infinity`` /
   ``-Infinity`` literals Python's decoder accepts by default and a leading
   byte-order mark;
+- numbers that overflow to a non-finite float (``1e999``), which Python
+  would otherwise turn into ``inf``;
+- unpaired UTF-16 surrogate escapes (``"\ud800"``). The grammar allows them,
+  but they are not Unicode scalar values (I-JSON, RFC 7493 section 2.1), and
+  parsers disagree on them (replace with U+FFFD, reject, or pass through), so
+  two keys that differ only in a lone surrogate can collide downstream;
 - inputs the decoder cannot finish (nesting deep enough to exhaust recursion,
   integers past the interpreter's digit limit).
 
@@ -26,6 +32,8 @@ attacker-chosen bytes into logs (step 14b).
 from __future__ import annotations
 
 import json
+import math
+import re
 from typing import Any, Literal
 
 StrictJsonReason = Literal["invalid_utf8", "invalid_json", "duplicate_key"]
@@ -33,6 +41,11 @@ StrictJsonReason = Literal["invalid_utf8", "invalid_json", "duplicate_key"]
 # RFC 8259 section 2 insignificant whitespace. A body made only of these bytes
 # carries no JSON value and is treated as absent, matching the TypeScript SDK.
 _JSON_WHITESPACE = b" \t\n\r"
+
+# The body is decoded as strict UTF-8 first, which cannot yield a surrogate
+# code point. So any surrogate in the parsed result came from an escape that
+# the decoder did not combine into a pair: an unpaired surrogate.
+_SURROGATE = re.compile("[\ud800-\udfff]")
 
 
 class StrictJsonError(ValueError):
@@ -60,6 +73,30 @@ def _reject_constant(_value: str) -> Any:
     raise ValueError("non-finite number literal is not JSON")
 
 
+def _finite_float(literal: str) -> float:
+    value = float(literal)
+    if not math.isfinite(value):
+        raise ValueError("number overflows to a non-finite float")
+    return value
+
+
+def _has_unpaired_surrogate(value: Any) -> bool:
+    # Iterative: the decoder already bounded nesting, but recursing here would
+    # re-introduce a second, lower recursion limit.
+    stack = [value]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, str):
+            if _SURROGATE.search(current):
+                return True
+        elif isinstance(current, dict):
+            stack.extend(current.keys())
+            stack.extend(current.values())
+        elif isinstance(current, list):
+            stack.extend(current)
+    return False
+
+
 def body_is_empty(body: bytes) -> bool:
     """True when the body has no JSON value to parse (empty or whitespace only)."""
     return not body.strip(_JSON_WHITESPACE)
@@ -72,17 +109,21 @@ def parse_strict_json(body: bytes) -> Any:
     except UnicodeDecodeError:
         raise StrictJsonError("invalid_utf8") from None
     try:
-        return json.loads(
+        value = json.loads(
             text,
             object_pairs_hook=_unique_object,
             parse_constant=_reject_constant,
+            parse_float=_finite_float,
         )
     except _DuplicateKeyError:
         raise StrictJsonError("duplicate_key") from None
     except (ValueError, RecursionError):
-        # ValueError covers JSONDecodeError, the non-finite literal hook, and
-        # the int-digit limit; RecursionError covers pathological nesting.
+        # ValueError covers JSONDecodeError, the non-finite hooks, and the
+        # int-digit limit; RecursionError covers pathological nesting.
         raise StrictJsonError("invalid_json") from None
+    if _has_unpaired_surrogate(value):
+        raise StrictJsonError("invalid_json")
+    return value
 
 
 __all__ = ["StrictJsonError", "StrictJsonReason", "body_is_empty", "parse_strict_json"]

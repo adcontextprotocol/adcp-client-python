@@ -22,6 +22,7 @@ from adcp.signing import (
     REQUEST_BODY_MALFORMED,
     REQUEST_SIGNATURE_REPLAYED,
     InMemoryReplayStore,
+    RequestBodyMalformedError,
     SignatureVerificationError,
     StaticJwksResolver,
     VerifiedSigner,
@@ -36,7 +37,17 @@ from adcp.signing._strict_json import StrictJsonError, parse_strict_json
 from adcp.signing.crypto import private_key_from_jwk
 from adcp.signing.errors import WEBHOOK_BODY_MALFORMED
 from adcp.signing.verifier import CoversDigestPolicy
-from adcp.webhooks import WebhookVerifyOptions, sign_webhook, verify_webhook_signature
+from adcp.webhooks import (
+    LegacyHmacFallback,
+    LegacyWebhookHmacOptions,
+    VerifiedWebhookSender,
+    WebhookReceiver,
+    WebhookReceiverConfig,
+    WebhookVerifyOptions,
+    get_adcp_signed_headers_for_webhook,
+    sign_webhook,
+    verify_webhook_signature,
+)
 
 VECTORS_DIR = Path(__file__).parent.parent / "vectors" / "request-signing"
 KEYS = json.loads((VECTORS_DIR / "keys.json").read_text())["keys"]
@@ -109,6 +120,10 @@ def _assert_malformed(body: bytes, reason: str) -> SignatureVerificationError:
     assert exc.value.code == REQUEST_BODY_MALFORMED
     assert exc.value.step == 14
     assert exc.value.detail == {"reason": reason}
+    # The signature verified, so the rejection is attributable to the signer.
+    assert isinstance(exc.value, RequestBodyMalformedError)
+    assert exc.value.signer.key_id == ED25519_KEY["kid"]
+    assert exc.value.signer.parsed_body is None
     return exc.value
 
 
@@ -209,6 +224,12 @@ def test_invalid_utf8_is_rejected(body: bytes) -> None:
         pytest.param(b'\xef\xbb\xbf{"a":1}', id="utf8-bom"),
         pytest.param(b"[" * 100_000 + b"]" * 100_000, id="pathological-nesting"),
         pytest.param(b'{"n":' + b"9" * 10_000 + b"}", id="int-digit-limit"),
+        pytest.param(b'{"n":1e999}', id="float-overflow-inf"),
+        pytest.param(b'{"n":-1.5e400}', id="float-overflow-neg-inf"),
+        pytest.param(b'{"name":"\\ud800"}', id="lone-high-surrogate-value"),
+        pytest.param(b'{"\\udc00":1}', id="lone-low-surrogate-key"),
+        pytest.param(b'["\\ud83dx"]', id="high-surrogate-without-low"),
+        pytest.param(b'{"a":[{"b":"ok\\udfff"}]}', id="nested-lone-surrogate"),
     ],
 )
 def test_non_json_is_rejected(body: bytes) -> None:
@@ -347,3 +368,208 @@ def test_parser_error_is_a_value_error_with_reason() -> None:
         parse_strict_json(b'{"a":1,"a":1}')
     assert isinstance(exc.value, StrictJsonError)
     assert exc.value.reason == "duplicate_key"
+
+
+# ---- body authenticity: well-formed is not the same as signed ----
+
+
+def _signed_without_digest(body: bytes) -> dict[str, str]:
+    private_key = private_key_from_jwk(ED25519_KEY, d_field="_private_d_for_test_only")
+    headers = {"Content-Type": "application/json"}
+    signed = sign_request(
+        method="POST",
+        url=URL,
+        headers=headers,
+        body=body,
+        private_key=private_key,
+        key_id=ED25519_KEY["kid"],
+        alg="ed25519",
+        created=NOW,
+        nonce=NONCE,
+        cover_content_digest=False,
+        signing_profile_version="3.1",
+    )
+    return {**headers, **signed.as_dict()}
+
+
+def _legacy_either_options() -> VerifyOptions:
+    return VerifyOptions(
+        now=float(NOW),
+        capability=VerifierCapability(covers_content_digest="either"),
+        operation="create_media_buy",
+        jwks_resolver=StaticJwksResolver({"keys": [ED25519_KEY]}),
+        signing_profile_version="3.1",
+    )
+
+
+def test_digest_covered_body_is_authenticated() -> None:
+    assert _verify(b'{"a":1}').body_authenticated is True
+
+
+def test_body_without_digest_coverage_is_parsed_but_not_authenticated() -> None:
+    body = b'{"params":{"name":"get_products"}}'
+    signer = verify_request_signature(
+        method="POST",
+        url=URL,
+        headers=_signed_without_digest(body),
+        body=body,
+        options=_legacy_either_options(),
+    )
+    assert signer.parsed_body == {"params": {"name": "get_products"}}
+    assert signer.body_authenticated is False
+
+
+def test_unauthenticated_body_is_still_strictly_parsed() -> None:
+    with pytest.raises(RequestBodyMalformedError) as exc:
+        verify_request_signature(
+            method="POST",
+            url=URL,
+            headers=_signed_without_digest(OPERATION_SMUGGLE),
+            body=OPERATION_SMUGGLE,
+            options=_legacy_either_options(),
+        )
+    assert exc.value.code == REQUEST_BODY_MALFORMED
+    assert exc.value.signer.body_authenticated is False
+
+
+# ---- body type coercion happens before any check reads the body ----
+
+
+@pytest.mark.parametrize("wrap", [bytearray, memoryview, lambda b: b.decode("utf-8")])
+def test_non_bytes_body_types_are_verified_not_crashed(wrap: object) -> None:
+    body = b'{"params":{"name":"get_products"}}'
+    signer = verify_request_signature(
+        method="POST",
+        url=URL,
+        headers=_signed(body),
+        body=wrap(body),  # type: ignore[operator, arg-type]
+        options=_options(),
+    )
+    assert signer.parsed_body == {"params": {"name": "get_products"}}
+
+
+def test_str_body_with_lone_surrogate_is_rejected_as_invalid_utf8() -> None:
+    text = '{"name":"\ud800"}'  # an actual lone surrogate code point in the str
+    wire = text.encode("utf-8", "surrogatepass")
+    with pytest.raises(RequestBodyMalformedError) as exc:
+        verify_request_signature(
+            method="POST", url=URL, headers=_signed(wire), body=text, options=_options()  # type: ignore[arg-type]
+        )
+    assert exc.value.detail == {"reason": "invalid_utf8"}
+
+
+def test_none_body_is_bodyless() -> None:
+    signer = verify_request_signature(
+        method="GET",
+        url=URL,
+        headers=_signed(b"", method="GET"),
+        body=None,  # type: ignore[arg-type]
+        options=_options(covers_content_digest="either"),
+    )
+    assert signer.parsed_body is None
+
+
+def test_unsupported_body_type_is_a_type_error() -> None:
+    with pytest.raises(TypeError, match="body must be bytes"):
+        verify_request_signature(
+            method="POST", url=URL, headers=_signed(b"{}"), body=123, options=_options()  # type: ignore[arg-type]
+        )
+
+
+# ---- webhook receiver: attribution kept, HMAC never consulted ----
+
+WEBHOOK_URL = "https://buyer.example.com/webhooks/adcp"
+WEBHOOK_DUPLICATE_BODY = (
+    b'{"idempotency_key":"whk_duplicate_json_aaaaaaaa",'
+    b'"operation_id":"op-1","task_id":"task-1",'
+    b'"task_type":"create_media_buy","status":"working","status":"failed",'
+    b'"timestamp":"2026-04-19T00:00:00Z"}'
+)
+
+
+def _signed_webhook(body: bytes) -> dict[str, str]:
+    private_key = private_key_from_jwk(WEBHOOK_ED25519, d_field="_private_d_for_test_only")
+    signed = sign_webhook(
+        method="POST",
+        url=WEBHOOK_URL,
+        headers={"Content-Type": "application/json"},
+        body=body,
+        private_key=private_key,
+        key_id=WEBHOOK_ED25519["kid"],
+        alg="ed25519",
+    )
+    return {"Content-Type": "application/json", **signed.as_dict()}
+
+
+def _receiver(legacy_hmac: LegacyHmacFallback | None = None) -> WebhookReceiver:
+    from adcp.server.idempotency import MemoryBackend, WebhookDedupStore
+
+    return WebhookReceiver(
+        config=WebhookReceiverConfig(
+            verify_options=WebhookVerifyOptions(
+                jwks_resolver=StaticJwksResolver({"keys": [WEBHOOK_ED25519]}),
+                sender_url="https://seller.example.com",
+            ),
+            dedup=WebhookDedupStore(MemoryBackend(), ttl_seconds=86400),
+            receiver_scope="test-receiver",
+            publisher_scope_for=lambda _signer: "test-publisher",
+            legacy_hmac=legacy_hmac,
+        ),
+    )
+
+
+def test_webhook_body_rejection_keeps_verified_sender() -> None:
+    with pytest.raises(RequestBodyMalformedError) as exc:
+        verify_webhook_signature(
+            method="POST",
+            url=WEBHOOK_URL,
+            headers=_signed_webhook(WEBHOOK_DUPLICATE_BODY),
+            body=WEBHOOK_DUPLICATE_BODY,
+            options=WebhookVerifyOptions(
+                jwks_resolver=StaticJwksResolver({"keys": [WEBHOOK_ED25519]}),
+            ),
+        )
+    assert exc.value.code == WEBHOOK_BODY_MALFORMED
+    assert isinstance(exc.value.signer, VerifiedWebhookSender)
+    assert exc.value.signer.key_id == WEBHOOK_ED25519["kid"]
+
+    outcome = asyncio.run(
+        _receiver().receive(
+            method="POST",
+            url=WEBHOOK_URL,
+            headers=_signed_webhook(WEBHOOK_DUPLICATE_BODY),
+            body=WEBHOOK_DUPLICATE_BODY,
+        )
+    )
+    assert outcome.rejected is True
+    assert outcome.rejection_reason == "body_invalid_json"
+    assert outcome.sender_identity == f"https://seller.example.com|{WEBHOOK_ED25519['kid']}"
+
+
+def test_malformed_9421_body_never_falls_back_to_hmac() -> None:
+    # Fallback deliberately permissive (only_when_9421_absent=False) and the
+    # request carries valid HMAC headers too: a verified-but-malformed 9421
+    # frame must still not consult HMAC at all.
+    consulted: list[object] = []
+    ts = str(NOW)
+    headers = _signed_webhook(WEBHOOK_DUPLICATE_BODY)
+    get_adcp_signed_headers_for_webhook(
+        headers=headers,
+        secret="s" * 32,
+        timestamp=ts,
+        payload=json.loads(WEBHOOK_DUPLICATE_BODY),
+    )
+
+    def options_for(hdrs: object) -> LegacyWebhookHmacOptions:
+        consulted.append(hdrs)
+        return LegacyWebhookHmacOptions(secret=b"s" * 32, sender_identity="legacy", now=float(NOW))
+
+    fallback = LegacyHmacFallback(options_for=options_for, only_when_9421_absent=False)
+    outcome = asyncio.run(
+        _receiver(fallback).receive(
+            method="POST", url=WEBHOOK_URL, headers=headers, body=WEBHOOK_DUPLICATE_BODY
+        )
+    )
+    assert outcome.rejected is True
+    assert outcome.rejection_reason == "body_invalid_json"
+    assert consulted == []
