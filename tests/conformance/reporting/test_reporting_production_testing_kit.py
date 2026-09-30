@@ -141,11 +141,14 @@ async def test_public_failure_plan_recovers_original_obligation_after_restart(
     service = service_for(backend, first_adapter, failures)
     configuration = backend.configuration
     await service.configure(configuration)
+    retry_at = None
     try:
         first = await service.run_worker()
         if point.startswith("fetch."):
             turn = first.configurations[configuration.generation_key]
             assert turn.slices_failed and not turn.revisions_committed
+            retry_at = turn.earliest_retry_at
+            assert retry_at is not None
         else:
             assert isinstance(first.configuration_errors[configuration.generation_key], OSError)
         assert configuration.deactivated_at is not None
@@ -174,6 +177,8 @@ async def test_public_failure_plan_recovers_original_obligation_after_restart(
     restarted = service_for(backend, restarted_adapter, failures)
     await restarted.configure(configuration)
     try:
+        if retry_at is not None:
+            backend.clock.set(retry_at)
         recovered = await restarted.run_worker()
         assert not recovered.configuration_errors
         assert len(recovered.configurations[configuration.generation_key].revisions_committed) == 1

@@ -130,6 +130,8 @@ async def test_progress_retains_policy_until_terminal_publication(
         production_operation_3 = await pending(h)
         assert production_operation_3 == (h.item.obligation.reporting_obligation_id,)
         source.official_ready = True
+        assert not_ready.earliest_retry_at is not None
+        h.source_clock.now = not_ready.earliest_retry_at
         completed = await source_turn(h.production)
         assert len(completed.revisions_committed) == 1
         assert [r.finality for r in await revisions(h)] == [
