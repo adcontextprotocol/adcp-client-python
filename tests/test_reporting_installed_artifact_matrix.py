@@ -70,7 +70,7 @@ def test_manifest_requires_four_positive_installed_artifact_cells() -> None:
         "positive_semantic"
     ) == 4
     assert contract["artifacts"]["python"]["stable"]["version"] == "8.0.0b16"
-    assert contract["artifacts"]["python"]["candidate"]["version"] == "8.0.0b18"
+    assert contract["artifacts"]["python"]["candidate"]["version"] == "8.0.0rc3"
     assert contract["artifacts"]["python"]["candidate"]["protocol"] == "3.2.0-rc.7"
     assert contract["artifacts"]["typescript"]["stable"]["version"] == "14.0.0-rc.47"
     assert "integrated_main_rerun" in contract["acceptance_contract"]["final_rerun_prerequisites"]

@@ -12,7 +12,7 @@ The exact artifact URLs, hashes, installed-member manifests, npm locks, and
 protocol versions are in `scripts/ci/reporting_interop/pins.json` and
 `installed_artifact_cells.json`. The prior-compatible sides are published
 Python `adcp==8.0.0b16` and TypeScript `@adcp/sdk@14.0.0-rc.47`; the
-candidate sides are published Python `adcp==8.0.0b18` and corrected
+candidate sides are published Python `adcp==8.0.0rc3` and corrected
 TypeScript `@adcp/sdk@14.0.0-rc.48`. Brian approved compatible prereleases for
 the prior sides, conditional on all four cells passing. The candidate Python
 package includes the rc.7 protocol adoption; the prior package and both
@@ -46,8 +46,8 @@ client artifact cross-product, not the Q1-Q4 language-role topology:
 | --- | --- | --- | --- |
 | `python-stable__typescript-stable` | PyPI b16 | npm rc.47 | positive semantic Core reconciliation |
 | `python-stable__typescript-candidate` | PyPI b16 | npm rc.48 | positive semantic Core reconciliation |
-| `python-candidate__typescript-stable` | PyPI b18 | npm rc.47 | positive semantic Core reconciliation |
-| `python-candidate__typescript-candidate` | PyPI b18 | npm rc.48 | positive semantic Core reconciliation |
+| `python-candidate__typescript-stable` | PyPI rc3 | npm rc.47 | positive semantic Core reconciliation |
+| `python-candidate__typescript-candidate` | PyPI rc3 | npm rc.48 | positive semantic Core reconciliation |
 
 All four cells run from clean installed environments with distinct PostgreSQL
 databases and seller processes. A missing reporting surface or an expected

@@ -61,13 +61,13 @@
       },
       "candidate": {
         "package": "adcp",
-        "version": "8.0.0b18",
+        "version": "8.0.0rc3",
         "protocol": "3.2.0-rc.7",
-        "wheel_url": "https://files.pythonhosted.org/packages/bc/cf/c796c2e7cd01e52ad82b90108aacdf960418c2cda0409198442cd1e8356b/adcp-8.0.0b18-py3-none-any.whl",
-        "wheel_sha256": "3eabf30fbdae298111f3bbb4f4efb36f193dd08d7845217948ed211d7476e2c3",
-        "wheel_bytes": 41453193,
+        "wheel_url": "https://files.pythonhosted.org/packages/6a/a9/85b61269bceefb5705a21ce87789f8d7869796a02ceb67f54268d444c36d/adcp-8.0.0rc3-py3-none-any.whl",
+        "wheel_sha256": "c2378f3f3a9041512690c177d160174a936a86c7eea55474b618256abcc14370",
+        "wheel_bytes": 41462232,
         "sdk_member_count": 4644,
-        "sdk_member_manifest_sha256": "6c32ffbaf5d7df2cfa153ae3ded161dd4a9e68e0df29b2445b8a91bb5647cf86"
+        "sdk_member_manifest_sha256": "27b14e6708ff75585d912c34454137eb8caa64f3461e8bbb1c98f025e849c277"
       }
     },
     "typescript": {

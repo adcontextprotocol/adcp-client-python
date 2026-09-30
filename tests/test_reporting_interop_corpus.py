@@ -373,20 +373,20 @@ def test_exact_candidate_pins_are_immutable_and_keep_source_separate() -> None:
     python = pins["python"]["candidate"]
     typescript = pins["typescript"]["historical_candidate_rc45"]
 
-    assert python["version"] == "8.0.0b18"
-    assert python["source_commit"] == "4d066171cdda2a802a71d4776c1c51132d5baff7"
-    assert python["source_tree"] == "a8f75ebb71bb4df6ccee170ec847e45f0120f93f"
+    assert python["version"] == "8.0.0rc3"
+    assert python["source_commit"] == "faab89b9a5333a51bdabef320135b5f79ca84ef6"
+    assert python["source_tree"] == "bd31da1757dbc37fdbc53aea06c1713887236889"
     assert python["build_kind"] == "published_pypi_release"
     assert python["registry"] == "https://pypi.org/simple/adcp/"
     assert python["wheel_sha256"] == (
-        "3eabf30fbdae298111f3bbb4f4efb36f193dd08d7845217948ed211d7476e2c3"
+        "c2378f3f3a9041512690c177d160174a936a86c7eea55474b618256abcc14370"
     )
     assert python["sdist_sha256"] == (
-        "d1bdb7e6c19e0e61432c0b300dfcd8f990d93f096964c4c8ad1401a68cc8bb50"
+        "a38a37665e0dfec168015bd7db1358fe9092f4f25d78e64932f4359bcecf31f9"
     )
     assert python["sdk_member_count"] == 4_644
     assert python["sdk_member_manifest_sha256"] == (
-        "6c32ffbaf5d7df2cfa153ae3ded161dd4a9e68e0df29b2445b8a91bb5647cf86"
+        "27b14e6708ff75585d912c34454137eb8caa64f3461e8bbb1c98f025e849c277"
     )
     controls = python["development_dependency_controls"]
     assert {(row["pydantic"], row["mcp"]) for row in controls} == {

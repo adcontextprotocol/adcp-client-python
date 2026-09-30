@@ -1350,16 +1350,16 @@ jobs:
             --output "${INPUT_ROOT}/python/adcp-8.0.0b16-py3-none-any.whl"
           curl --fail --silent --show-error --location --retry 4 --retry-delay 5 \
             --retry-connrefused --connect-timeout 15 --max-time 180 \
-            https://files.pythonhosted.org/packages/bc/cf/c796c2e7cd01e52ad82b90108aacdf960418c2cda0409198442cd1e8356b/adcp-8.0.0b18-py3-none-any.whl \
-            --output "${INPUT_ROOT}/python/adcp-8.0.0b18-py3-none-any.whl"
+            https://files.pythonhosted.org/packages/6a/a9/85b61269bceefb5705a21ce87789f8d7869796a02ceb67f54268d444c36d/adcp-8.0.0rc3-py3-none-any.whl \
+            --output "${INPUT_ROOT}/python/adcp-8.0.0rc3-py3-none-any.whl"
           echo "7589a546cacdddce3a7a827adaa11d4ccab34768c558689b1c6850b85cd098b1  ${INPUT_ROOT}/python/adcp-8.0.0b16-py3-none-any.whl" | sha256sum --check
-          echo "3eabf30fbdae298111f3bbb4f4efb36f193dd08d7845217948ed211d7476e2c3  ${INPUT_ROOT}/python/adcp-8.0.0b18-py3-none-any.whl" | sha256sum --check
+          echo "c2378f3f3a9041512690c177d160174a936a86c7eea55474b618256abcc14370  ${INPUT_ROOT}/python/adcp-8.0.0rc3-py3-none-any.whl" | sha256sum --check
           python -m venv "${INPUT_ROOT}/python/stable"
           python -m venv "${INPUT_ROOT}/python/candidate"
           "${INPUT_ROOT}/python/stable/bin/pip" install --retries 5 --timeout 30 \
             "${INPUT_ROOT}/python/adcp-8.0.0b16-py3-none-any.whl[pg]" pytest==9.0.2
           "${INPUT_ROOT}/python/candidate/bin/pip" install --retries 5 --timeout 30 \
-            "${INPUT_ROOT}/python/adcp-8.0.0b18-py3-none-any.whl[pg]" pytest==9.0.2
+            "${INPUT_ROOT}/python/adcp-8.0.0rc3-py3-none-any.whl[pg]" pytest==9.0.2
 
           cp scripts/ci/reporting_interop/npm/rc47/package.json \
             scripts/ci/reporting_interop/npm/rc47/package-lock.json "${INPUT_ROOT}/ts-stable/"
@@ -1390,7 +1390,7 @@ jobs:
             --python-stable-runtime "${INPUT_ROOT}/python/stable/bin/python" \
             --python-stable-artifact "${INPUT_ROOT}/python/adcp-8.0.0b16-py3-none-any.whl" \
             --python-candidate-runtime "${INPUT_ROOT}/python/candidate/bin/python" \
-            --python-candidate-artifact "${INPUT_ROOT}/python/adcp-8.0.0b18-py3-none-any.whl" \
+            --python-candidate-artifact "${INPUT_ROOT}/python/adcp-8.0.0rc3-py3-none-any.whl" \
             --typescript-stable-install "${INPUT_ROOT}/ts-stable" \
             --typescript-stable-archive "${INPUT_ROOT}/ts-stable/sdk-14.0.0-rc.47.tgz" \
             --typescript-candidate-install "${INPUT_ROOT}/ts-candidate" \
@@ -1409,7 +1409,7 @@ jobs:
             --python-stable-runtime "${INPUT_ROOT}/python/stable/bin/python" \
             --python-stable-artifact "${INPUT_ROOT}/python/adcp-8.0.0b16-py3-none-any.whl" \
             --python-candidate-runtime "${INPUT_ROOT}/python/candidate/bin/python" \
-            --python-candidate-artifact "${INPUT_ROOT}/python/adcp-8.0.0b18-py3-none-any.whl" \
+            --python-candidate-artifact "${INPUT_ROOT}/python/adcp-8.0.0rc3-py3-none-any.whl" \
             --typescript-stable-install "${INPUT_ROOT}/ts-stable" \
             --typescript-stable-archive "${INPUT_ROOT}/ts-stable/sdk-14.0.0-rc.47.tgz" \
             --typescript-candidate-install "${INPUT_ROOT}/ts-candidate" \
