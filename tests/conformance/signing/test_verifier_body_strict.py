@@ -449,7 +449,7 @@ def test_non_bytes_body_types_are_verified_not_crashed(wrap: object) -> None:
 
 
 def test_str_body_with_lone_surrogate_is_rejected_as_invalid_utf8() -> None:
-    text = '{"name":"\ud800"}'  # an actual lone surrogate code point in the str
+    text = '{"name":"' + chr(0xD800) + '"}'  # an actual lone surrogate code point
     wire = text.encode("utf-8", "surrogatepass")
     with pytest.raises(RequestBodyMalformedError) as exc:
         verify_request_signature(

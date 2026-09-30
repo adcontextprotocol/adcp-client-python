@@ -17,7 +17,7 @@ Beyond duplicate keys at any depth, the parse rejects:
   byte-order mark;
 - numbers that overflow to a non-finite float (``1e999``), which Python
   would otherwise turn into ``inf``;
-- unpaired UTF-16 surrogate escapes (``"\ud800"``). The grammar allows them,
+- unpaired UTF-16 surrogate escapes (``"\\ud800"``). The grammar allows them,
   but they are not Unicode scalar values (I-JSON, RFC 7493 section 2.1), and
   parsers disagree on them (replace with U+FFFD, reject, or pass through), so
   two keys that differ only in a lone surrogate can collide downstream;
@@ -45,7 +45,8 @@ _JSON_WHITESPACE = b" \t\n\r"
 # The body is decoded as strict UTF-8 first, which cannot yield a surrogate
 # code point. So any surrogate in the parsed result came from an escape that
 # the decoder did not combine into a pair: an unpaired surrogate.
-_SURROGATE = re.compile("[\ud800-\udfff]")
+# Raw pattern: `re` expands the escapes, so no surrogate lives in the source.
+_SURROGATE = re.compile(r"[\ud800-\udfff]")
 
 
 class StrictJsonError(ValueError):
