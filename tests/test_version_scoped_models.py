@@ -286,7 +286,7 @@ def test_mcp_tools_list_uses_pinned_31_schemas() -> None:
 
 
 def test_mcp_tools_list_uses_pinned_32_schemas() -> None:
-    tools = _tool_map("3.2-rc.7")
+    tools = _tool_map("3.2")
     properties = tools["list_creatives"]["inputSchema"]["properties"]
 
     assert "assignment_projection" in properties
@@ -309,7 +309,7 @@ def test_mcp_tools_list_keeps_non_bundled_tools() -> None:
 def test_mcp_32_uses_compact_transport_schemas() -> None:
     import json
 
-    tools = _tool_map("3.2-rc.7")
+    tools = _tool_map("3.2")
     encoded = json.dumps(tools["list_creatives"])
     assert len(encoded) < 300_000
 
@@ -359,7 +359,9 @@ def _contains_nonlocal_ref(value: object) -> bool:
     return False
 
 
-@pytest.mark.parametrize("version", ["3.0", "3.1", "3.2-beta.4", "3.2.0-rc.6", "3.2.0-rc.7"])
+@pytest.mark.parametrize(
+    "version", ["3.0", "3.1", "3.2-beta.4", "3.2.0-rc.6", "3.2.0-rc.7", "3.2.1"]
+)
 def test_pinned_mcp_inventory_is_portable_and_context_bounded(version: str) -> None:
     tools = get_tools_for_handler(ADCPHandler, advertise_all=True, adcp_version=version)
     assert not _contains_nonlocal_ref(tools)
@@ -369,7 +371,7 @@ def test_pinned_mcp_inventory_is_portable_and_context_bounded(version: str) -> N
     validator_for(schema).check_schema(schema)
 
 
-@pytest.mark.parametrize("version", ["3.1", "3.2.0-rc.6", "3.2.0-rc.7"])
+@pytest.mark.parametrize("version", ["3.1", "3.2.0-rc.6", "3.2.0-rc.7", "3.2.1"])
 def test_mcp_compaction_preserves_deep_validation(version: str) -> None:
     payload = {
         "account": {

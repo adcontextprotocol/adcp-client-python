@@ -37,7 +37,7 @@ SCHEMAS = (
     "protocol/get-adcp-capabilities-response.json",
     "bundled/protocol/get-adcp-capabilities-response.json",
 )
-RETAINED_SCHEMA_VERSIONS = ("3.2.0-rc.7",)
+RETAINED_SCHEMA_VERSIONS = ("3.2",)
 
 
 def production_schema_hashes():

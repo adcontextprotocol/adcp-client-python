@@ -737,7 +737,7 @@ async def test_mounted_mcp_status_call_drains_and_stopping_rejects_a_new_call() 
 
     class Handler(ADCPHandler):
         def get_adcp_version(self) -> str:
-            return "3.2.0-rc.7"
+            return "3.2.1"
 
     async def caller(_request: Any, _context: Any) -> ReportingStatusCaller:
         resolutions.append("authorized")

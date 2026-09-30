@@ -151,7 +151,7 @@ async def setup(
 async def public_outcome(store, config):
     handler = ReportingStatusHandler(store)
     caller = ReportingStatusCaller(account_id=config.account_id, consumer_id="clock-buyer")
-    validator = get_named_validator("core/reporting-revision.json", version="3.2.0-rc.7")
+    validator = get_named_validator("core/reporting-revision.json", version="3.2.1")
     assert validator is not None
 
     class StatusClient:
@@ -171,7 +171,7 @@ async def public_outcome(store, config):
         StatusClient(),
         GetReportingStatusRequest.model_validate(
             {
-                "adcp_version": "3.2-rc.7",
+                "adcp_version": "3.2",
                 "account": {"account_id": config.account_id},
                 "view": "periods",
                 "period": {"start": START.isoformat(), "end": END.isoformat()},

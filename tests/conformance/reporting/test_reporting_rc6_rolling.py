@@ -34,7 +34,7 @@ B24 = "34c8f6d929aeac3407e2f595104a8e903e572623"
 B24_TREE = "2dd33404cb50e6d87ae875ccfa1c983e7faabd44"
 
 
-async def test_fresh_rc7_read_reuses_initialized_mcp_session():
+async def test_fresh_current_read_reuses_initialized_mcp_session():
     class Mount:
         contexts = 0
         active = None
@@ -75,7 +75,7 @@ async def test_fresh_rc7_read_reuses_initialized_mcp_session():
         ("a2a", "3.2-rc.6"),
         ("mcp", "3.2-rc.6"),
         ("a2a", "3.2-rc.6"),
-        ("mcp", "3.2-rc.7"),
+        ("mcp", "3.2"),
     ]
 
 
@@ -213,7 +213,7 @@ def execute(python, script, settings, evidence, label):
 
 
 @pytest.mark.parametrize("notifications", [False, True])
-async def test_actual_accepted_b24_snapshot_refused_by_rc7_installed_restart(
+async def test_actual_accepted_b24_snapshot_refused_by_current_installed_restart(
     rc6_installed_boundary, notifications
 ):
     old_python, python, script, old, current, evidence = rc6_installed_boundary
@@ -241,5 +241,5 @@ async def test_actual_accepted_b24_snapshot_refused_by_rc7_installed_restart(
             assert result["snapshot_sha256"] == first["snapshot_sha256"]
             assert result["checkpoint"] == first["checkpoint"]
             assert result["version_boundary"] == "REPORTING_FEED_VERSION_MISMATCH"
-            assert result["fresh_version"] == "3.2-rc.7"
+            assert result["fresh_version"] == "3.2"
             assert result["fresh_snapshot_id"] != first["pages"][0]["ledger_snapshot_id"]

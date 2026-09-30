@@ -12,9 +12,7 @@ from adcp.signing import private_key_from_jwk, sign_request
 from adcp.webhooks import WebhookVerifyOptions, sign_webhook, verify_webhook_signature
 
 KEYS = json.loads(
-    files("adcp")
-    .joinpath("_compliance/3.2.0-rc.7/test-vectors/webhook-signing/keys.json")
-    .read_text()
+    files("adcp").joinpath("_compliance/3.2.1/test-vectors/webhook-signing/keys.json").read_text()
 )["keys"]
 ALGORITHMS = [
     ("ed25519", "test-ed25519-webhook-2026"),

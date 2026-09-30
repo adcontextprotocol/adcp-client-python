@@ -21,7 +21,7 @@ from adcp.webhooks import WebhookReceiver, WebhookReceiverConfig, WebhookVerifyO
 async def run(root, socket_fd):
     key_rows = json.loads(
         files("adcp")
-        .joinpath("_compliance/3.2.0-rc.7/test-vectors/webhook-signing/keys.json")
+        .joinpath("_compliance/3.2.1/test-vectors/webhook-signing/keys.json")
         .read_text()
     )["keys"]
     keys = {row["kid"]: {k: v for k, v in row.items() if not k.startswith("_")} for row in key_rows}

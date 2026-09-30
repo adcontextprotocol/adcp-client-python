@@ -51,7 +51,7 @@ async def main(settings):
             reconciled=True,
             identity_prefix="b24-",
             existing_pool=pool,
-            adcp_version="3.2-rc.7",
+            adcp_version="3.2",
         ) as h:
             mount = MountedProduction(h)
             subject = SimpleNamespace(
@@ -248,7 +248,7 @@ async def main(settings):
                     await asyncio.to_thread(sys.stdin.readline)
                     raise AssertionError("activated process must be killed")
                 # The old cursor has no version binding, so it remains a
-                # valid public continuation after the rc.7 upgrade. The
+                # valid public continuation after the 3.2 upgrade. The
                 # rc.6 receipt request is version-bound durable history.
                 assert (
                     await h.store.ingest_receipt_batch(settings["receipt_request"], caller=caller)

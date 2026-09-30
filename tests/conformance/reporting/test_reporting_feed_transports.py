@@ -494,7 +494,7 @@ async def test_mounted_malformed_scoped_positions_and_generic_cache_cannot_bypas
         assert error_code(denied) in {"UNAUTHORIZED", "INVALID_REQUEST"}
 
 
-@pytest.mark.parametrize("version", [None, "3.2.0-rc.7"])
+@pytest.mark.parametrize("version", [None, "3.2.1"])
 async def test_actual_inventory_and_fallback_schemas_bound_positions_without_mutating_legacy(
     feeds, version
 ):

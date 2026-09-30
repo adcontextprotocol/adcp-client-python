@@ -153,7 +153,7 @@ async def test_actual_b23_to_child_installed_restart_preserves_history_and_refus
         assert ready["result"]["feed_objects"] == 33
         before = without_feed(await h.image())
         # The retained rc.6 cursor is readable by the upgraded ledger. New
-        # public work uses rc.7 and starts a separate snapshot.
+        # public work uses 3.2 and starts a separate snapshot.
         assert (await walk(h.store, old_feed_request, s.binding.principal, first=first)) == expected
         continuation = feed_request(
             s, pagination={"cursor": first["pagination"]["cursor"], "max_results": 1}
@@ -179,7 +179,7 @@ async def test_actual_b23_to_child_installed_restart_preserves_history_and_refus
                 continued["result"]["pages"][0]["ledger_snapshot_id"] != first["ledger_snapshot_id"]
             )
         # rc.6 remains a durable history format, not a live server pin on the
-        # rc.7 wheel. Public replay refuses it before touching stored bytes.
+        # 3.2 wheel. Public replay refuses it before touching stored bytes.
         async with feed_process(h, s, receipt_request, action="receipt_refused", **new) as child:
             replayed = await child.event("done")
             hardening_operation_2 = await asyncio.wait_for(child.process.wait(), 5)

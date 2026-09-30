@@ -199,7 +199,7 @@ def test_correction_is_limited_to_the_known_rule_and_version(mutation):
 @pytest.mark.parametrize("backend", ["memory", "postgres"])
 @pytest.mark.parametrize("mode", ["core", "projection"])
 @pytest.mark.parametrize("notifications", [False, True])
-@pytest.mark.parametrize("version", [None, "3.2.0-rc.7"])
+@pytest.mark.parametrize("version", [None, "3.2.1"])
 async def test_complete_future_expectation_on_actual_summary_mounts(
     backend, mode, notifications, version
 ):
@@ -218,7 +218,7 @@ async def test_complete_future_expectation_on_actual_summary_mounts(
         )
         mounted.authorize(identity)
         request = {
-            "adcp_version": "3.2-rc.7",
+            "adcp_version": "3.2",
             "account": {"account_id": config.account_id},
             "view": "summary",
         }

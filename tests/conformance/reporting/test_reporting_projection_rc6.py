@@ -25,7 +25,7 @@ from ._receipt_transport import error_code
 from .test_reporting_schedule_schema import formats
 
 RC3 = "3.2-rc.3"
-CURRENT = "3.2-rc.7"
+CURRENT = "3.2"
 CONSUMER = "https://buyer.example.test/agent"
 
 

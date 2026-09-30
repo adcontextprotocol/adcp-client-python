@@ -298,7 +298,7 @@ async def test_mutation_cannot_change_mounted_discovery_registration_or_validati
     assert hashlib.sha256(canonical(repeated)).hexdigest() == (EXPECTED_PUBLIC_SHA256[version])
 
 
-def test_cached_rc7_schema_retains_all_signed_summary_and_period_controls():
+def test_cached_current_schema_retains_all_signed_summary_and_period_controls():
     def patched(value, operations):
         value = deepcopy(value)
         for operation in operations:
@@ -316,7 +316,7 @@ def test_cached_rc7_schema_retains_all_signed_summary_and_period_controls():
                 parent[parts[-1]] = deepcopy(operation["value"])
         return value
 
-    version = "3.2.0-rc.7"
+    version = "3.2.1"
     fixture = json.loads(
         files("adcp")
         .joinpath("_compliance", version, "test-vectors/reporting-summary/complete-summary.json")

@@ -52,7 +52,7 @@ def test_all_signed_compact_projection_vectors_validate_against_current_schema()
     projections = [case["compact_projection"] for case in vectors["cases"]]
     projections += [case["compact_projection"] for case in vectors["listed_purchase_cases"]]
     for projection in projections:
-        outcome = validate_response("request_proposals", projection, version="3.2.0-rc.7")
+        outcome = validate_response("request_proposals", projection, version="3.2.1")
         assert outcome.valid, outcome.issues
 
 

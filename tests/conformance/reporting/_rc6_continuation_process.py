@@ -1,4 +1,4 @@
-"""Actual installed B2.4 rc.6 snapshot and current rc.7 refusal in separate processes."""
+"""Actual installed B2.4 rc.6 snapshot and current 3.2 refusal in separate processes."""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ async def fresh_read_after_legacy_refusals(mount, account_id, positions):
         _, current = await mount.mcp(
             client,
             {
-                "adcp_version": "3.2-rc.7",
+                "adcp_version": "3.2",
                 "account": {"account_id": account_id},
                 "view": "periods",
             },
@@ -134,7 +134,7 @@ async def main(settings):
                 pass
             else:
                 raise AssertionError("current runtime mounted an unsupported rc.6 pin")
-            new_mount = mounted("3.2-rc.7")
+            new_mount = mounted("3.2")
             version_boundary = None
             positions = (
                 {"pagination": {"max_results": 1, "cursor": first["pagination"]["cursor"]}},
@@ -146,13 +146,13 @@ async def main(settings):
             assert current["health"] == "complete"
             assert current["ledger_snapshot_id"] != first["ledger_snapshot_id"]
             get_named_validator(
-                "media-buy/get-reporting-status-response.json", version="3.2-rc.7"
+                "media-buy/get-reporting-status-response.json", version="3.2"
             ).validate(current)
             for position in positions:
                 # An authenticated position still reports the captured version
-                # boundary when presented to a supported rc.7 read.
+                # boundary when presented to a supported 3.2 read.
                 request = {
-                    "adcp_version": "3.2-rc.7",
+                    "adcp_version": "3.2",
                     "account": {"account_id": config.account_id},
                     "view": "periods",
                     **position,

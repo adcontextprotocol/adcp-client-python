@@ -15,17 +15,17 @@ from .test_reporting_notification_packaging import run_step
 __all__ = ["b1_wheels", "built_distribution"]
 
 
-def test_installed_schema_input_retains_only_current_rc7():
+def test_installed_schema_input_retains_only_current_3_2():
     from adcp.validation import schema_loader
 
     schemas = production_schema_hashes()
     pinned = schema_loader._sdk_pinned_bundle_key()
-    assert pinned == "3.2.0-rc.7"
+    assert pinned == "3.2"
     assert_installed_schema_keys(schemas, pinned)
     with pytest.raises(AssertionError):
         assert_installed_schema_keys({}, pinned)
     with pytest.raises(AssertionError):
-        assert_installed_schema_keys({**schemas, "3.2.0-rc.6": {}}, pinned)
+        assert_installed_schema_keys({**schemas, "3.2.0-rc.7": {}}, pinned)
 
 
 @pytest.mark.parametrize("kind", ["vcs", "sdist"])
