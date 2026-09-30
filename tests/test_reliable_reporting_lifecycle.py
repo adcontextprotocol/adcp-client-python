@@ -27,7 +27,7 @@ from adcp.reporting.service import (
     ReliableReportingUnavailableError,
     ReportingServiceResource,
 )
-from adcp.reporting.testing import ScriptedReportingAdapter
+from adcp.reporting.testing import DeterministicReportingClock, ScriptedReportingAdapter
 from adcp.server import ADCPHandler
 from tests.test_reliable_reporting_service import (
     NOW,
@@ -661,7 +661,8 @@ async def test_configure_during_startup_is_serialized_without_losing_an_accepted
 
 
 async def test_retryable_source_outcome_does_not_fail_supervision() -> None:
-    service = ReliableReportingService.memory(account_context=_account_context, clock=lambda: NOW)
+    clock = DeterministicReportingClock(NOW)
+    service = ReliableReportingService.memory(account_context=_account_context, clock=clock)
     adapter = ScriptedReportingAdapter(redacted_capabilities(), [None, _rows(8)])
     service.sources.register("gam", adapter)
     await service.configure(replace(_configuration(), deactivated_at=NOW))
@@ -669,6 +670,9 @@ async def test_retryable_source_outcome_does_not_fail_supervision() -> None:
     assert any(turn.slices_failed for turn in first.configurations.values())
     assert service.ready
     assert service.failure is None
+    retry_at = next(iter(first.configurations.values())).earliest_retry_at
+    assert retry_at is not None
+    clock.set(retry_at)
     second = await service.run_worker()
     assert any(turn.revisions_committed for turn in second.configurations.values())
     await service.close()
