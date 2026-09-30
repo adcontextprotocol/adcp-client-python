@@ -1211,7 +1211,9 @@ def serve(
             )
             request_signature_verification = None
         else:
-            check_request_signature_verification(request_signature_verification)
+            check_request_signature_verification(
+                request_signature_verification, bearer_configured=auth is not None
+            )
 
     # Accept ADCPServerBuilder from adcp_server() decorator pattern
     from adcp.server.builder import ADCPServerBuilder
@@ -1882,7 +1884,9 @@ def _run_mcp_http(
     app = _wrap_with_path_normalize(app)
     # Signature verification sits outside the path normalizer: the signed
     # ``@target-uri`` is the path the buyer sent, trailing slash included.
-    app = wrap_with_signature_verification(app, request_signature_verification, transport="mcp")
+    app = wrap_with_signature_verification(
+        app, request_signature_verification, transport="mcp", bearer_configured=auth is not None
+    )
     app = _wrap_with_discovery(
         app,
         name=discovery_name,
@@ -1981,7 +1985,11 @@ def _build_a2a_app(
     # operator-supplied layer.
     app = _wrap_a2a_with_auth(app, auth, message_parser=message_parser)
     app = wrap_with_signature_verification(
-        app, request_signature_verification, transport="a2a", message_parser=message_parser
+        app,
+        request_signature_verification,
+        transport="a2a",
+        message_parser=message_parser,
+        bearer_configured=auth is not None,
     )
     if include_discovery:
         app = _wrap_with_discovery(
@@ -2179,7 +2187,7 @@ def _build_mcp_and_a2a_app(
     # below can reach ``.router.lifespan_context``.
     mcp_app = _wrap_with_path_normalize(mcp_inner)
     mcp_app = wrap_with_signature_verification(
-        mcp_app, request_signature_verification, transport="mcp"
+        mcp_app, request_signature_verification, transport="mcp", bearer_configured=auth is not None
     )
 
     # A2A app — built via the a2a-sdk wrapper. It mounts at the root
@@ -2218,7 +2226,11 @@ def _build_mcp_and_a2a_app(
     # ``a2a_inner``.
     a2a_app = _wrap_a2a_with_auth(a2a_inner, auth, message_parser=message_parser)
     a2a_app = wrap_with_signature_verification(
-        a2a_app, request_signature_verification, transport="a2a", message_parser=message_parser
+        a2a_app,
+        request_signature_verification,
+        transport="a2a",
+        message_parser=message_parser,
+        bearer_configured=auth is not None,
     )
 
     # Lifespan composition: FastMCP's session manager initializes a

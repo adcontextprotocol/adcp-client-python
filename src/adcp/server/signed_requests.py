@@ -85,6 +85,10 @@ SignaturePosture = Literal["required", "warn", "supported"]
 # carrying it through without a token.
 _FRAMEWORK_VERIFIED_SCOPE_KEY = "adcp.server.signature_verified"
 
+# Set when a request lacks a usable signature but may proceed only if bearer
+# auth succeeds; the value is the signature error code for the 401 challenge.
+_SIGNATURE_FALLBACK_SCOPE_KEY = "adcp.server.signature_fallback"
+
 
 @dataclass(frozen=True, kw_only=True)
 class RequestSignatureVerification:
@@ -118,6 +122,13 @@ class RequestSignatureVerification:
     :param protocol_methods_warn_for: JSON-RPC methods in shadow mode.
     :param covers_content_digest: Enforced digest-coverage policy. Declare
         ``"required"`` for AdCP 3.2.
+    :param allow_bearer_fallback: Accept an unsigned request to a required
+        operation when bearer auth (``serve(auth=...)``) authenticates it —
+        the spec's "independently valid configured fallback authenticator".
+        The bearer must then be presented and valid: discovery and
+        network-trust bypasses do not apply, and a failure is a ``401``
+        carrying both the ``Signature`` and ``Bearer`` challenges. Requires
+        ``auth=``. Default ``False`` rejects every unsigned required request.
     :param replay_store: Nonce store shared by every request. The default is
         one per-process :class:`~adcp.signing.InMemoryReplayStore`, which
         does not protect a multi-replica deployment; wire a shared store
@@ -131,6 +142,7 @@ class RequestSignatureVerification:
     protocol_methods_required_for: frozenset[str] = frozenset()
     protocol_methods_warn_for: frozenset[str] = frozenset()
     covers_content_digest: CoversDigestPolicy = "either"
+    allow_bearer_fallback: bool = False
     replay_store: ReplayStore | None = field(default_factory=InMemoryReplayStore)
     revocation_checker: RevocationChecker | None = None
     signing_profile_version: SigningProfileVersion = "3.1"
@@ -165,7 +177,8 @@ class RequestSignatureVerification:
 
         Accepts the generated ``RequestSigning`` model or its dict form.
         ``overrides`` set the fields the capability does not carry
-        (``replay_store``, ``revocation_checker``, ``signing_profile_version``).
+        (``replay_store``, ``revocation_checker``, ``signing_profile_version``,
+        ``allow_bearer_fallback``).
         """
         if hasattr(capability, "model_dump"):
             capability = capability.model_dump(mode="json", exclude_none=True)
@@ -296,12 +309,14 @@ class SignedRequestVerificationMiddleware:
         *,
         transport: Literal["mcp", "a2a"],
         message_parser: Any = None,
+        bearer_configured: bool = False,
     ) -> None:
         self._app = app
         self._config = config
         self._transport = transport
         self._message_parser = message_parser
         self._parse_skill = bool(config.required_for or config.warn_for)
+        self._bearer_configured = bearer_configured
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         # Only JSON-RPC POSTs carry an operation; GET (SSE, agent card),
@@ -350,6 +365,10 @@ class SignedRequestVerificationMiddleware:
         signature = _header(scope, b"signature")
         if signature_input is None and signature is None:
             if posture == "required":
+                if self._config.allow_bearer_fallback and self._bearer_configured:
+                    scope[_SIGNATURE_FALLBACK_SCOPE_KEY] = REQUEST_SIGNATURE_REQUIRED
+                    await self._app(scope, replay, send)
+                    return
                 await self._reject(
                     send,
                     SignatureVerificationError(
@@ -364,6 +383,7 @@ class SignedRequestVerificationMiddleware:
                     "unsigned request to warn_for target",
                     extra={"adcp_operation": label, "reason": REQUEST_SIGNATURE_REQUIRED},
                 )
+                self._require_bearer(scope, REQUEST_SIGNATURE_REQUIRED)
             await self._app(scope, replay, send)
             return
 
@@ -375,11 +395,19 @@ class SignedRequestVerificationMiddleware:
                     "request signature failed on warn_for target",
                     extra={"adcp_operation": label, "reason": exc.code, "step": exc.step},
                 )
+                self._require_bearer(scope, exc.code)
                 await self._app(scope, replay, send)
                 return
             await self._reject(send, exc)
             return
         await self._call_with_signer(scope, replay, send, signer)
+
+    def _require_bearer(self, scope: Any, code: str) -> None:
+        # Shadow mode continues only when an independent authenticator
+        # succeeds; with bearer auth configured, make it mandatory (no
+        # discovery or network-trust bypass) for this request.
+        if self._bearer_configured:
+            scope[_SIGNATURE_FALLBACK_SCOPE_KEY] = code
 
     async def _verify(
         self,
@@ -510,6 +538,18 @@ def verified_signer_for_request(request_context: Any) -> VerifiedSigner | None:
     return current_verified_signer.get()
 
 
+def signature_fallback_code(scope: Mapping[str, Any]) -> str | None:
+    """Signature error code when bearer auth must succeed for this request.
+
+    Set by framework verification for an unsigned request admitted under
+    ``allow_bearer_fallback`` and for ``warn_for`` shadow-mode passes. Bearer
+    middleware then disables its discovery and network-trust bypasses and
+    adds a ``Signature`` challenge to its ``401``.
+    """
+    code = scope.get(_SIGNATURE_FALLBACK_SCOPE_KEY)
+    return code if isinstance(code, str) else None
+
+
 def scope_has_verified_signer(scope: Mapping[str, Any]) -> bool:
     """True when framework verification authenticated this request's signer.
 
@@ -556,7 +596,9 @@ def apply_verified_signer(
     return context
 
 
-def check_request_signature_verification(config: RequestSignatureVerification) -> None:
+def check_request_signature_verification(
+    config: RequestSignatureVerification, *, bearer_configured: bool = False
+) -> None:
     """Boot-time checks for :func:`adcp.server.serve`'s verification config.
 
     An in-memory replay store only protects one process; in production
@@ -568,6 +610,11 @@ def check_request_signature_verification(config: RequestSignatureVerification) -
         raise TypeError(
             "serve(request_signature_verification=...) expects "
             f"RequestSignatureVerification, got {type(config).__name__}"
+        )
+    if config.allow_bearer_fallback and not bearer_configured:
+        raise ValueError(
+            "RequestSignatureVerification(allow_bearer_fallback=True) needs a fallback "
+            "authenticator; pass serve(auth=BearerTokenAuth(...))"
         )
     store = config.replay_store
     if store is None:
@@ -600,12 +647,17 @@ def wrap_with_signature_verification(
     *,
     transport: Literal["mcp", "a2a"],
     message_parser: Any = None,
+    bearer_configured: bool = False,
 ) -> Any:
     """Wrap ``app`` with verification when ``config`` is set; else return it."""
     if config is None:
         return app
     return SignedRequestVerificationMiddleware(
-        app, config, transport=transport, message_parser=message_parser
+        app,
+        config,
+        transport=transport,
+        message_parser=message_parser,
+        bearer_configured=bearer_configured,
     )
 
 

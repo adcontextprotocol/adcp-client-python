@@ -92,7 +92,7 @@ from starlette.responses import JSONResponse
 
 from adcp.server.base import ToolContext
 from adcp.server.mcp_tools import DISCOVERY_METHODS, DISCOVERY_TOOLS
-from adcp.server.signed_requests import scope_has_verified_signer
+from adcp.server.signed_requests import scope_has_verified_signer, signature_fallback_code
 
 logger = logging.getLogger("adcp.server.auth")
 
@@ -131,6 +131,15 @@ if TYPE_CHECKING:
 # the missing-token vs invalid-token distinction (RFC 6750 §3.1) is a
 # separate refinement deferred to a follow-up.
 _WWW_AUTHENTICATE_CHALLENGE = 'Bearer realm="adcp", error="invalid_token"'
+
+
+def _www_authenticate(signature_error: str | None) -> str:
+    """Bearer challenge, preceded by a ``Signature`` challenge (RFC 7235 §4.1
+    allows several) when request-signature verification admitted the request
+    only on condition that bearer auth succeed."""
+    if signature_error is None:
+        return _WWW_AUTHENTICATE_CHALLENGE
+    return f'Signature error="{signature_error}", {_WWW_AUTHENTICATE_CHALLENGE}'
 
 
 @dataclass(frozen=True)
@@ -456,7 +465,10 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Any) -> Any:
         method, tool = await self._peek_jsonrpc(request)
-        is_discovery = self.is_discovery_request(method, tool)
+        # A request admitted by request-signature verification only on the
+        # condition that bearer auth succeeds gets no bypasses.
+        signature_error = signature_fallback_code(request.scope)
+        is_discovery = signature_error is None and self.is_discovery_request(method, tool)
         request.scope[REQUEST_SCOPE_DISCOVERY] = is_discovery
 
         principal_token = None
@@ -481,7 +493,7 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
                     metadata_token = current_principal_metadata.set(None)
                     _set_request_state(request, None, None, None)
                     return await call_next(request)
-                if self._allow_unauthenticated:
+                if self._allow_unauthenticated and signature_error is None:
                     # Network-trust deployment: no bearer is expected on this
                     # leg — the agent is reachable only via the host's
                     # authenticated proxy, which propagates identity downstream
@@ -494,7 +506,7 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
                     metadata_token = current_principal_metadata.set(None)
                     _set_request_state(request, None, None, None)
                     return await call_next(request)
-                return self._unauthenticated()
+                return self._unauthenticated(signature_error)
 
             try:
                 raw = self._validate_token(bearer)
@@ -508,10 +520,10 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
                 # Fail closed — a buggy validator is an auth failure, not a
                 # 500. Logged for operators.
                 logger.exception("token validator raised")
-                return self._unauthenticated()
+                return self._unauthenticated(signature_error)
 
             if principal is None:
-                return self._unauthenticated()
+                return self._unauthenticated(signature_error)
 
             principal_metadata = dict(principal.metadata) if principal.metadata else None
             principal_token = current_principal.set(principal.caller_identity)
@@ -613,7 +625,7 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         )
         return tool in discovery_tools
 
-    def _unauthenticated(self) -> JSONResponse:
+    def _unauthenticated(self, signature_error: str | None = None) -> JSONResponse:
         # RFC 6750 §3 + RFC 7235 §3.1 require ``WWW-Authenticate: Bearer``
         # on every 401 from a Bearer-protected resource. Always emit;
         # even when the operator overrides ``unauthenticated_response``,
@@ -622,7 +634,7 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         return JSONResponse(
             self._unauth_body,
             status_code=401,
-            headers={"WWW-Authenticate": _WWW_AUTHENTICATE_CHALLENGE},
+            headers={"WWW-Authenticate": _www_authenticate(signature_error)},
         )
 
     @staticmethod
@@ -1585,7 +1597,12 @@ class A2ABearerAuthMiddleware:
         # resolves identity downstream from trusted headers (the agent is
         # reachable only via the host's authenticated proxy). A token that IS
         # present but invalid still falls through to rejection below.
-        if self._config.allow_unauthenticated and not self._has_bearer(scope):
+        signature_error = signature_fallback_code(scope)
+        if (
+            self._config.allow_unauthenticated
+            and signature_error is None
+            and not self._has_bearer(scope)
+        ):
             await self._app(scope, receive, send)
             return
 
@@ -1599,7 +1616,11 @@ class A2ABearerAuthMiddleware:
         # path when unset, and never parse an authenticated request merely to
         # authorize it. A supplied-but-invalid credential still receives 401,
         # matching the MCP leg's discovery behavior.
-        if self._discovery_skills is not None and not self._has_bearer(scope):
+        if (
+            self._discovery_skills is not None
+            and signature_error is None
+            and not self._has_bearer(scope)
+        ):
             buffered = await self._buffer_and_parse_discovery(receive)
             if buffered is None:
                 return
@@ -1616,7 +1637,7 @@ class A2ABearerAuthMiddleware:
 
         principal = self._authenticate_scope(scope)
         if principal is None:
-            await self._send_unauthenticated(send)
+            await self._send_unauthenticated(send, signature_error)
             return
 
         # Stash both the duck-typed user (for DefaultServerCallContextBuilder)
@@ -1751,7 +1772,7 @@ class A2ABearerAuthMiddleware:
             return None
         return raw
 
-    async def _send_unauthenticated(self, send: Any) -> None:
+    async def _send_unauthenticated(self, send: Any, signature_error: str | None = None) -> None:
         body_obj = self._config.unauthenticated_response or {
             "error": "invalid_token",
             "error_description": "Bearer token missing or invalid",
@@ -1768,7 +1789,7 @@ class A2ABearerAuthMiddleware:
                 "headers": [
                     (b"content-type", b"application/json"),
                     (b"content-length", str(len(body)).encode("latin-1")),
-                    (b"www-authenticate", _WWW_AUTHENTICATE_CHALLENGE.encode("ascii")),
+                    (b"www-authenticate", _www_authenticate(signature_error).encode("ascii")),
                 ],
             }
         )

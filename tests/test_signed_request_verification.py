@@ -891,3 +891,132 @@ def test_decisioning_serve_warns_when_required_signatures_are_unenforced() -> No
             None,
             {"request_signature_verification": _config()},
         )
+
+
+# ---------------------------------------------------------------------------
+# Bearer fallback (allow_bearer_fallback) and warn_for with an authenticator
+# ---------------------------------------------------------------------------
+
+
+def _bearer() -> BearerTokenAuth:
+    return BearerTokenAuth(
+        validate_token=validator_from_token_map({"good": Principal(caller_identity="p-bearer")})
+    )
+
+
+def _assert_dual_challenge(response: httpx.Response) -> None:
+    assert response.status_code == 401, response.text
+    challenge = response.headers["www-authenticate"]
+    assert challenge.startswith('Signature error="request_signature_required"')
+    assert "Bearer" in challenge
+
+
+@pytest.mark.asyncio
+async def test_bearer_fallback_admits_unsigned_required_call_with_valid_bearer() -> None:
+    handler = _Recording()
+    app = _both_app(handler, _config(allow_bearer_fallback=True), auth=_bearer())
+    call = json.dumps(_tools_call("get_products")).encode()
+    async with _client(app) as client:
+        with_bearer = await client.post(
+            "/mcp", content=call, headers={**MCP_HEADERS, "authorization": "Bearer good"}
+        )
+        without = await client.post("/mcp", content=call, headers=MCP_HEADERS)
+        bad = await client.post(
+            "/mcp", content=call, headers={**MCP_HEADERS, "authorization": "Bearer nope"}
+        )
+    assert with_bearer.status_code == 200, with_bearer.text
+    assert len(handler.contexts) == 1
+    _assert_dual_challenge(without)
+    _assert_dual_challenge(bad)
+
+
+@pytest.mark.asyncio
+async def test_bearer_fallback_disables_discovery_bypass_for_required_operation() -> None:
+    config = _config(
+        required_for=frozenset({"get_adcp_capabilities"}),
+        supported_for=frozenset({"get_adcp_capabilities"}),
+        allow_bearer_fallback=True,
+    )
+    app = _both_app(_Recording(), config, auth=_bearer())
+    response = await _post(
+        app, "/mcp", json.dumps(_tools_call("get_adcp_capabilities")).encode(), MCP_HEADERS
+    )
+    _assert_dual_challenge(response)
+
+
+@pytest.mark.asyncio
+async def test_bearer_fallback_on_a2a_leg() -> None:
+    handler = _Recording()
+    app = _both_app(handler, _config(allow_bearer_fallback=True), auth=_bearer())
+    body = json.dumps(_a2a_send("get_products")).encode()
+    async with _client(app) as client:
+        with_bearer = await client.post(
+            "/",
+            content=body,
+            headers={"content-type": "application/json", "authorization": "Bearer good"},
+        )
+        without = await client.post("/", content=body, headers={"content-type": "application/json"})
+    assert with_bearer.status_code == 200, with_bearer.text
+    _assert_dual_challenge(without)
+
+
+def test_bearer_fallback_requires_an_authenticator() -> None:
+    with pytest.raises(ValueError, match="fallback authenticator"):
+        check_request_signature_verification(_config(allow_bearer_fallback=True))
+    check_request_signature_verification(
+        _config(allow_bearer_fallback=True), bearer_configured=True
+    )
+
+
+@pytest.mark.asyncio
+async def test_without_fallback_required_call_rejected_even_with_bearer() -> None:
+    app = _both_app(_Recording(), _config(), auth=_bearer())
+    response = await _post(
+        app,
+        "/mcp",
+        json.dumps(_tools_call("get_products")).encode(),
+        {**MCP_HEADERS, "authorization": "Bearer good"},
+    )
+    _assert_rejected(response, "request_signature_required")
+
+
+@pytest.mark.asyncio
+async def test_warn_for_continues_only_when_bearer_succeeds() -> None:
+    """Shadow mode must not become an unauthenticated path: with bearer auth
+    configured, even a discovery operation in warn_for needs its bearer."""
+    config = _config(
+        required_for=frozenset(),
+        warn_for=frozenset({"get_adcp_capabilities"}),
+        supported_for=frozenset({"get_adcp_capabilities"}),
+    )
+    call = json.dumps(_tools_call("get_adcp_capabilities")).encode()
+
+    guarded = _both_app(_Recording(), config, auth=_bearer())
+    async with _client(guarded) as client:
+        unsigned = await client.post("/mcp", content=call, headers=MCP_HEADERS)
+        with_bearer = await client.post(
+            "/mcp", content=call, headers={**MCP_HEADERS, "authorization": "Bearer good"}
+        )
+    _assert_dual_challenge(unsigned)
+    assert with_bearer.status_code == 200, with_bearer.text
+
+    open_app = _both_app(_Recording(), config)
+    response = await _post(open_app, "/mcp", call, MCP_HEADERS)
+    assert response.status_code == 200, response.text
+
+
+def test_decisioning_serve_threads_bearer_fallback() -> None:
+    from adcp.decisioning.serve import _configure_request_signature_verification
+
+    capability = RequestSigning(
+        supported=True, required_for=["create_media_buy"], supported_for=["create_media_buy"]
+    )
+    serve_kwargs: dict[str, Any] = {}
+    _configure_request_signature_verification(
+        _platform(capability), StaticSignerKeys({}), None, serve_kwargs, bearer_fallback=True
+    )
+    assert serve_kwargs["request_signature_verification"].allow_bearer_fallback is True
+    with pytest.raises(TypeError, match="require signer_keys"):
+        _configure_request_signature_verification(
+            _platform(capability), None, None, {}, bearer_fallback=True
+        )

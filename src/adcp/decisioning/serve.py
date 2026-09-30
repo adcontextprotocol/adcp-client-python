@@ -512,6 +512,7 @@ def serve(
     reporting_status: ReportingStatusSupport | None = None,
     signer_keys: SignerKeyResolver | None = None,
     signature_replay_store: ReplayStore | None = None,
+    signature_bearer_fallback: bool = False,
     **serve_kwargs: Any,
 ) -> None:
     """One-call wrapper — build the handler and serve over MCP.
@@ -617,6 +618,9 @@ def serve(
         :class:`~adcp.signing.InMemoryReplayStore`, which is refused in
         production unless ``ADCP_ALLOW_INMEMORY_REPLAY_STORE=1``; pass a
         shared store (e.g. ``PgReplayStore``) for multi-replica deployments.
+    :param signature_bearer_fallback: Accept an unsigned request to a
+        ``required_for`` operation when bearer auth (``auth=``) authenticates
+        it. See ``RequestSignatureVerification.allow_bearer_fallback``.
     :param validate_at_init: Forwarded to
         :func:`create_adcp_server_from_platform`. Default ``True``
         runs the capabilities-shape boot validator in sync; pass
@@ -702,7 +706,11 @@ def serve(
         )
 
     _configure_request_signature_verification(
-        platform, signer_keys, signature_replay_store, serve_kwargs
+        platform,
+        signer_keys,
+        signature_replay_store,
+        serve_kwargs,
+        bearer_fallback=signature_bearer_fallback,
     )
 
     server_name = name or type(platform).__name__
@@ -744,6 +752,8 @@ def _configure_request_signature_verification(
     signer_keys: SignerKeyResolver | None,
     replay_store: ReplayStore | None,
     serve_kwargs: dict[str, Any],
+    *,
+    bearer_fallback: bool = False,
 ) -> None:
     """Build framework signature verification from declared capabilities.
 
@@ -757,8 +767,10 @@ def _configure_request_signature_verification(
     """
     request_signing = platform.capabilities.request_signing
     if signer_keys is None:
-        if replay_store is not None:
-            raise TypeError("signature_replay_store= requires signer_keys=")
+        if replay_store is not None or bearer_fallback:
+            raise TypeError(
+                "signature_replay_store= and signature_bearer_fallback= require signer_keys="
+            )
         if (
             request_signing is not None
             and request_signing.supported
@@ -786,7 +798,7 @@ def _configure_request_signature_verification(
         )
     from adcp.server.signed_requests import RequestSignatureVerification
 
-    overrides: dict[str, Any] = {}
+    overrides: dict[str, Any] = {"allow_bearer_fallback": bearer_fallback}
     if replay_store is not None:
         overrides["replay_store"] = replay_store
     serve_kwargs["request_signature_verification"] = RequestSignatureVerification.from_capability(
