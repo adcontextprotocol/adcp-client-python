@@ -981,28 +981,31 @@ async def test_without_fallback_required_call_rejected_even_with_bearer() -> Non
 
 
 @pytest.mark.asyncio
-async def test_warn_for_continues_only_when_bearer_succeeds() -> None:
-    """Shadow mode must not become an unauthenticated path: with bearer auth
-    configured, even a discovery operation in warn_for needs its bearer."""
+async def test_warn_for_leaves_bearer_behavior_unchanged() -> None:
+    """Shadow mode observes; it must not tighten auth. An unsigned warn_for
+    discovery call keeps the bearer middleware's discovery bypass, and a
+    network-trust (allow_unauthenticated) deployment keeps working."""
     config = _config(
         required_for=frozenset(),
-        warn_for=frozenset({"get_adcp_capabilities"}),
-        supported_for=frozenset({"get_adcp_capabilities"}),
+        warn_for=frozenset({"get_adcp_capabilities", "get_products"}),
+        supported_for=frozenset({"get_adcp_capabilities", "get_products"}),
+        allow_bearer_fallback=True,
     )
-    call = json.dumps(_tools_call("get_adcp_capabilities")).encode()
-
+    discovery = json.dumps(_tools_call("get_adcp_capabilities")).encode()
     guarded = _both_app(_Recording(), config, auth=_bearer())
-    async with _client(guarded) as client:
-        unsigned = await client.post("/mcp", content=call, headers=MCP_HEADERS)
-        with_bearer = await client.post(
-            "/mcp", content=call, headers={**MCP_HEADERS, "authorization": "Bearer good"}
-        )
-    _assert_dual_challenge(unsigned)
-    assert with_bearer.status_code == 200, with_bearer.text
-
-    open_app = _both_app(_Recording(), config)
-    response = await _post(open_app, "/mcp", call, MCP_HEADERS)
+    response = await _post(guarded, "/mcp", discovery, MCP_HEADERS)
     assert response.status_code == 200, response.text
+
+    network_trust = BearerTokenAuth(
+        validate_token=validator_from_token_map({}), allow_unauthenticated=True
+    )
+    handler = _Recording()
+    trusted = _both_app(handler, config, auth=network_trust)
+    response = await _post(
+        trusted, "/mcp", json.dumps(_tools_call("get_products")).encode(), MCP_HEADERS
+    )
+    assert response.status_code == 200, response.text
+    assert len(handler.contexts) == 1
 
 
 def test_decisioning_serve_threads_bearer_fallback() -> None:

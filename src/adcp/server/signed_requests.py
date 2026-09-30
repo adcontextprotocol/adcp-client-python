@@ -383,7 +383,6 @@ class SignedRequestVerificationMiddleware:
                     "unsigned request to warn_for target",
                     extra={"adcp_operation": label, "reason": REQUEST_SIGNATURE_REQUIRED},
                 )
-                self._require_bearer(scope, REQUEST_SIGNATURE_REQUIRED)
             await self._app(scope, replay, send)
             return
 
@@ -395,19 +394,11 @@ class SignedRequestVerificationMiddleware:
                     "request signature failed on warn_for target",
                     extra={"adcp_operation": label, "reason": exc.code, "step": exc.step},
                 )
-                self._require_bearer(scope, exc.code)
                 await self._app(scope, replay, send)
                 return
             await self._reject(send, exc)
             return
         await self._call_with_signer(scope, replay, send, signer)
-
-    def _require_bearer(self, scope: Any, code: str) -> None:
-        # Shadow mode continues only when an independent authenticator
-        # succeeds; with bearer auth configured, make it mandatory (no
-        # discovery or network-trust bypass) for this request.
-        if self._bearer_configured:
-            scope[_SIGNATURE_FALLBACK_SCOPE_KEY] = code
 
     async def _verify(
         self,
@@ -541,10 +532,12 @@ def verified_signer_for_request(request_context: Any) -> VerifiedSigner | None:
 def signature_fallback_code(scope: Mapping[str, Any]) -> str | None:
     """Signature error code when bearer auth must succeed for this request.
 
-    Set by framework verification for an unsigned request admitted under
-    ``allow_bearer_fallback`` and for ``warn_for`` shadow-mode passes. Bearer
-    middleware then disables its discovery and network-trust bypasses and
-    adds a ``Signature`` challenge to its ``401``.
+    Set by framework verification for an unsigned request to a required
+    operation admitted under ``allow_bearer_fallback``. Bearer middleware
+    then disables its discovery and network-trust bypasses and adds a
+    ``Signature`` challenge to its ``401``. ``warn_for`` shadow mode never
+    sets it: shadow mode observes and leaves authentication to the
+    configured ``auth=`` as-is.
     """
     code = scope.get(_SIGNATURE_FALLBACK_SCOPE_KEY)
     return code if isinstance(code, str) else None
