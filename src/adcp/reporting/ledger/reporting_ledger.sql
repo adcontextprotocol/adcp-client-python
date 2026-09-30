@@ -194,6 +194,15 @@ CREATE TABLE IF NOT EXISTS reporting_restatement_checkpoints (
 CREATE INDEX IF NOT EXISTS reporting_restatement_checkpoints_account_idx
     ON reporting_restatement_checkpoints (account_id, checked_at);
 
+-- Mutable scheduling state; it does not enter the immutable ledger change feed.
+CREATE TABLE IF NOT EXISTS adcp_reporting_producer_retry_schedules (
+    scope_key        TEXT COLLATE "C" PRIMARY KEY,
+    retry_not_before TIMESTAMPTZ NOT NULL,
+    attempt          INTEGER NOT NULL CHECK (attempt >= 0),
+    blocked          BOOLEAN NOT NULL DEFAULT FALSE,
+    recorded_at      TIMESTAMPTZ NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS reporting_revision_rows (
     reporting_revision_id TEXT COLLATE "C" NOT NULL
         REFERENCES reporting_revisions (reporting_revision_id),

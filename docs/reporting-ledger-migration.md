@@ -57,6 +57,14 @@ obligation IDs, the named obligations must exist in the requested account.
    activity activation barrier, see [durable reporting activity](reporting-webhook-activity.md).
 3. Restart reporting work with the upgraded SDK on every instance.
 
+The producer retry schedule is stored in the additive
+`adcp_reporting_producer_retry_schedules` table created by `reporting_ledger.sql`.
+Run `create_schema()` (or that bundled SQL file) before starting upgraded
+producers so retries and source-wide cooldowns survive worker restarts.
+Custom ledger stores must implement `RetryScheduleStore`, or provide a durable
+`retry_store` when constructing `ReportingProducer`. The producer rejects a
+store with no shared retry state to avoid silently retrying on every replica.
+
 For deployments managed by a migration tool, the standalone migration is
 [`reporting_ledger_account_generations.sql`](../src/adcp/reporting/ledger/reporting_ledger_account_generations.sql).
 It upgrades an existing beta.15 ledger by itself, including in autocommit mode.

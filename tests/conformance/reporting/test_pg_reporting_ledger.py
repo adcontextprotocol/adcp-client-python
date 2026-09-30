@@ -53,6 +53,7 @@ from adcp.reporting.ledger import (  # noqa: E402
     ReportingStatusCaller,
     ReportingStatusHandler,
     RestatementCheckpoint,
+    RetryScheduleEntry,
     derive_period,
     revision_content_sha256,
 )
@@ -63,6 +64,7 @@ CALLER = ReportingStatusCaller(account_id=ACCOUNT, consumer_id="buyer_pg")
 HOURLY = ReportingScheduleSpec(period_duration="PT1H", delivery_sla="PT1H", alignment="utc")
 
 _TABLES = (
+    "adcp_reporting_producer_retry_schedules",
     "reporting_ledger_changes",
     "reporting_consumer_statuses",
     "reporting_adjustments",
@@ -72,6 +74,44 @@ _TABLES = (
     "reporting_obligations",
     "reporting_configurations",
 )
+
+
+async def test_retry_schedule_is_shared_in_postgres(store: PgReportingLedgerStore) -> None:
+    first = RetryScheduleEntry("source:test", datetime(2026, 11, 1, tzinfo=timezone.utc), 1)
+    assert await store.record_retry_schedule(first) == first
+    assert await store.get_retry_schedule(scope_key=first.scope_key) == first
+
+    later = RetryScheduleEntry("source:test", first.retry_not_before + timedelta(minutes=2), 2)
+    assert await store.record_retry_schedule(later) == later
+    # A late worker cannot move the shared cooldown backwards.
+    assert await store.record_retry_schedule(first) == later
+    assert await store.get_retry_schedule(scope_key=first.scope_key) == later
+
+    parked = RetryScheduleEntry(
+        "source:parked",
+        first.retry_not_before,
+        1,
+        True,
+        recorded_at=first.retry_not_before,
+    )
+    cleared = RetryScheduleEntry(
+        "source:parked",
+        first.retry_not_before + timedelta(minutes=2),
+        0,
+        recorded_at=first.retry_not_before + timedelta(minutes=2),
+    )
+    assert await store.record_retry_schedule(parked) == parked
+    assert await store.record_retry_schedule(cleared) == cleared
+    assert await store.record_retry_schedule(parked) == cleared
+    newer_parked = RetryScheduleEntry(
+        "source:parked",
+        first.retry_not_before + timedelta(minutes=3),
+        1,
+        True,
+        recorded_at=first.retry_not_before + timedelta(minutes=3),
+    )
+    assert await store.record_retry_schedule(newer_parked) == newer_parked
+    assert await store.record_retry_schedule(cleared) == newer_parked
 
 
 @pytest.fixture()

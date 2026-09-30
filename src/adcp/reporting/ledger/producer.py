@@ -71,6 +71,8 @@ from adcp.reporting.ledger.store import (
     LedgerConflictError,
     ReportingLedgerStore,
     RestatementCheckpointStore,
+    RetryScheduleEntry,
+    RetryScheduleStore,
 )
 from adcp.reporting.revision_selection import select_reporting_revision
 from adcp.reporting.source import (
@@ -86,6 +88,7 @@ from adcp.reporting.source import (
     ReportingSourcePeriodV1,
     ReportingSourceSliceRequestV1,
     ReportingSourceStagedObjectReader,
+    ReportingTriggerKind,
     SourceBatchManifestV1,
     _validate_metric_applicability,
     coverage_denominator_fingerprint_v1,
@@ -227,6 +230,13 @@ class WorkerTurn:
     revisions_committed: list[str] = field(default_factory=list)
     slices_failed: list[str] = field(default_factory=list)
     escalated: list[str] = field(default_factory=list)
+    earliest_retry_at: datetime | None = None
+    _retry_keys_by_obligation: dict[str, tuple[str, str, str]] = field(
+        default_factory=dict, repr=False, compare=False
+    )
+    _retry_entries: dict[str, RetryScheduleEntry] = field(
+        default_factory=dict, repr=False, compare=False
+    )
 
     @property
     def did_work(self) -> bool:
@@ -262,7 +272,23 @@ class ReportingProducer:
         clock: Callable[[], datetime] | None = None,
         currency_resolver: CurrencyResolver | None = None,
         revision_verifier: ReportingRevisionVerifier | None = None,
+        retry_initial_delay: timedelta = timedelta(minutes=1),
+        retry_max_delay: timedelta = timedelta(minutes=30),
+        post_deadline_retry_interval: timedelta = timedelta(hours=1),
+        retry_store: RetryScheduleStore | None = None,
     ) -> None:
+        if (
+            retry_initial_delay <= timedelta(0)
+            or retry_max_delay < retry_initial_delay
+            or post_deadline_retry_interval <= timedelta(0)
+        ):
+            raise ValueError("retry delays must be positive and maximum must exceed initial")
+        if retry_store is None:
+            if not isinstance(store, RetryScheduleStore):
+                raise TypeError(
+                    "ReportingProducer requires a RetryScheduleStore to persist retry state"
+                )
+            retry_store = store
         self._source = source
         self._offerings = offerings
         self._store = store
@@ -278,6 +304,10 @@ class ReportingProducer:
             else FixedCurrencyResolver(offerings.currency)
         )
         self._revision_verifier = revision_verifier
+        self._retry_initial_delay = retry_initial_delay
+        self._retry_max_delay = retry_max_delay
+        self._post_deadline_retry_interval = post_deadline_retry_interval
+        self._retry_store = retry_store
 
     @property
     def store(self) -> ReportingLedgerStore:
@@ -831,6 +861,7 @@ class ReportingProducer:
         now: datetime | None = None,
         target_finality: str | None = None,
         track_settling: bool = False,
+        manual_replay: bool = False,
     ) -> ReportingRevisionRecord | None:
         """Drive one obligation from its source and commit what comes back.
 
@@ -853,6 +884,9 @@ class ReportingProducer:
         obligation = await self._stored_obligation(obligation)
         turn = turn or WorkerTurn()
         now = now or self._clock()
+        if not manual_replay and await self._retry_not_before(obligation, turn, now=now):
+            self._note_escalation(obligation, turn, now=now)
+            return None
         revisions = await self._store.list_revisions(
             account_id=obligation.account_id,
             reporting_obligation_id=obligation.reporting_obligation_id,
@@ -907,6 +941,7 @@ class ReportingProducer:
             now=now,
             observation=observation,
             constituents=constituents,
+            trigger="manual_replay" if manual_replay else "scheduled_poll",
         )
         acquisition = None
         if track_settling:
@@ -934,6 +969,8 @@ class ReportingProducer:
                 )
             )
             request = acquisition.request(deadline_at=_utc(now) + self._offerings.slice_timeout)
+            if manual_replay:
+                request = request.model_copy(update={"trigger": "manual_replay"})
             finality = (
                 "snapshot" if request.publication_class == "PROVISIONAL_SNAPSHOT" else "official"
             )
@@ -959,6 +996,7 @@ class ReportingProducer:
             # the execution explicitly until even synchronous work has settled.
             await cancel_and_settle(execution)
             turn.slices_failed.append(obligation.reporting_obligation_id)
+            await self._schedule_retry(obligation, turn, now=now, replayed=manual_replay)
             self._note_escalation(obligation, turn, now=now)
             return None
 
@@ -979,6 +1017,15 @@ class ReportingProducer:
                 error.retry,
             )
             turn.slices_failed.append(obligation.reporting_obligation_id)
+            await self._schedule_retry(
+                obligation,
+                turn,
+                now=now,
+                scope=error.scope,
+                retry_after_seconds=error.retry_after_seconds,
+                blocked=error.retry == "terminal",
+                replayed=manual_replay,
+            )
             self._note_escalation(obligation, turn, now=now)
             return None
 
@@ -1000,7 +1047,7 @@ class ReportingProducer:
                 "PUBLICATION_TIME_INVALID",
                 "producer clock regressed during acquisition; correct the clock before retrying",
             )
-        return await self.commit_revision_from_manifest(
+        committed = await self.commit_revision_from_manifest(
             obligation,
             manifest,
             rows=rows,
@@ -1009,6 +1056,144 @@ class ReportingProducer:
             turn=turn,
             acquisition=acquisition,
         )
+        await self._clear_retry(obligation, turn=turn, now=published_at)
+        return committed
+
+    def _retry_keys(self, obligation: ReportingObligationRecord) -> tuple[str, str, str]:
+        source = hashlib.sha256(
+            canonical_json_utf8_v1(
+                [self._offerings.publication_namespace, self._offerings.source_scope]
+            )
+        ).hexdigest()
+        return (
+            f"slice:{obligation.account_id}:{obligation.reporting_obligation_id}",
+            f"account:{obligation.account_id}:{source}",
+            f"source:{source}",
+        )
+
+    async def _get_retry(self, key: str) -> RetryScheduleEntry | None:
+        return await self._retry_store.get_retry_schedule(scope_key=key)
+
+    async def _record_retry(self, entry: RetryScheduleEntry) -> RetryScheduleEntry:
+        return await self._retry_store.record_retry_schedule(entry)
+
+    @staticmethod
+    def _refresh_retry(turn: WorkerTurn, *, now: datetime) -> None:
+        candidates = []
+        for keys in turn._retry_keys_by_obligation.values():
+            entries = [turn._retry_entries[key] for key in keys if key in turn._retry_entries]
+            if any(entry.blocked for entry in entries):
+                continue
+            due = [entry.retry_not_before for entry in entries if entry.attempt > 0]
+            if due:
+                candidates.append(max(due, key=_utc))
+        turn.earliest_retry_at = min(candidates, key=_utc) if candidates else None
+
+    async def _retry_not_before(
+        self, obligation: ReportingObligationRecord, turn: WorkerTurn, *, now: datetime
+    ) -> bool:
+        keys = self._retry_keys(obligation)
+        schedules = [await self._get_retry(key) for key in keys]
+        deferred = [
+            entry
+            for entry in schedules
+            if entry is not None
+            and entry.attempt > 0
+            and (entry.blocked or _utc(entry.retry_not_before) > _utc(now))
+        ]
+        if not deferred:
+            return False
+        turn._retry_keys_by_obligation[obligation.reporting_obligation_id] = keys
+        turn._retry_entries.update(
+            (entry.scope_key, entry) for entry in schedules if entry is not None
+        )
+        self._refresh_retry(turn, now=now)
+        return True
+
+    async def _schedule_retry(
+        self,
+        obligation: ReportingObligationRecord,
+        turn: WorkerTurn,
+        *,
+        now: datetime,
+        scope: str = "slice",
+        retry_after_seconds: float | None = None,
+        blocked: bool = False,
+        replayed: bool = False,
+    ) -> None:
+        # Dispatch ``now`` can be synthetic in tests and integrations. A slow
+        # source may finish long after it, so anchor the cooldown at completion.
+        completed_at = max(_utc(now), _utc(self._clock()))
+        keys = self._retry_keys(obligation)
+        shared = keys[1 if scope == "account" else 2]
+        affected = keys[:1] if scope == "slice" else ((shared,) if blocked else (keys[0], shared))
+        turn._retry_keys_by_obligation[obligation.reporting_obligation_id] = keys
+        for key in keys:
+            current = await self._get_retry(key)
+            if current is not None:
+                turn._retry_entries[key] = current
+        for key in affected:
+            previous = await self._get_retry(key)
+            attempt = (previous.attempt if previous is not None else 0) + 1
+            # Stable per-scope jitter keeps retries spread across configurations
+            # and gives identical decisions to workers sharing a store.
+            jitter = (
+                0.8
+                + 0.4
+                * int.from_bytes(hashlib.sha256(f"{key}:{attempt}".encode()).digest()[:2], "big")
+                / 65535
+            )
+            exponential = self._retry_initial_delay * (2 ** min(attempt - 1, 30))
+            delay = min(self._retry_max_delay, exponential * jitter)
+            if retry_after_seconds is not None:
+                try:
+                    delay = max(delay, timedelta(seconds=retry_after_seconds))
+                except OverflowError:
+                    delay = timedelta.max
+            if completed_at >= _utc(obligation.automated_recovery_deadline_at):
+                delay = max(delay, self._post_deadline_retry_interval)
+            try:
+                retry_at = completed_at + delay
+            except OverflowError:
+                retry_at = datetime.max.replace(tzinfo=timezone.utc)
+            stored = await self._record_retry(
+                RetryScheduleEntry(
+                    key,
+                    completed_at if blocked else retry_at,
+                    attempt,
+                    blocked,
+                    recorded_at=completed_at,
+                    replayed=replayed,
+                )
+            )
+            turn._retry_entries[key] = stored
+        if replayed:
+            # A manual probe supersedes an earlier terminal blast radius. The
+            # new error's declared scope governs subsequent automatic work.
+            for key in keys:
+                if key in affected:
+                    continue
+                prior = await self._get_retry(key)
+                if prior is not None and prior.blocked:
+                    turn._retry_entries[key] = await self._record_retry(
+                        RetryScheduleEntry(
+                            key, completed_at, 0, recorded_at=completed_at, replayed=True
+                        )
+                    )
+        self._refresh_retry(turn, now=completed_at)
+
+    async def _clear_retry(
+        self, obligation: ReportingObligationRecord, *, turn: WorkerTurn, now: datetime
+    ) -> None:
+        for key in self._retry_keys(obligation):
+            prior = await self._get_retry(key)
+            if prior is not None and prior.attempt:
+                stored = await self._record_retry(
+                    RetryScheduleEntry(key, _utc(now), 0, recorded_at=_utc(now))
+                )
+                turn._retry_entries[key] = stored
+        turn._retry_keys_by_obligation.pop(obligation.reporting_obligation_id, None)
+        self._refresh_retry(turn, now=now)
 
     async def _admitted_source_constituents(
         self, configuration: ReportingConfiguration, obligation: ReportingObligationRecord
@@ -1469,6 +1654,7 @@ class ReportingProducer:
         now: datetime,
         observation: int = 0,
         constituents: tuple[ReportingConstituent, ...] | None = None,
+        trigger: ReportingTriggerKind = "scheduled_poll",
     ) -> ReportingSourceSliceRequestV1:
         """Freeze one slice request from the obligation.
 
@@ -1552,7 +1738,7 @@ class ReportingProducer:
                 windowing=self._source.capabilities.offering(offering_id).windowing,
             ),
             revision_kind="authoritative" if publication_class == "AUTHORITATIVE" else "snapshot",
-            trigger="scheduled_poll",
+            trigger=trigger,
             coverage=ReportingSourceCoverageRequestV1(
                 expected="full",
                 constituents=resolved_constituents,

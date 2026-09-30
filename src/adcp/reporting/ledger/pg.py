@@ -125,6 +125,7 @@ from adcp.reporting.ledger.store import (
     LedgerPage,
     ReportingRowPage,
     RestatementCheckpoint,
+    RetryScheduleEntry,
     check_issue_state_transition,
     configuration_lifecycle,
     encode_cursor,
@@ -1117,6 +1118,60 @@ class PgReportingLedgerStore:
                 (*key, revision.reporting_revision_id, _json(observation.to_wire())),
             )
             return committed
+
+    async def get_retry_schedule(self, *, scope_key: str) -> RetryScheduleEntry | None:
+        async with self._connection() as connection:
+            row = await (
+                await connection.execute(
+                    "SELECT retry_not_before, attempt, blocked, recorded_at"
+                    " FROM adcp_reporting_producer_retry_schedules"
+                    " WHERE scope_key = %s",
+                    (scope_key,),
+                )
+            ).fetchone()
+        return (
+            RetryScheduleEntry(scope_key, _utc(row[0]), int(row[1]), row[2], _utc(row[3]))
+            if row
+            else None
+        )
+
+    async def record_retry_schedule(self, entry: RetryScheduleEntry) -> RetryScheduleEntry:
+        async with self._connection() as connection:
+            row = await (
+                await connection.execute(
+                    "INSERT INTO adcp_reporting_producer_retry_schedules"
+                    " (scope_key, retry_not_before, attempt, blocked, recorded_at)"
+                    " VALUES (%s, %s, %s, %s, %s)"
+                    " ON CONFLICT (scope_key) DO UPDATE SET"
+                    " retry_not_before = CASE WHEN EXCLUDED.attempt = 0 OR EXCLUDED.blocked"
+                    " OR adcp_reporting_producer_retry_schedules.blocked OR %s"
+                    " THEN EXCLUDED.retry_not_before ELSE GREATEST("
+                    " adcp_reporting_producer_retry_schedules.retry_not_before,"
+                    " EXCLUDED.retry_not_before) END,"
+                    " attempt = EXCLUDED.attempt, blocked = EXCLUDED.blocked,"
+                    " recorded_at = EXCLUDED.recorded_at"
+                    " WHERE EXCLUDED.recorded_at >="
+                    " adcp_reporting_producer_retry_schedules.recorded_at"
+                    " AND (EXCLUDED.attempt = 0 OR EXCLUDED.blocked OR %s"
+                    " OR (NOT adcp_reporting_producer_retry_schedules.blocked AND"
+                    " adcp_reporting_producer_retry_schedules.attempt <= EXCLUDED.attempt))"
+                    " RETURNING retry_not_before, attempt, blocked, recorded_at",
+                    (
+                        entry.scope_key,
+                        entry.retry_not_before,
+                        entry.attempt,
+                        entry.blocked,
+                        entry.recorded_at,
+                        entry.replayed,
+                        entry.replayed,
+                    ),
+                )
+            ).fetchone()
+        if row is None:
+            stored = await self.get_retry_schedule(scope_key=entry.scope_key)
+            assert stored is not None
+            return stored
+        return RetryScheduleEntry(entry.scope_key, _utc(row[0]), int(row[1]), row[2], _utc(row[3]))
 
     async def get_restatement_checkpoint(
         self, *, account_id: str, reporting_obligation_id: str
