@@ -257,10 +257,12 @@ def test_config_rejects_inconsistent_policy() -> None:
         _config(protocol_methods_required_for=frozenset({"tools/call"}))
 
 
-def test_default_replay_store_is_shared_across_requests() -> None:
+def test_default_replay_store_is_created_per_config() -> None:
+    # Each config owns one store that every request it verifies shares
+    # (test_mcp_replayed_nonce_rejected); separate configs never share one.
     config = _config()
     assert isinstance(config.replay_store, InMemoryReplayStore)
-    assert config.replay_store is config.replay_store
+    assert _config().replay_store is not config.replay_store
 
 
 # ---------------------------------------------------------------------------
