@@ -38,6 +38,7 @@ from adcp.server.test_controller import (
 from adcp.server.test_controller import (
     TestControllerError as ControllerError,
 )
+from adcp.validation.version import resolve_bundle_key
 
 _PACKAGED_ADCP_VERSION = normalize_to_release_precision(get_adcp_spec_version())
 
@@ -815,7 +816,7 @@ def test_store_signatures_cover_documented_scenario_params():
         Path(__file__).parents[1]
         / "schemas"
         / "cache"
-        / get_adcp_spec_version()
+        / resolve_bundle_key(get_adcp_spec_version())
         / "compliance"
         / "comply-test-controller-request.json"
     )
@@ -848,7 +849,7 @@ def test_controller_scenarios_match_packaged_schema():
         Path(__file__).parents[1]
         / "schemas"
         / "cache"
-        / get_adcp_spec_version()
+        / resolve_bundle_key(get_adcp_spec_version())
         / "compliance"
         / "comply-test-controller-request.json"
     )

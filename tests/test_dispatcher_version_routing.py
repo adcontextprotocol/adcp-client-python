@@ -211,7 +211,7 @@ async def test_unsupported_adcp_version_string_raises_version_unsupported() -> N
 
 
 @pytest.mark.asyncio
-async def test_unsupported_32_release_never_dispatches_or_validates() -> None:
+async def test_unsupported_future_release_never_dispatches_or_validates() -> None:
     """A release with no bundled validator must fail before dispatch."""
     handler = _RecorderHandler()
 
@@ -222,12 +222,12 @@ async def test_unsupported_32_release_never_dispatches_or_validates() -> None:
             validation=ValidationHookConfig(requests="warn"),
         )
         with pytest.raises(ADCPTaskError) as exc_info:
-            await caller({"adcp_version": "3.2", "brief": "Q4"})
+            await caller({"adcp_version": "3.9", "brief": "Q4"})
 
     err = exc_info.value.errors[0]
     assert err.code == "VERSION_UNSUPPORTED"
     assert err.details is not None
-    assert err.details["claimed_version"] == "3.2"
+    assert err.details["claimed_version"] == "3.9"
     assert handler.received == []
     mock_validate.assert_not_called()
 

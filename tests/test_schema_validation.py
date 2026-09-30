@@ -69,7 +69,7 @@ class TestValidateRequest:
         assert outcome.variant == "skipped"
 
     def test_native_tool_with_unbundled_explicit_version_fails_closed(self) -> None:
-        outcome = validate_request("get_products", {}, version="3.2")
+        outcome = validate_request("get_products", {}, version="3.9")
 
         assert outcome.valid is False
         assert outcome.variant == "request"
@@ -113,7 +113,7 @@ class TestValidateRequest:
 
 class TestValidateResponse:
     def test_native_tool_with_unbundled_explicit_version_fails_closed(self) -> None:
-        outcome = validate_response("get_products", {"products": []}, version="3.2")
+        outcome = validate_response("get_products", {"products": []}, version="3.9")
 
         assert outcome.valid is False
         assert outcome.issues[0].keyword == "schema_unavailable"

@@ -53,7 +53,7 @@ def test_current_pin_and_historical_roots():
     assert resolve_adcp_version(None) == resolve_adcp_version(VERSION) == WIRE_VERSION
     assert resolve_adcp_version(WIRE_VERSION) == WIRE_VERSION
     assert set(get_supported_adcp_versions()) == {"3.0", "3.1", WIRE_VERSION}
-    assert schema_loader._resolve_schema_root(VERSION) is not None
+    assert schema_loader._resolve_schema_root(WIRE_VERSION) is not None
     for previous in ("3.2.0-rc.3", "3.2.0-rc.6", "3.2.0-rc.7"):
         assert schema_loader._resolve_schema_root(previous) is not None
         with pytest.raises(ConfigurationError):

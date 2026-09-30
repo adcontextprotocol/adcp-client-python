@@ -1564,8 +1564,10 @@ def test_current_targeting_input_has_exactly_four_generated_request_sites():
     import json
 
     root = Path(__file__).parent.parent
+    from adcp.validation.version import resolve_bundle_key
+
     pinned = (root / "src/adcp/ADCP_VERSION").read_text().strip()
-    schema_root = root / "schemas/cache" / pinned
+    schema_root = root / "schemas/cache" / resolve_bundle_key(pinned)
     expected = {
         "package-request": "PackageRequest",
         "package-update": "PackageUpdate",
