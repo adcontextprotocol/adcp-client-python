@@ -36,8 +36,10 @@ MAX_CONFIRMATION_BYTES = 16 * 1024 * 1024
 MAX_CHUNK_BYTES = 1024 * 1024
 MAX_RESPONSE_BYTES = 2 * MAX_CHUNK_BYTES
 _CHUNK_SIZE = 100
-_VERSION = "3.2-rc.7"
-_RETAINED_VERSIONS = frozenset(("3.2-rc.6", _VERSION))
+_VERSION = "3.2"
+#: Release-candidate request versions whose stored plans must still validate.
+_LEGACY_VERSIONS = frozenset(("3.2-rc.6", "3.2-rc.7"))
+_RETAINED_VERSIONS = frozenset((*_LEGACY_VERSIONS, _VERSION))
 
 
 class ReportingSubmissionCode(str, Enum):
@@ -269,7 +271,7 @@ def _prepare_for_version(
     receipts: Sequence[ReportingSubmissionReceipt],
     version: str,
 ) -> ReportingReceiptSubmission:
-    """Rebuild old retained bytes for validation; public preparation uses rc.7."""
+    """Rebuild old retained bytes for validation; public preparation uses 3.2."""
     result = None
     try:
         if (
@@ -389,7 +391,7 @@ def _validated_requests(submission: ReportingReceiptSubmission) -> tuple[bytes, 
 def is_completed_legacy_replay(
     prior: ReportingReceiptSubmission, proposed: ReportingReceiptSubmission
 ) -> bool:
-    """Match a completed rc.6 intent to its rc.7 proposal without changing its bytes.
+    """Match a completed rc.6/rc.7 intent to its 3.2 proposal without changing its bytes.
 
     Both plans must already have passed full submission validation. Their IDs
     exclude the request version, so compare the frozen items as well as the ID.
@@ -397,7 +399,7 @@ def is_completed_legacy_replay(
     """
     return (
         not prior.pending
-        and prior.adcp_version == "3.2-rc.6"
+        and prior.adcp_version in _LEGACY_VERSIONS
         and proposed.adcp_version == _VERSION
         and prior.scope == proposed.scope
         and prior.submission_id == proposed.submission_id

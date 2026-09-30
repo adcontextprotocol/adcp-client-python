@@ -254,11 +254,11 @@ class StoredFeedSnapshot:
                 snapshot.representation_version == 1
                 and snapshot.ownership_mode == "absent"
                 and "adcp_version" not in captured_filters
-                and proposed_filters.get("adcp_version") in {"3.2-rc.6", "3.2-rc.7"}
+                and proposed_filters.get("adcp_version") in {"3.2-rc.6", "3.2-rc.7", "3.2"}
             ):
                 # Integrated parents persisted unversioned v1 filters. Their
                 # immutable representation has no complete-summary forecast;
-                # the rc.6/rc.7 marker must not invalidate those original walks.
+                # the rc.6/rc.7/3.2 marker must not invalidate those original walks.
                 # Caller, position and signature were verified above. Every
                 # previously bound semantic filter must still match exactly.
                 proposed_filters.pop("adcp_version")

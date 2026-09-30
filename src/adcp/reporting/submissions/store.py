@@ -36,7 +36,7 @@ class ReportingSubmissionIntentStore(Protocol):
 
         A different proposal must not replace an uncertain request. An already
         completed proposal for the same frozen receipt items returns its retained
-        outcomes across the rc.6 to rc.7 upgrade. Preserve all old request bytes,
+        outcomes across the rc.6/rc.7 to 3.2 upgrade. Preserve all old request bytes,
         chunk keys/order and confirmed outcomes across restart.
         """
         ...
