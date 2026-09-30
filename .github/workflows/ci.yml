@@ -1033,7 +1033,7 @@ jobs:
               for child in schema_root.iterdir()
               if child.is_dir()
           }
-          # Ship released 3.0/3.1 and only the current 3.2 candidate offline.
+          # Ship released 3.0/3.1 and the current 3.2 line offline.
           assert packaged_versions == {
               "3.0", "3.1", current_bundle
           }

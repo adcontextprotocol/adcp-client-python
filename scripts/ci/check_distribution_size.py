@@ -8,7 +8,7 @@ import zipfile
 from pathlib import Path
 
 MAX_BYTES = 90_000_000
-RETIRED_BUNDLES = {"2.5", "3.2.0-beta.6", "3.2.0-rc.3", "3.2.0-rc.6"}
+RETIRED_BUNDLES = {"2.5", "3.2.0-beta.6", "3.2.0-rc.3", "3.2.0-rc.6", "3.2.0-rc.7"}
 
 
 def check_distribution_size(directory: Path) -> tuple[Path, Path]:

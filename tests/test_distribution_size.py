@@ -44,7 +44,9 @@ def test_distribution_size_accepts_both_artifacts(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("artifact", ["wheel", "sdist"])
-@pytest.mark.parametrize("version", ["2.5", "3.2.0-beta.6", "3.2.0-rc.3", "3.2.0-rc.6"])
+@pytest.mark.parametrize(
+    "version", ["2.5", "3.2.0-beta.6", "3.2.0-rc.3", "3.2.0-rc.6", "3.2.0-rc.7"]
+)
 def test_distribution_rejects_retired_schema_members(
     tmp_path: Path, artifact: str, version: str
 ) -> None:
