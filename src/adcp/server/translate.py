@@ -109,6 +109,20 @@ def _build_error_data(
     return data
 
 
+_RECOVERY_VALUES = frozenset(("transient", "correctable", "terminal"))
+
+
+def _explicit_recovery(err: Any) -> str | None:
+    """Return ``err.recovery`` as a wire string, or ``None`` if absent/unknown.
+
+    Accepts the generated ``Error`` model (``Recovery`` enum), plain dicts,
+    and duck-typed objects carrying a string.
+    """
+    raw = err.get("recovery") if isinstance(err, dict) else getattr(err, "recovery", None)
+    value = getattr(raw, "value", raw)
+    return value if isinstance(value, str) and value in _RECOVERY_VALUES else None
+
+
 def _extract_structured_fields(
     exc: ADCPError | Error | Any,
 ) -> tuple[str, str, str, str | None, str | None, dict[str, Any] | None, list[Any] | None]:
@@ -169,6 +183,10 @@ def _extract_structured_fields(
             first = errors[0]
             field = getattr(first, "field", None)
             details = getattr(first, "details", None)
+            # An explicit recovery on the wire error wins over the code-table
+            # default — otherwise a seller's ``Recovery.correctable`` on an
+            # ``AUTH_MISSING`` error is silently sent as ``terminal``.
+            recovery = _explicit_recovery(first) or recovery
     else:
         raise TypeError(f"Expected ADCPError or Error, got {type(exc).__name__}")
 

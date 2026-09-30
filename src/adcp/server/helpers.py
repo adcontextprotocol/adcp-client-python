@@ -70,7 +70,12 @@ STANDARD_ERROR_CODES: dict[str, dict[str, str]] = {
     # into AUTH_MISSING (correctable) and AUTH_INVALID (terminal); on 3.0.x
     # the operational distinction lives in `suggestion` text.
     "AUTH_REQUIRED": {"recovery": "correctable", "message": "Authentication required"},
+    # 3.1 split of AUTH_REQUIRED (enums/error-code.json): no credentials
+    # presented is retry-safe once the buyer attaches them; presented-and-
+    # rejected credentials are terminal so buyers don't replay them.
+    "AUTH_MISSING": {"recovery": "correctable", "message": "No credentials presented"},
     # --- Spec codes: Terminal ---
+    "AUTH_INVALID": {"recovery": "terminal", "message": "Credentials rejected"},
     "ACCOUNT_NOT_FOUND": {"recovery": "terminal", "message": "Account not found"},
     "ACCOUNT_SUSPENDED": {"recovery": "terminal", "message": "Account suspended"},
     "AUTHORIZATION_REQUIRED": {

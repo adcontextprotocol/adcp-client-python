@@ -17,7 +17,7 @@ from mcp.types import CallToolResult, TextContent
 from adcp.decisioning.types import AdcpError as DecisioningAdcpError
 from adcp.exceptions import ADCPError, ADCPTaskError
 from adcp.server.translate import build_mcp_error_result
-from adcp.types import Error
+from adcp.types import Error, Recovery
 
 # ============================================================================
 # Unit tests: build_mcp_error_result shape
@@ -126,6 +126,26 @@ class TestBuildMcpErrorResultExceptionTypes:
         # ADCPTaskError prefixes the operation; the original Error.message
         # text is preserved in the projected message.
         assert "terms unacceptable" in result.structured_content["adcp_error"]["message"]
+
+    def test_adcp_task_error_preserves_explicit_recovery(self):
+        """Issue #1261: ``errors[0].recovery`` wins over the code-table default."""
+        err = Error(code="AUTH_INVALID", message="rotate key", recovery=Recovery.correctable)
+        result = build_mcp_error_result(ADCPTaskError("get_products", [err]))
+        assert result.structured_content["adcp_error"]["recovery"] == "correctable"
+
+    @pytest.mark.parametrize(
+        "code,recovery",
+        [("AUTH_MISSING", "correctable"), ("AUTH_INVALID", "terminal")],
+    )
+    def test_adcp_task_error_auth_codes_default_from_table(self, code, recovery):
+        err = Error(code=code, message="auth")
+        result = build_mcp_error_result(ADCPTaskError("get_products", [err]))
+        assert result.structured_content["adcp_error"]["recovery"] == recovery
+
+    def test_adcp_task_error_accepts_dict_errors(self):
+        err = {"code": "AUTH_MISSING", "message": "auth", "recovery": "transient"}
+        result = build_mcp_error_result(ADCPTaskError("get_products", [err]))
+        assert result.structured_content["adcp_error"]["recovery"] == "transient"
 
     def test_handles_error_model(self):
         err = Error(

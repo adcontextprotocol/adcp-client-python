@@ -36,7 +36,7 @@ from adcp.decisioning.types import AdcpError as DecisioningAdcpError
 from adcp.exceptions import ADCPTaskError
 from adcp.server import ADCPHandler
 from adcp.server.a2a_server import ADCPAgentExecutor as _ADCPAgentExecutor
-from adcp.types import Error
+from adcp.types import Error, Recovery
 
 
 @pytest.fixture(autouse=True)
@@ -332,6 +332,22 @@ async def test_adcp_task_error_with_field_projects_field() -> None:
     payload = _adcp_error_data_part(event)
     assert payload["code"] == "VALIDATION_ERROR"
     assert payload["field"] == "packages[0].budget"
+
+
+@pytest.mark.asyncio
+async def test_adcp_task_error_preserves_explicit_recovery() -> None:
+    """Issue #1261: ``errors[0].recovery`` wins over the code-table default."""
+    handler = _TaskErrorRaiser(
+        [Error(code="AUTH_INVALID", message="rotate key", recovery=Recovery.correctable)]
+    )
+    executor = _executor(handler)
+    queue = EventQueue()
+
+    await executor.execute(_request_context("get_products"), queue)
+
+    payload = _adcp_error_data_part(await queue.dequeue_event())
+    assert payload["code"] == "AUTH_INVALID"
+    assert payload["recovery"] == "correctable"
 
 
 # ============================================================================
