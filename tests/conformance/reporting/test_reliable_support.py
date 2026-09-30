@@ -72,11 +72,12 @@ async def test_drain_has_a_finite_turn_budget_for_a_source_that_stays_unready(
     script = ScriptedSource(eur=[None, None, None])
     await h.store.put_configuration(configuration("eur"))
     started = h.clock()
-    with pytest.raises(AssertionError, match="within 3 turns"):
-        await drain_until_idle(h.producer(h.source(script.async_fetch)), h.clock, max_turns=3)
-    assert len(script.requests) == 3
-    assert h.clock() == started + timedelta(milliseconds=3)
-    assert len({request.identity.source_execution_key for request in script.requests}) == 1
+    turns = await drain_until_idle(h.producer(h.source(script.async_fetch)), h.clock, max_turns=3)
+    assert len(turns) == 2
+    assert turns[0].earliest_retry_at is not None
+    assert turns[0].earliest_retry_at > h.clock()
+    assert len(script.requests) == 1
+    assert h.clock() == started + timedelta(milliseconds=2)
     assert {request.currency for request in script.requests} == {"EUR"}
 
 

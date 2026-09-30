@@ -610,6 +610,7 @@ class ReliableHarness:
     def producer(self, source: InlineReportingSource, *, managed: bool = True) -> ReportingProducer:
         return ReportingProducer(
             store=_PreparedRevisionStore(self) if managed else self.store,
+            retry_store=self.store,
             source=_RecordingSource(source, self.manifests),
             object_reader=self.staging,
             offerings=ProducerOfferings(

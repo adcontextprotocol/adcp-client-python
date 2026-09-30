@@ -157,6 +157,7 @@ def producer_for(
     *,
     currency: str = "USD",
     resolver: CurrencyResolver | None = None,
+    clock: Callable[[], datetime] | None = None,
 ) -> ReportingProducer:
     return ReportingProducer(
         store=store,
@@ -170,7 +171,7 @@ def producer_for(
             currency=currency,
         ),
         currency_resolver=resolver,
-        clock=lambda: NOW,
+        clock=clock or (lambda: NOW),
     )
 
 
@@ -234,6 +235,7 @@ async def test_concurrent_accounts_freeze_before_acquisition_and_survive_restart
     )
     assert sorted(calls) == ["eur", "usd"]
     assert {request.currency for request in requests} == {"EUR", "USD"}
+    retry_at = max(turn.earliest_retry_at for turn in turns if turn.earliest_retry_at)
     first_keys = {
         request.identity.account_id: request.identity.source_execution_key for request in requests
     }
@@ -254,7 +256,12 @@ async def test_concurrent_accounts_freeze_before_acquisition_and_survive_restart
         raise AssertionError("retry/restart/restatement must not resolve currency")
 
     restarted = producer_for(
-        restarted_store, source, staging, currency="GBP", resolver=must_not_resolve
+        restarted_store,
+        source,
+        staging,
+        currency="GBP",
+        resolver=must_not_resolve,
+        clock=lambda: retry_at,
     )
     results = await asyncio.gather(restarted.run_worker(), restarted.run_worker())
     assert all(len(turn.revisions_committed) == 1 for turn in results)
