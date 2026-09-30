@@ -1582,11 +1582,18 @@ async def create_media_buy(request: Request):
             status_code=401,
             headers=unauthorized_response_headers(exc),
         )
-    # signer.key_id is the verified caller's key identity
+    # signer.key_id is the verified caller's key identity.
+    # signer.parsed_body is the body as parsed by the strict step-14 parser;
+    # dispatch on it instead of `await request.json()`, which keeps the last
+    # of two duplicate keys.
     ...
 ```
 
 Flask has an equivalent synchronous helper `verify_flask_request`.
+
+A signed body that is not strict JSON (duplicate object keys at any depth,
+invalid UTF-8, or not JSON) is rejected with `request_body_malformed` after
+the nonce is consumed (checklist step 14).
 
 ### Migration & rollout
 

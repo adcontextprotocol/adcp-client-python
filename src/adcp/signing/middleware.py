@@ -3,6 +3,12 @@
 These are thin wrappers around `verify_request_signature`. The spec requires
 rejection with `401` and `WWW-Authenticate: Signature error="<code>"` (no
 realm) — `unauthorized_response_headers` gives you that header exactly.
+
+Both wrappers return the verifier's `VerifiedSigner`, whose `parsed_body` is
+the body as parsed by the strict step-14 parser. Route and dispatch on that
+value; do not re-parse the raw bytes with `request.json()` / `get_json()`,
+which keep the last of two duplicate keys and so can read a different
+operation than the one the verifier accepted.
 """
 
 from __future__ import annotations
@@ -46,7 +52,12 @@ def _wsgi_raw_headers(request: Any) -> list[tuple[bytes, bytes]] | None:
 
 
 def verify_flask_request(request: Any, *, options: VerifyOptions) -> VerifiedSigner:
-    """Verify a Flask `request` object against the AdCP profile."""
+    """Verify a Flask `request` object against the AdCP profile.
+
+    Returns a `VerifiedSigner` whose `parsed_body` is the strictly parsed
+    JSON body (`None` for a bodyless request). Use it instead of
+    `request.get_json()`, which resolves duplicate keys last-wins.
+    """
     return verify_request_signature(
         method=request.method,
         url=request.url,
@@ -61,16 +72,18 @@ async def verify_starlette_request(request: Any, *, options: VerifyOptions) -> V
     """Verify a Starlette / FastAPI ``Request`` object against the AdCP profile.
 
     Consumes ``await request.body()`` once — Starlette caches the result
-    internally, so downstream handlers calling ``request.body()`` or
-    ``request.json()`` again will get the same bytes. If your handler
-    needs the parsed body AFTER this verifier succeeds, call
-    ``await request.body()`` yourself downstream; there's no hidden
-    side channel on the returned :class:`VerifiedSigner`.
+    internally, so downstream handlers calling ``request.body()`` again get
+    the same bytes. If your handler needs the parsed body AFTER this
+    verifier succeeds, use :attr:`VerifiedSigner.parsed_body` — the body as
+    parsed by the strict step-14 parser. Don't call ``request.json()``:
+    it resolves duplicate keys last-wins, which is the parser differential
+    step 14 closes.
 
     Returns
     -------
     VerifiedSigner
-        On success — carries the verified ``key_id`` and metadata.
+        On success — carries the verified ``key_id``, metadata, and
+        ``parsed_body`` (``None`` for a bodyless request).
 
     Raises
     ------

@@ -166,6 +166,7 @@ from adcp.signing.crypto import (
 )
 from adcp.signing.digest import compute_content_digest_sha256, content_digest_matches
 from adcp.signing.errors import (
+    REQUEST_BODY_MALFORMED,
     REQUEST_SIGNATURE_AGENT_NOT_IN_BRAND_JSON,
     REQUEST_SIGNATURE_ALG_NOT_ALLOWED,
     REQUEST_SIGNATURE_BRAND_JSON_AMBIGUOUS,
@@ -366,6 +367,7 @@ __all__ = [
     "NEGATIVE_CACHE_TTL_SECONDS",
     "NONCE_BYTES",
     "PgReplayStore",
+    "REQUEST_BODY_MALFORMED",
     "REQUEST_SIGNATURE_AGENT_NOT_IN_BRAND_JSON",
     "REQUEST_SIGNATURE_ALG_NOT_ALLOWED",
     "REQUEST_SIGNATURE_BRAND_JSON_AMBIGUOUS",

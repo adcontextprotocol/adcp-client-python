@@ -57,6 +57,10 @@ REQUEST_SIGNATURE_REVOCATION_STALE = "request_signature_revocation_stale"
 REQUEST_SIGNATURE_JWKS_UNAVAILABLE = "request_signature_jwks_unavailable"
 REQUEST_SIGNATURE_JWKS_UNTRUSTED = "request_signature_jwks_untrusted"
 REQUEST_SIGNATURE_RATE_ABUSE = "request_signature_rate_abuse"
+# Checklist step 14. Named without the ``request_signature_`` infix because the
+# spec names it that way: the signature IS valid; the signed body is not strict,
+# unambiguous JSON (duplicate object keys, invalid UTF-8, or not JSON at all).
+REQUEST_BODY_MALFORMED = "request_body_malformed"
 
 # brand.json discovery chain (ADCP #3690). Verifiers bootstrap an agent's
 # signing keys via ``identity.brand_json_url`` on the agent's
@@ -122,6 +126,8 @@ WEBHOOK_SIGNATURE_KEY_ORIGIN_MISSING = "webhook_signature_key_origin_missing"
 # ``webhook_target_uri_malformed`` in the error taxonomy and requires it at
 # step 10 for a malformed or mismatched authority.
 WEBHOOK_TARGET_URI_MALFORMED = "webhook_target_uri_malformed"
+# Webhook twin of ``request_body_malformed`` (webhook checklist step 14).
+WEBHOOK_BODY_MALFORMED = "webhook_body_malformed"
 
 # Code-family translation used by the webhook verifier wrapper. The verifier
 # pipeline raises request_signature_* codes; the wrapper retags them into
@@ -147,6 +153,7 @@ REQUEST_TO_WEBHOOK_CODE = {
     REQUEST_SIGNATURE_JWKS_UNAVAILABLE: WEBHOOK_SIGNATURE_JWKS_UNAVAILABLE,
     REQUEST_SIGNATURE_JWKS_UNTRUSTED: WEBHOOK_SIGNATURE_JWKS_UNTRUSTED,
     REQUEST_SIGNATURE_RATE_ABUSE: WEBHOOK_SIGNATURE_RATE_ABUSE,
+    REQUEST_BODY_MALFORMED: WEBHOOK_BODY_MALFORMED,
     REQUEST_SIGNATURE_BRAND_JSON_URL_MISSING: WEBHOOK_SIGNATURE_BRAND_JSON_URL_MISSING,
     REQUEST_SIGNATURE_CAPABILITIES_UNREACHABLE: WEBHOOK_SIGNATURE_CAPABILITIES_UNREACHABLE,
     REQUEST_SIGNATURE_BRAND_JSON_UNREACHABLE: WEBHOOK_SIGNATURE_BRAND_JSON_UNREACHABLE,

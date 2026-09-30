@@ -1,7 +1,7 @@
 """Verifier checklist for the AdCP request-signing profile.
 
-Implements the 14-point pipeline (pre-check 0 + checklist steps 1-13) defined
-in `security.mdx`. Each step either passes or raises
+Implements the pipeline (pre-check 0 + checklist steps 1-14, including 9a)
+defined in `security.mdx`. Each step either passes or raises
 `SignatureVerificationError` with the exact code from the transport error
 taxonomy — conformance requires byte-for-byte match on the code string.
 """
@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 
 from adcp.signing._header_precheck import strict_header_precheck
+from adcp.signing._strict_json import StrictJsonError, body_is_empty, parse_strict_json
 from adcp.signing.canonical import (
     TargetUriMalformedError,
     _lookup,
@@ -40,6 +41,7 @@ from adcp.signing.crypto import (
 )
 from adcp.signing.digest import content_digest_matches
 from adcp.signing.errors import (
+    REQUEST_BODY_MALFORMED,
     REQUEST_SIGNATURE_ALG_NOT_ALLOWED,
     REQUEST_SIGNATURE_COMPONENTS_INCOMPLETE,
     REQUEST_SIGNATURE_COMPONENTS_UNEXPECTED,
@@ -92,13 +94,24 @@ _WARNED_LEGACY_REPLAY_STORE_TYPES_LOCK = threading.Lock()
 
 @dataclass(frozen=True)
 class VerifiedSigner:
-    """Returned on successful verification. The key_id is the signer's identity."""
+    """Returned on successful verification. The key_id is the signer's identity.
+
+    ``parsed_body`` is the request body as parsed by the strict step-14 parser
+    (duplicate keys rejected at every depth, UTF-8 only, RFC 8259 JSON only).
+    Dispatch on it rather than re-parsing the raw bytes: a second, lenient
+    parse (``json.loads`` keeps the last duplicate key) is exactly the
+    parser-differential step 14 exists to close. ``None`` when the request had
+    no body (empty or JSON whitespace only). The value is a fresh object per
+    verification; it is excluded from equality, hashing, and ``repr`` so it
+    never reaches logs through the signer.
+    """
 
     key_id: str
     alg: str
     label: str
     verified_at: float
     agent_url: str | None = None
+    parsed_body: Any = field(default=None, compare=False, repr=False)
 
 
 @dataclass
@@ -192,6 +205,13 @@ def verify_request_signature(
     """Run the AdCP request-signing verifier checklist against a request.
 
     Raises SignatureVerificationError with the spec error code on failure.
+
+    On success the returned signer carries ``parsed_body``: the strictly
+    parsed JSON body (step 14). A non-empty body that is not strict JSON --
+    duplicate object keys at any depth, invalid UTF-8, or not JSON -- is
+    rejected with ``request_body_malformed`` after the nonce has been
+    consumed (step 13), so a captured frame with a valid signature over a
+    malformed body cannot be replayed.
 
     `raw_headers` is the as-received header list, wire order preserved, e.g.
     Starlette's `request.headers.raw`. Supply it when you can: `headers` is a
@@ -432,13 +452,36 @@ def verify_request_signature(
                 message=f"replay cache at capacity for keyid {keyid!r}",
             )
 
+    # Step 14 MUST follow the step-13 nonce insert: the nonce is burned on the
+    # first sighting of a cryptographically valid frame regardless of body
+    # shape. Every AdCP request body is JSON, so any non-empty body is in
+    # scope. The rejection carries only a coarse reason -- never key names or
+    # body bytes (step 14b).
+    parsed_body = _parse_signed_body(body)
+
     return VerifiedSigner(
         key_id=keyid,
         alg=alg,
         label=options.label,
         verified_at=options.now,
         agent_url=options.agent_url,
+        parsed_body=parsed_body,
     )
+
+
+def _parse_signed_body(body: bytes) -> Any:
+    """Checklist step 14: strict body well-formedness."""
+    if body_is_empty(body):
+        return None
+    try:
+        return parse_strict_json(body)
+    except StrictJsonError as exc:
+        raise SignatureVerificationError(
+            REQUEST_BODY_MALFORMED,
+            step=14,
+            message=f"signed request body is not strict JSON ({exc.reason})",
+            detail={"reason": exc.reason},
+        ) from None
 
 
 def _claim_replay_nonce(
