@@ -14,6 +14,21 @@
   [migration guide](docs/canonical-format-kinds-migration.md).
   This closes [#1241](https://github.com/adcontextprotocol/adcp-client-python/issues/1241).
 
+## [8.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-rc.3...v8.0.0) (2026-10-01)
+
+
+### Features
+
+* **protocol:** adopt AdCP 3.2.1 GA for SDK 8.0.0 ([#1270](https://github.com/adcontextprotocol/adcp-client-python/issues/1270)) ([2ffece8](https://github.com/adcontextprotocol/adcp-client-python/commit/2ffece846b5ab3e65d7bcc6af2e1203fbebc3bde))
+* **signing:** allow bearer fallback for required signatures ([#1269](https://github.com/adcontextprotocol/adcp-client-python/issues/1269)) ([1fa2b06](https://github.com/adcontextprotocol/adcp-client-python/commit/1fa2b06b0f02ae49b18b1a16c5c3fec0313e8e91))
+* **signing:** verify request signatures in the framework before dispatch ([#1266](https://github.com/adcontextprotocol/adcp-client-python/issues/1266)) ([2b29ee1](https://github.com/adcontextprotocol/adcp-client-python/commit/2b29ee1ca06a315bee79db83c01282d9755c0c89))
+
+
+### Bug Fixes
+
+* **reporting:** back off failed producer slices ([#1259](https://github.com/adcontextprotocol/adcp-client-python/issues/1259)) ([5728a80](https://github.com/adcontextprotocol/adcp-client-python/commit/5728a800569f72c2080413c641bc3c20326c80aa))
+* **signing:** reject non-strict-JSON signed bodies at checklist step 14 ([#1265](https://github.com/adcontextprotocol/adcp-client-python/issues/1265)) ([72ec2bf](https://github.com/adcontextprotocol/adcp-client-python/commit/72ec2bf0b3c597dc7842cec8f69252509ad41b02))
+
 ## [8.0.0-rc.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-rc.2...v8.0.0-rc.3) (2026-09-30)
 
 
