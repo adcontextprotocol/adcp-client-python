@@ -27,17 +27,17 @@ from adcp.validation import schema_loader
 VERSION = "3.2.1"
 WIRE_VERSION = "3.2"
 _TODO = "TODO: fill from the signed 3.2.1 release"
-# TODO: v3.2.1 tag commit, i.e. schemas/releases/3.2.1.json source_commit.
-SOURCE = _TODO
-# TODO: SHA-256 of https://adcontextprotocol.org/protocol/3.2.1.tgz.
-BUNDLE = _TODO
-# TODO: SHA-256 of test-vectors/reporting-summary/complete-summary.json.
-SUMMARY_SHA = _TODO
-# TODO: counts from _compliance/3.2.1 after the pinned sync.
-MANIFEST_FILE_COUNT: int | None = None
-PROVENANCE_FILE_COUNT: int | None = None
-PROVENANCE_SCHEMA_COUNT: int | None = None
-SUMMARY_CASE_COUNT: int | None = None
+# v3.2.1 tag commit (schemas/releases/3.2.1.json source_commit).
+SOURCE = "c32bd78c5389753e3b8f3ffd8a1c04b777854d83"
+# SHA-256 of https://adcontextprotocol.org/protocol/3.2.1.tgz.
+BUNDLE = "00b682c32a36dcc439ccc5e4f5a842f1e08e7b71c85dbbb033a5544365f90287"
+# SHA-256 of test-vectors/reporting-summary/complete-summary.json.
+SUMMARY_SHA = "b72eabbc00b70c1993d53140a2427ac3208e224107c66659f5f25545fb2314e0"
+# Counts from _compliance/3.2.1 after the pinned sync.
+MANIFEST_FILE_COUNT: int | None = 4182
+PROVENANCE_FILE_COUNT: int | None = 170
+PROVENANCE_SCHEMA_COUNT: int | None = 1625
+SUMMARY_CASE_COUNT: int | None = 22
 ROOT = files("adcp").joinpath("_compliance", VERSION)
 
 
@@ -76,7 +76,8 @@ def test_signed_release_and_package_bytes():
         body = ROOT.joinpath(relative).read_bytes()
         assert len(body) == expected["bytes"], relative
         assert hashlib.sha256(body).hexdigest() == expected["sha256"], relative
-    schema_root = schema_loader._resolve_schema_root(VERSION)
+    # Stable bundles cache under their wire key ("3.2"), not the release name.
+    schema_root = schema_loader._resolve_schema_root(WIRE_VERSION)
     assert schema_root is not None
     for relative, expected in provenance["schemas"].items():
         body = (schema_root.root / relative).read_bytes()
