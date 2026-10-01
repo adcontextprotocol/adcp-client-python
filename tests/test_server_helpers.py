@@ -36,6 +36,10 @@ class TestAdcpError:
         result = adcp_error("MY_CUSTOM_ERROR", "Something broke")
         assert result["errors"][0]["recovery"] == "terminal"
 
+    def test_auth_split_codes_auto_recovery(self) -> None:
+        assert adcp_error("AUTH_MISSING")["errors"][0]["recovery"] == "correctable"
+        assert adcp_error("AUTH_INVALID")["errors"][0]["recovery"] == "terminal"
+
     def test_recovery_override(self) -> None:
         result = adcp_error("BUDGET_TOO_LOW", recovery="transient")
         assert result["errors"][0]["recovery"] == "transient"

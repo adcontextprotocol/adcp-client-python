@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.0.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.2...v7.0.3) (2026-09-30)
+
+
+### Bug Fixes
+
+* **errors:** preserve `ADCPTaskError` `errors[0].recovery` on the wire instead of the code-table default, and classify `AUTH_MISSING` (correctable) / `AUTH_INVALID` (terminal) in `STANDARD_ERROR_CODES` ([#1261](https://github.com/adcontextprotocol/adcp-client-python/issues/1261))
+
 ## [7.0.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.1...v7.0.2) (2026-08-16)
 
 
