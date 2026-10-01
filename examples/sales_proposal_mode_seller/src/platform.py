@@ -71,6 +71,10 @@ class ProposalModeDecisioningPlatform(DecisioningPlatform, SalesPlatform):
         media_buy=MediaBuy(
             supported_pricing_models=["cpm"],
             supports_proposals=True,
+            # ``refine`` is the vehicle for finalizing draft proposals
+            # (``refine[i].action='finalize'``); buyers MUST NOT use a
+            # buying mode the seller has not declared.
+            buying_modes=["brief", "refine"],
         ),
         supported_protocols=[SupportedProtocol.media_buy],
     )

@@ -820,9 +820,6 @@ class DemoSeller(ADCPHandler):
         response["media_buy"] = {
             "supported_pricing_models": ["cpm"],
             "buying_modes": ["brief", "refine"],
-            # This compatibility fixture deliberately serves legacy storyboard
-            # runners; ordinary framework construction defaults this to true.
-            "features": {"canonical_creatives": False},
             "creative_sync": True,
             "reporting": True,
             "cancellation": True,
