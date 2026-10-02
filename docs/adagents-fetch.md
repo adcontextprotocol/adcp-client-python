@@ -86,5 +86,7 @@ publisher before applications use it for authorization decisions.
 
 The reported `recipetineats.com` failure was also observed live on main on
 2026-10-02. That observation is supplementary evidence; no test depends on the
-publisher, its DNS or its CDN behaving the same way in the future. The fixtures
-cover apex → www → CDN discovery entirely through deterministic responses.
+publisher, its DNS or its CDN behaving the same way in the future. After the
+repair, a supplementary fetch on the same date resolved one authorized agent.
+The fixtures cover apex → www → CDN discovery entirely through deterministic
+responses, including compressed terminal bodies and decoded-byte size limits.

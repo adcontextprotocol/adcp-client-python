@@ -1,6 +1,7 @@
 """Deterministic ads.txt redirect, deadline and SSRF acceptance fixtures."""
 
 import asyncio
+import gzip
 import socket
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
@@ -481,3 +482,36 @@ async def test_total_budget_decreases_across_hops_and_factory_time_counts(
             await adagents._follow_ads_txt_redirects("publisher.com", 1, "test", None, factory)
     assert len(requests) == 2
     assert budgets == pytest.approx([1, 0.6, 0.2], abs=0.1)
+
+
+async def test_compressed_terminal_body_is_decoded_once_and_retains_charset() -> None:
+    body = "# café\nmanagerdomain=m.com\n".encode("latin-1")
+    compressed = gzip.compress(body)
+    result, seen = await walk(
+        {
+            INITIAL: httpx.Response(
+                200,
+                content=compressed,
+                headers={
+                    "content-encoding": "gzip",
+                    "content-type": "text/plain; charset=iso-8859-1",
+                },
+            )
+        }
+    )
+    assert result == ["m.com"] and seen == [INITIAL]
+
+
+async def test_compressed_body_cap_counts_decoded_bytes() -> None:
+    compressed = gzip.compress(b" " * (MAX_ADS_TXT_BYTES + 1))
+    assert len(compressed) < MAX_ADS_TXT_BYTES
+    result, seen = await walk(
+        {
+            INITIAL: httpx.Response(
+                200,
+                content=compressed,
+                headers={"content-encoding": "gzip"},
+            )
+        }
+    )
+    assert result == [] and seen == [INITIAL]

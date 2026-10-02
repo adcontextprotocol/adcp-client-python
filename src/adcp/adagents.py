@@ -878,7 +878,13 @@ async def _follow_ads_txt_redirects(
         _ads_txt_remaining(deadline)
         if 200 <= status < 300:
             # Match httpx's historical text behavior for non-UTF8 ads.txt.
-            text = httpx.Response(status, content=body, headers=response_headers).text
+            # aiter_bytes() already decoded Content-Encoding. Retain only the
+            # charset header so reconstruction cannot decompress the body twice.
+            text = httpx.Response(
+                status,
+                content=body,
+                headers={"content-type": response_headers.get("content-type", "")},
+            ).text
             return parse_managerdomains(text)
         if status not in {301, 302, 303, 307, 308}:
             return []
