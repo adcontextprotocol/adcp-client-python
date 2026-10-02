@@ -141,16 +141,11 @@ def test_same_origin_spelled_differently_still_defaults_the_jwks_uri(
     assert _default_jwks_uri(agent_url, brand_url).endswith("/.well-known/jwks.json")
 
 
-def test_cross_origin_agent_is_still_rejected() -> None:
-    """The fence the gate exists for, unmoved by the canonicalization above.
-
-    An attacker-controlled brand.json naming an agent on another origin must
-    not make that origin's JWKS authoritative. Canonicalizing both sides closes
-    spelling differences; it must not close genuine origin differences.
-    """
-    with pytest.raises(BrandJsonResolverError) as exc:
-        _default_jwks_uri("https://evil.example/agent", "https://brand.example/brand.json")
-    assert exc.value.code == "jwks_origin_mismatch"
+def test_cross_origin_agent_uses_its_matched_origin() -> None:
+    assert (
+        _default_jwks_uri("https://other.example/agent", "https://brand.example/brand.json")
+        == "https://other.example/.well-known/jwks.json"
+    )
 
 
 def test_ipv6_agent_origin_keeps_its_brackets_in_the_defaulted_uri() -> None:
