@@ -89,3 +89,26 @@ async def test_disabled_optional_routes_and_aggregate_delivery_delegate():
     assert await mounted.sync_reporting_receipts({}) == {"fallback": "receipts"}
     assert await mounted.get_media_buy_delivery({}) == {"fallback": "delivery"}
     await service.close()
+
+
+@pytest.mark.parametrize(
+    "code,recovery",
+    [
+        ("CURSOR_REVISION_MISMATCH", "correctable"),
+        ("INVALID_PAGE_SIZE", "correctable"),
+        ("CONFIGURATION_GENERATION_IMMUTABLE", "correctable"),
+        ("HISTORY_UNAVAILABLE", "terminal"),
+        ("REVISION_CONTENT_MISMATCH", "terminal"),
+        ("REPORTING_STATUS_UNAVAILABLE", "transient"),
+        ("RECEIPT_STORAGE_UNAVAILABLE", "transient"),
+    ],
+)
+async def test_reporting_extension_codes_retain_their_meaning(code, recovery):
+    service = ReliableReportingService.memory(account_context=_account_context)
+    service.get_reporting_status = AsyncMock(side_effect=LedgerConflictError(code, "detail"))
+    handler = service.install(_SalesPlatform())
+    with pytest.raises(AdcpError) as caught:
+        await handler.get_reporting_status({})
+    assert caught.value.code == code
+    assert caught.value.recovery == recovery
+    await service.close()

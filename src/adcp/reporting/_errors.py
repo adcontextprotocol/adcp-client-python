@@ -8,10 +8,48 @@ from typing import Literal, TypeVar
 from adcp.exceptions import ADCPTaskError
 from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.service_lifecycle import ReliableReportingUnavailableError
-from adcp.server.helpers import adcp_error
+from adcp.server.helpers import STANDARD_ERROR_CODES, adcp_error
 from adcp.types import Error
 
 _T = TypeVar("_T")
+
+# Reporting extensions have local meanings. Normative SDK codes always take
+# precedence; unlisted extension/invariant failures retain terminal recovery.
+_REPORTING_CORRECTABLE = frozenset(
+    {
+        "CURSOR_REVISION_MISMATCH",
+        "CURSOR_SNAPSHOT_MISMATCH",
+        "INVALID_CHECKPOINT",
+        "INVALID_CURSOR",
+        "INVALID_PAGE_SIZE",
+        "INVALID_PERIOD",
+        "INVALID_STATUS_PERIOD",
+        "INVALID_STATUS_TIME",
+        "INVALID_VIEW",
+        "MISSING_REVISION_ID",
+        "EMPTY_BATCH",
+        "UNKNOWN_CONFIGURATION_GENERATION",
+        "CONFIGURATION_GENERATION_IMMUTABLE",
+        "CONFIGURATION_GENERATION_MISMATCH",
+        "REPORT_DEFINITION_MISMATCH",
+        "OBLIGATION_IDENTITY_MISMATCH",
+        "SELLER_SNAPSHOT_EVIDENCE_INCOMPLETE",
+        "STATUS_NOT_DUE",
+        "STATUS_SUPERSEDES_REQUIRED",
+        "STATUS_SUPERSEDES_STALE",
+        "REVISION_NOT_CURRENTLY_REQUIRED",
+        "REPORTING_FEED_VERSION_MISMATCH",
+    }
+)
+_REPORTING_TRANSIENT = frozenset(
+    {
+        "REPORTING_CONFIGURATION_UNAVAILABLE",
+        "REPORTING_STATUS_UNAVAILABLE",
+        "REPORTING_CONTENT_UNAVAILABLE",
+        "REPORTING_FEED_STORAGE_UNAVAILABLE",
+        "RECEIPT_STORAGE_UNAVAILABLE",
+    }
+)
 
 
 class ReliableReportingConfigurationError(ValueError):
@@ -33,7 +71,13 @@ class ReliableReportingConfigurationError(ValueError):
 
 def reporting_error(code: str, message: str) -> Error:
     """Preserve the domain code and use the SDK's normative recovery defaults."""
-    return Error.model_validate(adcp_error(code, message)["errors"][0])
+    recovery = None
+    if code not in STANDARD_ERROR_CODES:
+        if code in _REPORTING_CORRECTABLE:
+            recovery = "correctable"
+        elif code in _REPORTING_TRANSIENT:
+            recovery = "transient"
+    return Error.model_validate(adcp_error(code, message, recovery=recovery)["errors"][0])
 
 
 async def installed_reporting_call(

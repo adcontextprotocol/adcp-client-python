@@ -26,7 +26,10 @@ from adcp.reporting.receipts.handler import (
     ReportingReceiptHandler,
     _consumer,
 )
-from adcp.reporting.service_lifecycle import ReliableReportingUnavailableError
+from adcp.reporting.service_lifecycle import (
+    ReliableReportingState,
+    ReliableReportingUnavailableError,
+)
 from adcp.server.base import ADCPHandler, NotImplementedResponse, ToolContext
 from adcp.server.mcp_tools import ADCP_TOOL_DEFINITIONS, get_tools_for_handler
 from adcp.server.responses import capabilities_response
@@ -83,13 +86,58 @@ def _admitted(method: _Method) -> _Method:
         )
         if aggregate:
             return await method(self, *args, **kwargs)
+
+        async def invoke() -> Any:
+            support = self.production
+            if support._closed or support._failed or support._task is None or support._task.done():
+                state = (
+                    ReliableReportingState.CLOSED
+                    if support._closed
+                    else (
+                        ReliableReportingState.FAILED
+                        if support._failed
+                        else ReliableReportingState.NEW
+                    )
+                )
+                raise ReliableReportingUnavailableError(state)
+            try:
+                support._assert_components()
+            except ReportingNotificationError as error:
+                raise ReliableReportingConfigurationError(
+                    "production composition failed"
+                ) from error
+            context = args[1] if len(args) > 1 else kwargs.get("context")
+            # A RequestContext's caller_identity is an account cache key. Only
+            # transport auth/registry evidence establishes the reporting caller.
+            present = context is not None and (
+                any(
+                    getattr(context, name, None) is not None
+                    for name in (
+                        "auth_info",
+                        "auth_principal",
+                        "buyer_agent",
+                    )
+                )
+                or (
+                    not isinstance(context, RequestContext)
+                    and getattr(context, "caller_identity", None) is not None
+                )
+                or any(
+                    context.metadata.get(key) is not None
+                    for key in (
+                        "adcp.auth_info",
+                        "auth_info",
+                        "adcp.buyer_agent",
+                    )
+                )
+            )
+            if not present:
+                raise ReliableReportingConfigurationError("missing caller", kind="auth_required")
+            return await method(self, *args, **kwargs)
+
         return await installed_reporting_call(
             method.__name__,
-            lambda: (
-                method(self, *args, **kwargs)
-                if lifecycle is None
-                else lifecycle.call(lambda: method(self, *args, **kwargs))
-            ),
+            lambda: invoke() if lifecycle is None else lifecycle.call(invoke),
         )
 
     return cast(_Method, call)
