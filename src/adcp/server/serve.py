@@ -3126,6 +3126,13 @@ def _register_tool(
         else:
             result_dict = {"result": result}
         if mcp_result_text is not None:
+            # Use MCP's normal conversion before formatting so datetime,
+            # Decimal, aliases and nested models have exactly the baseline's
+            # JSON representation in both the callback and structured content.
+            canonical_result = FuncMetadata.convert_result(tool.fn_metadata, result_dict)
+            assert isinstance(canonical_result, CallToolResult)
+            if canonical_result.structured_content is not None:
+                result_dict = canonical_result.structured_content
             if isinstance(mcp_result_text, str):
                 summary = result_dict.get(mcp_result_text)
                 if not isinstance(summary, str):
@@ -3145,6 +3152,7 @@ def _register_tool(
                     content=[TextContent(type="text", text=summary)],
                     structured_content=result_dict,
                 )
+            return canonical_result  # type: ignore[return-value]
         return result_dict  # type: ignore[no-any-return]
 
     # Create tool from function (gives us proper fn_metadata scaffolding)

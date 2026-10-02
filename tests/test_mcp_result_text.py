@@ -235,3 +235,47 @@ async def test_hook_changes_only_mcp_payload_in_combined_app():
                     assert json.loads(payload["content"][0]["text"]) == payload["structuredContent"]
     assert a2a_data[0] == a2a_data[1]
     assert calls == ["get_products"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("summary", ["Readable", None])
+async def test_formatter_receives_baseline_json_values(summary):
+    from datetime import datetime, timezone
+    from decimal import Decimal
+
+    from pydantic import BaseModel, Field
+
+    class Nested(BaseModel):
+        value: str = Field(serialization_alias="wire_value")
+
+    class RichSeller(Seller):
+        async def get_products(self, params, context=None):
+            return {
+                "products": [],
+                "timestamp": datetime(2026, 10, 2, tzinfo=timezone.utc),
+                "price": Decimal("1.25"),
+                "pair": (1, 2),
+                "nested": Nested(value="ok"),
+            }
+
+    baseline = await create_mcp_server(RichSeller(), validation=None).call_tool(
+        "get_products", ARGS
+    )
+    seen = []
+
+    def formatter(name, result, ctx):
+        seen.append(result)
+        assert result == baseline.structured_content
+        assert result["price"] == "1.25"
+        assert result["pair"] == [1, 2]
+        assert isinstance(result["nested"], dict)
+        return summary
+
+    result = await create_mcp_server(
+        RichSeller(), validation=None, mcp_result_text=formatter
+    ).call_tool("get_products", ARGS)
+    assert seen == [baseline.structured_content]
+    assert result.structured_content == baseline.structured_content
+    assert result.content == (
+        baseline.content if summary is None else [TextContent(type="text", text=summary)]
+    )
