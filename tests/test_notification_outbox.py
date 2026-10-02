@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -26,6 +27,12 @@ def options() -> dict[str, Any]:
     }
 
 
+@pytest.fixture
+def pg_constructor() -> None:
+    """Constructor configuration checks need the optional implementation dependency."""
+    pytest.importorskip("psycopg_pool", reason="constructor checks require adcp[pg]")
+
+
 @pytest.mark.parametrize(
     "changes,match",
     [
@@ -45,6 +52,7 @@ def options() -> dict[str, Any]:
         ({"retry": RetryPolicy(base_delay_seconds=10, max_delay_seconds=1)}, "ordered"),
     ],
 )
+@pytest.mark.usefixtures("pg_constructor")
 def test_constructor_validation(changes: dict[str, Any], match: str) -> None:
     config = {**options(), **changes}
     with pytest.raises(ValueError, match=match):
@@ -56,6 +64,7 @@ def test_constructor_validation(changes: dict[str, Any], match: str) -> None:
     "name,value",
     [("_owns_client", False), ("_allow_private_destinations", True), ("signs_with_rfc9421", False)],
 )
+@pytest.mark.usefixtures("pg_constructor")
 def test_delivery_sender_contract(name: str, value: bool) -> None:
     config = options()
     setattr(config["sender"], name, value)
@@ -87,3 +96,16 @@ def test_public_export_and_no_task_api() -> None:
 
     assert PgNotificationOutbox is Direct
     assert not hasattr(PgNotificationOutbox, "enqueue_terminal")
+
+
+def test_constructor_without_pg_preserves_install_hint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Missing PG remains an ImportError, including in a PG-enabled test runner."""
+    config = options()
+    monkeypatch.setitem(sys.modules, "psycopg_pool", None)
+    with pytest.raises(
+        ImportError,
+        match=r"pip install 'adcp\[pg\]'",
+    ) as error:
+        PgNotificationOutbox(**config)
+    assert isinstance(error.value.__cause__, ImportError)
+    config["pool"].connection.assert_not_called()

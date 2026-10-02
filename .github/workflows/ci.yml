@@ -99,7 +99,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          # Notification artifact tests create isolated environments with uv.
+          python -m pip install --upgrade pip "uv==0.12.8"
           pip install -e ".[dev]"
 
       - name: Run linter
@@ -179,7 +180,8 @@ jobs:
 
       - name: Install dependencies (with [pg] extra)
         run: |
-          python -m pip install --upgrade pip
+          # The core gate runs notification installed-artifact tests.
+          python -m pip install --upgrade pip "uv==0.12.8"
           pip install -e ".[dev,pg]"
 
       - name: Run Postgres conformance tests
@@ -197,6 +199,7 @@ jobs:
                      tests/conformance/decisioning/test_pg_idempotency_backend.py \
                      tests/conformance/decisioning/test_pg_task_webhook_outbox.py \
                      tests/conformance/decisioning/test_pg_notification_outbox.py \
+                     tests/test_notification_outbox.py \
                      tests/test_notification_outbox_artifacts.py \
                      tests/conformance/decisioning/test_pg_reference_workflow_queue.py \
                      tests/conformance/reporting/ \
