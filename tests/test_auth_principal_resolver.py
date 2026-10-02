@@ -228,7 +228,8 @@ async def test_safe_rejection(
     def resolve(request: AuthRequest) -> Any:
         if denial in (401, 403):
             error = PrincipalResolverError(denial)
-            error.add_note("private-token")
+            # Exercise private exception text on Python 3.10 as well as newer runtimes.
+            error.args = ("private-token",)
             raise error
         if denial == "bad-result":
             return "private-token"
