@@ -274,7 +274,9 @@ def _resolve_bundle_key_for_version(version: str | None) -> str:
     """Resolve a caller-supplied version (or ``None``) to a bundle key."""
     if version is None:
         return _sdk_pinned_bundle_key()
-    return resolve_bundle_key(version)
+    from adcp._version import resolve_adcp_version_alias
+
+    return resolve_bundle_key(resolve_adcp_version_alias(version))
 
 
 def _ensure_state(version: str | None = None) -> _LoaderState | None:

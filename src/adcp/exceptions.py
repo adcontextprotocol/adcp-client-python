@@ -188,10 +188,24 @@ class ADCPAuthenticationError(ADCPError):
     choice; callers handling the missing-credentials case should retry only
     after attaching credentials, not on a timer. The 3.1 line splits this
     into `AUTH_MISSING` and `AUTH_INVALID`.
+
+    MCP HTTP authentication failures expose ``status_code`` and
+    ``www_authenticate`` when available, preserving the server's challenge
+    for credential recovery.
     """
 
-    def __init__(self, message: str, agent_id: str | None = None, agent_uri: str | None = None):
+    def __init__(
+        self,
+        message: str,
+        agent_id: str | None = None,
+        agent_uri: str | None = None,
+        *,
+        status_code: int | None = None,
+        www_authenticate: str | None = None,
+    ):
         """Initialize authentication error."""
+        self.status_code = status_code
+        self.www_authenticate = www_authenticate
         suggestion = (
             "Check that your auth_token is valid and not expired.\n"
             "     Verify auth_type ('bearer' vs 'token') and auth_header are correct.\n"

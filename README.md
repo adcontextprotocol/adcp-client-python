@@ -347,10 +347,18 @@ adcp.get_adcp_sdk_version()   # SDK package version, e.g. "8.0.0"
 adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.2.1"
 ```
 
+The SDK also accepts and advertises `"3.2-rc.7"` as an explicit compatibility
+alias for buyers shipped with `adcp==8.0.0rc3`. These requests use the stable
+3.2 validators and responses retain the `"3.2-rc.7"` alias so strict rc3
+clients can select their bundled response validator.
+Constructor pins to that alias resolve to `"3.2"`. Other prereleases are
+not automatically aliased.
+
 If you talk to an agent on a newer spec than this SDK validates, the response
 still parses — unknown fields are preserved on the model (but not surfaced as
-typed attributes) and schema validation is skipped for that version, so
-forward traffic degrades gracefully rather than failing.
+typed attributes). Strict schema validation fails closed for native tools when
+an explicit version has no bundled validator, with `VERSION_UNSUPPORTED` and
+the SDK's supported versions in the error details.
 
 ## Documentation
 

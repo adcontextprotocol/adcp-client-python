@@ -465,9 +465,9 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
 #: a sales-* platform missing four spec-required methods by accident
 #: (the v3 ref seller did exactly that until the deep review caught it).
 #:
-#: All five "narrow" sales-* slugs share the same recommended set; the
-#: catalog-driven slug inherits the same four (its REQUIRED set already
-#: adds ``sync_catalogs``).
+#: Sales slugs share the same candidate set; legacy format discovery is
+#: checked only for sellers advertising pre-3.2 releases. The catalog-driven
+#: slug's REQUIRED set already adds ``sync_catalogs``.
 _SALES_RECOMMENDED: frozenset[str] = frozenset(
     {
         "get_media_buys",
@@ -503,6 +503,35 @@ def _strict_validate_platform() -> bool:
     # match it via plain regex (the test scans for ``os.environ.get("FOO")``
     # patterns and doesn't follow the indirection through ``_STRICT_VALIDATE_ENV``).
     return os.environ.get("ADCP_DECISIONING_STRICT_VALIDATE_PLATFORM", "") == "1"
+
+
+def _requires_legacy_format_discovery(capabilities: DecisioningCapabilities) -> bool:
+    """Legacy format discovery is recommended only for pre-3.2 service.
+
+    An omitted version declaration inherits the SDK's advertised releases,
+    which still include 3.0 and 3.1. A 3.2-only seller declares its exact
+    supported_versions to opt out of the deprecated method.
+    """
+    from adcp._version import (
+        get_supported_adcp_versions,
+        is_adcp_version_at_least,
+        resolve_adcp_version_alias,
+    )
+
+    versions = (
+        capabilities.adcp.model_dump(mode="json", exclude_none=True).get("supported_versions")
+        if capabilities.adcp is not None
+        else None
+    )
+    for version in versions if versions is not None else get_supported_adcp_versions():
+        try:
+            if not is_adcp_version_at_least(resolve_adcp_version_alias(version), "3.2"):
+                return True
+        except ValueError:
+            # The capabilities-shape validator supplies the invalid-version
+            # diagnostic. Do not weaken method coverage in the meantime.
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -991,12 +1020,15 @@ def validate_platform(platform: DecisioningPlatform) -> None:
     # diagnostic.
     recommended_missing: list[tuple[str, str]] = []
     seen_methods: set[str] = set()
+    requires_legacy_formats = _requires_legacy_format_discovery(platform.capabilities)
     for entry in platform.capabilities.specialisms:
         specialism = entry.value if hasattr(entry, "value") else entry
         recommended = RECOMMENDED_METHODS_PER_SPECIALISM.get(specialism)
         if recommended is None:
             continue
         for method_name in sorted(recommended):
+            if method_name == "list_creative_formats_legacy" and not requires_legacy_formats:
+                continue
             if method_name in seen_methods:
                 continue
             if not _has_overridden_method(platform, method_name):
@@ -1009,11 +1041,11 @@ def validate_platform(platform: DecisioningPlatform) -> None:
                 "INVALID_REQUEST",
                 message=(
                     "DecisioningPlatform claims sales-* specialism(s) but is "
-                    f"missing v6.0 rc.1 required methods: {recommended_missing}. "
+                    f"missing recommended methods: {recommended_missing}. "
                     "Strict mode is enabled "
                     f"({_STRICT_VALIDATE_ENV}=1); implement each on your "
                     "subclass. See the SalesPlatform Protocol docstring at "
-                    "src/adcp/decisioning/specialisms/sales.py:184-227 for the "
+                    "src/adcp/decisioning/specialisms/sales.py for the "
                     "canonical method list."
                 ),
                 recovery="terminal",
@@ -1033,9 +1065,9 @@ def validate_platform(platform: DecisioningPlatform) -> None:
                 (
                     f"DecisioningPlatform claims {specialism!r} but is missing "
                     f"{method_name!r} — required by the SalesPlatform Protocol "
-                    "for any sales-* specialism in v6.0 rc.1+. See the Protocol "
-                    "docstring at src/adcp/decisioning/specialisms/sales.py:"
-                    "184-227 for the full required method list. The framework "
+                    "for the advertised AdCP releases. See the Protocol "
+                    "docstring at src/adcp/decisioning/specialisms/sales.py "
+                    "for the method list. The framework "
                     "currently soft-warns to ease v6.0 rc.1 migration; set "
                     f"{_STRICT_VALIDATE_ENV}=1 to fail-fast at boot instead."
                 ),

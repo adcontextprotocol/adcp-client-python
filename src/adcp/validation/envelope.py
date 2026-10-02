@@ -23,7 +23,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from adcp._version import get_supported_adcp_versions, normalize_to_release_precision
+from adcp._version import (
+    get_supported_adcp_versions,
+    normalize_to_release_precision,
+    resolve_adcp_version_alias,
+)
 from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS
 
 #: Every version the server speaks — natively-validated majors plus
@@ -72,7 +76,8 @@ def detect_wire_version(
 
     1. ``payload['adcp_version']`` — string, normalized to release
        precision (``"3.0.7"`` → ``"3.0"``). Must be in ``supported`` or
-       raises :class:`UnsupportedVersionError`.
+       raises :class:`UnsupportedVersionError`. The explicit ``3.2-rc.7``
+       compatibility alias resolves to ``3.2``.
     2. ``payload['adcp_major_version']`` — int. Prefer ``MAJOR.0`` when
        supported because this legacy field predates release-precision
        negotiation and the 3.1 response envelope split. If ``MAJOR.0`` is
@@ -97,7 +102,7 @@ def detect_wire_version(
             raise UnsupportedVersionError(explicit, supported) from exc
         if normalized not in supported:
             raise UnsupportedVersionError(explicit, supported)
-        return normalized
+        return resolve_adcp_version_alias(normalized)
     # Empty-string ``adcp_version`` falls through to ``adcp_major_version``
     # intentionally — pre-3.1 buyers may set both fields, and an empty
     # string from a half-migrated client shouldn't override the int field.
@@ -126,7 +131,9 @@ def detect_wire_version(
         if base_minor in candidates:
             return base_minor
         # Otherwise fall back to the highest supported minor for this major.
-        return max(candidates, key=lambda v: int(v.split(".")[1].split("-")[0]))
+        return resolve_adcp_version_alias(
+            max(candidates, key=lambda v: int(v.split(".")[1].split("-")[0]))
+        )
 
     return None
 
@@ -159,4 +166,4 @@ def resolve_requested_adcp_version(
         return resolved
     if default not in supported:
         raise UnsupportedVersionError(default, supported)
-    return default
+    return resolve_adcp_version_alias(default)

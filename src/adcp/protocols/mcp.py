@@ -8,6 +8,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 
@@ -68,6 +69,7 @@ import json
 from adcp import _idempotency
 from adcp.compat.reporting_version import assert_reporting_request_supported
 from adcp.exceptions import (
+    ADCPAuthenticationError,
     ADCPConnectionError,
     ADCPTimeoutError,
     IdempotencyConflictError,
@@ -89,6 +91,13 @@ from adcp.validation.schema_validator import SchemaValidationError, format_issue
 # and docs/building/implementation/transport-errors.mdx.
 _MAX_TEXT_SIZE_BYTES = 1_048_576  # 1MB cap on text items before JSON.parse
 
+# MCP replays the sender's context in its HTTP writer task. A mutable holder
+# keeps HTTP diagnostics scoped to the awaiting call, including concurrent
+# callers sharing a session. The response hook itself must never raise.
+_MCP_HTTP_AUTH_ERRORS: ContextVar[list[ADCPAuthenticationError] | None] = ContextVar(
+    "mcp_http_auth_errors", default=None
+)
+
 MCPHttpxClientFactory = Callable[..., Any]
 """Factory returning an MCP-compatible async HTTP client.
 
@@ -102,6 +111,7 @@ security and compose RFC 9421 signing hooks.
 
 def _make_hardened_mcp_http_factory(
     request_hooks: Sequence[Callable[[Any], Awaitable[None]]] = (),
+    response_hooks: Sequence[Callable[[Any], Awaitable[None]]] = (),
 ) -> Callable[..., Any]:
     """Build an MCP HTTP client factory with fail-closed network defaults."""
 
@@ -119,8 +129,11 @@ def _make_hardened_mcp_http_factory(
             "follow_redirects": False,
             "trust_env": False,
         }
-        if request_hooks:
-            kwargs["event_hooks"] = {"request": list(request_hooks)}
+        if request_hooks or response_hooks:
+            kwargs["event_hooks"] = {
+                "request": list(request_hooks),
+                "response": list(response_hooks),
+            }
         kwargs["timeout"] = _coerce_mcp_timeout(timeout)
         if headers is not None:
             kwargs["headers"] = headers
@@ -159,9 +172,32 @@ def _make_signing_http_factory(
     return _make_hardened_mcp_http_factory((hook,))
 
 
+def _preserve_http_auth_response(
+    hook: Callable[[Any], Awaitable[None]],
+) -> Callable[[Any], Awaitable[None]]:
+    """Keep an adopter's auth-status exception from killing the MCP writer.
+
+    Auth diagnostics have already been captured. Let MCP process that
+    response normally; other HTTP failures and hook bugs still propagate.
+    """
+
+    async def wrapped(response: Any) -> None:
+        try:
+            await hook(response)
+        except _ALL_HTTP_STATUS_ERROR_TYPES as exc:
+            if (
+                response.status_code not in (401, 403)
+                or getattr(exc, "response", None) is not response
+            ):
+                raise
+
+    return wrapped
+
+
 def _make_custom_mcp_http_factory(
     custom_factory: MCPHttpxClientFactory,
     request_hooks: Sequence[Callable[[Any], Awaitable[None]]] = (),
+    response_hooks: Sequence[Callable[[Any], Awaitable[None]]] = (),
 ) -> MCPHttpxClientFactory:
     """Wrap an adopter factory with mandatory MCP transport invariants."""
 
@@ -195,16 +231,25 @@ def _make_custom_mcp_http_factory(
                 "MCP SDK v2 uses httpx2, so a plain httpx.AsyncClient is not compatible"
             )
 
-        if request_hooks:
+        if request_hooks or response_hooks:
             event_hooks = getattr(client, "event_hooks", None)
             if not isinstance(event_hooks, dict):
                 raise TypeError(
                     "httpx_client_factory must return a client exposing an event_hooks dict"
                 )
-            installed_hooks = event_hooks.setdefault("request", [])
-            for hook in request_hooks:
-                if hook not in installed_hooks:
-                    installed_hooks.append(hook)
+            for kind, hooks in (("request", request_hooks), ("response", response_hooks)):
+                installed_hooks = event_hooks.setdefault(kind, [])
+                additions = [hook for hook in hooks if hook not in installed_hooks]
+                if kind == "response" and hooks:
+                    # Capture status before an adopter hook can raise and
+                    # prevent subsequent response hooks from running.
+                    adopter_hooks = [hook for hook in installed_hooks if hook not in hooks]
+                    installed_hooks[:] = [
+                        *hooks,
+                        *(_preserve_http_auth_response(hook) for hook in adopter_hooks),
+                    ]
+                else:
+                    installed_hooks.extend(additions)
         return client
 
     return factory
@@ -419,7 +464,10 @@ class MCPAdapter(ProtocolAdapter):
             urls_to_try.extend([f"{base}/mcp", f"{base}/mcp/"])
         return urls_to_try
 
-    def _streamable_http_client_factory(self) -> MCPHttpxClientFactory:
+    def _streamable_http_client_factory(
+        self,
+        response_hooks: Sequence[Callable[[Any], Awaitable[None]]] = (),
+    ) -> MCPHttpxClientFactory:
         """Return the HTTP client factory used for MCP HTTP requests."""
         request_hooks = tuple(
             hook
@@ -430,8 +478,9 @@ class MCPAdapter(ProtocolAdapter):
             return _make_custom_mcp_http_factory(
                 self._httpx_client_factory,
                 request_hooks,
+                response_hooks,
             )
-        return _make_hardened_mcp_http_factory(request_hooks)
+        return _make_hardened_mcp_http_factory(request_hooks, response_hooks)
 
     def current_mcp_session_id(self) -> str | None:
         """Return the current SDK-managed MCP Streamable HTTP session id."""
@@ -559,8 +608,37 @@ class MCPAdapter(ProtocolAdapter):
             # user and fall through to unsigned SSE. Both HTTP transports use
             # SDK-owned factories with trust_env=False so auth headers are not
             # sent through ambient proxy settings.
+            auth_failure: ADCPAuthenticationError | None = None
+
+            async def capture_auth_response(response: Any) -> None:
+                nonlocal auth_failure
+                error = None
+                if response.status_code in (401, 403):
+                    challenge = response.headers.get("www-authenticate")
+                    message = f"Authentication failed: HTTP {response.status_code}"
+                    if challenge:
+                        message += f"; WWW-Authenticate: {challenge}"
+                    error = ADCPAuthenticationError(
+                        message,
+                        agent_id=self.agent_config.id,
+                        agent_uri=self.agent_config.agent_uri,
+                        status_code=response.status_code,
+                        www_authenticate=challenge,
+                    )
+                call_errors = _MCP_HTTP_AUTH_ERRORS.get()
+                if call_errors is not None:
+                    call_errors.clear()
+                    if error is not None:
+                        call_errors.append(error)
+                else:
+                    # A successful auth retry replaces an earlier challenge;
+                    # only the final HTTP response determines the diagnostic.
+                    auth_failure = error
+
             streamable_http_extra: dict[str, Any] = {
-                "httpx_client_factory": self._streamable_http_client_factory()
+                "httpx_client_factory": self._streamable_http_client_factory(
+                    (capture_auth_response,)
+                )
             }
             if (
                 self.signing_request_hook is not None
@@ -599,9 +677,12 @@ class MCPAdapter(ProtocolAdapter):
                             _make_custom_mcp_http_factory(
                                 self._httpx_client_factory,
                                 sse_request_hooks,
+                                (capture_auth_response,),
                             )
                             if self._httpx_client_factory is not None
-                            else _make_hardened_mcp_http_factory(sse_request_hooks)
+                            else _make_hardened_mcp_http_factory(
+                                sse_request_hooks, (capture_auth_response,)
+                            )
                         )
                         read, write = await self._exit_stack.enter_async_context(
                             sse_client(
@@ -647,6 +728,12 @@ class MCPAdapter(ProtocolAdapter):
                     if isinstance(e, asyncio.CancelledError):
                         raise
 
+                    # MCP v2 replaces non-JSON-RPC HTTP errors with a generic
+                    # message. Preserve the HTTP auth diagnostic captured
+                    # before conversion, and stop URL probing for bad tokens.
+                    if auth_failure is not None:
+                        raise auth_failure from e
+
                     # If this isn't the last URL to try, create a new exit stack and continue
                     if url != urls_to_try[-1]:
                         logger.debug(f"Retrying with next URL after error: {last_error}")
@@ -662,8 +749,6 @@ class MCPAdapter(ProtocolAdapter):
                     # Classify error type for better exception handling
                     error_str = str(last_error).lower()
                     if "401" in error_str or "403" in error_str or "unauthorized" in error_str:
-                        from adcp.exceptions import ADCPAuthenticationError
-
                         raise ADCPAuthenticationError(
                             f"Authentication failed: {last_error}",
                             agent_id=self.agent_config.id,
@@ -784,6 +869,8 @@ class MCPAdapter(ProtocolAdapter):
             # tightly around call_tool so session.initialize() above and
             # other out-of-band traffic stay outside the signing scope.
             signing_token = _signing_operation.set(tool_name)
+            auth_errors: list[ADCPAuthenticationError] = []
+            auth_token = _MCP_HTTP_AUTH_ERRORS.set(auth_errors)
             try:
                 # Call the tool using MCP client session
                 mark_task_dispatched(
@@ -801,8 +888,15 @@ class MCPAdapter(ProtocolAdapter):
                         params,
                         meta=cast("RequestParamsMeta", trace_meta),
                     )
+            except Exception as exc:
+                if auth_errors:
+                    raise auth_errors[-1] from exc
+                raise
             finally:
+                _MCP_HTTP_AUTH_ERRORS.reset(auth_token)
                 _signing_operation.reset(signing_token)
+            if auth_errors:
+                raise auth_errors[-1]
 
             # Check if this is an error response
             is_error = _result_is_error(result)

@@ -132,7 +132,8 @@ def test_warns_when_sales_recommended_method_missing(
     for w in user_warnings:
         msg = str(w.message)
         assert "sales-non-guaranteed" in msg
-        assert "src/adcp/decisioning/specialisms/sales.py:184-227" in msg
+        assert "src/adcp/decisioning/specialisms/sales.py" in msg
+        assert "184-227" not in msg
         assert "ADCP_DECISIONING_STRICT_VALIDATE_PLATFORM" in msg
         # Pull the warned method name out of the message.
         for method in (
@@ -163,6 +164,54 @@ def test_no_warning_when_all_recommended_methods_present(
         validate_platform(_FullSalesPlatform())
 
     assert [w for w in caught if issubclass(w.category, UserWarning)] == []
+
+
+@pytest.mark.parametrize("strict", [False, True])
+@pytest.mark.parametrize("versions", [["3.2"], ["3.2", "3.2-rc.7"]])
+def test_32_native_seller_can_omit_legacy_formats(monkeypatch, strict, versions) -> None:
+    from adcp.decisioning.capabilities import Adcp
+
+    class NativeSeller(_PartialSalesPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=["sales-non-guaranteed"],
+            adcp=Adcp(
+                major_versions=[3], supported_versions=versions, idempotency={"supported": False}
+            ),
+        )
+        get_media_buys = _FullSalesPlatform.get_media_buys
+        provide_performance_feedback = _FullSalesPlatform.provide_performance_feedback
+        list_creatives = _FullSalesPlatform.list_creatives
+
+    monkeypatch.setenv("ADCP_DECISIONING_STRICT_VALIDATE_PLATFORM", "1" if strict else "0")
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        validate_platform(NativeSeller())
+    assert not caught
+
+
+def test_mixed_version_seller_still_needs_legacy_formats(monkeypatch) -> None:
+    from adcp.decisioning.capabilities import Adcp
+
+    class MixedSeller(_PartialSalesPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=["sales-non-guaranteed"],
+            adcp=Adcp(
+                major_versions=[3],
+                supported_versions=["3.1", "3.2"],
+                idempotency={"supported": False},
+            ),
+        )
+        get_media_buys = _FullSalesPlatform.get_media_buys
+        provide_performance_feedback = _FullSalesPlatform.provide_performance_feedback
+        list_creatives = _FullSalesPlatform.list_creatives
+
+    monkeypatch.setenv("ADCP_DECISIONING_STRICT_VALIDATE_PLATFORM", "1")
+    with pytest.raises(AdcpError) as caught:
+        validate_platform(MixedSeller())
+    assert caught.value.details["missing_recommended"] == [
+        {"specialism": "sales-non-guaranteed", "method": "list_creative_formats_legacy"}
+    ]
+    assert "184-227" not in str(caught.value)
 
 
 def test_strict_mode_raises_instead_of_warning(

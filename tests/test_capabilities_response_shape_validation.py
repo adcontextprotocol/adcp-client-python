@@ -109,6 +109,49 @@ def test_conformant_platform_passes(executor: ThreadPoolExecutor) -> None:
     assert validate_capabilities_response_shape(handler) is None
 
 
+@pytest.mark.parametrize("async_validation", [False, True])
+def test_unservable_advertised_version_fails_at_boot(executor, async_validation) -> None:
+    from adcp.decisioning.capabilities import Adcp
+    from adcp.decisioning.validate_capabilities import validate_capabilities_response_shape_async
+
+    platform = _ConformantSalesPlatform()
+    platform.capabilities = DecisioningCapabilities(
+        specialisms=["sales-non-guaranteed"],
+        adcp=Adcp(
+            major_versions=[3],
+            supported_versions=["3.1-beta.5", "3.2"],
+            idempotency={"supported": False},
+        ),
+        account=Account(supported_billing=["operator"]),
+        media_buy=MediaBuy(supported_pricing_models=["cpm"]),
+    )
+    handler = _build_handler(platform, executor)
+    with pytest.raises(AdcpError) as caught:
+        if async_validation:
+            asyncio.run(validate_capabilities_response_shape_async(handler))
+        else:
+            validate_capabilities_response_shape(handler)
+    assert caught.value.code == "INVALID_REQUEST"
+    assert caught.value.recovery == "terminal"
+    assert caught.value.details["unsupported_versions"] == ["3.1-beta.5"]
+    assert "adcp.supported_versions" in str(caught.value)
+
+
+def test_accepted_version_without_schemas_fails_at_boot(executor, monkeypatch) -> None:
+    from adcp.decisioning import validate_capabilities as validation
+
+    real_keys = validation.list_validator_keys
+    monkeypatch.setattr(
+        validation,
+        "list_validator_keys",
+        lambda *, version: [] if version == "3.2" else real_keys(version=version),
+    )
+    handler = _build_handler(_ConformantSalesPlatform(), executor)
+    with pytest.raises(AdcpError) as caught:
+        validate_capabilities_response_shape(handler)
+    assert "3.2" in caught.value.details["schema_unavailable_versions"]
+
+
 # ---- media_buy claimer missing supported_billing ----
 
 

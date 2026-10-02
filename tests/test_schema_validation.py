@@ -75,6 +75,16 @@ class TestValidateRequest:
         assert outcome.variant == "request"
         assert outcome.issues[0].keyword == "schema_unavailable"
 
+    def test_missing_version_schema_builds_version_error(self) -> None:
+        outcome = validate_request("get_products", {}, version="3.9")
+        payload = build_adcp_validation_error_payload("get_products", "request", outcome.issues)
+        assert payload["code"] == "VERSION_UNSUPPORTED"
+        assert payload["field"] == "adcp_version"
+        assert "3.2" in payload["details"]["supported_versions"]
+        error = build_validation_error("get_products", "request", outcome.issues)
+        assert error.code == "VERSION_UNSUPPORTED"
+        assert error.details["supported_versions"] == payload["details"]["supported_versions"]
+
     def test_accepts_extension_fields_without_error(self) -> None:
         outcome = validate_request(
             "get_products",

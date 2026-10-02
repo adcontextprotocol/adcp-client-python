@@ -69,6 +69,49 @@ async def test_hook_none_is_noop() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("task_error", [False, True])
+async def test_structured_hook_rejection_preserves_error_fields(task_error: bool) -> None:
+    from adcp.decisioning import AdcpError
+    from adcp.server.translate import build_mcp_error_result
+    from adcp.types import Error
+
+    fields = {
+        "code": "VERSION_UNSUPPORTED",
+        "message": "adcp_version is required",
+        "recovery": "correctable",
+        "field": "adcp_version",
+        "suggestion": "Use 3.2",
+        "details": {"supported_versions": ["3.2"]},
+    }
+    rejection = (
+        ADCPTaskError("get_products", [Error(**fields)]) if task_error else AdcpError(**fields)
+    )
+    later_called = False
+
+    def reject(tool_name, params):
+        raise rejection
+
+    def later(tool_name, params):
+        nonlocal later_called
+        later_called = True
+        return params
+
+    caller = create_tool_caller(
+        _MinimalHandler(), "get_products", pre_validation_hook=[reject, later]
+    )
+    with pytest.raises(type(rejection)) as caught:
+        await caller({})
+    assert caught.value is rejection
+    assert not later_called
+    wire = build_mcp_error_result(caught.value).structured_content["adcp_error"]
+    for name in ("code", "field", "recovery", "details"):
+        assert wire[name] == fields[name]
+    if not task_error:
+        assert wire["message"] == fields["message"]
+        assert wire["suggestion"] == fields["suggestion"]
+
+
+@pytest.mark.asyncio
 async def test_hook_not_called_for_other_tool() -> None:
     """A hook registered for get_products is not invoked when create_media_buy is called."""
     calls: list[str] = []
