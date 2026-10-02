@@ -482,16 +482,17 @@ BEGIN
     END IF;
     CREATE TABLE IF NOT EXISTS reporting_production_generations (
         account_id TEXT COLLATE "C" NOT NULL,
+        consumer_id TEXT COLLATE "C" NOT NULL,
         delivery_config_id TEXT COLLATE "C" NOT NULL,
         delivery_config_version INTEGER NOT NULL,
         producer_key TEXT COLLATE "C" NOT NULL CHECK (producer_key ~ '^[0-9a-f]{64}$'),
         source_binding JSONB NOT NULL CHECK (jsonb_typeof(source_binding)='object'),
-        PRIMARY KEY (account_id,delivery_config_id,delivery_config_version),
-        FOREIGN KEY (account_id,delivery_config_id,delivery_config_version)
+        PRIMARY KEY (account_id, consumer_id, delivery_config_id, delivery_config_version),
+        FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version)
             REFERENCES reporting_configurations
     );
     CREATE INDEX IF NOT EXISTS reporting_production_source_generations
-        ON reporting_production_generations(producer_key,account_id,delivery_config_id,delivery_config_version);
+        ON reporting_production_generations(producer_key,account_id, consumer_id, delivery_config_id, delivery_config_version);
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='reporting_production_generations'::regclass
         AND tgname='reporting_production_generation_immutable') THEN
         CREATE TRIGGER reporting_production_generation_immutable BEFORE UPDATE OR DELETE
@@ -505,7 +506,7 @@ BEGIN
         delivery_config_version INTEGER NOT NULL,
         method JSONB NOT NULL CHECK (jsonb_typeof(method)='object'),
         PRIMARY KEY (account_id,consumer_id,delivery_config_id,delivery_config_version),
-        FOREIGN KEY (account_id,delivery_config_id,delivery_config_version)
+        FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version)
             REFERENCES reporting_production_generations
     );
     IF NOT EXISTS (SELECT 1 FROM pg_trigger
@@ -547,25 +548,28 @@ BEGIN
     -- window without acquiring an ordinary lease or changing frozen bindings.
     CREATE TABLE IF NOT EXISTS reporting_production_source_probe_turns (
         account_id TEXT COLLATE "C" NOT NULL,
+        consumer_id TEXT COLLATE "C" NOT NULL,
         delivery_config_id TEXT COLLATE "C" NOT NULL,
         delivery_config_version INTEGER NOT NULL,
         probe_turn BIGINT NOT NULL CHECK (probe_turn>0),
-        PRIMARY KEY(account_id,delivery_config_id,delivery_config_version),
-        FOREIGN KEY(account_id,delivery_config_id,delivery_config_version)
+        PRIMARY KEY(account_id, consumer_id, delivery_config_id, delivery_config_version),
+        FOREIGN KEY(account_id, consumer_id, delivery_config_id, delivery_config_version)
             REFERENCES reporting_production_generations
     );
     CREATE TABLE IF NOT EXISTS reporting_production_source_progress (
         account_id TEXT COLLATE "C" NOT NULL,
+        consumer_id TEXT COLLATE "C" NOT NULL,
         delivery_config_id TEXT COLLATE "C" NOT NULL,
         delivery_config_version INTEGER NOT NULL,
         closed_through TIMESTAMPTZ,
         acquisition_turn BIGINT NOT NULL DEFAULT 0 CHECK (acquisition_turn>=0),
-        PRIMARY KEY(account_id,delivery_config_id,delivery_config_version),
-        FOREIGN KEY(account_id,delivery_config_id,delivery_config_version)
+        PRIMARY KEY(account_id, consumer_id, delivery_config_id, delivery_config_version),
+        FOREIGN KEY(account_id, consumer_id, delivery_config_id, delivery_config_version)
             REFERENCES reporting_production_generations
     );
     CREATE TABLE IF NOT EXISTS reporting_production_source_work (
         account_id TEXT COLLATE "C" NOT NULL,
+        consumer_id TEXT COLLATE "C" NOT NULL,
         delivery_config_id TEXT COLLATE "C" NOT NULL,
         delivery_config_version INTEGER NOT NULL,
         reporting_obligation_id TEXT COLLATE "C" NOT NULL REFERENCES reporting_obligations,
@@ -574,12 +578,12 @@ BEGIN
         state TEXT COLLATE "C" NOT NULL DEFAULT 'pending'
             CHECK (state IN ('pending','settled','parked')),
         PRIMARY KEY(account_id,reporting_obligation_id),
-        FOREIGN KEY(account_id,delivery_config_id,delivery_config_version)
+        FOREIGN KEY(account_id, consumer_id, delivery_config_id, delivery_config_version)
             REFERENCES reporting_production_generations
     );
     CREATE INDEX IF NOT EXISTS reporting_production_source_pending
         ON reporting_production_source_work
-            (account_id,delivery_config_id,delivery_config_version,acquisition_turn,reporting_obligation_id)
+            (account_id, consumer_id, delivery_config_id, delivery_config_version,acquisition_turn,reporting_obligation_id)
         INCLUDE(period_end) WHERE state='pending';
 
     CREATE OR REPLACE FUNCTION reporting_production_source_progress_guard() RETURNS trigger
@@ -594,7 +598,7 @@ BEGIN
             RAISE EXCEPTION 'reporting_production_source_progress_immutable' USING ERRCODE='23514';
         END IF;
         IF NEW.closed_through IS NOT NULL AND NOT EXISTS (
-            SELECT 1 FROM reporting_obligations o WHERE o.account_id=NEW.account_id
+            SELECT 1 FROM reporting_obligations o WHERE o.account_id=NEW.account_id AND o.consumer_id=NEW.consumer_id
                 AND o.delivery_config_id=NEW.delivery_config_id
                 AND o.delivery_config_version=NEW.delivery_config_version
                 AND o.period_end=NEW.closed_through
@@ -615,7 +619,7 @@ BEGIN
         END IF;
         IF NOT EXISTS (SELECT 1 FROM reporting_obligations o
             WHERE o.reporting_obligation_id=NEW.reporting_obligation_id
-                AND o.account_id=NEW.account_id AND o.delivery_config_id=NEW.delivery_config_id
+                AND o.account_id=NEW.account_id AND o.consumer_id=NEW.consumer_id AND o.delivery_config_id=NEW.delivery_config_id
                 AND o.delivery_config_version=NEW.delivery_config_version AND o.period_end=NEW.period_end) THEN
             RAISE EXCEPTION 'reporting_production_source_obligation_required' USING ERRCODE='23514';
         END IF;
@@ -628,11 +632,11 @@ BEGIN
         -- SDK domain writers already hold the account lock before their row
         -- mutation. New triggers retain that order and do no external I/O.
         INSERT INTO reporting_production_source_work
-            (account_id,delivery_config_id,delivery_config_version,reporting_obligation_id,period_end)
-        SELECT o.account_id,o.delivery_config_id,o.delivery_config_version,
+            (account_id, consumer_id, delivery_config_id, delivery_config_version,reporting_obligation_id,period_end)
+        SELECT o.account_id, o.consumer_id, o.delivery_config_id, o.delivery_config_version,
             o.reporting_obligation_id,o.period_end FROM reporting_obligations o
         JOIN reporting_production_generations g
-            USING(account_id,delivery_config_id,delivery_config_version)
+            USING(account_id, consumer_id, delivery_config_id, delivery_config_version)
         WHERE o.reporting_obligation_id=NEW.reporting_obligation_id
             AND o.account_id=NEW.account_id
         ON CONFLICT(account_id,reporting_obligation_id) DO UPDATE SET state='pending';

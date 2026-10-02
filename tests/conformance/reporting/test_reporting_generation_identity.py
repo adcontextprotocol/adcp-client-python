@@ -25,6 +25,7 @@ from adcp.reporting.ledger import (
     ReportingStatusHandler,
     consumer_mismatch_issue_key,
 )
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.pg import PgReportingLedgerStore
 from adcp.reporting.outbox._schema import schema_objects
 from adcp.reporting.source import ReportingSourceSliceRequestV1
@@ -55,10 +56,10 @@ def test_generation_keys_are_public_frozen_and_account_qualified() -> None:
     from adcp.reporting.ledger.models import ReportingConfigurationGenerationKey as ModelKey
 
     config = configuration()
-    key = ReportingConfigurationGenerationKey("acct_a", "daily", 1)
+    key = ReportingConfigurationGenerationKey("acct_a", "buyer", "daily", 1)
     assert ModelKey is ReportingConfigurationGenerationKey
     assert config.generation_key == obligation_for(config).generation_key == key
-    lease = LeasedConfiguration("acct_a", "daily", 1, NOW)
+    lease = LeasedConfiguration("acct_a", "buyer", "daily", 1, NOW)
     assert lease.generation_key == key
     assert (
         len({key, configuration("acct_b").generation_key, replace(key, delivery_config_version=2)})
@@ -82,13 +83,17 @@ async def test_same_name_generations_keep_independent_content(
     )
     await asyncio.gather(store.put_configuration(first), store.put_configuration(second))
     for config in (first, second):
-        assert await store.list_configurations(account_id=config.account_id) == (config,)
         assert await store.list_configurations(
-            account_id=config.account_id, delivery_config_ids=["daily"]
+            caller=OwnershipCaller(config.account_id, config.consumer_id)
+        ) == (config,)
+        assert await store.list_configurations(
+            caller=OwnershipCaller(config.account_id, config.consumer_id),
+            delivery_config_ids=["daily"],
         ) == (config,)
         assert (
             await store.list_configurations(
-                account_id=config.account_id, delivery_config_ids=["absent"]
+                caller=OwnershipCaller(config.account_id, config.consumer_id),
+                delivery_config_ids=["absent"],
             )
             == ()
         )
@@ -96,15 +101,19 @@ async def test_same_name_generations_keep_independent_content(
         with pytest.raises(LedgerConflictError) as caught:
             await store.put_configuration(replace(config, media_buy_ids=("changed",)))
         assert caught.value.code == "CONFIGURATION_GENERATION_IMMUTABLE"
-    assert await store.list_configurations(account_id="unavailable") == ()
+    assert await store.list_configurations(caller=OwnershipCaller("unavailable", "buyer")) == ()
 
     new_version = replace(first, delivery_config_version=2, media_buy_ids=("new_buy",))
     await store.put_configuration(new_version)
-    assert set(await store.list_configurations(account_id=first.account_id)) == {
+    assert set(
+        await store.list_configurations(caller=OwnershipCaller(first.account_id, first.consumer_id))
+    ) == {
         first,
         new_version,
     }
-    assert await store.list_configurations(account_id=second.account_id) == (second,)
+    assert await store.list_configurations(
+        caller=OwnershipCaller(second.account_id, second.consumer_id)
+    ) == (second,)
 
 
 async def test_concurrent_changed_writes_cannot_silently_succeed(
@@ -120,7 +129,9 @@ async def test_concurrent_changed_writes_cannot_silently_succeed(
             assert isinstance(result, LedgerConflictError)
             assert result.code == "CONFIGURATION_GENERATION_IMMUTABLE"
     winner = candidates[results.index(None)]
-    assert await store.list_configurations(account_id=winner.account_id) == (winner,)
+    assert await store.list_configurations(
+        caller=OwnershipCaller(winner.account_id, winner.consumer_id)
+    ) == (winner,)
 
 
 async def test_concurrent_leases_and_releases_keep_accounts_separate(
@@ -352,11 +363,11 @@ async def test_lease_fairness_migrates_onto_an_already_installed_older_schema() 
         async with pool.connection() as connection:
             await connection.execute(
                 "INSERT INTO reporting_configurations"
-                " (delivery_config_id, delivery_config_version, account_id,"
+                " (delivery_config_id, delivery_config_version, account_id, consumer_id,"
                 "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
                 "  account_timezone, schedule, media_buy_ids, activated_at,"
                 "  automated_recovery_seconds, status_retention_days, content_sha256)"
-                " SELECT delivery_config_id, delivery_config_version, 'acct_legacy',"
+                " SELECT delivery_config_id, delivery_config_version, 'acct_legacy', consumer_id,"
                 "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
                 "  account_timezone, schedule, media_buy_ids, activated_at,"
                 "  automated_recovery_seconds, status_retention_days, 'f' || content_sha256"
@@ -472,8 +483,9 @@ async def test_a_stale_fairness_rank_row_cannot_affect_another_generation() -> N
         async with pool.connection() as connection:
             await connection.execute(
                 "INSERT INTO adcp_reporting_configuration_lease_turns"
-                " (account_id, delivery_config_id, delivery_config_version, lease_turn)"
-                " VALUES ('acct_vanished', 'daily', 1, 999999)"
+                " (account_id, consumer_id, delivery_config_id, delivery_config_version, "
+                "lease_turn)"
+                " VALUES ('acct_vanished', 'buyer', 'daily', 1, 999999)"
             )
         worked = []
         for _ in range(2):
@@ -503,6 +515,7 @@ async def test_concurrent_period_closes_converge_within_each_account(
     for config in configs:
         found = await store.find_obligation(
             account_id=config.account_id,
+            consumer_id=config.consumer_id,
             delivery_config_id="daily",
             delivery_config_version=1,
             period_start=START,
@@ -513,7 +526,9 @@ async def test_concurrent_period_closes_converge_within_each_account(
         assert found.media_buy_ids == config.media_buy_ids
         assert found.definition == config.definition
         ids.add(found.reporting_obligation_id)
-        snapshot = await store.open_snapshot(account_id=config.account_id, filters_fingerprint="")
+        snapshot = await store.open_snapshot(
+            caller=OwnershipCaller(config.account_id, config.consumer_id), filters_fingerprint=""
+        )
         page = await store.read_page(
             snapshot=snapshot,
             consumer_id=None,
@@ -545,6 +560,7 @@ async def test_an_obligation_id_cannot_overwrite_another_accounts_period(
     assert (
         await store.find_obligation(
             account_id=first.account_id,
+            consumer_id=first.consumer_id,
             delivery_config_id="daily",
             delivery_config_version=1,
             period_start=START,
@@ -555,6 +571,7 @@ async def test_an_obligation_id_cannot_overwrite_another_accounts_period(
     assert (
         await store.find_obligation(
             account_id=second.account_id,
+            consumer_id=second.consumer_id,
             delivery_config_id="daily",
             delivery_config_version=1,
             period_start=START,
@@ -656,7 +673,7 @@ async def test_missing_obligation_statements_attach_only_within_their_account(
     statement = ConsumerStatusRecord(
         reporting_status_id="rps_missing_a",
         account_id=first.account_id,
-        consumer_id="shared-buyer",
+        consumer_id="buyer",
         delivery_config_id="daily",
         delivery_config_version=1,
         report_definition_id=first.report_definition_id,
@@ -709,7 +726,7 @@ async def test_status_and_issue_projection_use_each_accounts_own_generation(
             ConsumerStatusRecord(
                 reporting_status_id=f"rps_{config.account_id}",
                 account_id=config.account_id,
-                consumer_id="shared-buyer",
+                consumer_id="buyer",
                 delivery_config_id="daily",
                 delivery_config_version=1,
                 report_definition_id=config.report_definition_id,
@@ -735,9 +752,7 @@ async def test_status_and_issue_projection_use_each_accounts_own_generation(
         )
 
     handler = ReportingStatusHandler(store, consumer_status_enabled=True)
-    callers = [
-        ReportingStatusCaller(config.account_id, "shared-buyer") for config in (first, second)
-    ]
+    callers = [ReportingStatusCaller(config.account_id, "buyer") for config in (first, second)]
     summaries = await asyncio.gather(
         *(handler.handle({"view": "summary"}, caller=caller) for caller in callers)
     )
@@ -774,7 +789,7 @@ async def test_status_and_issue_projection_use_each_accounts_own_generation(
 
     first_key = consumer_mismatch_issue_key(
         account_id=first.account_id,
-        consumer_id="shared-buyer",
+        consumer_id="buyer",
         delivery_config_id="daily",
         delivery_config_version=1,
         report_definition_id=first.report_definition_id,
@@ -831,6 +846,6 @@ async def test_ingest_resolves_the_accounts_own_configuration(
                 ]
             },
             account_id=config.account_id,
-            consumer_id="shared-buyer",
+            consumer_id="buyer",
         )
         assert result["results"][0]["result"] == "recorded"

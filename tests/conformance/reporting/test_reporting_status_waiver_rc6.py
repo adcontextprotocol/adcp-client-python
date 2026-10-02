@@ -4,13 +4,14 @@ from dataclasses import replace
 
 import pytest
 
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.reporting.ledger.status_projection import mismatch_key
 from adcp.reporting.outbox import PgStatusNotificationStore, ReportingNotificationError
 from adcp.reporting.outbox.status_schema import validate_status_schema
 
 from . import test_reporting_status_projection_contract as _status_contract
-from ._generation_support import isolated_reporting_pool, revision_for
+from ._generation_support import configuration, isolated_reporting_pool, revision_for
 from .test_reporting_notification_outbox import statement
 
 status_harness = _status_contract.status_harness
@@ -108,7 +109,7 @@ async def test_waiver_does_not_cover_a_changed_seller_diagnosis(status_harness):
     (issue,) = changed["issues"]
     assert issue["issue_id"] != waived.issue_id
     assert issue["reporting_status_id"] == received.reporting_status_id
-    snapshot = await h.ledger.read_status_snapshot(account_id="acct_a")
+    snapshot = await h.ledger.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
     current = next(i for i in snapshot.lifecycles if i.issue_id == issue["issue_id"])
     assert current.opened_at == h.clock()
     assert next(i for i in snapshot.lifecycles if i.issue_id == waived.issue_id) == waived
@@ -123,8 +124,16 @@ async def test_successive_waivers_preserve_each_terminal_record_and_other_caller
         statement(obligation), consumer_status="unreadable", failure_code="access_denied"
     )
     await h.ledger.record_consumer_status(original)
+    auditor_obligation, _, _ = await h.seed(
+        readable=True, config=configuration(consumer_id="auditor")
+    )
     await h.ledger.record_consumer_status(
-        replace(original, consumer_id="auditor", reporting_status_id="auditor-statement")
+        replace(
+            statement(auditor_obligation, "auditor"),
+            consumer_status="unreadable",
+            failure_code="access_denied",
+            reporting_status_id="auditor-statement",
+        )
     )
     await h.status.baseline(account_id="acct_a")
     handler = ReportingStatusHandler(h.ledger, consumer_status_enabled=True)
@@ -134,7 +143,7 @@ async def test_successive_waivers_preserve_each_terminal_record_and_other_caller
     for ordinal in range(3):
         response = await handler.handle({"view": "summary"}, caller=caller)
         (projected,) = response["issues"]
-        snapshot = await h.ledger.read_status_snapshot(account_id="acct_a")
+        snapshot = await h.ledger.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
         occurrence = next(i for i in snapshot.lifecycles if i.issue_id == projected["issue_id"])
         waived = await h.ledger.set_issue_state(
             issue_key=occurrence.issue_key, account_id="acct_a", state="waived", at=h.clock()
@@ -162,7 +171,7 @@ async def test_successive_waivers_preserve_each_terminal_record_and_other_caller
             )
             await h.ledger.record_consumer_status(later)
             current = later
-    snapshot = await h.ledger.read_status_snapshot(account_id="acct_a")
+    snapshot = await h.ledger.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
     assert len({i.issue_id for i in retained}) == 3
     assert all(i in snapshot.lifecycles for i in retained)
 

@@ -28,6 +28,7 @@ from adcp.reporting.ledger import (
     ReportingStatusCaller,
     ReportingStatusHandler,
 )
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.source import (
     ProvisionalSnapshotOfferingV1,
     ReportingSourceCapabilitiesV1,
@@ -126,6 +127,7 @@ async def _harness(
         delivery_config_id=CONFIG_ID,
         delivery_config_version=1,
         account_id=ACCOUNT,
+        consumer_id="buyer-settling",
         report_definition_id=DEFINITION_ID,
         reporting_profile="paid_media_delivery",
         feed_purpose="analytics",
@@ -153,7 +155,9 @@ async def _harness(
 
 
 async def _only_obligation(store: InMemoryReportingLedgerStore):
-    configurations = await store.list_configurations(account_id=ACCOUNT)
+    configurations = await store.list_configurations(
+        caller=OwnershipCaller(ACCOUNT, "buyer-settling")
+    )
     configuration = configurations[0]
     from adcp.reporting.ledger.models import first_ordinal_after
 
@@ -171,6 +175,7 @@ async def _only_obligation(store: InMemoryReportingLedgerStore):
     )
     obligation = await store.find_obligation(
         account_id=ACCOUNT,
+        consumer_id="buyer-settling",
         delivery_config_id=CONFIG_ID,
         delivery_config_version=1,
         period_start=period.start,

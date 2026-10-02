@@ -311,9 +311,9 @@
     "enabled": true,
     "fingerprint": "e65d70e61c89a93d66c4c4f4c59ef755d0ff526b0fcdd1d9ae6d830d2abea913"
   },
-  "constraint:reporting_materializer_candidates.reporting_materializer_candid_account_id_delivery_config_i_fkey": {
+  "constraint:reporting_materializer_candidates.reporting_materializer_candid_account_id_consumer_id_deliv_fkey": {
     "enabled": true,
-    "fingerprint": "f2fd7665f778fae1bec63184c8468e0212256b25009a44659abd7284bc54b8a7"
+    "fingerprint": "340468b8717c9342679604f0e58ae628c7c31cb28f59e13e96ecec8825ff06f1"
   },
   "constraint:reporting_materializer_candidates.reporting_materializer_candidates_account_id_fkey": {
     "enabled": true,
@@ -335,9 +335,9 @@
     "enabled": true,
     "fingerprint": "d2dc21e781a468c735dd8b305b5405e779c85c27657683c19570cb1ba4b94aa7"
   },
-  "constraint:reporting_materializer_discovery.reporting_materializer_discov_account_id_delivery_config_i_fkey": {
+  "constraint:reporting_materializer_discovery.reporting_materializer_discov_account_id_consumer_id_deliv_fkey": {
     "enabled": true,
-    "fingerprint": "4761471309c35947c8d3928dce4595b4d455e7de6166aeb78a5de220465cb64a"
+    "fingerprint": "f7048f0b5f2303f298df7ee94bd56f6186581db3b90f20fe6de7e20cc101a296"
   },
   "constraint:reporting_materializer_discovery.reporting_materializer_discovery_delivery_config_version_check": {
     "enabled": true,
@@ -585,7 +585,7 @@
   },
   "function:reporting_materializer_source_dirty()": {
     "enabled": true,
-    "fingerprint": "49bb0040dd74ba1af0f4f0ecf7b308cff4d8f6cad76be064dbe7ea46e71aee3e"
+    "fingerprint": "b7f635fe5457d6f32114fef36ce994df40dcb4904eff4fa083fcbe34f603d850"
   },
   "function:reporting_materializer_wake(a text)": {
     "enabled": true,
@@ -677,7 +677,7 @@
   },
   "index:reporting_obligations.reporting_materializer_obligation_discovery": {
     "enabled": true,
-    "fingerprint": "e715e2c28cbb6c25f9bb78d7c53422884ef9fa83c3740b4d1859bee1800c6855"
+    "fingerprint": "4821fc4ce3e4025ed2ace69ded0a0ad77413ea8e84ed22b22153bab5d7fdef8b"
   },
   "index:reporting_reconciliation_records.reporting_materializer_binding_discovery": {
     "enabled": true,

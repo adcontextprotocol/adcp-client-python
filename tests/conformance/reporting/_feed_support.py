@@ -1,5 +1,6 @@
 """Shared memory/PostgreSQL feed vectors and real mounted reporting reads."""
 
+import hashlib
 import json
 from contextlib import AsyncExitStack, asynccontextmanager
 from copy import deepcopy
@@ -9,7 +10,6 @@ import pytest
 
 from adcp._version import resolve_adcp_version
 from adcp.reporting.feed import InMemoryReportingFeedStore
-from adcp.reporting.ledger.delivery_models import ReportingDeliveryScope
 from adcp.reporting.receipts import ReportingReceiptHandler
 
 from ._durable_materializer_support import DurableHarness
@@ -125,24 +125,32 @@ async def restart(h):
 
 
 async def second_consumer(h, s, consumer="other-buyer"):
-    scope = ReportingDeliveryScope(
-        s.obligation.generation_key, consumer, s.obligation.reporting_obligation_id
+    other = await receipt_case(
+        h,
+        account_id=s.obligation.account_id,
+        consumer_id=consumer,
+        method=s.binding.method,
+        profile=s.binding.verification_profile,
+        billing=s.obligation.feed_purpose == "billing",
+        finality=s.revision.finality,
+        reconciliation_mode=s.binding.reconciliation_mode,
     )
-    binding = replace(s.binding, consumer_id=consumer)
-    await h.store.put_destination_binding(binding)
-    await h.store.bind_obligation_delivery(replace(s.delivery, scope=scope))
-    await h.store.commit_materialization_attempt(replace(s.attempt, scope=scope))
-    await h.store.commit_materialization(replace(s.outcome, scope=scope))
-    receipt = replace(s.receipt, scope=scope)
-    other = replace(
-        s,
-        binding=binding,
-        delivery=replace(s.delivery, scope=scope),
-        attempt=replace(s.attempt, scope=scope),
-        outcome=replace(s.outcome, scope=scope),
-        receipt=receipt,
-    )
-    await h.store.ingest_receipt_batch(request_for(other), caller=binding.principal)
+    # Each caller owns independent Core evidence, including any correction.
+    # A receipt for caller A never acknowledges caller B's corresponding rows.
+    for adjustment in await h.store.list_adjustments(
+        account_id=s.obligation.account_id,
+        reporting_revision_ids=[s.revision.reporting_revision_id],
+    ):
+        await h.store.commit_adjustment(
+            replace(
+                adjustment,
+                reporting_adjustment_id=adjustment.reporting_adjustment_id
+                + "-"
+                + hashlib.sha256(consumer.encode()).hexdigest()[:12],
+                adjusts_reporting_revision_id=other.revision.reporting_revision_id,
+            )
+        )
+    await h.store.ingest_receipt_batch(request_for(other), caller=other.binding.principal)
     return other
 
 

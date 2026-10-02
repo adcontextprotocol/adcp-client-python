@@ -13,6 +13,7 @@ from jsonschema.validators import validator_for
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.feed.errors import ReportingFeedError
 from adcp.reporting.ledger import ProducerOfferings, ReportingProducer, ReportingScheduleSpec
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.types import GetReportingStatusRequest
@@ -147,7 +148,9 @@ async def test_complete_forecast_uses_period_start_without_creating_future_work(
         config, obligations = await scheduled(h)
         assert obligations == []
         before = await h.image()
-        captured = await h.store.read_status_snapshot(account_id=config.account_id)
+        captured = await h.store.read_status_snapshot(
+            caller=OwnershipCaller(config.account_id, config.consumer_id)
+        )
         handler = ReportingStatusHandler(h.store)
         caller = ReportingStatusCaller(config.account_id, CONSUMER)
         old = handler.render_snapshot(request(RC3), caller=caller, snapshot=captured)
@@ -380,7 +383,9 @@ async def test_rc6_nearest_captured_generation_and_historical_scope_filters(back
             await h.store.put_configuration(config)
             production_operation_2 = await producer.close_elapsed_periods(config, now=h.clock())
             assert production_operation_2 == []
-        captured = await h.store.read_status_snapshot(account_id="acct_a")
+        captured = await h.store.read_status_snapshot(
+            caller=OwnershipCaller("acct_a", "https://buyer.example.test/agent")
+        )
         handler = ReportingStatusHandler(h.store)
         caller = ReportingStatusCaller("acct_a", CONSUMER)
         before = await h.image()
@@ -454,7 +459,9 @@ async def test_rc6_period_start_forecast_retains_civil_dst_and_offset_instants(
         assert production_operation_1 == []
         caller = ReportingStatusCaller(config.account_id, CONSUMER)
         handler = ReportingStatusHandler(h.store)
-        snapshot = await h.store.read_status_snapshot(account_id=config.account_id)
+        snapshot = await h.store.read_status_snapshot(
+            caller=OwnershipCaller(config.account_id, config.consumer_id)
+        )
         result = handler.render_snapshot(request(CURRENT), caller=caller, snapshot=snapshot)
         assert result["next_expected_at"] == following
         assert result["obligation_counts"]["total"] == 0 and result["health"] == "complete"

@@ -84,6 +84,7 @@ async def main():
             delivery_config_id="daily",
             delivery_config_version=1,
             account_id="account",
+            consumer_id="buyer",
             report_definition_id=verifier.key.report_definition_id,
             reporting_profile=verifier.key.reporting_profile,
             feed_purpose="analytics",
@@ -96,6 +97,7 @@ async def main():
         obligation = ReportingObligationRecord(
             reporting_obligation_id="obligation",
             account_id="account",
+            consumer_id="buyer",
             delivery_config_id="daily",
             delivery_config_version=1,
             report_definition_id=verifier.key.report_definition_id,

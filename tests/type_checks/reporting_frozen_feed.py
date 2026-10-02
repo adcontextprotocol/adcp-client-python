@@ -12,6 +12,7 @@ from adcp.reporting.feed import (
     ReportingFeedStore,
 )
 from adcp.reporting.ledger import ReportingDeliveryPrincipal, ReportingLedgerStore
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.materializer import ReportingMaterializerStore
 from adcp.reporting.receipts import (
     ReceiptAccountResolver,
@@ -56,7 +57,9 @@ async def adopter(
         ReportingFeedSnapshot | None,
     )
     assert_type(await receipts.ingest_receipt_batch(request, caller=caller), dict[str, Any])
-    await ledger.list_configurations(account_id=caller.account_id)
+    await ledger.list_configurations(
+        caller=OwnershipCaller(caller.account_id, "https://buyer.example.test/agent")
+    )
     handler = ReportingReceiptHandler(postgres, resolve_account=resolve_account)
     assert_type(handler.reporting_feed_store, ReportingFeedStore | None)
     assert_type(

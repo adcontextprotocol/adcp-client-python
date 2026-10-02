@@ -278,7 +278,7 @@ async def durable_case(
         )
     registry = ReportingRevisionVerifierRegistry((verifier,))
     config = replace(
-        configuration(account),
+        configuration(account, consumer_id=consumer),
         deactivated_at=None if active else END,
         definition=verifier.key.definition,
         report_definition_id=verifier.key.report_definition_id,

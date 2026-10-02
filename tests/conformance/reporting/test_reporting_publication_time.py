@@ -110,6 +110,7 @@ async def setup(
         "publication-clock",
         1,
         "account-clock",
+        "https://buyer.example.test/agent",
         key.report_definition_id,
         key.reporting_profile,
         "analytics",

@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from importlib.resources import files
 from pathlib import Path
 
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
+
 
 async def main(settings):
     from psycopg_pool import AsyncConnectionPool
@@ -71,7 +73,9 @@ async def main(settings):
             assert len(manifest) == 187
             return {"installed": True, "manifest_objects": len(manifest), "origins": origins}
         account, consumer = settings["account"], settings["consumer"]
-        configs = await store.list_configurations(account_id=account)
+        configs = await store.list_configurations(
+            caller=OwnershipCaller(account, "https://buyer.example.test/agent")
+        )
         assert len(configs) == 1
         obligations = await store.get_obligation(
             account_id=account, reporting_obligation_id=settings["obligation"]

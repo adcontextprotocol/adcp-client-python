@@ -70,7 +70,10 @@ async def queued_production(backend, tmp_path, monkeypatch):
         # The harness's original Core event was already expanded at startup,
         # before registrations existed. Publish a new ordinary Core revision
         # through the real ledger transaction after registering recipients.
-        core = replace(configuration(), delivery_config_id="ordinary-core")
+        core = replace(
+            configuration(consumer_id=item.binding.consumer_id),
+            delivery_config_id="ordinary-core",
+        )
         await h.store.put_configuration(core)
         obligation = await h.store.commit_obligation(
             replace(obligation_for(core), reporting_obligation_id="ordinary-core-obligation")

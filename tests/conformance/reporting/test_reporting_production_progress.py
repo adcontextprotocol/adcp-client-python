@@ -11,6 +11,8 @@ from datetime import timedelta
 
 import pytest
 
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
+
 from ._generation_support import END, START
 from ._production_support import production_harness
 from .test_reporting_production_lock_order import source_turn
@@ -287,7 +289,9 @@ async def test_fresh_stores_and_concurrent_workers_preserve_bounded_sampling_and
             # source execution or fabricate an acquisition for the held A.
             repeat = await source_turn(peer.production)
             assert not repeat.slices_failed
-            snapshot = await h.store.read_status_snapshot(account_id="acct_b")
+            snapshot = await h.store.read_status_snapshot(
+                caller=OwnershipCaller("acct_b", "https://buyer.example.test/agent")
+            )
             assert len(snapshot.obligations) == len(snapshot.revisions) == 1
             requests = [r for s in sources for r in s.requests if r.identity.account_id == "acct_b"]
             assert len(requests) == 1
@@ -329,7 +333,9 @@ async def test_rejected_source_window_does_not_starve_later_admitted_generation(
         await support.activate(account_id=item.config.account_id)
         for configuration in blocked:
             del source.bindings[configuration.generation_key]
-        before = await store.list_configurations(account_id=item.config.account_id)
+        before = await store.list_configurations(
+            caller=OwnershipCaller(item.config.account_id, "https://buyer.example.test/agent")
+        )
         if h.pool is not None:
             import psycopg
 
@@ -386,12 +392,23 @@ async def test_rejected_source_window_does_not_starve_later_admitted_generation(
                     assert completed.leased.generation_key == item.config.generation_key
             repeat = await source_turn(fresh.production)
             assert not repeat.obligations_committed and not repeat.revisions_committed
-            snapshot = await fresh.store.read_status_snapshot(account_id=item.config.account_id)
+            snapshot = await fresh.store.read_status_snapshot(
+                caller=OwnershipCaller(item.config.account_id, "https://buyer.example.test/agent")
+            )
             assert len(snapshot.obligations) == len(snapshot.revisions) == 1
             assert snapshot.obligations[0].generation_key == item.config.generation_key
-            assert not (await fresh.store.read_status_snapshot(account_id="acct_b")).obligations
+            assert not (
+                await fresh.store.read_status_snapshot(
+                    caller=OwnershipCaller("acct_b", "https://buyer.example.test/agent")
+                )
+            ).obligations
             assert (
-                await fresh.store.list_configurations(account_id=item.config.account_id) == before
+                await fresh.store.list_configurations(
+                    caller=OwnershipCaller(
+                        item.config.account_id, "https://buyer.example.test/agent"
+                    )
+                )
+                == before
             )
             if h.pool is not None:
                 after_image = await fresh.image()
@@ -612,7 +629,9 @@ async def test_bounded_producer_advances_past_processed_first_window(backend, tm
         assert len(third["obligations"]) == len(third["revisions"]) == 3
         executions = first_document["executions"] + second["executions"] + third["executions"]
         assert len(executions) == len(set(executions)) == 131
-        snapshot = await h.store.read_status_snapshot(account_id=item.config.account_id)
+        snapshot = await h.store.read_status_snapshot(
+            caller=OwnershipCaller(item.config.account_id, "https://buyer.example.test/agent")
+        )
         assert len(snapshot.obligations) == 131
         assert len(snapshot.revisions) == 132
         assert (
@@ -625,7 +644,11 @@ async def test_bounded_producer_advances_past_processed_first_window(backend, tm
         expected_states = await default_observation_states(h, snapshot, executions)
         assert max(o.period.end for o in snapshot.obligations) == START + timedelta(hours=131)
         assert {o.generation_key for o in snapshot.obligations} == {item.config.generation_key}
-        assert not (await h.store.read_status_snapshot(account_id="acct_b")).obligations
+        assert not (
+            await h.store.read_status_snapshot(
+                caller=OwnershipCaller("acct_b", "https://buyer.example.test/agent")
+            )
+        ).obligations
         assert (
             await h.store.get_revision(
                 account_id=item.config.account_id,

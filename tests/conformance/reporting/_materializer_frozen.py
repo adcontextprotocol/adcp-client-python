@@ -9,6 +9,8 @@ import traceback
 from dataclasses import replace
 from pathlib import Path
 
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
+
 
 async def main(settings):
     from psycopg_pool import AsyncConnectionPool
@@ -85,7 +87,9 @@ async def main(settings):
             # aggregate closes; B/C/B1 per-object required manifests stay ready.
             assert notifications_ready == (settings["artifact"] != "a")
 
-        configs = await store.list_configurations(account_id="acct_a")
+        configs = await store.list_configurations(
+            caller=OwnershipCaller("acct_a", "https://buyer.example.test/agent")
+        )
         assert len(configs) == 1
         obligation = await store.get_obligation(
             account_id="acct_a", reporting_obligation_id="rpo_acct_a"
@@ -95,7 +99,10 @@ async def main(settings):
             account_id="acct_a", reporting_obligation_id=obligation.reporting_obligation_id
         )
         assert len(revisions) == 1 and revisions[0].row_count == 3
-        snapshot = await store.open_snapshot(account_id="acct_a", filters_fingerprint="frozen-b2")
+        snapshot = await store.open_snapshot(
+            caller=OwnershipCaller("acct_a", "https://buyer.example.test/agent"),
+            filters_fingerprint="frozen-b2",
+        )
         page = await store.read_page(
             snapshot=snapshot,
             consumer_id=settings["consumer"],

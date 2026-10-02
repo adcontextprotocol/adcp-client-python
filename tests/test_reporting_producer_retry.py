@@ -66,6 +66,7 @@ def configuration(account: str = "account-1", config: str = "config-1") -> Repor
         delivery_config_id=config,
         delivery_config_version=1,
         account_id=account,
+        consumer_id="buyer",
         report_definition_id="PAID_MEDIA_DAILY_V1",
         reporting_profile="paid_media_delivery",
         feed_purpose="analytics",

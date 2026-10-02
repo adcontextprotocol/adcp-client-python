@@ -230,6 +230,7 @@ def main():
             "shared-config",
             1,
             account,
+            CONSUMERS[account],
             key.report_definition_id,
             key.reporting_profile,
             "billing",

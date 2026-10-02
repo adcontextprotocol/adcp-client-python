@@ -1,5 +1,12 @@
 # Production reporting and versioned status
 
+Existing reporting storage requires the
+[caller-ownership maintenance upgrade](reporting-caller-ownership-migration.md).
+Stop all reporting workers, readers and admission during migration. Historical
+rolling-compatibility controls below do not qualify mixed-version workers across
+this breaking ownership boundary. Unknown-owner state and inherited pending work
+remain quarantined; verified backfill imports Core read evidence only.
+
 `adcp.reporting.production` composes the existing durable producer, materializer,
 receipt ingress and frozen feed with versioned private status. Use
 [`examples/reporting_production.py`](../examples/reporting_production.py) for the

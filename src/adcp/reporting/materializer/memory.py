@@ -205,6 +205,7 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
             binding is None
             or obligation is None
             or configuration is None
+            or configuration.quarantined
             or obligation.generation_key != scope.generation_key
         ):
             raise failure("BINDING_MISMATCH")

@@ -58,6 +58,7 @@ from adcp.reporting.ledger.models import (
     LedgerRecordKind,
     LedgerSnapshot,
     ReportingAdjustmentRecord,
+    ReportingCaller,
     ReportingConfiguration,
     ReportingConfigurationGenerationKey,
     ReportingIssueLifecycle,
@@ -126,6 +127,7 @@ class LeasedConfiguration:
     """
 
     account_id: str
+    consumer_id: str
     delivery_config_id: str
     delivery_config_version: int
     lease_expires_at: datetime
@@ -134,6 +136,7 @@ class LeasedConfiguration:
     def generation_key(self) -> ReportingConfigurationGenerationKey:
         return ReportingConfigurationGenerationKey(
             account_id=self.account_id,
+            consumer_id=self.consumer_id,
             delivery_config_id=self.delivery_config_id,
             delivery_config_version=self.delivery_config_version,
         )
@@ -292,9 +295,22 @@ def revision_row_offset(cursor: str | None, revision_id: str, limit: int) -> int
     if type(cursor) is not str or len(cursor) > 2048:
         raise LedgerConflictError("INVALID_CURSOR", "the cursor does not bind this revision")
     payload = decode_cursor(cursor)
+    if payload.get("ownership") != 2:
+        from adcp.exceptions import ADCPTaskError
+
+        raise ADCPTaskError(
+            "get_media_buy_delivery",
+            [
+                {
+                    "code": "INVALID_CHECKPOINT",
+                    "message": "Restart revision pagination without the legacy cursor.",
+                    "recovery": "correctable",
+                }
+            ],
+        )
     offset = payload.get("offset")
     if (
-        set(payload) != {"revision", "offset"}
+        set(payload) != {"ownership", "revision", "offset"}
         or payload["revision"] != revision_id
         or type(offset) is not int
         or offset < 0
@@ -322,7 +338,7 @@ class ReportingLedgerStore(Protocol):
         ...
 
     async def list_configurations(
-        self, *, account_id: str, delivery_config_ids: Sequence[str] | None = None
+        self, *, caller: ReportingCaller, delivery_config_ids: Sequence[str] | None = None
     ) -> tuple[ReportingConfiguration, ...]: ...
 
     async def list_all_configurations(self) -> tuple[ReportingConfiguration, ...]:
@@ -355,6 +371,7 @@ class ReportingLedgerStore(Protocol):
         self,
         *,
         account_id: str,
+        consumer_id: str,
         delivery_config_id: str,
         delivery_config_version: int,
         period_start: datetime,
@@ -537,7 +554,9 @@ class ReportingLedgerStore(Protocol):
 
     # -- snapshots and pagination ----------------------------------------
 
-    async def open_snapshot(self, *, account_id: str, filters_fingerprint: str) -> LedgerSnapshot:
+    async def open_snapshot(
+        self, *, caller: ReportingCaller, filters_fingerprint: str
+    ) -> LedgerSnapshot:
         """Take a consistent read boundary for one account and filter set."""
         ...
 
@@ -922,6 +941,10 @@ class InMemoryReportingLedgerStore:
         async with self._mutation():
             key = configuration.generation_key
             existing = self._configurations.get(key)
+            if existing is not None and existing.quarantined:
+                raise LedgerConflictError(
+                    "REPORTING_GENERATION_QUARANTINED", "operator reconciliation is required"
+                )
             if existing is not None and _fingerprint(_config_payload(existing)) != _fingerprint(
                 _config_payload(configuration)
             ):
@@ -944,22 +967,24 @@ class InMemoryReportingLedgerStore:
                 )
 
     async def list_configurations(
-        self, *, account_id: str, delivery_config_ids: Sequence[str] | None = None
+        self, *, caller: ReportingCaller, delivery_config_ids: Sequence[str] | None = None
     ) -> tuple[ReportingConfiguration, ...]:
         wanted = set(delivery_config_ids) if delivery_config_ids else None
         return tuple(
             configuration
             for configuration in self._configurations.values()
-            if configuration.account_id == account_id
+            if configuration.account_id == caller.account_id
+            and configuration.consumer_id == caller.consumer_id
             and (wanted is None or configuration.delivery_config_id in wanted)
         )
 
     async def list_all_configurations(self) -> tuple[ReportingConfiguration, ...]:
         return tuple(
             sorted(
-                self._configurations.values(),
+                (c for c in self._configurations.values() if not c.quarantined),
                 key=lambda item: (
                     item.account_id,
+                    item.consumer_id,
                     item.delivery_config_id,
                     item.delivery_config_version,
                 ),
@@ -985,6 +1010,15 @@ class InMemoryReportingLedgerStore:
                     "OBLIGATION_IDENTITY_CONFLICT",
                     "the obligation identifier already belongs to a different logical period",
                 )
+            if obligation.generation_key not in self._configurations:
+                raise LedgerConflictError(
+                    "UNKNOWN_CONFIGURATION_GENERATION", "generation is unavailable"
+                )
+            if self._configurations[obligation.generation_key].quarantined:
+                raise LedgerConflictError(
+                    "REPORTING_GENERATION_QUARANTINED",
+                    "establish a new owned generation after operator reconciliation",
+                )
             require_frozen_currency(obligation.currency)
             self._obligations[obligation.reporting_obligation_id] = obligation
             self._obligation_by_period[key] = obligation.reporting_obligation_id
@@ -1007,6 +1041,7 @@ class InMemoryReportingLedgerStore:
         self,
         *,
         account_id: str,
+        consumer_id: str,
         delivery_config_id: str,
         delivery_config_version: int,
         period_start: datetime,
@@ -1015,6 +1050,7 @@ class InMemoryReportingLedgerStore:
         key = (
             ReportingConfigurationGenerationKey(
                 account_id=account_id,
+                consumer_id=consumer_id,
                 delivery_config_id=delivery_config_id,
                 delivery_config_version=delivery_config_version,
             ),
@@ -1064,6 +1100,10 @@ class InMemoryReportingLedgerStore:
                     "OBLIGATION_NOT_FOUND",
                     "a revision must attach to an obligation committed at the period close",
                 )
+            if self._configurations[obligation.generation_key].quarantined:
+                raise LedgerConflictError(
+                    "REPORTING_GENERATION_QUARANTINED", "legacy evidence is read-only"
+                )
             validate_revision_currency(obligation, revision, rows)
             siblings = [
                 item
@@ -1087,7 +1127,9 @@ class InMemoryReportingLedgerStore:
             if self._notification_state is not None:
                 from adcp.reporting.ledger.notification_events import revision_event
 
-                self._record_notification(revision_event(revision, self._clock()))
+                self._record_notification(
+                    revision_event(revision, self._clock(), consumer_id=obligation.consumer_id)
+                )
                 self._dirty_status(
                     ReportingStatusScope.for_obligation(obligation),
                     "revision",
@@ -1311,7 +1353,9 @@ class InMemoryReportingLedgerStore:
             total_count=len(rows),
             has_more=has_more,
             cursor=(
-                encode_cursor({"revision": reporting_revision_id, "offset": offset + limit})
+                encode_cursor(
+                    {"ownership": 2, "revision": reporting_revision_id, "offset": offset + limit}
+                )
                 if has_more
                 else None
             ),
@@ -1364,6 +1408,11 @@ class InMemoryReportingLedgerStore:
                     "adjustments correct an official revision; restate a snapshot with a "
                     "superseding snapshot revision instead",
                 )
+            obligation = self._obligations[revision.reporting_obligation_id]
+            if self._configurations[obligation.generation_key].quarantined:
+                raise LedgerConflictError(
+                    "REPORTING_GENERATION_QUARANTINED", "legacy evidence is read-only"
+                )
             validate_adjustment_currency(
                 self._obligations[revision.reporting_obligation_id], adjustment
             )
@@ -1372,7 +1421,13 @@ class InMemoryReportingLedgerStore:
             if self._notification_state is not None:
                 from adcp.reporting.ledger.notification_events import adjustment_event
 
-                self._record_notification(adjustment_event(adjustment, self._clock()))
+                self._record_notification(
+                    adjustment_event(
+                        adjustment,
+                        self._clock(),
+                        consumer_id=self._obligations[revision.reporting_obligation_id].consumer_id,
+                    )
+                )
                 self._dirty_status(
                     ReportingStatusScope.for_obligation(
                         self._obligations[revision.reporting_obligation_id]
@@ -1484,11 +1539,17 @@ class InMemoryReportingLedgerStore:
     ) -> tuple[ConsumerStatusRecord, bool]:
         return await self.record_consumer_status(status)
 
-    async def read_status_snapshot(self, *, account_id: str) -> ReportingStatusSnapshot:
+    async def read_status_snapshot(self, *, caller: ReportingCaller) -> ReportingStatusSnapshot:
         from adcp.reporting.ledger.status_snapshot import settle_memory_snapshot
 
         async with self._mutation():
-            return settle_memory_snapshot(self, account_id)
+            from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
+            from adcp.reporting.materializer.capture import private_snapshot
+
+            return private_snapshot(
+                settle_memory_snapshot(self, caller.account_id),
+                ReportingDeliveryPrincipal(caller.account_id, caller.consumer_id),
+            )
 
     def _current_status_leaf(self, chain_key: tuple[Any, ...]) -> ConsumerStatusRecord | None:
         for item in self._statuses.values():
@@ -1686,7 +1747,10 @@ class InMemoryReportingLedgerStore:
 
     # -- snapshots -------------------------------------------------------
 
-    async def open_snapshot(self, *, account_id: str, filters_fingerprint: str) -> LedgerSnapshot:
+    async def open_snapshot(
+        self, *, caller: ReportingCaller, filters_fingerprint: str
+    ) -> LedgerSnapshot:
+        account_id = caller.account_id
         async with self._lock:
             as_of = _utc(self._clock())
             max_sequence = max(
@@ -1694,8 +1758,11 @@ class InMemoryReportingLedgerStore:
             )
             return LedgerSnapshot(
                 snapshot_id="rpls_"
-                + _fingerprint([account_id, filters_fingerprint, max_sequence])[:32],
+                + _fingerprint([account_id, caller.consumer_id, filters_fingerprint, max_sequence])[
+                    :32
+                ],
                 account_id=account_id,
+                consumer_id=caller.consumer_id,
                 ledger_as_of=as_of,
                 max_sequence=max_sequence,
             )
@@ -1714,6 +1781,11 @@ class InMemoryReportingLedgerStore:
         period_start: datetime | None = None,
         period_end: datetime | None = None,
     ) -> LedgerPage:
+        if consumer_id not in {None, snapshot.consumer_id}:
+            raise LedgerConflictError(
+                "CURSOR_SNAPSHOT_MISMATCH", "snapshot belongs to another caller"
+            )
+        consumer_id = snapshot.consumer_id
         lower = changes_after_sequence or 0
         selected = [
             item
@@ -1804,7 +1876,7 @@ class InMemoryReportingLedgerStore:
                 )
             )
         obligation = self._obligation_for(kind, record)
-        if obligation is None:
+        if obligation is None or obligation.consumer_id != consumer_id:
             return False
         configuration = self._configurations.get(obligation.generation_key)
         if (
@@ -1842,7 +1914,7 @@ class InMemoryReportingLedgerStore:
     # -- leasing ---------------------------------------------------------
 
     def _configuration_lease_eligible(self, configuration: ReportingConfiguration) -> bool:
-        return True
+        return not configuration.quarantined
 
     async def lease_period_close(
         self, *, worker_id: str, now: datetime, lease_seconds: float
@@ -1866,7 +1938,7 @@ class InMemoryReportingLedgerStore:
             # order stays total and never depends on physical layout.
             ranked: list[
                 tuple[
-                    tuple[int, int, float, str, str, int],
+                    tuple[int, int, float, str, str, str, int],
                     ReportingConfigurationGenerationKey,
                 ]
             ] = []
@@ -1875,7 +1947,12 @@ class InMemoryReportingLedgerStore:
                     continue
                 turn = self._lease_turns.get(key, 0)
                 held = self._leases.get(key)
-                tail = (key.account_id, key.delivery_config_id, key.delivery_config_version)
+                tail = (
+                    key.account_id,
+                    key.consumer_id,
+                    key.delivery_config_id,
+                    key.delivery_config_version,
+                )
                 if held is None:
                     ranked.append(((turn, 0, 0.0, *tail), key))
                 elif _utc(held[1]) <= moment:
@@ -1895,6 +1972,7 @@ class InMemoryReportingLedgerStore:
             self._leases[key] = (worker_id, expires)
             return LeasedConfiguration(
                 account_id=configuration.account_id,
+                consumer_id=configuration.consumer_id,
                 delivery_config_id=configuration.delivery_config_id,
                 delivery_config_version=configuration.delivery_config_version,
                 lease_expires_at=expires,
@@ -1954,6 +2032,7 @@ def _config_payload(configuration: ReportingConfiguration) -> dict[str, Any]:
     schedule = configuration.schedule
     return {
         "account_id": configuration.account_id,
+        "consumer_id": configuration.consumer_id,
         "report_definition_id": configuration.report_definition_id,
         "reporting_profile": configuration.reporting_profile,
         "feed_purpose": configuration.feed_purpose,

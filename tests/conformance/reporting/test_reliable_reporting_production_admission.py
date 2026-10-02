@@ -11,6 +11,7 @@ from dataclasses import replace
 import pytest
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.production import (
     ReportingConfigurationAdmission,
     ReportingProductionSourceRegistry,
@@ -265,7 +266,10 @@ async def test_failed_context_admission_rolls_back_configuration_and_destination
             await h.production._admit_configuration(value)
         assert not await source_documents(h)
         assert new.generation_key not in {
-            c.generation_key for c in await h.store.list_configurations(account_id=new.account_id)
+            c.generation_key
+            for c in await h.store.list_configurations(
+                caller=OwnershipCaller(new.account_id, "https://buyer.example.test/agent")
+            )
         }
         assert old.generation_key != new.generation_key
 
@@ -293,6 +297,7 @@ async def test_context_insert_guard_rejects_tampering_and_keeps_legacy_documents
         ).document()
         identity = (
             h.item.config.account_id,
+            h.item.config.consumer_id,
             h.item.config.delivery_config_id,
             h.item.config.delivery_config_version,
         )
@@ -301,6 +306,7 @@ async def test_context_insert_guard_rejects_tampering_and_keeps_legacy_documents
             for field, value in (
                 ("service_context_sha256", "0" * 64),
                 ("account_id", "other"),
+                ("consumer_id", "other"),
                 ("configuration_sha256", "0" * 64),
                 ("delivery_config_version", 9),
             ):
@@ -309,7 +315,7 @@ async def test_context_insert_guard_rejects_tampering_and_keeps_legacy_documents
                     async with connection.transaction():
                         await connection.execute(
                             "INSERT INTO reporting_production_generations"
-                            " VALUES(%s,%s,%s,%s,%s::jsonb)",
+                            " VALUES(%s,%s,%s,%s,%s,%s::jsonb)",
                             (*identity, offering._producer_key, json.dumps(mutated)),
                         )
             for field, value in (
@@ -327,7 +333,7 @@ async def test_context_insert_guard_rejects_tampering_and_keeps_legacy_documents
                     async with connection.transaction():
                         await connection.execute(
                             "INSERT INTO reporting_production_generations"
-                            " VALUES(%s,%s,%s,%s,%s::jsonb)",
+                            " VALUES(%s,%s,%s,%s,%s,%s::jsonb)",
                             (*identity, offering._producer_key, json.dumps(mutated)),
                         )
             malformed = copy.deepcopy(document)
@@ -341,11 +347,11 @@ async def test_context_insert_guard_rejects_tampering_and_keeps_legacy_documents
                 async with connection.transaction():
                     await connection.execute(
                         "INSERT INTO reporting_production_generations"
-                        " VALUES(%s,%s,%s,%s,%s::jsonb)",
+                        " VALUES(%s,%s,%s,%s,%s,%s::jsonb)",
                         (*identity, offering._producer_key, json.dumps(malformed)),
                     )
             await connection.execute(
-                "INSERT INTO reporting_production_generations VALUES(%s,%s,%s,%s,%s::jsonb)",
+                "INSERT INTO reporting_production_generations VALUES(%s,%s,%s,%s,%s,%s::jsonb)",
                 (*identity, offering._producer_key, json.dumps(document)),
             )
             for statement in (
@@ -404,14 +410,16 @@ async def test_enrollment_fault_rolls_back_whole_admission(backend, tmp_path, mo
             await h.production._admit_configuration(value)
         assert not await source_documents(h)
         assert new.generation_key not in {
-            c.generation_key for c in await h.store.list_configurations(account_id=new.account_id)
+            c.generation_key
+            for c in await h.store.list_configurations(
+                caller=OwnershipCaller(new.account_id, "https://buyer.example.test/agent")
+            )
         }
 
 
 async def test_service_failure_stops_admission_but_preserves_ordinary_delegate(tmp_path):
     from adcp.reporting.service import (
         ReliableReportingServiceError,
-        ReliableReportingUnavailableError,
     )
 
     async with production_harness(
@@ -427,8 +435,11 @@ async def test_service_failure_stops_admission_but_preserves_ordinary_delegate(t
         with pytest.raises(ReliableReportingServiceError):
             await asyncio.wait_for(h.service.wait(), 2)
         assert not h.service.ready
-        with pytest.raises(ReliableReportingUnavailableError):
+        from adcp.exceptions import ADCPTaskError
+
+        with pytest.raises(ADCPTaskError) as unavailable:
             await h.production.handler.sync_accounts({})
+        assert unavailable.value.error_codes == ["SERVICE_UNAVAILABLE"]
         assert await h.production.handler.get_products({}) == {"products": []}
         assert (await h.production.handler.get_media_buy_delivery({}))["aggregated_totals"][
             "impressions"

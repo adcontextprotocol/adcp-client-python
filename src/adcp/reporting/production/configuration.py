@@ -158,7 +158,7 @@ class ReportingProductionConfigurationTask:
                 raise LedgerConflictError(
                     "INVALID_REQUEST", "configuration generations must be unique"
                 )
-        admitted: dict[tuple[str, str, int], ReportingConfigurationAdmission] = {}
+        admitted: dict[tuple[str, str, str, int], ReportingConfigurationAdmission] = {}
 
         async def admit(value: ReportingConfigurationAdmission) -> None:
             if request.get("dry_run") is True:
@@ -207,6 +207,7 @@ class ReportingProductionConfigurationTask:
             await support._check_notifications(who.account_id)
             key = (
                 who.account_id,
+                who.consumer_id,
                 value.configuration.delivery_config_id,
                 value.configuration.delivery_config_version,
             )
@@ -233,12 +234,16 @@ class ReportingProductionConfigurationTask:
         for account in response.get("accounts", ()):
             if account.get("action") == "failed":
                 continue
+            response_owner = await support.handler._authorize(
+                {"account": {"account_id": account.get("account_id")}}, context
+            )
             for state in account.get("reporting_delivery_configs", ()):
                 if state.get("state") not in {"ready", "inactive"}:
                     continue
                 config = state.get("configuration", {})
                 key = (
-                    account.get("account_id"),
+                    response_owner.account_id,
+                    response_owner.consumer_id,
                     config.get("delivery_config_id"),
                     config.get("delivery_config_version"),
                 )
@@ -319,7 +324,7 @@ class ReportingProductionConfigurationTask:
                 actual = await support.store.get_destination_binding(
                     caller=who, generation_key=value.configuration.generation_key
                 )
-                configs = await support.store.list_configurations(account_id=who.account_id)
+                configs = await support.store.list_configurations(caller=who)
                 support.validate_configuration(value)
                 if actual != value.binding or value.configuration not in configs:
                     raise LedgerConflictError(

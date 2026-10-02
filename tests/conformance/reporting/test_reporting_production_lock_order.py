@@ -8,6 +8,8 @@ from types import MethodType
 
 import pytest
 
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
+
 from ._generation_support import END
 from ._legacy_row_first_lease import row_first_period_close
 from ._production_support import production_harness
@@ -219,7 +221,9 @@ async def test_selected_source_enrollment_and_expired_lease_fairness(backend, tm
         for configuration in (peer, other_config, unadmitted, outside):
             await store.put_configuration(configuration)
         before = {
-            account: await store.list_configurations(account_id=account)
+            account: await store.list_configurations(
+                caller=OwnershipCaller(account, "https://buyer.example.test/agent")
+            )
             for account in ("acct_a", "acct_b")
         }
 
@@ -262,7 +266,9 @@ async def test_selected_source_enrollment_and_expired_lease_fairness(backend, tm
         assert isolated.generation_key == other_config.generation_key
         await store.release_period_close(isolated, worker_id="other")
         adoption_operation_4 = {
-            account: await store.list_configurations(account_id=account)
+            account: await store.list_configurations(
+                caller=OwnershipCaller(account, "https://buyer.example.test/agent")
+            )
             for account in ("acct_a", "acct_b")
         } == before
         assert adoption_operation_4

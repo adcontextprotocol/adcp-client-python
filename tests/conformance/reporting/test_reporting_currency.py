@@ -54,6 +54,7 @@ from adcp.reporting.ledger import (
     require_single_currency,
     revision_content_sha256,
 )
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.pg import PgReportingLedgerStore
 from adcp.reporting.source import (
     ReportingSourceCapabilitiesV1,
@@ -92,6 +93,7 @@ def configuration(
     units = (("spend", pinned_currency),) if pinned_currency else ()
     return ReportingConfiguration(
         account_id=account,
+        consumer_id="buyer",
         delivery_config_id="daily",
         delivery_config_version=1,
         report_definition_id=contract.report_definition_id,
@@ -273,6 +275,7 @@ async def test_concurrent_accounts_freeze_before_acquisition_and_survive_restart
     for config in configs:
         obligation = await restarted_store.find_obligation(
             account_id=config.account_id,
+            consumer_id=config.consumer_id,
             delivery_config_id="daily",
             delivery_config_version=1,
             period_start=START,
@@ -363,7 +366,9 @@ async def test_invalid_resolution_cannot_commit_or_touch_source(
     producer = producer_for(store, UncalledSource(), resolver=lambda config, candidate: invalid)
     with pytest.raises(ReportingCurrencyError, match="INVALID_CURRENCY"):
         await producer.close_elapsed_periods(configuration())
-    snapshot = await store.open_snapshot(account_id="eur", filters_fingerprint="")
+    snapshot = await store.open_snapshot(
+        caller=OwnershipCaller("eur", "buyer"), filters_fingerprint=""
+    )
     assert snapshot.max_sequence == 0
 
 
@@ -399,7 +404,9 @@ async def test_concurrent_resolutions_converge_on_one_immutable_winner(
         producer.close_elapsed_periods(configuration()),
     )
     assert left == right and left[0].currency in {"USD", "EUR"}
-    assert (await store.open_snapshot(account_id="eur", filters_fingerprint="")).max_sequence == 1
+    assert (
+        await store.open_snapshot(caller=OwnershipCaller("eur", "buyer"), filters_fingerprint="")
+    ).max_sequence == 1
 
 
 async def test_trusted_mixed_scope_is_rejected_at_freeze(store: ReportingLedgerStore) -> None:
@@ -414,7 +421,9 @@ async def test_trusted_mixed_scope_is_rejected_at_freeze(store: ReportingLedgerS
     )
     with pytest.raises(ReportingCurrencyError, match="MIXED_CURRENCY_SCOPE"):
         await producer.close_elapsed_periods(config)
-    assert (await store.open_snapshot(account_id="eur", filters_fingerprint="")).max_sequence == 0
+    assert (
+        await store.open_snapshot(caller=OwnershipCaller("eur", "buyer"), filters_fingerprint="")
+    ).max_sequence == 0
 
 
 @pytest.mark.parametrize("mixed", [False, True])
@@ -634,7 +643,7 @@ async def test_pinned_monetary_semantics_are_immutable_in_both_stores(
     config = configuration(pinned_currency="EUR")
     await store.put_configuration(config)
     await store.put_configuration(config)
-    assert await store.list_configurations(account_id="eur") == (config,)
+    assert await store.list_configurations(caller=OwnershipCaller("eur", "buyer")) == (config,)
     with pytest.raises(LedgerConflictError, match="different content"):
         await store.put_configuration(configuration(pinned_currency="USD"))
 
@@ -821,6 +830,7 @@ async def test_postgres_currency_survives_closing_every_application_connection()
                 assert await restarted.close_elapsed_periods(config) == []
                 obligation = await restarted_store.find_obligation(
                     account_id=config.account_id,
+                    consumer_id=config.consumer_id,
                     delivery_config_id=config.delivery_config_id,
                     delivery_config_version=config.delivery_config_version,
                     period_start=START,

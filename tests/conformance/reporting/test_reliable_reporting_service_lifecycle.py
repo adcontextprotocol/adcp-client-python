@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 
 from adcp.reporting.fixtures import redacted_capabilities
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.pg import PgReportingLedgerStore
 from adcp.reporting.service import (
     ReliableReportingService,
@@ -125,7 +126,9 @@ async def test_stop_settles_public_configuration_transaction_before_owned_cleanu
         observer = PgReportingLedgerStore(pool=pool)
 
         async def close_owned() -> None:
-            retained = await observer.list_configurations(account_id=configuration.account_id)
+            retained = await observer.list_configurations(
+                caller=OwnershipCaller(configuration.account_id, configuration.consumer_id)
+            )
             configurations_at_close.append(len(retained))
 
         service = ReliableReportingService(
@@ -138,7 +141,12 @@ async def test_stop_settles_public_configuration_transaction_before_owned_cleanu
         configuring = asyncio.create_task(service.configure(configuration))
         await asyncio.wait_for(inserted.wait(), 5)
         try:
-            assert await observer.list_configurations(account_id=configuration.account_id) == ()
+            assert (
+                await observer.list_configurations(
+                    caller=OwnershipCaller(configuration.account_id, configuration.consumer_id)
+                )
+                == ()
+            )
             with pytest.raises(ReliableReportingShutdownTimeoutError):
                 await service.close(timeout=0)
             assert service.state is ReliableReportingState.STOPPING
@@ -170,7 +178,7 @@ async def test_stop_settles_public_configuration_transaction_before_owned_cleanu
         await restarted.start()
         try:
             retained = await restarted.store.list_configurations(
-                account_id=configuration.account_id
+                caller=OwnershipCaller(configuration.account_id, configuration.consumer_id)
             )
             assert retained == (() if cancel_call else (configuration,))
         finally:

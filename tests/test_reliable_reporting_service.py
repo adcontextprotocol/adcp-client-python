@@ -55,6 +55,7 @@ DEFINITION = ReportingDefinitionBinding(
 def _generation_key(route: str) -> ReportingConfigurationGenerationKey:
     return ReportingConfigurationGenerationKey(
         account_id="account-redacted",
+        consumer_id="buyer-1",
         delivery_config_id=f"{route}-delivery",
         delivery_config_version=1,
     )
@@ -67,6 +68,7 @@ def _configuration(
         delivery_config_id=f"{route}-delivery",
         delivery_config_version=1,
         account_id=account_id,
+        consumer_id="buyer-1",
         report_definition_id="PAID_MEDIA_DAILY_V1",
         reporting_profile="paid_media_delivery",
         feed_purpose="analytics",

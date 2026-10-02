@@ -7,6 +7,7 @@ from datetime import timedelta
 import pytest
 
 from adcp.reporting.ledger import ReportingMaterializationCheck
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.types import GetReportingStatusResponse
 
@@ -226,7 +227,9 @@ async def test_readability_clock_configuration_and_private_inputs_survive_restar
         first["ledger_snapshot_id"], caller=s.binding.principal
     )
     expected = await walk(h.store, req, s.binding.principal, first=first)
-    configs = await h.store.list_configurations(account_id=s.obligation.account_id)
+    configs = await h.store.list_configurations(
+        caller=OwnershipCaller(s.obligation.account_id, "https://buyer.example.test/agent")
+    )
     await h.store.put_configuration(
         replace(configs[0], deactivated_at=configs[0].deactivated_at + timedelta(hours=1))
     )

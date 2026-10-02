@@ -313,7 +313,10 @@ class _ReconciliationOperations:
         caller: ReportingDeliveryPrincipal,
         generation_key: ReportingConfigurationGenerationKey,
     ) -> ReportingDestinationBinding | None:
-        if caller.account_id != generation_key.account_id:
+        if (
+            caller.account_id != generation_key.account_id
+            or caller.consumer_id != generation_key.consumer_id
+        ):
             return None
         snapshot = await self.read_reconciliation_snapshot(caller=caller)
         return next(

@@ -16,6 +16,7 @@ from adcp.reporting.ledger import (
     ReportingDeliveryPrincipal,
     ReportingProducer,
 )
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.delivery_models import MaterializationFailure
 from adcp.reporting.materializer import (
     ReferenceReportingDestinationWriter,
@@ -108,7 +109,9 @@ async def test_url_consumer_round_trips_all_binding_resolver_reconciliation_and_
     assert (await case.store.get_obligation_delivery(case.delivery.scope)) == case.delivery
     page = await case.store.read_reconciliation_changes(caller=principal)
     assert page.caller == principal and page.changes
-    snapshot = await case.store.read_status_snapshot(account_id=principal.account_id)
+    snapshot = await case.store.read_status_snapshot(
+        caller=OwnershipCaller(principal.account_id, "https://buyer.example.test/agent")
+    )
     assert principal.consumer_id in snapshot.consumer_ids
     locator = await case.io.write(case.prepared, context=io_context())
     verified = await case.io.verify(case.prepared, locator, context=io_context())

@@ -143,8 +143,9 @@ def project_reconciliation(
     readable: dict[str, bool] = {}
     deadlines: set[datetime] = set()
     for outcome in outcomes:
-        attempt, target = attempts.get(outcome.reporting_materialization_id), by_revision.get(
-            outcome.reporting_revision_id
+        attempt, target = (
+            attempts.get(outcome.reporting_materialization_id),
+            by_revision.get(outcome.reporting_revision_id),
         )
         if (
             attempt is None

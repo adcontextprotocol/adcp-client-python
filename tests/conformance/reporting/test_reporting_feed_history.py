@@ -12,6 +12,7 @@ from adcp.reporting.ledger import (
     ReportingMaterializationCheck,
     ReportingRevisionReceiptRecord,
 )
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.delivery import receipt_to_wire
 from adcp.reporting.ledger.status_projection import mismatch_key
 
@@ -268,7 +269,9 @@ async def test_page_one_freezes_issue_waiver_status_replacement_configuration_an
         observed_revision_content_sha256=s.revision.revision_content_sha256,
     )
     await h.store.record_consumer_status_with_lifecycle(good)
-    configs = await h.store.list_configurations(account_id=s.obligation.account_id)
+    configs = await h.store.list_configurations(
+        caller=OwnershipCaller(s.obligation.account_id, "https://buyer.example.test/agent")
+    )
     await h.store.put_configuration(
         replace(
             configs[0],

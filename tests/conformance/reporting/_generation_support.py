@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
 import secrets
 from collections.abc import AsyncIterator, Callable
@@ -80,11 +81,14 @@ def require_rolling_database() -> None:
     pytest.importorskip("psycopg_pool")
 
 
-def configuration(account_id: str = "acct_a") -> ReportingConfiguration:
+def configuration(
+    account_id: str = "acct_a", *, consumer_id: str = "buyer"
+) -> ReportingConfiguration:
     return ReportingConfiguration(
         delivery_config_id="daily",
         delivery_config_version=1,
         account_id=account_id,
+        consumer_id=consumer_id,
         report_definition_id="hourly_delivery",
         reporting_profile="paid_media_delivery",
         feed_purpose="analytics",
@@ -106,8 +110,14 @@ def configuration(account_id: str = "acct_a") -> ReportingConfiguration:
 def obligation_for(config: ReportingConfiguration) -> ReportingObligationRecord:
     period = derive_period(config.schedule, account_timezone=config.account_timezone, ordinal=0)
     return ReportingObligationRecord(
-        reporting_obligation_id=f"rpo_{config.account_id}",
+        reporting_obligation_id=f"rpo_{config.account_id}"
+        + (
+            ""
+            if config.consumer_id == "buyer"
+            else "_" + hashlib.sha256(config.consumer_id.encode()).hexdigest()[:12]
+        ),
         account_id=config.account_id,
+        consumer_id=config.consumer_id,
         delivery_config_id=config.delivery_config_id,
         delivery_config_version=config.delivery_config_version,
         report_definition_id=config.report_definition_id,
@@ -129,7 +139,15 @@ def revision_for(
     obligation: ReportingObligationRecord, *, suffix: str = "first"
 ) -> tuple[ReportingRevisionRecord, list[dict[str, Any]]]:
     rows: list[dict[str, Any]] = [{"media_buy_id": obligation.media_buy_ids[0], "impressions": 5}]
-    revision_id = f"rpr_{obligation.account_id}_{suffix}"
+    revision_id = (
+        f"rpr_{obligation.account_id}_"
+        + (
+            ""
+            if obligation.consumer_id == "buyer"
+            else hashlib.sha256(obligation.consumer_id.encode()).hexdigest()[:12] + "_"
+        )
+        + suffix
+    )
     totals = (("impressions", "5"),)
     return (
         ReportingRevisionRecord(
