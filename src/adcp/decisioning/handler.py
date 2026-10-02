@@ -36,7 +36,7 @@ import inspect
 import logging
 import warnings
 from collections.abc import Awaitable, Callable, Mapping
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 from adcp._version import resolve_adcp_version
 from adcp.decisioning._get_products_helpers import _project_product_fields
@@ -1440,6 +1440,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         brand_authorization_gate: BrandAuthorizationGate | None = None,
         config_store: ProductConfigStore | None = None,
         property_list_fetcher: PropertyListFetcher | None = None,
+        property_list_filter_mode: Literal["sdk", "platform"] = "sdk",
         media_buy_store: MediaBuyStore | None = None,
         advertise_all: bool = False,
         timed_sync_get_products_limit: int | None = None,
@@ -1477,6 +1478,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._brand_authorization_gate = brand_authorization_gate
         self._config_store = config_store
         self._property_list_fetcher = property_list_fetcher
+        self._property_list_filter_mode = property_list_filter_mode
         self._media_buy_store = media_buy_store
         self._advertise_all = advertise_all
         # Compatibility adapters are authored by the adopter platform, while
@@ -2560,6 +2562,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 response=response,
                 fetcher=self._property_list_fetcher,
                 capability_enabled=property_list_capability_enabled(self._platform),
+                filter_mode=self._property_list_filter_mode,
             ),
         )
         if self._platform.capabilities.auto_paginate and params.pagination is not None:

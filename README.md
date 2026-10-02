@@ -115,6 +115,10 @@ serve(MySeller(), name="my-seller", test_controller=MyStore())
 
 Each skill file in [`skills/`](skills/) contains the complete pattern, response shapes, and validation loop for coding agents (Claude, Codex) to generate passing servers.
 
+Decisioning sellers can choose SDK or platform ownership of property-list
+filtering. Platform mode retains capability advertisement and skips SDK fetching
+and post-filtering; see [property-list filtering](docs/property-list-filtering.md).
+
 ### Multi-agent discovery manifest
 
 Every HTTP transport (`streamable-http`, `a2a`, `both`) automatically
