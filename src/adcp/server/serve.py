@@ -20,12 +20,14 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import inspect
 import logging
 import os
 import sys
 import warnings
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextvars import ContextVar
+from copy import deepcopy
 from dataclasses import dataclass
 from types import MethodType
 from typing import TYPE_CHECKING, Any, Literal
@@ -289,6 +291,7 @@ class ServeConfig:
 
     # --- MCP only ---
     instructions: str | None = None
+    mcp_result_text: MCPResultText | None = None
     streaming_responses: bool = False
     stateless_http: bool = False
     session_idle_timeout: float | None = 1800.0
@@ -346,6 +349,7 @@ class ServeConfig:
         # cleanly with the heuristic.
         _mcp_only = (
             "instructions",
+            "mcp_result_text",
             "streaming_responses",
             "stateless_http",
             "max_active_sessions",
@@ -370,6 +374,22 @@ class ServeConfig:
                     UserWarning,
                     stacklevel=3,
                 )
+
+
+MCPResultText = (
+    str
+    | Callable[
+        [str, dict[str, Any], ToolContext | None],
+        str | None | Awaitable[str | None],
+    ]
+)
+"""MCP-only success text: a response field name or sync/async callback.
+
+Callbacks run after response validation and context echo, on a detached copy of
+JSON-ready structured data. Return a string (including an empty string) for the
+text block, or None for the existing JSON fallback. Structured content is never
+changed. Prebuilt CallToolResult and error results retain their own text.
+"""
 
 
 SkillMiddleware = Callable[
@@ -749,7 +769,8 @@ and returns a ``ToolContext`` (or subclass).
 
 Example using ``contextvars`` (recommended — middleware-agnostic)::
 
-    from contextvars import ContextVar
+    from copy import deepcopy
+from contextvars import ContextVar
     from adcp.server import RequestMetadata, ToolContext, create_mcp_server
 
     _principal: ContextVar[str | None] = ContextVar(
@@ -793,6 +814,7 @@ def serve(
     port: int | None = None,
     host: str | None = None,
     transport: str = "streamable-http",
+    mcp_result_text: MCPResultText | None = None,
     instructions: str | None = None,
     test_controller: TestControllerStore | None = None,
     test_controller_account_resolver: Any | None = None,
@@ -1169,6 +1191,7 @@ def serve(
         host = config.host
         transport = config.transport
         instructions = config.instructions
+        mcp_result_text = config.mcp_result_text
         test_controller = config.test_controller
         context_factory = config.context_factory
         task_store = config.task_store
@@ -1289,6 +1312,7 @@ def serve(
             host=host,
             transport=transport,
             instructions=instructions,
+            mcp_result_text=mcp_result_text,
             test_controller=test_controller,
             test_controller_account_resolver=test_controller_account_resolver,
             context_factory=context_factory,
@@ -1319,6 +1343,7 @@ def serve(
             port=port,
             host=host,
             instructions=instructions,
+            mcp_result_text=mcp_result_text,
             test_controller=test_controller,
             test_controller_account_resolver=test_controller_account_resolver,
             context_factory=context_factory,
@@ -1747,6 +1772,7 @@ def _bind_reusable_socket(host: str, port: int) -> Any:
 def _serve_mcp(
     handler: ADCPHandler[Any],
     *,
+    mcp_result_text: MCPResultText | None = None,
     name: str,
     port: int | None,
     host: str | None = None,
@@ -1782,6 +1808,7 @@ def _serve_mcp(
         port=port,
         host=host,
         instructions=instructions,
+        mcp_result_text=mcp_result_text,
         include_test_controller=test_controller is not None,
         context_factory=context_factory,
         middleware=middleware,
@@ -2083,6 +2110,7 @@ def _serve_a2a(
 def _build_mcp_and_a2a_app(
     handler: ADCPHandler[Any],
     *,
+    mcp_result_text: MCPResultText | None = None,
     name: str,
     port: int,
     host: str,
@@ -2144,6 +2172,7 @@ def _build_mcp_and_a2a_app(
         port=port,
         host=host,
         instructions=instructions,
+        mcp_result_text=mcp_result_text,
         include_test_controller=test_controller is not None,
         context_factory=context_factory,
         middleware=middleware,
@@ -2303,6 +2332,7 @@ def _build_mcp_and_a2a_app(
 def _serve_mcp_and_a2a(
     handler: ADCPHandler[Any],
     *,
+    mcp_result_text: MCPResultText | None = None,
     name: str,
     port: int | None,
     host: str | None = None,
@@ -2366,6 +2396,7 @@ def _serve_mcp_and_a2a(
         port=resolved_port,
         host=resolved_host,
         instructions=instructions,
+        mcp_result_text=mcp_result_text,
         test_controller=test_controller,
         test_controller_account_resolver=test_controller_account_resolver,
         context_factory=context_factory,
@@ -2485,6 +2516,7 @@ def create_mcp_server(
     name: str = "adcp-agent",
     port: int | None = None,
     host: str | None = None,
+    mcp_result_text: MCPResultText | None = None,
     instructions: str | None = None,
     include_test_controller: bool = False,
     context_factory: ContextFactory | None = None,
@@ -2504,153 +2536,154 @@ def create_mcp_server(
 ) -> Any:
     """Create a FastMCP server from an ADCP handler without starting it.
 
-    Use this when you need to customize the server before running it,
-    or when you need to add extra non-ADCP tools.
+        Use this when you need to customize the server before running it,
+        or when you need to add extra non-ADCP tools.
 
-    Args:
-        handler: An ADCPHandler subclass instance.
-        name: Server name.
-        port: Port to listen on.
-        instructions: Optional system instructions.
-        include_test_controller: When False (default), skip registering
-            ``comply_test_controller`` as a handler tool. Sellers who want
-            compliance-testing support should pass ``test_controller=`` to
-            :func:`serve`, which registers a store-backed implementation
-            via :func:`register_test_controller` and sets this flag
-            implicitly. Registering the handler stub unconditionally would
-            advertise a tool the seller didn't opt into.
-        context_factory: Optional callable invoked per tool call to build
-            a :class:`ToolContext` from the incoming :class:`RequestMetadata`.
-            **Wiring this is how the server-side idempotency middleware
-            gets the caller identity and tenant it needs for per-principal
-            scoping** — a factory that returns ``caller_identity=None``
-            effectively disables idempotency dedup. Sellers wiring their
-            own HTTP auth middleware pass this to inject the authenticated
-            principal into ``ToolContext.caller_identity``. See
-            :data:`ContextFactory` for the recommended contextvars
-            pattern. When ``None``, handlers receive a bare
-            ``ToolContext()`` (no caller identity, no tenant).
-        middleware: Optional sequence of :data:`SkillMiddleware` callables
-            wrapping every tool dispatch. Symmetric with A2A's
-            ``create_a2a_server(middleware=...)`` — the same list works
-            on both transports. Use for audit logging, rate limiting,
-            tracing, activity-feed hooks. See :data:`SkillMiddleware`
-            for signature and composition semantics.
-        advertise_all: When True, advertise every tool the handler type
-            supports — even those whose method is still the SDK's
-            ``not_supported`` default. Defaults to ``False``, which
-            shrinks ``tools/list`` to only the tools the handler
-            actually implements (subclass overrode the method). See
-            :func:`~adcp.server.get_tools_for_handler` for semantics;
-            use ``True`` for spec-compliance storyboards or when you
-            deliberately want to expose a ``not_supported`` tool.
-        schema_mode: Pydantic-derived MCP input discovery shape.
-            ``"compact"`` (default) keeps every root request field while
-            bounding nested detail; ``"defs"`` keeps the complete referenced
-            schema; ``"inline"`` preserves the historical fully expanded
-            shape for clients that do not resolve local JSON Schema references.
-        host: Network interface to bind to. Defaults to the ``ADCP_HOST``
-            environment variable, then ``"0.0.0.0"`` (all interfaces).
-            Use ``"127.0.0.1"`` for local-only development.
-        streaming_responses: When ``False`` (default), the streamable-http
-            transport returns one ``application/json`` response per
-            request — the right shape for AdCP tools today (none of which
-            emit progress events). The FastMCP SSE-internal streaming
-            default also has an upstream bug that drops the ASGI response
-            without completing, blocking the storyboard runner. Set to
-            ``True`` only if your tools genuinely emit progress
-            notifications and your clients consume the SSE stream.
-        stateless_http: When ``False`` (default), MCP keeps a
-            per-client session task alive across requests so subsequent
-            ``tools/call`` posts skip the per-request transport-
-            construction tax — meaningfully faster for chatty clients,
-            and the only mode where ``StreamableHTTPSessionManager``'s
-            idle-reap path actually runs. (Stateless mode in upstream
-            MCP holds GET-SSE streams open with no idle eviction —
-            connections accumulate.) The SDK threads the originating
-            Starlette ``Request`` into
-            ``RequestMetadata.request_context``; the bundled
-            :func:`~adcp.server.auth_context_factory` reads auth off
-            ``request.state`` and works in both stateless and stateful.
-            Custom factories using :mod:`contextvars` set in ASGI
-            middleware should migrate — those vars do NOT propagate
-            from the HTTP request task to the stateful session's
-            dispatch task. Multi-replica stateful deployments need
-            sticky load balancing on ``Mcp-Session-Id``; set
-            ``stateless_http=True`` only when affinity isn't possible.
-            Do not memoize per-call state on ``mcp.Context`` or
-            session-manager-scoped objects in stateful mode — that
-            smears identity across calls.
-        session_idle_timeout: Idle reap deadline (seconds) for stateful
-            sessions. Each request pushes the deadline forward; idle
-            sessions are terminated and their per-session state freed.
-            Defaults to 1800 (30 minutes); set to ``None`` to disable
-            reaping. Ignored when ``stateless_http=True``. Required
-            because without it
-            ``StreamableHTTPSessionManager._server_instances`` grows
-            without bound for clients that disconnect without DELETE.
-        max_active_sessions: Optional cap for active stateful MCP
-            sessions. When the cap is reached, new session-creating
-            requests are rejected with HTTP 429; requests that carry an
-            existing ``Mcp-Session-Id`` continue. Set this on public or
-            service-to-service sellers that need a hard ceiling against
-            clients opening one session per operation. Ignored when
-            ``stateless_http=True``.
-        response_enhancer: Optional server-wide
-            :data:`~adcp.server.ResponseEnhancer` applied to successes and
-            raised-error responses after the context echo and, for
-            successes, before schema validation. See
-            :data:`~adcp.server.ResponseEnhancer` for the exact coverage
-            (including two non-enhanced paths), supported arities, and
-            failure / idempotency semantics.
+        Args:
+            handler: An ADCPHandler subclass instance.
+            name: Server name.
+            port: Port to listen on.
+            instructions: Optional system instructions.
+            include_test_controller: When False (default), skip registering
+                ``comply_test_controller`` as a handler tool. Sellers who want
+                compliance-testing support should pass ``test_controller=`` to
+                :func:`serve`, which registers a store-backed implementation
+                via :func:`register_test_controller` and sets this flag
+                implicitly. Registering the handler stub unconditionally would
+                advertise a tool the seller didn't opt into.
+            context_factory: Optional callable invoked per tool call to build
+                a :class:`ToolContext` from the incoming :class:`RequestMetadata`.
+                **Wiring this is how the server-side idempotency middleware
+                gets the caller identity and tenant it needs for per-principal
+                scoping** — a factory that returns ``caller_identity=None``
+                effectively disables idempotency dedup. Sellers wiring their
+                own HTTP auth middleware pass this to inject the authenticated
+                principal into ``ToolContext.caller_identity``. See
+                :data:`ContextFactory` for the recommended contextvars
+                pattern. When ``None``, handlers receive a bare
+                ``ToolContext()`` (no caller identity, no tenant).
+            middleware: Optional sequence of :data:`SkillMiddleware` callables
+                wrapping every tool dispatch. Symmetric with A2A's
+                ``create_a2a_server(middleware=...)`` — the same list works
+                on both transports. Use for audit logging, rate limiting,
+                tracing, activity-feed hooks. See :data:`SkillMiddleware`
+                for signature and composition semantics.
+            advertise_all: When True, advertise every tool the handler type
+                supports — even those whose method is still the SDK's
+                ``not_supported`` default. Defaults to ``False``, which
+                shrinks ``tools/list`` to only the tools the handler
+                actually implements (subclass overrode the method). See
+                :func:`~adcp.server.get_tools_for_handler` for semantics;
+                use ``True`` for spec-compliance storyboards or when you
+                deliberately want to expose a ``not_supported`` tool.
+            schema_mode: Pydantic-derived MCP input discovery shape.
+                ``"compact"`` (default) keeps every root request field while
+                bounding nested detail; ``"defs"`` keeps the complete referenced
+                schema; ``"inline"`` preserves the historical fully expanded
+                shape for clients that do not resolve local JSON Schema references.
+            host: Network interface to bind to. Defaults to the ``ADCP_HOST``
+                environment variable, then ``"0.0.0.0"`` (all interfaces).
+                Use ``"127.0.0.1"`` for local-only development.
+            streaming_responses: When ``False`` (default), the streamable-http
+                transport returns one ``application/json`` response per
+                request — the right shape for AdCP tools today (none of which
+                emit progress events). The FastMCP SSE-internal streaming
+                default also has an upstream bug that drops the ASGI response
+                without completing, blocking the storyboard runner. Set to
+                ``True`` only if your tools genuinely emit progress
+                notifications and your clients consume the SSE stream.
+            stateless_http: When ``False`` (default), MCP keeps a
+                per-client session task alive across requests so subsequent
+                ``tools/call`` posts skip the per-request transport-
+                construction tax — meaningfully faster for chatty clients,
+                and the only mode where ``StreamableHTTPSessionManager``'s
+                idle-reap path actually runs. (Stateless mode in upstream
+                MCP holds GET-SSE streams open with no idle eviction —
+                connections accumulate.) The SDK threads the originating
+                Starlette ``Request`` into
+                ``RequestMetadata.request_context``; the bundled
+                :func:`~adcp.server.auth_context_factory` reads auth off
+                ``request.state`` and works in both stateless and stateful.
+                Custom factories using :mod:`contextvars` set in ASGI
+                middleware should migrate — those vars do NOT propagate
+                from the HTTP request task to the stateful session's
+                dispatch task. Multi-replica stateful deployments need
+                sticky load balancing on ``Mcp-Session-Id``; set
+                ``stateless_http=True`` only when affinity isn't possible.
+                Do not memoize per-call state on ``mcp.Context`` or
+                session-manager-scoped objects in stateful mode — that
+                smears identity across calls.
+            session_idle_timeout: Idle reap deadline (seconds) for stateful
+                sessions. Each request pushes the deadline forward; idle
+                sessions are terminated and their per-session state freed.
+                Defaults to 1800 (30 minutes); set to ``None`` to disable
+                reaping. Ignored when ``stateless_http=True``. Required
+                because without it
+                ``StreamableHTTPSessionManager._server_instances`` grows
+                without bound for clients that disconnect without DELETE.
+            max_active_sessions: Optional cap for active stateful MCP
+                sessions. When the cap is reached, new session-creating
+                requests are rejected with HTTP 429; requests that carry an
+                existing ``Mcp-Session-Id`` continue. Set this on public or
+                service-to-service sellers that need a hard ceiling against
+                clients opening one session per operation. Ignored when
+                ``stateless_http=True``.
+            response_enhancer: Optional server-wide
+                :data:`~adcp.server.ResponseEnhancer` applied to successes and
+                raised-error responses after the context echo and, for
+                successes, before schema validation. See
+                :data:`~adcp.server.ResponseEnhancer` for the exact coverage
+                (including two non-enhanced paths), supported arities, and
+                failure / idempotency semantics.
 
-    Returns:
-        A configured FastMCP server instance. Call ``mcp.run()`` to start,
-        or ``mcp.streamable_http_app()`` to get the Starlette ASGI app for
-        mounting behind a reverse proxy / adding HTTP middleware.
+        Returns:
+            A configured FastMCP server instance. Call ``mcp.run()`` to start,
+            or ``mcp.streamable_http_app()`` to get the Starlette ASGI app for
+            mounting behind a reverse proxy / adding HTTP middleware.
 
-    Authentication:
-        The SDK does not enforce authentication itself. Two integration
-        patterns work:
+        Authentication:
+            The SDK does not enforce authentication itself. Two integration
+            patterns work:
 
-        1. **Reverse-proxy auth** (simplest): the proxy (nginx, Caddy,
-           Envoy) validates credentials and forwards only authenticated
-           requests. The SDK trusts the proxy's decision.
+            1. **Reverse-proxy auth** (simplest): the proxy (nginx, Caddy,
+               Envoy) validates credentials and forwards only authenticated
+               requests. The SDK trusts the proxy's decision.
 
-        2. **In-process HTTP middleware**: call
-           ``mcp.streamable_http_app()`` to get the Starlette app, then
-           ``app.add_middleware(YourAuthMiddleware)``. The middleware
-           extracts auth state per request (token, tenant, principal)
-           into ContextVars; ``context_factory`` reads those to build a
-           typed ``ToolContext``. Tools in
-           :data:`adcp.server.DISCOVERY_TOOLS` (``get_adcp_capabilities``)
-           should bypass auth per AdCP spec. See
-           ``examples/mcp_with_auth_middleware.py`` and
-           ``docs/handler-authoring.md``.
+            2. **In-process HTTP middleware**: call
+               ``mcp.streamable_http_app()`` to get the Starlette app, then
+               ``app.add_middleware(YourAuthMiddleware)``. The middleware
+               extracts auth state per request (token, tenant, principal)
+               into ContextVars; ``context_factory`` reads those to build a
+               typed ``ToolContext``. Tools in
+               :data:`adcp.server.DISCOVERY_TOOLS` (``get_adcp_capabilities``)
+               should bypass auth per AdCP spec. See
+               ``examples/mcp_with_auth_middleware.py`` and
+               ``docs/handler-authoring.md``.
 
-    Example (basic):
-        >>> mcp = create_mcp_server(MyAgent(), name="my-agent")
-        >>> mcp.run(transport="streamable-http")
+        Example (basic):
+            >>> mcp = create_mcp_server(MyAgent(), name="my-agent")
+            >>> mcp.run(transport="streamable-http")
 
-    Example (custom auth + typed context via contextvars):
-        >>> from contextvars import ContextVar
-        >>> from adcp.server import RequestMetadata, ToolContext, create_mcp_server
-        >>>
-        >>> _principal: ContextVar[str | None] = ContextVar("p", default=None)
-        >>> _tenant: ContextVar[str | None] = ContextVar("t", default=None)
-        >>>
-        >>> def build_context(meta: RequestMetadata) -> ToolContext:
-        ...     return ToolContext(
-        ...         caller_identity=_principal.get(),
-        ...         tenant_id=_tenant.get(),
-        ...     )
-        >>>
-        >>> mcp = create_mcp_server(
-        ...     MyAgent(), name="my-agent", context_factory=build_context
-        ... )
-        >>> app = mcp.streamable_http_app()
-        >>> app.add_middleware(MyAuthMiddleware)  # sets the ContextVars
-        >>> # run via uvicorn
+        Example (custom auth + typed context via contextvars):
+            >>> from copy import deepcopy
+    from contextvars import ContextVar
+            >>> from adcp.server import RequestMetadata, ToolContext, create_mcp_server
+            >>>
+            >>> _principal: ContextVar[str | None] = ContextVar("p", default=None)
+            >>> _tenant: ContextVar[str | None] = ContextVar("t", default=None)
+            >>>
+            >>> def build_context(meta: RequestMetadata) -> ToolContext:
+            ...     return ToolContext(
+            ...         caller_identity=_principal.get(),
+            ...         tenant_id=_tenant.get(),
+            ...     )
+            >>>
+            >>> mcp = create_mcp_server(
+            ...     MyAgent(), name="my-agent", context_factory=build_context
+            ... )
+            >>> app = mcp.streamable_http_app()
+            >>> app.add_middleware(MyAuthMiddleware)  # sets the ContextVars
+            >>> # run via uvicorn
     """
     from mcp.server import MCPServer
     from mcp.server.transport_security import TransportSecuritySettings
@@ -2727,6 +2760,7 @@ def create_mcp_server(
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
         response_enhancer=response_enhancer,
+        mcp_result_text=mcp_result_text,
     )
     if session_idle_timeout is not None and session_idle_timeout <= 0:
         raise ValueError(
@@ -2872,6 +2906,7 @@ def _register_handler_tools(
     mcp: Any,
     handler: ADCPHandler[Any],
     *,
+    mcp_result_text: MCPResultText | None = None,
     include_test_controller: bool = False,
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
@@ -2926,6 +2961,7 @@ def _register_handler_tools(
             middleware=middleware_tuple,
             output_schema=output_schema,
             response_enhancer=response_enhancer,
+            mcp_result_text=mcp_result_text,
         )
         registered.append(tool_name)
 
@@ -2944,6 +2980,7 @@ def _register_tool(
     input_schema: dict[str, Any],
     caller: Callable[..., Any],
     *,
+    mcp_result_text: MCPResultText | None = None,
     context_factory: ContextFactory | None = None,
     middleware: tuple[SkillMiddleware, ...] = (),
     output_schema: dict[str, Any] | None = None,
@@ -3084,10 +3121,32 @@ def _register_tool(
         if isinstance(result, CallToolResult):
             return result  # type: ignore[return-value]
         if hasattr(result, "model_dump"):
-            return result.model_dump(mode="json", exclude_none=True)  # type: ignore[no-any-return]
-        if isinstance(result, dict):
-            return result
-        return {"result": result}
+            result_dict = result.model_dump(mode="json", exclude_none=True)
+        elif isinstance(result, dict):
+            result_dict = result
+        else:
+            result_dict = {"result": result}
+        if mcp_result_text is not None:
+            if isinstance(mcp_result_text, str):
+                summary = result_dict.get(mcp_result_text)
+                if not isinstance(summary, str):
+                    summary = None
+            else:
+                # A formatter cannot mutate the canonical payload, even if it
+                # annotates a nested product while composing its summary.
+                summary = mcp_result_text(name, deepcopy(result_dict), context)
+                if inspect.isawaitable(summary):
+                    summary = await summary
+            if summary is not None:
+                if not isinstance(summary, str):
+                    raise TypeError("mcp_result_text must return str or None")
+                from mcp.types import TextContent
+
+                return CallToolResult(  # type: ignore[return-value]
+                    content=[TextContent(type="text", text=summary)],
+                    structured_content=result_dict,
+                )
+        return result_dict  # type: ignore[no-any-return]
 
     # Create tool from function (gives us proper fn_metadata scaffolding)
     tool = Tool.from_function(fn, name=name, description=description, structured_output=True)
@@ -3110,19 +3169,15 @@ def _register_tool(
             return result
 
     class _AdcpFuncMetadata(FuncMetadata):
-        """FuncMetadata that skips success-path output validation for error
-        ``CallToolResult`` returns.
+        """Keep prebuilt success/error envelopes intact through MCP conversion.
 
-        FastMCP's stock ``convert_result`` validates ``result.structuredContent``
-        against the success-path ``output_model`` whenever the tool returns a
-        ``CallToolResult`` — but when the framework projects an ``AdcpError``
-        as ``{"adcp_error": {...}}``, that payload doesn't conform to the
-        success schema. Skip validation for ``isError=True`` envelopes; success
-        envelopes still validate normally.
+        Handler dictionaries have already gone through SDK validation. MCP
+        summaries carry that same structured payload; passing through avoids
+        wrapping content a second time. Error envelopes use a different schema.
         """
 
         def convert_result(self, result: Any) -> Any:
-            if isinstance(result, CallToolResult) and result.is_error:
+            if isinstance(result, CallToolResult):
                 return result
             return super().convert_result(result)
 

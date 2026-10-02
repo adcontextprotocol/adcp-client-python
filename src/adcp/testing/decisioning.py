@@ -53,6 +53,7 @@ if TYPE_CHECKING:
         ASGIMiddlewareEntry,
         ContextFactory,
         LifespanHook,
+        MCPResultText,
         SkillMiddleware,
     )
     from adcp.server.spec_compat import PreValidationHooks
@@ -162,6 +163,7 @@ def build_asgi_app(
     discovery_base_url: str | None = None,
     pre_validation_hooks: PreValidationHooks | None = None,
     response_enhancer: ResponseEnhancer | None = None,
+    mcp_result_text: MCPResultText | None = None,
     on_startup: Sequence[LifespanHook] | None = None,
     on_shutdown: Sequence[LifespanHook] | None = None,
     **factory_kwargs: Any,
@@ -341,6 +343,7 @@ def build_asgi_app(
             validation=validation,
             pre_validation_hooks=pre_validation_hooks,
             response_enhancer=response_enhancer,
+            mcp_result_text=mcp_result_text,
             base_url=discovery_base_url,
             allowed_hosts=allowed_hosts,
             allowed_origins=allowed_origins,
@@ -387,6 +390,7 @@ def build_asgi_app(
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
         response_enhancer=response_enhancer,
+        mcp_result_text=mcp_result_text,
     )
     # Mirror the wrapping chain from _run_mcp_http (adcp.server.serve).
     # auth must be innermost so its JSON-RPC body-peek runs before the
@@ -434,6 +438,7 @@ async def build_test_client(
     discovery_base_url: str | None = None,
     pre_validation_hooks: PreValidationHooks | None = None,
     response_enhancer: ResponseEnhancer | None = None,
+    mcp_result_text: MCPResultText | None = None,
     on_startup: Sequence[LifespanHook] | None = None,
     on_shutdown: Sequence[LifespanHook] | None = None,
     **factory_kwargs: Any,
@@ -565,6 +570,7 @@ async def build_test_client(
         discovery_base_url=discovery_base_url,
         pre_validation_hooks=pre_validation_hooks,
         response_enhancer=response_enhancer,
+        mcp_result_text=mcp_result_text,
         on_startup=on_startup,
         on_shutdown=on_shutdown,
         **factory_kwargs,
@@ -572,6 +578,7 @@ async def build_test_client(
     async with LifespanManager(app):
         async with _httpx.AsyncClient(
             transport=_httpx.ASGITransport(app=app),
+            timeout=5.0,
             base_url=base_url,
             headers=headers,
             follow_redirects=follow_redirects,
