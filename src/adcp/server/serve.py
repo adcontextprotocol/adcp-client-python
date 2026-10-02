@@ -1913,7 +1913,10 @@ def _run_mcp_http(
             mcp_path,
             transport,
         )
-        config = uvicorn.Config(app, log_level=log_level)
+        # Storyboard/MCP clients reuse pooled sockets between tool calls.
+        # Five-second idle expiry races their next request and can drop a
+        # mutation before the client receives its response.
+        config = uvicorn.Config(app, log_level=log_level, timeout_keep_alive=30)
         server = uvicorn.Server(config)
 
         async def _serve() -> None:
@@ -2068,7 +2071,7 @@ def _serve_a2a(
         # also see one framework-controlled line confirming the
         # listener is up.
         logger.info("A2A listening on http://0.0.0.0:%s/", resolved_port)
-        config = uvicorn.Config(app)
+        config = uvicorn.Config(app, timeout_keep_alive=30)
         server = uvicorn.Server(config)
         import anyio
 
@@ -2405,7 +2408,7 @@ def _serve_mcp_and_a2a(
             resolved_host,
             resolved_port,
         )
-        config = uvicorn.Config(app, log_level=log_level)
+        config = uvicorn.Config(app, log_level=log_level, timeout_keep_alive=30)
         server = uvicorn.Server(config)
 
         async def _serve() -> None:

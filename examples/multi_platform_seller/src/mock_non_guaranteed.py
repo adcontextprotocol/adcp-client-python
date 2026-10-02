@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import threading
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
@@ -36,6 +36,7 @@ from adcp.decisioning.capabilities import (
     MediaBuy,
     SupportedProtocol,
 )
+from adcp.server.responses import media_buy_response, update_media_buy_response
 
 # ---------------------------------------------------------------------------
 # In-memory model
@@ -78,6 +79,12 @@ class _MediaBuy:
     end_time: datetime
     status: str = "pending_creatives"
     creatives_attached: int = 0
+    revision: int = 1
+    confirmed_at: str = field(
+        default_factory=lambda: (
+            datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+        )
+    )
 
 
 _DEFAULT_CATALOG: list[_Product] = [
@@ -162,7 +169,39 @@ class MockNonGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
         req: Any,
         ctx: RequestContext[Any],
     ) -> dict[str, Any]:
-        return {"products": [_project_product_to_wire(p) for p in self._catalog.values()]}
+        return {
+            "products": [
+                _project_product_to_wire(
+                    p,
+                    fixed_price=(
+                        (p.floor_cpm_usd * self._clearing_multiplier)
+                        if _attr(_attr(req, "filters", {}), "is_fixed_price") is True
+                        else None
+                    ),
+                )
+                for p in self._catalog.values()
+            ],
+            "cache_scope": "public",
+        }
+
+    def list_products(self, req: Any, ctx: RequestContext[Any]) -> dict[str, Any]:
+        """Return the compact catalog page; outcome criteria are inert here."""
+        products = [
+            {
+                key: value
+                for key, value in product.items()
+                if key
+                not in {"format_ids", "delivery_measurement", "available_inventory_impressions"}
+            }
+            for product in self.get_products(req, ctx)["products"]
+        ]
+        limit = _attr(req, "max_results")
+        return {
+            "outcome": "listed",
+            "products": products[:limit] if limit else products,
+            "feed_version": "demo-catalog-v1",
+            "cache_scope": "public",
+        }
 
     def create_media_buy(
         self,
@@ -241,19 +280,15 @@ class MockNonGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
                 end_time=end_time,
             )
 
-        return {
-            "media_buy_id": media_buy_id,
-            "buyer_ref": buyer_ref,
-            "status": "pending_creatives",
-            "packages": [
-                {
-                    "package_id": pkg.package_id,
-                    "buyer_ref": pkg.buyer_ref,
-                    "status": "pending_creatives",
-                }
-                for pkg in resolved
-            ],
-        }
+        return media_buy_response(
+            media_buy_id,
+            [{"package_id": pkg.package_id, "buyer_ref": pkg.buyer_ref} for pkg in resolved],
+            buyer_ref=buyer_ref,
+            status="pending_creatives",
+            revision=1,
+            confirmed_at=self._buys[media_buy_id].confirmed_at,
+            sandbox=ctx.account.mode == "sandbox",
+        )
 
     def update_media_buy(
         self,
@@ -279,6 +314,17 @@ class MockNonGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
                     recovery="correctable",
                     field="media_buy_id",
                 )
+
+            new_state = _read_target_state(patch)
+            if new_state == "canceled" and buy.status in {"canceled", "completed", "failed"}:
+                raise AdcpError(
+                    "NOT_CANCELLABLE",
+                    message=f"media buy is already {buy.status}.",
+                    recovery="correctable",
+                    field="canceled",
+                )
+            if new_state is not None:
+                assert_media_buy_transition(buy.status, new_state, media_buy_id=media_buy_id)
 
             patch_packages = _read_packages(patch) or []
             existing_by_id = {p.package_id: p for p in buy.packages}
@@ -308,24 +354,17 @@ class MockNonGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
                 if assignments is not None:
                     target.creative_assignments = assignments
 
-            new_state = _read_target_state(patch)
             if new_state is not None:
-                assert_media_buy_transition(buy.status, new_state, media_buy_id=media_buy_id)
                 buy.status = new_state
+            buy.revision += 1
 
-        return {
-            "media_buy_id": media_buy_id,
-            "buyer_ref": buy.buyer_ref,
-            "status": buy.status,
-            "packages": [
-                {
-                    "package_id": pkg.package_id,
-                    "buyer_ref": pkg.buyer_ref,
-                    "status": buy.status,
-                }
-                for pkg in buy.packages
-            ],
-        }
+        return update_media_buy_response(
+            media_buy_id,
+            affected_packages=[{"package_id": pkg.package_id} for pkg in buy.packages],
+            status=buy.status,
+            revision=buy.revision,
+            sandbox=ctx.account.mode == "sandbox",
+        )
 
     def sync_creatives(
         self,
@@ -360,6 +399,7 @@ class MockNonGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
                     assert_media_buy_transition(buy.status, "active", media_buy_id=buy.media_buy_id)
                     buy.status = "active"
                     buy.creatives_attached += len(creatives)
+                    buy.revision += 1
             for i, c in enumerate(creatives):
                 stored = _project_creative_to_wire(c, i)
                 self._creatives[stored["creative_id"]] = stored
@@ -469,7 +509,9 @@ class MockNonGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
 # ---------------------------------------------------------------------------
 
 
-def _project_product_to_wire(product: _Product) -> dict[str, Any]:
+def _project_product_to_wire(
+    product: _Product, *, fixed_price: float | None = None
+) -> dict[str, Any]:
     return {
         "product_id": product.product_id,
         "name": product.name,
@@ -486,9 +528,13 @@ def _project_product_to_wire(product: _Product) -> dict[str, Any]:
         ],
         "pricing_options": [
             {
-                "pricing_option_id": "po-cpm-floor",
+                "pricing_option_id": "po-cpm-fixed" if fixed_price is not None else "po-cpm-floor",
                 "pricing_model": "cpm",
-                "floor_price": product.floor_cpm_usd,
+                **(
+                    {"fixed_price": fixed_price}
+                    if fixed_price is not None
+                    else {"floor_price": product.floor_cpm_usd}
+                ),
                 "currency": "USD",
             },
         ],
@@ -547,6 +593,11 @@ def _read_pkg_buyer_ref(pkg: Any, idx: int) -> str:
 def _read_target_state(patch: Any) -> str | None:
     if patch is None:
         return None
+    if _attr(patch, "canceled", None) is True:
+        return "canceled"
+    paused = _attr(patch, "paused", None)
+    if paused is not None:
+        return "paused" if paused else "active"
     active = _attr(patch, "active", None)
     if active is True:
         return "active"
@@ -676,10 +727,14 @@ def _project_media_buy_to_wire(buy: _MediaBuy) -> dict[str, Any]:
         }
         if pkg.targeting_overlay is not None:
             wire_pkg["targeting_overlay"] = pkg.targeting_overlay
+        if pkg.measurement_terms is not None:
+            wire_pkg["measurement_terms"] = pkg.measurement_terms
         packages.append(wire_pkg)
     return {
         "media_buy_id": buy.media_buy_id,
         "status": buy.status,
+        "revision": buy.revision,
+        "confirmed_at": buy.confirmed_at,
         "currency": "USD",
         "total_budget": buy.total_budget_usd,
         "start_time": buy.start_time.isoformat(),
