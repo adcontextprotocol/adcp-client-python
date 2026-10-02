@@ -14,9 +14,11 @@ import json
 import logging
 import re
 import socket
+from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, TypeAlias
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
@@ -26,6 +28,7 @@ from pydantic import ValidationError as PydanticValidationError
 
 from adcp.exceptions import (
     AdagentsAccessBlockedError,
+    AdagentsHTTPError,
     AdagentsNotFoundError,
     AdagentsTimeoutError,
     AdagentsValidationError,
@@ -38,6 +41,15 @@ logger = logging.getLogger(__name__)
 
 DiscoveryMethod = Literal["direct", "authoritative_location", "ads_txt_managerdomain"]
 PropertyResolutionMode = Literal["strict", "permissive"]
+AdagentsTransportFactory: TypeAlias = Callable[
+    [str, float], AbstractAsyncContextManager[httpx.AsyncClient]
+]
+"""Create a fresh SDK-owned client context for a URL and timeout in seconds.
+
+The SDK still applies URL/DNS gates, size caps and explicit redirect policies.
+A custom factory owns transport-level DNS pinning, proxy and credential policy;
+use the default factory for SDK-provided DNS-rebinding protection.
+"""
 _BARE_AUTHORIZED_AGENT_KEYS = {"url", "authorized_for"}
 _CATALOG_CONTENT_FIELDS = ("formats", "properties", "placements", "collections", "signals")
 _COMMUNITY_FORMAT_REGISTRY_ORIGIN = ("https", "creative.adcontextprotocol.org", 443)
@@ -150,10 +162,10 @@ _MANAGERDOMAIN_RE = re.compile(
 )
 
 
-def _parse_managerdomains(ads_txt_content: str) -> list[str]:
+def parse_managerdomains(ads_txt_content: str) -> list[str]:
     """Extract MANAGERDOMAIN= directives from ads.txt content.
 
-    Per RFC 4175 / IAB ads.txt: only directive-form lines
+    Per IAB ads.txt: only directive-form lines
     (``MANAGERDOMAIN=value``) count — pure comment lines beginning with
     ``#`` are rejected. Order in source is preserved so callers can
     apply last-wins.
@@ -167,6 +179,10 @@ def _parse_managerdomains(ads_txt_content: str) -> list[str]:
         if match:
             managers.append(match.group(1).lower())
     return managers
+
+
+# Preserve the former private spelling for existing integrations.
+_parse_managerdomains = parse_managerdomains
 
 
 def _normalize_domain(domain: str) -> str:
@@ -672,6 +688,9 @@ async def _resolve_direct(
     user_agent: str,
     client: httpx.AsyncClient | None,
     cache_entry: AdagentsCacheEntry | None = None,
+    *,
+    validate_structure: bool = True,
+    transport_factory: AdagentsTransportFactory | None = None,
 ) -> tuple[dict[str, Any], DiscoveryMethod, str | None, str | None, bool]:
     """Direct fetch with authoritative_location redirect following.
 
@@ -718,6 +737,8 @@ async def _resolve_direct(
                     fetch_client,
                     max_bytes=max_bytes,
                     cache_entry=hop_cache,
+                    validate_structure=validate_structure,
+                    transport_factory=transport_factory,
                 )
             else:
                 data, etag, last_modified, not_modified = await _fetch_well_known_adagents_url(
@@ -728,6 +749,8 @@ async def _resolve_direct(
                     original_hostname=publisher_domain,
                     max_bytes=max_bytes,
                     cache_entry=hop_cache,
+                    validate_structure=validate_structure,
+                    transport_factory=transport_factory,
                 )
         except AdagentsNotFoundError:
             # A 404 on a followed authoritative_location target is a broken
@@ -785,6 +808,8 @@ async def _fetch_ads_txt_managerdomains(
     timeout: float,
     user_agent: str,
     client: httpx.AsyncClient | None,
+    *,
+    transport_factory: AdagentsTransportFactory | None = None,
 ) -> list[str]:
     """Fetch /ads.txt for publisher and return MANAGERDOMAIN= directives in order.
 
@@ -813,7 +838,7 @@ async def _fetch_ads_txt_managerdomains(
                 url, headers=headers, timeout=timeout, follow_redirects=False
             )
         else:
-            async with _owned_pinned_client(url, timeout) as new_client:
+            async with (transport_factory or _owned_pinned_client)(url, timeout) as new_client:
                 response = await new_client.get(
                     url, headers=headers, timeout=timeout, follow_redirects=False
                 )
@@ -857,6 +882,9 @@ async def fetch_adagents(
     timeout: float = 10.0,
     user_agent: str = "AdCP-Client/1.0",
     client: httpx.AsyncClient | None = None,
+    *,
+    validate_structure: bool = True,
+    transport_factory: AdagentsTransportFactory | None = None,
 ) -> dict[str, Any]:
     """Fetch and parse adagents.json from publisher domain.
 
@@ -865,7 +893,7 @@ async def fetch_adagents(
     1. ``https://{publisher}/.well-known/adagents.json`` (direct).
     2. ``authoritative_location`` redirect, if the direct response is a
        URL reference.
-    3. RFC 4175 ads.txt MANAGERDOMAIN fallback, on direct 404 only:
+    3. IAB ads.txt MANAGERDOMAIN fallback, on direct 404 only:
        fetches ``https://{publisher}/ads.txt`` for a
        ``MANAGERDOMAIN=`` directive and, if present, tries
        ``https://{manager}/.well-known/adagents.json``.
@@ -878,9 +906,14 @@ async def fetch_adagents(
         publisher_domain: Domain hosting the adagents.json file.
         timeout: Request timeout in seconds.
         user_agent: User-Agent header for HTTP request.
-        client: Optional httpx.AsyncClient for connection pooling.
-            If provided, caller is responsible for client lifecycle.
-            If None, a new client is created for this request.
+        client: Optional caller-owned client for the initial publisher request.
+            The caller controls its transport and lifecycle. Redirect targets
+            and manager manifests use fresh SDK-owned client contexts.
+        validate_structure: Validate authorization entry structure (default True).
+            False permits bare entries without relaxing fetch security checks.
+        transport_factory: Optional factory for SDK-owned hops, receiving the URL
+            and timeout. Defaults to an IP-pinned, proxy-disabled client. Custom
+            factories must supply their own transport-level rebinding protection.
 
     Returns:
         Parsed adagents.json data (resolved via authoritative_location
@@ -892,6 +925,8 @@ async def fetch_adagents(
         AdagentsAccessBlockedError: If the publisher's CDN returns HTTP
             403 with ``cf-mitigated: challenge`` (Cloudflare bot-management
             block). Subclass of ``AdagentsValidationError``.
+        AdagentsHTTPError: On other unsuccessful HTTP statuses; carries
+            ``status_code`` and ``url`` and subclasses AdagentsValidationError.
         AdagentsValidationError: If JSON is invalid, malformed, or
             redirects exceed maximum depth or form a loop.
         AdagentsTimeoutError: If request times out.
@@ -904,19 +939,32 @@ async def fetch_adagents(
         data (direct, authoritative_location, or ads_txt_managerdomain)
         should call :func:`validate_adagents_domain` instead.
 
-        ``fetch_adagents`` performs only minimal structural checks. To
-        report per-entry schema violations (e.g., bare entries missing
-        ``authorization_type``) without raising, pass the returned data
-        to :func:`validate_adagents_structure`.
+        Strict authorization structure validation is enabled by default.
+        Pass ``validate_structure=False`` to fetch bare-entry documents, then
+        inspect :func:`validate_adagents_structure` and explicitly choose a
+        :func:`resolve_properties_for_agent` mode. This opt-out preserves JSON,
+        endpoint, renderer-origin, SSRF and body-size checks.
     """
     publisher_domain = _validate_publisher_domain(publisher_domain)
 
     try:
-        data, *_ = await _resolve_direct(publisher_domain, timeout, user_agent, client)
+        data, *_ = await _resolve_direct(
+            publisher_domain,
+            timeout,
+            user_agent,
+            client,
+            validate_structure=validate_structure,
+            transport_factory=transport_factory,
+        )
         return data
     except AdagentsNotFoundError:
         manager_data = await _try_managerdomain_fallback(
-            publisher_domain, timeout, user_agent, client
+            publisher_domain,
+            timeout,
+            user_agent,
+            client,
+            validate_structure=validate_structure,
+            transport_factory=transport_factory,
         )
         if manager_data is not None:
             return manager_data
@@ -929,6 +977,9 @@ async def fetch_adagents_with_cache(
     timeout: float = 10.0,
     user_agent: str = "AdCP-Client/1.0",
     client: httpx.AsyncClient | None = None,
+    *,
+    validate_structure: bool = True,
+    transport_factory: AdagentsTransportFactory | None = None,
 ) -> AdagentsFetchResult:
     """Fetch with conditional refresh — returns body plus refreshed validators.
 
@@ -951,7 +1002,13 @@ async def fetch_adagents_with_cache(
     """
     publisher_domain = _validate_publisher_domain(publisher_domain)
     data, discovery, etag, last_modified, not_modified = await _resolve_direct(
-        publisher_domain, timeout, user_agent, client, cache_entry=cache_entry
+        publisher_domain,
+        timeout,
+        user_agent,
+        client,
+        cache_entry=cache_entry,
+        validate_structure=validate_structure,
+        transport_factory=transport_factory,
     )
     return AdagentsFetchResult(
         data=data,
@@ -967,6 +1024,9 @@ async def _try_managerdomain_fallback(
     timeout: float,
     user_agent: str,
     client: httpx.AsyncClient | None,
+    *,
+    validate_structure: bool = True,
+    transport_factory: AdagentsTransportFactory | None = None,
 ) -> dict[str, Any] | None:
     """One-hop ads.txt MANAGERDOMAIN fallback. Returns data on success.
 
@@ -975,7 +1035,9 @@ async def _try_managerdomain_fallback(
     domain's adagents.json cannot be fetched. Callers translate ``None``
     into the publisher's original 404.
     """
-    managers = await _fetch_ads_txt_managerdomains(publisher_domain, timeout, user_agent, client)
+    managers = await _fetch_ads_txt_managerdomains(
+        publisher_domain, timeout, user_agent, client, transport_factory=transport_factory
+    )
     if not managers:
         return None
 
@@ -994,7 +1056,12 @@ async def _try_managerdomain_fallback(
         # Manager domain is a different origin from the publisher; use a fresh
         # client rather than the caller's so credentials don't leak across origins.
         data, *_ = await _resolve_direct(
-            manager_domain_normalized, timeout, user_agent, client=None
+            manager_domain_normalized,
+            timeout,
+            user_agent,
+            client=None,
+            validate_structure=validate_structure,
+            transport_factory=transport_factory,
         )
         return data
     except (AdagentsNotFoundError, AdagentsValidationError, AdagentsTimeoutError):
@@ -1010,13 +1077,16 @@ async def validate_adagents_domain(
     timeout: float = 10.0,
     user_agent: str = "AdCP-Client/1.0",
     client: httpx.AsyncClient | None = None,
+    *,
+    validate_structure: bool = True,
+    transport_factory: AdagentsTransportFactory | None = None,
 ) -> AdAgentsValidationResult:
     """Discover and validate a publisher's adagents.json with provenance.
 
     Mirrors :func:`fetch_adagents` discovery semantics but returns a
     typed :class:`AdAgentsValidationResult` exposing which path
     produced the data (``discovery_method``) and the manager domain
-    used for the RFC 4175 fallback (``manager_domain``), if any.
+    used for the ads.txt fallback (``manager_domain``), if any.
 
     Errors are reported on the result rather than raised. A manager
     domain 404 is a terminal failure: ``valid`` is False and
@@ -1046,7 +1116,14 @@ async def validate_adagents_domain(
     url = f"https://{normalized}/.well-known/adagents.json"
 
     try:
-        data, discovery, *_ = await _resolve_direct(normalized, timeout, user_agent, client)
+        data, discovery, *_ = await _resolve_direct(
+            normalized,
+            timeout,
+            user_agent,
+            client,
+            validate_structure=validate_structure,
+            transport_factory=transport_factory,
+        )
         return AdAgentsValidationResult(
             domain=normalized,
             url=url,
@@ -1063,7 +1140,9 @@ async def validate_adagents_domain(
             errors=[str(e)],
         )
 
-    managers = await _fetch_ads_txt_managerdomains(normalized, timeout, user_agent, client)
+    managers = await _fetch_ads_txt_managerdomains(
+        normalized, timeout, user_agent, client, transport_factory=transport_factory
+    )
     if not managers:
         return AdAgentsValidationResult(
             domain=normalized,
@@ -1097,7 +1176,12 @@ async def validate_adagents_domain(
 
     try:
         manager_data, *_ = await _resolve_direct(
-            manager_normalized, timeout, user_agent, client=None
+            manager_normalized,
+            timeout,
+            user_agent,
+            client=None,
+            validate_structure=validate_structure,
+            transport_factory=transport_factory,
         )
     except AdagentsNotFoundError:
         return AdAgentsValidationResult(
@@ -1136,6 +1220,9 @@ async def _fetch_adagents_url(
     client: httpx.AsyncClient | None,
     max_bytes: int = MAX_POINTER_BYTES,
     cache_entry: AdagentsCacheEntry | None = None,
+    *,
+    validate_structure: bool = True,
+    transport_factory: AdagentsTransportFactory | None = None,
 ) -> tuple[dict[str, Any], str | None, str | None, bool]:
     """Fetch and parse adagents.json from a specific URL.
 
@@ -1149,9 +1236,11 @@ async def _fetch_adagents_url(
     """
     headers = _adagents_headers(user_agent, cache_entry)
     body, status_code, response_headers = await _fetch_adagents_response(
-        url, timeout, headers, client, max_bytes
+        url, timeout, headers, client, max_bytes, transport_factory=transport_factory
     )
-    return _parse_adagents_response(url, body, status_code, response_headers, cache_entry)
+    return _parse_adagents_response(
+        url, body, status_code, response_headers, cache_entry, validate_structure=validate_structure
+    )
 
 
 async def _fetch_well_known_adagents_url(
@@ -1163,6 +1252,8 @@ async def _fetch_well_known_adagents_url(
     original_hostname: str,
     max_bytes: int = MAX_POINTER_BYTES,
     cache_entry: AdagentsCacheEntry | None = None,
+    validate_structure: bool = True,
+    transport_factory: AdagentsTransportFactory | None = None,
 ) -> tuple[dict[str, Any], str | None, str | None, bool]:
     """Fetch the initial well-known URL, following safe same-site HTTP redirects."""
     headers = _adagents_headers(user_agent, cache_entry)
@@ -1182,10 +1273,16 @@ async def _fetch_well_known_adagents_url(
             headers,
             current_client,
             max_bytes,
+            transport_factory=transport_factory,
         )
         if status_code not in {301, 302, 303, 307, 308}:
             return _parse_adagents_response(
-                current_url, body, status_code, response_headers, current_cache
+                current_url,
+                body,
+                status_code,
+                response_headers,
+                current_cache,
+                validate_structure=validate_structure,
             )
 
         if hop >= MAX_WELL_KNOWN_REDIRECT_HOPS:
@@ -1224,6 +1321,8 @@ async def _fetch_adagents_response(
     headers: dict[str, str],
     client: httpx.AsyncClient | None,
     max_bytes: int,
+    *,
+    transport_factory: AdagentsTransportFactory | None = None,
 ) -> tuple[bytes, int, httpx.Headers]:
     parsed = urlparse(url)
     await _dns_validate_host(
@@ -1243,7 +1342,7 @@ async def _fetch_adagents_response(
                 client, url, headers, timeout, max_bytes
             )
         else:
-            async with _owned_pinned_client(url, timeout) as new_client:
+            async with (transport_factory or _owned_pinned_client)(url, timeout) as new_client:
                 body, status_code, response_headers = await _stream_capped(
                     new_client, url, headers, timeout, max_bytes
                 )
@@ -1261,6 +1360,8 @@ def _parse_adagents_response(
     status_code: int,
     response_headers: httpx.Headers,
     cache_entry: AdagentsCacheEntry | None,
+    *,
+    validate_structure: bool = True,
 ) -> tuple[dict[str, Any], str | None, str | None, bool]:
     if status_code == 304:
         if cache_entry is None:
@@ -1288,11 +1389,11 @@ def _parse_adagents_response(
         raise AdagentsAccessBlockedError(parsed.netloc)
 
     if status_code != 200:
-        raise AdagentsValidationError(f"Failed to fetch adagents.json: HTTP {status_code}")
+        raise AdagentsHTTPError(status_code=status_code, url=url)
 
     try:
         data = json.loads(body)
-    except json.JSONDecodeError as e:
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
         # Truncate the upstream-derived error to bound log volume — a
         # malicious server can otherwise force unbounded `str(e)` content
         # into caller logs by sending a large unparsable body.
@@ -1311,10 +1412,11 @@ def _parse_adagents_response(
         if not isinstance(data["authorized_agents"], list):
             raise AdagentsValidationError("'authorized_agents' must be an array")
 
-        try:
-            validate_adagents(data)
-        except ValidationError as e:
-            raise AdagentsValidationError(f"Invalid adagents.json structure: {e}") from e
+        if validate_structure:
+            try:
+                validate_adagents(data)
+            except ValidationError as e:
+                raise AdagentsValidationError(f"Invalid adagents.json structure: {e}") from e
     elif "authoritative_location" not in data:
         raise AdagentsValidationError(
             "adagents.json must have either 'authorized_agents' or 'authoritative_location'"
