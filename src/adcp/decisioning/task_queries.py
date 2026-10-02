@@ -63,7 +63,11 @@ def project_task(record: dict[str, Any], *, include_result: bool = False) -> dic
             if record.get("result") is not None:
                 response["result"] = record["result"]
             elif record["state"] == "failed" and record.get("error") is not None:
-                response["result"] = {"status": "failed", "adcp_error": record["error"]}
+                response["result"] = {
+                    "status": "failed",
+                    "adcp_error": record["error"],
+                    "errors": [record["error"]],
+                }
     return response
 
 

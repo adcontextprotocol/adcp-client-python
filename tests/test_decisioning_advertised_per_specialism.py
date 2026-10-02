@@ -330,6 +330,9 @@ def test_novel_specialism_falls_back_to_class_level_advertisement(
     # protocol families pre-filter — this is the documented
     # forward-compat fallback.
     assert "get_products" in tools
+    # The class-universe fallback must still pass through optional store gates.
+    assert "sync_accounts" not in tools
+    assert "list_accounts" not in tools
 
 
 def test_advertise_all_bypasses_per_specialism_filter(executor) -> None:

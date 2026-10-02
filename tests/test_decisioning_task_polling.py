@@ -52,7 +52,7 @@ class Seller(DecisioningPlatform):
         await self.finish.wait()
         if self.failed:
             raise AdcpError("INTERNAL_ERROR", message="Background failed", recovery="terminal")
-        return {"products": []}
+        return {"products": [], "cache_scope": "account", "status": "completed"}
 
     def create_media_buy(self, req: Any, ctx: Any) -> Any:
         raise NotImplementedError
@@ -209,6 +209,9 @@ async def test_handoff_poll_progress_terminal_over_http(
         validator = get_validator("get_task_status", "sync")
         assert validator is not None
         validator.validate(terminal)
+        result_validator = get_validator("get_products", "sync")
+        assert result_validator is not None
+        result_validator.validate(terminal["result"])
         listed = await rpc(
             "tools/call", {"name": "list_tasks", "arguments": {"filters": {"task_ids": [task_id]}}}
         )
