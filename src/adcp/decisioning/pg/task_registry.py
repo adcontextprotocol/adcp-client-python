@@ -452,7 +452,7 @@ class PgTaskRegistry(_TaskLifecycleObservers):
                     self._sql_complete,
                     (json.dumps(safe_result), time.time(), task_id),
                 )
-                row = await cur.fetchone()
+                row: tuple[Any, ...] | None = await cur.fetchone()
                 if row is not None:
                     await self._enqueue_terminal_if_registered(
                         conn,
@@ -497,7 +497,7 @@ class PgTaskRegistry(_TaskLifecycleObservers):
                     self._sql_fail,
                     (json.dumps(error), time.time(), task_id),
                 )
-                row = await cur.fetchone()
+                row: tuple[Any, ...] | None = await cur.fetchone()
                 if row is not None:
                     await self._enqueue_terminal_if_registered(
                         conn,
