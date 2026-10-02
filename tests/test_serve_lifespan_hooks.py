@@ -59,7 +59,7 @@ def test_on_startup_fires_after_framework_startup() -> None:
         events.append("b")
 
     app = _build_app(on_startup=[hook_a, hook_b])
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://localhost:3001") as client:
         # Sanity: requests still work — confirms framework lifespans
         # also ran successfully.
         resp = client.get("/.well-known/agent.json")
@@ -671,7 +671,7 @@ def test_no_hooks_is_a_no_op() -> None:
     not change anything observable about the unified app's lifespan
     composition. Belt-and-suspenders regression guard."""
     app = _build_app()
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://localhost:3001") as client:
         resp = client.get("/.well-known/agent.json")
         assert resp.status_code == 200
 
