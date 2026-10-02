@@ -69,9 +69,11 @@ _RESOLVED_AGENT = AgentResolution(
 # ---- Happy path: resolver feeds verifier ----
 
 
+@pytest.mark.parametrize("protocol", ["mcp", "a2a"])
 @pytest.mark.asyncio
 async def test_factory_passes_resolved_jwks_to_verifier(
     monkeypatch: pytest.MonkeyPatch,
+    protocol: str,
 ) -> None:
     """When the resolver returns a JWK set, the verifier is constructed
     with a :class:`StaticJwksResolver` over those keys, the resolved
@@ -83,6 +85,7 @@ async def test_factory_passes_resolved_jwks_to_verifier(
     seen: dict[str, Any] = {}
 
     async def fake_resolve(*args, **kwargs):
+        seen["protocol"] = kwargs["protocol"]
         return _RESOLVED_AGENT
 
     async def fake_verify_starlette(request, *, options):  # type: ignore[no-untyped-def]
@@ -99,8 +102,10 @@ async def test_factory_passes_resolved_jwks_to_verifier(
         "https://buyer.example.com/mcp",
         agent_type="sales",
         operation="get_products",
+        protocol=protocol,
     )
     assert result == "verified-signer-sentinel"
+    assert seen["protocol"] == protocol
     assert seen["options"].operation == "get_products"
     assert seen["options"].agent_url == "https://buyer.example.com/mcp"
     # JWKS resolver constructed from the resolution's jwks set.

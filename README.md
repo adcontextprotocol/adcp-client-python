@@ -1616,6 +1616,11 @@ async def create_media_buy(request: Request):
 
 Flask has an equivalent synchronous helper `verify_flask_request`.
 
+To discover keys from an agent URL, use `async_resolve_agent` or
+`verify_from_agent_url`. Both call `get_adcp_capabilities` over MCP by default;
+pass `protocol="a2a"` for A2A agents. See
+[agent identity resolution](docs/agent-identity-resolution.md) for examples and limits.
+
 A signed body that is not strict JSON (duplicate object keys at any depth,
 invalid UTF-8, or not JSON) is rejected with `request_body_malformed` after
 the nonce is consumed (checklist step 14).

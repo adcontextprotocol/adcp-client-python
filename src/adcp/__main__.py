@@ -582,6 +582,7 @@ def handle_resolve(
     agent_type: str | None,
     agent_id: str | None,
     json_output: bool,
+    protocol: str = "mcp",
 ) -> None:
     """Handle --resolve command — bootstrap from agent URL to JWK set.
 
@@ -615,6 +616,7 @@ def handle_resolve(
                 agent_url,
                 agent_type=cast(Any, agent_type),
                 agent_id=agent_id,
+                protocol=cast(Any, protocol),
             )
         )
     except AgentResolverError as exc:
@@ -801,7 +803,9 @@ def main() -> None:
         sys.exit(0)
 
     if args.resolve:
-        handle_resolve(args.resolve, args.agent_type, args.agent_id, args.json)
+        handle_resolve(
+            args.resolve, args.agent_type, args.agent_id, args.json, args.protocol or "mcp"
+        )
         sys.exit(0)
 
     # Execute tool
