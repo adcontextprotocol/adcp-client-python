@@ -102,9 +102,12 @@ migrate, construct fresh support, validate, and restart. Arbitrary serving-time
 DDL or search-path mutation is not automatically detected. Bound database
 statement execution at the adopter/database layer.
 The support also binds the pool's concrete identity and checks its open state
-on each readiness request. Closing or replacing that pool withdraws the claim
+on each readiness request. Closing or replacing that pool rejects fresh work
 even while the immutable catalog proof remains cached; rebuild the support for
-a new pool.
+a new pool. Installed capability discovery retains the registered declarations
+through these failures and through shutdown. It neither checks runtime readiness
+nor requests a database connection; use `support.reporting_delivery()` for a
+local readiness projection.
 The projection queue and all configured notification queues must retain the
 same pool as the ledger. Warm discovery performs no pool checkout and stays
 available when that valid pool is temporarily saturated.
@@ -362,7 +365,7 @@ unexpected-failure signal. Existing notification guards still
 check readiness before sampling and before dispatch; already-reserved work may
 finish under its existing transaction and deadline rules. Drain with `aclose()`,
 repair the failed component and construct fresh support to recover; the failed
-instance never silently restarts or regains its capability claim. A failing log
+instance never silently restarts or regains runtime readiness. A failing log
 sink cannot prevent the stop latch or change the safe public error.
 A PostgreSQL lock failure that exhausts the producer's bounded retries follows
 this same fail-stop policy. Other owned worker boundaries still propagate their
