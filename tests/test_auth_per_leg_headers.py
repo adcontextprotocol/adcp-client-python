@@ -662,7 +662,7 @@ class TestA2AMiddlewareHonorsPerLegConfig:
             ],
             [
                 (b"authorization", b"Bearer good-token"),
-                (b"x-legacy-auth", b"good-token"),
+                (b"x-legacy-auth", b"bad-token"),
             ],
         ],
     )
