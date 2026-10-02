@@ -130,6 +130,15 @@ if TYPE_CHECKING:
     from adcp.decisioning.proposal_store import ProposalStore
 
 
+def _coerce_child_call(
+    method: Any, args: tuple[Any, ...], kwargs: dict[str, Any], method_name: str
+) -> tuple[tuple[Any, ...], dict[str, Any]]:
+    # Late import: dispatch loads platform/router contracts during boot.
+    from adcp.decisioning.dispatch import _coerce_platform_call_args
+
+    return _coerce_platform_call_args(method, args, kwargs, method_name)
+
+
 async def _run_sync_delegate(method: Any, *args: Any, **kwargs: Any) -> Any:
     """Run a sync child and expose its live future across request cancellation."""
     execution = _routed_sync_execution()
@@ -531,6 +540,7 @@ class PlatformRouter(DecisioningPlatform):
         if manager is not None:
             method_name = _select_proposal_method(manager, args, kwargs)
             method = getattr(manager, method_name)
+            args, kwargs = _coerce_child_call(method, args, kwargs, method_name)
             if inspect.iscoroutinefunction(method):
                 return await method(*args, **kwargs)
             return await _run_sync_delegate(method, *args, **kwargs)
@@ -540,6 +550,7 @@ class PlatformRouter(DecisioningPlatform):
         # delegations so error projection is identical.
         platform = self._platform_for(ctx, "get_products")
         method = getattr(platform, "get_products")
+        args, kwargs = _coerce_child_call(method, args, kwargs, "get_products")
         if inspect.iscoroutinefunction(method):
             return await method(*args, **kwargs)
         return await _run_sync_delegate(method, *args, **kwargs)
@@ -562,12 +573,14 @@ class PlatformRouter(DecisioningPlatform):
             and getattr(manager_caps, "proposal_refinement", None) is not None
             and callable(method)
         ):
+            args, kwargs = _coerce_child_call(method, args, kwargs, "refine_proposals")
             if inspect.iscoroutinefunction(method):
                 return await method(*args, **kwargs)
             return await _run_sync_delegate(method, *args, **kwargs)
 
         platform = self._platform_for(ctx, "refine_proposals")
         platform_method = getattr(platform, "refine_proposals")
+        args, kwargs = _coerce_child_call(platform_method, args, kwargs, "refine_proposals")
         if inspect.iscoroutinefunction(platform_method):
             return await platform_method(*args, **kwargs)
         return await _run_sync_delegate(platform_method, *args, **kwargs)
@@ -597,6 +610,7 @@ class PlatformRouter(DecisioningPlatform):
             ctx = _resolve_ctx_from_args(args, kwargs)
             platform = router._platform_for(ctx, method_name)
             method = getattr(platform, method_name)
+            args, kwargs = _coerce_child_call(method, args, kwargs, method_name)
 
             if inspect.iscoroutinefunction(method):
                 return await method(*args, **kwargs)
@@ -1086,6 +1100,7 @@ class LazyPlatformRouter(DecisioningPlatform):
             ctx = _resolve_ctx_from_args(args, kwargs)
             platform = await router._platform_for_method(ctx, method_name)
             method = getattr(platform, method_name)
+            args, kwargs = _coerce_child_call(method, args, kwargs, method_name)
             if inspect.iscoroutinefunction(method):
                 return await method(*args, **kwargs)
             return await _run_sync_delegate(method, *args, **kwargs)
@@ -1120,12 +1135,14 @@ class LazyPlatformRouter(DecisioningPlatform):
         if manager is not None:
             method_name = _select_proposal_method(manager, args, kwargs)
             method = getattr(manager, method_name)
+            args, kwargs = _coerce_child_call(method, args, kwargs, method_name)
             if inspect.iscoroutinefunction(method):
                 return await method(*args, **kwargs)
             return await _run_sync_delegate(method, *args, **kwargs)
 
         platform = await self._platform_for_method(ctx, "get_products")
         method = getattr(platform, "get_products")
+        args, kwargs = _coerce_child_call(method, args, kwargs, "get_products")
         if inspect.iscoroutinefunction(method):
             return await method(*args, **kwargs)
         return await _run_sync_delegate(method, *args, **kwargs)
@@ -1143,12 +1160,14 @@ class LazyPlatformRouter(DecisioningPlatform):
             and getattr(manager_caps, "proposal_refinement", None) is not None
             and callable(method)
         ):
+            args, kwargs = _coerce_child_call(method, args, kwargs, "refine_proposals")
             if inspect.iscoroutinefunction(method):
                 return await method(*args, **kwargs)
             return await _run_sync_delegate(method, *args, **kwargs)
 
         platform = await self._platform_for_method(ctx, "refine_proposals")
         platform_method = getattr(platform, "refine_proposals")
+        args, kwargs = _coerce_child_call(platform_method, args, kwargs, "refine_proposals")
         if inspect.iscoroutinefunction(platform_method):
             return await platform_method(*args, **kwargs)
         return await _run_sync_delegate(platform_method, *args, **kwargs)
@@ -1331,6 +1350,7 @@ class _RegistryPlatformAdapter(DecisioningPlatform):
             ctx = _resolve_ctx_from_args(args, kwargs)
             platform = await adapter._resolve_tenant_platform(ctx, method_name)
             method = getattr(platform, method_name)
+            args, kwargs = _coerce_child_call(method, args, kwargs, method_name)
             if inspect.iscoroutinefunction(method):
                 return await method(*args, **kwargs)
             return await _run_sync_delegate(method, *args, **kwargs)
@@ -1358,6 +1378,7 @@ class _RegistryPlatformAdapter(DecisioningPlatform):
         ctx = _resolve_ctx_from_args(args, kwargs)
         platform = await self._resolve_tenant_platform(ctx, "get_products")
         method = getattr(platform, "get_products")
+        args, kwargs = _coerce_child_call(method, args, kwargs, "get_products")
         if inspect.iscoroutinefunction(method):
             return await method(*args, **kwargs)
         return await _run_sync_delegate(method, *args, **kwargs)
