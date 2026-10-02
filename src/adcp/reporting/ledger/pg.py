@@ -453,14 +453,26 @@ class PgReportingLedgerStore:
     # -- change feed ------------------------------------------------------
 
     async def _append_change(
-        self, connection: Any, account_id: str, kind: LedgerRecordKind, record_id: str
+        self,
+        connection: Any,
+        account_id: str,
+        kind: LedgerRecordKind,
+        record_id: str,
+        *,
+        consumer_id: str,
     ) -> None:
         await connection.execute(
             "INSERT INTO reporting_ledger_changes"
-            " (account_id, record_kind, record_id, committed_at)"
-            " VALUES (%s, %s, %s, COALESCE(%s, now()))"
-            " ON CONFLICT (account_id, record_kind, record_id) DO NOTHING",
-            (account_id, kind, record_id, self._clock() if self._clock is not None else None),
+            " (account_id, consumer_id, record_kind, record_id, committed_at)"
+            " VALUES (%s, %s, %s, %s, COALESCE(%s, now()))"
+            " ON CONFLICT (account_id, consumer_id, record_kind, record_id) DO NOTHING",
+            (
+                account_id,
+                consumer_id,
+                kind,
+                record_id,
+                self._clock() if self._clock is not None else None,
+            ),
         )
 
     @staticmethod
@@ -801,6 +813,7 @@ class PgReportingLedgerStore:
                     obligation.account_id,
                     "obligation",
                     obligation.reporting_obligation_id,
+                    consumer_id=obligation.consumer_id,
                 )
                 if self._notifications_enabled:
                     await self._dirty_status(
@@ -982,7 +995,11 @@ class PgReportingLedgerStore:
                     ],
                 )
             await self._append_change(
-                connection, revision.account_id, "revision", revision.reporting_revision_id
+                connection,
+                revision.account_id,
+                "revision",
+                revision.reporting_revision_id,
+                consumer_id=_obligation_from_row(obligation).consumer_id,
             )
             if self._notifications_enabled:
                 from adcp.reporting.ledger.notification_events import revision_event
@@ -1525,6 +1542,7 @@ class PgReportingLedgerStore:
                 adjustment.account_id,
                 "adjustment",
                 adjustment.reporting_adjustment_id,
+                consumer_id=_obligation_from_row(obligation).consumer_id,
             )
             if self._notifications_enabled:
                 from adcp.reporting.ledger.notification_events import adjustment_event
@@ -1667,7 +1685,11 @@ class PgReportingLedgerStore:
             except Exception as error:
                 raise _translate_integrity_error(error) from error
             await self._append_change(
-                connection, status.account_id, "consumer_status", status.reporting_status_id
+                connection,
+                status.account_id,
+                "consumer_status",
+                status.reporting_status_id,
+                consumer_id=status.consumer_id,
             )
             from adcp.reporting.ledger.status_snapshot import settle_snapshot_on
 
@@ -2029,9 +2051,9 @@ class PgReportingLedgerStore:
             row = await (
                 await connection.execute(
                     "SELECT COALESCE(MAX(seq), 0), now() FROM reporting_ledger_changes"
-                    " WHERE account_id = %s AND record_kind IN"
-                    " ('obligation', 'revision', 'adjustment', 'consumer_status')",
-                    (account_id,),
+                    " WHERE account_id=%s AND consumer_id=%s AND record_kind IN"
+                    " ('obligation','revision','adjustment','consumer_status')",
+                    (account_id, caller.consumer_id),
                 )
             ).fetchone()
         assert row is not None
@@ -2072,9 +2094,9 @@ class PgReportingLedgerStore:
             rows = await (
                 await connection.execute(
                     "SELECT seq, record_kind, record_id FROM reporting_ledger_changes"
-                    " WHERE account_id = %s AND seq > %s AND seq <= %s"
+                    " WHERE account_id = %s AND consumer_id=%s AND seq > %s AND seq <= %s"
                     " ORDER BY seq",
-                    (snapshot.account_id, lower, snapshot.max_sequence),
+                    (snapshot.account_id, consumer_id, lower, snapshot.max_sequence),
                 )
             ).fetchall()
 

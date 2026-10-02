@@ -151,7 +151,7 @@ async def setup(
 
 async def public_outcome(store, config):
     handler = ReportingStatusHandler(store)
-    caller = ReportingStatusCaller(account_id=config.account_id, consumer_id="clock-buyer")
+    caller = ReportingStatusCaller(account_id=config.account_id, consumer_id=config.consumer_id)
     validator = get_named_validator("core/reporting-revision.json", version="3.2.1")
     assert validator is not None
 

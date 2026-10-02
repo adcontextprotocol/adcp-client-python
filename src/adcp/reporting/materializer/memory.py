@@ -128,8 +128,8 @@ class InMemoryReportingMaterializerStore(InMemoryReportingReconciliationStore):
                     )
                 )
 
-    def _append(self, account_id: str, kind: Any, record_id: str) -> None:
-        super()._append(account_id, kind, record_id)
+    def _append(self, account_id: str, kind: Any, record_id: str, *, consumer_id: str) -> None:
+        super()._append(account_id, kind, record_id, consumer_id=consumer_id)
         if kind == "obligation":
             self._wake_obligation(account_id, record_id)
         elif kind == "revision":

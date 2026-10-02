@@ -130,7 +130,7 @@ async def run_status_role(role, settings, *, barrier, emit, bounded, receiver, i
             )
             assert obligation is not None
             snapshot = await ledger.read_status_snapshot(
-                caller=OwnershipCaller("acct_a", "https://buyer.example.test/agent")
+                caller=OwnershipCaller("acct_a", obligation.consumer_id)
             )
             record = replace(
                 statement(obligation),

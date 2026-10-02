@@ -282,11 +282,7 @@ async def test_concurrent_same_acquisition_commits_once(make_harness):
     await producer.run_worker()
     first = await latest(store)
     clock[0] = first.next_due_at
-    config = (
-        await store.list_configurations(
-            caller=OwnershipCaller(ACCOUNT, "https://buyer.example.test/agent")
-        )
-    )[0]
+    config = (await store.list_configurations(caller=OwnershipCaller(ACCOUNT, "buyer-settling")))[0]
     obligation = await _only_obligation(store)
     await asyncio.gather(
         *[

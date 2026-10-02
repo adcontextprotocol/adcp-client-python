@@ -770,6 +770,7 @@ class InMemoryReportingLedgerStore:
         self._statuses: dict[tuple[str, str, str], ConsumerStatusRecord] = {}
         self._status_identity: dict[tuple[str, str, str], str] = {}
         self._changes: list[tuple[int, str, LedgerRecordKind, str, datetime]] = []
+        self._change_owners: dict[int, str] = {}
         self._sequence = 0
         self._leases: dict[ReportingConfigurationGenerationKey, tuple[str, datetime]] = {}
         # When each generation was last handed to a worker, so releasing a
@@ -930,9 +931,12 @@ class InMemoryReportingLedgerStore:
     async def create_schema(self) -> None:
         return None
 
-    def _append(self, account_id: str, kind: LedgerRecordKind, record_id: str) -> None:
+    def _append(
+        self, account_id: str, kind: LedgerRecordKind, record_id: str, *, consumer_id: str
+    ) -> None:
         self._sequence += 1
         self._changes.append((self._sequence, account_id, kind, record_id, self._clock()))
+        self._change_owners[self._sequence] = consumer_id
 
     # -- configurations --------------------------------------------------
 
@@ -1022,7 +1026,12 @@ class InMemoryReportingLedgerStore:
             require_frozen_currency(obligation.currency)
             self._obligations[obligation.reporting_obligation_id] = obligation
             self._obligation_by_period[key] = obligation.reporting_obligation_id
-            self._append(obligation.account_id, "obligation", obligation.reporting_obligation_id)
+            self._append(
+                obligation.account_id,
+                "obligation",
+                obligation.reporting_obligation_id,
+                consumer_id=obligation.consumer_id,
+            )
             if self._notification_state is not None:
                 self._dirty_status(
                     ReportingStatusScope.for_obligation(obligation),
@@ -1123,7 +1132,12 @@ class InMemoryReportingLedgerStore:
             self._revisions[revision.reporting_revision_id] = revision
             self._revision_identity[revision.reporting_revision_id] = identity
             self._rows[revision.reporting_revision_id] = tuple(dict(row) for row in rows)
-            self._append(revision.account_id, "revision", revision.reporting_revision_id)
+            self._append(
+                revision.account_id,
+                "revision",
+                revision.reporting_revision_id,
+                consumer_id=obligation.consumer_id,
+            )
             if self._notification_state is not None:
                 from adcp.reporting.ledger.notification_events import revision_event
 
@@ -1417,7 +1431,12 @@ class InMemoryReportingLedgerStore:
                 self._obligations[revision.reporting_obligation_id], adjustment
             )
             self._adjustments[adjustment.reporting_adjustment_id] = adjustment
-            self._append(adjustment.account_id, "adjustment", adjustment.reporting_adjustment_id)
+            self._append(
+                adjustment.account_id,
+                "adjustment",
+                adjustment.reporting_adjustment_id,
+                consumer_id=obligation.consumer_id,
+            )
             if self._notification_state is not None:
                 from adcp.reporting.ledger.notification_events import adjustment_event
 
@@ -1508,7 +1527,12 @@ class InMemoryReportingLedgerStore:
             key = (status.account_id, status.consumer_id, status.reporting_status_id)
             self._statuses[key] = status
             self._status_identity[key] = identity
-            self._append(status.account_id, "consumer_status", status.reporting_status_id)
+            self._append(
+                status.account_id,
+                "consumer_status",
+                status.reporting_status_id,
+                consumer_id=status.consumer_id,
+            )
             from adcp.reporting.ledger.status_snapshot import settle_memory_snapshot
 
             settle_memory_snapshot(self, status.account_id)
@@ -1754,7 +1778,12 @@ class InMemoryReportingLedgerStore:
         async with self._lock:
             as_of = _utc(self._clock())
             max_sequence = max(
-                (item[0] for item in self._changes if item[1] == account_id), default=0
+                (
+                    sequence
+                    for sequence, account, kind, record_id, _ in self._changes
+                    if account == account_id and self._change_owners[sequence] == caller.consumer_id
+                ),
+                default=0,
             )
             return LedgerSnapshot(
                 snapshot_id="rpls_"
@@ -1790,7 +1819,9 @@ class InMemoryReportingLedgerStore:
         selected = [
             item
             for item in self._changes
-            if item[1] == snapshot.account_id and lower < item[0] <= snapshot.max_sequence
+            if item[1] == snapshot.account_id
+            and self._change_owners[item[0]] == consumer_id
+            and lower < item[0] <= snapshot.max_sequence
         ]
         config_filter = set(delivery_config_ids) if delivery_config_ids else None
         media_buy_filter = set(media_buy_ids) if media_buy_ids else None

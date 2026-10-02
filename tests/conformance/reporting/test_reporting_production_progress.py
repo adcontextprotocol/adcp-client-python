@@ -52,7 +52,7 @@ def observe_samples(monkeypatch):
     async def execute(connection, query, *args, **kwargs):
         result = await original(connection, query, *args, **kwargs)
         if isinstance(query, str) and query.startswith(
-            "SELECT c.account_id,c.delivery_config_id,c.delivery_config_version,"
+            "SELECT c.account_id,c.consumer_id,c.delivery_config_id,c.delivery_config_version,"
         ):
             assert query.endswith("LIMIT 32")
             assert 0 <= result.rowcount <= 32
@@ -608,7 +608,7 @@ async def test_bounded_producer_advances_past_processed_first_window(backend, tm
                             "SELECT c.lease_worker_id,p.closed_through"
                             " FROM reporting_configurations c"
                             " JOIN reporting_production_source_progress p"
-                            " USING(account_id,delivery_config_id,delivery_config_version)"
+                            " USING(account_id,consumer_id,delivery_config_id,delivery_config_version)"
                             " WHERE c.account_id=%s AND c.delivery_config_id=%s"
                             " AND c.delivery_config_version=%s",
                             (

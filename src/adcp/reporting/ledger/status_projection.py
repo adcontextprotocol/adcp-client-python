@@ -68,7 +68,7 @@ class ReportingStatusSnapshot:
     issue_scopes: tuple[tuple[str, ReportingStatusScope], ...] = ()
     consumer_ids: tuple[str, ...] = ()
     adjustments: tuple[ReportingAdjustmentRecord, ...] = ()
-    # Sequence, record kind, ID, consumer namespace (empty for seller records).
+    # Sequence, record kind, ID, authenticated generation/status owner.
     changes: tuple[tuple[int, str, str, str], ...] = ()
 
     @property

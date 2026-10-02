@@ -98,7 +98,7 @@ async def test_warm_production_proof_cannot_hide_a_changed_protocol_pin(
 async def scheduled(h, *, now=0.5, complete=True):
     h.clock.now = START + timedelta(hours=now)
     h.store._clock = h.clock
-    config = replace(configuration(), deactivated_at=None)
+    config = replace(configuration(consumer_id=CONSUMER), deactivated_at=None)
     await h.store.put_configuration(config)
     producer = ReportingProducer(
         source=UncalledSource(), offerings=ProducerOfferings(), store=h.store
@@ -358,7 +358,7 @@ async def test_rc6_nearest_captured_generation_and_historical_scope_filters(back
         h.clock.now = START + timedelta(minutes=30)
         h.store._clock = h.clock
         first = replace(
-            configuration(),
+            configuration(consumer_id=CONSUMER),
             delivery_config_id="forecast-first",
             deactivated_at=None,
             schedule=ReportingScheduleSpec("PT2H", "PT1H", "utc", period_anchor=START),
@@ -445,7 +445,7 @@ async def test_rc6_period_start_forecast_retains_civil_dst_and_offset_instants(
         )
         h.store._clock = h.clock
         config = replace(
-            configuration(),
+            configuration(consumer_id=CONSUMER),
             activated_at=start,
             deactivated_at=None,
             account_timezone="America/New_York",

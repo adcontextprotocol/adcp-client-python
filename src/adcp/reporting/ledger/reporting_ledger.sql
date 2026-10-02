@@ -237,7 +237,7 @@ CREATE INDEX IF NOT EXISTS reporting_adjustments_revision_idx
 -- cheap and a migration mid-rollout is not; the ingest that writes here is off
 -- until an adopter enables it. See adcp/reporting/ledger/consumer_status.py.
 CREATE TABLE IF NOT EXISTS reporting_consumer_statuses (
-    reporting_status_id     TEXT COLLATE "C" NOT NULL PRIMARY KEY,
+    reporting_status_id     TEXT COLLATE "C" NOT NULL,
     account_id              TEXT COLLATE "C" NOT NULL,
     -- Derived from authenticated transport, never from the request body.
     consumer_id             TEXT COLLATE "C" NOT NULL,
@@ -262,7 +262,8 @@ CREATE TABLE IF NOT EXISTS reporting_consumer_statuses (
     seller_ledger_snapshot_id TEXT,
     seller_ledger_as_of     TIMESTAMPTZ,
     superseded              BOOLEAN          NOT NULL DEFAULT FALSE,
-    content_sha256          TEXT COLLATE "C" NOT NULL
+    content_sha256          TEXT COLLATE "C" NOT NULL,
+    PRIMARY KEY (account_id, consumer_id, reporting_status_id)
 );
 
 -- Exactly one unsuperseded leaf per logical chain. This is what makes
@@ -276,7 +277,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS reporting_consumer_statuses_one_leaf
     WHERE superseded = FALSE;
 
 CREATE UNIQUE INDEX IF NOT EXISTS reporting_consumer_statuses_one_successor
-    ON reporting_consumer_statuses (supersedes_reporting_status_id)
+    ON reporting_consumer_statuses (account_id, consumer_id, supersedes_reporting_status_id)
     WHERE supersedes_reporting_status_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS reporting_consumer_statuses_chain_idx
@@ -365,13 +366,14 @@ CREATE TABLE IF NOT EXISTS reporting_issue_waiver_bindings (
 CREATE TABLE IF NOT EXISTS reporting_ledger_changes (
     seq          BIGSERIAL        NOT NULL PRIMARY KEY,
     account_id   TEXT COLLATE "C" NOT NULL,
+    consumer_id  TEXT COLLATE "C" NOT NULL,
     record_kind  TEXT             NOT NULL,
     record_id    TEXT COLLATE "C" NOT NULL,
     committed_at TIMESTAMPTZ      NOT NULL DEFAULT now()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS reporting_ledger_changes_record
-    ON reporting_ledger_changes (account_id, record_kind, record_id);
+    ON reporting_ledger_changes (account_id, consumer_id, record_kind, record_id);
 
 CREATE INDEX IF NOT EXISTS reporting_ledger_changes_feed_idx
-    ON reporting_ledger_changes (account_id, seq);
+    ON reporting_ledger_changes (account_id, consumer_id, seq);

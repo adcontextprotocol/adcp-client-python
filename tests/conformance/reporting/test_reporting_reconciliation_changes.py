@@ -27,7 +27,6 @@ from adcp.reporting.ledger import (
     adjustment_to_wire,
     revision_content_sha256,
 )
-from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.delivery_changes import change_boundary
 from adcp.reporting.ledger.models import LedgerRecordKind
 from adcp.reporting.ledger.store import decode_cursor, encode_cursor
@@ -435,7 +434,7 @@ async def test_position_types_and_unissued_boundaries_cannot_be_interchanged(
         assert error.value.code == "INVALID_CHECKPOINT"
         assert error.value.__cause__ is None and error.value.__context__ is None
     core = await store.open_snapshot(
-        caller=OwnershipCaller(caller.account_id, "https://buyer.example.test/agent"),
+        caller=caller,
         filters_fingerprint="buyer",
     )
     with pytest.raises(LedgerConflictError) as error:

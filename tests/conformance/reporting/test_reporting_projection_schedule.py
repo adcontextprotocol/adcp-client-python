@@ -73,7 +73,7 @@ async def test_complete_forecast_retains_versioned_activation_and_due_boundaries
         revision, rows = revision_for(obligation, suffix=obligation.reporting_obligation_id)
         await h.store.commit_revision(revision, rows)
     handler = ReportingStatusHandler(h.store)
-    for consumer in ("buyer-one", "buyer-two"):
+    for consumer in ("buyer",):
         raw = await handler.handle(
             {"adcp_version": adcp_version}, caller=ReportingStatusCaller("acct_a", consumer)
         )
@@ -111,9 +111,7 @@ async def test_nearest_generation_and_account_filters_use_captured_not_current_c
     await h.store.put_configuration(foreign)
     handler = ReportingStatusHandler(h.store)
     caller = ReportingStatusCaller("acct_a", "buyer")
-    captured = await h.store.read_status_snapshot(
-        caller=OwnershipCaller("acct_a", "https://buyer.example.test/agent")
-    )
+    captured = await h.store.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
     expected = hour(1) + timedelta(minutes=expected_minute)
     request = {"adcp_version": adcp_version}
     original = handler.render_snapshot(request, caller=caller, snapshot=captured)

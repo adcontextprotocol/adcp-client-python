@@ -6,7 +6,6 @@ from datetime import timedelta
 import pytest
 
 from adcp.reporting.ledger import ReportingMaterializationCheck
-from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.notification_models import ReportingStatusScope
 from adcp.reporting.ledger.reconciliation_projection import project_reconciliation
 from adcp.reporting.ledger.status_projection import StatusProjectionInput, project_status_scope
@@ -19,9 +18,7 @@ __all__ = ["receipts"]
 
 
 async def captured(h, s, *, feedback=False):
-    core = await h.store.read_status_snapshot(
-        caller=OwnershipCaller(s.obligation.account_id, "https://buyer.example.test/agent")
-    )
+    core = await h.store.read_status_snapshot(caller=s.binding.principal)
     private = await h.store.read_reconciliation_snapshot(caller=s.binding.principal)
     core = replace(core, as_of=h.clock.now)
     scope = ReportingStatusScope(

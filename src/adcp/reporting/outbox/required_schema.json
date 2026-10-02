@@ -275,6 +275,10 @@
     "enabled": true,
     "fingerprint": "cf8e79be3fcf845fdb87b25524bcaf9c6abcc891dc777f46b3a99f6d3b82bdb6"
   },
+  "column:reporting_ledger_changes.consumer_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
   "column:reporting_ledger_changes.record_id": {
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
@@ -985,7 +989,7 @@
   },
   "constraint:reporting_consumer_statuses.reporting_consumer_statuses_pkey": {
     "enabled": true,
-    "fingerprint": "4665373f9ddb8c6f3f8e7c599383b917c788402444d20650b51bd8117345bf46"
+    "fingerprint": "94ec2027f0153e875daa8a242a03498abf5dc3b0f02a7c9e04e5c9ab4c64c558"
   },
   "constraint:reporting_issue_lifecycle.reporting_issue_lifecycle_pkey": {
     "enabled": true,
@@ -1493,11 +1497,11 @@
   },
   "index:reporting_consumer_statuses.reporting_consumer_statuses_one_successor": {
     "enabled": true,
-    "fingerprint": "4fc2c0abdd40544e7151b80b2923f7e3c780d9e45ef2ce6f3da87de4597efb1c"
+    "fingerprint": "6f07541d3c4f215195cab596426ec22daf01c4ca826e73dcd9b38820aecf1432"
   },
   "index:reporting_consumer_statuses.reporting_consumer_statuses_pkey": {
     "enabled": true,
-    "fingerprint": "e110666dcd6d1848d0379732437a93ff86102bbbdb2c8ef79b4b200459405b86"
+    "fingerprint": "7a60988ae18a99416a79255bf37918accecf80e1aafca124b049e874d60141a7"
   },
   "index:reporting_issue_lifecycle.reporting_issue_lifecycle_issue_id": {
     "enabled": true,
@@ -1517,7 +1521,7 @@
   },
   "index:reporting_ledger_changes.reporting_ledger_changes_feed_idx": {
     "enabled": true,
-    "fingerprint": "59414be8bfaeb5747aa4e245e0923b466f8e3f9eb56fae69931dc6458a04523f"
+    "fingerprint": "41b88b19b4d985d579db5ed35b633b400b0078a78a826be7e0797abd4d8f9a9f"
   },
   "index:reporting_ledger_changes.reporting_ledger_changes_pkey": {
     "enabled": true,
@@ -1525,7 +1529,7 @@
   },
   "index:reporting_ledger_changes.reporting_ledger_changes_record": {
     "enabled": true,
-    "fingerprint": "42fa0a6f20465ebb6b4a73fb582865dac99264c909cc43b29bfd0cea4397216a"
+    "fingerprint": "41f5005c836108a3c4d4e7b6657f41b05558937f6d497555f2907beb5154749b"
   },
   "index:reporting_notification_deliveries.reporting_notification_delive_account_id_consumer_namespac_key1": {
     "enabled": true,

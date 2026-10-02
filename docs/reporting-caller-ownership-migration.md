@@ -13,6 +13,9 @@ generation-key and lease constructors now include `consumer_id`. Buyer-facing
 notification scopes and canonical digests include the owned generation. Update
 custom stores, resolvers, source binding implementations and retained Python
 fixtures together. No default or reserved sentinel principal supplies ownership.
+Core status IDs, supersession chains and journal entries are scoped by account
+and caller. Repeated status IDs from independent callers cannot suppress changes
+or advance another caller's snapshot or checkpoint boundary.
 
 ## Maintenance order
 

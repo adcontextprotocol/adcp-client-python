@@ -65,7 +65,7 @@ async def test_shared_account_generation_is_private_everywhere(owned_store):
         revision, rows = revision_for(obligation, suffix=str(index))
         await store.commit_revision(revision, rows)
         statement = {
-            "reporting_status_id": f"owned-status-{index}-2026",
+            "reporting_status_id": "shared-owned-status-2026",
             "delivery_config_id": config.delivery_config_id,
             "delivery_config_version": config.delivery_config_version,
             "report_definition_id": config.report_definition_id,
@@ -87,12 +87,31 @@ async def test_shared_account_generation_is_private_everywhere(owned_store):
         )
         assert result["results"][0]["result"] == "recorded", result
 
+    # Another caller's commit must not alter this caller's durable boundary.
+    boundary_before = await store.open_snapshot(caller=callers[0], filters_fingerprint="same")
+    status_before = await store.read_status_snapshot(caller=callers[0])
+    foreign_snapshot = await store.read_status_snapshot(caller=callers[1])
+    await store.record_consumer_status(
+        replace(
+            foreign_snapshot.statuses[0],
+            reporting_status_id="foreign-new-status-2026",
+            supersedes_reporting_status_id=foreign_snapshot.statuses[0].reporting_status_id,
+        )
+    )
+    boundary_after = await store.open_snapshot(caller=callers[0], filters_fingerprint="same")
+    assert boundary_after.max_sequence == boundary_before.max_sequence
+    assert boundary_after.snapshot_id == boundary_before.snapshot_id
+    status_after = await store.read_status_snapshot(caller=callers[0])
+    assert status_after.changes == status_before.changes
+    assert status_after.max_sequence == status_before.max_sequence
+
     handler = ReportingStatusHandler(store, page_size=1, consumer_status_enabled=True)
     for index, (caller, config) in enumerate(zip(callers, configs)):
         assert await store.list_configurations(caller=caller) == (config,)
         snapshot = await store.read_status_snapshot(caller=caller)
         assert {o.consumer_id for o in snapshot.obligations} == {caller.consumer_id}
-        assert len(snapshot.obligations) == len(snapshot.revisions) == len(snapshot.statuses) == 1
+        assert len(snapshot.obligations) == len(snapshot.revisions) == 1
+        assert len(snapshot.statuses) == (2 if index == 1 else 1)
         assert snapshot.statuses[0].consumer_id == caller.consumer_id
         boundary = await store.open_snapshot(caller=caller, filters_fingerprint="same")
         page = await store.read_page(

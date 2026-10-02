@@ -14,7 +14,6 @@ import pytest
 
 from adcp.reporting.feed import PgReportingFeedStore
 from adcp.reporting.ledger import ReportingMaterializationCheck
-from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.status_projection import mismatch_key
 
 from ._durable_materializer_support import DurableHarness
@@ -123,11 +122,7 @@ async def test_installed_python310_cold_continuation_freezes_mutable_history_and
             failure_code="access_denied",
         )
         await h.store.record_consumer_status_with_lifecycle(bad)
-        config = (
-            await h.store.list_configurations(
-                caller=OwnershipCaller(s.obligation.account_id, "https://buyer.example.test/agent")
-            )
-        )[0]
+        config = (await h.store.list_configurations(caller=s.binding.principal))[0]
         await h.store.put_configuration(replace(config, deactivated_at=None))
         options = {"python": python, "script": script, "helper": helper, "installed": installed}
         async with feed_process(h, s, feed_request(s), pause="committed", **options) as child:

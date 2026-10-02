@@ -175,7 +175,9 @@ def private_snapshot(
         lifecycles=issues,
         consumer_ids=(caller.consumer_id,),
         issue_scopes=tuple((i, scope) for i, scope in snapshot.issue_scopes if i in issue_ids),
-        changes=tuple(c for c in snapshot.changes if c[2] in visible_ids),
+        changes=tuple(
+            c for c in snapshot.changes if c[3] == caller.consumer_id and c[2] in visible_ids
+        ),
     )
 
 

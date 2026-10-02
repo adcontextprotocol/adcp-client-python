@@ -66,14 +66,14 @@ async def test_exact_catalog_scope_preserves_full_contract_and_excludes_overload
                 files("adcp.reporting." + package).joinpath("required_schema.json").read_text()
             )
         )
-    assert len(expected) == 790 and len(PROVISIONAL_REQUIRED_OBJECTS) == 27
+    assert len(expected) == 794 and len(PROVISIONAL_REQUIRED_OBJECTS) == 27
     async with isolated_reporting_pool(autocommit=autocommit) as pool:
         await PgReportingReceiptStore(pool=pool).create_schema()
         async with pool.connection() as connection:
             full = CatalogProbe(connection)
             assert await schema_objects(full) == expected
             assert len(full.calls) == 6
-            assert sum(len(rows) for _, _, rows in full.calls) == 790
+            assert sum(len(rows) for _, _, rows in full.calls) == 794
             await connection.execute(
                 "CREATE TABLE reporting_unrelated_catalog_scope (value integer);"
                 " CREATE FUNCTION reporting_provisional_immutable(integer) RETURNS integer"
