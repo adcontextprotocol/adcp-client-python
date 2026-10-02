@@ -769,8 +769,7 @@ and returns a ``ToolContext`` (or subclass).
 
 Example using ``contextvars`` (recommended — middleware-agnostic)::
 
-    from copy import deepcopy
-from contextvars import ContextVar
+    from contextvars import ContextVar
     from adcp.server import RequestMetadata, ToolContext, create_mcp_server
 
     _principal: ContextVar[str | None] = ContextVar(
