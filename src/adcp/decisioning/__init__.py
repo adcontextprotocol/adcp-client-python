@@ -64,11 +64,13 @@ from adcp.decisioning.account_projection import (
 from adcp.decisioning.accounts import (
     AccountStore,
     AccountStoreList,
+    AccountStoreResolveForTask,
     AccountStoreSyncGovernance,
     AccountStoreUpsert,
     AccountStoreUpsertRequest,
     ExplicitAccounts,
     FromAuthAccounts,
+    NaturalKeyAccounts,
     ResolveContext,
     SingletonAccounts,
 )
@@ -391,6 +393,8 @@ __all__ = [
     "DiscoveryResult",
     "DynamicBearer",
     "ExplicitAccounts",
+    "NaturalKeyAccounts",
+    "AccountStoreResolveForTask",
     "Format",
     "LegacyFormatId",
     "FromAuthAccounts",

@@ -226,8 +226,8 @@ def test_explicit_accounts_resolves_via_loader() -> None:
     assert loaded == ["acme_42"]
 
 
-def test_explicit_accounts_missing_ref_raises() -> None:
-    """Missing/empty ``ref`` produces ``ACCOUNT_NOT_FOUND`` with the
+def test_explicit_accounts_absent_ref_is_public_but_empty_ref_raises() -> None:
+    """Absent ref selects public discovery; a supplied empty ref is an error.
     field path set to ``account.account_id`` so buyers know where the
     ref should go."""
 
@@ -235,8 +235,9 @@ def test_explicit_accounts_missing_ref_raises() -> None:
         raise AssertionError("loader should not be called on missing ref")
 
     store = ExplicitAccounts(loader=loader)
+    assert store.resolve(None) is None
     with pytest.raises(AdcpError) as exc_info:
-        store.resolve(None)
+        store.resolve({})
     assert exc_info.value.code == "ACCOUNT_NOT_FOUND"
     assert exc_info.value.field == "account.account_id"
     assert exc_info.value.recovery == "terminal"

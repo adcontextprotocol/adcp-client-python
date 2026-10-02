@@ -22,7 +22,12 @@ from adcp import observability as obs
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.mcp import MCPAdapter
 from adcp.signing.autosign import current_operation
-from adcp.types import GetAdcpCapabilitiesResponse, GetProductsRequest, SyncCatalogsRequest
+from adcp.types import (
+    AccountReferenceById,
+    GetAdcpCapabilitiesResponse,
+    GetProductsRequest,
+    SyncCatalogsRequest,
+)
 from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus
 
 
@@ -169,7 +174,11 @@ async def test_cold_strict_idempotency_preflight_gets_distinct_wire_span(
         patch.object(client.adapter, "get_adcp_capabilities", new=get_capabilities),
         patch.object(client.adapter, "sync_catalogs", new=sync_catalogs),
     ):
-        result = await client.sync_catalogs(SyncCatalogsRequest.model_construct())
+        result = await client.sync_catalogs(
+            SyncCatalogsRequest.model_construct(
+                account=AccountReferenceById(account_id="trace-test-account")
+            )
+        )
 
     assert not result.success
     capability_span, target_span = span_exporter.get_finished_spans()

@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from pydantic import TypeAdapter
 
 from adcp import (
     FeedMirror,
@@ -24,7 +25,7 @@ from adcp import (
     GetSignalsRequest,
     GetSignalsResponse,
 )
-from adcp.types import WholesaleFeedEvent, WholesaleFeedWebhook
+from adcp.types import AccountReference, WholesaleFeedEvent, WholesaleFeedWebhook
 from adcp.types.core import TaskResult, TaskStatus
 
 # ---------------------------------------------------------------------------
@@ -32,10 +33,12 @@ from adcp.types.core import TaskResult, TaskStatus
 # ---------------------------------------------------------------------------
 
 
-def make_product_dict(product_id: str, *, cpm: float = 18.5) -> dict[str, Any]:
+def make_product_dict(
+    product_id: str, *, cpm: float = 18.5, name: str | None = None
+) -> dict[str, Any]:
     return {
         "product_id": product_id,
-        "name": f"Product {product_id}",
+        "name": name or f"Product {product_id}",
         "description": f"Description for {product_id}",
         "publisher_properties": [{"selection_type": "all", "publisher_domain": "pub.example.com"}],
         "format_options": [
@@ -147,6 +150,7 @@ class StubClient:
         idx = len(self.product_requests)
         self.product_requests.append(request)
         body = self._products[idx] if idx < len(self._products) else {"products": []}
+        body = {"cache_scope": "public", **body}
         return TaskResult(
             status=TaskStatus.COMPLETED,
             success=True,
@@ -157,6 +161,7 @@ class StubClient:
         idx = len(self.signal_requests)
         self.signal_requests.append(request)
         body = self._signals[idx] if idx < len(self._signals) else {"signals": []}
+        body = {"cache_scope": "public", **body}
         return TaskResult(
             status=TaskStatus.COMPLETED,
             success=True,
@@ -652,6 +657,302 @@ async def test_state_store_persists_version_on_webhook() -> None:
 # ---------------------------------------------------------------------------
 # Error cases
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("scope", [None, "invalid"])
+async def test_missing_or_unknown_scope_keeps_last_good_mirror(scope) -> None:
+    client = StubClient(
+        products=[
+            {
+                "products": [make_product_dict("p1")],
+                "cache_scope": "public",
+                "wholesale_feed_version": "v1",
+            },
+            {
+                "products": [make_product_dict("p2")],
+                "cache_scope": None,
+                "wholesale_feed_version": "v2",
+            },
+        ]
+    )
+    mirror = FeedMirror(client)
+    await mirror.bootstrap("product")
+    if scope == "invalid":
+        # Invalid wire literals are normally rejected by Pydantic. Exercise
+        # the mirror boundary as well, with a transport returning unchecked data.
+        original = client.get_products
+
+        async def unchecked(request):
+            result = await original(request)
+            object.__setattr__(result.data, "cache_scope", scope)
+            return result
+
+        client.get_products = unchecked
+    with pytest.raises(FeedMirrorError, match="cache_scope"):
+        await mirror.refresh("product")
+    assert set(mirror.products) == {"p1"}
+    assert mirror.product_state.wholesale_feed_version == "v1"
+
+
+@pytest.mark.asyncio
+async def test_failed_second_feed_keeps_both_last_good_feeds() -> None:
+    client = StubClient(
+        products=[
+            {"products": [make_product_dict("p1")], "wholesale_feed_version": "p-v1"},
+            {"products": [make_product_dict("p2")], "wholesale_feed_version": "p-v2"},
+        ],
+        signals=[
+            {"signals": [make_signal_dict("s1")], "wholesale_feed_version": "s-v1"},
+            {"signals": [], "cache_scope": None},
+        ],
+    )
+    mirror = FeedMirror(client)
+    await mirror.bootstrap()
+    with pytest.raises(FeedMirrorError):
+        await mirror.refresh()
+    assert set(mirror.products) == {"p1"}
+    assert set(mirror.signals) == {"s1"}
+    assert mirror.product_state.wholesale_feed_version == "p-v1"
+    assert mirror.signal_state.wholesale_feed_version == "s-v1"
+
+
+@pytest.mark.asyncio
+async def test_failed_page_keeps_last_good_items_and_versions() -> None:
+    client = StubClient(
+        products=[
+            {"products": [make_product_dict("p1")], "wholesale_feed_version": "v1"},
+            {
+                "products": [make_product_dict("p2")],
+                "wholesale_feed_version": "v2",
+                "pagination": {"has_more": True, "cursor": "next"},
+            },
+        ]
+    )
+    original = client.get_products
+
+    async def failing_page(request):
+        if request.pagination.cursor == "next":
+            return TaskResult(status=TaskStatus.FAILED, success=False, error="page unavailable")
+        return await original(request)
+
+    client.get_products = failing_page
+    mirror = FeedMirror(client)
+    await mirror.bootstrap("product")
+    with pytest.raises(FeedMirrorError, match="page unavailable"):
+        await mirror.refresh("product")
+    assert set(mirror.products) == {"p1"}
+    assert mirror.product_state.wholesale_feed_version == "v1"
+
+
+@pytest.mark.asyncio
+async def test_storage_failure_keeps_last_good_mirror() -> None:
+    class Store:
+        fail = False
+
+        async def load(self, entity):
+            return None
+
+        async def save(self, entity, state):
+            if self.fail:
+                raise RuntimeError("storage unavailable")
+
+    store = Store()
+    client = StubClient(
+        products=[
+            {"products": [make_product_dict("p1")], "wholesale_feed_version": "v1"},
+            {"products": [make_product_dict("p2")], "wholesale_feed_version": "v2"},
+        ]
+    )
+    mirror = FeedMirror(client, state_store=store)
+    await mirror.bootstrap("product")
+    store.fail = True
+    with pytest.raises(RuntimeError, match="storage unavailable"):
+        await mirror.refresh("product")
+    assert set(mirror.products) == {"p1"}
+    assert mirror.product_state.wholesale_feed_version == "v1"
+
+
+@pytest.mark.asyncio
+async def test_account_snapshots_are_authoritative_and_isolate_prices() -> None:
+    client = StubClient(
+        products=[
+            {"products": [make_product_dict("p1"), make_product_dict("public-only")]},
+            {"products": [make_product_dict("p1", name="Account A")], "cache_scope": "account"},
+            {"products": [make_product_dict("p1", name="Account B")], "cache_scope": "account"},
+            {"products": [make_product_dict("p1", name="Public refresh")], "cache_scope": "public"},
+        ]
+    )
+    public = FeedMirror(client)
+    a = public.for_account(
+        TypeAdapter(AccountReference).validate_python({"account_id": "acc_acme"})
+    )
+    b = public.for_account(TypeAdapter(AccountReference).validate_python({"account_id": "other"}))
+    await public.bootstrap("product")
+    await a.bootstrap("product")
+    await b.bootstrap("product")
+    assert a.get_product("p1").name == "Account A"
+    assert b.get_product("p1").name == "Account B"
+    assert public.get_product("p1").name != "Account A"
+    assert a.get_product("public-only") is None
+    assert b.get_product("public-only") is None
+    await a.refresh("product")
+    assert public.get_product("p1").name == "Public refresh"
+    assert a.get_product("p1").name == "Public refresh"
+    assert b.get_product("p1").name == "Account B"
+
+
+@pytest.mark.asyncio
+async def test_empty_account_snapshots_do_not_inherit_public_inventory() -> None:
+    client = StubClient(
+        products=[
+            {"products": [make_product_dict("public-only")]},
+            {"products": [], "cache_scope": "account"},
+        ],
+        signals=[
+            {"signals": [make_signal_dict("public-only")]},
+            {"signals": [], "cache_scope": "account"},
+        ],
+    )
+    public = FeedMirror(client)
+    await public.bootstrap()
+    overlay = public.for_account(
+        TypeAdapter(AccountReference).validate_python({"account_id": "acc_acme"})
+    )
+    await overlay.bootstrap()
+    assert overlay.products == {}
+    assert overlay.signals == {}
+    assert set(public.products) == {"public-only"}
+    assert set(public.signals) == {"public-only"}
+
+
+@pytest.mark.asyncio
+async def test_public_response_forgets_private_pricing_token() -> None:
+    client = StubClient(
+        products=[
+            {
+                "products": [make_product_dict("p1")],
+                "cache_scope": "account",
+                "wholesale_feed_version": "private-feed",
+                "pricing_version": "private-prices",
+            },
+            {
+                "products": [make_product_dict("p1")],
+                "cache_scope": "public",
+                "wholesale_feed_version": "public-feed",
+            },
+            {"unchanged": True, "cache_scope": "public", "wholesale_feed_version": "public-feed"},
+        ]
+    )
+    mirror = FeedMirror(
+        client, account=TypeAdapter(AccountReference).validate_python({"account_id": "acc_acme"})
+    )
+    await mirror.bootstrap("product")
+    await mirror.refresh("product")
+    assert mirror.product_state.pricing_version is None
+    await mirror.refresh("product")
+    assert client.product_requests[-1].if_pricing_version is None
+
+
+@pytest.mark.asyncio
+async def test_account_removal_masks_public_product_without_affecting_public() -> None:
+    client = StubClient(
+        products=[
+            {"products": [make_product_dict("p1")]},
+            {"products": [make_product_dict("p1")], "cache_scope": "public"},
+        ]
+    )
+    public = FeedMirror(client)
+    await public.bootstrap("product")
+    account = public.for_account(
+        TypeAdapter(AccountReference).validate_python({"account_id": "acc_acme"})
+    )
+    removed = make_event(
+        "018f0000-0000-7000-8000-000000000041",
+        "product.removed",
+        "product",
+        "p1",
+        {"product_id": "p1", "applies_to": {"scope": "account", "account_ids": ["acc_acme"]}},
+    )
+    await account.apply_webhook(make_webhook(removed, cache_scope="account"))
+    assert account.get_product("p1") is None
+    assert public.get_product("p1") is not None
+    await account.refresh("product")
+    assert account.get_product("p1") is public.get_product("p1")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "envelope_scope,payload_scope", [("public", "account"), ("account", "public")]
+)
+async def test_webhook_scope_mismatch_keeps_all_layers_unchanged(envelope_scope, payload_scope):
+    client = StubClient(products=[{"products": [make_product_dict("p1")]}])
+    public = FeedMirror(client)
+    await public.bootstrap("product")
+    overlay = public.for_account(
+        TypeAdapter(AccountReference).validate_python({"account_id": "acc_acme"})
+    )
+    event = make_event(
+        "018f0000-0000-7000-8000-000000000051",
+        "product.created",
+        "product",
+        "private",
+        {
+            "product_id": "private",
+            "product": make_product_dict("private"),
+            "applies_to": {"scope": payload_scope},
+        },
+    )
+    with pytest.raises(FeedMirrorError, match="applies_to.scope"):
+        await overlay.apply_webhook(make_webhook(event, cache_scope=envelope_scope))
+    assert set(public.products) == {"p1"}
+    assert overlay.get_product("private") is None
+    assert overlay.product_state.wholesale_feed_version is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("natural", [True, False])
+async def test_account_webhooks_require_recipient_binding(natural):
+    key = {"brand": {"domain": "acme.example"}, "operator": "agency.example"}
+    ref = TypeAdapter(AccountReference).validate_python(
+        key if natural else {"account_id": "acc_acme"}
+    )
+    overlay = FeedMirror(StubClient(), account=ref)
+    event = make_event(
+        "018f0000-0000-7000-8000-000000000052",
+        "product.created",
+        "product",
+        "private",
+        {
+            "product_id": "private",
+            "product": make_product_dict("private"),
+            "applies_to": {"scope": "account", "account_ids": ["other"]},
+        },
+    )
+    with pytest.raises(FeedMirrorError, match="binding|does not apply"):
+        await overlay.apply_webhook(make_webhook(event, cache_scope="account"))
+    assert overlay.products == {}
+    assert overlay.product_state.wholesale_feed_version is None
+
+
+@pytest.mark.asyncio
+async def test_natural_account_webhooks_accept_confirmed_seller_binding():
+    key = {"brand": {"domain": "acme.example"}, "operator": "agency.example"}
+    ref = TypeAdapter(AccountReference).validate_python(key)
+    overlay = FeedMirror(StubClient(), account=ref, account_id="acc_acme")
+    event = make_event(
+        "018f0000-0000-7000-8000-000000000053",
+        "product.created",
+        "product",
+        "private",
+        {
+            "product_id": "private",
+            "product": make_product_dict("private"),
+            "applies_to": {"scope": "account", "account_ids": ["acc_acme"]},
+        },
+    )
+    await overlay.apply_webhook(make_webhook(event, cache_scope="account"))
+    assert overlay.get_product("private") is not None
 
 
 @pytest.mark.asyncio

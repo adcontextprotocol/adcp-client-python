@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
 from adcp._null_clear import preserve_explicit_nulls
 from adcp._version import resolve_adcp_version
+from adcp.accounts import AccountPolicy, AccountRegistry, AccountStorage
 from adcp.canonical_formats import (
     CanonicalFormatLegacyResolutionError,
     CanonicalFormatLegacyResolver,
@@ -42,7 +43,13 @@ from adcp.canonical_formats import (
 )
 from adcp.capabilities import TASK_FEATURE_MAP, FeatureResolver, looks_like_v3_capabilities
 from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS
-from adcp.exceptions import ADCPError, ADCPTimeoutError, ADCPWebhookSignatureError
+from adcp.exceptions import (
+    ACCOUNT_ERROR_CODE_MAP,
+    ADCPError,
+    ADCPTimeoutError,
+    ADCPWebhookSignatureError,
+    classify_task_error,
+)
 from adcp.negotiation import (
     WIRE_RESPONSE_METADATA_KEY,
     VerifiedRefinementResult,
@@ -432,6 +439,9 @@ def _task_options_method(
         call_kwargs = cast(dict[str, Any], kwargs)
         options = call_kwargs.pop("options", None)
         client = cast("ADCPClient", args[0])
+        account_policy = call_kwargs.pop("account_policy", None)
+        if account_policy is None:
+            account_policy = client.account_policy
         if options is not None and not isinstance(options, TaskOptions):
             raise TypeError("options must be a TaskOptions instance")
         method_name = method.__name__
@@ -452,6 +462,47 @@ def _task_options_method(
             task_name = method_name.removesuffix("_legacy")
         task_name = safe_tool_name(task_name)
         protocol = client.agent_config.protocol.value
+
+        async def invoke() -> R:
+            positional = list(args)
+            request_index = 2 if method_name in {"execute_task", "execute_task_legacy"} else 1
+            request = (
+                positional[request_index]
+                if len(positional) > request_index
+                else call_kwargs.get("request")
+            )
+            if isinstance(request, BaseModel):
+                prepared = await client.accounts.prepare(task_name, request, account_policy)
+                if len(positional) > request_index:
+                    positional[request_index] = prepared
+                else:
+                    call_kwargs["request"] = prepared
+            result = await method(*cast(Any, positional), **cast(Any, call_kwargs))
+            if isinstance(result, TaskResult):
+                if method_name not in {"execute_task", "execute_task_legacy"}:
+                    await client.accounts.observe(task_name, request, result)
+                body_errors = getattr(result.data, "errors", None)
+                if isinstance(result.data, Mapping):
+                    body_errors = result.data.get("errors")
+                errors = list(body_errors or [])
+                if result.adcp_error is not None:
+                    errors.append(result.adcp_error)
+                for error in errors:
+                    code = (
+                        error.get("code")
+                        if isinstance(error, Mapping)
+                        else getattr(error, "code", None)
+                    )
+                    if code in ACCOUNT_ERROR_CODE_MAP:
+                        if code == "ACCOUNT_NOT_FOUND" and isinstance(request, BaseModel):
+                            ref = getattr(request, "account", None)
+                            if ref is not None:
+                                await client.accounts.forget(ref)
+                        raise classify_task_error(
+                            task_name, errors, agent_id=client.agent_config.id
+                        )
+            return result
+
         with client_task_span(
             client._task_options_token,
             protocol=protocol,
@@ -460,11 +511,11 @@ def _task_options_method(
             workflow=workflow,
         ) as span:
             if options is None:
-                result = await method(*args, **kwargs)
+                result = await invoke()
             else:
                 result = await client._run_with_task_options(
                     task_name,
-                    lambda: method(*args, **kwargs),
+                    invoke,
                     options,
                 )
             set_task_result_attributes(span, result)
@@ -578,6 +629,8 @@ class ADCPClient:
         canonical_format_legacy_resolver: CanonicalFormatLegacyResolver | None = None,
         allow_unauthenticated_webhooks: bool = False,
         httpx_client_factory: MCPHttpxClientFactory | None = None,
+        account_policy: AccountPolicy = "auto",
+        account_storage: AccountStorage | None = None,
     ):
         """
         Initialize ADCP client for a single agent.
@@ -600,6 +653,11 @@ class ADCPClient:
                 timestamps. Webhooks with timestamps older than this or more than
                 this far in the future are rejected. Defaults to 300 (5 minutes).
             capabilities_ttl: Time-to-live in seconds for cached capabilities (default: 1 hour)
+            account_policy: Default natural-key policy. ``auto`` omits unknown
+                keys on optional discovery; ``strict`` rejects them. Required
+                accounts must be provisioned through ``client.accounts.ensure``.
+            account_storage: Async provisioning-record storage, private to the
+                authenticated buyer. Defaults to in-memory storage.
             validate_features: When True, automatically check that the seller supports
                 required features before making task calls (e.g., sync_audiences requires
                 audience_targeting). Requires capabilities to have been fetched first.
@@ -734,6 +792,10 @@ class ADCPClient:
             raise TypeError("allow_unauthenticated_webhooks must be a bool")
 
         self.agent_config = agent_config
+        if account_policy not in {"auto", "strict"}:
+            raise ValueError("account_policy must be 'auto' or 'strict'")
+        self.account_policy = account_policy
+        self.accounts = AccountRegistry(self, account_storage)
         self.webhook_url_template = webhook_url_template
         self.webhook_secret = webhook_secret
         self.allow_unauthenticated_webhooks = allow_unauthenticated_webhooks
@@ -2056,7 +2118,11 @@ class ADCPClient:
 
     @_task_options_method
     async def list_products(
-        self, request: ListProductsRequest, *, options: TaskOptions | None = None
+        self,
+        request: ListProductsRequest,
+        *,
+        account_policy: AccountPolicy | None = None,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ListProductsResponse]:
         """List products using the AdCP 3.2 compact discovery lifecycle."""
         return cast(
@@ -2069,6 +2135,7 @@ class ADCPClient:
         self,
         request: RequestProposalsRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[RequestProposalsResponse]:
         """Request seller proposals for selected products."""
@@ -2199,7 +2266,11 @@ class ADCPClient:
 
     @_task_options_method
     async def buy_products(
-        self, request: BuyProductsRequest, *, options: TaskOptions | None = None
+        self,
+        request: BuyProductsRequest,
+        *,
+        account_policy: AccountPolicy | None = None,
+        options: TaskOptions | None = None,
     ) -> TaskResult[BuyProductsResponse]:
         """Commit a direct product purchase."""
         return cast(
@@ -2212,6 +2283,7 @@ class ADCPClient:
         self,
         request: AcceptProposalRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[AcceptProposalResponse]:
         """Accept a seller proposal and create its media buy."""
@@ -2225,6 +2297,7 @@ class ADCPClient:
         self,
         request: ControlMediaBuyRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[ControlMediaBuyResponse]:
         """Apply lifecycle controls to an existing media buy."""
@@ -2241,6 +2314,7 @@ class ADCPClient:
         preview_output_format: str = "url",
         creative_agent_client: ADCPClient | None = None,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[GetProductsResponse]:
         """
@@ -2318,6 +2392,7 @@ class ADCPClient:
         self,
         request: LegacyGetProductsRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[LegacyGetProductsResponse]:
         """Return the raw AdCP 3.x product wire shape for migration tooling."""
@@ -2343,6 +2418,7 @@ class ADCPClient:
         fetch_previews: bool = False,
         preview_output_format: str = "url",
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[ListCreativeFormatsResponse]:
         """
@@ -2408,6 +2484,7 @@ class ADCPClient:
         self,
         request: LegacyCreateMediaBuyRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[LegacyCreateMediaBuyResponse]:
         """Execute create_media_buy without the canonical application boundary."""
@@ -2423,6 +2500,7 @@ class ADCPClient:
         self,
         request: LegacyUpdateMediaBuyRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[LegacyUpdateMediaBuyResponse]:
         """Execute update_media_buy without the canonical application boundary."""
@@ -2438,6 +2516,7 @@ class ADCPClient:
         self,
         request: LegacySyncCreativesRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[LegacySyncCreativesResponse]:
         """Execute sync_creatives without the canonical application boundary."""
@@ -2451,6 +2530,7 @@ class ADCPClient:
         self,
         request: LegacyListCreativesRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[LegacyListCreativesResponse]:
         """Return raw creative rows carrying legacy format identity."""
@@ -2464,6 +2544,7 @@ class ADCPClient:
         self,
         request: GetMediaBuysRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[LegacyGetMediaBuysResponse]:
         """Return raw media-buy rows carrying legacy format identity."""
@@ -2477,6 +2558,7 @@ class ADCPClient:
         self,
         request: GetMediaBuyDeliveryRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[LegacyGetMediaBuyDeliveryResponse]:
         """Return raw media-buy delivery carrying legacy format identity."""
@@ -2492,6 +2574,7 @@ class ADCPClient:
         self,
         request: GetCreativeDeliveryRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[LegacyGetCreativeDeliveryResponse]:
         """Return raw creative delivery carrying legacy format identity."""
@@ -2552,6 +2635,7 @@ class ADCPClient:
         self,
         request: SyncCreativesRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[SyncCreativesResponse]:
         """
@@ -2606,6 +2690,7 @@ class ADCPClient:
         self,
         request: ListCreativesRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[ListCreativesResponse]:
         """
@@ -2662,6 +2747,7 @@ class ADCPClient:
         self,
         request: GetMediaBuyDeliveryRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[GetMediaBuyDeliveryResponse]:
         """
@@ -2716,6 +2802,7 @@ class ADCPClient:
         self,
         request: GetMediaBuysRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[GetMediaBuysResponse]:
         """
@@ -2774,6 +2861,7 @@ class ADCPClient:
         self,
         request: GetSignalsRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[GetSignalsResponse]:
         """
@@ -2818,6 +2906,7 @@ class ADCPClient:
         self,
         request: ActivateSignalRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[ActivateSignalResponse]:
         """
@@ -2906,6 +2995,7 @@ class ADCPClient:
         self,
         request: CreateMediaBuyRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[CreateMediaBuyResponse]:
         """
@@ -2984,6 +3074,7 @@ class ADCPClient:
         self,
         request: UpdateMediaBuyRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[UpdateMediaBuyResponse]:
         """
@@ -3061,6 +3152,7 @@ class ADCPClient:
         self,
         request: LegacyBuildCreativeRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[LegacyBuildCreativeResponse]:
         """
@@ -3130,6 +3222,7 @@ class ADCPClient:
         self,
         request: ListAccountChangesRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[ListAccountChangesResponse]:
         """Read the durable change feed for an advertiser account."""
@@ -3166,6 +3259,7 @@ class ADCPClient:
         self,
         request: ListAccountsRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[ListAccountsResponse]:
         """
@@ -3254,6 +3348,7 @@ class ADCPClient:
         self,
         request: GetAccountFinancialsRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[GetAccountFinancialsResponse]:
         """
@@ -3342,6 +3437,7 @@ class ADCPClient:
         self,
         request: GetReportingStatusRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[GetReportingStatusResponse]:
         """Read the authoritative reporting delivery and reconciliation status."""
@@ -3359,6 +3455,7 @@ class ADCPClient:
         self,
         request: SyncReportingReceiptsRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[SyncReportingReceiptsResponse]:
         """Submit durable reporting materialization reconciliation receipts."""
@@ -3376,6 +3473,7 @@ class ADCPClient:
         self,
         request: SyncReportingStatusRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[SyncReportingStatusResponse]:
         """Tell a seller whether expected reporting could actually be consumed.
@@ -3443,6 +3541,7 @@ class ADCPClient:
         self,
         request: SyncEventSourcesRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[SyncEventSourcesResponse]:
         """
@@ -3488,6 +3587,7 @@ class ADCPClient:
         self,
         request: SyncAudiencesRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[SyncAudiencesResponse]:
         """
@@ -3532,6 +3632,7 @@ class ADCPClient:
         self,
         request: SyncCatalogsRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[SyncCatalogsResponse]:
         """
@@ -3576,6 +3677,7 @@ class ADCPClient:
         self,
         request: GetCreativeDeliveryRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[GetCreativeDeliveryResponse]:
         """
@@ -3635,6 +3737,7 @@ class ADCPClient:
         self,
         request: ListTransformersRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[ListTransformersResponse]:
         """
@@ -3778,6 +3881,7 @@ class ADCPClient:
         self,
         request: GetTaskStatusRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[GetTaskStatusResponse]:
         """
@@ -3822,6 +3926,7 @@ class ADCPClient:
         self,
         request: ListTasksRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[ListTasksResponse]:
         """
@@ -4142,6 +4247,7 @@ class ADCPClient:
         self,
         request: GetMediaBuyArtifactsRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[GetMediaBuyArtifactsResponse]:
         """
@@ -4381,6 +4487,7 @@ class ADCPClient:
         self,
         request: GetCreativeFeaturesRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[GetCreativeFeaturesResponse]:
         """Evaluate governance features for a creative manifest."""
@@ -4576,6 +4683,7 @@ class ADCPClient:
         self,
         request: CreatePropertyListRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[CreatePropertyListResponse]:
         """
@@ -4623,6 +4731,7 @@ class ADCPClient:
         self,
         request: GetPropertyListRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[GetPropertyListResponse]:
         """
@@ -4670,6 +4779,7 @@ class ADCPClient:
         self,
         request: ListPropertyListsRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[ListPropertyListsResponse]:
         """
@@ -4717,6 +4827,7 @@ class ADCPClient:
         self,
         request: UpdatePropertyListRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[UpdatePropertyListResponse]:
         """
@@ -4764,6 +4875,7 @@ class ADCPClient:
         self,
         request: DeletePropertyListRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[DeletePropertyListResponse]:
         """
@@ -4815,6 +4927,7 @@ class ADCPClient:
         self,
         request: CreateCollectionListRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[CreateCollectionListResponse]:
         """Create a collection list for governance filtering.
@@ -4861,6 +4974,7 @@ class ADCPClient:
         self,
         request: GetCollectionListRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[GetCollectionListResponse]:
         """Get a collection list with optional resolution.
@@ -4906,6 +5020,7 @@ class ADCPClient:
         self,
         request: ListCollectionListsRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[ListCollectionListsResponse]:
         """List collection lists owned by a principal.
@@ -4949,6 +5064,7 @@ class ADCPClient:
         self,
         request: UpdateCollectionListRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[UpdateCollectionListResponse]:
         """Update a collection list.
@@ -4992,6 +5108,7 @@ class ADCPClient:
         self,
         request: DeleteCollectionListRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[DeleteCollectionListResponse]:
         """Delete a collection list.
@@ -5279,6 +5396,7 @@ class ADCPClient:
         self,
         request: AcquireRightsRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[AcquireRightsResponse]:
         """Acquire rights for brand content usage.
@@ -5327,6 +5445,7 @@ class ADCPClient:
         self,
         request: UpdateRightsRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[UpdateRightsResponse]:
         """Update terms of an existing rights acquisition.
@@ -5424,6 +5543,7 @@ class ADCPClient:
         self,
         request: ComplyTestControllerRequest,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[ComplyTestControllerResponse]:
         """Compliance test controller for sandbox testing.
@@ -5471,6 +5591,7 @@ class ADCPClient:
         task_name: str,
         request: BaseModel,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[Any]:
         """Execute a standard task through the canonical primary API map."""
@@ -5502,6 +5623,7 @@ class ADCPClient:
         task_name: str,
         request: BaseModel,
         *,
+        account_policy: AccountPolicy | None = None,
         options: TaskOptions | None = None,
     ) -> TaskResult[Any]:
         """Execute an explicitly raw creative task for migration tooling."""
