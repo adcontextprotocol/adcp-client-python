@@ -1949,3 +1949,47 @@ client can handle programmatically.
   resolution.
 - `tests/test_mcp_middleware_composition.py` — the integration test
   that protects this contract.
+
+### Operational HTTP routes
+
+Use `unauthenticated_routes` for liveness, readiness, metrics or management
+surfaces. It accepts Starlette `Route` and `Mount` objects on `serve`,
+`ServeConfig`, both direct server builders and `build_asgi_app` /
+`build_test_client`. The operational router is built once, ahead of MCP/A2A
+routing and the SDK's bearer/signature checks. Apply authentication in a mounted
+application when an operational endpoint needs its own credentials.
+
+```python
+from starlette.responses import JSONResponse
+from starlette.routing import Route
+from adcp.server import ServeConfig, serve
+
+async def alive(request):
+    return JSONResponse({"status": "alive"})
+
+serve(handler, config=ServeConfig(
+    transport="both",
+    unauthenticated_routes=[Route("/healthz", alive, methods=["GET"])],
+))
+```
+
+The configured Host/Origin transport policy still applies. Operator
+`asgi_middleware`, including tracing and metrics, wraps these routes.
+`SubdomainTenantMiddleware` automatically excludes matching operational Routes
+and Mount subtrees, including bare-prefix redirects and method mismatches.
+Exclusions use Starlette's matcher; `/manage` does not exclude `/management`.
+Other operator-supplied auth/tenant middleware remains responsible for its own
+policy. It can inspect the SDK's `scope["adcp.operational_route"]` marker.
+
+Route methods, HEAD behavior and slash redirects follow Starlette; a known path
+with an unsupported method returns 405 before protocol auth. Routes at the same
+path may declare different methods; the first full match in the supplied order
+wins. Root catch-alls, dynamic first path segments and collisions with `/mcp`,
+`/sse`, `/messages` or `/.well-known` are rejected at construction. Operational
+routes are HTTP-only; `stdio` rejects them. Mounted application lifespans are
+not automatically entered (standard Starlette behavior); manage their resources
+with the combined server's startup/shutdown hooks or the embedding app.
+
+A `/healthz` route reports process liveness. Define `/readyz` separately from
+actual dependency, capacity and initialization checks; return 503 when those
+checks fail. A successful liveness response alone does not prove readiness.
