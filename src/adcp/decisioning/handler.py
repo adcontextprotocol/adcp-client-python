@@ -111,6 +111,11 @@ from adcp.server.base import ADCPHandler, NotImplementedResponse, ToolContext
 
 logger = logging.getLogger(__name__)
 
+
+class _PublicAccount(_DecisioningAccount[Any]):
+    """Unresolved public view; never used as an account or idempotency scope."""
+
+
 # Pydantic Request/Response types are imported at module scope (NOT
 # under TYPE_CHECKING) so that ``typing.get_type_hints(method)`` can
 # resolve every shim's ``params`` annotation at runtime. The dispatcher
@@ -1544,6 +1549,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self,
         ref: object | None,
         ctx: ToolContext,
+        *,
+        tool_name: str | None = None,
     ) -> Account[Any]:
         """Resolve a wire :class:`AccountReference` to a typed
         :class:`Account` via the platform's :class:`AccountStore`.
@@ -1587,11 +1594,56 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ref_dict = ref
         else:
             ref_dict = cast("dict[str, Any]", ref)
-        result = self._platform.accounts.resolve(ref_dict, auth_info=auth_info)
-        if asyncio.iscoroutine(result):
-            resolved = cast("Account[Any]", await result)
+        from adcp.account_identity import is_provisioning_task
+        from adcp.decisioning.accounts import ResolveContext
+
+        if ref is None and tool_name in {"get_products", "list_products"}:
+            caps, _ = await self._effective_capabilities_for_request(None, ctx)
+            if getattr(caps.account, "required_for_products", False):
+                from adcp.decisioning.types import AdcpError
+
+                raise AdcpError(
+                    "ACCOUNT_REQUIRED",
+                    message="An account is required for product discovery",
+                    recovery="correctable",
+                    field="account",
+                )
+        store = self._platform.accounts
+        if hasattr(store, "resolve_for_task"):
+            result = store.resolve_for_task(
+                ref_dict,
+                ResolveContext(
+                    auth_info=auth_info,
+                    tool_name=tool_name,
+                    agent=ctx.metadata.get(_BUYER_AGENT_METADATA_KEY),
+                    is_provisioning=is_provisioning_task(tool_name),
+                ),
+            )
         else:
-            resolved = cast("Account[Any]", result)
+            result = store.resolve(ref_dict, auth_info=auth_info)
+        resolved: Account[Any] | None
+        if inspect.isawaitable(result):
+            resolved = cast("Account[Any] | None", await result)
+        else:
+            resolved = cast("Account[Any] | None", result)
+        if resolved is None:
+            from adcp.decisioning.types import AdcpError
+
+            if ref is None and tool_name in {
+                "get_products",
+                "list_products",
+                "get_signals",
+                "request_proposals",
+                "refine_proposals",
+                "decline_proposals",
+            }:
+                return _PublicAccount(id="")
+            raise AdcpError(
+                "ACCOUNT_NOT_FOUND",
+                message="Account reference could not be resolved",
+                recovery="terminal",
+                field="account",
+            )
         # Phase 1 sandbox-authority — track explicit mode values for the
         # comply controller's env-fallback fail-closed guard. Implicit
         # default-live (resolver didn't populate mode) is intentionally
@@ -1820,7 +1872,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             tool_ctx,
             account,
             auth_info,
-            store=self._platform.accounts,
+            store=None if isinstance(account, _PublicAccount) else self._platform.accounts,
             state_reader=self._state_reader,
             resource_resolver=self._resource_resolver,
             buyer_agent=buyer_agent,
@@ -1990,7 +2042,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 and hasattr(self._platform, "proposal_manager_for_tenant")
                 and can_resolve_manager
             ):
-                account = await self._resolve_account(None, capability_ctx)
+                account = await self._resolve_account(
+                    None, capability_ctx, tool_name="get_adcp_capabilities"
+                )
                 metadata = getattr(account, "metadata", None)
                 tenant_id = metadata.get("tenant_id") if isinstance(metadata, Mapping) else None
                 if isinstance(tenant_id, str):
@@ -2117,7 +2171,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
     ) -> Any:
         """Resolve account context and dispatch one compact 3.2 lifecycle task."""
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name=method_name
+        )
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
@@ -2153,7 +2209,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self, params: RefineProposalsRequest, context: ToolContext | None = None
     ) -> RefineProposalsResponse:
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="refine_proposals"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         capabilities, _ = await self._effective_capabilities_for_request(params, context)
         media_buy = capabilities.media_buy
@@ -2304,7 +2362,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # synchronous rate-card read with no async lifecycle. The
         # platform method is never invoked on this path.
         assert_discovery_push_consistent(params, mode_field="buying_mode")
-        account = await self._resolve_account(params.account, tool_ctx)
+        account = await self._resolve_account(params.account, tool_ctx, tool_name="get_products")
         # Guard (c) pre-dispatch: a buyer-supplied push_notification_config
         # makes the request async up front. If the account is unresolved
         # (sentinel/empty id) the eventual task_id would be unreachable —
@@ -2529,7 +2587,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         from adcp.decisioning.types import AdcpError
 
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(params.account, tool_ctx)
+        account = await self._resolve_account(
+            params.account, tool_ctx, tool_name="create_media_buy"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         # Capability resolution may await adopter code and fail validation.
         # Keep it ahead of proposal reservation so a scoped-hook failure cannot
@@ -2662,7 +2722,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         cleaner adopter ergonomics. Arg-projection per D1.
         """
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(params.account, tool_ctx)
+        account = await self._resolve_account(
+            params.account, tool_ctx, tool_name="update_media_buy"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         # v1.5: hydrate ctx.recipes from the consumed proposal via the
         # ProposalStore reverse-index. Re-validates capability overlap
@@ -2714,7 +2776,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         context: ToolContext | None = None,
     ) -> SyncCreativesSuccessResponse:
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(params.account, tool_ctx)
+        account = await self._resolve_account(params.account, tool_ctx, tool_name="sync_creatives")
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
@@ -2734,7 +2796,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         context: ToolContext | None = None,
     ) -> GetMediaBuyDeliveryResponse:
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(params.account, tool_ctx)
+        account = await self._resolve_account(
+            params.account, tool_ctx, tool_name="get_media_buy_delivery"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         if (
             getattr(self._platform, "_reliable_reporting_service", None) is not None
@@ -2780,7 +2844,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         if reporting is None or name not in reporting.reporting_tools:
             return self._not_supported(name)
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(params.account, tool_ctx)
+        account = await self._resolve_account(
+            params.account, tool_ctx, tool_name="_invoke_reporting_method"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         return await _invoke_platform_method(
             self._platform,
@@ -2812,7 +2878,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         context: ToolContext | None = None,
     ) -> GetMediaBuysResponse:
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(params.account, tool_ctx)
+        account = await self._resolve_account(params.account, tool_ctx, tool_name="get_media_buys")
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
@@ -2845,7 +2911,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         a derived/singleton path or extend ``AccountStore.resolve`` to
         handle the no-ref case (see python-port-v2 RFC TODO(rc.1))."""
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(
+            None, tool_ctx, tool_name="provide_performance_feedback"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "ProvidePerformanceFeedbackResponse",
@@ -2869,7 +2937,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         resolution caveat."""
         self._require_platform_method("list_creative_formats_legacy")
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(
+            None, tool_ctx, tool_name="list_creative_formats_legacy"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "ListCreativeFormatsResponse",
@@ -2889,7 +2959,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         context: ToolContext | None = None,
     ) -> ListCreativesResponse:
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(params.account, tool_ctx)
+        account = await self._resolve_account(params.account, tool_ctx, tool_name="list_creatives")
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "ListCreativesResponse",
@@ -2917,10 +2987,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         buyer_agent = (
             tool_ctx.metadata.get(_BUYER_AGENT_METADATA_KEY) if tool_ctx.metadata else None
         )
+        from adcp.account_identity import is_provisioning_task
+
         return ResolveContext(
             auth_info=auth_info,
             tool_name=tool_name,
             agent=buyer_agent,
+            is_provisioning=is_provisioning_task(tool_name),
         )
 
     async def sync_accounts(  # type: ignore[override]
@@ -3065,7 +3138,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """
         self._require_platform_method("build_creative_legacy")
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="build_creative_legacy"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
@@ -3094,7 +3169,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         handoff is accepted only when ``allow_async`` is true."""
         self._require_platform_method("preview_creative_legacy")
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="preview_creative_legacy"
+        )
         ctx = self._build_ctx(tool_ctx, account)
 
         def _reject_unrequested_async_preview() -> None:
@@ -3136,7 +3213,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """Required on :class:`CreativeAdServerPlatform` — per-creative
         delivery actuals (impressions, spend, pacing)."""
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="get_creative_delivery"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
@@ -3158,7 +3237,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """Optional creative preflight validation for beta 3 inputs."""
         self._require_platform_method("validate_input")
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="validate_input"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "ValidateInputResponse",
@@ -3190,7 +3271,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # before the platform method runs. Wholesale signal discovery is a
         # synchronous catalog read with no async lifecycle.
         assert_discovery_push_consistent(params, mode_field="discovery_mode")
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="get_signals"
+        )
         # Guard (c) pre-dispatch: push_notification_config makes the request
         # async up front; reject against an unresolved account before
         # _build_ctx (whose compose_caller_identity would otherwise raise a
@@ -3253,7 +3336,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """Provision a signal onto destination platforms."""
         self._require_platform_method("activate_signal")
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="activate_signal"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
@@ -3288,7 +3373,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         can return the ergonomic form.
         """
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="sync_audiences"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
@@ -3326,7 +3413,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """
         self._require_platform_method("sync_catalogs")
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="sync_catalogs"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
@@ -3378,7 +3467,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 message=str(exc),
                 recovery="correctable",
             ) from exc
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(None, tool_ctx, tool_name="check_governance")
         ctx = self._build_ctx(tool_ctx, account)
         result = cast(
             "CheckGovernanceResponse",
@@ -3407,7 +3496,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         (``additionalProperties: false``); resolve via auth only.
         """
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(None, tool_ctx, tool_name="sync_plans")
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "SyncPlansResponse",
@@ -3449,7 +3538,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 message=str(exc),
                 recovery="correctable",
             ) from exc
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(None, tool_ctx, tool_name="report_plan_outcome")
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "ReportPlanOutcomeResponse",
@@ -3475,7 +3564,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         (``additionalProperties: false``); resolve via auth only.
         """
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(None, tool_ctx, tool_name="get_plan_audit_logs")
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "GetPlanAuditLogsResponse",
@@ -3505,7 +3594,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         resolution caveat.
         """
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(None, tool_ctx, tool_name="get_brand_identity")
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
@@ -3531,7 +3620,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         (``additionalProperties: false``); resolve via auth only.
         """
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(None, tool_ctx, tool_name="get_rights")
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
@@ -3560,7 +3649,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         so multi-account and governance-bound routing selects the right scope.
         """
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="acquire_rights"
+        )
         ctx = self._build_ctx(tool_ctx, account)
 
         def _reject_handoff() -> None:
@@ -3606,7 +3697,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         task or workflow handoff.
         """
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="update_rights"
+        )
         ctx = self._build_ctx(tool_ctx, account)
 
         def _reject_handoff() -> None:
@@ -3643,7 +3736,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """Optional brand claim verification for beta 3 brand agents."""
         self._require_platform_method("verify_brand_claim")
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(None, tool_ctx, tool_name="verify_brand_claim")
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "VerifyBrandClaimResponse",
@@ -3665,7 +3758,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """Optional bulk brand claim verification for beta 3 brand agents."""
         self._require_platform_method("verify_brand_claims")
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(None, tool_ctx, tool_name="verify_brand_claims")
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "VerifyBrandClaimsResponseBulk",
@@ -3693,7 +3786,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         resolve via auth only.
         """
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(None, tool_ctx, tool_name="list_content_standards")
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "ListContentStandardsResponse",
@@ -3716,7 +3809,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         ``schemas/cache/content-standards/get-content-standards-request.json``;
         resolve via auth only."""
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(None, tool_ctx, tool_name="get_content_standards")
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "GetContentStandardsResponse",
@@ -3737,7 +3830,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
     ) -> CreateContentStandardsResponse:
         """Wire request has no ``account`` field; resolve via auth only."""
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(None, tool_ctx, tool_name="create_content_standards")
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "CreateContentStandardsResponse",
@@ -3758,7 +3851,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
     ) -> UpdateContentStandardsResponse:
         """Wire request has no ``account`` field; resolve via auth only."""
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(None, tool_ctx, tool_name="update_content_standards")
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "UpdateContentStandardsResponse",
@@ -3784,7 +3877,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         resolve via auth only.
         """
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(None, tool_ctx, tool_name="calibrate_content")
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "CalibrateContentResponse",
@@ -3810,7 +3903,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         resolve via auth only.
         """
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(None, tool_ctx, tool_name="validate_content_delivery")
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "ValidateContentDeliveryResponse",
@@ -3833,7 +3926,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         surface ``UNSUPPORTED_FEATURE``."""
         self._require_platform_method("get_media_buy_artifacts")
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="get_media_buy_artifacts"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "GetMediaBuyArtifactsResponse",
@@ -3856,7 +3951,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         surface ``UNSUPPORTED_FEATURE``."""
         self._require_platform_method("get_creative_features")
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="get_creative_features"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "GetCreativeFeaturesResponse",
@@ -3878,7 +3975,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         context: ToolContext | None = None,
     ) -> CreatePropertyListResponse:
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="create_property_list"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
@@ -3898,7 +3997,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         context: ToolContext | None = None,
     ) -> UpdatePropertyListResponse:
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="update_property_list"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
@@ -3918,7 +4019,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         context: ToolContext | None = None,
     ) -> GetPropertyListResponse:
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="get_property_list"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
@@ -3938,7 +4041,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         context: ToolContext | None = None,
     ) -> ListPropertyListsResponse:
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="list_property_lists"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
@@ -3961,7 +4066,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         signals cache invalidation. Compromise-driven revocation MUST
         also trigger this path."""
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="delete_property_list"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
@@ -3983,7 +4090,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         context: ToolContext | None = None,
     ) -> CreateCollectionListResponse:
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="create_collection_list"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "CreateCollectionListResponse",
@@ -4003,7 +4112,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         context: ToolContext | None = None,
     ) -> UpdateCollectionListResponse:
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="update_collection_list"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "UpdateCollectionListResponse",
@@ -4023,7 +4134,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         context: ToolContext | None = None,
     ) -> GetCollectionListResponse:
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="get_collection_list"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "GetCollectionListResponse",
@@ -4043,7 +4156,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         context: ToolContext | None = None,
     ) -> ListCollectionListsResponse:
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="list_collection_lists"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "ListCollectionListsResponse",
@@ -4065,7 +4180,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """Security-critical: revokes the fetch_token. See
         :meth:`delete_property_list` for the same security contract."""
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        account = await self._resolve_account(
+            getattr(params, "account", None), tool_ctx, tool_name="delete_collection_list"
+        )
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
             "DeleteCollectionListResponse",

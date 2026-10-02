@@ -92,6 +92,13 @@ _REMOVED_IN_V4: dict[str, tuple[str, str]] = {
 # names and caches the result. Grouped by module (and mirrored verbatim in the
 # ``TYPE_CHECKING`` block at the bottom) so it stays readable and auditable.
 _LAZY_MODULES: dict[str, tuple[str, ...]] = {
+    "adcp.accounts": (
+        "AccountPolicy",
+        "AccountRecord",
+        "AccountRegistry",
+        "AccountStorage",
+        "InMemoryAccountStorage",
+    ),
     "adcp.acceptance": (
         "AcceptancePolicyAssessment",
         "AcceptancePolicyDiagnostic",
@@ -239,6 +246,9 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "ADCPWebhookError",
         "ADCPWebhookSignatureError",
         "BuyerReasonInfo",
+        "AccountNotFoundError",
+        "AccountSetupRequiredError",
+        "AccountPaymentRequiredError",
         "ConfigurationError",
         "extract_adcp_error_info",
         "IdempotencyConflictError",
@@ -983,6 +993,11 @@ __all__ = [
     # Version functions
     "get_adcp_version",
     # Client classes
+    "AccountPolicy",
+    "AccountRecord",
+    "AccountRegistry",
+    "AccountStorage",
+    "InMemoryAccountStorage",
     "ADCPClient",
     "ADCPMultiAgentClient",
     "Checkpoint",
@@ -1583,6 +1598,9 @@ __all__ = [
     "AdcpErrorInfo",
     "BuyerReasonInfo",
     "extract_adcp_error_info",
+    "AccountNotFoundError",
+    "AccountSetupRequiredError",
+    "AccountPaymentRequiredError",
     "ConfigurationError",
     "IdempotencyConflictError",
     "IdempotencyExpiredError",
@@ -1756,6 +1774,13 @@ if TYPE_CHECKING:
         AcceptancePolicyResolver,
         AcceptancePolicySurface,
     )
+    from adcp.accounts import (
+        AccountPolicy,
+        AccountRecord,
+        AccountRegistry,
+        AccountStorage,
+        InMemoryAccountStorage,
+    )
     from adcp.adagents import (
         AdagentsCacheEntry,
         AdagentsEntryError,
@@ -1801,6 +1826,9 @@ if TYPE_CHECKING:
     )
     from adcp.client import ADCPClient, ADCPMultiAgentClient, Checkpoint
     from adcp.exceptions import (  # noqa: F401
+        AccountNotFoundError,
+        AccountPaymentRequiredError,
+        AccountSetupRequiredError,
         AdagentsAccessBlockedError,
         AdagentsNotFoundError,
         AdagentsTimeoutError,

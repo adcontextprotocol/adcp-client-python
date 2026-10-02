@@ -53,6 +53,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, Protocol, run
 
 from typing_extensions import TypeVar
 
+from adcp.account_identity import account_key_payload
 from adcp.decisioning.context import AuthInfo
 from adcp.decisioning.types import (
     Account,
@@ -106,6 +107,9 @@ class ResolveContext:
     #: Adopter passthrough for additional context the framework
     #: doesn't model. Reserved for forward compatibility.
     extra: dict[str, Any] = field(default_factory=dict)
+    #: Lazy provisioning MUST be gated on this flag. Discovery and negotiation
+    #: never create/activate an account or accept default payment terms.
+    is_provisioning: bool = False
 
 
 def _call_with_optional_ctx(
@@ -222,7 +226,7 @@ class AccountStore(Protocol, Generic[TMeta]):
         self,
         ref: dict[str, Any] | None,
         auth_info: AuthInfo | None = None,
-    ) -> Awaitable[Account[TMeta]] | Account[TMeta]:
+    ) -> Awaitable[Account[TMeta] | None] | Account[TMeta] | None:
         """Return the resolved :class:`Account` or raise on miss.
 
         :param ref: The wire reference object (typically
@@ -237,6 +241,10 @@ class AccountStore(Protocol, Generic[TMeta]):
 
         Implementations may be sync or async; the dispatch adapter
         detects via :func:`inspect.iscoroutine` at call time.
+        Return ``None`` for an absent reference on public discovery. A supplied
+        reference that cannot resolve MUST raise ``ACCOUNT_NOT_FOUND``. Lazy
+        provisioners should implement :class:`AccountStoreResolveForTask` and
+        gate creation on ``ctx.is_provisioning``.
         """
         ...
 
@@ -259,6 +267,19 @@ class AccountStore(Protocol, Generic[TMeta]):
     #     per-account refs only
     #   * :meth:`AccountStoreList.list` — ``list_accounts``
     #   * :meth:`AccountStoreSyncGovernance.sync_governance`
+
+
+@runtime_checkable
+class AccountStoreResolveForTask(Protocol, Generic[TMeta]):
+    """Optional resolution hook with task/provisioning context.
+
+    The framework prefers this over ``resolve`` when present. Existing
+    ``resolve(ref, auth_info=None)`` implementations remain supported.
+    """
+
+    def resolve_for_task(
+        self, ref: dict[str, Any] | None, ctx: ResolveContext
+    ) -> Awaitable[Account[TMeta] | None] | Account[TMeta] | None: ...
 
 
 @runtime_checkable
@@ -577,26 +598,84 @@ class ExplicitAccounts(Generic[TMeta]):
         self,
         ref: dict[str, Any] | None,
         auth_info: AuthInfo | None = None,
-    ) -> Awaitable[Account[TMeta]] | Account[TMeta]:
+    ) -> Awaitable[Account[TMeta]] | Account[TMeta] | None:
         # Explicit mode resolves purely off the wire ref. Adopters
         # needing principal-vs-account scope checks implement
         # AccountStore directly (see class docstring). The loader
         # signature is account_id-only by contract, so auth_info isn't
         # threaded through here.
         del auth_info
+        if ref is None:
+            return None
         if not ref or not ref.get("account_id"):
             from adcp.decisioning.types import AdcpError
 
             raise AdcpError(
                 "ACCOUNT_NOT_FOUND",
                 message=(
-                    "ExplicitAccounts.resolve requires ref with 'account_id'; "
-                    "got missing/empty ref"
+                    "ExplicitAccounts.resolve requires ref with 'account_id'; got missing/empty ref"
                 ),
                 recovery="terminal",
                 field="account.account_id",
             )
         return self._loader(ref["account_id"])
+
+
+class NaturalKeyAccounts(Generic[TMeta]):
+    """Resolve buyer-declared keys against accounts already provisioned.
+
+    ``loader`` receives the complete canonical key and verified auth info.
+    It MUST scope the lookup to the caller and return only persisted accounts;
+    a miss returns ``None`` or raises ``ACCOUNT_NOT_FOUND``. Brand countries,
+    operator_unit.id, currency, timezone, and sandbox all participate in identity.
+    Display names and brand overrides do not.
+
+    Pass ``upsert_request`` to expose ``sync_accounts`` through the same store.
+    That callback receives the full request and :class:`ResolveContext`, and
+    persists the accounts that subsequent loader calls can resolve. Discovery
+    only calls the loader, never the provisioning callback. The callback owns
+    billing validation, dry-run semantics, and durable persistence.
+    """
+
+    resolution: ClassVar[str] = "explicit"
+
+    def __init__(
+        self,
+        loader: Callable[
+            [dict[str, Any], AuthInfo | None],
+            Awaitable[Account[TMeta] | None] | Account[TMeta] | None,
+        ],
+        *,
+        upsert_request: Callable[..., Any] | None = None,
+    ) -> None:
+        self._loader = loader
+        # Keep the optional hook absent when provisioning isn't configured.
+        if upsert_request is not None:
+            self.upsert_request = upsert_request
+
+    async def resolve(
+        self, ref: dict[str, Any] | None, auth_info: AuthInfo | None = None
+    ) -> Account[TMeta] | None:
+        from adcp.decisioning.types import AdcpError
+
+        if ref is None:
+            return None
+        try:
+            key = account_key_payload(ref)
+        except ValueError as exc:
+            raise AdcpError("ACCOUNT_NOT_FOUND", message=str(exc), field="account") from exc
+        if "account_id" in key:
+            raise AdcpError(
+                "ACCOUNT_NOT_FOUND", message="Use the provisioned natural key", field="account"
+            )
+        result = self._loader(key, auth_info)
+        if inspect.isawaitable(result):
+            result = await result
+        if result is None:
+            raise AdcpError(
+                "ACCOUNT_NOT_FOUND", message="Account has not been provisioned", field="account"
+            )
+        return result
 
 
 class FromAuthAccounts(Generic[TMeta]):

@@ -402,7 +402,9 @@ async def test_client_routes_each_compact_task_to_same_named_transport(
         patch.object(client.adapter, task_name, transport),
         patch.object(client.adapter, "_parse_response", return_value=parsed) as parse,
     ):
-        result = await getattr(client, task_name)(request_type.model_construct())
+        result = await getattr(client, task_name)(
+            request_type.model_construct(account={"account_id": "test-account"})
+        )
     transport.assert_awaited_once()
     parse.assert_called_once_with(raw, response_type)
     assert result.success is True
