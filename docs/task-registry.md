@@ -11,7 +11,9 @@ installed by this change.
 Polls use `status`, ISO UTC timestamps and protocol metadata. Progress, failure
 summary and the original task's context are preserved. Set `include_result=true`
 to retrieve a terminal artifact. A failed task exposes the stored fatal error
-both in its convenience `error` summary and in `result.adcp_error`.
+in its convenience `error` summary, `result.adcp_error`, and the canonical
+`result.errors` array. Successful results retain the adopter's original wire
+response; the background callable must return a valid response for its task type.
 
 `list_tasks` is advertised only for the separate optional `ListableTaskRegistry`
 protocol. Existing third-party `TaskRegistry` implementations need no changes.

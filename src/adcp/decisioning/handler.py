@@ -1335,6 +1335,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 getattr(self._platform, tool_name, None)
             ):
                 serving.add(tool_name)
+        if not serving:
+            # Preserve the existing class-universe fallback for novel specialisms.
+            serving.update(self.advertised_tools)
+            serving.discard("list_tasks")
         # Drop sync_accounts / list_accounts when the platform's
         # AccountStore doesn't expose the corresponding optional
         # Protocol method. ``sales-*`` claims union both tools in by
@@ -1367,10 +1371,6 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         reporting = getattr(self._platform, "_reliable_reporting_service", None)
         if reporting is not None:
             serving.update(reporting.reporting_tools)
-        if not serving:
-            # Preserve the existing class-universe fallback for novel specialisms.
-            serving.update(self.advertised_tools)
-            serving.discard("list_tasks")
         serving.add("get_task_status")
         if isinstance(self._registry, ListableTaskRegistry):
             serving.add("list_tasks")
