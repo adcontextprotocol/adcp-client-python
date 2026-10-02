@@ -16,7 +16,8 @@ Three hops, three SSRF guards:
 * **Capabilities (this module):** built atop
   :func:`adcp.signing.ip_pinned_transport.build_async_ip_pinned_transport`.
   Same posture as the brand.json + JWKS hops — IP-pinned at connect,
-  redirect-capped, body-capped, HTTPS-validated. **Not routed through
+  redirect-capped, body-capped, HTTPS-validated. Capabilities are fetched
+  through MCP (default) or A2A, never a raw JSON GET. **Not routed through
   :class:`adcp.client.ADCPClient`** because that client is for
   trusted-counterparty traffic; here ``agent_url`` is attacker-shaped.
 * **brand.json:** delegated to :class:`BrandJsonJwksResolver` (already
@@ -39,7 +40,6 @@ with a stable ``code`` attribute.
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
@@ -49,7 +49,6 @@ from typing import Any, ClassVar, Literal
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
-from adcp.signing._bounded_http import ResponseTooLargeError, async_read_limited_bytes
 from adcp.signing._idna_canonicalize import canonicalize_host
 from adcp.signing.brand_jwks import (
     BrandAgentType,
@@ -187,24 +186,24 @@ class _CapabilitiesPayload:
 async def _fetch_capabilities(
     agent_url: str,
     *,
+    protocol: Literal["mcp", "a2a"],
     allow_private: bool,
     max_body_bytes: int,
     max_redirects: int,
     timeout_seconds: float,
     client_factory: Callable[[str], AbstractAsyncContextManager[httpx.AsyncClient]] | None,
 ) -> _CapabilitiesPayload:
-    """SSRF-pinned ``GET <agent_url>`` returning the parsed
-    capabilities body and the final URL after redirects (if any are
-    allowed).
+    """Call ``get_adcp_capabilities`` over the agent's pinned protocol endpoint.
 
-    Mirrors the brand.json fetcher's posture: per-hop IP pin via
-    :func:`build_async_ip_pinned_transport`, body cap before parse,
-    no auto-redirect, ``trust_env=False`` so proxy env vars can't
-    rewrite the destination.
-
-    Capabilities-specific tightening: default ``max_redirects=0``
-    blocks cross-origin redirect-as-identity-pivot.
+    HTTP responses are bounded before protocol parsing. Redirects are disabled
+    by default; an explicit redirect allowance still cannot leave the origin.
     """
+    from adcp.signing._resolver_protocol import DiscoveryTransport, fetch_protocol_capabilities
+
+    if protocol not in {"mcp", "a2a"}:
+        raise ValueError("protocol must be 'mcp' or 'a2a'")
+    if max_body_bytes <= 0 or max_redirects < 0 or timeout_seconds <= 0:
+        raise ValueError("capabilities limits must be positive and redirects non-negative")
     if client_factory is not None:
         client_cm = client_factory(agent_url)
     else:
@@ -225,96 +224,26 @@ async def _fetch_capabilities(
             trust_env=False,
         )
 
-    seen: set[str] = set()
-    url = agent_url
-    for hop in range(max_redirects + 1):
-        if url in seen:
-            raise AgentResolverError(
-                "capabilities_unreachable",
-                "capabilities fetch hit redirect loop",
-            )
-        seen.add(url)
-
+    async with client_cm as client:
+        discovery = DiscoveryTransport(client, agent_url, max_body_bytes, max_redirects)
         try:
-            async with client_cm as client:
-                try:
-                    request_cm = client.stream(
-                        "GET",
-                        url,
-                        headers={"accept": "application/json", "accept-encoding": "identity"},
-                    )
-                    async with request_cm as response:
-                        if 300 <= response.status_code < 400 and "location" in response.headers:
-                            if hop == max_redirects:
-                                raise AgentResolverError(
-                                    "capabilities_unreachable",
-                                    f"capabilities fetch hit redirect limit ({max_redirects})",
-                                )
-                            url = str(httpx.URL(url).join(response.headers["location"]))
-                            try:
-                                transport = build_async_ip_pinned_transport(
-                                    url, allow_private=allow_private
-                                )
-                            except SSRFValidationError as exc:
-                                raise AgentResolverError(
-                                    "capabilities_unreachable",
-                                    f"redirect target failed SSRF check: {exc}",
-                                ) from exc
-                            client_cm = httpx.AsyncClient(
-                                transport=transport,
-                                timeout=timeout_seconds,
-                                follow_redirects=False,
-                                trust_env=False,
-                            )
-                            continue
-
-                        if response.status_code != 200:
-                            raise AgentResolverError(
-                                "capabilities_unreachable",
-                                f"capabilities fetch returned HTTP {response.status_code}",
-                            )
-
-                        try:
-                            body_bytes = await async_read_limited_bytes(
-                                response, limit=max_body_bytes
-                            )
-                        except ResponseTooLargeError as exc:
-                            raise AgentResolverError(
-                                "capabilities_invalid", f"capabilities {exc}"
-                            ) from exc
-
-                        try:
-                            parsed = json.loads(body_bytes)
-                        except (ValueError, UnicodeDecodeError) as exc:
-                            raise AgentResolverError(
-                                "capabilities_invalid",
-                                "capabilities response is not valid JSON",
-                            ) from exc
-                except SSRFValidationError as exc:
-                    raise AgentResolverError(
-                        "capabilities_unreachable",
-                        f"agent_url failed SSRF check: {exc}",
-                    ) from exc
-                except (httpx.HTTPError, OSError) as exc:
-                    raise AgentResolverError(
-                        "capabilities_unreachable",
-                        f"capabilities fetch failed: {exc}",
-                    ) from exc
-
-                if not isinstance(parsed, dict):
-                    raise AgentResolverError(
-                        "capabilities_invalid",
-                        "capabilities response is not a JSON object",
-                    )
-
-                return _CapabilitiesPayload(body=parsed, final_url=url)
-        except AgentResolverError:
-            raise
-
-    # Unreachable: loop body either returns or raises on every iteration.
-    raise AgentResolverError(
-        "capabilities_unreachable", "capabilities fetch exhausted redirect chain"
-    )
+            body = await asyncio.wait_for(
+                fetch_protocol_capabilities(discovery, protocol, timeout_seconds),
+                timeout=timeout_seconds,
+            )
+        except Exception as exc:
+            # SDK task groups may wrap the original failure, or turn it into
+            # a failed task. Preserve discovery's stable error code either way.
+            if discovery.error is not None:
+                if discovery.error is exc:
+                    raise
+                raise discovery.error from exc
+            if isinstance(exc, AgentResolverError):
+                raise
+            raise AgentResolverError(
+                "capabilities_unreachable", f"get_adcp_capabilities failed: {exc}"
+            ) from exc
+        return _CapabilitiesPayload(body=body, final_url=discovery.final_url)
 
 
 def _extract_brand_json_url(capabilities: dict[str, Any]) -> str:
@@ -397,6 +326,7 @@ async def async_resolve_agent(
     agent_url: str,
     *,
     agent_type: BrandAgentType,
+    protocol: Literal["mcp", "a2a"] = "mcp",
     agent_id: str | None = None,
     brand_id: str | None = None,
     allow_private_destinations: bool = False,
@@ -414,7 +344,8 @@ async def async_resolve_agent(
 
     Walks three hops with SSRF guards on each:
 
-    1. ``GET <agent_url>`` — capabilities fetch (this module).
+    1. ``get_adcp_capabilities`` over MCP (default) or A2A, selected by
+       ``protocol``. The agent URL is a protocol endpoint, not a JSON document.
     2. ``GET <identity.brand_json_url>`` — brand.json walk via
        :class:`BrandJsonJwksResolver`.
     3. ``GET <jwks_uri>`` — JWKS fetch via
@@ -435,6 +366,7 @@ async def async_resolve_agent(
     try:
         capabilities = await _fetch_capabilities(
             agent_url,
+            protocol=protocol,
             allow_private=allow_private_destinations,
             max_body_bytes=max_capabilities_bytes,
             max_redirects=max_capabilities_redirects,
@@ -566,6 +498,7 @@ def resolve_agent(
     agent_url: str,
     *,
     agent_type: BrandAgentType,
+    protocol: Literal["mcp", "a2a"] = "mcp",
     agent_id: str | None = None,
     brand_id: str | None = None,
     allow_private_destinations: bool = False,
@@ -580,6 +513,7 @@ def resolve_agent(
         async_resolve_agent(
             agent_url,
             agent_type=agent_type,
+            protocol=protocol,
             agent_id=agent_id,
             brand_id=brand_id,
             allow_private_destinations=allow_private_destinations,
@@ -676,6 +610,7 @@ async def verify_from_agent_url(
     agent_url: str,
     *,
     agent_type: BrandAgentType,
+    protocol: Literal["mcp", "a2a"] = "mcp",
     operation: str,
     agent_id: str | None = None,
     brand_id: str | None = None,
@@ -749,6 +684,7 @@ async def verify_from_agent_url(
         resolution = await async_resolve_agent(
             agent_url,
             agent_type=agent_type,
+            protocol=protocol,
             agent_id=agent_id,
             brand_id=brand_id,
             allow_private_destinations=allow_private_destinations,

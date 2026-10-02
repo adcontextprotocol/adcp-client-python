@@ -13,12 +13,16 @@ resolver-orchestrator behavior on top of those tested primitives.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
 import httpx
 import pytest
 
+# Capture the real iterator-draining implementation before conftest's autouse
+# fixture substitutes the legacy mock shim. These tests exercise the wire.
+from adcp.protocols.a2a import A2AAdapter
 from adcp.signing import agent_resolver
 from adcp.signing.agent_resolver import (
     AgentResolution,
@@ -27,6 +31,8 @@ from adcp.signing.agent_resolver import (
     resolve_agent,
 )
 from adcp.signing.brand_jwks import BrandJsonJwksResolver
+
+_real_send_and_aggregate = A2AAdapter._send_and_aggregate
 
 # ---- Mock transport (shared across all 3 hops) ----
 
@@ -43,6 +49,31 @@ class _MockTransport(httpx.AsyncBaseTransport):
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         self.calls.append(request)
         url = str(request.url)
+        rpc = json.loads(request.content) if request.method == "POST" else None
+        if rpc and rpc["method"] == "initialize":
+            return httpx.Response(
+                200,
+                headers=(
+                    {"mcp-session-id": "resolver-session"}
+                    if self.responses.get(url, {}).get("session")
+                    else {}
+                ),
+                json={
+                    "jsonrpc": "2.0",
+                    "id": rpc["id"],
+                    "result": {
+                        "protocolVersion": rpc["params"]["protocolVersion"],
+                        "capabilities": {"tools": {}},
+                        "serverInfo": {"name": "resolver-test", "version": "1"},
+                    },
+                },
+            )
+        if rpc and rpc["method"] == "notifications/initialized":
+            return httpx.Response(202)
+        if rpc and rpc["method"] == "tools/list":
+            raise AssertionError("identity bootstrap must not fetch the tool inventory")
+        if url.endswith("/mcp") and request.method == "GET":
+            return httpx.Response(405)
         if url not in self.responses:
             return httpx.Response(404, content=b"")
         spec = self.responses[url]
@@ -52,9 +83,51 @@ class _MockTransport(httpx.AsyncBaseTransport):
                 stream=spec["stream"],
                 headers=spec.get("headers", {}),
             )
+        body = spec.get("body", b"")
+        if rpc and rpc["method"] == "tools/call" and spec.get("status", 200) == 200:
+            assert rpc["params"]["name"] == "get_adcp_capabilities"
+            assert rpc["params"]["arguments"] == {}
+            try:
+                capabilities = json.loads(body)
+            except ValueError:
+                pass
+            else:
+                result = spec.get("tool_result", {"content": [], "structuredContent": capabilities})
+                body = json.dumps({"jsonrpc": "2.0", "id": rpc["id"], "result": result}).encode()
+                if spec.get("sse"):
+                    body = b"event: message\ndata: " + body + b"\n\n"
+        if rpc and rpc["method"] == "message/send":
+            assert rpc["params"]["message"]["parts"][0]["data"] == {
+                "skill": "get_adcp_capabilities",
+                "parameters": {},
+            }
+            body = json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": rpc["id"],
+                    "result": {
+                        "kind": "task",
+                        "id": "capabilities-task",
+                        "contextId": "ctx",
+                        "status": {"state": "completed"},
+                        "artifacts": [
+                            {
+                                "artifactId": "capabilities",
+                                "parts": [{"kind": "data", "data": json.loads(body)}],
+                            }
+                        ],
+                    },
+                }
+            ).encode()
+        if spec.get("sse"):
+            return httpx.Response(
+                spec.get("status", 200),
+                stream=_ChunkedStream([body]),
+                headers=spec.get("headers", {}),
+            )
         return httpx.Response(
             spec.get("status", 200),
-            content=spec.get("body", b""),
+            content=body,
             headers=spec.get("headers", {}),
         )
 
@@ -212,11 +285,100 @@ async def test_resolve_returns_agent_resolution_with_full_trace(patch_resolver) 
     assert [t.hop for t in result.trace] == ["capabilities", "brand_json", "jwks"]
     assert all(t.status == "ok" for t in result.trace)
     assert all(t.latency_ms >= 0 for t in result.trace)
-    # Verify each hop got hit exactly once
-    assert len(transport.calls) == 3
+    # MCP initializes, sends the initialized notification, then calls the tool.
+    assert [r.method for r in transport.calls] == ["POST", "POST", "POST", "GET", "GET"]
+    assert [str(r.url) for r in transport.calls[-2:]] == [result.brand_json_url, result.jwks_uri]
 
 
 # ---- Error paths ----
+
+
+@pytest.mark.parametrize("sse,text_fallback", [(False, True), (True, False), (True, True)])
+async def test_mcp_capabilities_protocol_envelopes(patch_resolver, sse, text_fallback) -> None:
+    body = _capabilities_body("https://example.com/.well-known/brand.json")
+    spec: dict[str, Any] = {
+        "body": body,
+        "sse": sse,
+        "headers": {"content-type": "text/event-stream" if sse else "application/json"},
+    }
+    if text_fallback:
+        spec["tool_result"] = {"content": [{"type": "text", "text": body.decode()}]}
+    transport, factory = patch_resolver(
+        {
+            "https://buyer.example.com/mcp": spec,
+            "https://example.com/.well-known/brand.json": {
+                "body": _brand_json_body("https://example.com/.well-known/jwks.json")
+            },
+            "https://example.com/.well-known/jwks.json": {"body": _jwks_body()},
+        }
+    )
+    result = await async_resolve_agent(
+        "https://buyer.example.com/mcp", agent_type="sales", _capabilities_client_factory=factory
+    )
+    assert result.jwks["keys"][0]["kid"] == "test-key-1"
+    assert all(r.method == "POST" for r in transport.calls if str(r.url).endswith("/mcp"))
+
+
+def _agent_card_body(endpoint: str) -> bytes:
+    return json.dumps(
+        {
+            "name": "resolver-test",
+            "description": "Test agent",
+            "version": "1",
+            "url": endpoint,
+            "capabilities": {},
+            "skills": [],
+            "defaultInputModes": ["application/json"],
+            "defaultOutputModes": ["application/json"],
+        }
+    ).encode()
+
+
+async def test_a2a_capabilities_through_message_send(patch_resolver, monkeypatch) -> None:
+    monkeypatch.setattr(A2AAdapter, "_send_and_aggregate", _real_send_and_aggregate)
+    transport, factory = patch_resolver(
+        {
+            "https://buyer.example.com/mcp/.well-known/agent-card.json": {
+                "body": _agent_card_body("https://buyer.example.com/mcp")
+            },
+            "https://buyer.example.com/mcp": {
+                "body": _capabilities_body("https://example.com/.well-known/brand.json")
+            },
+            "https://example.com/.well-known/brand.json": {
+                "body": _brand_json_body("https://example.com/.well-known/jwks.json")
+            },
+            "https://example.com/.well-known/jwks.json": {"body": _jwks_body()},
+        }
+    )
+    result = await async_resolve_agent(
+        "https://buyer.example.com/mcp",
+        agent_type="sales",
+        protocol="a2a",
+        _capabilities_client_factory=factory,
+    )
+    assert result.jwks["keys"][0]["kid"] == "test-key-1"
+    assert [r.method for r in transport.calls] == ["GET", "POST", "GET", "GET"]
+
+
+async def test_a2a_card_cannot_redirect_protocol_to_private_origin(
+    patch_resolver, monkeypatch
+) -> None:
+    monkeypatch.setattr(A2AAdapter, "_send_and_aggregate", _real_send_and_aggregate)
+    transport, factory = patch_resolver(
+        {
+            "https://buyer.example.com/mcp/.well-known/agent-card.json": {
+                "body": _agent_card_body("http://169.254.169.254/latest/meta-data/")
+            },
+        }
+    )
+    with pytest.raises(AgentResolverError):
+        await async_resolve_agent(
+            "https://buyer.example.com/mcp",
+            agent_type="sales",
+            protocol="a2a",
+            _capabilities_client_factory=factory,
+        )
+    assert len(transport.calls) == 1
 
 
 @pytest.mark.asyncio
@@ -372,13 +534,47 @@ async def test_resolve_rejects_oversize_capabilities_body(patch_resolver) -> Non
     assert "exceeds" in exc.value.message
 
 
+@pytest.mark.parametrize("content_type", ["application/json", "text/event-stream"])
 @pytest.mark.asyncio
-async def test_resolve_stops_streaming_oversize_capabilities_body(patch_resolver) -> None:
-    stream = _ChunkedStream([b"xxxx", b"yyyy", b"zzzz"])
+async def test_resolve_stops_streaming_oversize_capabilities_body(
+    patch_resolver, content_type
+) -> None:
+    stream = _ChunkedStream([b"x" * 300, b"y" * 300, b"z" * 300])
     _, factory = patch_resolver(
         {
             "https://buyer.example.com/mcp": {
                 "stream": stream,
+                "headers": {"content-type": content_type},
+            }
+        }
+    )
+    with pytest.raises(AgentResolverError) as exc:
+        await async_resolve_agent(
+            "https://buyer.example.com/mcp",
+            agent_type="sales",
+            max_capabilities_bytes=512,
+            _capabilities_client_factory=factory,
+        )
+    assert exc.value.code == "capabilities_invalid"
+    assert stream.read == 2
+
+
+@pytest.mark.parametrize(
+    "result,code",
+    [
+        ({"content": [{"type": "text", "text": "not JSON"}]}, "capabilities_invalid"),
+        (
+            {"content": [{"type": "text", "text": "unauthorized"}], "isError": True},
+            "capabilities_unreachable",
+        ),
+    ],
+)
+async def test_mcp_tool_failure_does_not_continue_discovery(patch_resolver, result, code) -> None:
+    transport, factory = patch_resolver(
+        {
+            "https://buyer.example.com/mcp": {
+                "body": b"{}",
+                "tool_result": result,
                 "headers": {"content-type": "application/json"},
             }
         }
@@ -387,17 +583,91 @@ async def test_resolve_stops_streaming_oversize_capabilities_body(patch_resolver
         await async_resolve_agent(
             "https://buyer.example.com/mcp",
             agent_type="sales",
-            max_capabilities_bytes=5,
             _capabilities_client_factory=factory,
         )
-    assert exc.value.code == "capabilities_invalid"
-    assert stream.read == 2
+    assert exc.value.code == code
+    assert all(str(r.url) == "https://buyer.example.com/mcp" for r in transport.calls)
+
+
+@pytest.mark.parametrize("redirects", [0, 1])
+async def test_capabilities_redirect_cannot_pivot_identity(patch_resolver, redirects) -> None:
+    transport, factory = patch_resolver(
+        {
+            "https://buyer.example.com/mcp": {
+                "status": 307,
+                "headers": {"location": "https://trusted.example.net/mcp"},
+            },
+        }
+    )
+    with pytest.raises(AgentResolverError):
+        await async_resolve_agent(
+            "https://buyer.example.com/mcp",
+            agent_type="sales",
+            max_capabilities_redirects=redirects,
+            _capabilities_client_factory=factory,
+        )
+    assert all(str(r.url) == "https://buyer.example.com/mcp" for r in transport.calls)
+
+
+async def test_mcp_stateful_session_headers_and_cleanup(patch_resolver) -> None:
+    transport, factory = patch_resolver(
+        {
+            "https://buyer.example.com/mcp": {
+                "session": True,
+                "body": _capabilities_body("https://example.com/.well-known/brand.json"),
+                "headers": {"content-type": "application/json"},
+            },
+            "https://example.com/.well-known/brand.json": {
+                "body": _brand_json_body("https://example.com/.well-known/jwks.json")
+            },
+            "https://example.com/.well-known/jwks.json": {"body": _jwks_body()},
+        }
+    )
+    await async_resolve_agent(
+        "https://buyer.example.com/mcp", agent_type="sales", _capabilities_client_factory=factory
+    )
+    requests = [r for r in transport.calls if str(r.url).endswith("/mcp")]
+    assert any(r.method == "DELETE" for r in requests)
+    assert all(r.headers["mcp-session-id"] == "resolver-session" for r in requests[1:])
+
+
+@pytest.mark.parametrize("cancel", [False, True])
+async def test_capabilities_deadline_and_cancellation_close_client(cancel) -> None:
+    started = asyncio.Event()
+
+    async def wait_forever(request: httpx.Request) -> httpx.Response:
+        started.set()
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(wait_forever))
+    task = asyncio.create_task(
+        async_resolve_agent(
+            "https://buyer.example.com/mcp",
+            agent_type="sales",
+            capabilities_timeout_seconds=0.1,
+            _capabilities_client_factory=lambda _: client,
+        )
+    )
+    await started.wait()
+    if cancel:
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    else:
+        with pytest.raises(AgentResolverError) as exc:
+            await task
+        assert exc.value.code == "capabilities_unreachable"
+    assert client.is_closed
 
 
 # ---- Sync wrapper ----
 
 
-def test_sync_wrapper_dispatches_via_asyncio_run(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("protocol", ["mcp", "a2a"])
+def test_sync_wrapper_dispatches_via_asyncio_run(
+    monkeypatch: pytest.MonkeyPatch, protocol: str
+) -> None:
     """``resolve_agent`` is the sync convenience wrapper for CLI /
     scripts. Spot-check that it dispatches through ``asyncio.run`` and
     returns the result of ``async_resolve_agent`` unchanged.
@@ -417,11 +687,12 @@ def test_sync_wrapper_dispatches_via_asyncio_run(monkeypatch: pytest.MonkeyPatch
     )
 
     async def fake_async_resolve(*args, **kwargs):  # type: ignore[no-untyped-def]
+        assert kwargs["protocol"] == protocol
         return sentinel
 
     monkeypatch.setattr(agent_resolver, "async_resolve_agent", fake_async_resolve)
 
-    result = resolve_agent("https://buyer.example.com/mcp", agent_type="sales")
+    result = resolve_agent("https://buyer.example.com/mcp", agent_type="sales", protocol=protocol)
     assert result is sentinel
 
 
