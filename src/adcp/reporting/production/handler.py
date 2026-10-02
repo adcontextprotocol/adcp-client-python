@@ -10,6 +10,11 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from adcp.decisioning.context import RequestContext
 from adcp.exceptions import ADCPTaskError
+from adcp.reporting._errors import (
+    ReliableReportingConfigurationError,
+    installed_reporting_call,
+    reporting_error,
+)
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger.consumer_status import ConsumerStatusIngest
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
@@ -21,11 +26,14 @@ from adcp.reporting.receipts.handler import (
     ReportingReceiptHandler,
     _consumer,
 )
+from adcp.reporting.service_lifecycle import (
+    ReliableReportingState,
+    ReliableReportingUnavailableError,
+)
 from adcp.server.base import ADCPHandler, NotImplementedResponse, ToolContext
 from adcp.server.mcp_tools import ADCP_TOOL_DEFINITIONS, get_tools_for_handler
 from adcp.server.responses import capabilities_response
 from adcp.types import (
-    Error,
     GetAdcpCapabilitiesRequest,
     GetMediaBuyDeliveryRequest,
     GetReportingStatusRequest,
@@ -48,7 +56,7 @@ def _request(value: Any) -> dict[str, Any]:
 
 
 def _task_error(task: str, code: str, message: str) -> ADCPTaskError:
-    return ADCPTaskError(operation=task, errors=[Error(code=code, message=message)])
+    return ADCPTaskError(operation=task, errors=[reporting_error(code, message)])
 
 
 _Method = TypeVar("_Method", bound=Callable[..., Any])
@@ -76,9 +84,61 @@ def _admitted(method: _Method) -> _Method:
             method.__name__ == "get_media_buy_delivery"
             and "reporting_revision_id" not in _request(args[0] if args else kwargs["params"])
         )
-        if lifecycle is None or aggregate:
+        if aggregate:
             return await method(self, *args, **kwargs)
-        return await lifecycle.call(lambda: method(self, *args, **kwargs))
+
+        async def invoke() -> Any:
+            support = self.production
+            if support._closed or support._failed or support._task is None or support._task.done():
+                state = (
+                    ReliableReportingState.CLOSED
+                    if support._closed
+                    else (
+                        ReliableReportingState.FAILED
+                        if support._failed
+                        else ReliableReportingState.NEW
+                    )
+                )
+                raise ReliableReportingUnavailableError(state)
+            try:
+                support._assert_components()
+            except ReportingNotificationError as error:
+                raise ReliableReportingConfigurationError(
+                    "production composition failed"
+                ) from error
+            context = args[1] if len(args) > 1 else kwargs.get("context")
+            # A RequestContext's caller_identity is an account cache key. Only
+            # transport auth/registry evidence establishes the reporting caller.
+            present = context is not None and (
+                any(
+                    getattr(context, name, None) is not None
+                    for name in (
+                        "auth_info",
+                        "auth_principal",
+                        "buyer_agent",
+                    )
+                )
+                or (
+                    not isinstance(context, RequestContext)
+                    and getattr(context, "caller_identity", None) is not None
+                )
+                or any(
+                    context.metadata.get(key) is not None
+                    for key in (
+                        "adcp.auth_info",
+                        "auth_info",
+                        "adcp.buyer_agent",
+                    )
+                )
+            )
+            if not present:
+                raise ReliableReportingConfigurationError("missing caller", kind="auth_required")
+            return await method(self, *args, **kwargs)
+
+        return await installed_reporting_call(
+            method.__name__,
+            lambda: invoke() if lifecycle is None else lifecycle.call(invoke),
+        )
 
     return cast(_Method, call)
 
@@ -184,6 +244,8 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             if isinstance(context, RequestContext) and context.account.id != account:
                 raise ReportingReceiptError("UNAUTHORIZED")
             return ReportingDeliveryPrincipal(account, consumer)
+        except (ReliableReportingConfigurationError, ReliableReportingUnavailableError):
+            raise
         except Exception:
             raise ReportingReceiptError("UNAUTHORIZED") from None
 
@@ -257,6 +319,8 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             code, message = error.code, str(error)
         except ReportingReceiptError as error:
             code, message = error.code, str(error)
+        except (ReliableReportingConfigurationError, ReliableReportingUnavailableError):
+            raise
         except Exception:
             code, message = (
                 "REPORTING_CONFIGURATION_UNAVAILABLE",
@@ -285,6 +349,8 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             return result
         except (ReportingReceiptError, LedgerConflictError) as error:
             code, message = error.code, str(error)
+        except (ReliableReportingConfigurationError, ReliableReportingUnavailableError):
+            raise
         except Exception:
             code, message = "REPORTING_STATUS_UNAVAILABLE", "reporting status is unavailable"
         raise _task_error("sync_reporting_status", code, message)
@@ -412,6 +478,8 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             raise
         except (ReportingReceiptError, LedgerConflictError) as error:
             code, message = error.code, str(error)
+        except (ReliableReportingConfigurationError, ReliableReportingUnavailableError):
+            raise
         except Exception:
             code, message = "REPORTING_CONTENT_UNAVAILABLE", "reporting content is unavailable"
         raise _task_error("get_media_buy_delivery", code, message)

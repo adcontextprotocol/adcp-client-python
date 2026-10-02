@@ -22,6 +22,10 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel
 
+from adcp.reporting._errors import (
+    ReliableReportingConfigurationError,
+    installed_reporting_call,
+)
 from adcp.reporting._source_authorization import source_turn
 from adcp.reporting.inline_source import (
     InlineFetchResult,
@@ -90,10 +94,6 @@ __all__ = [
 
 _ROUTE_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 logger = logging.getLogger(__name__)
-
-
-class ReliableReportingConfigurationError(ValueError):
-    """The requested service composition cannot make truthful guarantees."""
 
 
 @runtime_checkable
@@ -1043,7 +1043,8 @@ class ReliableReportingService:
                 "default caller resolution requires AccountAwareToolContext.account_id and "
                 "authenticated caller_identity, or RequestContext.account.id and an "
                 "authenticated current_principal or verified auth_principal; "
-                "provide caller_resolver for another trust model"
+                "provide caller_resolver for another trust model",
+                kind="auth_required" if not consumer_id else "misconfiguration",
             )
         return ReportingStatusCaller(account_id=account_id, consumer_id=consumer_id)
 
@@ -1268,26 +1269,42 @@ class ReliableReportingService:
 
         class ReportingInstallMixin:
             async def get_reporting_status(self, params: Any, context: Any | None = None) -> Any:
-                return await service.get_reporting_status(params, context)
+                return await installed_reporting_call(
+                    "get_reporting_status",
+                    lambda: service.get_reporting_status(params, context),
+                    decisioning=decisioning,
+                )
 
             async def sync_reporting_status(self, params: Any, context: Any | None = None) -> Any:
                 if not service._consumer_status_enabled:
                     return await _resolve(
                         getattr(super(), "sync_reporting_status")(params, context)
                     )
-                return await service.sync_reporting_status(params, context)
+                return await installed_reporting_call(
+                    "sync_reporting_status",
+                    lambda: service.sync_reporting_status(params, context),
+                    decisioning=decisioning,
+                )
 
             async def sync_reporting_receipts(self, params: Any, context: Any | None = None) -> Any:
                 if service._receipt_handler is None:
                     return await _resolve(
                         getattr(super(), "sync_reporting_receipts")(params, context)
                     )
-                return await service.sync_reporting_receipts(params, context)
+                return await installed_reporting_call(
+                    "sync_reporting_receipts",
+                    lambda: service.sync_reporting_receipts(params, context),
+                    decisioning=decisioning,
+                )
 
             async def _get_reporting_revision_content(
                 self, params: Any, context: Any | None = None
             ) -> Any:
-                return await service.get_revision_content(params, context)
+                return await installed_reporting_call(
+                    "get_media_buy_delivery",
+                    lambda: service.get_revision_content(params, context),
+                    decisioning=decisioning,
+                )
 
         attrs: dict[str, Any] = {"__module__": original.__module__}
         if not decisioning:
@@ -1305,7 +1322,11 @@ class ReliableReportingService:
                     return await _resolve(
                         original.get_media_buy_delivery(instance, params, context)
                     )
-                return await service.get_revision_content(params, context)
+                return await installed_reporting_call(
+                    "get_media_buy_delivery",
+                    lambda: service.get_revision_content(params, context),
+                    decisioning=decisioning,
+                )
 
             attrs.update(
                 advertised_tools=tools,

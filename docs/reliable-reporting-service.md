@@ -338,3 +338,15 @@ exact-read assertions after service recreation or durable recovery.
 
 See [`examples/reliable_reporting_adapters.py`](../examples/reliable_reporting_adapters.py)
 for compact GAM-like and FreeWheel-like adapter definitions.
+
+Installed Core and managed production reporting use one error policy at service
+admission. A created, stopping, closed, or failed service returns
+`SERVICE_UNAVAILABLE` with transient recovery. A missing authenticated caller
+returns `AUTH_REQUIRED`; explicit buyer configuration validation can raise
+`ReliableReportingConfigurationError(message, kind="invalid_request")`.
+Composition errors retain `INTERNAL_ERROR` and terminal recovery, with internal
+configuration details omitted from buyer responses. Ledger codes are preserved
+and receive the SDK's recovery classification for that code. Reporting cursor/
+input extensions are correctable, storage-unavailability extensions are transient,
+and unknown extension or integrity failures default to terminal. Disabled optional methods and aggregate delivery
+continue to delegate to the application.

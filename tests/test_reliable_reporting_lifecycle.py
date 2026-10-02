@@ -484,8 +484,12 @@ async def test_installed_receipt_admission_drains_before_owned_cleanup(fail_work
         with pytest.raises(ReliableReportingShutdownTimeoutError):
             await service.close(timeout=0)
         assert order == []
-        with pytest.raises(ReliableReportingUnavailableError):
+        from adcp.exceptions import ADCPTaskError
+
+        with pytest.raises(ADCPTaskError) as caught:
             await handler.sync_reporting_receipts({})
+        assert caught.value.error_codes == ["SERVICE_UNAVAILABLE"]
+        assert caught.value.is_retryable
     finally:
         release.set()
         result = await receipt
