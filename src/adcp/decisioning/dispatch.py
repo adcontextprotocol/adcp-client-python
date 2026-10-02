@@ -82,6 +82,7 @@ from adcp.decisioning.webhook_emit import (
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
+    from typing import TypeAlias
 
     from pydantic import BaseModel, ValidationError
 
@@ -93,7 +94,7 @@ if TYPE_CHECKING:
     from adcp.webhook_sender import WebhookSender
     from adcp.webhook_supervisor import WebhookDeliverySupervisor
 
-    WebhookDeliveryTarget = WebhookSender | WebhookDeliverySupervisor
+    WebhookDeliveryTarget: TypeAlias = WebhookSender | WebhookDeliverySupervisor
 
 logger = logging.getLogger(__name__)
 

@@ -1094,7 +1094,7 @@ must leave `adcp.idempotency.supported` false.
 
 **Backends:** use `MemoryBackend` for tests and single-process agents. `PgBackend` provides a durable PostgreSQL replay cache for production deployments with multiple workers; it requires a separate advisory-lock pool and the `pg` extra.
 
-**Atomicity caveat:** both backends commit the cache entry after your handler returns. `PgBackend` is durable and coordinates concurrent workers, but its cache transaction is not atomic with unrelated business writes. Put a uniqueness constraint on the business effect using the buyer's idempotency key so a crash between the side effect and cache commit cannot duplicate the effect. Read the `PgBackend` docstring before shipping it.
+**Decorator atomicity caveat:** both backends commit the cache entry after your handler returns. `PgBackend` is durable and coordinates concurrent workers, but its cache transaction is not atomic with unrelated business writes. Put a uniqueness constraint on the business effect using the buyer's idempotency key so a crash between the side effect and cache commit cannot duplicate the effect. Read the `PgBackend` docstring before shipping it. For business and replay writes that must commit together, use the explicit `IdempotencyStore.reserve` / `slot.record` API; see [atomic PostgreSQL idempotency](docs/idempotency-transactions.md) for transaction ownership, commit-before-unlock ordering, and migration guidance.
 
 With `raise_on_persist_error=True`, a failed cache write becomes retryable
 `SERVICE_UNAVAILABLE`, but the handler has already completed and its outcome

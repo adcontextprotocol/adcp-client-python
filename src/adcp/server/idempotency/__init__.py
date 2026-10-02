@@ -50,8 +50,8 @@ Backends:
 - :class:`PgBackend` — Postgres-backed store for multi-worker durable
   replay. Requires the ``adcp[pg]`` extra. ``await
   backend.create_schema()`` once at boot; commits go through a fresh
-  pool connection (separate from the handler's transaction in v1 —
-  co-tx wiring is a v1.1 affordance).
+  pool connection. Use ``IdempotencyStore.reserve`` for an explicit
+  business/replay transaction with commit-before-unlock ordering.
 """
 
 from adcp.server.idempotency.backends import (
@@ -70,6 +70,7 @@ from adcp.server.idempotency.lazy import (
     LazyBackendFactory,
     create_lazy_backend,
 )
+from adcp.server.idempotency.reservation import IdempotencyReservationError, PgReservation
 from adcp.server.idempotency.store import IdempotencyStore, is_wrapped
 from adcp.server.idempotency.webhook_dedup import (
     WebhookClaimStatus,
@@ -83,10 +84,12 @@ __all__ = [
     "EXCLUDED_FIELDS",
     "IdempotencyBackend",
     "IdempotencyStore",
+    "IdempotencyReservationError",
     "LazyBackend",
     "LazyBackendFactory",
     "MemoryBackend",
     "PgBackend",
+    "PgReservation",
     "WebhookClaimStatus",
     "WebhookDedupClaim",
     "WebhookDedupOwnershipError",
