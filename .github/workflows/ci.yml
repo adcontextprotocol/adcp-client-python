@@ -196,6 +196,8 @@ jobs:
                      tests/conformance/decisioning/test_pg_buyer_agent_registry.py \
                      tests/conformance/decisioning/test_pg_idempotency_backend.py \
                      tests/conformance/decisioning/test_pg_task_webhook_outbox.py \
+                     tests/conformance/decisioning/test_pg_notification_outbox.py \
+                     tests/test_notification_outbox_artifacts.py \
                      tests/conformance/decisioning/test_pg_reference_workflow_queue.py \
                      tests/conformance/reporting/ \
                      tests/test_reporting_storyboard_orchestration.py::test_database_owner_returns_node_postgres_uri_after_psycopg_validation \

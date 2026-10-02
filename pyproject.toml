@@ -191,6 +191,7 @@ adcp = [
     "py.typed",
     "types/*.pyi",
     "ADCP_VERSION",
+    "notification_outbox.sql",
     "signing/pg/*.sql",
     "decisioning/pg/*.sql",
     "reporting/ledger/*.sql",
