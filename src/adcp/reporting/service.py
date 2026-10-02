@@ -1158,8 +1158,6 @@ class ReliableReportingService:
 
     def capability_block(self) -> dict[str, Any]:
         """Project only components and offerings this service actually installed."""
-        if not self.ready:
-            return {}
         offerings: dict[str, dict[str, Any]] = {}
         declarations = [
             item

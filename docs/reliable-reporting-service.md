@@ -338,3 +338,11 @@ exact-read assertions after service recreation or durable recovery.
 
 See [`examples/reliable_reporting_adapters.py`](../examples/reliable_reporting_adapters.py)
 for compact GAM-like and FreeWheel-like adapter definitions.
+
+`capability_block()` and installed capability discovery describe registered
+reporting offerings and installed components throughout the service lifetime.
+They are available before startup and remain stable while stopping, after
+closure, and after worker failure. An unconfigured service declares no reporting
+block. Use `service.ready` for local work admission; buyer tools report runtime
+unavailability separately. Discovery does not start workers or instantiate lazy
+platform tenants.
