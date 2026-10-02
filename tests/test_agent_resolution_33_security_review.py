@@ -98,7 +98,7 @@ async def test_newer_discovery_cannot_reuse_pending_old_jwks(
         )
     finally:
         release.set()
-        await earlier
+        assert await earlier == {"keys": [KEY]}
 
 
 @pytest.mark.asyncio
@@ -124,7 +124,7 @@ async def test_abandoned_refresh_failure_is_consumed(monkeypatch: pytest.MonkeyP
         await entered.wait()
         caller.cancel()
         with pytest.raises(asyncio.CancelledError):
-            await caller
+            _ = await caller
         release.set()
         await finished.wait()
         await asyncio.sleep(0)
@@ -140,11 +140,15 @@ async def test_abandoned_refresh_failure_is_consumed(monkeypatch: pytest.MonkeyP
 @pytest.mark.parametrize(
     "body",
     [
-        b'{"authorized_agents":[{"url":"https://seller.example.com/mcp",'
-        b'"signing_keys":[],"signing_keys":[{"kid":"key"}]}]}',
-        b'{"authorized_agents":[{"url":"https://seller.example.com/mcp",'
-        b'"signing_keys":[{"revoked_at":"2020-01-01T00:00:00Z",'
-        b'"revoked_at":null}]}]}',
+        (
+            b'{"authorized_agents":[{"url":"https://seller.example.com/mcp",'
+            + b'"signing_keys":[],"signing_keys":[{"kid":"key"}]}]}'
+        ),
+        (
+            b'{"authorized_agents":[{"url":"https://seller.example.com/mcp",'
+            + b'"signing_keys":[{"revoked_at":"2020-01-01T00:00:00Z",'
+            + b'"revoked_at":null}]}]}'
+        ),
     ],
 )
 @pytest.mark.asyncio

@@ -1,7 +1,7 @@
 # Agent resolution and publisher pins in AdCP 3.3
 
 This implementation follows [adcp#7882](https://github.com/adcontextprotocol/adcp/pull/7882)
-at commit `8907b15c332a4b3272f8a59ccacd1cf48bc647b8`. The protocol change
+at commit `175bcd3b023244aeb97dbdcce8fed674ebd61302`. The protocol change
 is still under review. Historical bundled 3.1/3.2 schemas retain their published
 verifier constraints; these helpers implement the new canonical matching rules.
 
@@ -37,6 +37,14 @@ declared key origin. Cross-domain origin binding accepts `authorized_operators`
 only on a House Portfolio; its account-level brand/country scopes do not restrict
 key discovery. Discovery does not reuse onboarding mappings, so each call
 reconfirms the advertised operator record.
+
+[Discovery step 7](https://github.com/adcontextprotocol/adcp/blob/175bcd3b023244aeb97dbdcce8fed674ebd61302/docs/building/by-layer/L1/security.mdx#L1331)
+checks every advertised `identity.key_origins` purpose against the selected
+agent's JWKS source, including purposes other than the signature being verified.
+A different host for any purpose rejects discovery with
+`request_signature_key_origin_mismatch`, even when the active purpose matches.
+The SDK follows this explicit all-purpose rule. The draft's separate guidance
+on origin separation remains in tension with that rule pending clarification.
 
 For webhooks, use the asynchronous discovery helper:
 
