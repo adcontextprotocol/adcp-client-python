@@ -678,6 +678,7 @@
     "fetch_agent_authorizations",
     "fetch_agent_authorizations_from_directory",
     "filter_revoked_selectors",
+    "find_authorized_agent_entries",
     "format_is_supported",
     "formats_are_equivalent",
     "generate_webhook_challenge_value",

@@ -418,17 +418,60 @@ def _resolve_well_known_redirect_url(
 
 
 def normalize_url(url: str) -> str:
-    """Normalize URL by removing protocol and trailing slash.
+    """Return a protocol-agnostic URL key with host case/default ports normalized.
 
-    Args:
-        url: URL to normalize
-
-    Returns:
-        Normalized URL (domain/path without protocol or trailing slash)
+    Paths remain case-sensitive. Query strings and fragments are ignored, and
+    trailing path slashes are removed, preserving the existing matching rules.
+    Only the default port for the supplied scheme is removed (80 for HTTP,
+    443 for HTTPS); non-default ports remain significant.
     """
     parsed = urlparse(url)
-    normalized = parsed.netloc + parsed.path
-    return normalized.rstrip("/")
+    authority = parsed.netloc
+    if parsed.hostname is not None:
+        host = parsed.hostname.lower()
+        if ":" in host:
+            host = f"[{host}]"
+        port = parsed.port
+        if port is not None and (parsed.scheme.lower(), port) not in {("http", 80), ("https", 443)}:
+            host += f":{port}"
+        userinfo = authority.rsplit("@", 1)[0] + "@" if "@" in authority else ""
+        authority = userinfo + host
+    return (authority + parsed.path).rstrip("/")
+
+
+def find_authorized_agent_entries(
+    adagents_data: dict[str, Any], agent_url: str
+) -> list[dict[str, Any]]:
+    """Return all entries listing an agent, independently of property binding.
+
+    A non-empty result distinguishes a listed agent whose selectors resolve to
+    no properties from an unlisted agent. Entries are returned in document order
+    without copying or modifying them. Malformed sibling entries and URL values
+    are skipped. Matching preserves HTTP/HTTPS equivalence and path semantics.
+
+    Raises AdagentsValidationError if the document is not an object with an
+    ``authorized_agents`` array.
+    """
+    if not isinstance(adagents_data, dict):
+        raise AdagentsValidationError("adagents_data must be a dictionary")
+    authorized_agents = adagents_data.get("authorized_agents")
+    if not isinstance(authorized_agents, list):
+        raise AdagentsValidationError("adagents.json must have 'authorized_agents' array")
+    normalized_agent_url = normalize_url(agent_url)
+    matches: list[dict[str, Any]] = []
+    for agent in authorized_agents:
+        if not isinstance(agent, dict):
+            continue
+        entry_url = agent.get("url")
+        if not isinstance(entry_url, str) or not entry_url.strip():
+            continue
+        try:
+            normalized_entry_url = normalize_url(entry_url)
+        except ValueError:
+            continue
+        if normalized_entry_url == normalized_agent_url:
+            matches.append(agent)
+    return matches
 
 
 def domain_matches(property_domain: str, agent_domain_pattern: str) -> bool:
@@ -546,30 +589,7 @@ def verify_agent_authorization(
         - Implements AdCP domain matching rules
         - Agent URLs are matched ignoring protocol and trailing slash
     """
-    # Validate structure
-    if not isinstance(adagents_data, dict):
-        raise AdagentsValidationError("adagents_data must be a dictionary")
-
-    authorized_agents = adagents_data.get("authorized_agents")
-    if not isinstance(authorized_agents, list):
-        raise AdagentsValidationError("adagents.json must have 'authorized_agents' array")
-
-    # Normalize the agent URL for comparison
-    normalized_agent_url = normalize_url(agent_url)
-
-    # Check each authorized agent
-    for agent in authorized_agents:
-        if not isinstance(agent, dict):
-            continue
-
-        agent_url_from_json = agent.get("url", "")
-        if not agent_url_from_json:
-            continue
-
-        # Match agent URL (protocol-agnostic)
-        if normalize_url(agent_url_from_json) != normalized_agent_url:
-            continue
-
+    for agent in find_authorized_agent_entries(adagents_data, agent_url):
         # Found matching agent - now check properties
         properties = agent.get("properties")
 
@@ -1877,12 +1897,7 @@ def _resolve_properties_for_agent(
     permissive_bare_top_level: bool,
 ) -> list[dict[str, Any]]:
     """Implementation shared by strict and opt-in permissive property resolution."""
-    if not isinstance(adagents_data, dict):
-        raise AdagentsValidationError("adagents_data must be a dictionary")
-
-    authorized_agents = adagents_data.get("authorized_agents")
-    if not isinstance(authorized_agents, list):
-        raise AdagentsValidationError("adagents.json must have 'authorized_agents' array")
+    matches = find_authorized_agent_entries(adagents_data, agent_url)
 
     top_level_properties = adagents_data.get("properties", [])
     if not isinstance(top_level_properties, list):
@@ -1899,22 +1914,7 @@ def _resolve_properties_for_agent(
         )
     ]
 
-    normalized_agent_url = normalize_url(agent_url)
-
     domain_index = _build_domain_index(revoked_top_level)
-
-    matches: list[dict[str, Any]] = []
-    for agent in authorized_agents:
-        if not isinstance(agent, dict):
-            continue
-
-        agent_url_from_json = agent.get("url", "")
-        if not agent_url_from_json:
-            continue
-
-        if normalize_url(agent_url_from_json) != normalized_agent_url:
-            continue
-        matches.append(agent)
 
     resolved: list[dict[str, Any]] = []
     for agent in matches:
