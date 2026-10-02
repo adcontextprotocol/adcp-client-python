@@ -1986,7 +1986,8 @@ with an unsupported method returns 405 before protocol auth. Routes at the same
 path may declare different methods; the first full match in the supplied order
 wins. Root catch-alls, dynamic first path segments and collisions with `/mcp`,
 `/sse`, `/messages` or `/.well-known` are rejected at construction. Operational
-routes are HTTP-only; `stdio` rejects them. Mounted application lifespans are
+routes also cannot collide with custom MCP/SSE paths passed to public app builders.
+Operational routes are HTTP-only; `stdio` rejects them. Mounted application lifespans are
 not automatically entered (standard Starlette behavior); manage their resources
 with the combined server's startup/shutdown hooks or the embedding app.
 

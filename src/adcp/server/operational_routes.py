@@ -51,6 +51,25 @@ class OperationalRoutes:
         self.router = Router(routes=list(routes))
         self.app = ExceptionMiddleware(self.router)
 
+    def validate_protocol_paths(self, paths: Sequence[str]) -> None:
+        """Reject collisions with public builders' custom MCP/SSE paths."""
+        for route in self.router.routes:
+            assert isinstance(route, (Route, Mount))
+            prefix = route.path.rstrip("/") or "/"
+            for protocol_path in paths:
+                path = protocol_path.rstrip("/") or "/"
+                scope: Scope = {"type": "http", "path": path, "root_path": "", "method": "GET"}
+                if (
+                    prefix == path
+                    or prefix.startswith(path + "/")
+                    or (isinstance(route, Mount) and path.startswith(prefix + "/"))
+                    or route.matches(scope)[0] != Match.NONE
+                    or route.matches({**scope, "path": path + "/"})[0] != Match.NONE
+                ):
+                    raise ValueError(
+                        f"Operational route {route.path!r} collides with protocol/discovery"
+                    )
+
     def handles(self, scope: Scope) -> bool:
         if scope["type"] != "http":
             return False

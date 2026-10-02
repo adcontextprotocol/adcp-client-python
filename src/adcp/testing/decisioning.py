@@ -191,7 +191,9 @@ def build_asgi_app(
     3. Discovery wrapper (only when ``discovery_base_url`` is provided) —
        serves ``/.well-known/adcp-agents.json``.
     4. Size cap (``max_request_size``; ``None`` → 10 MB default).
-    5. ``asgi_middleware`` outermost — CORS, tenant resolution, custom
+    5. Operational routes — ahead of SDK protocol authentication.
+    6. Host/Origin transport policy — wraps all HTTP routes.
+    7. ``asgi_middleware`` outermost — CORS, tenant resolution, custom
        auth, etc.
 
     :param platform: The :class:`DecisioningPlatform` instance under

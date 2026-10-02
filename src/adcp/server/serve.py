@@ -2827,6 +2827,8 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
             if unauthenticated_routes is not None
             else self._adcp_operational_routes
         )
+        if operational_routes is not None:
+            operational_routes.validate_protocol_paths([streamable_http_path])
         resolved_host = host if host is not None else getattr(self.settings, "host", "127.0.0.1")
         resolved_transport_security = (
             transport_security
@@ -2898,6 +2900,10 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
             if unauthenticated_routes is not None
             else self._adcp_operational_routes
         )
+        if operational_routes is not None:
+            operational_routes.validate_protocol_paths(
+                [kwargs.get("sse_path", "/sse"), kwargs.get("message_path", "/messages/")]
+            )
         app = type(self).sse_app(self, **kwargs)
         if operational_routes is not None:
             app.state.adcp_operational_routes = operational_routes

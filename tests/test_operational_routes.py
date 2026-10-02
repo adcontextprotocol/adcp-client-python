@@ -256,3 +256,19 @@ def test_public_mcp_http_builders_override_operational_routes():
         with TestClient(app, base_url="http://localhost:3001") as client:
             assert client.get("/healthz").status_code == 200
             assert client.get("/old").status_code == 404
+
+
+@pytest.mark.parametrize("builder", ["streamable", "sse", "messages"])
+@pytest.mark.parametrize(
+    "operational", [Route("/healthz", health), Mount("/manage", app=Starlette())]
+)
+def test_custom_protocol_paths_cannot_collide_with_operations(builder, operational):
+    mcp = create_mcp_server(Seller(), validation=None, unauthenticated_routes=[operational])
+    path = "/healthz" if isinstance(operational, Route) else "/manage/protocol"
+    with pytest.raises(ValueError, match="collides"):
+        if builder == "streamable":
+            mcp.streamable_http_app(streamable_http_path=path)
+        elif builder == "sse":
+            mcp.sse_app(sse_path=path)
+        else:
+            mcp.sse_app(message_path=path)
