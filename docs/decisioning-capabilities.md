@@ -65,6 +65,15 @@ alongside the spec; they line up.
   framework emits a default `{"supported": False}` so the response stays
   spec-valid, but buyers reading it will mark you unsafe for retries.
   Declare it.
+- **`adcp.supported_versions`** — exact releases you serve. Boot validation
+  rejects entries outside the SDK's accepted wire set or without installed
+  request and response validators. The SDK includes `"3.2-rc.7"` as a
+  compatibility alias for `"3.2"`. For a 3.2-only seller, declare
+  `Adcp(major_versions=[3], supported_versions=["3.2"], idempotency={"supported": False})`;
+  the deprecated
+  `list_creative_formats_legacy` method is then optional even with
+  `ADCP_DECISIONING_STRICT_VALIDATE_PLATFORM=1`. Sellers advertising pre-3.2
+  releases still need it under strict mode.
 - **`account.supported_billing`** — required by the spec whenever
   `media_buy` is in `supported_protocols`. Pick a subset of `operator`,
   `agent`, `advertiser`.

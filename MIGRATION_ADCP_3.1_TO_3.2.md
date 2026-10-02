@@ -23,8 +23,12 @@ server = adcp_server("seller", adcp_version="3.2")
 
 Patch releases do not change the wire contract, so `"3.2"` covers 3.2.1 and
 later 3.2 patches. AdCP 3.2.0 was withdrawn; do not target it. Prerelease pins
-such as `"3.2-beta.4"` or `"3.2-rc.7"` are no longer advertised; this SDK
-advertises `3.0`, `3.1` and `3.2`. Replace them with `"3.2"`.
+such as `"3.2-beta.4"` are no longer advertised. Pin new integrations to
+`"3.2"`. The SDK also accepts and advertises `"3.2-rc.7"` as an explicit
+compatibility alias for clients shipped with `adcp==8.0.0rc3`: validation uses
+the stable 3.2 contract, responses retain the alias for old clients' schema
+lookup, and constructor pins resolve to
+`"3.2"`. This bridge does not apply to other prereleases.
 
 ## Beta.4 integration notes
 

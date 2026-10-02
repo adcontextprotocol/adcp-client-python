@@ -109,6 +109,30 @@ VALID_GET_PRODUCTS = {
 
 class TestRequestsStrict:
     @pytest.mark.asyncio
+    async def test_accepted_version_without_schema_returns_version_unsupported(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from adcp.validation import envelope
+
+        detect = envelope.detect_wire_version
+        monkeypatch.setattr(
+            envelope,
+            "detect_wire_version",
+            lambda payload: detect(payload, supported=("3.9", "3.2")),
+        )
+        handler = _StubHandler({"products": []})
+        caller = create_tool_caller(
+            handler, "get_products", validation=ValidationHookConfig(requests="strict")
+        )
+        with pytest.raises(ADCPTaskError) as caught:
+            await caller({**VALID_GET_PRODUCTS, "adcp_version": "3.9"})
+        error = caught.value.errors[0]
+        assert error.code == "VERSION_UNSUPPORTED"
+        assert error.field == "adcp_version"
+        assert "3.2" in error.details["supported_versions"]
+        assert not handler.called
+
+    @pytest.mark.asyncio
     async def test_rejects_malformed_with_validation_error_before_dispatch(
         self,
     ) -> None:

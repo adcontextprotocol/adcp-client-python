@@ -188,10 +188,24 @@ class ADCPAuthenticationError(ADCPError):
     choice; callers handling the missing-credentials case should retry only
     after attaching credentials, not on a timer. The 3.1 line splits this
     into `AUTH_MISSING` and `AUTH_INVALID`.
+
+    MCP HTTP authentication failures expose ``status_code`` and
+    ``www_authenticate`` when available, preserving the server's challenge
+    for credential recovery.
     """
 
-    def __init__(self, message: str, agent_id: str | None = None, agent_uri: str | None = None):
+    def __init__(
+        self,
+        message: str,
+        agent_id: str | None = None,
+        agent_uri: str | None = None,
+        *,
+        status_code: int | None = None,
+        www_authenticate: str | None = None,
+    ):
         """Initialize authentication error."""
+        self.status_code = status_code
+        self.www_authenticate = www_authenticate
         suggestion = (
             "Check that your auth_token is valid and not expired.\n"
             "     Verify auth_type ('bearer' vs 'token') and auth_header are correct.\n"
@@ -520,9 +534,7 @@ class ADCPTaskError(ADCPError):
         self.operation = operation
         self.errors = errors
         self.error_codes = [
-            code
-            for err in errors
-            if isinstance((code := _access(err, "code")), str) and code
+            code for err in errors if isinstance((code := _access(err, "code")), str) and code
         ]
 
         message = f"{operation} failed"
@@ -551,9 +563,7 @@ class ADCPTaskError(ADCPError):
         `buyer_reason.message` is buyer-safe by spec — free of vendor identifiers
         and internal IDs — so it may be rendered directly to a buyer UI.
         """
-        return tuple(
-            info.buyer_reason for info in self.error_info if info.buyer_reason is not None
-        )
+        return tuple(info.buyer_reason for info in self.error_info if info.buyer_reason is not None)
 
     @property
     def first_buyer_reason(self) -> BuyerReasonInfo | None:

@@ -25,6 +25,16 @@ the SDK implements security- and commitment-critical instances explicitly.
 - Validation selects the schema bundle matching the negotiated wire version,
   so strict current-version behavior does not tighten legacy 2.5, 3.0, or 3.1
   traffic against the 3.2 schema.
+- `"3.2-rc.7"` is an explicit wire compatibility alias for `"3.2"`, validated
+  against the stable bundle. Direct schema-loader calls using full historical
+  identifiers such as `"3.2.0-rc.7"` retain exact bundle lookup.
+- Missing validators for an explicit native-tool version produce
+  `VERSION_UNSUPPORTED`, with `field="adcp_version"` and `supported_versions`
+  in the wire error details. Ordinary payload violations remain
+  `VALIDATION_ERROR`.
+- Pre-validation hooks can raise `AdcpError` or `ADCPTaskError` to deliberately
+  reject a request. The dispatcher preserves their structured fields; other
+  hook exceptions produce `INVALID_REQUEST` with the failing hook's name.
 
 Directly constructed models can be checked ergonomically without converting
 them to dictionaries first:

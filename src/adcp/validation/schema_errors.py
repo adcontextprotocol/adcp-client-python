@@ -79,6 +79,14 @@ def build_adcp_validation_error_payload(
             "issues": [_issue_to_wire(i) for i in issues],
         },
     }
+    if any(issue.keyword == "schema_unavailable" for issue in issues):
+        from adcp.validation.envelope import SUPPORTED_WIRE_VERSIONS
+
+        payload["code"] = "VERSION_UNSUPPORTED"
+        payload["field"] = "adcp_version"
+        payload["recovery"] = "correctable"
+        payload["details"]["supported_versions"] = list(SUPPORTED_WIRE_VERSIONS)
+        return payload
     if first is not None and first.pointer:
         payload["field"] = first.pointer
     return payload
