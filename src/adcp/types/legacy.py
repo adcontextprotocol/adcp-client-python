@@ -10,6 +10,7 @@ from typing import Annotated, Any
 
 from pydantic import AnyUrl, ConfigDict, Field, StrictFloat, StrictInt, TypeAdapter, field_validator
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.types.generated_poc.core.creative_asset import CreativeAsset as LegacyCreativeAsset
 from adcp.types.generated_poc.core.creative_filters import CreativeFilters as LegacyCreativeFilters
 from adcp.types.generated_poc.core.format import Format as LegacyFormat
@@ -128,7 +129,10 @@ from adcp.types.generated_poc.media_buy.update_media_buy_response import (
     UpdateMediaBuyResponse3 as LegacyUpdateMediaBuyResponse3,
 )
 
-_URL_ADAPTER = TypeAdapter(AnyUrl)
+
+@deferred_adapter
+def _url_adapter() -> TypeAdapter[AnyUrl]:
+    return TypeAdapter(AnyUrl)
 
 
 class LegacyFormatId(FormatReferenceStructuredObject):
@@ -147,7 +151,7 @@ class LegacyFormatId(FormatReferenceStructuredObject):
     @field_validator("agent_url")
     @classmethod
     def _validate_agent_url(cls, value: str) -> str:
-        _URL_ADAPTER.validate_python(value)
+        _url_adapter().validate_python(value)
         return value
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:

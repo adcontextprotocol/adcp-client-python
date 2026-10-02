@@ -27,6 +27,7 @@ from adcp.testing.harness import (
     SellerTestClient,
     ToolInvokeResult,
 )
+from adcp.testing.models import build_all_models
 from adcp.testing.test_helpers import (
     CREATIVE_AGENT_CONFIG,
     TEST_AGENT_A2A_CONFIG,
@@ -55,6 +56,7 @@ __all__ = [
     "SellerTestClient",
     "ToolInvokeResult",
     "build_asgi_app",
+    "build_all_models",
     "build_test_client",
     "make_request_context",
     "test_agent",

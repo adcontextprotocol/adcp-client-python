@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from pydantic import TypeAdapter
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.feed.errors import ReportingFeedError
 from adcp.reporting.feed.request import FeedRequest
@@ -61,7 +62,12 @@ from adcp.reporting.materializer.capture import ReportingMaterializerBoundary, p
 from adcp.reporting.receipts.capture import ReportingReceiptBoundary
 from adcp.reporting.revision_selection import select_reporting_revision
 
-_CORE = TypeAdapter(ReportingStatusSnapshot)
+
+@deferred_adapter
+def _core_adapter() -> TypeAdapter[ReportingStatusSnapshot]:
+    return TypeAdapter(ReportingStatusSnapshot)
+
+
 _PUBLIC = (
     ReportingMaterializationRecord,
     ReportingRevisionReceiptRecord,
@@ -501,7 +507,7 @@ def capture_feed(
         "projection_version": representation_version,
         "ownership_mode": "bindings" if revision_ownership else "absent",
         "consumer_status_enabled": consumer_status_enabled,
-        "core": _CORE.dump_python(frozen_core, mode="json"),
+        "core": _core_adapter().dump_python(frozen_core, mode="json"),
         "reconciliation": [payload(r) for r in records],
         "reconciliation_sequences": [c.sequence for c in changes],
         "materializer_boundaries": [b.to_storage() for b in materializer_boundaries],
