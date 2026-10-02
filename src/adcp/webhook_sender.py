@@ -38,6 +38,7 @@ from typing import Any, Protocol, runtime_checkable
 
 import httpx
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519
+from pydantic import BaseModel
 
 from adcp.signing.crypto import (
     ALG_ED25519,
@@ -809,6 +810,341 @@ class WebhookSender:
             before_attempt=before_attempt,
         )
 
+    @staticmethod
+    def _prepare_notification(
+        *,
+        url: str,
+        notification_type: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        value = (
+            payload.model_dump(mode="json", exclude_none=True)
+            if isinstance(payload, BaseModel)
+            else dict(payload)
+        )
+        if value.get("notification_type", notification_type) != notification_type:
+            raise ValueError("notification_type does not match the preparation method")
+        value["notification_type"] = notification_type
+        value.setdefault("fired_at", datetime.now(timezone.utc).isoformat())
+        key = idempotency_key or value.get("idempotency_key") or generate_webhook_idempotency_key()
+        return WebhookSender.prepare_raw(
+            url=url, payload=value, idempotency_key=key, extra_headers=extra_headers
+        )
+
+    @staticmethod
+    def prepare_account_status_changed(
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a schema-validated ``account.status_changed`` notification.
+
+        Supply the wire fields as a mapping or a Pydantic model. The type,
+        fire timestamp and delivery key are filled when absent.
+        """
+        return WebhookSender._prepare_notification(
+            url=url,
+            notification_type="account.status_changed",
+            payload=payload,
+            idempotency_key=idempotency_key,
+            extra_headers=extra_headers,
+        )
+
+    async def send_account_status_changed(
+        self,
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> WebhookDeliveryResult:
+        """Prepare and send a ``account.status_changed`` notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_account_status_changed(
+                url=url,
+                payload=payload,
+                idempotency_key=idempotency_key,
+                extra_headers=extra_headers,
+            )
+        )
+
+    @staticmethod
+    def prepare_account_change_recorded(
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a schema-validated ``account.change_recorded`` notification.
+
+        Supply the wire fields as a mapping or a Pydantic model. The type,
+        fire timestamp and delivery key are filled when absent.
+        """
+        return WebhookSender._prepare_notification(
+            url=url,
+            notification_type="account.change_recorded",
+            payload=payload,
+            idempotency_key=idempotency_key,
+            extra_headers=extra_headers,
+        )
+
+    async def send_account_change_recorded(
+        self,
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> WebhookDeliveryResult:
+        """Prepare and send a ``account.change_recorded`` notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_account_change_recorded(
+                url=url,
+                payload=payload,
+                idempotency_key=idempotency_key,
+                extra_headers=extra_headers,
+            )
+        )
+
+    @staticmethod
+    def prepare_capabilities_changed(
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a schema-validated ``capabilities.changed`` notification.
+
+        Supply the wire fields as a mapping or a Pydantic model. The type,
+        fire timestamp and delivery key are filled when absent.
+        """
+        return WebhookSender._prepare_notification(
+            url=url,
+            notification_type="capabilities.changed",
+            payload=payload,
+            idempotency_key=idempotency_key,
+            extra_headers=extra_headers,
+        )
+
+    async def send_capabilities_changed(
+        self,
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> WebhookDeliveryResult:
+        """Prepare and send a ``capabilities.changed`` notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_capabilities_changed(
+                url=url,
+                payload=payload,
+                idempotency_key=idempotency_key,
+                extra_headers=extra_headers,
+            )
+        )
+
+    @staticmethod
+    def prepare_principal_changed(
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a schema-validated ``principal.changed`` notification.
+
+        Supply the wire fields as a mapping or a Pydantic model. The type,
+        fire timestamp and delivery key are filled when absent.
+        """
+        return WebhookSender._prepare_notification(
+            url=url,
+            notification_type="principal.changed",
+            payload=payload,
+            idempotency_key=idempotency_key,
+            extra_headers=extra_headers,
+        )
+
+    async def send_principal_changed(
+        self,
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> WebhookDeliveryResult:
+        """Prepare and send a ``principal.changed`` notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_principal_changed(
+                url=url,
+                payload=payload,
+                idempotency_key=idempotency_key,
+                extra_headers=extra_headers,
+            )
+        )
+
+    @staticmethod
+    def prepare_creative_status_changed(
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a schema-validated ``creative.status_changed`` notification.
+
+        Supply the wire fields as a mapping or a Pydantic model. The type,
+        fire timestamp and delivery key are filled when absent.
+        """
+        return WebhookSender._prepare_notification(
+            url=url,
+            notification_type="creative.status_changed",
+            payload=payload,
+            idempotency_key=idempotency_key,
+            extra_headers=extra_headers,
+        )
+
+    async def send_creative_status_changed(
+        self,
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> WebhookDeliveryResult:
+        """Prepare and send a ``creative.status_changed`` notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_creative_status_changed(
+                url=url,
+                payload=payload,
+                idempotency_key=idempotency_key,
+                extra_headers=extra_headers,
+            )
+        )
+
+    @staticmethod
+    def prepare_creative_assignment_changed(
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a schema-validated ``creative.assignment_changed`` notification.
+
+        Supply the wire fields as a mapping or a Pydantic model. The type,
+        fire timestamp and delivery key are filled when absent.
+        """
+        return WebhookSender._prepare_notification(
+            url=url,
+            notification_type="creative.assignment_changed",
+            payload=payload,
+            idempotency_key=idempotency_key,
+            extra_headers=extra_headers,
+        )
+
+    async def send_creative_assignment_changed(
+        self,
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> WebhookDeliveryResult:
+        """Prepare and send a ``creative.assignment_changed`` notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_creative_assignment_changed(
+                url=url,
+                payload=payload,
+                idempotency_key=idempotency_key,
+                extra_headers=extra_headers,
+            )
+        )
+
+    @staticmethod
+    def prepare_creative_purged(
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a schema-validated ``creative.purged`` notification.
+
+        Supply the wire fields as a mapping or a Pydantic model. The type,
+        fire timestamp and delivery key are filled when absent.
+        """
+        return WebhookSender._prepare_notification(
+            url=url,
+            notification_type="creative.purged",
+            payload=payload,
+            idempotency_key=idempotency_key,
+            extra_headers=extra_headers,
+        )
+
+    async def send_creative_purged(
+        self,
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> WebhookDeliveryResult:
+        """Prepare and send a ``creative.purged`` notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_creative_purged(
+                url=url,
+                payload=payload,
+                idempotency_key=idempotency_key,
+                extra_headers=extra_headers,
+            )
+        )
+
+    @staticmethod
+    def prepare_indicators_changed(
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a schema-validated ``indicators.changed`` notification.
+
+        Supply the wire fields as a mapping or a Pydantic model. The type,
+        fire timestamp and delivery key are filled when absent.
+        """
+        return WebhookSender._prepare_notification(
+            url=url,
+            notification_type="indicators.changed",
+            payload=payload,
+            idempotency_key=idempotency_key,
+            extra_headers=extra_headers,
+        )
+
+    async def send_indicators_changed(
+        self,
+        *,
+        url: str,
+        payload: Mapping[str, Any] | BaseModel,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> WebhookDeliveryResult:
+        """Prepare and send a ``indicators.changed`` notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_indicators_changed(
+                url=url,
+                payload=payload,
+                idempotency_key=idempotency_key,
+                extra_headers=extra_headers,
+            )
+        )
+
     async def send_revocation_notification(
         self,
         *,
@@ -820,7 +1156,31 @@ class WebhookSender:
         idempotency_key: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
     ) -> WebhookDeliveryResult:
-        """POST a signed rights-revocation notification."""
+        """Prepare and send a notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_revocation_notification(
+                url=url,
+                rights_id=rights_id,
+                brand_id=brand_id,
+                reason=reason,
+                effective_at=effective_at,
+                idempotency_key=idempotency_key,
+                extra_headers=extra_headers,
+            )
+        )
+
+    @staticmethod
+    def prepare_revocation_notification(
+        *,
+        url: str,
+        rights_id: str,
+        brand_id: str,
+        reason: str,
+        effective_at: str,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a validated rights-revocation notification."""
         key = idempotency_key or generate_webhook_idempotency_key()
         payload: dict[str, Any] = {
             "idempotency_key": key,
@@ -829,7 +1189,7 @@ class WebhookSender:
             "reason": reason,
             "effective_at": effective_at,
         }
-        return await self.send_raw(
+        return WebhookSender.prepare_raw(
             url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
         )
 
@@ -844,7 +1204,31 @@ class WebhookSender:
         idempotency_key: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
     ) -> WebhookDeliveryResult:
-        """POST a signed content-standards artifact webhook."""
+        """Prepare and send a notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_artifact_webhook(
+                url=url,
+                media_buy_id=media_buy_id,
+                batch_id=batch_id,
+                timestamp=timestamp,
+                artifacts=artifacts,
+                idempotency_key=idempotency_key,
+                extra_headers=extra_headers,
+            )
+        )
+
+    @staticmethod
+    def prepare_artifact_webhook(
+        *,
+        url: str,
+        media_buy_id: str,
+        batch_id: str,
+        timestamp: str,
+        artifacts: list[dict[str, Any]],
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a validated content-standards artifact webhook."""
         key = idempotency_key or generate_webhook_idempotency_key()
         payload: dict[str, Any] = {
             "idempotency_key": key,
@@ -853,7 +1237,7 @@ class WebhookSender:
             "timestamp": timestamp,
             "artifacts": artifacts,
         }
-        return await self.send_raw(
+        return WebhookSender.prepare_raw(
             url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
         )
 
@@ -867,7 +1251,29 @@ class WebhookSender:
         idempotency_key: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
     ) -> WebhookDeliveryResult:
-        """POST a signed governance collection-list-changed webhook.
+        """Prepare and send a notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_collection_list_changed(
+                url=url,
+                list_id=list_id,
+                resolved_at=resolved_at,
+                signature=signature,
+                idempotency_key=idempotency_key,
+                extra_headers=extra_headers,
+            )
+        )
+
+    @staticmethod
+    def prepare_collection_list_changed(
+        *,
+        url: str,
+        list_id: str,
+        resolved_at: str,
+        signature: str,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a validated governance collection-list-changed webhook.
 
         ``signature`` is the payload-level signature field that predates 9421
         webhook transport signing — it remains required by the schema. The
@@ -881,7 +1287,7 @@ class WebhookSender:
             "resolved_at": resolved_at,
             "signature": signature,
         }
-        return await self.send_raw(
+        return WebhookSender.prepare_raw(
             url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
         )
 
@@ -895,7 +1301,29 @@ class WebhookSender:
         idempotency_key: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
     ) -> WebhookDeliveryResult:
-        """POST a signed governance property-list-changed webhook."""
+        """Prepare and send a notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_property_list_changed(
+                url=url,
+                list_id=list_id,
+                resolved_at=resolved_at,
+                signature=signature,
+                idempotency_key=idempotency_key,
+                extra_headers=extra_headers,
+            )
+        )
+
+    @staticmethod
+    def prepare_property_list_changed(
+        *,
+        url: str,
+        list_id: str,
+        resolved_at: str,
+        signature: str,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a validated governance property-list-changed webhook."""
         key = idempotency_key or generate_webhook_idempotency_key()
         payload: dict[str, Any] = {
             "idempotency_key": key,
@@ -904,7 +1332,7 @@ class WebhookSender:
             "resolved_at": resolved_at,
             "signature": signature,
         }
-        return await self.send_raw(
+        return WebhookSender.prepare_raw(
             url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
         )
 
@@ -921,10 +1349,47 @@ class WebhookSender:
         previous_wholesale_feed_version: str | None = None,
         fired_at: datetime | None = None,
         idempotency_key: str | None = None,
+        product_payload_view: str | None = None,
         subscription_event_types: Sequence[Any] | None = None,
         extra_headers: Mapping[str, str] | None = None,
     ) -> WebhookDeliveryResult:
-        """POST a signed account-scoped wholesale feed notification.
+        """Prepare and send a notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_wholesale_feed(
+                url=url,
+                subscriber_id=subscriber_id,
+                account_id=account_id,
+                notification_type=notification_type,
+                wholesale_feed_version=wholesale_feed_version,
+                cache_scope=cache_scope,
+                event=event,
+                previous_wholesale_feed_version=previous_wholesale_feed_version,
+                fired_at=fired_at,
+                idempotency_key=idempotency_key,
+                product_payload_view=product_payload_view,
+                subscription_event_types=subscription_event_types,
+                extra_headers=extra_headers,
+            )
+        )
+
+    @staticmethod
+    def prepare_wholesale_feed(
+        *,
+        url: str,
+        subscriber_id: str,
+        account_id: str,
+        notification_type: str,
+        wholesale_feed_version: str,
+        cache_scope: str,
+        event: WholesaleFeedEvent | Mapping[str, Any],
+        previous_wholesale_feed_version: str | None = None,
+        fired_at: datetime | None = None,
+        idempotency_key: str | None = None,
+        product_payload_view: str | None = None,
+        subscription_event_types: Sequence[Any] | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a validated account-scoped wholesale feed notification.
 
         ``subscription_event_types`` is optional but recommended when the
         caller is sending to an ``accounts[].notification_configs[]`` entry:
@@ -989,10 +1454,15 @@ class WebhookSender:
                 "wholesale_feed_version": wholesale_feed_version,
                 "previous_wholesale_feed_version": previous_wholesale_feed_version,
                 "cache_scope": cache_scope_value,
+                "product_payload_view": (
+                    product_payload_view or "legacy"
+                    if notification_type_value.startswith("product.")
+                    else product_payload_view
+                ),
                 "event": event_model,
             }
         )
-        return await self.send_raw(
+        return WebhookSender.prepare_raw(
             url=url,
             idempotency_key=key,
             payload=webhook.model_dump(mode="json", exclude_none=True),
@@ -1013,7 +1483,37 @@ class WebhookSender:
         idempotency_key: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
     ) -> WebhookDeliveryResult:
-        """POST a wholesale feed notification to a ``NotificationConfig``.
+        """Prepare and send a notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_wholesale_feed_to_subscription(
+                subscription=subscription,
+                account_id=account_id,
+                notification_type=notification_type,
+                wholesale_feed_version=wholesale_feed_version,
+                cache_scope=cache_scope,
+                event=event,
+                previous_wholesale_feed_version=previous_wholesale_feed_version,
+                fired_at=fired_at,
+                idempotency_key=idempotency_key,
+                extra_headers=extra_headers,
+            )
+        )
+
+    @staticmethod
+    def prepare_wholesale_feed_to_subscription(
+        *,
+        subscription: NotificationConfig | Mapping[str, Any],
+        account_id: str,
+        notification_type: str,
+        wholesale_feed_version: str,
+        cache_scope: str,
+        event: WholesaleFeedEvent | Mapping[str, Any],
+        previous_wholesale_feed_version: str | None = None,
+        fired_at: datetime | None = None,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare a wholesale feed notification to a ``NotificationConfig``.
 
         This convenience wrapper keeps ``url``, ``subscriber_id``, and
         ``event_types`` coupled to the same persisted subscription entry.
@@ -1024,7 +1524,7 @@ class WebhookSender:
             if isinstance(subscription, NotificationConfig)
             else NotificationConfig.model_validate(subscription)
         )
-        return await self.send_wholesale_feed(
+        return WebhookSender.prepare_wholesale_feed(
             url=str(config.url),
             subscriber_id=config.subscriber_id,
             account_id=account_id,
@@ -1035,6 +1535,12 @@ class WebhookSender:
             previous_wholesale_feed_version=previous_wholesale_feed_version,
             fired_at=fired_at,
             idempotency_key=idempotency_key,
+            product_payload_view=(
+                _enum_value(config.product_payload_view)
+                if config.product_payload_view is not None
+                and _enum_value(notification_type).startswith("product.")
+                else None
+            ),
             subscription_event_types=config.event_types,
             extra_headers=extra_headers,
         )
@@ -1082,14 +1588,32 @@ class WebhookSender:
         payload: dict[str, Any],
         extra_headers: Mapping[str, str] | None = None,
     ) -> WebhookDeliveryResult:
-        """Low-level escape hatch: sign + POST an arbitrary payload.
+        """Prepare and send a notification in one attempt."""
+        return await self.send_prepared(
+            self.prepare_raw(
+                url=url,
+                idempotency_key=idempotency_key,
+                payload=payload,
+                extra_headers=extra_headers,
+            )
+        )
 
-        The ``idempotency_key`` kwarg is required and is injected into the
-        payload before signing — the visible signature makes the contract
-        impossible to forget, unlike a runtime dict check. If ``payload``
-        already carries an ``idempotency_key``, the kwarg wins so the two
-        cannot disagree.
+    @staticmethod
+    def prepare_raw(
+        *,
+        url: str,
+        idempotency_key: str | None = None,
+        payload: Mapping[str, Any],
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Serialize and validate a raw notification without network I/O.
+
+        A supplied key overrides the payload key. When both are absent, mint
+        a fresh key once; persist the returned bytes and key for every retry.
+        Known notification types use their canonical bundled wire schemas.
         """
+        if idempotency_key is None:
+            idempotency_key = payload.get("idempotency_key") or generate_webhook_idempotency_key()
         if not isinstance(idempotency_key, str) or not idempotency_key:
             raise ValueError("idempotency_key must be a non-empty string")
         body_dict = {**payload, "idempotency_key": idempotency_key}
@@ -1103,11 +1627,14 @@ class WebhookSender:
                 f"{_MAX_BODY_BYTES:,}-byte cap. Split into smaller webhooks "
                 "or use batch-reporting endpoints."
             )
-        return await self._send_bytes(
+        from adcp._notification_envelope import validate_notification_body
+
+        validate_notification_body(body)
+        return PreparedWebhook(
             url=url,
             body=body,
             idempotency_key=idempotency_key,
-            extra_headers=extra_headers,
+            extra_headers=dict(extra_headers) if extra_headers else {},
         )
 
     async def resend(self, result: WebhookDeliveryResult) -> WebhookDeliveryResult:
