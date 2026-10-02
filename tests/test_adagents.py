@@ -95,30 +95,21 @@ def _stream_cm(response: MagicMock):
 
 
 def make_text_url_client(url_to_text, called_urls=None):
-    """Like ``make_url_dispatching_client`` but for plain-text ads.txt fetches.
+    """Stream deterministic ads.txt text bodies (None means 404)."""
 
-    Used to mock the ads.txt MANAGERDOMAIN fallback path, which still
-    uses ``client.get()``/``response.text`` rather than the streaming
-    fetch. Maps URL → text body (200) or None (404).
-    """
-
-    async def _get(url, **kwargs):
+    def _stream(method, url, **kwargs):
         if called_urls is not None:
             called_urls.append(url)
         body = url_to_text.get(url)
-        response = MagicMock()
-        if body is None:
-            response.status_code = 404
-            response.text = ""
-            response.content = b""
-        else:
-            response.status_code = 200
-            response.text = body
-            response.content = body.encode("utf-8")
-        return response
+        return _stream_cm(
+            _make_stream_response(
+                status_code=404 if body is None else 200,
+                body=body.encode("utf-8") if body is not None else b"",
+            )
+        )
 
     mock_client = MagicMock()
-    mock_client.get = AsyncMock(side_effect=_get)
+    mock_client.stream = MagicMock(side_effect=_stream)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
     return mock_client
@@ -3228,28 +3219,23 @@ class TestValidateAdagentsDomain:
     """Test validate_adagents_domain typed validator with discovery_method."""
 
     def _build_mock_client(self, url_handler):
-        """Mock client backing both .stream() (adagents) and .get() (ads.txt).
-
-        ``url_handler(url)`` returns a MagicMock built by ``_ok`` /
-        ``_not_found`` / ``_text``. For adagents URLs we adapt that
-        legacy-style response into a stream-capable mock; for ads.txt
-        URLs the legacy ``.get()``/``.text`` path is preserved since the
-        ads.txt fetch never went through the new streaming code.
-        """
+        """Adapt manifest and ads.txt fixture responses to streamed bodies."""
 
         def _stream(method, url, **kwargs):
             response = url_handler(url)
-            body_data = response.json.return_value if response.status_code == 200 else None
-            body = json.dumps(body_data).encode("utf-8") if body_data else b""
-            stream_response = _make_stream_response(status_code=response.status_code, body=body)
+            if url.endswith("/ads.txt"):
+                body = response.content if isinstance(response.content, bytes) else b""
+            else:
+                body_data = response.json.return_value if response.status_code == 200 else None
+                body = json.dumps(body_data).encode("utf-8") if body_data else b""
+            headers = response.headers if isinstance(response.headers, httpx.Headers) else None
+            stream_response = _make_stream_response(
+                status_code=response.status_code, body=body, headers=headers
+            )
             return _stream_cm(stream_response)
-
-        async def mock_get(url, **kwargs):
-            return url_handler(url)
 
         mock_client = MagicMock()
         mock_client.stream = MagicMock(side_effect=_stream)
-        mock_client.get = mock_get
         return mock_client
 
     def _ok(self, payload, status=200):
@@ -3549,11 +3535,8 @@ class TestValidateAdagentsDomain:
         assert result.manager_domain is None
 
     @pytest.mark.asyncio
-    async def test_ads_txt_30x_is_not_followed(self):
-        # ads.txt fetch uses follow_redirects=False to match adagents.json;
-        # a 30x response from the publisher therefore falls through to
-        # "no MANAGERDOMAIN parsed" rather than transparently chasing the
-        # Location header (which would bypass the SSRF gate).
+    async def test_ads_txt_private_redirect_is_not_followed(self):
+        # Manual redirects must still reject a private Location before connecting.
         from adcp.adagents import validate_adagents_domain
 
         def handler(url):
@@ -3573,8 +3556,7 @@ class TestValidateAdagentsDomain:
             "publisher.example", client=self._build_mock_client(handler)
         )
 
-        # A 30x ads.txt is treated as "no managerdomain", so the result
-        # is the publisher's original 404 with no manager fallback.
+        # A private ads.txt redirect yields no manager; preserve the publisher's 404.
         assert result.valid is False
         assert result.manager_domain is None
 
