@@ -1213,8 +1213,14 @@ async def test_compact_catalog_ignores_outcome_target_and_paginates_fields() -> 
     assert len(first["products"]) == 1
     assert set(first["products"][0]) == {"product_id", "name"}
     second = await _seller().list_products(
-        {"criteria": criteria, "max_results": 1, "cursor": first["next_cursor"]}
+        {
+            "criteria": criteria,
+            "max_results": 1,
+            "cursor": first["next_cursor"],
+            "if_feed_version": first["feed_version"],
+        }
     )
+    assert second["outcome"] == "listed"
     assert first["products"][0]["product_id"] != second["products"][0]["product_id"]
     assert "delivery_measurement" not in second["products"][0]
     assert "format_ids" not in second["products"][0]

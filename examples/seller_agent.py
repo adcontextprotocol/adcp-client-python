@@ -1085,7 +1085,7 @@ class DemoSeller(ADCPHandler):
             for option in product.get("pricing_options", []):
                 option.pop("max_bid", None)
         feed_version = hashlib.sha256(json.dumps(products, sort_keys=True).encode()).hexdigest()
-        if params.get("if_feed_version") == feed_version:
+        if params.get("cursor") is None and params.get("if_feed_version") == feed_version:
             return {"outcome": "unchanged", "feed_version": feed_version, "cache_scope": "public"}
         try:
             offset = int(params.get("cursor", "0"))
