@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import json
+import codecs
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -10,6 +10,69 @@ import httpx
 import httpx2
 
 from adcp.signing._bounded_http import ResponseTooLargeError, async_read_limited_bytes
+from adcp.signing._strict_json import parse_strict_json
+
+
+def protocol_validation_failed(error: BaseException) -> bool:
+    """Recognize SDK parse failures, including task-group wrappers on 3.10+."""
+    pending = [error]
+    seen: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, (ValueError, TypeError)):
+            return True
+        children = getattr(current, "exceptions", ())
+        if isinstance(children, tuple):
+            pending.extend(child for child in children if isinstance(child, BaseException))
+        if current.__cause__ is not None:
+            pending.append(current.__cause__)
+        if current.__context__ is not None:
+            pending.append(current.__context__)
+    return False
+
+
+def _validate_protocol_object(content: bytes) -> dict[str, Any]:
+    """Reject ambiguous JSON and malformed containers before SDK conversion."""
+    parsed = parse_strict_json(content)
+    if not isinstance(parsed, dict):
+        raise ValueError("capabilities response is not a JSON object")
+    result = parsed.get("result")
+    if isinstance(result, dict):
+        for name in ("content", "parts"):
+            if name in result and not isinstance(result[name], list):
+                raise ValueError(f"capabilities {name} must be an array")
+        artifacts = result.get("artifacts")
+        if isinstance(artifacts, list):
+            for artifact in artifacts:
+                if (
+                    isinstance(artifact, dict)
+                    and "parts" in artifact
+                    and not isinstance(artifact["parts"], list)
+                ):
+                    raise ValueError("capabilities artifact parts must be an array")
+    return parsed
+
+
+def _extract_strict_mcp_capabilities(result: Any) -> dict[str, Any] | None:
+    """Apply MCP extraction while parsing a text trust root as strict JSON."""
+    if result.is_error:
+        return None
+    structured = result.structured_content
+    if isinstance(structured, dict) and not (len(structured) == 1 and "adcp_error" in structured):
+        return structured
+    for part in result.content:
+        if part.type != "text":
+            continue
+        try:
+            parsed = parse_strict_json(part.text.encode("utf-8"))
+        except ValueError:
+            continue
+        if isinstance(parsed, dict) and not (len(parsed) == 1 and "adcp_error" in parsed):
+            return parsed
+    return None
 
 
 class DiscoveryTransport(httpx.AsyncBaseTransport):
@@ -77,14 +140,21 @@ class DiscoveryTransport(httpx.AsyncBaseTransport):
                         raise ResponseTooLargeError(
                             limit=self.limit, received=len(response.content)
                         )
+                    if response.is_stream_consumed:
+                        content = response.content
+                        await response.aclose()
+                        response = httpx.Response(
+                            response.status_code,
+                            headers=response.headers,
+                            stream=httpx.ByteStream(content),
+                        )
                     assert isinstance(response.stream, httpx.AsyncByteStream)
-                    response.stream = _LimitedStream(response.stream, self)
+                    response.stream = _StrictSseStream(_LimitedStream(response.stream, self), self)
                     return response
                 try:
                     content = await async_read_limited_bytes(response, limit=self.limit)
                     if content and 200 <= response.status_code < 300:
-                        if not isinstance(json.loads(content), dict):
-                            raise ValueError("capabilities response is not a JSON object")
+                        _validate_protocol_object(content)
                     return httpx.Response(
                         response.status_code, headers=response.headers, content=content
                     )
@@ -115,6 +185,7 @@ class _LimitedStream(httpx.AsyncByteStream):
         from adcp.signing.agent_resolver import AgentResolverError
 
         size = 0
+        decoder = codecs.getincrementaldecoder("utf-8")()
         async for chunk in self.stream:
             size += len(chunk)
             if size > self.transport.limit:
@@ -124,7 +195,57 @@ class _LimitedStream(httpx.AsyncByteStream):
                 )
                 self.transport.error = error
                 raise error
+            try:
+                decoder.decode(chunk)
+            except UnicodeDecodeError as exc:
+                error = AgentResolverError("capabilities_invalid", "capabilities invalid_utf8")
+                self.transport.error = error
+                raise error from exc
             yield chunk
+        try:
+            decoder.decode(b"", final=True)
+        except UnicodeDecodeError as exc:
+            error = AgentResolverError("capabilities_invalid", "capabilities invalid_utf8")
+            self.transport.error = error
+            raise error from exc
+
+    async def aclose(self) -> None:
+        await self.stream.aclose()
+
+
+class _StrictSseStream(httpx.AsyncByteStream):
+    """Validate each complete SSE message before its dispatching blank line."""
+
+    def __init__(self, stream: httpx.AsyncByteStream, transport: DiscoveryTransport) -> None:
+        self.stream = stream
+        self.transport = transport
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        from adcp.signing.agent_resolver import AgentResolverError
+
+        response = httpx.Response(200, stream=self.stream)
+        event = "message"
+        data: list[str] = []
+        try:
+            async for line in response.aiter_lines():
+                if not line:
+                    if event == "message" and data and any(data):
+                        _validate_protocol_object("\n".join(data).encode("utf-8"))
+                    event = "message"
+                    data = []
+                elif not line.startswith(":"):
+                    name, _, value = line.partition(":")
+                    if value.startswith(" "):
+                        value = value[1:]
+                    if name == "event":
+                        event = value or "message"
+                    elif name == "data":
+                        data.append(value)
+                yield (line + "\n").encode("utf-8")
+        except ValueError as exc:
+            error = AgentResolverError("capabilities_invalid", f"capabilities {exc}")
+            self.transport.error = error
+            raise error from exc
 
     async def aclose(self) -> None:
         await self.stream.aclose()
@@ -174,7 +295,7 @@ async def fetch_protocol_capabilities(
     if protocol == "mcp":
         from mcp import ClientSession, types
 
-        from adcp.protocols.mcp import extract_adcp_success, streamablehttp_client
+        from adcp.protocols.mcp import streamablehttp_client
 
         def factory(**kwargs: Any) -> httpx2.AsyncClient:
             return httpx2.AsyncClient(
@@ -204,7 +325,7 @@ async def fetch_protocol_capabilities(
                     ),
                     types.CallToolResult,
                 )
-                data = extract_adcp_success(result)
+                data = _extract_strict_mcp_capabilities(result)
             if not result.is_error and isinstance(data, dict) and (session_id := get_session_id()):
                 # Terminate only on success, inside the original total deadline.
                 # Network cleanup in the transport's finally would start a new

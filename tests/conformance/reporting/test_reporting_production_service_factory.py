@@ -135,7 +135,7 @@ class FactoryApplication(Application):
 
 
 @asynccontextmanager
-async def factory_harness(backend, path, *, push=False, existing_pool=None):
+async def factory_harness(backend, path, *, push=False, existing_pool=None, start=True):
     async with AsyncExitStack() as stack:
         pool = existing_pool
         if backend == "postgres" and pool is None:
@@ -303,7 +303,8 @@ async def factory_harness(backend, path, *, push=False, existing_pool=None):
         h.production = h.service._production
         h.store = h.service.store
         h.mount = create_mcp_server(handler)
-        await h.service.start()
+        if start:
+            await h.service.start()
         try:
             yield h
         finally:
@@ -408,3 +409,67 @@ async def test_factory_revocation_discards_blocked_fetch_and_restoration_retries
         restored = await source_turn(h.production)
         assert len(restored.revisions_committed) == 1
         assert len(h.source.requests) == 2
+
+
+@pytest.mark.parametrize("backend", ["memory", "postgres"])
+async def test_mounted_production_lifecycle_refusals_are_transient(backend, tmp_path):
+    from adcp.exceptions import ADCPTaskError
+
+    async with factory_harness(backend, tmp_path / "boundary.sqlite", start=False) as h:
+        handler = h.production.handler
+        assert handler is not None
+        for task in (
+            "get_reporting_status",
+            "sync_reporting_status",
+            "sync_reporting_receipts",
+            "get_media_buy_delivery",
+            "sync_accounts",
+        ):
+            request = (
+                {"reporting_revision_id": "unavailable"} if task == "get_media_buy_delivery" else {}
+            )
+            with pytest.raises(ADCPTaskError) as caught:
+                await getattr(handler, task)(request)
+            assert caught.value.error_codes == ["SERVICE_UNAVAILABLE"]
+            assert caught.value.error_info[0].recovery == "transient"
+        await h.service.start()
+        await h.service.close()
+        with pytest.raises(ADCPTaskError) as caught:
+            await handler.get_reporting_status({})
+        assert caught.value.error_codes == ["SERVICE_UNAVAILABLE"]
+        assert caught.value.is_retryable
+
+
+@pytest.mark.parametrize("backend", ["memory", "postgres"])
+async def test_production_missing_caller_and_broken_composition_are_distinct(backend, tmp_path):
+    from adcp.exceptions import ADCPTaskError
+    from adcp.server.base import ToolContext
+
+    async with factory_harness(backend, tmp_path / "errors.sqlite") as h:
+        handler = h.production.handler
+        tasks = (
+            "get_reporting_status",
+            "sync_reporting_status",
+            "sync_reporting_receipts",
+            "get_media_buy_delivery",
+            "sync_accounts",
+        )
+        for task in tasks:
+            request = (
+                {"reporting_revision_id": "missing"} if task == "get_media_buy_delivery" else {}
+            )
+            with pytest.raises(ADCPTaskError) as caught:
+                await getattr(handler, task)(request, ToolContext())
+            assert caught.value.error_codes == ["AUTH_REQUIRED"]
+            assert caught.value.error_info[0].recovery == "correctable"
+        original = h.production.materializer.store
+        object.__setattr__(h.production.materializer, "store", object())
+        try:
+            # Admission validates the concrete composition before reaching any
+            # buyer-input/ledger processing or broad storage-error catch.
+            with pytest.raises(ADCPTaskError) as caught:
+                await handler.sync_accounts({}, ToolContext(caller_identity="buyer"))
+            assert caught.value.error_codes == ["INTERNAL_ERROR"]
+            assert caught.value.error_info[0].recovery == "terminal"
+        finally:
+            object.__setattr__(h.production.materializer, "store", original)
