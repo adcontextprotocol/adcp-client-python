@@ -787,13 +787,20 @@ def prune_unused_bundled_modules(output_dir: Path = OUTPUT_DIR):
     print(f"  ✓ Removed {removed} unused bundled module(s)\n")
 
 
-def apply_post_generation_fixes(output_dir: Path = OUTPUT_DIR):
-    """Apply post-generation fixes using the dedicated script."""
+def apply_post_generation_fixes(output_dir: Path = OUTPUT_DIR, update_manifest: bool = False):
+    """Apply post-generation fixes using the dedicated script.
+
+    The fixes grade themselves against ``scripts/post_generation_manifest.json``
+    and exit non-zero when a fix the manifest records as firing changes nothing,
+    which fails this pipeline. ``update_manifest`` re-measures the manifest from
+    the freshly generated tree — the only tree the fixes have not run on yet.
+    """
     print("Running post-generation fixes...")
 
     post_fix_script = REPO_ROOT / "scripts" / "post_generate_fixes.py"
     result = subprocess.run(
-        [sys.executable, str(post_fix_script), "--output-dir", str(output_dir)],
+        [sys.executable, str(post_fix_script), "--output-dir", str(output_dir)]
+        + (["--update-manifest"] if update_manifest else []),
         capture_output=True,
         text=True,
     )
@@ -815,6 +822,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--check",
         action="store_true",
         help="report generated drift without modifying the checkout",
+    )
+    parser.add_argument(
+        "--update-fix-manifest",
+        action="store_true",
+        help="re-measure scripts/post_generation_manifest.json from this regeneration",
     )
     return parser.parse_args(argv)
 
@@ -934,7 +946,7 @@ def main(argv: list[str] | None = None):
                 return 1
 
             fix_forward_references(staged_output)
-            if not apply_post_generation_fixes(staged_output):
+            if not apply_post_generation_fixes(staged_output, args.update_fix_manifest):
                 return 1
             prune_unused_bundled_modules(staged_output)
             restore_unchanged_files(staged_output)

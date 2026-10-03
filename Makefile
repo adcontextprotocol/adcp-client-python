@@ -88,10 +88,11 @@ regenerate-schemas: ## Download latest schemas and skills from bundle, then rege
 	$(PYTHON) scripts/generate_ergonomic_coercion.py
 	@echo "✓ Schemas regenerated successfully"
 
-validate-generated: ## Validate generated code (syntax and imports)
+validate-generated: ## Validate generated code (syntax, imports, and equality with a regeneration)
 	@echo "Validating generated code..."
 	@$(PYTHON) -m py_compile src/adcp/types/_generated.py
 	@$(PYTHON) scripts/generate_versioned_stubs.py --check
+	@$(PYTHON) scripts/generate_types.py --check
 	@echo "✓ Generated code validation passed"
 
 pre-push: format lint typecheck-all test validate-generated ## Run all checks before pushing (format, lint, typecheck, test, validate)
