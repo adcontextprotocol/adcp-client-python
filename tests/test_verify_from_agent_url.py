@@ -86,7 +86,15 @@ async def test_factory_passes_resolved_jwks_to_verifier(
 
     async def fake_resolve(*args, **kwargs):
         seen["protocol"] = kwargs["protocol"]
-        return _RESOLVED_AGENT
+        return _RESOLVED_AGENT.model_copy(
+            update={
+                "agent_entry": {
+                    **_RESOLVED_AGENT.agent_entry,
+                    "url": "HTTPS://BUYER.example.com:443/mcp",
+                },
+                "brand_json": {"agents": [_RESOLVED_AGENT.agent_entry]},
+            }
+        )
 
     async def fake_verify_starlette(request, *, options):  # type: ignore[no-untyped-def]
         seen["options"] = options
@@ -108,6 +116,7 @@ async def test_factory_passes_resolved_jwks_to_verifier(
     assert seen["protocol"] == protocol
     assert seen["options"].operation == "get_products"
     assert seen["options"].agent_url == "https://buyer.example.com/mcp"
+    assert seen["options"].operator_brand_json == {"agents": [_RESOLVED_AGENT.agent_entry]}
     # JWKS resolver constructed from the resolution's jwks set.
     assert seen["options"].jwks_resolver is not None
 
