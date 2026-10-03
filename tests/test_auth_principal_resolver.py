@@ -250,6 +250,20 @@ async def test_safe_rejection(
     assert all(
         record.exc_info is None for record in caplog.records if record.name == "adcp.server.auth"
     )
+    errors = [
+        record
+        for record in caplog.records
+        if record.name == "adcp.server.auth" and record.levelno >= logging.ERROR
+    ]
+    if denial in ("unexpected", "bad-result"):
+        assert len(errors) == 1
+        assert errors[0].levelno == logging.ERROR
+        assert errors[0].reason == "resolver_error"
+        assert errors[0].args == ()
+        assert errors[0].exc_info is None
+        assert errors[0].exc_text is None
+    else:
+        assert not errors
 
 
 @pytest.mark.asyncio

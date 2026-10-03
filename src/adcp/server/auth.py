@@ -297,7 +297,7 @@ async def _resolve_request_principal(
         raise
     except Exception:
         # Exception messages/tracebacks can contain identity secrets or tokens.
-        logger.info("principal resolver rejected", extra={"reason": "resolver_error"})
+        logger.error("principal resolver rejected", extra={"reason": "resolver_error"})
         raise PrincipalResolverError() from None
 
 
