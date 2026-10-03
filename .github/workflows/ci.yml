@@ -196,6 +196,7 @@ jobs:
                      tests/conformance/decisioning/test_pg_buyer_agent_registry.py \
                      tests/conformance/decisioning/test_pg_idempotency_backend.py \
                      tests/test_decisioning_task_polling.py \
+                     tests/test_decisioning_task_lifecycle.py \
                      tests/conformance/decisioning/test_pg_task_webhook_outbox.py \
                      tests/conformance/decisioning/test_pg_reference_workflow_queue.py \
                      tests/conformance/reporting/ \
