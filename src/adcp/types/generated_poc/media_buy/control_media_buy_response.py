@@ -7,7 +7,7 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel
+from adcp.types.base import AdCPBaseModel, SchemaInt
 from pydantic import AwareDatetime, ConfigDict, Field, RootModel
 
 from ..core import canonical_media_buy_action
@@ -68,7 +68,7 @@ class ControlMediaBuyResponse1(AdCPBaseModel):
     )
     status: Literal['completed'] = 'completed'
     media_buy_id: Annotated[str, Field(min_length=1)]
-    revision: Annotated[int, Field(ge=1)]
+    revision: Annotated[SchemaInt, Field(ge=1)]
     media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
     implementation_date: AwareDatetime | None = None
     affected_package_ids: list[AffectedPackageId] | None = None

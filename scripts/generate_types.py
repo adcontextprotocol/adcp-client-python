@@ -593,6 +593,25 @@ def _run_datamodel_codegen(input_path: Path, output_path: Path) -> subprocess.Co
         "--base-class",
         "adcp.types.base.AdCPBaseModel",
         "--field-constraints",
+        # JSON Schema types are exact: ``type: boolean`` admits ``true`` and
+        # ``false``, nothing else. Pydantic's lax mode is wider for exactly
+        # these three — it reads ``"yes"`` as a boolean, ``"1"`` and ``1.0`` as
+        # an integer, ``true`` as a number — so without this the generated
+        # model accepts payloads the bundled schema for the same tool rejects,
+        # and the two validators the SDK ships disagree about the same bytes.
+        # Strict scalars make the model's accepted set the schema's accepted
+        # set, derived per field from the schema rather than corrected per
+        # model.
+        #
+        # ``str`` is deliberately absent: pydantic's lax ``str`` already
+        # refuses every non-string, so ``StrictStr`` changes no verdict while
+        # perturbing ``--reuse-model`` dedup. ``AwareDatetime``, ``AnyUrl``,
+        # ``UUID`` and ``date`` fields keep lax parsing — JSON carries those as
+        # strings, and the string is the wire form.
+        "--strict-types",
+        "bool",
+        "int",
+        "float",
         "--use-standard-collections",
         "--use-union-operator",
         "--target-python-version",

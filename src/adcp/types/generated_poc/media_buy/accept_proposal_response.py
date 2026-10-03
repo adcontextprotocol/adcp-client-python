@@ -7,7 +7,7 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from adcp.types.base import AdCPBaseModel
+from adcp.types.base import AdCPBaseModel, SchemaInt
 from pydantic import AwareDatetime, ConfigDict, Field
 
 from ..core import canonical_media_buy_action
@@ -29,7 +29,7 @@ class PurchaseBinding(AdCPBaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    purchase_index: Annotated[int, Field(ge=0)]
+    purchase_index: Annotated[SchemaInt, Field(ge=0)]
     product_id: Annotated[str, Field(min_length=1)]
     package_id: Annotated[str, Field(min_length=1)]
 
@@ -117,7 +117,7 @@ class AcceptProposalResponse1(AdCPBaseModel):
             pattern='\\S',
         ),
     ] = None
-    revision: Annotated[int, Field(ge=1)]
+    revision: Annotated[SchemaInt, Field(ge=1)]
     media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
     confirmed_at: AwareDatetime | None = None
     accepted_proposal: AcceptedProposal

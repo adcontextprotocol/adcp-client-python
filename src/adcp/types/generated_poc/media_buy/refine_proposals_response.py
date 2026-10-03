@@ -7,8 +7,8 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel
-from pydantic import AwareDatetime, ConfigDict, Field, RootModel
+from adcp.types.base import AdCPBaseModel, SchemaInt
+from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StrictFloat
 
 from ..core import canonical_delivery_forecast, canonical_product, canonical_proposal
 from ..core import context as context_1
@@ -45,9 +45,9 @@ class TotalBudgetGuidance(AdCPBaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    min: Annotated[float | None, Field(ge=0.0)] = None
-    recommended: Annotated[float | None, Field(ge=0.0)] = None
-    max: Annotated[float | None, Field(ge=0.0)] = None
+    min: Annotated[StrictFloat | None, Field(ge=0.0)] = None
+    recommended: Annotated[StrictFloat | None, Field(ge=0.0)] = None
+    max: Annotated[StrictFloat | None, Field(ge=0.0)] = None
     currency: Annotated[str, Field(pattern='^[A-Z]{3}$')]
 
 
@@ -92,7 +92,7 @@ class Proposal(AdCPBaseModel):
             pattern='^[A-Za-z0-9_.:-]{1,255}$',
         ),
     ] = None
-    base_media_buy_revision: Annotated[int | None, Field(ge=1)] = None
+    base_media_buy_revision: Annotated[SchemaInt | None, Field(ge=1)] = None
     proposal_status: Annotated[
         Literal['draft'],
         Field(
@@ -161,7 +161,7 @@ class Proposal3(AdCPBaseModel):
             pattern='^[A-Za-z0-9_.:-]{1,255}$',
         ),
     ] = None
-    base_media_buy_revision: Annotated[int | None, Field(ge=1)] = None
+    base_media_buy_revision: Annotated[SchemaInt | None, Field(ge=1)] = None
     proposal_status: Annotated[
         Literal['committed'],
         Field(
