@@ -139,6 +139,21 @@ Missing authentication is rejected. Supply
 `caller_resolver` for a different trusted identity model; never choose consumer
 identity from the request body.
 
+`capability_block()` and installed capability discovery describe registered
+reporting offerings and installed components throughout the service lifetime.
+They are available before startup and remain stable while stopping, after
+closure, and after worker failure. An unconfigured service declares no reporting
+block. Use `service.ready` for local work admission; buyer tools report runtime
+unavailability separately. Discovery does not start workers or instantiate lazy
+platform tenants.
+
+Managed-production discovery also retains registered destination, signing and
+reconciliation declarations through shutdown or failure. Build-time discovery
+does not construct the production graph. The development memory production
+graph declares no durable production tier; Core memory services still declare
+their inline offerings. `ReportingProductionSupport.reporting_delivery()` keeps
+its runtime readiness check for operator and admission callers.
+
 ## Decisioning platforms and lazy routers
 
 Core `install()` accepts a `DecisioningPlatform`, including `LazyPlatformRouter`:

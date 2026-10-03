@@ -87,16 +87,29 @@ def _finish_supervised_operation(task: asyncio.Task[Any]) -> None:
 
 
 def is_wrapped(fn: Any) -> bool:
-    """Return True if ``fn`` was produced by :meth:`IdempotencyStore.wrap`.
+    """Return whether a callable's chain contains an SDK-registered wrapper.
 
-    Accepts bound methods (resolves to the underlying function before
-    the membership check) and plain callables. Used by the boot-time
-    validator at :mod:`adcp.decisioning.validate_idempotency`.
+    Accepts bound methods and plain callables. Outer decorators must use
+    ``functools.wraps`` (or set ``__wrapped__``) so the registered wrapper
+    remains reachable. Copied attributes alone do not establish membership.
+    Used by :mod:`adcp.decisioning.validate_idempotency`.
     """
-    if fn is None:
-        return False
-    target = fn.__func__ if hasattr(fn, "__func__") else fn
-    return target in _WRAPPED_FUNCTIONS
+    seen: set[int] = set()
+    # Bound the traversal to guard against pathological __wrapped__ cycles
+    # and chains that manufacture a new callable on every attribute access.
+    for _ in range(16):
+        target = getattr(fn, "__func__", fn)
+        if target is None or id(target) in seen:
+            return False
+        seen.add(id(target))
+        try:
+            if target in _WRAPPED_FUNCTIONS:
+                return True
+        except TypeError:
+            # Unhashable/non-weak-referenceable objects cannot be registered.
+            pass
+        fn = getattr(target, "__wrapped__", None)
+    return False
 
 
 # Spec bounds from capabilities.idempotency.replay_ttl_seconds (1h-7d).
@@ -364,13 +377,9 @@ class IdempotencyStore:
         # registered, not the original handler: re-decorating a forked
         # copy of `handler` would otherwise falsely flag both.
         #
-        # Contract for future maintainers: ``is_wrapped()`` checks
-        # WeakSet membership of the closure object directly. Do NOT
-        # change it to ``inspect.unwrap()``-then-check — the
-        # ``@functools.wraps(handler)`` decorator above sets
-        # ``_wrapped.__wrapped__ = handler``, so ``inspect.unwrap``
-        # would return the original handler (not in the WeakSet) and
-        # the validator would silently regress.
+        # ``is_wrapped`` checks registry membership at each __wrapped__ link.
+        # Full inspect.unwrap()-then-check would reach the original handler,
+        # which is not registered, and miss this closure under outer decorators.
         _WRAPPED_FUNCTIONS.add(_wrapped)
         return _wrapped
 

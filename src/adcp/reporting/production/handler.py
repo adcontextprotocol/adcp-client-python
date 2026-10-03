@@ -280,7 +280,8 @@ class ReportingProductionHandler(ReportingReceiptHandler):
                 dict.fromkeys([*base.get("supported_protocols", ()), "media_buy"])
             )
         response["account"] = self.production.configuration_task.account_capabilities()
-        reporting = await self.production.reporting_delivery()
+        declaration = self.production._declared_capabilities()
+        reporting = declaration["reporting_delivery"]
         if reporting:
             response["media_buy"] = {
                 **response.get("media_buy", {}),
@@ -295,13 +296,8 @@ class ReportingProductionHandler(ReportingReceiptHandler):
                 reporting.get(k)
                 for k in ("ledger_notification", "status_notification", "readiness_notification")
             ):
-                from adcp.reporting.production.notifications import (
-                    signing_capabilities,
-                    signing_identity,
-                )
-
-                response["webhook_signing"] = signing_capabilities(self.production)
-                response["identity"] = signing_identity(self.production)
+                response["webhook_signing"] = declaration["webhook_signing"]
+                response["identity"] = declaration["identity"]
         return response
 
     @_admitted
