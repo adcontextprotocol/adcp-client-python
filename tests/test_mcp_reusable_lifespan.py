@@ -213,3 +213,64 @@ async def test_external_cancellation_and_startup_failure_clear_live_endpoint():
     mcp._lowlevel_server.lifespan = original
     async with app.router.lifespan_context(app):
         assert mcp._session_manager is not managers[0]
+
+
+@pytest.mark.parametrize("sse_path,message_path", [("/sse", "/messages/"), ("/events", "/inbox/")])
+@pytest.mark.asyncio
+async def test_sse_stream_enters_lifecycle_and_disconnects(sse_path, message_path):
+    """Drive a real stream without buffering its unbounded response in httpx."""
+    mcp = create_mcp_server(Seller(), validation=None)
+    app = mcp.sse_app(sse_path=sse_path, message_path=message_path)
+    original = mcp._lowlevel_server.lifespan
+    events = []
+    started = asyncio.Event()
+
+    @asynccontextmanager
+    async def lifecycle(server):
+        async with original(server) as state:
+            events.append("start")
+            started.set()
+            try:
+                yield state
+            finally:
+                events.append("stop")
+
+    mcp._lowlevel_server.lifespan = lifecycle
+    for _ in range(2):
+        started.clear()
+        endpoint = asyncio.Event()
+        messages = []
+
+        async def receive():
+            await endpoint.wait()
+            await started.wait()
+            return {"type": "http.disconnect"}
+
+        async def send(message):
+            messages.append(message)
+            if b"event: endpoint" in message.get("body", b""):
+                endpoint.set()
+
+        scope = {
+            "type": "http",
+            "asgi": {"version": "3.0", "spec_version": "2.4"},
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "http",
+            "path": sse_path,
+            "raw_path": sse_path.encode(),
+            "root_path": "",
+            "query_string": b"",
+            "headers": [(b"host", b"localhost:3001"), (b"accept", b"text/event-stream")],
+            "server": ("localhost", 3001),
+            "client": ("127.0.0.1", 12345),
+        }
+        async with app.router.lifespan_context(app):
+            await asyncio.wait_for(app(scope, receive, send), timeout=5)
+        start = next(message for message in messages if message["type"] == "http.response.start")
+        assert start["status"] == 200
+        assert (b"content-type", b"text/event-stream; charset=utf-8") in start["headers"]
+        body = b"".join(message.get("body", b"") for message in messages)
+        assert b"event: endpoint" in body
+        assert message_path.encode() + b"?session_id=" in body
+    assert events == ["start", "stop"] * 2
