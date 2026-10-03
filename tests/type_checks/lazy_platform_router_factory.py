@@ -31,9 +31,20 @@ async def platform_factory(tenant_id: str) -> DecisioningPlatform:
 router = LazyPlatformRouter(
     accounts=SingletonAccounts(account_id="router"),
     factory=platform_factory,
+    optional_methods={"list_creative_formats_legacy", "list_products"},
     capabilities=DecisioningCapabilities(
         specialisms=["sales-non-guaranteed"],
         channels=["display"],
         pricing_models=["cpm"],
     ),
 )
+
+
+from adcp.server.tenant_registry import TenantRegistry
+
+registry_platform = TenantRegistry(validator=None).as_platform(
+    accounts=SingletonAccounts(account_id="registry"),
+    capabilities=router.capabilities,
+    optional_methods=frozenset({"preview_creative_legacy"}),
+)
+methods: frozenset[str] = router.optional_methods

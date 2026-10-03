@@ -31,65 +31,21 @@ from typing import Any
 
 from adcp.compat.legacy import register_adapter
 from adcp.compat.legacy.types import AdapterPair
+from adcp.types._legacy_assets import coerce_legacy_asset, infer_asset_type
 
 #: Canonical ``agent_url`` injected when wrapping a bare ``format_id``.
 #: Mirrors ``adcp.server.spec_compat.CANONICAL_CREATIVE_AGENT_URL``.
 _CANONICAL_CREATIVE_AGENT_URL = "https://creative.adcontextprotocol.org"
 
-# Asset type discriminators the spec defines. Used by the key-based
-# inference path — only exact key matches resolve to a type. Substring
-# matches (``hero_image``) are intentionally excluded; they're asset
-# IDs, not type hints.
-_KNOWN_ASSET_TYPES: frozenset[str] = frozenset(
-    {
-        "image",
-        "video",
-        "audio",
-        "vast",
-        "text",
-        "url",
-        "html",
-        "javascript",
-        "webhook",
-        "css",
-        "daast",
-        "markdown",
-        "brief",
-        "catalog",
-    }
-)
-
 
 def _infer_asset_type(asset_key: str, asset: dict[str, Any]) -> str | None:
-    """Infer ``asset_type`` from key + field presence. ``None`` if ambiguous."""
-    if asset_key in _KNOWN_ASSET_TYPES:
-        return asset_key
-    if "url" in asset:
-        if "width" in asset and "height" in asset:
-            return "image"
-        return "url"
-    if "content" in asset:
-        return "text"
-    return None
+    """Delegate to the public legacy asset inference helper."""
+    return infer_asset_type(asset_key, asset)
 
 
 def _coerce_asset(asset_key: str, asset: dict[str, Any]) -> dict[str, Any]:
-    """Apply the v2.5 → v3 coercions to a single asset dict."""
-    out = dict(asset)
-    if "asset_type" not in out:
-        inferred = _infer_asset_type(asset_key, out)
-        if inferred is not None:
-            out["asset_type"] = inferred
-
-    # ``image`` without both dims → demote to ``url`` (only when ``url``
-    # is actually present; otherwise the asset is structurally invalid
-    # either way, and current-schema validation reports it).
-    if out.get("asset_type") == "image" and not ("width" in out and "height" in out):
-        if "url" in out:
-            out.pop("width", None)
-            out.pop("height", None)
-            out["asset_type"] = "url"
-    return out
+    """Delegate to the public, non-mutating legacy asset coercion helper."""
+    return coerce_legacy_asset(asset_key, asset)
 
 
 def adapt_request(payload: dict[str, Any]) -> dict[str, Any]:

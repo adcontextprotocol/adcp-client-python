@@ -99,7 +99,7 @@ import asyncio
 import inspect
 import time
 from collections import OrderedDict
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
 from adcp.decisioning.platform import (
@@ -212,6 +212,14 @@ def _all_specialism_methods() -> frozenset[str]:
     for proto in _KNOWN_SPECIALISM_PROTOCOLS:
         union |= _protocol_method_names(proto)
     return frozenset(union)
+
+
+def _implements_optional_method(platform: Any, method_name: str) -> bool:
+    """Consult router declarations instead of mistaking delegates for implementations."""
+    declaration = getattr(platform, "optional_methods", None)
+    if declaration is not None:
+        return method_name in declaration
+    return callable(getattr(platform, method_name, None))
 
 
 def _resolve_ctx_from_args(
@@ -425,6 +433,23 @@ class PlatformRouter(DecisioningPlatform):
         self.accounts = accounts
         self.capabilities = capabilities
 
+        self.optional_methods: frozenset[str] = frozenset(
+            name
+            for name in _all_specialism_methods()
+            if any(
+                _implements_optional_method(child, name)
+                and getattr(getattr(child, name, None), "__func__", getattr(child, name, None))
+                not in [vars(proto).get(name) for proto in _KNOWN_SPECIALISM_PROTOCOLS]
+                for child in self._platforms.values()
+            )
+        )
+        if any(
+            getattr(getattr(manager, "capabilities", None), "proposal_refinement", None) is not None
+            and callable(getattr(manager, "refine_proposals", None))
+            for manager in self._proposal_managers.values()
+        ):
+            self.optional_methods |= {"refine_proposals"}
+
         # Synthesize a delegating method per specialism method name.
         # Bound at construction so ``getattr(router, name)`` resolves
         # to a callable that closes over ``self`` and ``method_name``.
@@ -486,9 +511,8 @@ class PlatformRouter(DecisioningPlatform):
                 message=(
                     f"Tenant {tenant_id!r}'s platform "
                     f"({type(platform).__name__}) does not implement "
-                    f"{method_name!r}. The router advertises this method "
-                    "because at least one child platform supports it, "
-                    "but this tenant's platform doesn't."
+                    f"{method_name!r}. Optional tool declarations describe the "
+                    "router's union; this tenant may not support every tool."
                 ),
                 recovery="terminal",
             )
@@ -812,6 +836,10 @@ class LazyPlatformRouter(DecisioningPlatform):
         rotation lag, or call :meth:`invalidate` from your rotation
         path.
 
+    Optional legacy and compact lifecycle methods default to unadvertised.
+    Pass ``optional_methods={"list_creative_formats_legacy", "list_products"}``
+    to declare the union served by tenants without constructing them at boot.
+
     :raises ValueError: when ``cache_size <= 0`` or
         ``cache_ttl_seconds < 0``.
     """
@@ -822,6 +850,7 @@ class LazyPlatformRouter(DecisioningPlatform):
         accounts: AccountStore[Any],
         factory: PlatformFactory,
         capabilities: DecisioningCapabilities,
+        optional_methods: Iterable[str] = frozenset(),
         proposal_managers: Mapping[str, ProposalManager] | None = None,
         proposal_stores: Mapping[str, ProposalStore] | None = None,
         proposal_store_factory: Callable[[str], ProposalStore | None] | None = None,
@@ -850,6 +879,7 @@ class LazyPlatformRouter(DecisioningPlatform):
 
         self.accounts = accounts
         self.capabilities = capabilities
+        self.optional_methods: frozenset[str] = frozenset(optional_methods)
         self._factory = factory
         self._proposal_managers: dict[str, ProposalManager] = dict(proposal_managers or {})
         # #722: parity with PlatformRouter — accept proposal_stores=
@@ -1065,9 +1095,8 @@ class LazyPlatformRouter(DecisioningPlatform):
                 message=(
                     f"Tenant {tenant_id!r}'s platform "
                     f"({type(platform).__name__}) does not implement "
-                    f"{method_name!r}. The router advertises this method "
-                    "because at least one tenant supports it, but this "
-                    "tenant's platform doesn't."
+                    f"{method_name!r}. Optional tool declarations describe the "
+                    "router's union; this tenant may not support every tool."
                 ),
                 recovery="terminal",
             )
@@ -1255,10 +1284,12 @@ class _RegistryPlatformAdapter(DecisioningPlatform):
         registry: Any,  # TenantRegistry at runtime; Any avoids circular import
         accounts: Any,
         capabilities: DecisioningCapabilities,
+        optional_methods: Iterable[str] = frozenset(),
         serve_states: frozenset[Any],
     ) -> None:
         self.accounts = accounts
         self.capabilities = capabilities
+        self.optional_methods: frozenset[str] = frozenset(optional_methods)
         self._registry = registry
         self._serve_states = frozenset(serve_states)
 
@@ -1369,6 +1400,7 @@ def _make_registry_platform_adapter(
     accounts: Any,
     capabilities: DecisioningCapabilities,
     serve_states: frozenset[Any],
+    optional_methods: Iterable[str] = frozenset(),
 ) -> DecisioningPlatform:
     """Factory for :meth:`TenantRegistry.as_platform`.
 
@@ -1382,6 +1414,7 @@ def _make_registry_platform_adapter(
         accounts=accounts,
         capabilities=capabilities,
         serve_states=serve_states,
+        optional_methods=optional_methods,
     )
 
 
