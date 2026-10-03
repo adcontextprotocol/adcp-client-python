@@ -248,3 +248,62 @@ def test_public_response_bases_remain_constructible_and_arms_remain_specific() -
             response_base.model_validate(invalid_base)
         with pytest.raises(ValueError):
             parse_json_or_text(invalid_base, response_base)
+
+
+_MEDIA_BUY_UNCONDITIONAL_FIELDS = {
+    "idempotency_key": "idem-key-0123456789",
+    "account": {"account_id": "acct_1"},
+    "brand": {"brand_id": "brand_1", "domain": "example.com"},
+    "start_time": "2026-11-01T00:00:00Z",
+    "end_time": "2026-11-30T00:00:00Z",
+}
+
+
+def test_create_media_buy_request_requires_one_root_anyof_group() -> None:
+    """``create-media-buy-request.json`` declares three ways to be a media buy.
+
+    Root ``required`` names the five fields every arm shares; the root ``anyOf``
+    names the three groups, one of which a request has to carry. A document with
+    the five and none of the three is a media buy with no packages, no budget and
+    no proposal.
+    """
+    from adcp.types.generated_poc.media_buy.create_media_buy_request import CreateMediaBuyRequest
+
+    with pytest.raises(ValidationError, match="at least one of these field groups"):
+        CreateMediaBuyRequest.model_validate(dict(_MEDIA_BUY_UNCONDITIONAL_FIELDS))
+
+    committed = CreateMediaBuyRequest.model_validate(
+        {
+            **_MEDIA_BUY_UNCONDITIONAL_FIELDS,
+            "proposal_id": "prop_1",
+            "total_budget": {"amount": 1000.0, "currency": "USD"},
+        }
+    )
+    assert committed.proposal_id == "prop_1"
+    assert committed.packages is None
+
+
+def test_sync_creatives_request_takes_assignment_operations_without_creatives() -> None:
+    """``creatives`` is one arm of a root ``anyOf``, not an unconditional field.
+
+    AdCP 3.2 moved ``creatives`` out of root ``required`` into a group alongside
+    ``assignments`` and ``assignment_operations``, so a request that traffics
+    existing creative IDs carries no ``creatives`` at all.
+    """
+    from adcp.types.generated_poc.creative.sync_creatives_request import SyncCreativesRequest
+
+    base = {"idempotency_key": "idem-key-0123456789", "account": {"account_id": "acct_1"}}
+
+    with pytest.raises(ValidationError, match="at least one of these field groups"):
+        SyncCreativesRequest.model_validate(dict(base))
+
+    assignments_only = SyncCreativesRequest.model_validate(
+        {
+            **base,
+            "assignment_operations": [
+                {"operation": "assign", "creative_id": "creative_1", "package_id": "package_1"}
+            ],
+        }
+    )
+    assert assignments_only.creatives is None
+    assert assignments_only.assignment_operations is not None

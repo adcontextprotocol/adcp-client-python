@@ -6208,6 +6208,286 @@ def enforce_change_term_runtime_constraints() -> None:
             print("  media_buy/commercial_terms.py: restored change-term set invariants")
 
 
+_REQUIRED_GROUP_VALIDATOR = "_require_schema_required_group"
+
+# Bases that declare no schema fields of their own. Any other base the
+# generated tree cannot resolve leaves the class's field set unknown, and an
+# unknown field set means the required-group rule is reported, not guessed.
+_FIELDLESS_GENERATED_BASES = {"AdCPBaseModel", "BaseModel", "RootModel"}
+
+
+def _root_required_groups(schema: dict) -> tuple[tuple[str, ...], ...] | None:
+    """Return the required-field groups a schema root declares.
+
+    A root ``anyOf``/``oneOf`` whose every arm carries ``required`` states which
+    combinations of fields a document may omit. Arms also carry discriminating
+    ``properties`` and ``not`` clauses; those narrow an arm further and are not
+    part of its group.
+    """
+    for combinator in ("anyOf", "oneOf"):
+        arms = schema.get(combinator)
+        if not isinstance(arms, list) or not arms:
+            continue
+        if not all(isinstance(arm, dict) and isinstance(arm.get("required"), list) for arm in arms):
+            continue
+        groups: list[tuple[str, ...]] = []
+        for arm in arms:
+            names = tuple(name for name in arm["required"] if isinstance(name, str))
+            if names and names not in groups:
+                groups.append(names)
+        if groups:
+            return tuple(groups)
+    return None
+
+
+def _generated_import_targets(
+    py_path: Path, tree: ast.Module
+) -> dict[str, tuple[Path, str | None]]:
+    """Map each name a generated module imports to the file that defines it.
+
+    The second element is the symbol imported from that file, or ``None`` when
+    the name is the module itself (``from ..core import account_ref``).
+    """
+    targets: dict[str, tuple[Path, str | None]] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.ImportFrom) or node.level < 1:
+            continue
+        package = py_path.parent
+        for _ in range(node.level - 1):
+            package = package.parent
+        module_parts = (node.module or "").split(".")
+        for alias in node.names:
+            as_module = package.joinpath(*module_parts, alias.name).with_suffix(".py")
+            if as_module.is_file():
+                targets[alias.asname or alias.name] = (as_module, None)
+                continue
+            as_symbol = package.joinpath(*module_parts).with_suffix(".py")
+            if as_symbol.is_file():
+                targets[alias.asname or alias.name] = (as_symbol, alias.name)
+    return targets
+
+
+def _field_wire_name(statement: ast.AnnAssign, attribute: str) -> str:
+    """Return a generated field's wire name, honouring ``Field(alias=...)``."""
+    for node in ast.walk(statement):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if (func.id if isinstance(func, ast.Name) else getattr(func, "attr", None)) != "Field":
+            continue
+        for keyword in node.keywords:
+            if keyword.arg == "alias" and isinstance(keyword.value, ast.Constant):
+                if isinstance(keyword.value.value, str):
+                    return keyword.value.value
+    return attribute
+
+
+def _declared_fields(node: ast.ClassDef) -> dict[str, str]:
+    """Map wire name to attribute name for the fields a class declares."""
+    fields: dict[str, str] = {}
+    for statement in node.body:
+        if not isinstance(statement, ast.AnnAssign) or not isinstance(statement.target, ast.Name):
+            continue
+        attribute = statement.target.id
+        if attribute.startswith("_") or attribute == "model_config":
+            continue
+        fields[_field_wire_name(statement, attribute)] = attribute
+    return fields
+
+
+def _generated_fields(
+    py_path: Path, class_name: str, seen: frozenset[tuple[Path, str]] = frozenset()
+) -> dict[str, str] | None:
+    """Map wire name to attribute name for a class and its bases.
+
+    ``None`` means a base lies outside the generated tree, so the field set is
+    unknown.
+    """
+    if (py_path, class_name) in seen:
+        return {}
+    seen = seen | {(py_path, class_name)}
+    try:
+        tree = ast.parse(py_path.read_text())
+    except (OSError, SyntaxError):
+        return None
+    classes = {node.name: node for node in tree.body if isinstance(node, ast.ClassDef)}
+    node = classes.get(class_name)
+    if node is None:
+        return None
+    imports = _generated_import_targets(py_path, tree)
+
+    fields: dict[str, str] = {}
+    for base in node.bases:
+        reference = base.value if isinstance(base, ast.Subscript) else base
+        if isinstance(reference, ast.Attribute) and isinstance(reference.value, ast.Name):
+            target = imports.get(reference.value.id)
+            if target is None or target[1] is not None:
+                return None
+            inherited = _generated_fields(target[0], reference.attr, seen)
+        elif not isinstance(reference, ast.Name):
+            return None
+        elif reference.id in classes:
+            inherited = _generated_fields(py_path, reference.id, seen)
+        elif imports.get(reference.id, (None, None))[1] is not None:
+            module_path, symbol = imports[reference.id]
+            inherited = _generated_fields(module_path, str(symbol), seen)
+        elif reference.id in _FIELDLESS_GENERATED_BASES:
+            inherited = {}
+        else:
+            return None
+        if inherited is None:
+            return None
+        fields.update(inherited)
+
+    fields.update(_declared_fields(node))
+    return fields
+
+
+def _root_generated_class(content: str, schema: dict) -> str | None:
+    """Return the single class datamodel-code-generator emits for a schema root.
+
+    The root class takes its name from the schema title, up to case: the
+    generator title-cases an acronym, so "SI Send Message Request" becomes
+    ``SiSendMessageRequest``. Match the title-derived name case-insensitively
+    and return the class as the module spells it.
+
+    When no class carries that name the root did not generate one flat model —
+    the generator split it into per-arm classes behind a union alias — and a
+    group derived from one arm does not constrain another. When two classes
+    carry it, the name does not identify the root.
+    """
+    title = schema.get("title")
+    if not isinstance(title, str) or not title.strip():
+        return None
+    wanted = _schema_title_to_class_name(title).lower()
+    declared = {
+        match.group(1)
+        for match in re.finditer(r"^class (\w+)\b", content, re.MULTILINE)
+        if match.group(1).lower() == wanted
+    }
+    if len(declared) != 1:
+        return None
+    return declared.pop()
+
+
+def _ensure_model_validator_import(content: str) -> str:
+    match = re.search(r"^from pydantic import (.+)$", content, re.MULTILINE)
+    if match is None:
+        return re.sub(
+            r"^class ",
+            "from pydantic import model_validator\n\n\nclass ",
+            content,
+            count=1,
+            flags=re.MULTILINE,
+        )
+    imported = [name.strip() for name in match.group(1).split(",")]
+    if "model_validator" in imported:
+        return content
+    names = ", ".join(sorted([*imported, "model_validator"]))
+    return content[: match.start()] + f"from pydantic import {names}" + content[match.end() :]
+
+
+def _append_to_class_block(content: str, class_name: str, block: str) -> str:
+    """Insert ``block`` at the end of ``class_name``'s body.
+
+    Several generated modules close with module-level statements — compatibility
+    aliases, ``model_rebuild()`` calls — after the last class, so the end of the
+    class body is the end of its AST node, not the start of the next class.
+    """
+    for node in ast.parse(content).body:
+        if not isinstance(node, ast.ClassDef) or node.name != class_name:
+            continue
+        lines = content.splitlines(keepends=True)
+        end = node.end_lineno or len(lines)
+        tail = "".join(lines[end:])
+        separator = "" if not tail.strip() or tail.startswith("\n") else "\n\n"
+        return "".join(lines[:end]).rstrip("\n") + block + separator + tail
+    return content
+
+
+def enforce_root_required_groups() -> None:
+    """Restore root-level ``anyOf``/``oneOf`` required-group constraints.
+
+    datamodel-code-generator renders a schema root's ``properties`` and drops a
+    root-level ``anyOf``/``oneOf`` over required-field groups, so the generated
+    class accepts documents its own schema rejects — a ``create_media_buy``
+    request with no packages, no budget and no proposal validates.
+
+    Emit a ``model_validator`` requiring at least one group. That is the whole
+    constraint for ``anyOf``. For ``oneOf`` it is the part the schema states in
+    ``required``: cardinality is not derivable here, because those arms are
+    distinguished by ``properties`` discriminators and several schemas give two
+    arms the same ``required`` set, which no "exactly one required group"
+    reading satisfies.
+    """
+    emitted = 0
+    already = 0
+    skipped: list[str] = []
+
+    for schema_file in sorted(SCHEMA_DIR.rglob("*.json")):
+        relative_path = schema_file.relative_to(SCHEMA_DIR)
+        try:
+            schema = json.loads(schema_file.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        if not isinstance(schema, dict):
+            continue
+        groups = _root_required_groups(schema)
+        if groups is None:
+            continue
+
+        module_path = relative_path.with_suffix(".py")
+        py_path = OUTPUT_DIR.joinpath(*(part.replace("-", "_") for part in module_path.parts))
+        if not py_path.is_file():
+            continue
+
+        content = py_path.read_text()
+        class_name = _root_generated_class(content, schema)
+        if class_name is None:
+            skipped.append(f"{relative_path}: no single root model class")
+            continue
+        if f"def {_REQUIRED_GROUP_VALIDATOR}" in content:
+            already += 1
+            continue
+
+        fields = _generated_fields(py_path, class_name)
+        if fields is None:
+            skipped.append(f"{relative_path}: {class_name} inherits an unresolved base")
+            continue
+        if any(name not in fields for group in groups for name in group):
+            skipped.append(f"{relative_path}: {class_name} is not one flat model over the groups")
+            continue
+        attribute_groups = [tuple(fields[name] for name in group) for group in groups]
+
+        rendered = ", ".join(repr(group) for group in attribute_groups)
+        readable = " | ".join("+".join(group) for group in attribute_groups)
+        validator = f"""
+
+    @model_validator(mode='after')
+    def {_REQUIRED_GROUP_VALIDATOR}(self) -> {class_name}:
+        # ``required`` asks whether the caller supplied the field, which is what
+        # model_fields_set answers. An explicit null is a supplied value — on a
+        # mutation input it is the command to clear — and a default the caller
+        # never sent is not.
+        for group in ({rendered},):
+            if all(name in self.model_fields_set for name in group):
+                return self
+        raise ValueError(
+            '{class_name} requires at least one of these field groups: {readable}'
+        )
+"""
+        content = _append_to_class_block(content, class_name, validator)
+        content = _ensure_model_validator_import(content)
+        py_path.write_text(content)
+        emitted += 1
+
+    print(f"  Emitted {emitted} root required-group validator(s)")
+    if already:
+        print(f"  {already} class(es) already carried one")
+    for note in skipped:
+        print(f"  skipped {note}")
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -6270,6 +6550,7 @@ def main(argv: list[str] | None = None):
         fix_canceled_literal_defaults,
         fix_unchanged_literal_defaults,
         fix_optional_boolean_literal_defaults,
+        enforce_root_required_groups,
         fix_reporting_request_selectors,
         fix_reporting_capability_defaults,
         fix_protocol_envelope_status_default,

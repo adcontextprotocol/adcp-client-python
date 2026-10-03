@@ -70,6 +70,8 @@ def make_product_dict(
 
 def make_signal_dict(segment_id: str, *, cpm: float = 2.5) -> dict[str, Any]:
     return {
+        # core/signal-listing.json requires signal_ref or signal_id.
+        "signal_ref": {"scope": "product", "signal_id": segment_id},
         "signal_agent_segment_id": segment_id,
         "name": f"Signal {segment_id}",
         "description": f"Description for {segment_id}",

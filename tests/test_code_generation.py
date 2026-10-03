@@ -10,6 +10,7 @@ This test suite validates that the code generation pipeline works correctly:
 from __future__ import annotations
 
 import ast
+import json
 from pathlib import Path
 
 import pytest
@@ -2126,3 +2127,223 @@ def test_unrelated_root_all_of_ref_does_not_attach_protocol_envelope(tmp_path, m
 
     assert _arm_bases(source, "SyncAccountsResponse1") == ["AdcpVersionEnvelope"]
     assert "from ..core.protocol_envelope import ProtocolEnvelope" not in source
+
+
+_REQUIRED_GROUP_SCHEMA = {
+    "title": "Budget Plan",
+    "type": "object",
+    "properties": {
+        "account": {"type": "string"},
+        "packages": {"type": "array"},
+        "total_budget": {"type": "object"},
+        "proposal_id": {"type": "string"},
+    },
+    "required": ["account"],
+    "anyOf": [
+        {
+            "title": "Explicit packages",
+            "required": ["packages"],
+            "not": {"required": ["proposal_id"]},
+        },
+        {"title": "Committed proposal", "required": ["proposal_id", "total_budget"]},
+    ],
+}
+
+_REQUIRED_GROUP_MODULE = (
+    "from __future__ import annotations\n\n"
+    "from pydantic import BaseModel\n\n\n"
+    "class BudgetPlan(BaseModel):\n"
+    "    account: str\n"
+    "    packages: list[str] | None = None\n"
+    "    total_budget: dict[str, int] | None = None\n"
+    "    proposal_id: str | None = None\n\n\n"
+    "LegacyBudgetPlan = BudgetPlan\n"
+)
+
+
+def _write_required_group_fixture(tmp_path, monkeypatch, schema, module_source):
+    from scripts import post_generate_fixes
+
+    schema_dir = tmp_path / "schemas"
+    generated_dir = tmp_path / "generated_poc"
+    (schema_dir / "media-buy").mkdir(parents=True)
+    (schema_dir / "media-buy" / "budget-plan.json").write_text(json.dumps(schema))
+    (generated_dir / "media_buy").mkdir(parents=True)
+    target = generated_dir / "media_buy" / "budget_plan.py"
+    target.write_text(module_source)
+
+    monkeypatch.setattr(post_generate_fixes, "SCHEMA_DIR", schema_dir)
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+    post_generate_fixes.enforce_root_required_groups()
+    return target
+
+
+def test_root_required_group_validator_enforces_every_declared_group(tmp_path, monkeypatch):
+    """A root ``anyOf`` over required groups becomes a runtime check.
+
+    The groups come from ``required`` alone: an arm's ``not`` and discriminating
+    ``properties`` narrow that arm further, so "at least one group is present"
+    is the part of the constraint the generator derives.
+    """
+    from pydantic import ValidationError
+
+    target = _write_required_group_fixture(
+        tmp_path, monkeypatch, _REQUIRED_GROUP_SCHEMA, _REQUIRED_GROUP_MODULE
+    )
+    fixed = target.read_text()
+
+    assert "def _require_schema_required_group(self) -> BudgetPlan:" in fixed
+    assert "(('packages',), ('proposal_id', 'total_budget'),)" in fixed
+    # The module tail survives: several generated modules close with
+    # compatibility aliases after the root class.
+    assert fixed.rstrip().endswith("LegacyBudgetPlan = BudgetPlan")
+
+    namespace: dict[str, object] = {}
+    exec(compile(fixed, str(target), "exec"), namespace)  # noqa: S102
+    model = namespace["BudgetPlan"]
+
+    assert model.model_validate({"account": "acct_1", "packages": ["pkg_1"]}).packages == ["pkg_1"]
+    assert (
+        model.model_validate(
+            {"account": "acct_1", "proposal_id": "prop_1", "total_budget": {"total": 1}}
+        ).proposal_id
+        == "prop_1"
+    )
+    # Every unconditionally required field, and no group.
+    with pytest.raises(ValidationError, match="at least one of these field groups"):
+        model.model_validate({"account": "acct_1"})
+    # A partial group is not a group.
+    with pytest.raises(ValidationError, match="at least one of these field groups"):
+        model.model_validate({"account": "acct_1", "proposal_id": "prop_1"})
+
+
+def test_root_required_group_leaves_per_arm_models_alone(tmp_path, monkeypatch):
+    """A root the generator splits into arm classes keeps no root-wide check.
+
+    One arm's required group says nothing about another arm, and the union alias
+    is not a class, so there is nothing to attach a validator to.
+    """
+    schema = {
+        "title": "Budget Plan",
+        "type": "object",
+        "oneOf": [
+            {"properties": {"packages": {"type": "array"}}, "required": ["packages"]},
+            {"properties": {"proposal_id": {"type": "string"}}, "required": ["proposal_id"]},
+        ],
+    }
+    module_source = (
+        "from __future__ import annotations\n\n"
+        "from pydantic import BaseModel\n\n\n"
+        "class BudgetPlan1(BaseModel):\n"
+        "    packages: list[str]\n\n\n"
+        "class BudgetPlan2(BaseModel):\n"
+        "    proposal_id: str\n\n\n"
+        "BudgetPlan = BudgetPlan1 | BudgetPlan2\n"
+    )
+
+    target = _write_required_group_fixture(tmp_path, monkeypatch, schema, module_source)
+
+    assert target.read_text() == module_source
+
+
+def test_root_required_group_resolves_the_generator_acronym_casing(tmp_path, monkeypatch):
+    """The root class name matches the schema title up to case.
+
+    datamodel-code-generator title-cases an acronym, so the title
+    "SI Send Message Request" generates ``SiSendMessageRequest``. Resolving the
+    title-derived name exactly would skip the site.
+    """
+    schema = {
+        "title": "SI Send Message Request",
+        "type": "object",
+        "properties": {"message": {"type": "string"}, "action_response": {"type": "object"}},
+        "anyOf": [{"required": ["message"]}, {"required": ["action_response"]}],
+    }
+    module_source = (
+        "from __future__ import annotations\n\n"
+        "from pydantic import BaseModel\n\n\n"
+        "class SiSendMessageRequest(BaseModel):\n"
+        "    message: str | None = None\n"
+        "    action_response: dict[str, str] | None = None\n"
+    )
+
+    schema_dir = tmp_path / "schemas"
+    generated_dir = tmp_path / "generated_poc"
+    (schema_dir / "sponsored-intelligence").mkdir(parents=True)
+    (schema_dir / "sponsored-intelligence" / "si-send-message-request.json").write_text(
+        json.dumps(schema)
+    )
+    (generated_dir / "sponsored_intelligence").mkdir(parents=True)
+    target = generated_dir / "sponsored_intelligence" / "si_send_message_request.py"
+    target.write_text(module_source)
+
+    from scripts import post_generate_fixes
+
+    monkeypatch.setattr(post_generate_fixes, "SCHEMA_DIR", schema_dir)
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+    post_generate_fixes.enforce_root_required_groups()
+
+    assert "def _require_schema_required_group(self) -> SiSendMessageRequest:" in target.read_text()
+
+
+def test_root_required_group_skips_a_name_two_classes_share(tmp_path, monkeypatch):
+    """A name that resolves to two classes does not identify the root."""
+    schema = {
+        "title": "Budget Plan",
+        "type": "object",
+        "properties": {"packages": {"type": "array"}, "proposal_id": {"type": "string"}},
+        "anyOf": [{"required": ["packages"]}, {"required": ["proposal_id"]}],
+    }
+    module_source = (
+        "from __future__ import annotations\n\n"
+        "from pydantic import BaseModel\n\n\n"
+        "class BudgetPlan(BaseModel):\n"
+        "    packages: list[str] | None = None\n"
+        "    proposal_id: str | None = None\n\n\n"
+        "class BUDGETPLAN(BaseModel):\n"
+        "    packages: list[str] | None = None\n"
+        "    proposal_id: str | None = None\n"
+    )
+
+    target = _write_required_group_fixture(tmp_path, monkeypatch, schema, module_source)
+
+    assert target.read_text() == module_source
+
+
+def test_root_required_group_asks_whether_the_caller_supplied_the_field(tmp_path, monkeypatch):
+    """A default is not a supplied value, and an explicit null is.
+
+    ``required`` asks whether the property is present. AdCP 3.2 mutation inputs
+    use an explicit null to clear a stored value, so a request whose only group
+    is ``daily_budget_cap: null`` is a request to remove the cap.
+    """
+    from pydantic import ValidationError
+
+    schema = {
+        "title": "Budget Control",
+        "type": "object",
+        "properties": {
+            "daily_budget_cap": {"type": ["number", "null"]},
+            "replayed": {"type": "boolean"},
+        },
+        "anyOf": [{"required": ["daily_budget_cap"]}, {"required": ["replayed"]}],
+    }
+    module_source = (
+        "from __future__ import annotations\n\n"
+        "from pydantic import BaseModel\n\n\n"
+        "class BudgetControl(BaseModel):\n"
+        "    daily_budget_cap: float | None = None\n"
+        "    replayed: bool = True\n"
+    )
+
+    target = _write_required_group_fixture(tmp_path, monkeypatch, schema, module_source)
+    namespace: dict[str, object] = {}
+    exec(compile(target.read_text(), str(target), "exec"), namespace)  # noqa: S102
+    model = namespace["BudgetControl"]
+
+    cleared = model.model_validate({"daily_budget_cap": None})
+    assert cleared.daily_budget_cap is None
+    assert model.model_validate({"replayed": True}).replayed is True
+    # `replayed` carries a default the caller never sent, so its group is unsatisfied.
+    with pytest.raises(ValidationError, match="at least one of these field groups"):
+        model.model_validate({})
