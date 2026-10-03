@@ -29,6 +29,11 @@ from typing import Final
 
 from adcp.compat.legacy.errors import LegacyAdapterValidationError
 from adcp.compat.legacy.types import AdapterPair
+from adcp.types._legacy_assets import (
+    coerce_legacy_asset,
+    coerce_legacy_assets,
+    infer_asset_type,
+)
 
 #: Versions handled via the legacy-adapter path. Distinct from
 #: ``COMPATIBLE_ADCP_VERSIONS`` in :mod:`adcp._version`, which lists the
@@ -146,6 +151,9 @@ def _reset_registry_for_tests() -> None:
 
 
 __all__ = [
+    "infer_asset_type",
+    "coerce_legacy_asset",
+    "coerce_legacy_assets",
     "AdapterPair",
     "LEGACY_ADAPTER_VERSIONS",
     "LegacyAdapterValidationError",

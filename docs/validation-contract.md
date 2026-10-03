@@ -66,3 +66,28 @@ prefer an additional targeted runtime validator so invalid state fails during
 ordinary model construction as well as at the wire boundary. These targeted
 checks supplement canonical validation; they do not change which artifact is
 the protocol source of truth.
+
+## Seller request subclasses behind routers
+
+A platform method can annotate a stricter subclass of an SDK request to reject
+extras or run seller-specific validators. `PlatformRouter`, `LazyPlatformRouter`,
+and `TenantRegistry.as_platform()` resolve the tenant and revalidate through the
+actual child method's annotation before invoking it. Validation failures return
+`INVALID_REQUEST` with correctable recovery and the failing field path.
+
+```python
+from pydantic import ConfigDict
+from adcp.decisioning import RequestContext
+from adcp.types import GetMediaBuysRequest
+
+class StrictMediaBuysRequest(GetMediaBuysRequest):
+    model_config = ConfigDict(extra="forbid")
+
+# On your DecisioningPlatform subclass:
+def get_media_buys(self, req: StrictMediaBuysRequest, ctx: RequestContext):
+    return {"media_buys": []}
+```
+
+The same boundary applies to keyword requests and projected model arguments,
+such as `update_media_buy(media_buy_id, patch, ctx)`. Scalar IDs, projected
+lists, context and additional arguments keep their original calling convention.

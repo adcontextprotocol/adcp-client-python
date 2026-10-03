@@ -36,10 +36,10 @@ import time
 import warnings
 import weakref
 from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from contextvars import ContextVar
 from functools import wraps
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
@@ -47,9 +47,15 @@ from adcp.exceptions import IdempotencyConflictError, IdempotencyScopeError
 from adcp.server.idempotency.backends import (
     CachedResponse,
     IdempotencyBackend,
+    PgBackend,
     _legacy_backend_lock_state,
 )
 from adcp.server.idempotency.canonicalize import canonical_json_sha256
+
+if TYPE_CHECKING:
+    from psycopg import AsyncConnection
+
+    from adcp.server.idempotency.reservation import PgReservation
 
 logger = logging.getLogger(__name__)
 
@@ -201,6 +207,35 @@ class IdempotencyStore:
         capabilities response.
         """
         return {"supported": True, "replay_ttl_seconds": self.ttl_seconds}
+
+    def reserve(
+        self,
+        params: Any,
+        context: Any,
+        *,
+        connection: AsyncConnection[Any] | None = None,
+        operation: str = "handler",
+    ) -> AbstractAsyncContextManager[PgReservation]:
+        """Explicitly reserve a scoped request with PostgreSQL transaction ownership.
+
+        Requires a direct ``PgBackend`` and an authenticated request containing
+        an idempotency key. Use instead of ``@wrap`` when business and replay
+        writes must commit atomically. Business SQL must use the yielded slot's
+        connection; call ``slot.record(response)`` before context exit.
+        """
+        if not isinstance(self.backend, PgBackend):
+            raise TypeError("Transactional reservations require a direct PgBackend")
+        scope, key, payload = self._prepare(params, context, operation)
+        if scope is None or key is None:
+            raise ValueError("Transactional reservations require an idempotency_key")
+        return self.backend.reserve(
+            scope,
+            key,
+            self._hash_fn(payload),
+            ttl_seconds=self.ttl_seconds,
+            connection=connection,
+            operation=operation,
+        )
 
     def wrap(self, handler: HandlerFn) -> HandlerFn:
         """Decorator that adds idempotency semantics to an AdCP handler method.

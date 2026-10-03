@@ -750,3 +750,31 @@ When extending ADCP types:
 3. **Always exclude** internal fields when converting to wire protocol
 4. **Document** which fields are internal vs ADCP spec
 5. **Test** serialization roundtrips to ensure no leakage
+
+### Normalizing stored legacy creative assets
+
+Strict `LegacyCreativeAsset` construction requires every asset's `asset_type`.
+For stored pre-v3 dictionaries, opt in to the same normalization used by the
+legacy request adapters:
+
+```python
+from adcp.types.legacy import LegacyCreativeAsset, coerce_legacy_assets
+
+creative = LegacyCreativeAsset(
+    creative_id="c1",
+    name="Banner",
+    format_id={"agent_url": "https://creative.example", "id": "display_300x250"},
+    assets=coerce_legacy_assets({
+        "banner": {"url": "https://cdn.example/banner.png", "width": 300, "height": 250},
+        "headline": {"content": "Hello"},
+    }),
+)
+```
+
+`infer_asset_type(key, asset)` checks an exact type-name key first, then URL and
+content fields. `coerce_legacy_asset(key, asset)` also demotes an image with a URL
+and a missing dimension to `url`, removing any remaining dimensions.
+`coerce_legacy_assets(assets)` applies these rules to a mapping. All three are
+also exported from `adcp.compat.legacy`. Coercion copies dictionaries and keeps
+unknown keys and values for normal schema validation; it does not validate or
+change strict construction defaults.

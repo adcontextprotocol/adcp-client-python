@@ -277,11 +277,13 @@ def test_serve_forwards_timed_sync_admission_limit() -> None:
         serve_platform(
             _BarePlatform(),
             timed_sync_get_products_limit=3,
+            property_list_filter_mode="platform",
             media_buy_store=media_buy_store,
             adcp_version="3.1",
             validate_at_init=False,
         )
 
+    assert create.call_args.kwargs["property_list_filter_mode"] == "platform"
     assert create.call_args.kwargs["timed_sync_get_products_limit"] == 3
     assert create.call_args.kwargs["media_buy_store"] is media_buy_store
     assert create.call_args.kwargs["adcp_version"] == "3.1"
@@ -695,3 +697,82 @@ def test_create_adcp_server_from_platform_advertise_all_default_false() -> None:
     )
     assert handler._advertise_all is False
     executor.shutdown(wait=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("response_shape", ["model", "dict"])
+@pytest.mark.parametrize(
+    "filter_mode,wire_fetcher", [("platform", False), ("platform", True), ("sdk", True)]
+)
+async def test_platform_property_filter_boot_and_wire_call(
+    response_shape: str, filter_mode: str, wire_fetcher: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import socket
+    from unittest.mock import AsyncMock
+
+    from adcp.decisioning.capabilities import Features, MediaBuy
+    from adcp.decisioning.validate_capabilities import validate_capabilities_response_shape_async
+    from adcp.server.mcp_tools import create_tool_caller
+    from adcp.types import GetProductsResponse
+
+    class _PropertyListPlatform(_SalesPlatformWithRequiredMethods):
+        capabilities = DecisioningCapabilities(
+            specialisms=["sales-non-guaranteed"],
+            supported_billing=["operator"],
+            media_buy=MediaBuy(
+                features=Features(property_list_filtering=True, canonical_creatives=True)
+            ),
+        )
+
+        def get_products(self, req, ctx):
+            assert req.property_list.list_id == "approved"
+            payload = {"products": [], "property_list_applied": True, "seller_extra": "retained"}
+            return (
+                GetProductsResponse.model_validate(payload)
+                if response_shape == "model"
+                else payload
+            )
+
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))
+        ],
+    )
+    fetcher = AsyncMock()
+    fetcher.fetch = AsyncMock(return_value=["allowed"])
+    handler, executor, _ = create_adcp_server_from_platform(
+        _PropertyListPlatform(),
+        property_list_filter_mode=filter_mode,
+        property_list_fetcher=fetcher if wire_fetcher else None,
+        validate_at_init=False,
+    )
+    try:
+        await validate_capabilities_response_shape_async(handler)
+        result = await create_tool_caller(handler, "get_products")(
+            {
+                "adcp_version": "3.1",
+                "buying_mode": "brief",
+                "brief": "ads",
+                "property_list": {
+                    "agent_url": "https://no-sdk-fetch.invalid",
+                    "list_id": "approved",
+                },
+            }
+        )
+        assert result["property_list_applied"] is True
+        assert result["seller_extra"] == "retained"
+        capabilities = await create_tool_caller(handler, "get_adcp_capabilities")({})
+        assert capabilities["media_buy"]["features"]["property_list_filtering"] is True
+        if filter_mode == "platform":
+            fetcher.fetch.assert_not_called()
+        else:
+            fetcher.fetch.assert_awaited_once()
+    finally:
+        executor.shutdown(wait=True)
+
+
+def test_invalid_property_filter_mode_is_rejected() -> None:
+    with pytest.raises(ValueError, match="property_list_filter_mode"):
+        create_adcp_server_from_platform(_BarePlatform(), property_list_filter_mode="invalid")

@@ -82,6 +82,7 @@ from adcp.decisioning.webhook_emit import (
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
+    from typing import TypeAlias
 
     from pydantic import BaseModel, ValidationError
 
@@ -1335,7 +1336,9 @@ def _build_request_context(
 # ---------------------------------------------------------------------------
 
 
-def _coerce_params_to_platform_type(method: Any, params: Any, method_name: str) -> Any:
+def _coerce_params_to_platform_type(
+    method: Any, params: Any, method_name: str, *, parameter_name: str | None = None
+) -> Any:
     """Re-validate ``params`` through the platform method's own type annotation.
 
     The shim layer (``PlatformHandler``) deserialises the wire dict into
@@ -1357,8 +1360,9 @@ def _coerce_params_to_platform_type(method: Any, params: Any, method_name: str) 
       ``get_type_hints`` failure — skip coercion and return ``params``
       unchanged.
 
-    Only called when ``arg_projector is None`` (the projector path replaces
-    positional args entirely, so ``params`` is unused there).
+    ``parameter_name`` selects a specific child argument for routed calls,
+    including projected arguments such as ``patch`` after ``media_buy_id``.
+    Without it, the direct dispatch path inspects the first request argument.
 
     .. note::
         The ``model_dump(mode="python") → model_validate()`` roundtrip is
@@ -1379,6 +1383,8 @@ def _coerce_params_to_platform_type(method: Any, params: Any, method_name: str) 
 
     sig = inspect.signature(method)
     for name, param_obj in sig.parameters.items():
+        if parameter_name is not None and name != parameter_name:
+            continue
         if name in ("self", "ctx", "context"):
             continue
         if param_obj.kind in (
@@ -1419,6 +1425,46 @@ def _coerce_params_to_platform_type(method: Any, params: Any, method_name: str) 
         break
 
     return params
+
+
+def _coerce_platform_call_args(
+    method: Any,
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+    method_name: str,
+) -> tuple[tuple[Any, ...], dict[str, Any]]:
+    """Validate typed child arguments while preserving the caller's call shape.
+
+    Router delegates have no request annotation themselves. Bind against the
+    resolved child signature to find model arguments, including keyword-only
+    requests and projected patches. Scalars, lists and context pass through.
+    """
+    from pydantic import BaseModel
+
+    try:
+        signature = inspect.signature(method)
+        bound = signature.bind(*args, **kwargs)
+    except (TypeError, ValueError):
+        # Uninspectable methods and incompatible signatures retain their usual
+        # invocation behavior; do not invent request positions for them.
+        return args, kwargs
+    positional_names = [
+        name
+        for name, parameter in signature.parameters.items()
+        if parameter.kind
+        in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    ]
+    coerced_args = list(args)
+    coerced_kwargs = dict(kwargs)
+    for name, value in bound.arguments.items():
+        if name in {"self", "ctx", "context"} or not isinstance(value, BaseModel):
+            continue
+        coerced = _coerce_params_to_platform_type(method, value, method_name, parameter_name=name)
+        if name in kwargs:
+            coerced_kwargs[name] = coerced
+        elif name in positional_names:
+            coerced_args[positional_names.index(name)] = coerced
+    return tuple(coerced_args), coerced_kwargs
 
 
 async def _invoke_platform_method(
