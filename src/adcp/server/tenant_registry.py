@@ -32,7 +32,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -743,6 +743,7 @@ class TenantRegistry:
         accounts: AccountStore[Any],
         capabilities: DecisioningCapabilities | None = None,
         serve_states: frozenset[TenantHealthState] = _DEFAULT_SERVE_STATES,
+        optional_methods: Iterable[str] = frozenset(),
     ) -> DecisioningPlatform:
         """Return a :class:`~adcp.decisioning.DecisioningPlatform` backed by this registry.
 
@@ -815,6 +816,9 @@ class TenantRegistry:
             to an empty :class:`~adcp.decisioning.DecisioningCapabilities`.
         :param serve_states: Health states for which requests proceed.
             Default is ``frozenset({"healthy", "unverified"})``.
+        :param optional_methods: Union of optional legacy/compact method names
+            implemented by tenants. Defaults to none. Declaration does not
+            construct tenants; unsupported tenants still refuse individual calls.
         :returns: A :class:`~adcp.decisioning.DecisioningPlatform` suitable
             for passing to :func:`adcp.decisioning.serve`.
         """
@@ -833,6 +837,7 @@ class TenantRegistry:
             accounts=accounts,
             capabilities=cap,
             serve_states=frozenset(serve_states),
+            optional_methods=optional_methods,
         )
 
     @property
