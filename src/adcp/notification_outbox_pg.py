@@ -52,6 +52,23 @@ _SAFE_IDENTIFIER = re.compile(r"^[a-z_][a-z0-9_]{0,44}$")
 logger = logging.getLogger(__name__)
 
 
+def _log_failure(operation: str, exc: Exception) -> None:
+    """Expose failure sites without exception text, chains, locals or source lines."""
+    locations: list[tuple[str, str, int]] = []
+    traceback = exc.__traceback__
+    while traceback is not None:
+        code = traceback.tb_frame.f_code
+        locations.append((code.co_filename, code.co_name, traceback.tb_lineno))
+        traceback = traceback.tb_next
+    # Pass only primitive metadata to logging; never retain the exception/frame objects.
+    logger.error(
+        "[adcp.notification_outbox] %s: %s; frames=%s",
+        operation,
+        type(exc).__name__,
+        locations,
+    )
+
+
 def _canonical(value: Any) -> bytes:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode(
         "utf-8"
@@ -457,7 +474,8 @@ class PgNotificationOutbox:
             resolution = await self._sender_resolver.resolve(scope)
         except (ScopePermanentlyUnknown, ScopeTransientlyUnavailable):
             raise
-        except Exception:
+        except Exception as exc:
+            _log_failure("unexpected signing resolver failure", exc)
             raise ScopeTransientlyUnavailable from None
         try:
             if not isinstance(resolution, WebhookSenderResolution):
@@ -531,6 +549,7 @@ class PgNotificationOutbox:
             return True
         except Exception as exc:
             error_name = type(exc).__name__  # Never persist credentials or peer/hook diagnostics.
+            _log_failure(f"row {row_id} delivery failed; retrying", exc)
         if delivery is not None and delivery.ok:
             async with self._pool.connection() as conn:
                 await conn.execute(self._sql_ack, (delivery.status_code, row_id, token))
@@ -569,8 +588,8 @@ class PgNotificationOutbox:
                     await asyncio.sleep(poll_interval)
             except asyncio.CancelledError:
                 raise
-            except Exception:
-                logger.error("[adcp.notification_outbox] worker iteration failed; retrying")
+            except Exception as exc:
+                _log_failure("worker iteration failed; retrying", exc)
                 await asyncio.sleep(poll_interval)
 
 

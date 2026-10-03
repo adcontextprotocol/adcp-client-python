@@ -7,11 +7,13 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import inspect
 import json
+import logging
 import os
 import secrets
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, NoReturn
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -653,3 +655,175 @@ async def test_scoped_duplicates_cannot_change_signing_scope(stack: tuple[Any, .
     with pytest.raises(ValueError, match="different immutable"):
         await enqueue(pool, outbox, scope="buyer-2")
     resolver.resolve.assert_not_called()  # Resolution is never part of the business transaction.
+
+
+def _raise_sensitive_failure() -> NoReturn:
+    credential = "outbox-credential-local-sentinel"
+    assert credential
+    try:
+        raise LookupError("outbox-credential-chain-sentinel")
+    except LookupError as cause:
+        raise RuntimeError("outbox-credential-args-sentinel") from cause  # outbox-source-sentinel
+
+
+def assert_safe_failure_diagnostics(caplog: pytest.LogCaptureFixture) -> None:
+    records = [r for r in caplog.records if r.name == "adcp.notification_outbox_pg"]
+    assert records
+    source, first_line = inspect.getsourcelines(_raise_sensitive_failure)
+    origin_line = first_line + next(
+        i for i, line in enumerate(source) if "raise RuntimeError" in line
+    )
+    origin = (
+        _raise_sensitive_failure.__code__.co_filename,
+        "_raise_sensitive_failure",
+        origin_line,
+    )
+    assert any(
+        "RuntimeError" in record.getMessage() and str(origin) in record.getMessage()
+        for record in records
+    )
+    for record in records:
+        assert record.exc_info is None
+        assert record.exc_text is None
+        assert record.stack_info is None
+        rendered = logging.Formatter("%(message)s").format(record)
+        for sentinel in (
+            "outbox-credential-args-sentinel",
+            "outbox-credential-chain-sentinel",
+            "outbox-credential-local-sentinel",
+            "outbox-source-sentinel",
+        ):
+            assert sentinel not in rendered
+            assert sentinel not in repr(record.__dict__)
+        assert "LookupError" not in rendered
+        assert "CancelledError" not in rendered
+
+
+@pytest.mark.parametrize("boundary", ["delivery", "resolver"])
+async def test_unexpected_delivery_diagnostics_preserve_retry(
+    stack: tuple[Any, ...], boundary: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    pool, outbox, sender = stack
+    normal = sender.send_prepared.side_effect
+
+    async def fail(*args: Any, **kwargs: Any) -> Any:
+        _raise_sensitive_failure()
+
+    scope = None
+    if boundary == "resolver":
+        resolver = MagicMock()
+        resolver.resolve = AsyncMock(side_effect=fail)
+        outbox._sender = None
+        outbox._sender_resolver = resolver
+        scope = "buyer-diagnostics"
+    else:
+        sender.send_prepared.side_effect = fail
+    row_id = await enqueue(pool, outbox, scope=scope)
+    original = await row(pool, outbox, row_id)
+    with caplog.at_level(logging.ERROR, logger="adcp.notification_outbox_pg"):
+        assert await outbox.process_one()
+    assert_safe_failure_diagnostics(caplog)
+    stored = await row(pool, outbox, row_id)
+    assert stored["state"] == "pending"
+    assert stored["attempt_count"] == 1
+    assert stored["lease_token"] is stored["lease_expires_at"] is None
+    assert stored["last_error"] == (
+        "ScopeTransientlyUnavailable" if boundary == "resolver" else "RuntimeError"
+    )
+    assert stored["retry_until"] == original["retry_until"]
+    assert stored["encrypted_body"] == original["encrypted_body"]
+    assert stored["signing_scope_id"] == scope
+    if boundary == "resolver":
+        resolver.resolve.side_effect = None
+        resolver.resolve.return_value = WebhookSenderResolution(
+            sender=sender, advertised_algorithms=frozenset({"ed25519"})
+        )
+    else:
+        sender.send_prepared.side_effect = normal
+    await update(pool, outbox, row_id, "available_at=now()")
+    assert await outbox.process_one()
+    delivered = await row(pool, outbox, row_id)
+    assert delivered["state"] == "delivered"
+    assert delivered["attempt_count"] == 2
+    assert delivered["last_error"] is None
+    assert delivered["signing_scope_id"] == scope
+    if boundary == "delivery":
+        assert (
+            sender.send_prepared.call_args_list[0].args[0] == sender.send_prepared.call_args.args[0]
+        )
+    else:
+        assert [call.args for call in resolver.resolve.call_args_list] == [(scope,), (scope,)]
+
+
+@pytest.mark.parametrize("boundary", ["iteration", "purge", "database_ack"])
+async def test_worker_failure_diagnostics_preserve_recovery(
+    stack: tuple[Any, ...],
+    boundary: str,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from psycopg import AsyncConnection
+
+    pool, outbox, sender = stack
+    row_id = await enqueue(pool, outbox)
+    original = await row(pool, outbox, row_id)
+    recovered = asyncio.Event()
+    failed = False
+    process_one = outbox.process_one
+    purge_expired = outbox.purge_expired
+    execute = AsyncConnection.execute
+
+    async def iteration() -> bool:
+        nonlocal failed
+        if boundary == "iteration" and not failed:
+            failed = True
+            _raise_sensitive_failure()
+        result = await process_one()
+        recovered.set()
+        return result
+
+    async def purge() -> None:
+        nonlocal failed
+        if boundary == "purge" and not failed:
+            failed = True
+            _raise_sensitive_failure()
+        await purge_expired()
+
+    async def database_ack(conn: Any, query: Any, *args: Any, **kwargs: Any) -> Any:
+        nonlocal failed
+        if boundary == "database_ack" and query == outbox._sql_ack and not failed:
+            failed = True
+            _raise_sensitive_failure()
+        return await execute(conn, query, *args, **kwargs)
+
+    monkeypatch.setattr(outbox, "process_one", iteration)
+    monkeypatch.setattr(outbox, "purge_expired", purge)
+    monkeypatch.setattr(AsyncConnection, "execute", database_ack)
+    with caplog.at_level(logging.ERROR, logger="adcp.notification_outbox_pg"):
+        worker = asyncio.create_task(outbox.run_worker(poll_interval=0.01))
+        try:
+            await asyncio.wait_for(recovered.wait(), timeout=5)
+        finally:
+            worker.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await worker
+    assert failed
+    assert_safe_failure_diagnostics(caplog)
+    stored = await row(pool, outbox, row_id)
+    assert stored["retry_until"] == original["retry_until"]
+    assert stored["encrypted_body"] == original["encrypted_body"]
+    assert stored["last_error"] is None  # Iteration diagnostics are never copied to row errors.
+    if boundary == "database_ack":
+        assert stored["state"] == "in_flight"
+        assert stored["lease_token"] and stored["lease_expires_at"]
+        await update(pool, outbox, row_id, "lease_expires_at=now()-interval '1 second'")
+        assert await process_one()
+        delivered = await row(pool, outbox, row_id)
+        assert delivered["state"] == "delivered"
+        assert delivered["attempt_count"] == 2
+        assert (
+            sender.send_prepared.call_args_list[0].args[0] == sender.send_prepared.call_args.args[0]
+        )
+    else:
+        assert stored["state"] == "delivered"
+        assert stored["attempt_count"] == 1

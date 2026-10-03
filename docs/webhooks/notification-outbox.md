@@ -114,6 +114,20 @@ operator workflow; repair the cause before deliberately replaying with the
 original binding. Worker-loop errors are retried and cancellation leaves leases
 recoverable.
 
+Operator logs from `adcp.notification_outbox_pg` report the exception class and
+traceback frame locations (filename, function and line number) for delivery,
+unexpected resolver and worker-iteration failures. They exclude exception text
+and chains, frame locals and source-line snippets; raw `exc_info` is not attached.
+This identifies failure sites without logging credentials, URLs or peer content
+carried by exceptions. Cancellation propagates without a failure log.
+
+These diagnostics are separate from persisted errors. `last_error` remains a
+bounded class/status or quarantine discriminator, with no traceback metadata.
+For example, an unexpected resolver failure logs its original class and location
+before becoming the persisted `ScopeTransientlyUnavailable` retry marker.
+Iteration/database failures do not replace row errors; abandoned leases recover
+through the existing lease-expiry path.
+
 Use exactly one `sender` or `sender_resolver`. Both require RFC 9421 signing,
 SDK-owned IP-pinned transport, HTTPS destinations and private destinations disabled.
 The sender/resolver is application-owned; the outbox does not close it. Legacy
