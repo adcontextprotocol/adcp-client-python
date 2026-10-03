@@ -20,10 +20,11 @@ against the same boot.
 
 from __future__ import annotations
 
+import threading
 from typing import TYPE_CHECKING, Any, Literal
 
 from adcp.decisioning import AdcpError
-from adcp.decisioning.accounts import AccountStore
+from adcp.decisioning.accounts import AccountStore, ResolveContext
 from adcp.decisioning.context import AuthInfo
 from adcp.decisioning.types import Account
 from adcp.server import current_tenant
@@ -43,6 +44,9 @@ class MultiTenantAccountStore:
         if not tenants:
             raise ValueError("MultiTenantAccountStore requires non-empty tenants")
         self._tenants = tenants
+        self._lock = threading.RLock()
+        self._accounts: dict[tuple[str, str], Account[dict[str, Any]]] = {}
+        self._natural_ids: dict[tuple[str, str, str, str, bool], str] = {}
 
     def resolve(
         self,
@@ -73,7 +77,13 @@ class MultiTenantAccountStore:
                 field="account",
             )
 
-        account_id = (ref or {}).get("account_id") if isinstance(ref, dict) else None
+        ref = ref or {}
+        account_id = ref.get("account_id")
+        with self._lock:
+            if not account_id:
+                account_id = self._natural_ids.get(self._natural_key(tenant_id, ref))
+            if account_id and (stored := self._accounts.get((tenant_id, str(account_id)))):
+                return stored
         if not account_id:
             account_id = f"{tenant_id}:default"
 
@@ -81,7 +91,68 @@ class MultiTenantAccountStore:
             id=account_id,
             metadata={"tenant_id": tenant_id},
             auth_info=_auth_info_to_dict(auth_info),
+            mode="sandbox",
+            _mode_explicit=True,
         )
+
+    def seed(self, account_id: str, fixture: dict[str, Any]) -> None:
+        """Persist a controller fixture in the tenant selected by the host."""
+        tenant_id = self._tenant_from_subdomain()
+        if tenant_id is None or tenant_id not in self._tenants:
+            raise AdcpError("ACCOUNT_NOT_FOUND", message="Account seeding requires a tenant host")
+        with self._lock:
+            self._accounts[(tenant_id, account_id)] = Account(
+                id=account_id,
+                name=str(fixture.get("name") or f"{tenant_id} fixture account"),
+                status=str(fixture.get("status") or "active"),
+                metadata={"tenant_id": tenant_id, "fixture": dict(fixture)},
+                mode="sandbox" if fixture.get("sandbox", True) else "live",
+                _mode_explicit=True,
+            )
+            self._natural_ids[self._natural_key(tenant_id, fixture)] = account_id
+
+    @staticmethod
+    def _natural_key(tenant_id: str, ref: dict[str, Any]) -> tuple[str, str, str, str, bool]:
+        brand = ref.get("brand") or {}
+        unit = ref.get("operator_unit") or {}
+        return (
+            tenant_id,
+            str(brand.get("domain", "")),
+            str(ref.get("operator", "")),
+            str(unit.get("id", "")),
+            bool(ref.get("sandbox", True)),
+        )
+
+    def list(
+        self,
+        filter: dict[str, Any] | None = None,
+        ctx: ResolveContext | None = None,
+    ) -> list[Account[dict[str, Any]]]:
+        """Discover the current tenant's demo account without exposing siblings."""
+        del ctx
+        tenant_id = self._tenant_from_subdomain()
+        if tenant_id is None or tenant_id not in self._tenants:
+            return []
+        default = Account(
+            id=f"{tenant_id}:default",
+            name=f"{tenant_id} demo account",
+            metadata={"tenant_id": tenant_id},
+            mode="sandbox",
+            _mode_explicit=True,
+        )
+        with self._lock:
+            accounts = [
+                account for (tenant, _), account in self._accounts.items() if tenant == tenant_id
+            ]
+        accounts = [default, *accounts]
+        status = (filter or {}).get("status")
+        if status is not None:
+            statuses = status if isinstance(status, list) else [status]
+            accounts = [account for account in accounts if account.status in statuses]
+        sandbox = (filter or {}).get("sandbox")
+        if sandbox is not None:
+            accounts = [account for account in accounts if account.sandbox == sandbox]
+        return accounts
 
     # ----- internals --------------------------------------------------
 

@@ -228,7 +228,10 @@ async def test_first_boot_capabilities_do_not_require_account_generation_or_tena
         service.install(router), validate_at_init=False
     )
     try:
-        assert service.capability_block() == {}
+        declared = service.capability_block()
+        assert declared["offerings"]
+        before = await handler.get_adcp_capabilities(GetAdcpCapabilitiesRequest())
+        assert before["media_buy"]["reporting_delivery"] == declared
         await service.start()
         assert await service.store.list_all_configurations() == ()
         response = await handler.get_adcp_capabilities(GetAdcpCapabilitiesRequest())
@@ -242,7 +245,9 @@ async def test_first_boot_capabilities_do_not_require_account_generation_or_tena
     finally:
         await service.close()
         executor.shutdown(wait=True)
-    assert service.capability_block() == {}
+    assert service.capability_block() == declared
+    after = await handler.get_adcp_capabilities(GetAdcpCapabilitiesRequest())
+    assert after["media_buy"]["reporting_delivery"] == declared
 
 
 def test_installed_platform_still_fails_idempotency_boot_guard() -> None:
