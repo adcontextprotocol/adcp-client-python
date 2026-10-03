@@ -10,6 +10,8 @@ This test suite validates that the code generation pipeline works correctly:
 from __future__ import annotations
 
 import ast
+import copy
+import json
 from pathlib import Path
 
 import pytest
@@ -2126,3 +2128,186 @@ def test_unrelated_root_all_of_ref_does_not_attach_protocol_envelope(tmp_path, m
 
     assert _arm_bases(source, "SyncAccountsResponse1") == ["AdcpVersionEnvelope"]
     assert "from ..core.protocol_envelope import ProtocolEnvelope" not in source
+
+
+def _pointer_fixture(tmp_path, monkeypatch) -> None:
+    """Write a two-file schema cache that points across files, like targeting-input."""
+    from scripts import generate_types
+
+    schemas = tmp_path / "schemas"
+    (schemas / "core").mkdir(parents=True)
+    (schemas / "core" / "source.json").write_text(
+        json.dumps(
+            {
+                "type": "object",
+                "additionalProperties": True,
+                "$defs": {"shared": {"type": "string"}},
+                "properties": {
+                    "codes": {
+                        "type": "array",
+                        "description": "from the source",
+                        "items": {"type": "string"},
+                        "minItems": 1,
+                    },
+                    "sibling": {"$ref": "../enums/kind.json"},
+                    "own_def": {"$ref": "#/$defs/shared"},
+                },
+            }
+        )
+    )
+    monkeypatch.setattr(generate_types, "SCHEMAS_DIR", schemas)
+
+
+def test_inline_structural_pointer_ref_selects_the_pointed_to_type(tmp_path, monkeypatch):
+    """A pointer into another file's ``properties`` resolves to that subschema."""
+    from scripts.generate_types import inline_structural_pointer_refs
+
+    _pointer_fixture(tmp_path, monkeypatch)
+    schema = {
+        "properties": {
+            "codes": {
+                "anyOf": [
+                    {"$ref": "source.json#/properties/codes"},
+                    {"type": "null"},
+                ],
+                "description": "from the referencing site",
+            }
+        }
+    }
+
+    inline_structural_pointer_refs(schema, Path("core/input.json"))
+
+    assert schema["properties"]["codes"]["anyOf"][0] == {
+        "type": "array",
+        "description": "from the source",
+        "items": {"type": "string"},
+        "minItems": 1,
+    }
+    assert schema["properties"]["codes"]["description"] == "from the referencing site"
+
+
+def test_inline_structural_pointer_ref_rebases_refs_inside_the_selection(tmp_path, monkeypatch):
+    """A selection's own refs resolve against the file that owns it, not the caller."""
+    from scripts.generate_types import inline_structural_pointer_refs
+
+    _pointer_fixture(tmp_path, monkeypatch)
+    schema = {"$ref": "../core/source.json#/properties/sibling"}
+
+    inline_structural_pointer_refs(schema, Path("media-buy/input.json"))
+
+    assert schema == {"$ref": "/schemas/enums/kind.json"}
+
+
+def test_inline_structural_pointer_ref_rebases_same_document_fragments(tmp_path, monkeypatch):
+    """A ``$defs`` fragment inside a selection names the document it came from."""
+    from scripts.generate_types import inline_structural_pointer_refs
+
+    _pointer_fixture(tmp_path, monkeypatch)
+    schema = {"$ref": "source.json#/properties/own_def"}
+
+    inline_structural_pointer_refs(schema, Path("core/input.json"))
+
+    assert schema == {"$ref": "/schemas/core/source.json#/$defs/shared"}
+
+
+def test_inline_structural_pointer_ref_merges_a_one_arm_all_of(tmp_path, monkeypatch):
+    """``allOf`` of one pointer merges in, keeping the selection's own keywords."""
+    from scripts.generate_types import inline_structural_pointer_refs
+
+    _pointer_fixture(tmp_path, monkeypatch)
+    schema = {
+        "allOf": [{"$ref": "source.json#/properties/codes"}],
+        "uniqueItems": True,
+    }
+
+    inline_structural_pointer_refs(schema, Path("core/input.json"))
+
+    assert schema == {
+        "type": "array",
+        "description": "from the source",
+        "items": {"type": "string"},
+        "minItems": 1,
+        "uniqueItems": True,
+    }
+
+
+def test_inline_structural_pointer_ref_leaves_definition_pointers_alone(tmp_path, monkeypatch):
+    """A ``$defs`` pointer names a reusable subschema and generates one class."""
+    from scripts.generate_types import inline_structural_pointer_refs
+
+    _pointer_fixture(tmp_path, monkeypatch)
+    schema = {
+        "a": {"$ref": "source.json#/$defs/shared"},
+        "b": {"$ref": "#/definitions/Local"},
+        "c": {"$ref": "source.json"},
+    }
+
+    inline_structural_pointer_refs(schema, Path("core/input.json"))
+
+    assert schema == {
+        "a": {"$ref": "source.json#/$defs/shared"},
+        "b": {"$ref": "#/definitions/Local"},
+        "c": {"$ref": "source.json"},
+    }
+
+
+def test_collapse_nullable_unions_rewrites_a_property_as_a_nullable_type():
+    """``anyOf: [S, null]`` on a property becomes ``S`` with a nullable type."""
+    from scripts.generate_types import collapse_nullable_unions
+
+    schema = {
+        "properties": {
+            "codes": {
+                "anyOf": [
+                    {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                    {"type": "null"},
+                ],
+                "description": "nullable list",
+            },
+            "name": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+        }
+    }
+
+    collapse_nullable_unions(schema)
+
+    assert schema["properties"]["codes"] == {
+        "type": ["array", "null"],
+        "items": {"type": "string"},
+        "minItems": 1,
+        "description": "nullable list",
+    }
+    assert schema["properties"]["name"] == {"type": ["string", "null"], "minLength": 1}
+
+
+def test_collapse_nullable_unions_leaves_untyped_and_multi_arm_unions_alone():
+    """A ``$ref`` arm already yields ``T | None``; a three-arm union is not nullability."""
+    from scripts.generate_types import collapse_nullable_unions
+
+    ref_arm = {"anyOf": [{"$ref": "../core/thing.json"}, {"type": "null"}]}
+    three_arms = {"anyOf": [{"type": "string"}, {"type": "integer"}, {"type": "null"}]}
+    no_null = {"anyOf": [{"type": "string"}, {"type": "integer"}]}
+    schema = {"properties": {"a": ref_arm, "b": three_arms, "c": no_null}}
+    expected = copy.deepcopy(schema)
+
+    collapse_nullable_unions(schema)
+
+    assert schema == expected
+
+
+def test_collapse_nullable_unions_leaves_an_items_position_alone():
+    """A nullable type list under ``items`` makes codegen emit ``class X(Optional[Y])``."""
+    from scripts.generate_types import collapse_nullable_unions
+
+    schema = {
+        "properties": {
+            "duration_ms_range": {
+                "type": "array",
+                "items": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+            }
+        }
+    }
+    expected = copy.deepcopy(schema)
+
+    collapse_nullable_unions(schema)
+
+    assert schema == expected

@@ -75,3 +75,40 @@ def test_advertised_targeting_mutations_keep_input_only_schema(tool: str) -> Non
         # the exact metadata keys/title above.
         assert len(actual_bytes) <= len(mutation_bytes) + 2048, (tool, path)
         assert b'"title": "TargetingOverlay"' not in actual_bytes, (tool, path)
+
+
+def test_advertised_targeting_fields_carry_the_description_the_schema_declares() -> None:
+    """A buyer reading tools/list sees each targeting field documented.
+
+    ``core/targeting-input.json`` points at ``core/targeting.json``'s properties,
+    and every one of those properties declares a ``description``. A generated
+    wrapper per pointed-to position moved the description onto the wrapper's own
+    definition and left the field node bare, so the advertised input schema
+    documented 5 of the 37 targeting fields.
+
+    The nine still bare are the fields whose schema is a whole-file ``$ref``.
+    Pydantic places the description on the referenced definition, and inlining the
+    reference replaces the node that carried it. That is a different behaviour and
+    it applies to ``core/targeting.json`` identically.
+    """
+    _ensure_pydantic_schemas_applied(_TARGETING_PATHS)
+    advertised = next(
+        t["inputSchema"] for t in ADCP_TOOL_DEFINITIONS if t["name"] == "create_media_buy"
+    )
+    overlay = next(iter(dict(_targeting_nodes(_inline_refs(advertised))).values()))
+    fields = next(arm for arm in overlay["anyOf"] if "properties" in arm)["properties"]
+
+    assert set(fields) == set(TargetingOverlayInput.model_json_schema()["properties"]), (
+        "advertised fields drifted from the model"
+    )
+    assert sorted(name for name, field in fields.items() if "description" not in field) == [
+        "collection_list",
+        "collection_list_exclude",
+        "collection_selection",
+        "demographics",
+        "frequency_cap",
+        "placement_selection",
+        "property_list",
+        "property_list_exclude",
+        "signal_targeting_groups",
+    ]

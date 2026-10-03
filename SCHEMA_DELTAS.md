@@ -1,43 +1,42 @@
 # Generated-types delta
 
-## Files added
-
-- `core/outcome_target_cost_per.py` — OutcomeTargetCostPer
-- `core/product_execution_requirement.py` — Connection, ProductExecutionRequirement, ProductExecutionRequirement1, ProductExecutionRequirement2, ProductExecutionRequirement3, RequiredForItem, Status
-- `core/reporting_delivery_offering_id.py` — ReportingDeliveryOfferingId
-- `enums/outcome_target_cost_strength.py` — OutcomeTargetCostStrength
-- `error_details/execution_requirement_unmet.py` — ExecutionRequirementUnmetDetails, Reason, UnmetRequirement
-
 ## Field changes
 
-- `bundled/protocol/get_adcp_capabilities_response.py`
-  - `Features1`: `+seller_optimized_min_spend_targets`, `+seller_optimized_package_budgets`, `+seller_optimized_package_pacing`
-- `core/canonical_media_buy_features.py`
-  - `CanonicalMediaBuyFeatures`: `+seller_optimized_min_spend_targets`, `+seller_optimized_package_budgets`, `+seller_optimized_package_pacing`
-- `core/canonical_product.py`
-  - `CanonicalProduct`: `+collection_targeting_allowed`, `+collections`, `+execution_requirements`, `+targeting_resolution`
-- `core/canonical_reporting_capabilities.py`
-  - `CanonicalReportingCapabilities`: `+reporting_delivery_offering_ids`
-- `core/media_buy_features.py`
-  - `MediaBuyFeatures`: `+seller_optimized_min_spend_targets`, `+seller_optimized_package_budgets`, `+seller_optimized_package_pacing`
-- `core/product.py`
-  - `Product`: `+execution_requirements`
-- `core/reporting_capabilities.py`
-  - **classes removed**: ReportingDeliveryOfferingId
-- `governance/sync_plans_response.py`
-  - **classes added**: Status51
-  - **classes removed**: Status50
-- `media_buy/get_media_buy_delivery_response.py`
-  - `ReportingPeriod`: `+timezone`
+- `compliance/comply_test_controller_request.py`
+  - **classes added**: DoohMetrics, Qualifier, VenueBreakdownItem, Viewability, ViewedSecondsHistogramItem, ViewedSecondsPercentiles
+- `compliance/task_completion_data.py`
+  - **classes added**: ComplianceTaskCompletionData1
+- `core/catalog.py`
+  - **classes removed**: Category, Gtins, Ids, Query, Tags, Type
+- `core/catalog_selection.py`
+  - **classes added**: Gtin
+- `core/committed_metric.py`
+  - **classes added**: Qualifier1
+  - **classes removed**: QualifierModel
+- `core/delivery_metric_aggregate.py`
+  - **classes added**: Qualifier5
+  - **classes removed**: Field0, Qualifier3
+  - `DeliveryMetricAggregate1`: `+clicks`, `+completed_views`, `+conversion_value`, `+conversions`, `+impressions`, `+measurable_impressions`, `+metric_id`, `+qualifier`, `+spend`, `+value`, `+viewable_impressions`
+- `core/delivery_metrics.py`
+  - **classes added**: DoohMetrics, Viewability
+  - **classes removed**: DoohMetrics1, Viewability1
+- `core/package_delivery_metric_value.py`
+  - `PackageDeliveryMetricValue`: `+clicks`, `+completed_views`, `+conversion_value`, `+conversions`, `+impressions`, `+measurable_impressions`, `+metric_id`, `+scope`, `+spend`, `+value`, `+viewable_impressions`
+- `core/product_offer_filters.py`
+  - **classes added**: GeoProximityItem, Geometry, Radius, TravelTime, Type
+- `core/targeting.py`
+  - **classes removed**: AudienceExclude, AudienceInclude, AxeExcludeSegment, AxeIncludeSegment, Browser, BrowserExclude, CollectionListExclude, DaypartTargets, Demographics, DevicePlatform, DevicePlatformExclude, DeviceType, DeviceTypeExclude, GeoCountries, GeoCountriesExclude, GeoMetrosExclude, GeoPlaces, GeoPlacesExclude, GeoPostalAreas, GeoPostalAreasExclude, GeoProximity, GeoProximityItem2, GeoRegions, GeoRegionsExclude, PlacementSelection, PropertyListExclude, StoreCatchments
+- `core/targeting_input.py`
+  - **classes added**: AgeRestriction, GeoCountry, GeoMetrosExcludeItem, GeoProximityItem, GeoRegion, Geometry, Radius, StoreCatchment, TravelTime, Type
+- `core/version_envelope.py`
+  - **classes removed**: AdcpMajorVersion, AdcpVersion
+- `error_details/vast_version_mismatch.py`
+  - **classes removed**: ObservedDocumentVastVersion
 - `media_buy/get_products_request.py`
-  - `Field1`: `+execution_requirements`
-  - `Fields`: `-collection_targeting_allowed`, `-collections`, `-targeting_resolution`
-- `media_buy/media_buy_delivery_webhook_result.py`
-  - `ReportingPeriod`: `+timezone`
-- `media_buy/outcome_target.py`
-  - `OutcomeTarget`: `+cost_per`
-- `media_buy/product_fields.py`
-  - `ProductResponseField`: `+collection_targeting_allowed`, `+collections`, `+execution_requirements`, `+targeting_resolution`
-- `sponsored_intelligence/si_sponsored_context_receipt.py`
-  - **classes added**: Status46
-  - **classes removed**: Status45
+  - **classes added**: Fields1
+  - `Field1`: `-conversion_tracking`, `-creative_policy`, `-data_provider_signals`, `-delivery_measurement`, `-enforced_policies`, `-format_ids`, `-included_signals`, `-installments`, `-is_custom`, `-metric_optimization`, `-outcome_measurement`, `-product_card`, `-product_card_detailed`, `-signal_targeting_options`, `-trusted_match`
+  - `Fields`: `+acceptance_policy_profile_ids`, `+allowed_actions`, `+audience_evidence`, `+audience_evidence_selections`, `+audio_distribution_types`, `+brief_relevance`, `+catalog_match`, `+catalog_types`, `+channels`, `+collection_targeting_allowed`, `+collections`, `+delivery_type`, `+demographic_targeting`, `+description`, `+exclusivity`, `+execution_requirements`, `+expires_at`, `+forecast`, `+format_options`, `+identity`, `+list_applications`, `+max_optimization_goals`, `+measurement_terms`, `+name`, `+performance_standards`, `+placements`, `+pricing_options`, `+product_id`, `+publisher_properties`, `+reporting_capabilities`, `+signal_targeting_allowed`, `+signal_targeting_rules`, `+social_placement_surfaces`, `+sponsored_placement_types`, `+targeting_resolution`, `+video_placement_types` `-conversion_tracking`, `-creative_policy`, `-data_provider_signals`, `-delivery_measurement`, `-enforced_policies`, `-format_ids`, `-included_signals`, `-installments`, `-is_custom`, `-metric_optimization`, `-outcome_measurement`, `-product_card`, `-product_card_detailed`, `-signal_targeting_options`, `-trusted_match`
+- `media_buy/product_purchase.py`
+  - **classes removed**: AgencyEstimateNumber, AudienceEvidencePins, Bidding, Budget, CatalogIds, Context, DailyBudgetCap, EndTime, Ext, FormatOptionRefs, MinSpendTarget, OptimizationGoals, Pacing, PerformanceStandards, Pricing, StartTime
+- `media_buy/product_purchase_input.py`
+  - **classes added**: CatalogId

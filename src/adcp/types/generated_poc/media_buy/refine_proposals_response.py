@@ -15,7 +15,7 @@ from ..core import context as context_1
 from ..core import error
 from ..core import ext as ext_1
 from ..core import insertion_order as insertion_order_1
-from ..core import product_change_map, version_envelope
+from ..core import product_change_map
 from ..core.compact_task_submitted import CompactTaskSubmitted
 from ..enums import proposal_refinement_reason
 from . import commercial_terms as commercial_terms_1
@@ -551,7 +551,14 @@ class RefineProposalsResponse1(AdCPBaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    adcp_version: version_envelope.AdcpVersion | None = None
+    adcp_version: Annotated[
+        str | None,
+        Field(
+            description='Release-precision AdCP version (VERSION.RELEASE, e.g. "3.0", "3.1", "3.1-beta"). On a request: the buyer\'s release pin — the seller validates against its supported_versions and returns VERSION_UNSUPPORTED on cross-major mismatch, or downshifts to the highest supported release within the same major. On a response: the release the seller actually served — clients SHOULD validate the response against that release\'s schema, not against their pin. Patches are not negotiated; surface them as build_version on capabilities for operational visibility. When omitted, falls back to adcp_major_version (deprecated) or server default. Buyers SHOULD emit both adcp_version and adcp_major_version through 3.x to remain compatible with sellers that only read the legacy field. NORMALIZATION: SDKs that read full-semver values from bundle metadata (e.g. ComplianceIndex.published_version = "3.1.0-beta.1") MUST normalize to release-precision ("3.1-beta.1") before emitting on the wire — meta-field values are NOT valid wire values.',
+            examples=['3.0', '3.1', '3.1-beta', '3.1-rc.1'],
+            pattern='^(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)(?:-[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?)?$',
+        ),
+    ] = None
     results: Annotated[
         list[Results8] | Results,
         Field(
@@ -578,7 +585,14 @@ class RefineProposalsResponse2(CompactTaskSubmitted):
     model_config = ConfigDict(
         extra='forbid',
     )
-    adcp_version: version_envelope.AdcpVersion | None = None
+    adcp_version: Annotated[
+        str | None,
+        Field(
+            description='Release-precision AdCP version (VERSION.RELEASE, e.g. "3.0", "3.1", "3.1-beta"). On a request: the buyer\'s release pin — the seller validates against its supported_versions and returns VERSION_UNSUPPORTED on cross-major mismatch, or downshifts to the highest supported release within the same major. On a response: the release the seller actually served — clients SHOULD validate the response against that release\'s schema, not against their pin. Patches are not negotiated; surface them as build_version on capabilities for operational visibility. When omitted, falls back to adcp_major_version (deprecated) or server default. Buyers SHOULD emit both adcp_version and adcp_major_version through 3.x to remain compatible with sellers that only read the legacy field. NORMALIZATION: SDKs that read full-semver values from bundle metadata (e.g. ComplianceIndex.published_version = "3.1.0-beta.1") MUST normalize to release-precision ("3.1-beta.1") before emitting on the wire — meta-field values are NOT valid wire values.',
+            examples=['3.0', '3.1', '3.1-beta', '3.1-rc.1'],
+            pattern='^(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)(?:-[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?)?$',
+        ),
+    ] = None
     results: Annotated[
         list[Results14] | Results | None,
         Field(

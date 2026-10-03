@@ -9,6 +9,7 @@ generates Pydantic v2 models with discriminated union support.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import posixpath
@@ -172,6 +173,228 @@ def normalize_enum_descriptions(obj):
     elif isinstance(obj, list):
         for item in obj:
             normalize_enum_descriptions(item)
+    return obj
+
+
+# A JSON pointer whose first token is a definition container names a reusable
+# subschema, and datamodel-code-generator emits one class for it and shares it.
+# Every other pointer addresses a structural position — ``/properties/<name>``,
+# ``/items``, ``/oneOf/<n>`` — which has no name to emit, so the generator mints
+# a single-arm ``RootModel`` wrapper per referencing site instead of the type the
+# pointer selects.
+_DEFINITION_POINTER_ROOTS = frozenset({"$defs", "definitions"})
+
+
+def _is_structural_pointer(fragment: str) -> bool:
+    """Report whether a ``$ref`` fragment addresses a structural position."""
+    if not fragment.startswith("/"):
+        return False
+    first_token = fragment[1:].split("/", 1)[0]
+    return first_token not in _DEFINITION_POINTER_ROOTS
+
+
+def _resolve_json_pointer(document, fragment: str, ref: str):
+    """Return the subschema a JSON pointer selects, or raise ``ValueError``."""
+    node = document
+    for raw_token in fragment[1:].split("/"):
+        token = raw_token.replace("~1", "/").replace("~0", "~")
+        if isinstance(node, list):
+            try:
+                node = node[int(token)]
+            except (ValueError, IndexError) as exc:
+                raise ValueError(f"unresolvable pointer {ref!r}") from exc
+        elif isinstance(node, dict) and token in node:
+            node = node[token]
+        else:
+            raise ValueError(f"unresolvable pointer {ref!r}")
+    if not isinstance(node, dict):
+        raise ValueError(f"pointer {ref!r} selects a {type(node).__name__}, not a subschema")
+    return node
+
+
+def _rebase_refs_to_schema_root(obj, target: Path):
+    """Rewrite a ``$ref`` inside an inlined subschema against the schema root.
+
+    An inlined subschema travels from its own file to the referencing one, so
+    its file-relative targets no longer resolve and its same-document fragments
+    address a document that is no longer in scope. Root-relative ``/schemas/``
+    paths are directory-independent and ``_normalize_schema_ref_target`` already
+    accepts them.
+    """
+    if isinstance(obj, dict):
+        ref = obj.get("$ref")
+        if isinstance(ref, str):
+            file_part, separator, fragment = ref.partition("#")
+            suffix = separator + fragment if separator else ""
+            if not file_part:
+                obj["$ref"] = "/schemas/" + target.as_posix() + suffix
+            elif "://" not in file_part and not file_part.startswith("/"):
+                resolved = posixpath.normpath(posixpath.join(target.parent.as_posix(), file_part))
+                obj["$ref"] = "/schemas/" + resolved + suffix
+        for value in obj.values():
+            _rebase_refs_to_schema_root(value, target)
+    elif isinstance(obj, list):
+        for item in obj:
+            _rebase_refs_to_schema_root(item, target)
+    return obj
+
+
+def _select_structural_pointer(ref: str, current_schema_rel_path: Path, seen: frozenset):
+    """Resolve a cross-file structural pointer to a self-contained subschema."""
+    file_part, _, fragment = ref.partition("#")
+    if not file_part or not _is_structural_pointer(fragment):
+        return None
+    normalized = _normalize_schema_ref_target(file_part, current_schema_rel_path)
+    if normalized is None:
+        return None
+    _, target = normalized
+    key = (target.as_posix(), fragment)
+    if key in seen or not (SCHEMAS_DIR / target).is_file():
+        return None
+    with open(SCHEMAS_DIR / target) as handle:
+        document = json.load(handle)
+    selected = copy.deepcopy(_resolve_json_pointer(document, fragment, ref))
+    selected = _rebase_refs_to_schema_root(selected, target)
+    # Resolve pointers nested inside the selection against the file that owns
+    # it, and record this pointer so a cyclic selection terminates.
+    return inline_structural_pointer_refs(selected, target, seen | {key})
+
+
+def _merge_selection(obj: dict, selected: dict, dropped: str) -> dict:
+    """Replace ``dropped`` in ``obj`` with ``selected``, local keywords winning.
+
+    Annotation keywords at the referencing site (``description``, ``title``) and
+    the constraints it adds describe this field, so they override the selection.
+    """
+    local = {k: v for k, v in obj.items() if k != dropped}
+    obj.clear()
+    obj.update(selected)
+    obj.update(local)
+    return obj
+
+
+def inline_structural_pointer_refs(obj, current_schema_rel_path: Path, _seen=frozenset()):
+    """Replace cross-file structural pointer ``$ref``s with the type they select.
+
+    ``core/targeting-input.json`` declares 27 of its 37 fields as "the type
+    ``core/targeting.json`` gives this property, or null"::
+
+        {"anyOf": [{"$ref": ".../core/targeting.json#/properties/audience_exclude"},
+                   {"type": "null"}]}
+
+    The pointer selects ``{"type": "array", "items": {"type": "string"}, ...}``.
+    datamodel-code-generator has no name for that position, so it emits
+    ``targeting.AudienceExclude = RootModel[list[str]]`` and types the field with
+    the wrapper. Resolving the pointer here gives the generator the subschema
+    itself, which with ``collapse_nullable_unions`` becomes ``list[str] | None`` —
+    the type the pointed-to property gets in its own module.
+
+    A pointer that is the only arm of an ``allOf`` merges into the enclosing
+    schema. ``core/catalog-selection.json`` adds ``uniqueItems`` that way and
+    ``compliance/comply-test-controller-request.json`` adds a ``description``;
+    leaving the selection inside the ``allOf`` loses the ``additionalProperties``
+    the selection carries.
+    """
+    if isinstance(obj, dict):
+        ref = obj.get("$ref")
+        if isinstance(ref, str):
+            selected = _select_structural_pointer(ref, current_schema_rel_path, _seen)
+            if selected is not None:
+                # The selection is already resolved; recursing into it with a
+                # fresh ``_seen`` would re-enter a cyclic pointer.
+                return _merge_selection(obj, selected, "$ref")
+
+        arms = obj.get("allOf")
+        if isinstance(arms, list) and len(arms) == 1 and isinstance(arms[0], dict):
+            only_arm_ref = arms[0].get("$ref")
+            if isinstance(only_arm_ref, str) and len(arms[0]) == 1:
+                selected = _select_structural_pointer(only_arm_ref, current_schema_rel_path, _seen)
+                if selected is not None:
+                    return _merge_selection(obj, selected, "allOf")
+
+        for value in obj.values():
+            inline_structural_pointer_refs(value, current_schema_rel_path, _seen)
+    elif isinstance(obj, list):
+        for item in obj:
+            inline_structural_pointer_refs(item, current_schema_rel_path, _seen)
+
+    return obj
+
+
+_NULL_ARM = {"type": "null"}
+
+
+def _as_nullable_arm(arms: list) -> dict | None:
+    """Return the non-null arm of a two-arm "S or null" union, when typed.
+
+    Only an arm that carries a ``type`` keyword qualifies. An arm that is a
+    ``$ref`` already produces ``T | None``, and an arm with no ``type`` has
+    nothing to make nullable.
+    """
+    if len(arms) != 2 or arms.count(_NULL_ARM) != 1:
+        return None
+    other = arms[0] if arms[1] == _NULL_ARM else arms[1]
+    if not isinstance(other, dict) or "$ref" in other:
+        return None
+    declared = other.get("type")
+    if isinstance(declared, str):
+        return {**other, "type": [declared, "null"]}
+    if isinstance(declared, list) and "null" not in declared:
+        return {**other, "type": [*declared, "null"]}
+    return None
+
+
+def collapse_nullable_unions(obj):
+    """Spell "S or null" as a nullable ``S`` rather than a two-arm union.
+
+    datamodel-code-generator emits a named ``RootModel`` for an ``anyOf`` arm
+    that declares a container or scalar ``type``, then types the field with the
+    wrapper::
+
+        {"anyOf": [{"type": "array", "items": {"type": "string"}},
+                   {"type": "null"}]}
+
+        class AudienceExclude(RootModel[list[str]]): ...
+        audience_exclude: AudienceExclude | None
+
+    The same nullability written as a type list produces the type itself::
+
+        {"type": ["array", "null"], "items": {"type": "string"}}
+
+        audience_exclude: list[str] | None
+
+    ``core/targeting-input.json`` carries both spellings — ``keyword_targets``
+    uses the type list and gets ``list[KeywordTarget] | None``, while the 27
+    fields declared as a union get wrappers. The wrapper is not a usable
+    container: it rejects indexing and ``len()``, and iterating it yields the
+    ``('root', [...])`` field pair instead of the elements. Normalize the union
+    spelling to the type-list spelling so one wire shape produces one type.
+
+    Only a named property is normalized. A nullable type list in an ``items``
+    position makes the generator emit ``class XItem5(Optional[XItem])``, which
+    does not import and does not run; ``formats/canonical/audio_hosted.json``
+    declares ``duration_ms_range.items`` that way.
+    """
+    if isinstance(obj, dict):
+        properties = obj.get("properties")
+        if isinstance(properties, dict):
+            for schema in properties.values():
+                if not isinstance(schema, dict):
+                    continue
+                for keyword in ("anyOf", "oneOf"):
+                    collapsed = _as_nullable_arm(schema.get(keyword) or [])
+                    if collapsed is not None:
+                        siblings = {k: v for k, v in schema.items() if k != keyword}
+                        schema.clear()
+                        schema.update(collapsed)
+                        schema.update(siblings)
+                        break
+        for value in obj.values():
+            collapse_nullable_unions(value)
+    elif isinstance(obj, list):
+        for item in obj:
+            collapse_nullable_unions(item)
+
     return obj
 
 
@@ -503,8 +726,11 @@ def flatten_schemas(temp_dir: Path):
                     # generated convenience model omits this field.
                     properties.pop("formats", None)
 
-        # Normalize generator-specific extensions, then rewrite $ref paths.
+        # Normalize generator-specific extensions, resolve structural pointer
+        # refs into the type they select, then rewrite $ref paths.
         schema = normalize_enum_descriptions(schema)
+        schema = inline_structural_pointer_refs(schema, rel_path)
+        schema = collapse_nullable_unions(schema)
         schema = rewrite_refs(schema, rel_path)
         schema = stabilize_inlined_core_refs(schema, rel_path)
         schema = stabilize_nested_discriminators(schema, rel_path)
