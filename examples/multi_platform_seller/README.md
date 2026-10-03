@@ -156,3 +156,25 @@ serve(router, asgi_middleware=[(SubdomainTenantMiddleware, {...})])
 - **Cross-tenant state.** Each tenant is an island — its own
   inventory, its own buys, its own auth. The router never aggregates
   across tenants.
+
+The examples support tenant-scoped account discovery and `list_products`.
+Both catalogs return `cache_scope: public`; catalog pages ignore outcome
+criteria, as the compact catalog contract requires. The non-guaranteed
+platform offers its normal auction floor and a fixed CPM quote when the buyer
+requests fixed-price inventory.
+
+The sandbox controller's `seed_account` writes to the same account store used
+by normal requests. Fixtures, including their sandbox/live mode, resolve by
+explicit ID or natural account identity within the selected tenant. Account
+lists and fixture records do not cross tenant boundaries. The controller uses
+the framework's account mode gate; live accounts cannot invoke sandbox
+controls. Default local demo accounts are sandbox accounts.
+
+Buy responses retain the original commitment timestamp and advance revisions
+on successful updates. Cancellation moves a buy to `canceled`; a second
+cancellation returns `NOT_CANCELLABLE`.
+
+`force_get_products_arm` can register one sandbox business rejection for the
+next brief. Directives expire after five minutes and remain isolated by tenant,
+account, and authenticated caller. Anonymous requests use the example's public
+demo principal. Wholesale catalog reads leave the directive untouched.

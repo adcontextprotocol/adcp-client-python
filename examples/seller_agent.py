@@ -15,10 +15,13 @@ Validate:
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import uuid
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from decimal import ROUND_DOWN, Decimal
 from typing import Any
 
 from adcp import (
@@ -560,14 +563,83 @@ def _requote_required_response(
     }
 
 
+_SUPPORTED_PRODUCT_FILTERS = {
+    "channels",
+    "delivery_type",
+    "exclusivity",
+    "pricing_currencies",
+    "pricing_structures",
+    "is_fixed_price",
+    "format_kinds",
+    "required_metrics",
+}
+
+
 def _products_for_request(params: dict[str, Any]) -> list[dict[str, Any]]:
+    filters = params.get("filters") or {}
+    products = []
+    for original in PRODUCTS:
+        product = deepcopy(original)
+        if any(
+            filters.get(field) is not None and product.get(field) != filters[field]
+            for field in ("delivery_type", "exclusivity")
+        ):
+            continue
+        if filters.get("channels") and not set(filters["channels"]).intersection(
+            product.get("channels", [])
+        ):
+            continue
+        if filters.get("format_kinds") and not any(
+            option.get("format_kind") in filters["format_kinds"]
+            for option in product.get("format_options", [])
+        ):
+            continue
+        available_metrics = set(
+            product.get("reporting_capabilities", {}).get("available_metrics", [])
+        )
+        if "viewability" in available_metrics:
+            available_metrics.update(
+                {
+                    "viewable_rate",
+                    "viewable_impressions",
+                    "measurable_impressions",
+                    "viewed_seconds",
+                }
+            )
+        if "quartile_data" in available_metrics:
+            available_metrics.update({"quartile_25", "quartile_50", "quartile_75", "quartile_100"})
+        if not set(filters.get("required_metrics", [])).issubset(available_metrics):
+            continue
+        options = []
+        for option in product.get("pricing_options", []):
+            structure = (
+                "contingent"
+                if option.get("pricing_model") == "revenue_share"
+                else "fixed" if option.get("fixed_price") is not None else "auction"
+            )
+            if (
+                filters.get("pricing_currencies")
+                and option.get("currency") not in filters["pricing_currencies"]
+            ):
+                continue
+            if filters.get("pricing_structures") and structure not in filters["pricing_structures"]:
+                continue
+            if "is_fixed_price" in filters and structure != (
+                "fixed" if filters["is_fixed_price"] else "auction"
+            ):
+                continue
+            options.append(option)
+        if not options:
+            continue
+        product["pricing_options"] = options
+        products.append(product)
     brief = str(params.get("brief") or "").lower()
     if not brief:
-        return PRODUCTS
+        return products
 
     matches: list[dict[str, Any]] = []
     rest: list[dict[str, Any]] = []
-    for product in PRODUCTS:
+    for product in products:
         product_id = str(product.get("product_id") or "")
         product_key = product_id.replace("-", " ").replace("_", " ").lower()
         product_name = str(product.get("name") or "").lower()
@@ -576,8 +648,82 @@ def _products_for_request(params: dict[str, Any]) -> list[dict[str, Any]]:
         else:
             rest.append(product)
     if not matches:
-        return PRODUCTS
+        return products
     return matches + rest
+
+
+def _package_budget_total(packages: list[dict[str, Any]]) -> Decimal:
+    return sum((Decimal(str(pkg.get("budget") or 0)) for pkg in packages), Decimal(0))
+
+
+def _delivery_totals(events: list[dict[str, Any]]) -> dict[str, Any]:
+    totals: dict[str, Any] = {
+        "impressions": sum(event.get("impressions", 0) for event in events),
+        "spend": float(sum((Decimal(str(event.get("spend", 0))) for event in events), Decimal(0))),
+    }
+    for metric in ("clicks", "conversions"):
+        if any(metric in event for event in events):
+            totals[metric] = sum(event.get(metric, 0) for event in events)
+    views = [event["viewability"] for event in events if event.get("viewability")]
+    if views:
+        measurable = sum(view.get("measurable_impressions", 0) for view in views)
+        viewable = sum(view.get("viewable_impressions", 0) for view in views)
+        totals["viewability"] = {
+            "measurable_impressions": measurable,
+            "viewable_impressions": viewable,
+            "viewable_rate": viewable / measurable if measurable else 0,
+        }
+        timed = [view for view in views if "viewed_seconds" in view]
+        weight = sum(view.get("measurable_impressions", 0) for view in timed)
+        if weight:
+            totals["viewability"]["viewed_seconds"] = (
+                sum(
+                    view["viewed_seconds"] * view.get("measurable_impressions", 0) for view in timed
+                )
+                / weight
+            )
+        standards = {view.get("standard") for view in views}
+        if len(standards) == 1 and None not in standards:
+            totals["viewability"]["standard"] = views[0]["standard"]
+    return totals
+
+
+def _split_delivery(totals: dict[str, Any], weights: list[Decimal]) -> list[dict[str, Any]]:
+    """Allocate sandbox traffic deterministically, preserving additive totals."""
+    denominator = sum(weights, Decimal(0))
+    if not denominator:
+        weights = [Decimal(1)] * len(weights)
+        denominator = Decimal(len(weights))
+    results: list[dict[str, Any]] = [{} for _ in weights]
+    for metric in ("impressions", "clicks", "conversions", "spend"):
+        if metric not in totals:
+            continue
+        amount = Decimal(str(totals[metric]))
+        allocated = Decimal(0)
+        quantum = Decimal("0.01") if metric == "spend" else Decimal(1)
+        for index, weight in enumerate(weights):
+            value = (
+                amount - allocated
+                if index == len(weights) - 1
+                else (amount * weight / denominator).quantize(quantum, rounding=ROUND_DOWN)
+            )
+            results[index][metric] = float(value) if metric == "spend" else int(value)
+            allocated += value
+    return results
+
+
+def _narrow_metrics(metrics: dict[str, Any], requested: list[str] | None) -> dict[str, Any]:
+    if not requested:
+        return metrics
+    narrowed = {
+        key: value for key, value in metrics.items() if key in {"impressions", "spend", *requested}
+    }
+    viewability = metrics.get("viewability", {})
+    if "viewability" not in requested:
+        leaves = {key: value for key, value in viewability.items() if key in requested}
+        if leaves:
+            narrowed["viewability"] = leaves
+    return narrowed
 
 
 PRODUCTS: list[dict[str, Any]] = [
@@ -819,10 +965,11 @@ class DemoSeller(ADCPHandler):
         }
         response["media_buy"] = {
             "supported_pricing_models": ["cpm"],
-            "buying_modes": ["brief", "refine"],
-            # This compatibility fixture deliberately serves legacy storyboard
-            # runners; ordinary framework construction defaults this to true.
-            "features": {"canonical_creatives": False},
+            "buying_modes": ["brief", "wholesale", "refine"],
+            "lifecycle_tools": ["list_products"],
+            # Native responses use canonical formats; the explicit converters
+            # above retain the negotiated AdCP 3.0 compatibility wire.
+            "features": {"canonical_creatives": True},
             "creative_sync": True,
             "reporting": True,
             "cancellation": True,
@@ -865,9 +1012,18 @@ class DemoSeller(ADCPHandler):
         return sync_governance_response(results)
 
     async def get_products(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
+        unsupported = set(params.get("filters") or {}) - _SUPPORTED_PRODUCT_FILTERS
+        if unsupported:
+            field = sorted(unsupported)[0]
+            return adcp_error(
+                "UNSUPPORTED_FEATURE",
+                f"Unsupported product filters: {', '.join(sorted(unsupported))}",
+                field=f"filters.{field}",
+                suggestion="Use the filters listed in this demo's _SUPPORTED_PRODUCT_FILTERS",
+            )
         products = _products_for_request(params)
         canonical_products = [_canonical_product(product) for product in products]
-        if params.get("buying_mode") == "refine":
+        if params.get("buying_mode") == "refine" and params.get("proposal") and products:
             proposal = params.get("proposal", {}) or {}
             proposal_id = proposal.get("proposal_id") or f"prop-{uuid.uuid4().hex[:8]}"
             incoming_packages = proposal.get("packages", []) or []
@@ -907,6 +1063,56 @@ class DemoSeller(ADCPHandler):
             )
         return products_response(canonical_products, cache_scope="public")
 
+    async def list_products(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
+        criteria = params.get("criteria") or {}
+        unsupported = set(criteria) - {"product_ids", "offer_filters", "outcome_target"}
+        if unsupported:
+            return adcp_error(
+                "UNSUPPORTED_FEATURE",
+                "Unsupported catalog criteria",
+                field=f"criteria.{sorted(unsupported)[0]}",
+            )
+        # outcome_target is explicitly inert on list_products.
+        response = await self.get_products({"filters": criteria.get("offer_filters", {})})
+        if response.get("errors"):
+            return response
+        products = response["products"]
+        if "product_ids" in criteria:
+            products = [p for p in products if p["product_id"] in criteria["product_ids"]]
+        # Compact discovery omits the deprecated get_products-only fields.
+        for product in products:
+            product.pop("property_targeting_allowed", None)
+            for option in product.get("pricing_options", []):
+                option.pop("max_bid", None)
+        feed_version = hashlib.sha256(json.dumps(products, sort_keys=True).encode()).hexdigest()
+        if params.get("cursor") is None and params.get("if_feed_version") == feed_version:
+            return {"outcome": "unchanged", "feed_version": feed_version, "cache_scope": "public"}
+        try:
+            offset = int(params.get("cursor", "0"))
+            if offset < 0 or offset > len(products):
+                raise ValueError("cursor out of range")
+        except (TypeError, ValueError):
+            return adcp_error("INVALID_REQUEST", "Invalid catalog cursor", field="cursor")
+        limit = params.get("max_results", len(products))
+        fields = set(params["fields"]) | {"product_id", "name"} if params.get("fields") else None
+        page = [
+            {
+                key: value
+                for key, value in product.items()
+                if key != "delivery_measurement" and (fields is None or key in fields)
+            }
+            for product in products[offset : offset + limit]
+        ]
+        result: dict[str, Any] = {
+            "outcome": "listed",
+            "products": page,
+            "feed_version": feed_version,
+            "cache_scope": "public",
+        }
+        if offset + limit < len(products):
+            result["next_cursor"] = str(offset + limit)
+        return result
+
     async def create_media_buy(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         account_id = (params.get("account") or {}).get("account_id") or _DEFAULT_ACCOUNT_ID
         directive = pending_directives.pop(account_id, None)
@@ -935,6 +1141,13 @@ class DemoSeller(ADCPHandler):
                 "INVALID_REQUEST",
                 "At least one package required",
                 field="packages",
+            )
+
+        if (params.get("budget_allocation") or {}).get("mode") == "seller_optimized":
+            return adcp_error(
+                "UNSUPPORTED_FEATURE",
+                "This demo supports fixed package budgets",
+                field="budget_allocation",
             )
 
         valid_ids = {p["product_id"] for p in PRODUCTS}
@@ -994,6 +1207,17 @@ class DemoSeller(ADCPHandler):
                     built_pkg[field] = deepcopy(pkg[field]) if field == "context" else pkg[field]
             packages.append(built_pkg)
 
+        if params.get("total_budget") is not None:
+            total = params["total_budget"]
+            if total["currency"] != "USD" or Decimal(str(total["amount"])) != _package_budget_total(
+                packages
+            ):
+                return adcp_error(
+                    "VALIDATION_ERROR",
+                    "total_budget must match the USD package budget sum",
+                    field="total_budget",
+                )
+
         has_creatives = any(
             pkg.get("creative_assignments") or pkg.get("creatives") for pkg in params["packages"]
         )
@@ -1024,15 +1248,20 @@ class DemoSeller(ADCPHandler):
         )
         if available_actions:
             resp["available_actions"] = available_actions
+        resp["total_budget"] = float(_package_budget_total(packages))
         return resp
 
     async def get_media_buys(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         requested_ids = params.get("media_buy_ids")
+        status_filter = params.get("status_filter", ["active"] if requested_ids is None else None)
+        statuses = {status_filter} if isinstance(status_filter, str) else set(status_filter or [])
         results = []
         for mb_id, mb in media_buys.items():
-            if requested_ids and mb_id not in requested_ids:
+            if requested_ids is not None and mb_id not in requested_ids:
                 continue
-            total_budget = sum((pkg.get("budget") or 0) for pkg in mb.get("packages", []))
+            if statuses and mb["status"] not in statuses:
+                continue
+            total_budget = float(_package_budget_total(mb.get("packages", [])))
             result = {
                 "media_buy_id": mb_id,
                 "status": mb["status"],
@@ -1162,6 +1391,15 @@ class DemoSeller(ADCPHandler):
         if params.get("revision") and params["revision"] != mb.get("revision", 1):
             return adcp_error("CONFLICT", "Revision mismatch - refetch and retry")
 
+        # Validate and mutate a candidate so any rejected patch leaves the buy intact.
+        mb = deepcopy(mb)
+        if params.get("new_packages"):
+            return adcp_error(
+                "UNSUPPORTED_FEATURE",
+                "This demo cannot add packages to an existing buy",
+                field="new_packages",
+            )
+
         product_actions = _allowed_actions_for_packages(mb.get("packages", []))
         attempted_action = _attempted_action_for_update(params, mb)
         if product_actions and attempted_action:
@@ -1214,12 +1452,55 @@ class DemoSeller(ADCPHandler):
                         "creatives",
                         "measurement_terms",
                         "budget",
+                        "canceled",
                     ):
                         if pkg_update.get(field) is not None:
                             target[field] = pkg_update[field]
                     affected_packages.append(deepcopy(target))
         else:
             affected_packages = []
+
+        if params.get("total_budget") is not None:
+            total = params["total_budget"]
+            amount = Decimal(str(total["amount"]))
+            if total["currency"] != mb.get("currency", "USD"):
+                return adcp_error(
+                    "VALIDATION_ERROR",
+                    "Budget currency must match the media buy",
+                    field="total_budget.currency",
+                )
+            packages = mb.get("packages", [])
+            current_total = _package_budget_total(packages)
+            if params.get("packages"):
+                if amount != current_total:
+                    return adcp_error(
+                        "VALIDATION_ERROR",
+                        "total_budget must equal the resulting package budget sum",
+                        field="total_budget",
+                    )
+            else:
+                active = [pkg for pkg in packages if not pkg.get("canceled")]
+                frozen = _package_budget_total([pkg for pkg in packages if pkg.get("canceled")])
+                distributable = amount - frozen
+                active_total = _package_budget_total(active)
+                if active_total <= 0 or distributable < 0:
+                    return adcp_error(
+                        "VALIDATION_ERROR",
+                        "Cannot proportionally allocate a buy with no committed budget",
+                        field="total_budget",
+                    )
+                allocated = Decimal(0)
+                for index, pkg in enumerate(active):
+                    budget = (
+                        distributable - allocated
+                        if index == len(active) - 1
+                        else (
+                            distributable * Decimal(str(pkg.get("budget") or 0)) / active_total
+                        ).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+                    )
+                    pkg["budget"] = float(budget)
+                    allocated += budget
+                affected_packages = deepcopy(active)
 
         status = mb["status"]
         if status == "pending_creatives" and params.get("packages"):
@@ -1245,9 +1526,11 @@ class DemoSeller(ADCPHandler):
             mb["status"] = "canceled"
             mb["available_actions"] = []
             mb["revision"] = mb.get("revision", 1) + 1
+            media_buys[mb_id] = mb
             return cancel_media_buy_response(mb_id, "buyer", revision=mb["revision"])
 
         mb["revision"] = mb.get("revision", 1) + 1
+        media_buys[mb_id] = mb
         resp = update_media_buy_response(
             mb_id,
             affected_packages=affected_packages or None,
@@ -1257,6 +1540,7 @@ class DemoSeller(ADCPHandler):
         )
         if mb.get("available_actions"):
             resp["available_actions"] = mb["available_actions"]
+        resp["total_budget"] = float(_package_budget_total(mb.get("packages", [])))
         return resp
 
     async def list_creative_formats_legacy(
@@ -1360,34 +1644,145 @@ class DemoSeller(ADCPHandler):
     async def get_media_buy_delivery(
         self, params: dict[str, Any], context: Any = None
     ) -> dict[str, Any]:
-        requested_ids = params.get("media_buy_ids", [])
         deliveries = []
-        for mb_id in requested_ids:
-            if mb_id in media_buys:
-                deliveries.append(
-                    {
-                        "media_buy_id": mb_id,
-                        "status": "active",
-                        "totals": {
-                            "impressions": 45000,
-                            "clicks": 680,
-                            "spend": 540.00,
-                            "viewability": {
-                                "measurable_impressions": 42000,
-                                "viewable_impressions": 31500,
-                                "viewable_rate": 0.75,
-                                "viewed_seconds": 12.5,
-                                "standard": "mrc",
-                            },
-                        },
-                        "by_package": [],
-                    }
+        today = datetime.now(timezone.utc).date().isoformat()
+        tomorrow = (datetime.now(timezone.utc).date() + timedelta(days=1)).isoformat()
+        start = params.get("start_date")
+        end = params.get("end_date")
+        if start is not None and end is not None and start >= end:
+            return adcp_error(
+                "VALIDATION_ERROR", "end_date must be later than start_date", field="end_date"
+            )
+        dates = [
+            event["delivery_date"]
+            for mb_id in params.get("media_buy_ids", [])
+            for event in media_buys.get(mb_id, {}).get("delivery_events", [])
+        ]
+        period_start = start or (min(dates) if dates else today)
+        period_end = end or (
+            (datetime.fromisoformat(max(dates)) + timedelta(days=1)).date().isoformat()
+            if dates
+            else tomorrow
+        )
+        requested = params.get("requested_metrics")
+        format_request = (params.get("reporting_dimensions") or {}).get("format")
+        for mb_id in params.get("media_buy_ids", []):
+            mb = media_buys.get(mb_id)
+            if mb is None:
+                continue
+            events = [
+                event
+                for event in mb.get("delivery_events", [])
+                if (start is None or event["delivery_date"] >= start)
+                and (end is None or event["delivery_date"] < end)
+            ]
+            totals = _delivery_totals(events)
+            packages = mb.get("packages", [])
+            package_metrics = _split_delivery(
+                totals, [Decimal(str(pkg.get("budget") or 0)) for pkg in packages]
+            )
+            by_package = []
+            video_impressions = 0
+            for pkg, metrics in zip(packages, package_metrics, strict=True):
+                product = next(
+                    (p for p in PRODUCTS if p["product_id"] == pkg.get("product_id")), {}
                 )
+                reporting = product.get("reporting_capabilities", {})
+                # The demo has no serving engine. Split injected sandbox traffic
+                # across declared kinds using descending catalog-order weights.
+                kinds = list(
+                    dict.fromkeys(
+                        option["format_kind"] for option in product.get("format_options", [])
+                    )
+                )
+                format_metrics = _split_delivery(
+                    metrics, [Decimal(len(kinds) - i) for i in range(len(kinds))]
+                )
+                rows = [
+                    {"format_kind": kind, **values}
+                    for kind, values in zip(kinds, format_metrics, strict=True)
+                ]
+                video_count = sum(
+                    row.get("impressions", 0)
+                    for row in rows
+                    if row["format_kind"] in {"video_hosted", "video_vast"}
+                )
+                if "time_based_views" in reporting.get("available_metrics", []):
+                    # Sandbox video impressions represent two-second play events.
+                    metrics["time_based_views"] = [
+                        {"threshold_seconds": 2, "basis": "play_time", "views": video_count}
+                    ]
+                    video_impressions += video_count
+                    for row in rows:
+                        row["time_based_views"] = [
+                            {
+                                "threshold_seconds": 2,
+                                "basis": "play_time",
+                                "views": (
+                                    row.get("impressions", 0)
+                                    if row["format_kind"] in {"video_hosted", "video_vast"}
+                                    else 0
+                                ),
+                            }
+                        ]
+                pricing = next(
+                    (
+                        option
+                        for option in product.get("pricing_options", [])
+                        if option.get("pricing_option_id") == pkg.get("pricing_option_id")
+                    ),
+                    {},
+                )
+                entry = {
+                    "package_id": pkg["package_id"],
+                    "pricing_model": pricing.get("pricing_model", "cpm"),
+                    "rate": pricing.get("fixed_price", pricing.get("floor_price", 0)),
+                    "currency": mb.get("currency", "USD"),
+                    **_narrow_metrics(metrics, requested),
+                }
+                if format_request is not None and reporting.get("supports_format_breakdown"):
+                    sort_by = format_request.get("sort_by", "spend")
+                    direction = format_request.get("sort_direction", "desc")
+                    if not any(sort_by in row for row in rows):
+                        sort_by, direction = "spend", "desc"
+                    rows.sort(key=lambda row: row.get(sort_by, 0), reverse=direction == "desc")
+                    limit = format_request.get("limit", len(rows))
+                    entry.update(
+                        {
+                            "by_format": [
+                                {
+                                    "format_kind": row["format_kind"],
+                                    **_narrow_metrics(
+                                        {k: v for k, v in row.items() if k != "format_kind"},
+                                        requested,
+                                    ),
+                                }
+                                for row in rows[:limit]
+                            ],
+                            "by_format_truncated": len(rows) > limit,
+                            "by_format_sorted_by": sort_by,
+                            "by_format_sort_direction": direction,
+                        }
+                    )
+                by_package.append(entry)
+            if any("time_based_views" in metrics for metrics in package_metrics):
+                totals["time_based_views"] = [
+                    {"threshold_seconds": 2, "basis": "play_time", "views": video_impressions}
+                ]
+            deliveries.append(
+                {
+                    "media_buy_id": mb_id,
+                    "status": mb["status"],
+                    "currency": mb.get("currency", "USD"),
+                    "totals": _narrow_metrics(totals, requested),
+                    "by_package": by_package,
+                }
+            )
         return delivery_response(
             deliveries,
             reporting_period={
-                "start": "2026-04-01T00:00:00Z",
-                "end": "2026-04-09T23:59:59Z",
+                "start": f"{period_start}T00:00:00Z",
+                "end": f"{period_end}T00:00:00Z",
             },
         )
 
@@ -1456,19 +1851,35 @@ class DemoStore(TestControllerStore):
         clicks: int | None = None,
         conversions: int | None = None,
         reported_spend: dict[str, Any] | None = None,
+        delivery_date: str | None = None,
+        viewability: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        if media_buy_id not in media_buys:
+        mb = media_buys.get(media_buy_id)
+        if mb is None:
             raise TestControllerError("NOT_FOUND", f"Media buy {media_buy_id} not found")
-        simulated: dict[str, Any] = {"media_buy_id": media_buy_id}
-        if impressions is not None:
-            simulated["impressions"] = impressions
-        if clicks is not None:
-            simulated["clicks"] = clicks
-        if conversions is not None:
-            simulated["conversions"] = conversions
+        event: dict[str, Any] = {
+            "delivery_date": delivery_date or datetime.now(timezone.utc).date().isoformat(),
+        }
+        for metric, value in (
+            ("impressions", impressions),
+            ("clicks", clicks),
+            ("conversions", conversions),
+        ):
+            if value is not None:
+                event[metric] = value
         if reported_spend is not None:
-            simulated["reported_spend"] = reported_spend
-        return {"simulated": simulated, "cumulative": simulated}
+            if reported_spend["currency"] != mb.get("currency", "USD"):
+                raise TestControllerError(
+                    "INVALID_REQUEST", "Spend currency must match the media buy"
+                )
+            event["spend"] = reported_spend["amount"]
+        if viewability is not None:
+            event["viewability"] = deepcopy(viewability)
+        mb.setdefault("delivery_events", []).append(event)
+        return {
+            "simulated": {"media_buy_id": media_buy_id, **event},
+            "cumulative": _delivery_totals(mb["delivery_events"]),
+        }
 
     async def simulate_budget_spend(
         self,
