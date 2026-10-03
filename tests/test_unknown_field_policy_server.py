@@ -108,3 +108,31 @@ async def test_a2a_executor_uses_same_unknown_field_policy() -> None:
 
     assert handler.received == []
     assert exc_info.value.errors[0].field == "nonsense_field"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("transport", ["mcp", "a2a"])
+@pytest.mark.parametrize("policy", ["reject", "strip"])
+@pytest.mark.parametrize(
+    "envelope",
+    [
+        {"adcp_version": "3.2"},
+        {"adcp_major_version": 3},
+        {"adcp_version": "3.2-rc.7"},
+    ],
+)
+async def test_version_envelope_survives_unknown_field_policy(
+    transport: str, policy: str, envelope: dict[str, Any]
+) -> None:
+    handler = _RecorderHandler()
+    validation = ValidationHookConfig(unknown_fields=policy)
+    caller = (
+        create_tool_caller(handler, "get_products", validation=validation)
+        if transport == "mcp"
+        else ADCPAgentExecutor(handler, validation=validation)._tool_callers["get_products"]
+    )
+    payload = {"buying_mode": "brief", "brief": "ads", **envelope}
+    if policy == "strip":
+        payload["nonsense_field"] = "remove me"
+    await caller(payload)
+    assert handler.received == [{"buying_mode": "brief", "brief": "ads", **envelope}]

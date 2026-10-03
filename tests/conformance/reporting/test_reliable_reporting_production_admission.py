@@ -411,7 +411,6 @@ async def test_enrollment_fault_rolls_back_whole_admission(backend, tmp_path, mo
 async def test_service_failure_stops_admission_but_preserves_ordinary_delegate(tmp_path):
     from adcp.reporting.service import (
         ReliableReportingServiceError,
-        ReliableReportingUnavailableError,
     )
 
     async with production_harness(
@@ -427,8 +426,12 @@ async def test_service_failure_stops_admission_but_preserves_ordinary_delegate(t
         with pytest.raises(ReliableReportingServiceError):
             await asyncio.wait_for(h.service.wait(), 2)
         assert not h.service.ready
-        with pytest.raises(ReliableReportingUnavailableError):
+        from adcp.exceptions import ADCPTaskError
+
+        with pytest.raises(ADCPTaskError) as unavailable:
             await h.production.handler.sync_accounts({})
+        assert unavailable.value.error_codes == ["SERVICE_UNAVAILABLE"]
+        assert unavailable.value.error_info[0].recovery == "transient"
         assert await h.production.handler.get_products({}) == {"products": []}
         assert (await h.production.handler.get_media_buy_delivery({}))["aggregated_totals"][
             "impressions"

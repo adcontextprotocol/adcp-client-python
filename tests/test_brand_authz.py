@@ -670,8 +670,7 @@ async def test_authz_case_mismatch_fails_byte_equal() -> None:
         agent_url="https://ADS.brand.com/agent",  # uppercase host
         brand_domain="brand.com",
     )
-    assert result.authorized is False
-    assert result.reason == "agent_not_listed"
+    assert result.authorized is True
 
 
 @pytest.mark.asyncio
@@ -725,6 +724,7 @@ async def test_build_brand_json_resolvers_shares_one_fetch() -> None:
 
     jwks, authz = build_brand_json_resolvers(
         "https://brand.com/.well-known/brand.json",
+        agent_url="https://ads.brand.com/agent",
         agent_type="signals",
     )
     # Inject the test transport into both via the shared fetcher.

@@ -7,6 +7,9 @@ Catches the silent-lie configuration: a platform that advertises
 
 from __future__ import annotations
 
+import functools
+from types import SimpleNamespace
+
 import pytest
 
 from adcp.decisioning import DecisioningCapabilities, DecisioningPlatform, SingletonAccounts
@@ -59,6 +62,77 @@ class TestIsWrapped:
             return {}
 
         assert is_wrapped(handler) is True
+
+    @pytest.mark.parametrize("depth", [1, 2, 15])
+    def test_outer_decorators_and_bound_methods(self, depth: int) -> None:
+        store = _store()
+
+        @store.wrap
+        async def handler(self, params, context=None):
+            return {}
+
+        for _ in range(depth):
+            inner = handler
+
+            @functools.wraps(inner)
+            async def outer(*args, _inner=inner, **kwargs):
+                return await _inner(*args, **kwargs)
+
+            handler = outer
+
+        class Seller:
+            capabilities = _caps_with_idempotency(supported=True)
+            create_media_buy = handler
+
+        assert is_wrapped(handler)
+        assert is_wrapped(Seller().create_media_buy)
+        validate_idempotency_wiring(Seller())
+
+    def test_mid_chain_bound_method(self) -> None:
+        store = _store()
+
+        class Seller:
+            @store.wrap
+            async def create_media_buy(self, params, context=None):
+                return {}
+
+        @functools.wraps(Seller().create_media_buy)
+        async def outer(*args, **kwargs):
+            return {}
+
+        assert is_wrapped(outer)
+
+    def test_outer_without_wrapped_link_is_not_registered(self) -> None:
+        store = _store()
+
+        @store.wrap
+        async def handler(self, params, context=None):
+            return {}
+
+        async def outer(*args, **kwargs):
+            return await handler(*args, **kwargs)
+
+        outer.__dict__.update(handler.__dict__)
+        outer.__dict__.pop("__wrapped__", None)
+        assert not is_wrapped(outer)
+
+    def test_cycle_and_depth_limit(self) -> None:
+        async def cycle():
+            return {}
+
+        cycle.__wrapped__ = cycle
+        assert not is_wrapped(cycle)
+        other = SimpleNamespace(__wrapped__=cycle)
+        cycle.__wrapped__ = other
+        assert not is_wrapped(cycle)
+        target = _store().wrap(cycle)
+        for _ in range(16):
+            target = SimpleNamespace(__wrapped__=target)
+        assert not is_wrapped(target)
+
+    @pytest.mark.parametrize("value", [[], {}, 42, object()])
+    def test_non_callable_values_are_not_registered(self, value) -> None:
+        assert not is_wrapped(value)
 
     def test_none_returns_false(self) -> None:
         assert is_wrapped(None) is False

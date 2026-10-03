@@ -92,6 +92,10 @@ async def test_warm_production_proof_cannot_hide_a_changed_protocol_pin(
                 assert after["adcp_version"] == CURRENT
                 assert after["adcp"]["supported_versions"] == [CURRENT]
                 assert not after.get("media_buy", {}).get("reporting_delivery")
+            from adcp.reporting.ledger.notification_models import ReportingNotificationError
+
+            with pytest.raises(ReportingNotificationError):
+                h.production._assert_components()
 
 
 async def scheduled(h, *, now=0.5, complete=True):
