@@ -28,6 +28,8 @@ import rfc8785
 from pydantic import BaseModel
 
 from adcp._version import resolve_adcp_version
+from adcp.signing.brand_jwks import BrandJsonResolverError, _pick_agent
+from adcp.signing.canonical import canonicalize_target_uri
 from adcp.signing.crypto import (
     ALG_ED25519,
     ALG_ES256,
@@ -37,7 +39,8 @@ from adcp.signing.crypto import (
     sign_signature_base,
     verify_signature,
 )
-from adcp.signing.jwks import AsyncJwksResolver, JwksResolver
+from adcp.signing.etld import host_from
+from adcp.signing.jwks import AsyncCachingJwksResolver, AsyncJwksResolver, JwksResolver
 from adcp.signing.replay import ReplayStore, supports_atomic_claim
 from adcp.types import CheckGovernanceRequest, ReportPlanOutcomeRequest
 
@@ -948,7 +951,54 @@ def read_governance_authorization_issuer(token: object) -> str | None:
     except (TypeError, ValueError):
         return None
     issuer = claims.get("iss")
-    return issuer if isinstance(issuer, str) and issuer.startswith("https://") else None
+    if not isinstance(issuer, str):
+        return None
+    try:
+        canonical = canonicalize_target_uri(issuer)
+    except ValueError:
+        return None
+    return canonical if canonical.startswith("https://") else None
+
+
+def resolve_governance_jwks(
+    buyer_brand_json: dict[str, Any],
+    *,
+    issuer: str,
+    brand_domain: str,
+) -> AsyncCachingJwksResolver:
+    """Resolve governance keys from the authenticated buyer's exact record.
+
+    For signed requests pass ``VerifiedSigner.operator_brand_json``. This
+    helper never rediscovers brand.json from its host or scans sibling brands.
+    """
+    if not canonicalize_target_uri(issuer).startswith("https://"):
+        raise ValueError("governance issuer must be an HTTPS URL")
+    house = buyer_brand_json.get("house")
+    domain = host_from(brand_domain)
+    if isinstance(house, dict):
+        house_domain = house.get("domain")
+        if isinstance(house_domain, str) and host_from(house_domain) == domain:
+            agents = house.get("agents", [])
+        else:
+            brands = [
+                brand
+                for brand in buyer_brand_json.get("brands", [])
+                if isinstance(brand, dict)
+                and isinstance(brand.get("url"), str)
+                and host_from(brand["url"]) == domain
+            ]
+            if len(brands) != 1:
+                raise ValueError("governed brand must select exactly one inline collection")
+            agents = brands[0].get("agents", house.get("agents", []))
+    else:
+        agents = buyer_brand_json.get("agents", [])
+    try:
+        selected = _pick_agent(agents, "", agent_url=issuer, agent_type="governance")
+    except BrandJsonResolverError as exc:
+        raise ValueError("governance issuer is ambiguous or invalid") from exc
+    if selected is None:
+        raise ValueError("governance issuer is not authorized for this brand")
+    return AsyncCachingJwksResolver(selected.jwks_uri)
 
 
 def issue_governance_authorization(
@@ -1117,7 +1167,17 @@ async def verify_governance_authorization(
             "governance_token_invalid",
             "authorized_task and authorized_payload_hash must appear together",
         )
-    if claims.get("iss") != expected_issuer:
+    try:
+        expected_issuer = canonicalize_target_uri(expected_issuer)
+        issuer = claims.get("iss")
+        issuer_matches = (
+            isinstance(issuer, str)
+            and canonicalize_target_uri(issuer) == expected_issuer
+            and expected_issuer.startswith("https://")
+        )
+    except ValueError:
+        issuer_matches = False
+    if not issuer_matches:
         return reject("governance_token_invalid", "governance token issuer mismatch")
     kid = header.get("kid")
     if not isinstance(kid, str) or not kid:
@@ -1467,6 +1527,7 @@ __all__ = [
     "issue_governance_authorization",
     "normalize_governance_verdict",
     "read_governance_authorization_issuer",
+    "resolve_governance_jwks",
     "stateless_governance_applicability",
     "target_declares_governance_enforcement",
     "target_declares_legacy_governance_awareness",

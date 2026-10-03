@@ -111,8 +111,10 @@ async def test_unexpected_worker_failure_has_closed_operator_diagnostic(
                         _, after = await mount.call(
                             client, "get_adcp_capabilities", {}, transport=transport
                         )
-                        assert "reporting_delivery" not in after.get("media_buy", {})
-                        assert "webhook_signing" not in after
+                        assert after.get("media_buy", {}).get("reporting_delivery") == before.get(
+                            "media_buy", {}
+                        ).get("reporting_delivery")
+                        assert after.get("webhook_signing") == before.get("webhook_signing")
                     with pytest.raises(ReportingNotificationError, match="component_unready"):
                         await support.activate(account_id=h.item.config.account_id)
                 finally:
