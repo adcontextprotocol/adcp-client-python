@@ -25,11 +25,16 @@ import time
 import weakref
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from psycopg import AsyncConnection
+
+    from adcp.server.idempotency.reservation import PgReservation
 
 try:
     import psycopg  # noqa: F401
@@ -329,11 +334,10 @@ class PgBackend(IdempotencyBackend):
     Idempotent handlers absorb this without harm. **Handlers with
     non-idempotent side effects** (e.g., ``INSERT INTO media_buys``
     without a unique constraint on the buyer's idempotency_key) need
-    either: (a) handler-level dedupe via a database unique constraint
-    that maps to the same key the SDK uses, or (b) the co-tx variant
-    once it ships. Co-tx — handler passes its own connection so the
-    cache write commits atomically with side effects — is planned as a
-    follow-on enhancement.
+    either handler-level dedupe via a database unique constraint or the
+    explicit :meth:`reserve` API. A reservation owns the business transaction,
+    records the response before its commit, and releases the advisory lock only
+    after that commit. The existing decorator keeps its original contract.
 
     **Schema bootstrap caveat.** :meth:`create_schema` uses
     ``CREATE TABLE IF NOT EXISTS`` — if a table with the same name but
@@ -457,6 +461,35 @@ class PgBackend(IdempotencyBackend):
         self._sql_replace = (
             f"UPDATE {t} SET payload_hash = %s, response = %s::jsonb, "  # noqa: S608
             f"expires_at = %s WHERE scope_key = %s AND key = %s"
+        )
+
+    def reserve(
+        self,
+        scope_key: str,
+        key: str,
+        payload_hash: str,
+        *,
+        ttl_seconds: int = 86400,
+        connection: AsyncConnection[Any] | None = None,
+        operation: str = "handler",
+    ) -> AbstractAsyncContextManager[PgReservation]:
+        """Reserve a key and own a business/replay transaction through commit.
+
+        Prefer ``IdempotencyStore.reserve`` for authenticated request scoping
+        and canonical hashing. An optional caller-owned psycopg connection must
+        be idle and use the same database as the lock pool. Existing outer
+        transactions are rejected. Pool connections are borrowed after locking.
+        """
+        from adcp.server.idempotency.reservation import reserve_transaction
+
+        return reserve_transaction(
+            self,
+            scope_key,
+            key,
+            payload_hash,
+            ttl_seconds=ttl_seconds,
+            connection=connection,
+            operation=operation,
         )
 
     async def create_schema(self) -> None:
