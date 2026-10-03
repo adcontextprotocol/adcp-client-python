@@ -24,6 +24,18 @@ from adcp.decisioning.webhook_emit import _sdk_task_outbox_pair_ready
 from adcp.webhook_sender import PreparedWebhook, WebhookDeliveryResult
 
 
+@pytest.fixture
+def fake_pg_driver(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fake pools never call psycopg; retain the real constructor validation.
+
+    This explicit fixture enables only the optional-driver availability guards
+    for unit cases, following the existing task-outbox unit-test pattern. Real
+    database cases and the missing-extra regression do not use it.
+    """
+    for module in ("proposal_store", "task_registry", "task_webhook_outbox"):
+        monkeypatch.setattr(f"adcp.decisioning.pg.{module}.PG_AVAILABLE", True)
+
+
 def _sender() -> MagicMock:
     import json
 
@@ -63,6 +75,7 @@ def outbox(pool: Any) -> PgTaskWebhookOutbox:
 
 
 @pytest.mark.parametrize("kind", ["proposal", "task", "outbox"])
+@pytest.mark.usefixtures("fake_pg_driver")
 async def test_concurrent_resolution_and_retry(kind: str) -> None:
     pool = MagicMock()
     concrete: Any = {
@@ -97,6 +110,7 @@ async def test_concurrent_resolution_and_retry(kind: str) -> None:
 
 
 @pytest.mark.parametrize("kind", ["proposal", "task", "outbox"])
+@pytest.mark.usefixtures("fake_pg_driver")
 async def test_first_method_use_resolves_once_and_forwards_arguments(kind: str) -> None:
     pool = MagicMock()
     if kind == "proposal":
@@ -134,6 +148,7 @@ async def test_first_method_use_resolves_once_and_forwards_arguments(kind: str) 
     assert not hasattr(lazy, "clear_all")
 
 
+@pytest.mark.usefixtures("fake_pg_driver")
 async def test_pair_shares_pool_resolution_and_observers() -> None:
     pool = MagicMock()
     calls = 0
@@ -170,6 +185,7 @@ async def test_pair_shares_pool_resolution_and_observers() -> None:
     assert events[0][0] == "submitted"
 
 
+@pytest.mark.usefixtures("fake_pg_driver")
 async def test_original_pool_identity_and_signing_scope_checks_remain_authoritative() -> None:
     pool = MagicMock()
     other_pool = MagicMock()
@@ -200,6 +216,7 @@ async def test_original_pool_identity_and_signing_scope_checks_remain_authoritat
         await LazyTaskRegistry(missing_resolver).resolve()
 
 
+@pytest.mark.usefixtures("fake_pg_driver")
 async def test_cancelled_factory_retries_and_waiters_do_not_duplicate_success() -> None:
     started, allow = asyncio.Event(), asyncio.Event()
     pool = MagicMock()
@@ -224,6 +241,7 @@ async def test_cancelled_factory_retries_and_waiters_do_not_duplicate_success() 
     assert attempts == 2
 
 
+@pytest.mark.usefixtures("fake_pg_driver")
 def test_successful_store_refuses_cross_loop_reuse_without_reopening() -> None:
     pool = MagicMock()
     factory = MagicMock(return_value=PgTaskRegistry(pool=pool))
@@ -234,6 +252,7 @@ def test_successful_store_refuses_cross_loop_reuse_without_reopening() -> None:
     factory.assert_called_once_with()
 
 
+@pytest.mark.usefixtures("fake_pg_driver")
 def test_failed_initialization_can_retry_on_a_new_loop_after_old_loop_closes() -> None:
     pool = MagicMock()
     factory = MagicMock(side_effect=[RuntimeError("Bootstrap"), PgTaskRegistry(pool=pool)])
@@ -244,6 +263,7 @@ def test_failed_initialization_can_retry_on_a_new_loop_after_old_loop_closes() -
     assert factory.call_count == 2
 
 
+@pytest.mark.usefixtures("fake_pg_driver")
 async def test_bad_factory_result_not_cached() -> None:
     factory = MagicMock(side_effect=[object(), PgTaskRegistry(pool=MagicMock())])
     lazy = LazyTaskRegistry(factory)
@@ -255,11 +275,11 @@ async def test_bad_factory_result_not_cached() -> None:
 
 @pytest.fixture
 async def real_stack() -> AsyncIterator[Any]:
-    from psycopg_pool import AsyncConnectionPool
-
     url = os.environ.get("ADCP_PG_TEST_URL")
     if not url:
         pytest.skip("ADCP_PG_TEST_URL required")
+    from psycopg_pool import AsyncConnectionPool
+
     suffix = secrets.token_hex(6)
     pool = AsyncConnectionPool(url, open=False, min_size=1, max_size=4)
     sender = _sender()
@@ -384,6 +404,7 @@ async def test_observer_registration_and_removal_survive_resolution(real_stack: 
     assert after == ["working", "completed"]
 
 
+@pytest.mark.usefixtures("fake_pg_driver")
 async def test_sync_outbox_crypto_and_worker_methods_delegate() -> None:
     concrete = outbox(MagicMock())
     lazy = LazyTaskWebhookOutbox(lambda: concrete)
@@ -413,6 +434,7 @@ async def test_sync_outbox_crypto_and_worker_methods_delegate() -> None:
         lazy.validate_registration("http://buyer.example/hooks")
 
 
+@pytest.mark.usefixtures("fake_pg_driver")
 async def test_durability_is_not_silently_changed_by_factory() -> None:
     class LossyRegistry(PgTaskRegistry):
         is_durable = False
@@ -425,6 +447,7 @@ async def test_durability_is_not_silently_changed_by_factory() -> None:
 
 
 @pytest.mark.parametrize("flag", ["delivery_state_is_durable", "supports_atomic_task_outbox"])
+@pytest.mark.usefixtures("fake_pg_driver")
 async def test_outbox_factory_cannot_weaken_declared_guarantees(flag: str) -> None:
     box = outbox(MagicMock())
     setattr(box, flag, False)
@@ -436,6 +459,7 @@ async def test_outbox_factory_cannot_weaken_declared_guarantees(flag: str) -> No
     assert await lazy.resolve() is box
 
 
+@pytest.mark.usefixtures("fake_pg_driver")
 async def test_registry_factory_cannot_remove_declared_listing_support() -> None:
     concrete = PgTaskRegistry(pool=MagicMock())
     original_list = concrete.list
@@ -447,3 +471,39 @@ async def test_registry_factory_cannot_remove_declared_listing_support() -> None
     assert lazy.resolved is None
     concrete.list = original_list
     assert await lazy.resolve() is concrete
+
+
+@pytest.mark.parametrize("kind", ["proposal", "task", "outbox"])
+async def test_missing_pg_extra_remains_an_import_error_and_is_not_cached(
+    kind: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    modules = {
+        "proposal": "proposal_store",
+        "task": "task_registry",
+        "outbox": "task_webhook_outbox",
+    }
+    monkeypatch.setattr(f"adcp.decisioning.pg.{modules[kind]}.PG_AVAILABLE", False)
+    pool = MagicMock()
+    constructors = {
+        "proposal": lambda: PgProposalStore(pool=pool),
+        "task": lambda: PgTaskRegistry(pool=pool),
+        "outbox": lambda: outbox(pool),
+    }
+    wrappers = {
+        "proposal": LazyProposalStore,
+        "task": LazyTaskRegistry,
+        "outbox": LazyTaskWebhookOutbox,
+    }
+    calls = 0
+
+    def factory() -> Any:
+        nonlocal calls
+        calls += 1
+        return constructors[kind]()
+
+    lazy = wrappers[kind](factory)
+    for _ in range(2):
+        with pytest.raises(ImportError, match=r"adcp\[pg\]"):
+            await lazy.resolve()
+        assert lazy.resolved is None
+    assert calls == 2
