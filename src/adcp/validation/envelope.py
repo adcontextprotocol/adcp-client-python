@@ -30,6 +30,12 @@ from adcp._version import (
 )
 from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS
 
+# The parser and unknown-field policy share these names. Version fields live
+# outside some task schemas, but are still valid protocol request fields.
+_RELEASE_VERSION_FIELD = "adcp_version"
+_MAJOR_VERSION_FIELD = "adcp_major_version"
+VERSION_ENVELOPE_FIELDS: frozenset[str] = frozenset({_RELEASE_VERSION_FIELD, _MAJOR_VERSION_FIELD})
+
 #: Every version the server speaks — natively-validated majors plus
 #: legacy versions handled via the adapter path. Used as the default
 #: ``supported`` set for :func:`detect_wire_version` so the dispatcher
@@ -94,7 +100,7 @@ def detect_wire_version(
     if not isinstance(payload, dict):
         return None
 
-    explicit = payload.get("adcp_version")
+    explicit = payload.get(_RELEASE_VERSION_FIELD)
     if isinstance(explicit, str) and explicit:
         try:
             normalized = normalize_to_release_precision(explicit)
@@ -107,7 +113,7 @@ def detect_wire_version(
     # intentionally — pre-3.1 buyers may set both fields, and an empty
     # string from a half-migrated client shouldn't override the int field.
 
-    major_value = payload.get("adcp_major_version")
+    major_value = payload.get(_MAJOR_VERSION_FIELD)
     # Wire field is strictly an int per spec (``minimum:1, maximum:99``).
     # Two type-coercion cases that would otherwise bypass the supported-set
     # check silently — reject loudly instead:
