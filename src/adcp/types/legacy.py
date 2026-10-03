@@ -10,6 +10,11 @@ from typing import Annotated, Any
 
 from pydantic import AnyUrl, ConfigDict, Field, StrictFloat, StrictInt, TypeAdapter, field_validator
 
+from adcp.types._legacy_assets import (
+    coerce_legacy_asset,
+    coerce_legacy_assets,
+    infer_asset_type,
+)
 from adcp.types.generated_poc.core.creative_asset import CreativeAsset as LegacyCreativeAsset
 from adcp.types.generated_poc.core.creative_filters import CreativeFilters as LegacyCreativeFilters
 from adcp.types.generated_poc.core.format import Format as LegacyFormat
@@ -166,6 +171,9 @@ LegacyPreviewCreativeBatchResponse = LegacyPreviewCreativeResponse2
 LegacyPreviewCreativeVariantResponse = LegacyPreviewCreativeResponse3
 
 __all__ = [
+    "infer_asset_type",
+    "coerce_legacy_asset",
+    "coerce_legacy_assets",
     "LegacyBuildCreativeRequest",
     "LegacyBuildCreativeResponse",
     "LegacyBuildCreativeResponse1",
