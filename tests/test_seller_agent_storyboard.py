@@ -214,9 +214,12 @@ async def test_list_creatives_preserves_explicit_legacy_tuple_for_delivery() -> 
 
 
 @pytest.mark.asyncio
-async def test_capabilities_explicitly_select_legacy_storyboard_wire() -> None:
+async def test_capabilities_advertise_native_canonical_creatives() -> None:
     response = await _seller().get_adcp_capabilities({})
-    assert response["media_buy"]["features"]["canonical_creatives"] is False
+    assert response["media_buy"]["features"]["canonical_creatives"] is True
+    products = (await _seller().get_products({}))["products"]
+    assert products[0]["format_options"]
+    assert "format_ids" not in products[0]
 
 
 @pytest.mark.asyncio
@@ -937,3 +940,297 @@ async def test_beta9_change_rights_state_projection_storyboard() -> None:
     assert list(control_validator.iter_errors(outside_bound)) == []
     assert outside_bound["errors"][0]["code"] == "REQUOTE_REQUIRED"
     assert outside_bound["errors"][0]["details"]["constraint"] == "max_delta_percent"
+
+
+@pytest.mark.asyncio
+async def test_total_budget_scales_persisted_packages_and_rejects_inconsistent_patch() -> None:
+    seller = _seller()
+    created = await seller.create_media_buy(
+        {
+            "packages": [
+                {"product_id": "run-of-site", "budget": 60},
+                {"product_id": "run-of-site", "budget": 40},
+            ]
+        }
+    )
+    buy_id = created["media_buy_id"]
+    assert created["total_budget"] == 100
+    updated = await seller.update_media_buy(
+        {
+            "media_buy_id": buy_id,
+            "total_budget": {"amount": 50, "currency": "USD"},
+        }
+    )
+    assert updated["total_budget"] == 50
+    assert [p["budget"] for p in updated["affected_packages"]] == [30, 20]
+    before = deepcopy(_sa.media_buys[buy_id])
+    rejected = await seller.update_media_buy(
+        {
+            "media_buy_id": buy_id,
+            "total_budget": {"amount": 60, "currency": "USD"},
+            "packages": [{"package_id": created["packages"][0]["package_id"], "budget": 999}],
+        }
+    )
+    assert rejected["errors"][0]["code"] == "VALIDATION_ERROR"
+    assert _sa.media_buys[buy_id] == before
+    read = await seller.get_media_buys({"media_buy_ids": [buy_id]})
+    assert read["media_buys"][0]["total_budget"] == 50
+    assert [p["budget"] for p in read["media_buys"][0]["packages"]] == [30, 20]
+
+
+@pytest.mark.asyncio
+async def test_budget_rounding_currency_and_multi_patch_atomicity() -> None:
+    seller = _seller()
+    created = await seller.create_media_buy(
+        {"packages": [{"product_id": "run-of-site", "budget": 1} for _ in range(3)]}
+    )
+    buy_id = created["media_buy_id"]
+    updated = await seller.update_media_buy(
+        {
+            "media_buy_id": buy_id,
+            "total_budget": {"amount": 1, "currency": "USD"},
+        }
+    )
+    assert [p["budget"] for p in updated["affected_packages"]] == [0.33, 0.33, 0.34]
+    before = deepcopy(_sa.media_buys[buy_id])
+    for patch in [
+        {"total_budget": {"amount": 2, "currency": "EUR"}},
+        {
+            "packages": [
+                {"package_id": created["packages"][0]["package_id"], "budget": 100},
+                {"package_id": "unknown", "budget": 1},
+            ]
+        },
+    ]:
+        response = await seller.update_media_buy({"media_buy_id": buy_id, **patch})
+        assert response["errors"]
+        assert _sa.media_buys[buy_id] == before
+
+
+@pytest.mark.asyncio
+async def test_buy_id_and_status_filters_compose_with_default_active() -> None:
+    for buy_id, status in [("a", "active"), ("p", "paused"), ("c", "completed")]:
+        await _store().seed_media_buy(media_buy_id=buy_id, fixture={"status": status})
+    seller = _seller()
+    filtered = await seller.get_media_buys({"media_buy_ids": ["a", "p"], "status_filter": "paused"})
+    assert [row["media_buy_id"] for row in filtered["media_buys"]] == ["p"]
+    default = await seller.get_media_buys({})
+    assert [row["media_buy_id"] for row in default["media_buys"]] == ["a"]
+    explicit = await seller.get_media_buys({"media_buy_ids": ["c"]})
+    assert explicit["media_buys"][0]["status"] == "completed"
+    assert (await seller.get_media_buys({"media_buy_ids": []}))["media_buys"] == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["brief", "wholesale", "refine"])
+async def test_product_filters_apply_in_every_buying_mode_and_prune_prices(mode: str) -> None:
+    store = _store()
+    await store.seed_product(
+        product_id="matching",
+        fixture={
+            "channels": ["olv"],
+            "delivery_type": "non_guaranteed",
+            "pricing_options": [
+                {
+                    "pricing_option_id": "usd",
+                    "pricing_model": "cpm",
+                    "fixed_price": 1,
+                    "currency": "USD",
+                },
+                {
+                    "pricing_option_id": "eur",
+                    "pricing_model": "cpm",
+                    "fixed_price": 1,
+                    "currency": "EUR",
+                },
+            ],
+        },
+    )
+    await store.seed_product(
+        product_id="wrong-delivery", fixture={"channels": ["olv"], "delivery_type": "guaranteed"}
+    )
+    await store.seed_product(
+        product_id="wrong-channel",
+        fixture={"channels": ["display"], "delivery_type": "non_guaranteed"},
+    )
+    filters = {
+        "channels": ["olv"],
+        "delivery_type": "non_guaranteed",
+        "pricing_currencies": ["EUR"],
+    }
+    result = await _seller().get_products(
+        {"buying_mode": mode, "brief": "Wrong channel", "filters": filters}
+    )
+    assert [p["product_id"] for p in result["products"]] == ["matching"]
+    assert [p["currency"] for p in result["products"][0]["pricing_options"]] == ["EUR"]
+    assert (
+        len(next(p for p in _sa.PRODUCTS if p["product_id"] == "matching")["pricing_options"]) == 2
+    )
+    empty = await _seller().get_products(
+        {"buying_mode": mode, "filters": {**filters, "delivery_type": "guaranteed"}}
+    )
+    assert empty["products"] == []
+
+
+@pytest.mark.asyncio
+async def test_delivery_simulation_persists_half_open_date_range_and_viewability() -> None:
+    store = _store()
+    await store.seed_media_buy(
+        media_buy_id="dated", fixture={"packages": [{"package_id": "p", "budget": 10}]}
+    )
+    for day, count in [("2026-04-01", 100), ("2026-04-15", 200), ("2026-04-16", 400)]:
+        cumulative = await store.simulate_delivery(
+            "dated",
+            impressions=count,
+            clicks=count // 10,
+            reported_spend={"amount": count / 10, "currency": "USD"},
+            delivery_date=day,
+            viewability={
+                "measurable_impressions": count,
+                "viewable_impressions": count // 2,
+                "viewed_seconds": 4.3,
+                "standard": "mrc",
+            },
+        )
+    assert cumulative["cumulative"]["impressions"] == 700
+    report = await _seller().get_media_buy_delivery(
+        {"media_buy_ids": ["dated"], "start_date": "2026-04-15", "end_date": "2026-04-16"}
+    )
+    totals = report["media_buy_deliveries"][0]["totals"]
+    assert totals["impressions"] == 200
+    assert totals["clicks"] == 20
+    assert totals["spend"] == 20
+    assert totals["viewability"]["viewed_seconds"] == pytest.approx(4.3)
+    assert report["reporting_period"] == {
+        "start": "2026-04-15T00:00:00Z",
+        "end": "2026-04-16T00:00:00Z",
+    }
+
+
+@pytest.mark.asyncio
+async def test_format_reporting_sorts_before_narrowing_and_reconciles_totals() -> None:
+    store = _store()
+    await store.seed_product(
+        product_id="mixed",
+        fixture={
+            "format_options": [
+                _image_option("image"),
+                {
+                    "format_option_id": "video",
+                    "format_kind": "video_hosted",
+                    "params": {"duration_ms_exact": 15000},
+                },
+            ],
+            "reporting_capabilities": {
+                "available_metrics": ["impressions", "spend", "clicks", "time_based_views"],
+                "supports_format_breakdown": True,
+            },
+        },
+    )
+    await store.seed_media_buy(
+        media_buy_id="mixed-buy",
+        fixture={"packages": [{"package_id": "p", "product_id": "mixed", "budget": 100}]},
+    )
+    await store.simulate_delivery(
+        "mixed-buy", impressions=1001, clicks=101, reported_spend={"amount": 100, "currency": "USD"}
+    )
+    request = {
+        "media_buy_ids": ["mixed-buy"],
+        "requested_metrics": ["time_based_views"],
+        "reporting_dimensions": {"format": {"sort_by": "impressions", "sort_direction": "asc"}},
+    }
+    report = await _seller().get_media_buy_delivery(request)
+    buy = report["media_buy_deliveries"][0]
+    pkg = buy["by_package"][0]
+    assert "clicks" not in buy["totals"]
+    assert pkg["by_format_sorted_by"] == "impressions"
+    assert pkg["by_format_sort_direction"] == "asc"
+    assert not pkg["by_format_truncated"]
+    assert pkg["by_format"][0]["format_kind"] == "video_hosted"
+    assert all("clicks" not in row for row in pkg["by_format"])
+    assert sum(row["impressions"] for row in pkg["by_format"]) == buy["totals"]["impressions"]
+    assert sum(row["spend"] for row in pkg["by_format"]) == pytest.approx(buy["totals"]["spend"])
+    request["reporting_dimensions"]["format"]["limit"] = 1
+    limited = await _seller().get_media_buy_delivery(request)
+    assert limited["media_buy_deliveries"][0]["by_package"][0]["by_format_truncated"]
+
+
+@pytest.mark.asyncio
+async def test_redistribution_preserves_canceled_package_commitment() -> None:
+    await _store().seed_media_buy(
+        media_buy_id="partial",
+        fixture={
+            "packages": [
+                {"package_id": "canceled", "budget": 10, "canceled": True},
+                {"package_id": "first", "budget": 60},
+                {"package_id": "second", "budget": 40},
+            ]
+        },
+    )
+    result = await _seller().update_media_buy(
+        {
+            "media_buy_id": "partial",
+            "total_budget": {"amount": 60, "currency": "USD"},
+        }
+    )
+    assert [p["budget"] for p in _sa.media_buys["partial"]["packages"]] == [10, 30, 20]
+    assert [p["package_id"] for p in result["affected_packages"]] == ["first", "second"]
+    before = deepcopy(_sa.media_buys["partial"])
+    rejected = await _seller().update_media_buy(
+        {
+            "media_buy_id": "partial",
+            "total_budget": {"amount": 5, "currency": "USD"},
+        }
+    )
+    assert rejected["errors"][0]["code"] == "VALIDATION_ERROR"
+    assert _sa.media_buys["partial"] == before
+
+
+@pytest.mark.asyncio
+async def test_delivery_lifetime_window_and_invalid_date_bounds() -> None:
+    await _store().seed_media_buy(media_buy_id="lifetime")
+    await _store().simulate_delivery("lifetime", impressions=123, delivery_date="2025-01-01")
+    request = {"media_buy_ids": ["lifetime"]}
+    report = await _seller().get_media_buy_delivery(request)
+    assert report["reporting_period"] == {
+        "start": "2025-01-01T00:00:00Z",
+        "end": "2025-01-02T00:00:00Z",
+    }
+    for end in ["2025-01-01", "2024-12-31"]:
+        rejected = await _seller().get_media_buy_delivery(
+            {**request, "start_date": "2025-01-01", "end_date": end}
+        )
+        assert rejected["errors"][0]["code"] == "VALIDATION_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_compact_catalog_ignores_outcome_target_and_paginates_fields() -> None:
+    criteria = {"outcome_target": {"goal": {"kind": "metric", "metric": "clicks"}}}
+    first = await _seller().list_products(
+        {"criteria": criteria, "max_results": 1, "fields": ["name"]}
+    )
+    assert first["outcome"] == "listed"
+    assert len(first["products"]) == 1
+    assert set(first["products"][0]) == {"product_id", "name"}
+    second = await _seller().list_products(
+        {
+            "criteria": criteria,
+            "max_results": 1,
+            "cursor": first["next_cursor"],
+            "if_feed_version": first["feed_version"],
+        }
+    )
+    assert second["outcome"] == "listed"
+    assert first["products"][0]["product_id"] != second["products"][0]["product_id"]
+    assert "delivery_measurement" not in second["products"][0]
+    assert "format_ids" not in second["products"][0]
+    validator = get_named_validator("media-buy/list-products-response.json", version="3.2.1")
+    assert list(validator.iter_errors(first)) == []
+    assert list(validator.iter_errors(second)) == []
+    unchanged = await _seller().list_products(
+        {"criteria": criteria, "if_feed_version": first["feed_version"]}
+    )
+    assert unchanged["outcome"] == "unchanged"
+    assert "products" not in unchanged
+    invalid = await _seller().list_products({"cursor": "invalid"})
+    assert invalid["errors"][0]["code"] == "INVALID_REQUEST"
