@@ -273,6 +273,13 @@ class ReportingProductionSupport:
 
     def _declared_capabilities(self) -> dict[str, Any]:
         """Detached promises captured when the concrete graph was registered."""
+        # Worker state does not change registered promises. A changed protocol
+        # pin invalidates the declaration itself, even with a warm schema proof.
+        if (
+            self.handler._adcp_version != self._protocol_version
+            or self.handler.get_adcp_version() != self._protocol_version
+        ):
+            return {"reporting_delivery": {}}
         return dict(json.loads(self._declaration))
 
     @property

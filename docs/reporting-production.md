@@ -203,7 +203,9 @@ new rc.6 forecast. The current SDK does not advertise rc.3 as a live client or
 server pin. New mounts, advertised schemas and rendering use the supported
 packaged version. Cursor/checkpoint version mismatches fail closed only after
 caller and signed-position verification. Changing a production mount's captured
-protocol pin invalidates readiness even after a successful schema proof.
+protocol pin invalidates both the captured declaration and runtime readiness,
+even after a successful schema proof. Worker lifecycle transitions preserve the
+registered capability promises; protocol substitution does not.
 
 Integrated parents created representation-one snapshots without a protocol
 filter marker. Their original pages and checkpoints remain usable under rc.6,
