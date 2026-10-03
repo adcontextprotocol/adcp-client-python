@@ -1,5 +1,7 @@
 # Authenticated durable reporting receipts
 
+This caller-ownership release requires all reporting readers, admission and workers to stop during upgrade. Earlier additive or rolling procedures below apply only to pre-ownership releases; use the [maintenance and recovery contract](reporting-caller-ownership-migration.md) for retained state.
+
 `adcp.reporting.receipts.ReportingReceiptHandler` mounts the experimental
 `sync_reporting_receipts` task over the SDK's MCP and A2A transports. It accepts
 revision and official-adjustment receipts, persists each item outcome, and

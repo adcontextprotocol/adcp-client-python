@@ -1,5 +1,24 @@
 # Reliable Reporting upgrade and release notes
 
+## Caller ownership: breaking API and storage release
+
+Reporting generations now include the authenticated caller: `(account_id,
+consumer_id, delivery_config_id, delivery_config_version)`. Constructors,
+custom stores, generation bindings and caller-scoped lookup APIs must be upgraded
+together. Buyers sharing an account can independently configure `daily@1`.
+
+Stop all reporting readers, admission endpoints and workers during upgrade;
+mixed-version operation is unsupported. The explicit operator migration retains
+legacy rows and artifacts unchanged in a private read-only archive. Unknown
+owners and pending work remain quarantined. A validated authoritative mapping
+imports only Core read evidence; new delivery requires manual reconciliation
+and a fresh owned generation with destination/signing admission. Old cursors
+require a correctable restart of pagination. See the
+[upgrade and recovery contract](reporting-caller-ownership-migration.md).
+
+The sections below describe prior release guarantees. Their earlier additive or
+rolling upgrade promises do not apply across this ownership boundary.
+
 ## 8.0.0
 
 `adcp` 8.0.0 is the first stable SDK 8 release. It targets AdCP 3.2.1, the

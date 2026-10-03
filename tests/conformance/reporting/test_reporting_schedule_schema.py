@@ -54,7 +54,9 @@ def formats():
 
 async def deterministic_summary():
     store = InMemoryReportingLedgerStore(clock=lambda: START + timedelta(minutes=30))
-    await store.put_configuration(replace(configuration(), deactivated_at=None))
+    await store.put_configuration(
+        replace(configuration(consumer_id="https://buyer.example.test/agent"), deactivated_at=None)
+    )
     return await ReportingStatusHandler(store).handle(
         {"adcp_version": "3.2-rc.3"},
         caller=ReportingStatusCaller("acct_a", "https://buyer.example.test/agent"),
@@ -207,7 +209,9 @@ async def test_complete_future_expectation_on_actual_summary_mounts(
     async with factory(backend, notifications=notifications) as h:
         h.clock.now = START + timedelta(minutes=30)
         h.store._clock = h.clock  # supported deterministic store clock, including PG captures
-        config = replace(configuration(), deactivated_at=None)
+        config = replace(
+            configuration(consumer_id="https://buyer.example.test/agent"), deactivated_at=None
+        )
         await h.store.put_configuration(config)
         if mode == "projection":
             await h.projection.activate(account_id=config.account_id)

@@ -160,6 +160,8 @@ class InMemoryReportingProductionStore(InMemoryReportingProjectionStore):
         return dict(json.loads(raw)) if raw is not None else None
 
     def _configuration_lease_eligible(self, configuration: ReportingConfiguration) -> bool:
+        if configuration.quarantined:
+            return False
         try:
             self._check_source_generation(configuration)
         except Exception:

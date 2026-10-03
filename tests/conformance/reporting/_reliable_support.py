@@ -379,6 +379,7 @@ def configuration(account: str, *, finality: str = "snapshot") -> ReportingConfi
     contract = redacted_contract_identity
     return ReportingConfiguration(
         account_id=account,
+        consumer_id="buyer",
         delivery_config_id="shared-config",
         delivery_config_version=1,
         report_definition_id=contract.report_definition_id,

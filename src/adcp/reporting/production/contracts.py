@@ -186,6 +186,7 @@ class ReportingProductionSourceBinding:
         key = self.generation_key
         document = {
             "account_id": key.account_id,
+            "consumer_id": key.consumer_id,
             "delivery_config_id": key.delivery_config_id,
             "delivery_config_version": key.delivery_config_version,
             "capabilities_sha256": self.capabilities_sha256,

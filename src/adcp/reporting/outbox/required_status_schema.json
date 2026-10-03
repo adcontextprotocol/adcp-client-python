@@ -617,7 +617,7 @@
   },
   "constraint:reporting_status_notification_events.reporting_status_notification_events_check5": {
     "enabled": true,
-    "fingerprint": "7e8ae7f4e2f6d5b320600b088f0f7c9f31520fb499cfc8504a46b5fda4aa1180"
+    "fingerprint": "498b971190c1b888774057bbe0e964a2afee5b18f1c78bfc8985f91d8e5d513d"
   },
   "constraint:reporting_status_notification_events.reporting_status_notification_events_check6": {
     "enabled": true,
@@ -675,9 +675,9 @@
     "enabled": true,
     "fingerprint": "12b7a569e49f4bf374d5dade9ec0a0d812e4dea251366467c95bcd58bee90b9d"
   },
-  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkp_account_id_delivery_config_i_fkey": {
+  "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkp_account_id_consumer_namespac_fkey": {
     "enabled": true,
-    "fingerprint": "28f145dbe690094950f93a3966caf6c2de6d4b340e2c00356d509ca87c9a5160"
+    "fingerprint": "502bb33130d68b0108f0fa28f1ee42350de103082b0d4dcbbf7144abece7b89a"
   },
   "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_account_id_fkey": {
     "enabled": true,
@@ -705,7 +705,7 @@
   },
   "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_check5": {
     "enabled": true,
-    "fingerprint": "1b7ee66c4fc62945364daa418015e8290a605a73aa44454f7ee4a9a74ff925e4"
+    "fingerprint": "e49a1b6c9ebabb1d41f27cc06ce162ea8862323c18255630c84f86d8403a306b"
   },
   "constraint:reporting_status_scope_checkpoints.reporting_status_scope_checkpoints_check6": {
     "enabled": true,
@@ -825,7 +825,7 @@
   },
   "function:reporting_status_scope_guard()": {
     "enabled": true,
-    "fingerprint": "af6587bce7bb86b2e65acd2afb323de795fe43549584c1e227dfc751407b5068"
+    "fingerprint": "e52efa691de16f3f72df213ca103d8290807fb127ff790b15d7e68c9133757b7"
   },
   "function:reporting_status_webhook_attempt_guard()": {
     "enabled": true,

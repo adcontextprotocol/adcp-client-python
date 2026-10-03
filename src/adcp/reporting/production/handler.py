@@ -399,6 +399,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
                         "revision": revision_id,
                         "digest": revision.revision_content_sha256,
                         "count": revision.row_count,
+                        "ownership": 2,
                         "limit": limit,
                     }
                 )
@@ -411,9 +412,21 @@ class ReportingProductionHandler(ReportingReceiptHandler):
                         "INVALID_CURSOR", "exact revision cursor is unavailable"
                     )
                 cursor = decode_cursor(token[5:])
+                if cursor.get("ownership") != 2:
+                    raise ADCPTaskError(
+                        "get_media_buy_delivery",
+                        [
+                            {
+                                "code": "INVALID_CHECKPOINT",
+                                "message": "Restart revision pagination without the legacy cursor.",
+                                "recovery": "correctable",
+                            }
+                        ],
+                    )
                 if (
-                    set(cursor) != {"v", "h", "p"}
+                    set(cursor) != {"v", "h", "p", "ownership"}
                     or cursor["v"] != 2
+                    or cursor["ownership"] != 2
                     or cursor["h"] != binding_hash
                     or type(cursor["p"]) is not int
                     or not 0 <= cursor["p"] <= revision.row_count
@@ -427,7 +440,9 @@ class ReportingProductionHandler(ReportingReceiptHandler):
                 reporting_revision_id=revision_id,
                 limit=limit,
                 cursor=(
-                    encode_cursor({"revision": revision_id, "offset": offset}) if offset else None
+                    encode_cursor({"ownership": 2, "revision": revision_id, "offset": offset})
+                    if offset
+                    else None
                 ),
             )
             if page.total_count != revision.row_count or page.reporting_revision_id != revision_id:
@@ -448,7 +463,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
             position: dict[str, Any] = {"total_count": page.total_count, "has_more": page.has_more}
             if page.has_more:
                 position["cursor"] = "rpr2." + encode_cursor(
-                    {"v": 2, "h": binding_hash, "p": offset + len(page.rows)}
+                    {"v": 2, "ownership": 2, "h": binding_hash, "p": offset + len(page.rows)}
                 )
             result = {
                 "status": "completed",

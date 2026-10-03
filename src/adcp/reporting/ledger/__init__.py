@@ -134,6 +134,7 @@ from adcp.reporting.ledger.models import (
     LedgerChange,
     LedgerSnapshot,
     ReportingAdjustmentRecord,
+    ReportingCaller,
     ReportingConfiguration,
     ReportingConfigurationGenerationKey,
     ReportingDefinitionBinding,
@@ -206,6 +207,7 @@ if TYPE_CHECKING:
     )
 
 __all__ = [
+    "ReportingCaller",
     "REPORTING_SELECTOR_VERSION",
     "ReportingRevisionCorrupt",
     "ReportingRevisionNotReady",

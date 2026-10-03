@@ -342,7 +342,7 @@ async def test_a2a_agent_card_publicly_accessible_with_auth() -> None:
     app = A2ABearerAuthMiddleware(inner, _auth())
     async with LifespanManager(inner):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:3001"
         ) as client:
             response = await client.get("/.well-known/agent-card.json")
     assert response.status_code == 200
@@ -375,7 +375,7 @@ async def test_a2a_jsonrpc_unauthenticated_returns_http_401() -> None:
     }
     async with LifespanManager(inner):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:3001"
         ) as client:
             response = await client.post("/", json=body)
     assert response.status_code == 401
@@ -404,7 +404,7 @@ async def test_a2a_jsonrpc_authenticated_passes_through() -> None:
     }
     async with LifespanManager(inner):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:3001"
         ) as client:
             response = await client.post(
                 "/", json=body, headers={"Authorization": "Bearer good-token"}
@@ -425,7 +425,7 @@ async def test_a2a_discovery_skill_passes_without_token(text_part: bool) -> None
     app = A2ABearerAuthMiddleware(inner, config)
     async with LifespanManager(inner):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:3001"
         ) as client:
             response = await client.post(
                 "/", json=_a2a_message_body("get_products", text_part=text_part)
@@ -464,7 +464,7 @@ async def test_a2a_native_v1_discovery_skill_passes_without_token() -> None:
     }
     async with LifespanManager(inner):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:3001"
         ) as client:
             response = await client.post("/", json=body)
     assert response.status_code == 200
@@ -489,7 +489,7 @@ async def test_a2a_non_discovery_and_mixed_messages_require_token() -> None:
     )
     async with LifespanManager(inner):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:3001"
         ) as client:
             mutation = await client.post("/", json=_a2a_message_body("create_media_buy"))
             ambiguous = await client.post("/", json=mixed)
@@ -512,7 +512,7 @@ async def test_a2a_discovery_with_invalid_token_is_rejected() -> None:
     app = A2ABearerAuthMiddleware(inner, config)
     async with LifespanManager(inner):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:3001"
         ) as client:
             response = await client.post(
                 "/",
@@ -556,7 +556,7 @@ async def test_a2a_discovery_parser_result_is_reused_by_dispatch() -> None:
     ]
     async with LifespanManager(app):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:3001"
         ) as client:
             response = await client.post("/", json=body)
 
@@ -647,7 +647,7 @@ async def test_both_transport_a2a_leg_requires_auth_when_configured() -> None:
     }
     async with LifespanManager(app):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:3001"
         ) as client:
             response = await client.post("/", json=body)
     assert response.status_code == 401
@@ -671,7 +671,7 @@ async def test_both_transport_a2a_leg_accepts_valid_token() -> None:
     }
     async with LifespanManager(app):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:3001"
         ) as client:
             response = await client.post(
                 "/", json=body, headers={"Authorization": "Bearer good-token"}
@@ -686,7 +686,7 @@ async def test_both_transport_agent_card_publicly_accessible() -> None:
     app = _build_both_app(_auth())
     async with LifespanManager(app):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:3001"
         ) as client:
             response = await client.get("/.well-known/agent-card.json")
     assert response.status_code == 200
@@ -709,7 +709,7 @@ async def test_both_transport_mcp_leg_requires_auth_when_configured() -> None:
     async with LifespanManager(app):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app),
-            base_url="http://test",
+            base_url="http://localhost:3001",
             follow_redirects=True,
         ) as client:
             response = await client.post(
@@ -743,7 +743,7 @@ async def test_both_transport_no_auth_runs_unauthenticated() -> None:
     }
     async with LifespanManager(app):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:3001"
         ) as client:
             response = await client.post("/", json=body)
     # No auth configured → A2A serves the request without checking.
@@ -884,7 +884,7 @@ async def test_401_includes_www_authenticate_header() -> None:
     body = {"jsonrpc": "2.0", "id": "1", "method": "message/send", "params": {}}
     async with LifespanManager(inner):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:3001"
         ) as client:
             response = await client.post("/", json=body)
     assert response.status_code == 401
@@ -904,7 +904,7 @@ async def test_401_body_uses_rfc6750_error_codes() -> None:
     app = A2ABearerAuthMiddleware(inner, _auth())
     async with LifespanManager(inner):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:3001"
         ) as client:
             response = await client.post(
                 "/", json={"jsonrpc": "2.0", "id": "1", "method": "message/send", "params": {}}
@@ -992,7 +992,7 @@ async def test_validator_exception_returns_401_through_full_stack() -> None:
     app = A2ABearerAuthMiddleware(inner, BearerTokenAuth(validate_token=boom))
     async with LifespanManager(inner):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
+            transport=httpx.ASGITransport(app=app), base_url="http://localhost:3001"
         ) as client:
             response = await client.post(
                 "/",

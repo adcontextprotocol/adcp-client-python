@@ -223,6 +223,7 @@ from adcp.decisioning.state_machines import (
 )
 from adcp.decisioning.task_registry import (
     InMemoryTaskRegistry,
+    ListableTaskRegistry,
     TaskHandoffContext,
     TaskLifecycleObserver,
     TaskRegistry,
@@ -406,6 +407,7 @@ __all__ = [
     "IncrementalGetProducts",
     "InMemoryMockAdServer",
     "InMemoryTaskRegistry",
+    "ListableTaskRegistry",
     "MEDIA_BUY_TRANSITIONS",
     "MaybeAsync",
     "MediaBuyNotFoundError",

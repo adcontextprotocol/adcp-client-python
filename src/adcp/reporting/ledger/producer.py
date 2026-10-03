@@ -52,6 +52,7 @@ from adcp.reporting.currency import (
     validate_currency,
 )
 from adcp.reporting.evidence import ReportingControlTotalRecord, freeze_control_totals
+from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
 from adcp.reporting.ledger.models import (
     ReportingConfiguration,
     ReportingDeliveryEscalation,
@@ -436,14 +437,14 @@ class ReportingProducer:
                 (
                     candidate
                     for candidate in await self._store.list_configurations(
-                        account_id=leased.account_id,
+                        caller=ReportingDeliveryPrincipal(leased.account_id, leased.consumer_id),
                         delivery_config_ids=[leased.delivery_config_id],
                     )
                     if candidate.generation_key == leased.generation_key
                 ),
                 None,
             )
-            if configuration is None:
+            if configuration is None or configuration.quarantined:
                 return
             require_account_work(configuration.account_id)
             await self._close_elapsed_periods(configuration, turn, now=now)
@@ -493,6 +494,10 @@ class ReportingProducer:
         the obligation must land in the first ledger snapshot strictly after the
         period boundary, independent of whether the source is healthy.
         """
+        if configuration.quarantined:
+            raise LedgerConflictError(
+                "REPORTING_GENERATION_QUARANTINED", "legacy generations cannot run"
+            )
         turn = WorkerTurn()
         return await self._close_elapsed_periods(configuration, turn, now=now or self._clock())
 
@@ -511,6 +516,7 @@ class ReportingProducer:
         for boundary in self._elapsed_periods(configuration, now=now, after=after):
             existing = await self._store.find_obligation(
                 account_id=configuration.account_id,
+                consumer_id=configuration.consumer_id,
                 delivery_config_id=configuration.delivery_config_id,
                 delivery_config_version=configuration.delivery_config_version,
                 period_start=boundary.start,
@@ -526,6 +532,7 @@ class ReportingProducer:
             obligation = ReportingObligationRecord(
                 reporting_obligation_id=self._obligation_id(configuration, boundary),
                 account_id=configuration.account_id,
+                consumer_id=configuration.consumer_id,
                 delivery_config_id=configuration.delivery_config_id,
                 delivery_config_version=configuration.delivery_config_version,
                 report_definition_id=configuration.report_definition_id,
@@ -603,6 +610,7 @@ class ReportingProducer:
             canonical_json_utf8_v1(
                 [
                     configuration.account_id,
+                    configuration.consumer_id,
                     configuration.delivery_config_id,
                     configuration.delivery_config_version,
                     configuration.report_definition_id,
@@ -626,6 +634,7 @@ class ReportingProducer:
         for boundary in self._elapsed_periods(configuration, now=now):
             obligation = await self._store.find_obligation(
                 account_id=configuration.account_id,
+                consumer_id=configuration.consumer_id,
                 delivery_config_id=configuration.delivery_config_id,
                 delivery_config_version=configuration.delivery_config_version,
                 period_start=boundary.start,
@@ -1303,7 +1312,9 @@ class ReportingProducer:
             (
                 candidate
                 for candidate in await self._store.list_configurations(
-                    account_id=obligation.account_id,
+                    caller=ReportingDeliveryPrincipal(
+                        obligation.account_id, obligation.consumer_id
+                    ),
                     delivery_config_ids=[obligation.delivery_config_id],
                 )
                 if candidate.generation_key == obligation.generation_key

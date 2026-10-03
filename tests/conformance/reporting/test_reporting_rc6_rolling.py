@@ -228,18 +228,27 @@ async def test_actual_accepted_b24_snapshot_refused_by_current_installed_restart
             evidence,
             "rc6-b24-" + label,
         )
+        recovery = None
         for phase in ("replay", "restart"):
             result = await asyncio.to_thread(
                 execute,
                 python,
                 script,
-                {**current, **private, "phase": phase, "prior": first},
+                {**current, **private, "phase": phase, "prior": first, "recovery": recovery},
                 evidence,
                 "rc6-" + phase + "-" + label,
             )
+            recovery = result["recovery"]
             assert result["pages"] == first["pages"]
             assert result["snapshot_sha256"] == first["snapshot_sha256"]
             assert result["checkpoint"] == first["checkpoint"]
-            assert result["version_boundary"] == "REPORTING_FEED_VERSION_MISMATCH"
+            assert result["version_boundary"] == "INVALID_CHECKPOINT"
             assert result["fresh_version"] == "3.2"
             assert result["fresh_snapshot_id"] != first["pages"][0]["ledger_snapshot_id"]
+
+        from psycopg import sql
+
+        async with pool.connection() as connection:
+            await connection.execute(
+                sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(recovery["archive"]))
+            )

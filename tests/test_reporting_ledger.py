@@ -35,6 +35,7 @@ from adcp.reporting.ledger import (
     project_obligation_health,
     revision_content_sha256,
 )
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 
 ACCOUNT = "acct_1"
 CALLER = ReportingStatusCaller(account_id=ACCOUNT, consumer_id="buyer_1")
@@ -68,6 +69,7 @@ def _configuration(**overrides) -> ReportingConfiguration:
         delivery_config_id="daily_reporting",
         delivery_config_version=1,
         account_id=ACCOUNT,
+        consumer_id="buyer_1",
         report_definition_id="daily_delivery_v1",
         reporting_profile="paid_media_delivery",
         feed_purpose="analytics",
@@ -90,6 +92,7 @@ def _obligation(
     defaults = dict(
         reporting_obligation_id=f"rpo_{ordinal}",
         account_id=configuration.account_id,
+        consumer_id=configuration.consumer_id,
         delivery_config_id=configuration.delivery_config_id,
         delivery_config_version=configuration.delivery_config_version,
         report_definition_id=configuration.report_definition_id,
@@ -591,7 +594,7 @@ async def test_a_revision_read_is_scoped_to_its_account() -> None:
 
 
 async def _seeded(
-    *, ledger_as_of: datetime | None = None
+    *, ledger_as_of: datetime | None = None, consumer_id: str = "buyer_1"
 ) -> tuple[InMemoryReportingLedgerStore, ReportingObligationRecord]:
     """A store holding one obligation, with its ledger boundary pinned.
 
@@ -601,7 +604,7 @@ async def _seeded(
     """
     boundary = ledger_as_of or datetime(2026, 9, 30, tzinfo=timezone.utc)
     store = InMemoryReportingLedgerStore(clock=lambda: boundary)
-    configuration = _configuration()
+    configuration = _configuration(consumer_id=consumer_id)
     await store.put_configuration(configuration)
     obligation = await store.commit_obligation(_obligation(configuration))
     return store, obligation
@@ -878,8 +881,7 @@ async def test_a_conflicting_statement_degrades_only_the_submitting_caller() -> 
         caller=ReportingStatusCaller(account_id=ACCOUNT, consumer_id="buyer_2"),
     )
     # Another caller's view is untouched by a statement it did not make.
-    assert theirs["periods"][0]["health"] in {"healthy", "complete"}
-    assert theirs["periods"][0]["issues"] == []
+    assert theirs["periods"] == []
 
 
 async def test_received_against_a_superseded_revision_is_a_mismatch() -> None:
@@ -1085,7 +1087,7 @@ async def test_a_content_mismatch_retry_that_changes_only_the_code_is_a_conflict
     # Reusing a status id with different content is an idempotency conflict.
     # Without mismatch_code in the digest, changing the claim would silently
     # overwrite the recorded one under the same immutable identity.
-    store, obligation = await _seeded()
+    store, obligation = await _seeded(consumer_id="b")
     revision = await store.commit_revision(*_revision(obligation))
     ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
 
@@ -1440,13 +1442,13 @@ async def test_reserved_authoritative_party_is_rejected_at_config_install() -> N
     with pytest.raises(LedgerConflictError) as caught:
         await store.put_configuration(_configuration(authoritative_party="consumer"))
     assert caught.value.code == "UNSUPPORTED_FEATURE"
-    assert await store.list_configurations(account_id=ACCOUNT) == ()
+    assert await store.list_configurations(caller=OwnershipCaller(ACCOUNT, "buyer_1")) == ()
 
 
 async def test_authoritative_party_seller_is_the_accepted_default() -> None:
     store = InMemoryReportingLedgerStore()
     await store.put_configuration(_configuration())
-    stored = await store.list_configurations(account_id=ACCOUNT)
+    stored = await store.list_configurations(caller=OwnershipCaller(ACCOUNT, "buyer_1"))
     assert [item.authoritative_party for item in stored] == ["seller"]
 
 
@@ -1915,7 +1917,7 @@ async def test_reusing_a_status_id_with_changed_content_is_still_a_conflict() ->
     # The replay short-circuit must not become a way to rewrite a recorded
     # statement: answering `unchanged` on a digest mismatch would let a buyer
     # silently change what it claimed under an immutable identity.
-    store, obligation = await _seeded()
+    store, obligation = await _seeded(consumer_id="b")
     revision = await store.commit_revision(*_revision(obligation))
     ingest = ConsumerStatusIngest(store, enabled=True, clock=store._clock)
 

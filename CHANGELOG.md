@@ -12,6 +12,19 @@
 
 ### ⚠ BREAKING CHANGES
 
+* **server:** Public A2A deployments must configure `allowed_hosts` before
+  upgrading. A2A now enforces the same Host/Origin policy as MCP, with a
+  loopback-only Host allowlist by default. Requests for other hosts return
+  HTTP 421, including AgentCard discovery. Allow only the public hostname
+  and any controlled proxy Host values that actually reach the SDK (for
+  example, `allowed_hosts=["agent.example.com", "agent.internal:8000"]`).
+  Setting a discovery or public URL does not grant trust to its hostname.
+  Browser requests also need a separate `allowed_origins` allowlist for
+  their origins; Host allowlisting does not authorize an Origin. Native
+  requests without Origin continue to work when their Host is allowed.
+  See [HTTP transport policy](docs/handler-authoring.md#http-host-and-origin-policy)
+  for wildcard and port matching rules.
+
 * **types:** `CreativeAsset.format_kind`, `Creative.format_kind`, and
   `CreativeManifest.format_kind` now reject values outside `CanonicalFormatKind`.
   Valid strings still normalize to enum members. Inputs remain strict, while

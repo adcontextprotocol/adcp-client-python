@@ -175,7 +175,8 @@ class PgTaskRegistry(_TaskLifecycleObservers):
             f"WITH previous AS (SELECT task_id, state FROM {self._table}"  # nosec B608 — table identifier is constructor-validated
             f" WHERE task_id = %s AND state NOT IN ('completed', 'failed') FOR UPDATE)"
             f" UPDATE {self._table} AS task"
-            f" SET state = 'working', progress = %s::jsonb, updated_at = %s"
+            f" SET state = CASE task.state WHEN 'submitted' THEN 'working' ELSE task.state END,"
+            f"     progress = %s::jsonb, updated_at = %s"
             f" FROM previous WHERE task.task_id = previous.task_id"
             f" RETURNING previous.state, task.task_id, task.account_id, task.task_type,"
             f" task.created_at, task.updated_at"
@@ -551,6 +552,50 @@ class PgTaskRegistry(_TaskLifecycleObservers):
                 "updated_at": row[9],
                 **({"context": row[7]} if row[7] is not None else {}),
             }
+
+    async def list(
+        self,
+        *,
+        account_id: str,
+        filters: dict[str, Any] | None = None,
+        sort: dict[str, Any] | None = None,
+        pagination: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        from adcp.decisioning.task_queries import list_task_records
+
+        # Account isolation is a SQL predicate, before rows are materialized.
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                f"SELECT task_id, account_id, state, task_type, progress, result, error,"  # nosec B608 — table identifier is constructor-validated
+                f" request_context, created_at, updated_at,"
+                f" (webhook_registration IS NOT NULL) FROM {self._table} WHERE account_id = %s",
+                (account_id,),
+            )
+            rows = await cur.fetchall()
+        records = [
+            dict(
+                zip(
+                    (
+                        "task_id",
+                        "account_id",
+                        "state",
+                        "task_type",
+                        "progress",
+                        "result",
+                        "error",
+                        "context",
+                        "created_at",
+                        "updated_at",
+                        "has_webhook",
+                    ),
+                    row,
+                )
+            )
+            for row in rows
+        ]
+        return list_task_records(
+            records, account_id=account_id, filters=filters, sort=sort, pagination=pagination
+        )
 
     async def _enqueue_terminal_if_registered(
         self,

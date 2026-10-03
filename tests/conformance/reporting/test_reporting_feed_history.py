@@ -268,7 +268,7 @@ async def test_page_one_freezes_issue_waiver_status_replacement_configuration_an
         observed_revision_content_sha256=s.revision.revision_content_sha256,
     )
     await h.store.record_consumer_status_with_lifecycle(good)
-    configs = await h.store.list_configurations(account_id=s.obligation.account_id)
+    configs = await h.store.list_configurations(caller=s.binding.principal)
     await h.store.put_configuration(
         replace(
             configs[0],

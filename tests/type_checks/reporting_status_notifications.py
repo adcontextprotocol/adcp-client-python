@@ -13,6 +13,7 @@ from adcp.reporting.ledger import (
     StatusProjectionResult,
     project_status_scope,
 )
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.outbox import (
     InMemoryReportingOutbox,
     InMemoryStatusNotificationStore,
@@ -59,7 +60,9 @@ def pure(snapshot: ReportingStatusSnapshot, scope: ReportingStatusScope) -> Stat
 async def snapshot_on_store(
     store: PgReportingLedgerStore, account_id: str
 ) -> ReportingStatusSnapshot:
-    snapshot = await store.read_status_snapshot(account_id=account_id)
+    snapshot = await store.read_status_snapshot(
+        caller=OwnershipCaller(account_id, "https://buyer.example.test/agent")
+    )
     at: datetime = snapshot.as_of
     assert at.tzinfo is not None
     return snapshot

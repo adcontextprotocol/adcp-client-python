@@ -130,6 +130,8 @@ class ReportingDeliveryScope(_ClosedValue):
         if type(self.generation_key) is not ReportingConfigurationGenerationKey:
             raise ValueError("reporting scope requires the typed configuration generation")
         self.principal
+        if self.consumer_id != self.generation_key.consumer_id:
+            raise ValueError("reporting generation belongs to another caller")
         reporting_identifier(self.generation_key.delivery_config_id, maximum=64)
         _positive(self.generation_key.delivery_config_version)
         reporting_identifier(self.reporting_obligation_id, maximum=255)

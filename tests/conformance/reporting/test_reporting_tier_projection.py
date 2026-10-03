@@ -18,7 +18,7 @@ __all__ = ["receipts"]
 
 
 async def captured(h, s, *, feedback=False):
-    core = await h.store.read_status_snapshot(account_id=s.obligation.account_id)
+    core = await h.store.read_status_snapshot(caller=s.binding.principal)
     private = await h.store.read_reconciliation_snapshot(caller=s.binding.principal)
     core = replace(core, as_of=h.clock.now)
     scope = ReportingStatusScope(

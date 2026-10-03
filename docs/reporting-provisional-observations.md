@@ -1,5 +1,7 @@
 # Provisional observations and upgrade status
 
+This caller-ownership release requires all reporting readers, admission and workers to stop during upgrade. Earlier additive or rolling procedures below apply only to pre-ownership releases; use the [maintenance and recovery contract](reporting-caller-ownership-migration.md) for retained state.
+
 The producer records every successful scheduled provisional read as a new
 immutable revision, including a read whose rows are unchanged. A durable
 reservation freezes the acquisition before source work starts. Its successful
@@ -146,7 +148,7 @@ simple three-day filter alone cannot establish eligibility for every legacy
 record. Missing policy evidence needs an explicit upgrade decision.
 
 An indexed selection can use
-`(account_id, delivery_config_id, delivery_config_version, period_end,
+`(account_id, consumer_id, delivery_config_id, delivery_config_version, period_end,
 reporting_obligation_id) WHERE state='settled'`, a bounded period range and
 keyset batches. The current pending-only index does not cover this selection.
 Any index and re-enrollment operation belong in an additive migration, under the

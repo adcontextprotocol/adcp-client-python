@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
 import secrets
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from dataclasses import fields
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -80,11 +82,21 @@ def require_rolling_database() -> None:
     pytest.importorskip("psycopg_pool")
 
 
-def configuration(account_id: str = "acct_a") -> ReportingConfiguration:
+def fixture_owner_fields(model, consumer_id):
+    """Bind new models to fixture auth; old installed binaries run in fresh databases."""
+    return (
+        {"consumer_id": consumer_id} if any(f.name == "consumer_id" for f in fields(model)) else {}
+    )
+
+
+def configuration(
+    account_id: str = "acct_a", *, consumer_id: str = "buyer"
+) -> ReportingConfiguration:
     return ReportingConfiguration(
         delivery_config_id="daily",
         delivery_config_version=1,
         account_id=account_id,
+        **fixture_owner_fields(ReportingConfiguration, consumer_id),
         report_definition_id="hourly_delivery",
         reporting_profile="paid_media_delivery",
         feed_purpose="analytics",
@@ -105,9 +117,16 @@ def configuration(account_id: str = "acct_a") -> ReportingConfiguration:
 
 def obligation_for(config: ReportingConfiguration) -> ReportingObligationRecord:
     period = derive_period(config.schedule, account_timezone=config.account_timezone, ordinal=0)
+    consumer_id = getattr(config, "consumer_id", "buyer")
     return ReportingObligationRecord(
-        reporting_obligation_id=f"rpo_{config.account_id}",
+        reporting_obligation_id=f"rpo_{config.account_id}"
+        + (
+            ""
+            if consumer_id == "buyer"
+            else "_" + hashlib.sha256(consumer_id.encode()).hexdigest()[:12]
+        ),
         account_id=config.account_id,
+        **fixture_owner_fields(ReportingObligationRecord, consumer_id),
         delivery_config_id=config.delivery_config_id,
         delivery_config_version=config.delivery_config_version,
         report_definition_id=config.report_definition_id,
@@ -129,7 +148,16 @@ def revision_for(
     obligation: ReportingObligationRecord, *, suffix: str = "first"
 ) -> tuple[ReportingRevisionRecord, list[dict[str, Any]]]:
     rows: list[dict[str, Any]] = [{"media_buy_id": obligation.media_buy_ids[0], "impressions": 5}]
-    revision_id = f"rpr_{obligation.account_id}_{suffix}"
+    consumer_id = getattr(obligation, "consumer_id", "buyer")
+    revision_id = (
+        f"rpr_{obligation.account_id}_"
+        + (
+            ""
+            if consumer_id == "buyer"
+            else hashlib.sha256(consumer_id.encode()).hexdigest()[:12] + "_"
+        )
+        + suffix
+    )
     totals = (("impressions", "5"),)
     return (
         ReportingRevisionRecord(
