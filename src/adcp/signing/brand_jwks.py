@@ -15,11 +15,9 @@ its ``jwks_uri``, operator-attested. This resolver walks brand.json,
 picks the right agent entry, and delegates JWK fetch to the inner
 JWKS resolver pinned to that ``jwks_uri``.
 
-**What it doesn't do (yet).** ADCP #3690's eTLD+1 binding and
-``authorized_operators[]`` delegation are not enforced here — they're
-verifier-side concerns added when #3690 lands. This resolver only does
-the brand-json walk + JWKS fetch chain; the verifier composes the
-authorization check around it.
+For discovery from an agent URL, use ``async_resolve_agent``: it binds the
+operator record to capabilities and checks the operator origin. Direct
+construction is for a relying-party record the caller already trusts.
 
 Hand the resulting instance to ``verify_request_signature`` (or
 ``verify_starlette_request``) as the ``jwks`` dependency. The
@@ -36,7 +34,6 @@ brand.json itself, in case the sender rotated ``jwks_uri``.
 from __future__ import annotations
 
 import asyncio
-import json
 import re
 import time
 from collections.abc import Callable
@@ -50,6 +47,8 @@ import idna
 
 from adcp.signing._bounded_http import ResponseTooLargeError, async_read_limited_bytes
 from adcp.signing._idna_canonicalize import canonicalize_host
+from adcp.signing._strict_json import parse_strict_json
+from adcp.signing.canonical import canonicalize_target_uri
 from adcp.signing.jwks import (
     AsyncCachingJwksResolver,
     AsyncJwksFetcher,
@@ -126,9 +125,18 @@ _BARE_HOSTNAME_RE = re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0
 class BrandJsonResolverError(Exception):
     """Typed error surfaced by the resolver pipeline."""
 
-    def __init__(self, code: BrandJsonResolverErrorCode, message: str) -> None:
+    def __init__(
+        self,
+        code: BrandJsonResolverErrorCode,
+        message: str,
+        *,
+        url: str | None = None,
+        status_code: int | None = None,
+    ) -> None:
         super().__init__(message)
         self.code: BrandJsonResolverErrorCode = code
+        self.url = url
+        self.status_code = status_code
 
 
 @dataclass(frozen=True)
@@ -154,6 +162,7 @@ class _SelectedAgent:
 
     url: str
     jwks_uri: str
+    entry: dict[str, Any]
 
 
 @dataclass
@@ -368,18 +377,9 @@ class BrandJsonJwksResolver:
     (which will refetch its own URL if cooldown has elapsed); if
     still unknown, refresh brand.json in case ``jwks_uri`` rotated.
 
-    The :attr:`jwks_source` class attribute is the discriminant the
-    request-signing verifier consults to decide whether
-    :func:`adcp.signing.check_key_origin_consistency` applies for
-    this resolver. Per ADCP #3690 §step 7, the
-    ``identity.key_origins`` consistency check is mandatory only when
-    the JWKS source for the (agent, purpose, role) tuple was the
-    operator brand.json — and skipped for publisher-pinned tuples
-    (where the JWKS origin is the publisher's domain by design).
-    A resolver that always sources via brand.json declares
-    ``jwks_source = "brand_json"`` so the verifier engages the check;
-    a publisher-pin resolver either omits the attribute or declares
-    ``"publisher_pin"`` so the verifier skips it.
+    ``agent_url`` is required. Role and id only narrow a canonical URL match.
+    Portfolio operator records scan house and inline-brand agents. Publisher
+    pins never replace this resolver's JWKS or bypass key-origin consistency.
     """
 
     #: Discriminant for the verifier-side key_origin consistency
@@ -390,7 +390,8 @@ class BrandJsonJwksResolver:
         self,
         brand_json_url: str,
         *,
-        agent_type: BrandAgentType,
+        agent_url: str,
+        agent_type: BrandAgentType | None = None,
         agent_id: str | None = None,
         brand_id: str | None = None,
         min_cooldown_seconds: float = DEFAULT_MIN_COOLDOWN_SECONDS,
@@ -405,6 +406,7 @@ class BrandJsonJwksResolver:
         _client_factory: _ClientFactory | None = None,
         _fetcher: _BrandJsonFetcher | None = None,
     ) -> None:
+        self._agent_url = _canonicalize_url(agent_url, allow_private=allow_private_destinations)
         self._agent_type = agent_type
         self._agent_id = agent_id
         self._brand_id = brand_id
@@ -495,6 +497,17 @@ class BrandJsonJwksResolver:
         cold cache."""
         return self._selected.jwks_uri if self._selected is not None else None
 
+    @property
+    def agent_entry(self) -> dict[str, Any] | None:
+        """The matched operator entry, including its declared role and id."""
+        return dict(self._selected.entry) if self._selected is not None else None
+
+    @property
+    def brand_json(self) -> dict[str, Any] | None:
+        """The exact operator record selected by discovery, after indirection."""
+        snap = self._fetcher.snapshot
+        return snap.data if snap is not None else None
+
     async def force_refresh(self) -> None:
         """Force refetch of both brand.json and inner JWKS, bypassing
         the cooldown.
@@ -525,6 +538,7 @@ class BrandJsonJwksResolver:
             agent = _select_agent(
                 snap.data,
                 snap.final_url,
+                agent_url=self._agent_url,
                 agent_type=self._agent_type,
                 agent_id=self._agent_id,
                 brand_id=self._brand_id,
@@ -649,6 +663,8 @@ async def _fetch_brand_json(
                             raise BrandJsonResolverError(
                                 "fetch_failed",
                                 f"brand.json fetch returned HTTP {response.status_code}",
+                                url=url,
+                                status_code=response.status_code,
                             )
 
                         try:
@@ -659,7 +675,7 @@ async def _fetch_brand_json(
                             ) from exc
 
                         try:
-                            parsed = json.loads(body)
+                            parsed = parse_strict_json(body)
                         except (ValueError, UnicodeDecodeError) as exc:
                             raise BrandJsonResolverError(
                                 "invalid_body", "brand.json response is not valid JSON"
@@ -818,11 +834,12 @@ def _assert_brand_json_shape(obj: dict[str, Any]) -> None:
     house = obj.get("house")
     if isinstance(house, dict):
         queues.append(house.get("agents"))
-        brands = obj.get("brands")
-        if isinstance(brands, list):
-            for brand in brands:
-                if isinstance(brand, dict):
-                    queues.append(brand.get("agents"))
+        brands = obj.get("brands", [])
+        if not isinstance(brands, list):
+            raise BrandJsonResolverError("schema_invalid", "brand.json `brands` must be an array")
+        for brand in brands:
+            if isinstance(brand, dict):
+                queues.append(brand.get("agents"))
 
     for q in queues:
         if q is None:
@@ -831,6 +848,10 @@ def _assert_brand_json_shape(obj: dict[str, Any]) -> None:
             raise BrandJsonResolverError("schema_invalid", "brand.json `agents` must be an array")
         for entry in q:
             if isinstance(entry, dict):
+                if not isinstance(entry.get("type"), str):
+                    raise BrandJsonResolverError(
+                        "schema_invalid", "brand.json agent.type must be a string"
+                    )
                 url = entry.get("url")
                 jwks_uri = entry.get("jwks_uri")
                 if url is not None and not isinstance(url, str):
@@ -848,112 +869,99 @@ def _assert_brand_json_shape(obj: dict[str, Any]) -> None:
 # --- agent selection ---
 
 
+def _operator_agent_collections(data: dict[str, Any]) -> list[list[Any]]:
+    """Operator records attest every inline collection; preserve collection boundaries."""
+    house = data.get("house")
+    if not isinstance(house, dict):
+        agents = data.get("agents", [])
+        return [agents] if isinstance(agents, list) else []
+    collections = [house.get("agents", [])]
+    collections.extend(
+        brand.get("agents", []) for brand in data.get("brands", []) if isinstance(brand, dict)
+    )
+    return [agents for agents in collections if isinstance(agents, list)]
+
+
 def _select_agent(
     data: dict[str, Any],
     final_brand_url: str,
     *,
-    agent_type: BrandAgentType,
-    agent_id: str | None,
-    brand_id: str | None,
+    agent_url: str,
+    agent_type: BrandAgentType | None = None,
+    agent_id: str | None = None,
+    brand_id: str | None = None,
 ) -> _SelectedAgent:
-    """Pick the agent matching the selector from a brand.json document.
+    """Match a canonical URL, optionally narrowing by role, id, or brand.
 
-    Resolution order on a portfolio document:
-    ``brands[brand_id].agents[]`` first (when ``brand_id`` set), then
-    ``house.agents[]`` as fallback. On a non-portfolio document, walks
-    the top-level ``agents[]``.
+    Repeated attestations across portfolio collections count once only when
+    their role and resolved JWKS source agree. Duplicates within a collection
+    remain ambiguous, even when the caller supplied an id.
     """
-    house = data.get("house")
-    picked: _SelectedAgent | None = None
-
-    if isinstance(house, dict):
-        if brand_id is not None:
-            brands = data.get("brands")
-            if isinstance(brands, list):
-                brand = next(
-                    (b for b in brands if isinstance(b, dict) and b.get("id") == brand_id),
-                    None,
-                )
-                if brand is not None:
-                    picked = _pick_agent(
-                        brand.get("agents"),
-                        final_brand_url,
-                        agent_type=agent_type,
-                        agent_id=agent_id,
-                    )
-        if picked is None:
-            picked = _pick_agent(
-                house.get("agents"),
-                final_brand_url,
-                agent_type=agent_type,
-                agent_id=agent_id,
+    if brand_id is not None and isinstance(data.get("house"), dict):
+        brands = [
+            b for b in data.get("brands", []) if isinstance(b, dict) and b.get("id") == brand_id
+        ]
+        if len(brands) != 1:
+            raise BrandJsonResolverError(
+                "agent_not_found", "brand_id must select exactly one brand"
             )
+        agents = brands[0].get("agents", data["house"].get("agents", []))
+        collections = [agents]
     else:
+        collections = _operator_agent_collections(data)
+    distinct: dict[tuple[Any, str], _SelectedAgent] = {}
+    for agents in collections:
         picked = _pick_agent(
-            data.get("agents"),
-            final_brand_url,
-            agent_type=agent_type,
-            agent_id=agent_id,
+            agents, final_brand_url, agent_url=agent_url, agent_type=agent_type, agent_id=agent_id
         )
-
-    if picked is None:
-        descriptor = _describe_selector(agent_type, agent_id, brand_id)
+        if picked is not None:
+            try:
+                source = canonicalize_target_uri(picked.jwks_uri)
+            except ValueError as exc:
+                raise BrandJsonResolverError("invalid_url", "invalid agent JWKS URL") from exc
+            distinct[(picked.entry.get("type"), source)] = picked
+    if not distinct:
+        raise BrandJsonResolverError("agent_not_found", f"brand.json does not list {agent_url}")
+    if len(distinct) != 1:
         raise BrandJsonResolverError(
-            "agent_not_found",
-            f"brand.json has no agent matching {descriptor}",
+            "agent_ambiguous", "portfolio declares conflicting agent keys or roles"
         )
-    return picked
+    return next(iter(distinct.values()))
 
 
 def _pick_agent(
     agents: Any,
     final_brand_url: str,
     *,
-    agent_type: BrandAgentType,
-    agent_id: str | None,
+    agent_url: str,
+    agent_type: BrandAgentType | None = None,
+    agent_id: str | None = None,
 ) -> _SelectedAgent | None:
-    """Filter ``agents[]`` by the selector and return the matching entry.
-
-    Raises :class:`BrandJsonResolverError` ``agent_ambiguous`` when
-    multiple agents of the requested type exist and no ``agent_id``
-    was provided.
-    """
+    """URL is the selector; role and id can only narrow it."""
     if not isinstance(agents, list):
         return None
-    matches: list[dict[str, Any]] = []
-    for entry in agents:
-        if not isinstance(entry, dict):
-            continue
-        if entry.get("type") != agent_type:
-            continue
-        if agent_id is not None and entry.get("id") != agent_id:
-            continue
-        url = entry.get("url")
-        if not isinstance(url, str):
-            continue
-        matches.append(entry)
-
+    try:
+        canonical = canonicalize_target_uri(agent_url)
+        matches = [
+            entry
+            for entry in agents
+            if isinstance(entry, dict)
+            and isinstance(entry.get("url"), str)
+            and canonicalize_target_uri(entry["url"]) == canonical
+            and (agent_type is None or entry.get("type") == agent_type)
+            and (agent_id is None or entry.get("id") == agent_id)
+        ]
+    except ValueError as exc:
+        raise BrandJsonResolverError("invalid_url", "invalid agent URL") from exc
     if not matches:
         return None
-    if len(matches) > 1 and agent_id is None:
-        choices = ", ".join(str(m.get("id", "<no-id>")) for m in matches)
-        raise BrandJsonResolverError(
-            "agent_ambiguous",
-            (
-                f"brand.json declares {len(matches)} agents of type "
-                f'"{agent_type}"; pass agent_id to disambiguate '
-                f"(choices: {choices})"
-            ),
-        )
-    agent = matches[0]
-    url = str(agent["url"])
-    jwks_uri_raw = agent.get("jwks_uri")
-    jwks_uri = (
-        str(jwks_uri_raw)
-        if isinstance(jwks_uri_raw, str)
-        else _default_jwks_uri(url, final_brand_url)
-    )
-    return _SelectedAgent(url=url, jwks_uri=jwks_uri)
+    if len(matches) != 1:
+        raise BrandJsonResolverError("agent_ambiguous", "multiple canonical agent URL matches")
+    entry = matches[0]
+    jwks_uri = entry.get("jwks_uri")
+    if not isinstance(jwks_uri, str):
+        jwks_uri = _default_jwks_uri(entry["url"], final_brand_url)
+    return _SelectedAgent(url=canonical, jwks_uri=jwks_uri, entry=dict(entry))
 
 
 def _canonical_origin(raw: str, label: str) -> str:
@@ -991,50 +999,9 @@ def _canonical_origin(raw: str, label: str) -> str:
 
 
 def _default_jwks_uri(agent_url: str, final_brand_url: str) -> str:
-    """Spec fallback: when ``agent.jwks_uri`` is absent, default to
-    ``<agent_origin>/.well-known/jwks.json``.
-
-    Security: the agent origin MUST match the final brand.json origin.
-    Without this check, an attacker-controlled brand.json could set
-    ``agent.url: "https://victim-internal.example/"`` and force the
-    verifier to treat that origin's JWKS as authoritative — a
-    cross-origin trust pivot. Publishers that genuinely host their
-    agent on a different origin from their brand.json MUST declare an
-    explicit ``jwks_uri``.
-    """
+    """Default to the matched entry's origin, including cross-origin agents."""
     agent_origin = _canonical_origin(agent_url, "agent.url")
-    # ``final_brand_url`` has already been through ``_canonicalize_url``, but
-    # canonicalizing it again is required rather than merely tidy: the two
-    # sides of this comparison MUST be produced by the same function or the
-    # check compares a canonical string to a raw one. That asymmetry is the
-    # defect -- a publisher spelling the same origin identically on both sides
-    # (a U-label, a trailing root dot, a default port) got told their agent was
-    # on a different origin from their brand.json, which it was not.
-    # Re-canonicalizing is idempotent, so this costs nothing.
-    brand_origin = _canonical_origin(final_brand_url, "brand.json URL")
-    if agent_origin != brand_origin:
-        raise BrandJsonResolverError(
-            "jwks_origin_mismatch",
-            (
-                f"agent.url origin ({agent_origin}) does not match "
-                f"brand.json origin ({brand_origin}); publisher must "
-                "declare an explicit jwks_uri for cross-origin agents"
-            ),
-        )
     return f"{agent_origin}/.well-known/jwks.json"
-
-
-def _describe_selector(
-    agent_type: BrandAgentType,
-    agent_id: str | None,
-    brand_id: str | None,
-) -> str:
-    parts = [f"type={agent_type}"]
-    if agent_id is not None:
-        parts.append(f"id={agent_id}")
-    if brand_id is not None:
-        parts.append(f"brand={brand_id}")
-    return " ".join(parts)
 
 
 # --- cache-control parsing ---

@@ -34,7 +34,7 @@ from collections.abc import Callable
 from copy import copy, deepcopy
 from functools import partial
 from types import GenericAlias
-from typing import Annotated, Any, cast, get_args
+from typing import TYPE_CHECKING, Annotated, Any, cast, get_args
 
 from pydantic import (
     BaseModel,
@@ -54,8 +54,10 @@ from pydantic_core import CoreSchema, InitErrorDetails, core_schema
 
 from adcp.types.aliases import FormatAssetUnion, GroupFormatAssetUnion, RepeatableAssetGroup
 from adcp.types.base import AdCPBaseModel
+from adcp.types.canonical_creative import CreateMediaBuyRequest as _PublicCreateMediaBuyRequest
 from adcp.types.canonical_creative import PackageRequest as PublicPackageRequest
 from adcp.types.canonical_creative import PackageUpdate as PublicPackageUpdate
+from adcp.types.canonical_creative import UpdateMediaBuyRequest as _PublicUpdateMediaBuyRequest
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     AcceptancePolicyDiscovery as BundledAcceptancePolicyDiscovery,
 )
@@ -79,6 +81,9 @@ from adcp.types.generated_poc.core.creative_variant import CreativeVariant
 from adcp.types.generated_poc.core.format import Format
 from adcp.types.generated_poc.core.mcp_webhook_payload import McpWebhookPayload
 from adcp.types.generated_poc.core.media_buy_features import MediaBuyFeatures
+from adcp.types.generated_poc.core.reporting_webhook import (
+    ReportingWebhook as _GeneratedReportingWebhook,
+)
 from adcp.types.generated_poc.core.targeting import TargetingOverlay
 from adcp.types.generated_poc.core.targeting_input import TargetingOverlayInput
 from adcp.types.generated_poc.core.version_envelope import AdcpVersionEnvelope
@@ -89,6 +94,9 @@ from adcp.types.generated_poc.creative.get_creative_delivery_response import (
     GetCreativeDeliveryResponse,
 )
 from adcp.types.generated_poc.creative.preview_creative_response import PreviewCreativeResponse3
+from adcp.types.generated_poc.media_buy.accept_proposal_request import (
+    AcceptProposalRequest as _GeneratedAcceptProposalRequest,
+)
 from adcp.types.generated_poc.media_buy.build_creative_response import (
     BuildCreativeResponse1,
     BuildCreativeResponse3,
@@ -100,11 +108,22 @@ from adcp.types.generated_poc.media_buy.build_creative_response import (
 from adcp.types.generated_poc.media_buy.build_creative_response import (
     Variant as BuildCreativeVariant,
 )
-from adcp.types.generated_poc.media_buy.create_media_buy_request import CreateMediaBuyRequest
+from adcp.types.generated_poc.media_buy.buy_products_request import (
+    BuyProductsRequest as _GeneratedBuyProductsRequest,
+)
+from adcp.types.generated_poc.media_buy.control_media_buy_request import (
+    ControlMediaBuyRequest as _GeneratedControlMediaBuyRequest,
+)
+from adcp.types.generated_poc.media_buy.create_media_buy_request import (
+    CreateMediaBuyRequest as _GeneratedCreateMediaBuyRequest,
+)
 from adcp.types.generated_poc.media_buy.package_control import PackageControl
 from adcp.types.generated_poc.media_buy.package_request import PackageRequest
 from adcp.types.generated_poc.media_buy.package_update import PackageUpdate
 from adcp.types.generated_poc.media_buy.product_purchase_input import ProductPurchaseInput
+from adcp.types.generated_poc.media_buy.update_media_buy_request import (
+    UpdateMediaBuyRequest as _GeneratedUpdateMediaBuyRequest,
+)
 from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
     AcceptancePolicyDiscovery,
     PrimaryCountry,
@@ -121,6 +140,53 @@ _OpenCanonicalFormatKind = Annotated[
     CanonicalFormatKind | str,
     Field(union_mode="left_to_right"),
 ]
+
+
+_ReportingOperationId = Annotated[
+    str | None,
+    Field(
+        min_length=1,
+        max_length=255,
+        pattern="^[A-Za-z0-9_.:-]{1,255}$",
+        description=(
+            "Opt-in AdCP 3.2 reporting-stream correlation extension pending adcp#7885. "
+            "Cooperating sellers store and echo the buyer-supplied value verbatim in "
+            "media_buy_delivery webhook payloads. Confirm seller support before use; "
+            "registrations without a value cannot enable this interim delivery path."
+        ),
+    ),
+]
+
+if TYPE_CHECKING:
+
+    class ReportingWebhook(_GeneratedReportingWebhook):
+        """Static view of the optional field patched into the original runtime class."""
+
+        operation_id: _ReportingOperationId = None
+
+    class AcceptProposalRequest(_GeneratedAcceptProposalRequest):
+        reporting_webhook: ReportingWebhook | None = None
+
+    class BuyProductsRequest(_GeneratedBuyProductsRequest):
+        reporting_webhook: ReportingWebhook | None = None
+
+    class ControlMediaBuyRequest(_GeneratedControlMediaBuyRequest):
+        reporting_webhook: ReportingWebhook | None = None
+
+    class CreateMediaBuyRequest(_PublicCreateMediaBuyRequest):
+        reporting_webhook: ReportingWebhook | None = None
+
+    class UpdateMediaBuyRequest(_PublicUpdateMediaBuyRequest):
+        reporting_webhook: ReportingWebhook | None = None
+
+else:
+    # Keep class identity across public imports and nested generated requests.
+    ReportingWebhook = _GeneratedReportingWebhook
+    AcceptProposalRequest = _GeneratedAcceptProposalRequest
+    BuyProductsRequest = _GeneratedBuyProductsRequest
+    ControlMediaBuyRequest = _GeneratedControlMediaBuyRequest
+    CreateMediaBuyRequest = _PublicCreateMediaBuyRequest
+    UpdateMediaBuyRequest = _PublicUpdateMediaBuyRequest
 
 
 class _ManifestReadbackModel(AdCPBaseModel):
@@ -372,7 +438,32 @@ def _apply_forward_compat() -> None:
 
     # _ergonomic eagerly builds this legacy parent before the targeting patch.
     # Refresh its cached nested validator as well as the package model itself.
-    CreateMediaBuyRequest.model_rebuild(force=True)
+    _GeneratedCreateMediaBuyRequest.model_rebuild(force=True)
+
+    # 3.2.1 permits additional registration fields but does not declare this ID.
+    # Keep the extension outside generated code so a schema refresh cannot drop
+    # it again. An eventual upstream core definition takes precedence.
+    if "operation_id" not in ReportingWebhook.model_fields:
+        # Pydantic accepts annotated unions at runtime; its helper's annotation
+        # is narrower than that supported dynamic input.
+        reporting_operation_id_annotation: Any = _ReportingOperationId
+        ReportingWebhook.model_fields["operation_id"] = FieldInfo.from_annotated_attribute(
+            reporting_operation_id_annotation, None
+        )
+        ReportingWebhook.__annotations__["operation_id"] = _ReportingOperationId
+        ReportingWebhook.model_rebuild(force=True)
+        # Rebuild after targeting patches too: eager parent validators must
+        # capture both the reporting extension and patched package inputs.
+        for request in (
+            AcceptProposalRequest,
+            BuyProductsRequest,
+            ControlMediaBuyRequest,
+            CreateMediaBuyRequest,
+            UpdateMediaBuyRequest,
+            _GeneratedCreateMediaBuyRequest,
+            _GeneratedUpdateMediaBuyRequest,
+        ):
+            request.model_rebuild(force=True)
 
     # All response manifests retain unknown future kinds. Patch the generated
     # response classes themselves so public aliases and indirect wrappers agree;
