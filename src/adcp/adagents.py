@@ -30,11 +30,49 @@ from adcp.exceptions import (
     AdagentsTimeoutError,
     AdagentsValidationError,
 )
+from adcp.signing._strict_json import parse_strict_json
 from adcp.signing.etld import same_registrable_domain
 from adcp.types.base import AdCPBaseModel
 from adcp.validation import ValidationError, validate_adagents
 
 logger = logging.getLogger(__name__)
+
+
+async def fetch_publisher_signing_pins(
+    publisher_domains: list[str] | tuple[str, ...],
+    agent_url: str,
+) -> dict[str, list[dict[str, Any]] | None]:
+    """Fetch current pins for inventory selected from a verifier's own records.
+
+    Calls the uncached fetch path so a second call force-refreshes adagents.json.
+    An absent signing_keys field imposes no pin; an empty or malformed pin
+    matches nothing. Missing or ambiguous authorization fails closed.
+    """
+    from adcp.signing.canonical import canonicalize_target_uri
+
+    canonical = canonicalize_target_uri(agent_url)
+    pins: dict[str, list[dict[str, Any]] | None] = {}
+    for domain in publisher_domains:
+        record = await fetch_adagents(domain)
+        matches = [
+            entry
+            for entry in record.get("authorized_agents", [])
+            if isinstance(entry, dict)
+            and isinstance(entry.get("url"), str)
+            and canonicalize_target_uri(entry["url"]) == canonical
+        ]
+        if len(matches) != 1:
+            raise ValueError("publisher must authorize exactly one matching agent")
+        entry = matches[0]
+        if "signing_keys" not in entry:
+            pins[domain] = None
+        else:
+            keys = entry["signing_keys"]
+            pins[domain] = (
+                [key for key in keys if isinstance(key, dict)] if isinstance(keys, list) else []
+            )
+    return pins
+
 
 DiscoveryMethod = Literal["direct", "authoritative_location", "ads_txt_managerdomain"]
 PropertyResolutionMode = Literal["strict", "permissive"]
@@ -1291,8 +1329,8 @@ def _parse_adagents_response(
         raise AdagentsValidationError(f"Failed to fetch adagents.json: HTTP {status_code}")
 
     try:
-        data = json.loads(body)
-    except json.JSONDecodeError as e:
+        data = parse_strict_json(body)
+    except ValueError as e:
         # Truncate the upstream-derived error to bound log volume — a
         # malicious server can otherwise force unbounded `str(e)` content
         # into caller logs by sending a large unparsable body.

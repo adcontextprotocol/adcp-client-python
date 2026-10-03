@@ -78,6 +78,7 @@ from .buyer_registry import make_registry as make_buyer_registry
 from .durable_tasks import DurableTaskWiring
 from .platform import V3ReferenceSeller
 from .tenant_router import SqlSubdomainTenantRouter
+from .test_controller import ReferenceFixtureController
 
 if TYPE_CHECKING:
     from adcp.server import RequestMetadata
@@ -310,6 +311,26 @@ def main() -> None:
             task_wiring.retry_horizon_seconds if task_wiring else 86_400
         ),
     )
+    fixture_controller = None
+    if os.environ.get("ADCP_REFERENCE_TEST_CONTROLLER") == "1":
+        from dataclasses import replace
+
+        from adcp.decisioning.capabilities import ComplianceTesting
+
+        fixture_controller = ReferenceFixtureController(platform, mock_upstream_url=upstream_url)
+        # Canonical models already back the translator. Opt-in sandbox runs
+        # use the current wire dialect instead of the legacy 3.1 fixture.
+        assert platform.capabilities.media_buy is not None
+        media_buy = platform.capabilities.media_buy.model_copy(deep=True)
+        assert media_buy.features is not None
+        media_buy.features = media_buy.features.model_copy(update={"canonical_creatives": True})
+        platform.capabilities = replace(
+            platform.capabilities,
+            media_buy=media_buy,
+            compliance_testing=ComplianceTesting(
+                scenarios=["seed_account", "force_get_products_arm"]
+            ),
+        )
 
     logger.info(
         "v3 reference seller booting on port=%d (transport=both, MCP at /mcp, A2A at /)",
@@ -323,7 +344,7 @@ def main() -> None:
         platform=platform,
         name="v3-reference-seller",
         port=port,
-        host="0.0.0.0",
+        host="0.0.0.0",  # nosec B104 - intentional externally reachable example listener
         transport="both",
         buyer_agent_registry=buyer_registry,
         registry=task_wiring.registry if task_wiring else None,
@@ -351,6 +372,7 @@ def main() -> None:
         # by simply omitting the kwarg.
         validation=ValidationHookConfig(requests="strict", responses="strict"),
         mock_ad_server=mock_ad_server,
+        test_controller=fixture_controller,
         enable_debug_endpoints=debug_token is not None,
         debug_validate_request=(
             (
