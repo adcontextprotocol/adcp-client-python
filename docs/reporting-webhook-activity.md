@@ -1,5 +1,7 @@
 # Durable reporting webhook activity (#1168B)
 
+This caller-ownership release requires all reporting readers, admission and workers to stop during upgrade. Earlier additive or rolling procedures below apply only to pre-ownership releases; use the [maintenance and recovery contract](reporting-caller-ownership-migration.md) for retained state.
+
 This optional layer extends the [reporting outbox](reporting-notification-outbox.md).
 It records reporting HTTP attempts and projects them into visible
 `list_accounts.accounts[].webhook_activity`. It adds no methods to the legacy

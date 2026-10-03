@@ -52,7 +52,7 @@ def unified_client():
         instructions=None,
         test_controller=None,
     )
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://localhost:3001") as client:
         yield client
 
 
@@ -179,12 +179,13 @@ def test_unified_app_starts_with_callable_public_url() -> None:
         instructions=None,
         test_controller=None,
         public_url=resolver,
+        allowed_hosts=["tenant-a.example.com"],
     )
     # ``with TestClient(app)`` enters lifespan; the bug surfaced
     # here, before any request. A successful GET to the agent-card
     # endpoint additionally confirms the per-request middleware
     # still serves the well-known path after the refactor.
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://localhost:3001") as client:
         resp = client.get(
             "/.well-known/agent-card.json",
             headers={"host": "tenant-a.example.com"},

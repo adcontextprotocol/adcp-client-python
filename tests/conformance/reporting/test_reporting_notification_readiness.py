@@ -10,6 +10,7 @@ from adcp.reporting.ledger import (
     LedgerConflictError,
     ReportingDeliveryScope,
 )
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.outbox import (
     InMemoryReportingOutbox,
     ReportingNotificationError,
@@ -59,7 +60,11 @@ async def test_frozen_binding_alone_never_advertises_managed_readiness(
         await h.worker().advertised_notifications(
             h.reliable.store,
             account_id="acct_a",
-            ready_scope=replace(s.delivery.scope, consumer_id="unconfigured"),
+            ready_scope=replace(
+                s.delivery.scope,
+                generation_key=replace(s.delivery.scope.generation_key, consumer_id="unconfigured"),
+                consumer_id="unconfigured",
+            ),
         )
 
 
@@ -159,7 +164,7 @@ async def test_configuration_lifecycle_state_is_shared_by_memory_and_postgres(
     # Reverting the lifecycle is a further transition, not a rollback.
     await store.put_configuration(first)
 
-    retained = await store.list_configurations(account_id="acct_a")
+    retained = await store.list_configurations(caller=OwnershipCaller("acct_a", "buyer"))
     assert [item.deactivated_at for item in retained] == [first.deactivated_at]
     assert retained[0].automated_recovery_window == first.automated_recovery_window
     assert retained[0].status_retention_days == first.status_retention_days
@@ -187,7 +192,7 @@ async def test_configuration_lifecycle_state_is_shared_by_memory_and_postgres(
     with pytest.raises(LedgerConflictError) as conflict:
         await store.put_configuration(replace(first, report_definition_id="rpd_other"))
     assert conflict.value.code == "CONFIGURATION_GENERATION_IMMUTABLE"
-    assert await store.list_configurations(account_id="acct_a") == retained
+    assert await store.list_configurations(caller=OwnershipCaller("acct_a", "buyer")) == retained
     assert [
         record
         for record in await h.outbox.read_status_dirty(account_id="acct_a")
@@ -204,12 +209,16 @@ async def test_reconciled_managed_generation_can_still_be_deactivated(notificati
     h = notification_harness
     s = await scenario(h.reliable.store)
     await h.reliable.store.commit_materialization(s.outcome)
-    (config,) = await h.reliable.store.list_configurations(account_id="acct_a")
+    (config,) = await h.reliable.store.list_configurations(
+        caller=OwnershipCaller("acct_a", "buyer")
+    )
     assert config.generation_key == s.binding.generation_key
     assert config.deactivated_at is not None
     stopped = replace(config, deactivated_at=config.deactivated_at + timedelta(hours=3))
     await h.reliable.store.put_configuration(stopped)
-    (retained,) = await h.reliable.store.list_configurations(account_id="acct_a")
+    (retained,) = await h.reliable.store.list_configurations(
+        caller=OwnershipCaller("acct_a", "buyer")
+    )
     assert retained.deactivated_at == stopped.deactivated_at
     assert retained.report_definition_id == config.report_definition_id
     latest = [

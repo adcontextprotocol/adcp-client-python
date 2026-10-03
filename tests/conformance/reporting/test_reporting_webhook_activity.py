@@ -40,8 +40,8 @@ def worker_for(h, outbox=None, **options):
     )
 
 
-async def prepare(h, *, account="acct_a"):
-    await seed(h, account=account)
+async def prepare(h, *, account="acct_a", consumer="buyer"):
+    await seed(h, account=account, consumer=consumer)
     outbox = h.outbox
     worker = worker_for(h, outbox)
     expanded_1 = await worker.expand_one(account_id=account)
@@ -440,7 +440,9 @@ async def test_account_principal_write_read_isolation_and_deterministic_ties(not
     h.subscriptions.put(notification_subscription(subscriber="audit", principal="auditor"))
     h.subscriptions.put(notification_subscription(account="acct_b", principal="other"))
     outbox, worker = await prepare(h)
-    await seed(h, account="acct_b")
+    await seed(h, consumer="auditor")
+    await worker.expand_one(account_id="acct_a")
+    await seed(h, account="acct_b", consumer="other")
     await worker.expand_one(account_id="acct_b")
     for account in ("acct_a", "acct_b"):
         while await worker.deliver_one(account_id=account):
@@ -448,7 +450,7 @@ async def test_account_principal_write_read_isolation_and_deterministic_ties(not
     own = await outbox.list_activity(account_id="acct_a", consumer_id="buyer")
     foreign = await outbox.list_activity(account_id="acct_a", consumer_id="auditor")
     assert len(own) == len(foreign) == 1
-    assert own[0].binding.notification_id == foreign[0].binding.notification_id
+    assert own[0].binding.notification_id != foreign[0].binding.notification_id
     assert await rows(outbox, account="acct_b", consumer="buyer") == []
     assert await rows(outbox, account="acct_a", consumer="other") == []
     # Both predicates must hold for completion, even with another attempt's token.
@@ -561,8 +563,8 @@ async def test_signed_failure_exact_retry_authorized_read_and_colliding_tenants(
     )
     monkeypatch.setattr(notification_models, "uuid4", lambda: UUID(int=1))
     monkeypatch.setattr(routing, "uuid4", lambda: UUID(int=2))
-    outbox, worker = await prepare(h)
-    await seed(h, account="acct_b")
+    outbox, worker = await prepare(h, consumer=principal)
+    await seed(h, account="acct_b", consumer=other_principal)
     await worker.expand_one(account_id="acct_b")
     caplog.set_level(logging.DEBUG)
     h.receiver.responses["buyer"].extend([503, 200, 201])

@@ -1949,3 +1949,34 @@ client can handle programmatically.
   resolution.
 - `tests/test_mcp_middleware_composition.py` — the integration test
   that protects this contract.
+
+### HTTP Host and Origin policy
+
+`serve`, `ServeConfig`, `create_mcp_server`, `create_a2a_server` and
+`build_asgi_app` accept `allowed_hosts`, `allowed_origins` and
+`enable_dns_rebinding_protection`. The policy covers MCP, A2A, AgentCard and
+ADCP discovery, and operational paths. All HTTP transports use the SDK's
+loopback allowlist by default; configure public hosts when deploying A2A.
+Configured entries extend the loopback defaults.
+
+```python
+serve(
+    handler,
+    transport="both",
+    allowed_hosts=["seller.example"],
+    allowed_origins=["https://buyer.example"],
+)
+```
+
+A bare Host entry accepts that host with or without a port. An explicit port
+accepts only that value; `:*` accepts a port suffix. Origins use exact matching
+or an explicit `:*` port suffix. Domain wildcards such as `*.example` are not
+expanded. Missing Origin is valid for native clients. A supplied Origin is
+checked on every method, including discovery GETs; Host checks also apply to
+GETs. Disallowed Hosts return 421 and disallowed Origins return 403.
+
+When `SubdomainTenantMiddleware` owns Host validation, set
+`enable_dns_rebinding_protection=False` and configure `allowed_origins`.
+Explicit Origin enforcement stays active independently of the Host flag.
+Without explicit Origins, disabling protection retains the historical opt-out.
+Tracing and other `asgi_middleware` entries remain outside this policy.

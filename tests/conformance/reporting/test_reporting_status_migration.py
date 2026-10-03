@@ -6,22 +6,18 @@ import asyncio
 import json
 import subprocess
 from dataclasses import replace
-from datetime import datetime, timezone
 from importlib.resources import files
 from pathlib import Path
 
 import pytest
 
 from adcp.reporting.ledger import PgReportingReconciliationStore
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.status_projection import lifecycle_intents, mismatch_key
 from adcp.reporting.outbox import (
-    ActivityRequest,
-    PgReportingActivityUnionStore,
     PgReportingOutbox,
     PgStatusNotificationStore,
-    ReportingEnvelopeCipher,
     ReportingNotificationError,
-    ReportingNotificationWorker,
 )
 from adcp.reporting.outbox._schema import REQUIRED_OBJECTS, schema_objects, validate_schema
 from adcp.reporting.outbox.status_schema import (
@@ -42,10 +38,6 @@ from ._generation_support import (
 from ._provisional_catalog import PROVISIONAL_OBJECTS
 from ._reliable_support import (
     Barrier,
-    FailurePlan,
-    ScriptedSigning,
-    ScriptedSubscriptions,
-    notification_subscription,
     service_process,
 )
 from .test_reporting_notification_migration import foundation, retained_physical_rows
@@ -175,7 +167,7 @@ async def test_default_off_pre_outbox_lifecycle_remains_usable_until_scope_migra
             supersedes_reporting_status_id=agreeing.reporting_status_id,
         )
         await ledger.record_consumer_status(recurring)
-        snapshot = await ledger.read_status_snapshot(account_id="acct_a")
+        snapshot = await ledger.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
         assert not lifecycle_intents(snapshot)
         current = next(i for i in snapshot.lifecycles if i.issue_state == "open")
         assert (current.issue_key, current.generation) != (opened.issue_key, opened.generation)
@@ -184,14 +176,14 @@ async def test_default_off_pre_outbox_lifecycle_remains_usable_until_scope_migra
         assert dict(snapshot.issue_scopes)[current.issue_id].generation_key == config.generation_key
         enabled = PgReportingReconciliationStore(pool=pool, clock=lambda: NOW, notifications=True)
         with pytest.raises(ReportingNotificationError, match="notification_schema_unready"):
-            await enabled.read_status_snapshot(account_id="acct_a")
+            await enabled.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
         before = await retained_physical_rows(pool)
         status = PgStatusNotificationStore(enabled)
         await status.create_schema()
         assert await retained_physical_rows(pool) == before
         await status.baseline(account_id="acct_a")
         assert await status.outbox.list_events(account_id="acct_a") == ()
-        repaired = await enabled.read_status_snapshot(account_id="acct_a")
+        repaired = await enabled.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
         assert (
             dict(repaired.issue_scopes)[current.issue_id]
             == dict(snapshot.issue_scopes)[current.issue_id]
@@ -284,7 +276,14 @@ async def test_concurrent_interrupted_c_migration_is_atomic_and_baseline_is_rest
 
 @pytest.mark.parametrize("release", ["a", "b"])
 @case_deadline
-async def test_c_on_actual_unmigrated_artifact_suppresses_status_only(release, actual_sources):
+async def test_actual_unowned_artifact_requires_stopped_worker_migration(release, actual_sources):
+    from psycopg import sql
+
+    from adcp.reporting.migration import (
+        ReportingOwnershipMigrationError,
+        migrate_legacy_reporting,
+    )
+
     async with isolated_reporting_pool(autocommit=True) as pool:
         async with service_process(
             pool,
@@ -296,248 +295,58 @@ async def test_c_on_actual_unmigrated_artifact_suppresses_status_only(release, a
             assert ready["source_sha"] == ARTIFACTS[release]
             assert Path(ready["module_origin"]).is_relative_to(actual_sources[release])
             assert ready["classification"] == "notifications_ready"
-            status = PgStatusNotificationStore(
-                PgReportingReconciliationStore(pool=pool, notifications=True)
-            )
-            with pytest.raises(ReportingNotificationError, match="status_schema_unready:missing"):
-                await status.baseline_ready(account_id="acct_a")
-            async with pool.connection() as conn:
+            # The old worker is explicitly stopped before moving retained state.
+            await child.send(action="stop")
+            await child.event("done")
+            await child.finish()
+        ledger = PgReportingReconciliationStore(pool=pool, notifications=True)
+        with pytest.raises(ReportingOwnershipMigrationError, match="Stop reporting workers"):
+            await ledger.create_schema()
+        async with pool.connection() as conn:
+            with pytest.raises(ReportingNotificationError, match="consumer_id"):
                 await validate_schema(conn)
-                with pytest.raises(
-                    ReportingNotificationError, match="status_schema_unready:missing"
-                ):
-                    await validate_status_schema(conn)
-            await child.send(action="stop")
-            await child.event("done")
-            await child.finish()
-
-
-@case_deadline
-async def test_baseline_repairs_actual_b_status_without_issue_using_ingest_observation(
-    actual_sources,
-):
-    from adcp.reporting.ledger.status_projection import mismatch_key
-
-    async with isolated_reporting_pool(autocommit=True) as pool:
-        ledger, revision = await seed(pool)
-        async with service_process(
-            pool, "old_b", old_source=str(actual_sources["b"]), source_sha=ARTIFACTS["b"]
-        ) as child:
-            await child.event("old_ready")
-            await child.send(action="orphan", revision_id=revision.reporting_revision_id)
-            await child.event("old_orphan")
-            await child.send(action="stop")
-            await child.event("done")
-            await child.finish()
-        (record,) = await ledger.list_consumer_statuses(account_id="acct_a", consumer_id="buyer")
-        assert await ledger.get_issue(account_id="acct_a", issue_key=mismatch_key(record)) is None
-        status = PgStatusNotificationStore(ledger)
-        await status.create_schema()
-        await status.baseline(account_id="acct_a")
-        issue = await ledger.get_issue(account_id="acct_a", issue_key=mismatch_key(record))
-        assert issue is not None and issue.opened_at == record.recorded_at
-        assert not await status.outbox.list_events(account_id="acct_a")
-        private = [
-            c
-            for c in await status.checkpoints(account_id="acct_a")
-            if c.scope.consumer_id == "buyer"
-        ]
-        assert len(private) == 2 and all(c.snapshot["health"] == "action_required" for c in private)
-        assert all(
-            c.snapshot["issues"][0]["opened_at"] == record.recorded_at.isoformat() for c in private
-        )
-        status_operation_2 = await status.project_one(account_id="acct_a")
-        assert not (status_operation_2).did_work
-
-
-@case_deadline
-async def test_live_reviewed_a_b_workers_never_claim_or_touch_pending_c_queues(
-    actual_sources, certificate
-):
-    async with isolated_reporting_pool(autocommit=True) as pool:
-        ledger, revision = await seed(pool)
-        status = PgStatusNotificationStore(ledger)
-        async with service_process(
-            pool, "status_receiver", deadlines={"receiver_control": 80}, **certificate
-        ) as receiver:
-            port = (await receiver.event("listening"))["port"]
-            network = {**certificate, "receiver_port": port}
-            async with (
-                service_process(
-                    pool,
-                    "old_a",
-                    old_source=str(actual_sources["a"]),
-                    source_sha=ARTIFACTS["a"],
-                    **network,
-                ) as old_a,
-                service_process(
-                    pool,
-                    "old_b",
-                    old_source=str(actual_sources["b"]),
-                    source_sha=ARTIFACTS["b"],
-                    **network,
-                ) as old_b,
-            ):
-                for release, child in (("a", old_a), ("b", old_b)):
-                    ready = await child.event("old_ready")
-                    assert ready["source_sha"] == ARTIFACTS[release]
-                    assert Path(ready["module_origin"]).is_relative_to(actual_sources[release])
-                    assert ready["classification"] == "notifications_ready"
-                    print(
-                        f"status_rolling artifact={release} sha={ready['source_sha']}"
-                        f" module_origin={ready['module_origin']} verified=True",
-                        flush=True,
-                    )
-                # Real B expansion/delivery runs concurrently with C migration.
-                # A is already running too, so both old pools span the upgrade.
-                await old_b.send(action="turn")
-                await status.create_schema()
-                status_operation_7 = await old_b.event("old_turn")
-                assert (status_operation_7)["did_work"]
-                await receiver.event("http_accepted")
-                await status.baseline(account_id="acct_a")
-                await ledger.set_revision_readable(
-                    account_id="acct_a",
-                    reporting_revision_id=revision.reporting_revision_id,
-                    readable=False,
-                )
-                status_operation_8 = await status.project_one(account_id="acct_a")
-                assert (status_operation_8).events == 2
-                failures = FailurePlan()
-                subscriptions = ScriptedSubscriptions(failures)
-                subscriptions.put(notification_subscription(events=("reporting.status_changed",)))
-                worker = ReportingNotificationWorker(
-                    outbox=status.outbox,
-                    subscriptions=subscriptions,
-                    signing=ScriptedSigning(failures),
-                    cipher=ReportingEnvelopeCipher(b"e" * 32),
-                    activity=status.outbox,
-                )
-                while await worker.expand_one(account_id="acct_a"):
-                    pass
-                now = datetime.now(timezone.utc)
-                lease = await status.outbox.claim_delivery(
-                    account_id="acct_a", now=now, lease_seconds=60
-                )
-                assert lease is not None
-                status_operation_9 = await status.outbox.reserve_attempt(
-                    lease,
-                    request=ActivityRequest("https://receiver.example.test/reporting", 1),
-                    now=now,
-                )
-                assert status_operation_9
-                status_operation_10 = await status.outbox.finish_delivery(
-                    lease, state="pending", retry_at=now, now=now
-                )
-                assert status_operation_10
-                pending = await physical_rows(pool)
-                assert all(pending.values())  # Include attempt and retained head rows.
-                # Guarantee the actual A decoder and HTTP sender also execute,
-                # then let both old processes compete for the remaining event.
-                await old_a.send(action="turn")
-                status_operation_11 = await old_a.event("old_turn")
-                assert (status_operation_11)["did_work"]
-                assert await physical_rows(pool) == pending
-                await old_a.send(action="core_write")
-                await old_a.event("old_core_write")
-                assert len(await ledger.list_configurations(account_id="legacy-core-only")) == 1
-                assert await physical_rows(pool) == pending
-                for _ in range(4):
-                    await asyncio.gather(old_a.send(action="turn"), old_b.send(action="turn"))
-                    turns = await asyncio.gather(old_a.event("old_turn"), old_b.event("old_turn"))
-                    assert await physical_rows(pool) == pending
-                    if not any(turn["did_work"] for turn in turns):
-                        break
-                else:
-                    pytest.fail("reviewed A/B queues did not converge")
-                await receiver.event("http_accepted")  # Actual A delivery.
-                await receiver.event("http_accepted")  # Remaining contested A/B event.
-                old_outbox = PgReportingOutbox(pool=pool)
-                assert {
-                    row.state for row in await old_outbox.list_deliveries(account_id="acct_a")
-                } == {"complete"}
-                async with pool.connection() as conn:
-                    catalog = {
-                        k: v
-                        for k, v in (await schema_objects(conn)).items()
-                        if k in REQUIRED_STATUS_OBJECTS
-                    }
-                for release, child in (("a", old_a), ("b", old_b)):
-                    await child.send(action="schema")
-                    result = await child.event("old_schema")
-                    assert result["classification"] == (
-                        "a_notifications_closed" if release == "a" else "notifications_ready"
-                    )
-                    assert await physical_rows(pool) == pending
-                    async with pool.connection() as conn:
-                        assert {
-                            k: v
-                            for k, v in (await schema_objects(conn)).items()
-                            if k in REQUIRED_STATUS_OBJECTS
-                        } == catalog
-                        await validate_status_schema(conn, activity=True)
-                await old_b.send(action="write", revision_id=revision.reporting_revision_id)
-                await old_b.event("old_write")
-                assert await physical_rows(pool) == pending
-                async with pool.connection() as conn:
-                    boundaries = await (
+            archive = "adcp_reporting_quarantine_status_" + release
+            await migrate_legacy_reporting(conn, archive_schema=archive, workers_stopped=True)
+            try:
+                assert (
+                    await (
                         await conn.execute(
-                            "SELECT through-first_sequence+1 FROM reporting_status_boundaries"
-                            " ORDER BY first_sequence"
+                            sql.SQL("SELECT count(*) FROM {}.reporting_configurations").format(
+                                sql.Identifier(archive)
+                            )
                         )
-                    ).fetchall()
-                    assert [r[0] for r in boundaries] == [1, 2, 1, 1]
-                for child in (old_a, old_b):
-                    await child.send(action="stop")
-                    await child.event("done")
-                    await child.finish()
-            # A fresh C process replays the old writer's grouped, captured input.
-            async with service_process(pool, "status_projector", turns=3) as child:
-                status_operation_12 = await child.event("done")
-                assert (status_operation_12)["did_work"]
-                await child.finish()
-            status = PgStatusNotificationStore(ledger)
-            status_operation_5 = await status.project_one(account_id="acct_a")
-            assert not (status_operation_5).did_work
-            events = await status.outbox.list_events(account_id="acct_a")
-            assert len(events) == 6 and {e.cause_generation for e in events} == {1, 2, 3}
-            status_operation_6 = await status.outbox.reemit(
-                account_id="acct_a",
-                consumer_namespace="",
-                notification_id=events[0].notification_id,
-                now=datetime.now(timezone.utc),
-            )
-            assert status_operation_6 == 2
-            async with service_process(pool, "status_http_worker", **network) as child:
-                status_operation_13 = await child.event("done")
-                assert (status_operation_13)["did_work"]
-                await child.finish()
-            deliveries = await status.outbox.list_deliveries(account_id="acct_a")
-            assert len(deliveries) == 7 and {r.state for r in deliveries} == {"complete"}
-            for _ in deliveries:
-                await receiver.event("http_accepted")
-            union = PgReportingActivityUnionStore(old_outbox, status.outbox)
-            activity = await union.list_activity(account_id="acct_a", consumer_id="buyer")
-            assert {a.binding.notification_type for a in activity} == {
-                "reporting.ledger_changed",
-                "reporting.status_changed",
-            }
-            assert (
-                len(
-                    [
-                        a
-                        for a in activity
-                        if a.outcome is not None
-                        and a.outcome.status == "success"
-                        and a.binding.notification_type == "reporting.status_changed"
-                    ]
+                    ).fetchone()
+                )[0] == 0
+                await validate_schema(conn)
+                await validate_status_schema(conn)
+                assert (
+                    await ledger.list_configurations(caller=OwnershipCaller("acct_a", "__legacy__"))
+                    == ()
                 )
-                == 7
-            )
-            assert len({r.delivery.binding.idempotency_key for r in deliveries}) == 7
-            assert await status.outbox.list_events(account_id="acct_a") == events
-            await receiver.send(stop=True)
-            await receiver.finish()
+                assert await PgReportingOutbox(pool=pool).list_events(account_id="acct_a") == ()
+            finally:
+                await conn.execute(
+                    sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(archive))
+                )
+
+
+@pytest.mark.parametrize("release", ["a", "b"])
+@case_deadline
+async def test_actual_old_workers_refuse_owned_schema_without_touching_rows(
+    release, actual_sources
+):
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        await seed(pool)
+        before = await retained_physical_rows(pool)
+        async with service_process(
+            pool,
+            f"old_{release}",
+            old_source=str(actual_sources[release]),
+            source_sha=ARTIFACTS[release],
+        ) as child:
+            failed = await child.event("failed")
+            assert failed["classification"] == "RaiseException"
+        assert await retained_physical_rows(pool) == before
 
 
 def test_required_manifests_stay_per_object_so_readiness_ignores_the_locale():

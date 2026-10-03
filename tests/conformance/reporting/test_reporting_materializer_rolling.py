@@ -6,19 +6,15 @@ import json
 import shutil
 import sys
 import tarfile
-from importlib.resources import files
 from pathlib import Path
 
 import pytest
 
-from adcp.reporting.ledger import LedgerConflictError, PgReportingReconciliationStore
-from adcp.reporting.materializer import PgReportingMaterializerStore
-from adcp.reporting.outbox._schema import schema_objects
-
-from ._durable_materializer_support import DurableHarness, durable_case
 from ._generation_support import isolated_reporting_pool, require_rolling_database
-from ._provisional_catalog import PROVISIONAL_OBJECTS
+from ._ownership_upgrade_support import ownership_parent
 from .test_reporting_notification_packaging import ROOT, run_step
+
+__all__ = ["ownership_parent"]
 
 ARTIFACTS = {
     "beta15": "3e76aa54623529a3dda01cd690b8a5c287c75641",
@@ -144,125 +140,34 @@ async def frozen_call(artifact, pool, action, **kwargs):
 
 
 async def test_installed_old_reader_writer_and_workers_on_populated_materializer_schema(
-    installed_frozen,
-    installed_parent,
+    installed_frozen, ownership_parent
 ):
+    from ._ownership_upgrade_support import maintenance_upgrade, seed_legacy
+
+    artifact = installed_frozen[3]["artifact"]
+    async with isolated_reporting_pool(autocommit=True) as native_pool:
+        native = await frozen_call(installed_frozen, native_pool, "install")
+        assert native["installed"] and native["sha"] == ARTIFACTS[artifact]
     async with isolated_reporting_pool(autocommit=True) as pool:
-        evidence = await frozen_call(installed_frozen, pool, "install")
-        assert evidence["installed"]
-        # The approved B1 wheel installs the comparison baseline, including
-        # reviewed C's additive capture and B1's unactivated selector fence.
-        parent = await frozen_call(installed_parent, pool, "install")
-        assert parent["sha"] == ARTIFACTS["b1"]
-        baseline_store = PgReportingReconciliationStore(pool=pool, notifications=True)
-        # beta.15 can read its original definition shape. Unit declarations are
-        # an A prerequisite, not a B2 schema or decoder change. New Managed facts
-        # stay in A's separate feed and never enter beta.15's closed Core feed.
-        before_url_principals = evidence["artifact"] in {
-            "beta15",
-            "records",
-            "integration",
-            "a",
-            "b",
-        }
-        case = await durable_case(
-            baseline_store,
-            count=3,
+        legacy = await seed_legacy(
+            ownership_parent,
+            pool,
+            kind="materializer",
+            notifications=True,
             consumer=(
-                "frozen-buyer" if before_url_principals else "https://buyer.example.test/agent"
+                "frozen-buyer"
+                if artifact in {"beta15", "records", "integration", "a", "b"}
+                else "https://buyer.example.test/agent"
             ),
-            legacy_definition=evidence["artifact"] == "beta15",
+            legacy_definition=artifact == "beta15",
         )
-        # URL principals became readable in C. Earlier binaries still read their
-        # opaque caller's records while a separate URL consumer has populated
-        # materializations/captures/events in the same account and schema.
-        sibling = await durable_case(
-            baseline_store,
-            count=3,
-            consumer="https://buyer.example.test/isolated",
-            legacy_definition=evidence["artifact"] == "beta15",
-        )
-        baseline = await frozen_call(
-            installed_frozen, pool, "baseline", consumer=case.binding.consumer_id
-        )
-        assert baseline["ordinary_writes"] and baseline["core_records"] == 2
-        async with pool.connection() as connection:
-            old_objects = await schema_objects(connection)
-        store = PgReportingMaterializerStore(pool=pool, notifications=True)
-        with pytest.raises(LedgerConflictError):
-            await store.materializer_ready()
-        await store.create_schema()
-        async with pool.connection() as connection:
-            objects = await schema_objects(connection)
-        assert {key: objects[key] for key in old_objects} == old_objects
-        materializer_objects = json.loads(
-            files("adcp.reporting.materializer").joinpath("required_schema.json").read_text()
-        )
-        assert len(materializer_objects) == 187
-        assert objects == {**old_objects, **materializer_objects, **PROVISIONAL_OBJECTS}
-        case.store = sibling.store = store
-        materializer_operation_1 = await case.service().run_once()
-        assert (materializer_operation_1).state == "verified"
-        materializer_operation_2 = await sibling.service().run_once()
-        assert (materializer_operation_2).state == "verified"
-        h = DurableHarness(store, None, pool)
-        before = await h.queue()
-        async with pool.connection() as connection:
-            immutable_before = [
-                await (await connection.execute(f"SELECT * FROM {table} ORDER BY 1,2,3")).fetchall()
-                for table in (
-                    "reporting_materializer_work",
-                    "reporting_materializer_status_boundaries",
-                    "reporting_materializer_status_heads",
-                    "reporting_materializer_notification_events",
-                    "reporting_materializer_notification_expansions",
-                )
-            ]
-            captured_heads = await (
-                await connection.execute(
-                    "SELECT account_id,captured_sequence FROM reporting_materializer_accounts"
-                    " ORDER BY account_id"
-                )
-            ).fetchall()
-        result = await frozen_call(
-            installed_frozen, pool, "exercise", consumer=case.binding.consumer_id
-        )
-        assert result["core_records"] == 2 and result["ordinary_writes"]
-        assert result["managed_records"] == (0 if result["artifact"] == "beta15" else 4)
-        assert result["notifications_ready"] == baseline["notifications_ready"]
-        assert await h.queue() == before
-        async with pool.connection() as connection:
-            immutable_after = [
-                await (await connection.execute(f"SELECT * FROM {table} ORDER BY 1,2,3")).fetchall()
-                for table in (
-                    "reporting_materializer_work",
-                    "reporting_materializer_status_boundaries",
-                    "reporting_materializer_status_heads",
-                    "reporting_materializer_notification_events",
-                    "reporting_materializer_notification_expansions",
-                )
-            ]
-            assert (
-                await (
-                    await connection.execute(
-                        "SELECT account_id,captured_sequence FROM reporting_materializer_accounts"
-                        " ORDER BY account_id"
-                    )
-                ).fetchall()
-            ) == captured_heads
-        assert immutable_after == immutable_before
-        assert before[1] == ("quarantined", "quarantined")
-        assert await store.materializer_ready()
+        before = await frozen_call(installed_frozen, pool, "exercise", consumer=legacy["consumer"])
+        assert before["core_records"] == 2 and before["ordinary_writes"]
+        assert before["managed_records"] == (0 if artifact == "beta15" else 4)
+        upgrade = await maintenance_upgrade(pool, legacy, notifications=True)
         print(
             json.dumps(
-                {
-                    **result,
-                    "native": evidence,
-                    "baseline": baseline,
-                    "baseline_installer": parent,
-                    "additive_objects": len(objects.keys() - old_objects.keys()),
-                    "wheel_sha256": installed_frozen[3]["wheel_sha256"],
-                }
+                {"materializer_maintenance": artifact, "before": before, "upgrade": upgrade}
             ),
             flush=True,
         )

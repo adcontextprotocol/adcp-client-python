@@ -16,6 +16,7 @@ parallel runs and rerun-after-crash don't collide.
 
 from __future__ import annotations
 
+import asyncio
 import os
 import secrets
 import time
@@ -294,3 +295,90 @@ async def test_webhook_claim_transitions_replace_live_pg_state(
     reclaimed = await store.claim("publisher", "delivery-2", payload_hash)
     assert reclaimed.status == "claimed"
     assert reclaimed.claim_token != retryable.claim_token
+
+
+async def test_same_key_burst_leaves_connection_for_unrelated_key(isolated_backend):
+    backend = isolated_backend
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def first():
+        async with backend.hold("buyer", "hot"):
+            entered.set()
+            await release.wait()
+
+    async def duplicate():
+        async with backend.hold("buyer", "hot"):
+            pass
+
+    holder = asyncio.create_task(first())
+    await asyncio.wait_for(entered.wait(), 5)
+    requests = backend._lock_pool.get_stats()["requests_num"]
+    retries = [asyncio.create_task(duplicate()) for _ in range(30)]
+    try:
+        # All retries reach the local lock while the first request is blocked.
+        for _ in range(5):
+            await asyncio.sleep(0)
+        stats = backend._lock_pool.get_stats()
+        assert stats["requests_num"] == requests
+        assert stats["pool_size"] - stats["pool_available"] == 1
+
+        async def unrelated():
+            async with backend.hold("buyer", "unrelated"):
+                pass
+
+        await asyncio.wait_for(unrelated(), 5)
+    finally:
+        release.set()
+        await asyncio.gather(holder, *retries)
+    assert len(backend._key_locks) == 0
+
+
+async def test_hold_cancellation_releases_local_and_advisory_resources(isolated_backend):
+    backend = isolated_backend
+    entered = asyncio.Event()
+
+    async def first():
+        async with backend.hold("buyer", "hot"):
+            entered.set()
+            await asyncio.Event().wait()
+
+    async def waiter():
+        async with backend.hold("buyer", "hot"):
+            pass
+
+    holder = asyncio.create_task(first())
+    await asyncio.wait_for(entered.wait(), 5)
+    waiting = asyncio.create_task(waiter())
+    await asyncio.sleep(0)
+    waiting.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await waiting
+    holder.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await holder
+    # A separate backend cannot use the local lock: this checks PostgreSQL too.
+    other = PgBackend(pool=backend._pool, lock_pool=backend._lock_pool, table_name=backend._table)
+
+    async def acquire_other():
+        async with other.hold("buyer", "hot"):
+            pass
+
+    await asyncio.wait_for(acquire_other(), 5)
+    assert len(backend._key_locks) == 0
+    assert backend._active_connection.get() is None
+    assert (
+        backend._lock_pool.get_stats()["pool_available"]
+        == backend._lock_pool.get_stats()["pool_size"]
+    )
+
+
+async def test_lock_bookkeeping_does_not_retain_finished_keys(isolated_backend):
+    backend = isolated_backend
+
+    async def run(key):
+        async with backend.hold("buyer", key):
+            pass
+
+    await asyncio.gather(*(run(str(n)) for n in range(100)))
+    assert len(backend._key_locks) == 0

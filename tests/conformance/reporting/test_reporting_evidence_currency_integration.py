@@ -10,6 +10,7 @@ import asyncio
 import hashlib
 import inspect
 import json
+import secrets
 import sys
 import threading
 from copy import deepcopy
@@ -906,8 +907,59 @@ async def test_populated_ledger_upgrade_then_granular_publication_and_exact_reco
                 await connection.execute((fixture / "reporting_ledger_beta15.sql").read_text())
                 await connection.execute((fixture / "reporting_ledger_beta15_data.sql").read_text())
             before = await _retained_rows(h.blobs.pool)
-            await h.store.create_schema()
+            from psycopg import sql
+
+            from adcp.reporting.migration import (
+                ReportingOwnershipBackfill,
+                ReportingOwnershipMigrationError,
+                backfill_legacy_reporting,
+                legacy_generation_digest,
+                migrate_legacy_reporting,
+            )
+
+            with pytest.raises(ReportingOwnershipMigrationError, match="Stop reporting workers"):
+                await h.store.create_schema()
             assert await _retained_rows(h.blobs.pool) == before
+            archive = "adcp_reporting_quarantine_evidence_" + secrets.token_hex(5)
+            async with h.blobs.pool.connection() as connection:
+                await migrate_legacy_reporting(
+                    connection, archive_schema=archive, workers_stopped=True
+                )
+                try:
+                    for record in before["reporting_configurations"]:
+                        digest = await legacy_generation_digest(
+                            connection,
+                            archive_schema=archive,
+                            account_id=record["account_id"],
+                            delivery_config_id=record["delivery_config_id"],
+                            delivery_config_version=record["delivery_config_version"],
+                        )
+                        # Literal beta.15 lacks evidence columns needed by current
+                        # models. Mapping alone cannot invent immutable evidence.
+                        with pytest.raises(
+                            ReportingOwnershipMigrationError, match="explicit reconciliation"
+                        ):
+                            await backfill_legacy_reporting(
+                                connection,
+                                archive_schema=archive,
+                                workers_stopped=True,
+                                mapping=ReportingOwnershipBackfill(
+                                    record["account_id"],
+                                    record["delivery_config_id"],
+                                    record["delivery_config_version"],
+                                    "buyer",
+                                    "test-authoritative-register",
+                                    digest,
+                                    "retain_without_replay",
+                                ),
+                            )
+                    # Trusted retained evidence is readable but never runnable after backfill.
+                    assert await h.store.list_all_configurations() == ()
+                except BaseException:
+                    await connection.execute(
+                        sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(archive))
+                    )
+                    raise
             legacy_id = "rpr_acct_a_official"
         else:
             # Explicit image of an old Core memory store: unknown currency stays
@@ -940,10 +992,21 @@ async def test_populated_ledger_upgrade_then_granular_publication_and_exact_reco
             )
             legacy_id = revision.reporting_revision_id
         legacy = await h.store.get_revision(account_id="acct_a", reporting_revision_id=legacy_id)
-        assert legacy is not None and legacy.managed_control_totals is None
-        legacy_rows = await h.store.read_revision_rows(
-            account_id="acct_a", reporting_revision_id=legacy_id
-        )
+        if h.blobs.pool is not None:
+            assert legacy is None  # unknown retained evidence stays outside the active schema
+        else:
+            assert legacy is not None and legacy.managed_control_totals is None
+        legacy_rows = None
+        if h.blobs.pool is not None:
+            with pytest.raises(LedgerConflictError) as absent:
+                await h.store.read_revision_rows(
+                    account_id="acct_a", reporting_revision_id=legacy_id
+                )
+            assert absent.value.code == "REVISION_NOT_FOUND"
+        else:
+            legacy_rows = await h.store.read_revision_rows(
+                account_id="acct_a", reporting_revision_id=legacy_id
+            )
         h.currencies.update(acct_a="EUR")
         for account in ("acct_a", "usd"):
             config = replace(
@@ -976,15 +1039,45 @@ async def test_populated_ledger_upgrade_then_granular_publication_and_exact_reco
             await h.store.get_revision(account_id="acct_a", reporting_revision_id=legacy_id)
             == legacy
         )
-        assert (
-            await h.store.read_revision_rows(account_id="acct_a", reporting_revision_id=legacy_id)
-            == legacy_rows
-        )
+        if h.blobs.pool is not None:
+            with pytest.raises(LedgerConflictError) as absent:
+                await h.store.read_revision_rows(
+                    account_id="acct_a", reporting_revision_id=legacy_id
+                )
+            assert absent.value.code == "REVISION_NOT_FOUND"
+        else:
+            assert (
+                await h.store.read_revision_rows(
+                    account_id="acct_a", reporting_revision_id=legacy_id
+                )
+                == legacy_rows
+            )
         assert await h.store.get_revision(account_id="usd", reporting_revision_id=legacy_id) is None
         legacy_obligation = await h.store.get_obligation(
-            account_id="acct_a", reporting_obligation_id=legacy.reporting_obligation_id
+            account_id="acct_a",
+            reporting_obligation_id=(
+                legacy.reporting_obligation_id if legacy else "rpo_acct_a_daily"
+            ),
         )
-        assert legacy_obligation is not None and legacy_obligation.currency is None
+        if h.blobs.pool is None:
+            assert legacy_obligation is not None and legacy_obligation.currency is None
+        else:
+            assert legacy_obligation is None
+            async with h.blobs.pool.connection() as connection:
+                try:
+                    for table, expected in before.items():
+                        retained_rows = await (
+                            await connection.execute(
+                                sql.SQL(
+                                    "SELECT to_jsonb(t) FROM {}.{} t ORDER BY to_jsonb(t)::text"
+                                ).format(sql.Identifier(archive), sql.Identifier(table))
+                            )
+                        ).fetchall()
+                        assert [r[0] for r in retained_rows] == expected
+                finally:
+                    await connection.execute(
+                        sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(archive))
+                    )
         for account in ("acct_a", "usd"):
             retained = await h.store.read_reconciliation_snapshot(
                 caller=ReportingDeliveryPrincipal(account, "buyer")
@@ -1037,6 +1130,7 @@ async def test_postgres_fresh_process_reads_exact_seals_currency_rows_and_receip
         code = """
 import asyncio
 import json
+import secrets
 import sys
 from datetime import datetime
 from psycopg_pool import AsyncConnectionPool

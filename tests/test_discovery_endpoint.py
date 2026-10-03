@@ -216,7 +216,7 @@ def test_discovery_route_serves_get_with_valid_json() -> None:
         base_url="https://example.com",
     )
     app = Starlette(routes=[route])
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://localhost:3001") as client:
         resp = client.get(DISCOVERY_PATH)
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("application/json")
@@ -234,7 +234,7 @@ def test_discovery_route_rejects_post() -> None:
         base_url="https://example.com",
     )
     app = Starlette(routes=[route])
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://localhost:3001") as client:
         resp = client.post(DISCOVERY_PATH, json={})
     assert resp.status_code == 405
 
@@ -295,7 +295,7 @@ def test_discovery_endpoint_on_unified_transport() -> None:
         base_url="https://unified.example.com",
         specialisms=["sales-non-guaranteed"],
     )
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://localhost:3001") as client:
         resp = client.get(DISCOVERY_PATH)
     assert resp.status_code == 200
     payload = resp.json()
@@ -321,7 +321,7 @@ def test_discovery_endpoint_post_falls_through_on_unified() -> None:
         instructions=None,
         test_controller=None,
     )
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://localhost:3001") as client:
         resp = client.post(DISCOVERY_PATH, json={})
     # The wrapper passes through to A2A (which doesn't route this
     # path); the response MUST NOT be the manifest. Anything other

@@ -46,7 +46,10 @@ class DurableBindingSource(Source):
         value = json.loads(row[0])
         return ReportingProductionSourceBinding(
             ReportingConfigurationGenerationKey(
-                value["account_id"], value["delivery_config_id"], value["delivery_config_version"]
+                value["account_id"],
+                value["consumer_id"],
+                value["delivery_config_id"],
+                value["delivery_config_version"],
             ),
             value["capabilities_sha256"],
             tuple(tuple(pair) for pair in value["media_buy_products"]),

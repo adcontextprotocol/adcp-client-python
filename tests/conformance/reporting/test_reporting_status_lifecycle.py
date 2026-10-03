@@ -8,6 +8,7 @@ from datetime import timedelta
 import pytest
 
 from adcp.reporting.ledger import ReportingDeliveryEscalation
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.reporting.ledger.status_projection import mismatch_key
 from adcp.reporting.outbox import (
@@ -79,12 +80,12 @@ async def test_obligation_missing_attaches_once_and_never_broadens(status_harnes
     )
     await h.ledger.record_consumer_status(missing)
     issue = await h.ledger.get_issue(account_id="acct_a", issue_key=mismatch_key(missing))
-    snapshot = await h.ledger.read_status_snapshot(account_id="acct_a")
+    snapshot = await h.ledger.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
     broad = dict(snapshot.issue_scopes)[issue.issue_id]
     assert broad.generation_key == config.generation_key and broad.reporting_obligation_id is None
     await h.status.baseline(account_id="acct_a")
     await h.ledger.commit_obligation(obligation)
-    snapshot = await h.ledger.read_status_snapshot(account_id="acct_a")
+    snapshot = await h.ledger.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
     attached = dict(snapshot.issue_scopes)[issue.issue_id]
     assert attached == ReportingStatusScope.for_obligation(obligation, "buyer")
     assert (
@@ -356,7 +357,7 @@ async def test_waiver_recovers_and_agreement_rearms_a_new_occurrence(status_harn
     )
     old = await h.ledger.get_issue(account_id="acct_a", issue_key=mismatch_key(status))
     # Still disagreeing while waived never creates repeated occurrences.
-    await h.ledger.read_status_snapshot(account_id="acct_a")
+    await h.ledger.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
     status_operation_17 = await h.status.project_one(account_id="acct_a")
     assert not (status_operation_17).did_work
     revision = (
@@ -388,7 +389,7 @@ async def test_waiver_recovers_and_agreement_rearms_a_new_occurrence(status_harn
     )
     await h.ledger.record_consumer_status(recur)
     await h.drain()
-    snapshot = await h.ledger.read_status_snapshot(account_id="acct_a")
+    snapshot = await h.ledger.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
     new_id = (await h.events(consumer="buyer"))[-1].cause.issue_ids[0]
     new = next(i for i in snapshot.lifecycles if i.issue_id == new_id)
     assert new.issue_id != old.issue_id

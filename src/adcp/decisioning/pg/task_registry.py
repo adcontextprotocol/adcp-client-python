@@ -175,7 +175,8 @@ class PgTaskRegistry(_TaskLifecycleObservers):
             f"WITH previous AS (SELECT task_id, state FROM {self._table}"  # nosec B608 — table identifier is constructor-validated
             f" WHERE task_id = %s AND state NOT IN ('completed', 'failed') FOR UPDATE)"
             f" UPDATE {self._table} AS task"
-            f" SET state = 'working', progress = %s::jsonb, updated_at = %s"
+            f" SET state = CASE task.state WHEN 'submitted' THEN 'working' ELSE task.state END,"
+            f"     progress = %s::jsonb, updated_at = %s"
             f" FROM previous WHERE task.task_id = previous.task_id"
             f" RETURNING previous.state, task.task_id, task.account_id, task.task_type,"
             f" task.created_at, task.updated_at"

@@ -188,8 +188,44 @@ async def test_foreign_core_status_does_not_advance_visible_maximum_or_change_co
     original = await h.store.read_reporting_feed_snapshot(
         pages[0]["ledger_snapshot_id"], caller=s.binding.principal
     )
+    (config,) = await h.store.list_configurations(caller=s.binding.principal)
+    foreign_config = replace(config, consumer_id="status-only-consumer")
+    foreign_obligation = replace(
+        s.obligation,
+        consumer_id=foreign_config.consumer_id,
+        reporting_obligation_id=s.obligation.reporting_obligation_id + "-foreign",
+    )
+    foreign_revision = replace(
+        s.revision,
+        reporting_obligation_id=foreign_obligation.reporting_obligation_id,
+        reporting_revision_id=s.revision.reporting_revision_id + "-foreign",
+    )
+    await h.store.put_configuration(foreign_config)
+    await h.store.commit_obligation(foreign_obligation)
+    retained = await h.store.read_revision_rows(
+        account_id=s.obligation.account_id,
+        reporting_revision_id=s.revision.reporting_revision_id,
+    )
+    from adcp.reporting.ledger.producer import revision_content_sha256
+
+    foreign_revision = replace(
+        foreign_revision,
+        revision_content_sha256=revision_content_sha256(
+            reporting_revision_id=foreign_revision.reporting_revision_id,
+            row_count=foreign_revision.row_count,
+            control_totals=foreign_revision.control_totals,
+            reporting_rows=retained.rows,
+            control_total_evidence=foreign_revision.managed_control_totals,
+        ),
+    )
+    await h.store.commit_revision(foreign_revision, retained.rows)
     foreign = replace(
-        own, reporting_status_id="foreign-core-status", consumer_id="status-only-consumer"
+        own,
+        reporting_status_id="foreign-core-status",
+        consumer_id=foreign_config.consumer_id,
+        reporting_obligation_id=foreign_obligation.reporting_obligation_id,
+        reporting_revision_id=foreign_revision.reporting_revision_id,
+        observed_revision_content_sha256=foreign_revision.revision_content_sha256,
     )
     await h.store.record_consumer_status_with_lifecycle(foreign)
     store = await restart(h)
@@ -226,7 +262,7 @@ async def test_readability_clock_configuration_and_private_inputs_survive_restar
         first["ledger_snapshot_id"], caller=s.binding.principal
     )
     expected = await walk(h.store, req, s.binding.principal, first=first)
-    configs = await h.store.list_configurations(account_id=s.obligation.account_id)
+    configs = await h.store.list_configurations(caller=s.binding.principal)
     await h.store.put_configuration(
         replace(configs[0], deactivated_at=configs[0].deactivated_at + timedelta(hours=1))
     )

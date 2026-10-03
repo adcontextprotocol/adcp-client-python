@@ -14,6 +14,7 @@ from adcp.reporting.conformance import (
 )
 from adcp.reporting.fixtures import SNAPSHOT_OFFERING_ID
 from adcp.reporting.ledger import InMemoryReportingLedgerStore
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 
 from ._generation_support import configuration as ledger_configuration
 from ._generation_support import obligation_for, revision_for
@@ -55,12 +56,12 @@ async def test_core_change_appends_and_snapshot_use_the_injected_clock(
         timestamps = [entry[0] for entry in retained]
     assert timestamps == [first_at, second_at]
     snapshot = await h.store.open_snapshot(
-        account_id=config.account_id, filters_fingerprint="fixture"
+        caller=OwnershipCaller(config.account_id, config.consumer_id), filters_fingerprint="fixture"
     )
     assert snapshot.ledger_as_of == second_at
     await h.store.commit_revision(revision, rows)
     replay = await h.store.open_snapshot(
-        account_id=config.account_id, filters_fingerprint="fixture"
+        caller=OwnershipCaller(config.account_id, config.consumer_id), filters_fingerprint="fixture"
     )
     assert replay == snapshot
 

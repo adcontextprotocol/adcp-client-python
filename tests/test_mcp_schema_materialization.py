@@ -286,7 +286,9 @@ async def test_mutation_cannot_change_mounted_discovery_registration_or_validati
             assert "error" in result or result.get("result", {}).get("isError") is True
     assert handler.calls == 0
     assert not validate_request("get_products", {"brief": []}, version=version).valid
-    a2a = create_a2a_server(PinnedSchemaHandler(version), name="schema-materialization")
+    a2a = create_a2a_server(
+        PinnedSchemaHandler(version), name="schema-materialization", allowed_hosts=["test"]
+    )
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=a2a), base_url="http://test"
     ) as client:

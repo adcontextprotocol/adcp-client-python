@@ -76,7 +76,7 @@ async def test_feed_migration_preserves_parent_catalog_receipts_pending_and_fair
                     files("adcp.reporting." + package).joinpath("required_schema.json").read_text()
                 )
             )
-        assert len(parent_manifest) == 763
+        assert len(parent_manifest) == 767
         assert {key: original[key] for key in parent_manifest} == parent_manifest
         assert original == {**parent_manifest, **PROVISIONAL_OBJECTS}
         new = PgReportingFeedStore(pool=pool, notifications=notifications)

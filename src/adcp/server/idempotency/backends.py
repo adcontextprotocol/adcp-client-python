@@ -411,6 +411,10 @@ class PgBackend(IdempotencyBackend):
         self._pool = pool
         self._lock_pool = lock_pool
         self._table = _safe_identifier(table_name)
+        self._hold_guard = asyncio.Lock()
+        self._key_locks: weakref.WeakValueDictionary[tuple[str, str], asyncio.Lock] = (
+            weakref.WeakValueDictionary()
+        )
         self._active_connection: ContextVar[tuple[Any, asyncio.Task[Any] | None] | None] = (
             ContextVar(f"adcp_idempotency_connection_{id(self)}", default=None)
         )
@@ -608,15 +612,26 @@ class PgBackend(IdempotencyBackend):
 
         The same pooled connection remains checked out while the handler runs;
         nested ``get``/``put`` calls reuse it via a context-local binding.
+        Local same-key waiters coalesce before acquiring a pool connection.
         """
-        lock_identity = json.dumps([scope_key, key], separators=(",", ":"))
-        async with self._lock_pool.connection() as conn, conn.transaction():
-            await conn.execute(self._sql_lock, (lock_identity,))
-            token = self._active_connection.set((conn, asyncio.current_task()))
-            try:
-                yield
-            finally:
-                self._active_connection.reset(token)
+        slot = (scope_key, key)
+        async with self._hold_guard:
+            key_lock = self._key_locks.get(slot)
+            if key_lock is None:
+                key_lock = asyncio.Lock()
+                self._key_locks[slot] = key_lock
+        # Every holder/waiter keeps a strong reference to key_lock; weak
+        # bookkeeping drops it after the last task exits, including cancellation.
+        # Same-process retries wait here before borrowing a scarce connection.
+        async with key_lock:
+            lock_identity = json.dumps([scope_key, key], separators=(",", ":"))
+            async with self._lock_pool.connection() as conn, conn.transaction():
+                await conn.execute(self._sql_lock, (lock_identity,))
+                token = self._active_connection.set((conn, asyncio.current_task()))
+                try:
+                    yield
+                finally:
+                    self._active_connection.reset(token)
 
     async def put_if_absent(self, scope_key: str, key: str, entry: CachedResponse) -> bool:
         """Atomically insert a webhook dedup marker, including stale replace."""

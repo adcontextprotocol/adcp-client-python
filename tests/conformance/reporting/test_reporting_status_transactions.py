@@ -7,6 +7,7 @@ from datetime import timedelta
 import pytest
 
 from adcp.reporting.ledger import PgReportingLedgerStore
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.reporting.ledger.status_projection import (
     StatusProjectionInput,
@@ -83,7 +84,7 @@ async def test_pool_of_one_uses_one_backend_and_no_nested_acquisition(monkeypatc
             await ledger.record_consumer_status(
                 replace(statement(obligation), consumer_status="unreadable")
             )
-            snapshot = await ledger.read_status_snapshot(account_id="acct_a")
+            snapshot = await ledger.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
             await asyncio.wait_for(status.project_one(account_id="acct_a"), 5)
             handler = ReportingStatusHandler(ledger, consumer_status_enabled=True)
             response = handler.render_snapshot(
@@ -161,8 +162,12 @@ async def test_consumer_status_pre_lifecycle_crash_rolls_back_both_and_self_dirt
 
 async def test_fanout_failure_cannot_advance_half_a_source_transaction(status_harness, monkeypatch):
     h = status_harness
-    obligation, revision, _ = await h.seed(readable=True)
+    revisions = []
     for consumer in ("buyer", "auditor"):
+        obligation, revision, _ = await h.seed(
+            readable=True, config=configuration(consumer_id=consumer)
+        )
+        revisions.append(revision)
         await h.ledger.record_consumer_status(
             replace(
                 statement(obligation, consumer),
@@ -173,9 +178,13 @@ async def test_fanout_failure_cannot_advance_half_a_source_transaction(status_ha
         )
     await h.status.baseline(account_id="acct_a")
     before = await h.status.checkpoints(account_id="acct_a")
-    await h.ledger.set_revision_readable(
-        account_id="acct_a", reporting_revision_id=revision.reporting_revision_id, readable=False
-    )
+    async with h.ledger.transaction():
+        for revision in revisions:
+            await h.ledger.set_revision_readable(
+                account_id="acct_a",
+                reporting_revision_id=revision.reporting_revision_id,
+                readable=False,
+            )
     from adcp.reporting.outbox import status_memory, status_pg
 
     called = 0
@@ -199,7 +208,7 @@ async def test_fanout_failure_cannot_advance_half_a_source_transaction(status_ha
     await h.reliable.restart()
     h.status = cls(h.ledger)
     status_operation_2 = await h.status.project_one(account_id="acct_a")
-    assert (status_operation_2).events == 6
+    assert (status_operation_2).events == 4
     status_operation_3 = await h.status.project_one(account_id="acct_a")
     assert not (status_operation_3).did_work
     assert {c.generation for c in await h.status.checkpoints(account_id="acct_a")} == {1}

@@ -9,6 +9,7 @@ from datetime import timedelta
 import pytest
 
 from adcp.reporting.ledger import InMemoryReportingLedgerStore
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.reporting.ledger.status_projection import StatusProjectionInput, project_status_scope
 from adcp.reporting.outbox import (
@@ -54,7 +55,7 @@ class StatusHarness:
                 return
         pytest.fail("dirty cursor failed to become idle")
 
-    async def events(self, *, obligation=True, consumer=""):
+    async def events(self, *, obligation=True, consumer="buyer"):
         return tuple(
             sorted(
                 (
@@ -201,7 +202,7 @@ async def test_pure_handler_event_parity_and_feed_purpose_filter(status_harness)
         account_id="acct_a", reporting_revision_id=revision.reporting_revision_id, readable=False
     )
     await h.drain()
-    snapshot = await h.ledger.read_status_snapshot(account_id="acct_a")
+    snapshot = await h.ledger.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
     caller = ReportingStatusCaller("acct_a", "buyer")
     handler = ReportingStatusHandler(h.ledger)
     summary = handler.render_snapshot({"view": "summary"}, caller=caller, snapshot=snapshot)
@@ -218,32 +219,40 @@ async def test_pure_handler_event_parity_and_feed_purpose_filter(status_harness)
     assert filtered["periods"] == filtered["revisions"] == []
 
 
-async def test_two_colliding_private_consumers_receive_every_seller_change(status_harness):
+async def test_colliding_private_generations_receive_only_their_own_changes(status_harness):
     h = status_harness
-    obligation, revision, _ = await h.seed(readable=True)
+    revisions = {}
     for consumer in ("buyer", "auditor"):
-        value = replace(
-            statement(obligation, consumer),
-            reporting_status_id=f"statement-{consumer}",
-            consumer_status="received",
-            reporting_revision_id=revision.reporting_revision_id,
-            observed_revision_content_sha256=revision.revision_content_sha256,
+        obligation, revision, _ = await h.seed(
+            readable=True, config=configuration(consumer_id=consumer)
         )
-        await h.ledger.record_consumer_status(value)
+        revisions[consumer] = revision
+        await h.ledger.record_consumer_status(
+            replace(
+                statement(obligation, consumer),
+                reporting_status_id=f"statement-{consumer}",
+                consumer_status="received",
+                reporting_revision_id=revision.reporting_revision_id,
+                observed_revision_content_sha256=revision.revision_content_sha256,
+            )
+        )
     await h.status.baseline(account_id="acct_a")
-    for readable in (False, True):
-        h.clock.advance()
-        await h.ledger.set_revision_readable(
-            account_id="acct_a",
-            reporting_revision_id=revision.reporting_revision_id,
-            readable=readable,
-        )
-    await h.drain()
-    for consumer in ("", "buyer", "auditor"):
+    for consumer in ("buyer", "auditor"):
+        for readable in (False, True):
+            h.clock.advance()
+            await h.ledger.set_revision_readable(
+                account_id="acct_a",
+                reporting_revision_id=revisions[consumer].reporting_revision_id,
+                readable=readable,
+            )
+        await h.drain()
         for obligation_scope in (False, True):
             events = await h.events(consumer=consumer, obligation=obligation_scope)
             assert [e.cause.health for e in events] == ["action_required", "complete"]
             assert all(e.consumer_namespace == consumer for e in events)
+        if consumer == "buyer":
+            assert not await h.events(consumer="auditor")
+    assert not await h.events(consumer="")
 
 
 async def test_full_issue_semantics_and_seventeenth_issue_change(status_harness):

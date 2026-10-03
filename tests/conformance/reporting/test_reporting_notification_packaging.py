@@ -415,7 +415,7 @@ async def test_installed_pg_extra_migrates_commits_and_restarts(installed_distri
         await asyncio.to_thread(
             run_step, [*installer, str(distribution) + "[pg]"], label="pg-install", cwd=path
         )
-        config = configuration()
+        config = configuration(consumer_id="https://buyer.example/agent")
         obligation = obligation_for(config)
         revision, rows = revision_for(obligation)
         values = {
@@ -614,7 +614,8 @@ async def main():
         status_operation_5 = await status.outbox.finish_delivery(
             status_lease, now=clock(), state="complete")
         assert status_operation_5
-        status_operation_6 = await status.outbox.reemit(account_id="acct_a", consumer_namespace="",
+        status_operation_6 = await status.outbox.reemit(
+            account_id="acct_a", consumer_namespace=status_events[0].consumer_namespace,
             notification_id=status_events[0].notification_id, now=clock())
         assert status_operation_6 == 2
         assert await status.outbox.list_events(account_id="acct_a") == status_events

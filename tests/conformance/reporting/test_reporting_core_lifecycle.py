@@ -42,6 +42,8 @@ from typing import Any
 
 import pytest
 
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
+
 psycopg = pytest.importorskip("psycopg")
 psycopg_pool = pytest.importorskip("psycopg_pool")
 
@@ -214,6 +216,7 @@ def _configuration(required_finality: str = "snapshot") -> ReportingConfiguratio
         delivery_config_id=CONFIG_ID,
         delivery_config_version=1,
         account_id=ACCOUNT,
+        consumer_id=CALLER.consumer_id,
         report_definition_id=DEFINITION_ID,
         reporting_profile="paid_media_delivery",
         feed_purpose="analytics",
@@ -324,7 +327,9 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
     # 1. Install the configuration. The clock starts here, not at media-buy
     #    acceptance.
     await ledger.put_configuration(configuration)
-    installed = await ledger.list_configurations(account_id=ACCOUNT)
+    installed = await ledger.list_configurations(
+        caller=OwnershipCaller(ACCOUNT, CALLER.consumer_id)
+    )
     assert len(installed) == 1
     assert installed[0].definition == DEFINITION
 
@@ -341,6 +346,7 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
 
     obligation = await ledger.find_obligation(
         account_id=ACCOUNT,
+        consumer_id=CALLER.consumer_id,
         delivery_config_id=CONFIG_ID,
         delivery_config_version=1,
         period_start=first.start,
@@ -442,6 +448,7 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
 
     zero_obligation = await ledger.find_obligation(
         account_id=ACCOUNT,
+        consumer_id=CALLER.consumer_id,
         delivery_config_id=CONFIG_ID,
         delivery_config_version=1,
         period_start=second.start,
@@ -465,6 +472,7 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
     turn = await _run_worker_at(ledger, source, now=third.end + timedelta(minutes=1))
     silent_obligation = await ledger.find_obligation(
         account_id=ACCOUNT,
+        consumer_id=CALLER.consumer_id,
         delivery_config_id=CONFIG_ID,
         delivery_config_version=1,
         period_start=third.start,
@@ -762,6 +770,7 @@ async def test_the_consumer_status_loop_closes_over_the_lifecycle(
     await _run_worker_at(ledger, source, now=first.expected_at)
     obligation = await ledger.find_obligation(
         account_id=ACCOUNT,
+        consumer_id=CALLER.consumer_id,
         delivery_config_id=CONFIG_ID,
         delivery_config_version=1,
         period_start=first.start,
@@ -932,6 +941,7 @@ async def _seed_received_then_restate(
     await _run_worker_at(ledger, source, now=period.expected_at)
     obligation = await ledger.find_obligation(
         account_id=ACCOUNT,
+        consumer_id=CALLER.consumer_id,
         delivery_config_id=CONFIG_ID,
         delivery_config_version=1,
         period_start=period.start,
@@ -1062,6 +1072,7 @@ async def test_a_content_mismatch_round_trips_over_postgres(
     await _run_worker_at(ledger, source, now=period.expected_at)
     obligation = await ledger.find_obligation(
         account_id=ACCOUNT,
+        consumer_id=CALLER.consumer_id,
         delivery_config_id=CONFIG_ID,
         delivery_config_version=1,
         period_start=period.start,
@@ -1119,6 +1130,7 @@ async def test_consumer_status_pending_appears_after_the_deadline_and_clears(
     await _run_worker_at(ledger, source, now=period.expected_at)
     obligation = await ledger.find_obligation(
         account_id=ACCOUNT,
+        consumer_id=CALLER.consumer_id,
         delivery_config_id=CONFIG_ID,
         delivery_config_version=1,
         period_start=period.start,
@@ -1179,7 +1191,9 @@ async def test_reserved_authoritative_party_is_refused_before_install(
     with pytest.raises(LedgerConflictError) as caught:
         await ledger.put_configuration(replace(_configuration(), authoritative_party="consumer"))
     assert caught.value.code == "UNSUPPORTED_FEATURE"
-    assert await ledger.list_configurations(account_id=ACCOUNT) == ()
+    assert (
+        await ledger.list_configurations(caller=OwnershipCaller(ACCOUNT, CALLER.consumer_id)) == ()
+    )
 
 
 async def test_create_schema_upgrades_an_rc2_database_in_place(
@@ -1240,7 +1254,9 @@ async def test_create_schema_upgrades_an_rc2_database_in_place(
 
     # And the upgraded database actually works, not just has the columns.
     await ledger.put_configuration(_configuration())
-    assert (await ledger.list_configurations(account_id=ACCOUNT))[0].authoritative_party == "seller"
+    assert (await ledger.list_configurations(caller=OwnershipCaller(ACCOUNT, CALLER.consumer_id)))[
+        0
+    ].authoritative_party == "seller"
 
 
 # --------------------------------------------------------------------------
@@ -1450,6 +1466,7 @@ async def test_a_later_successful_read_supersedes_with_received(
     await _run_worker_at(ledger, source, now=period.expected_at)
     obligation = await ledger.find_obligation(
         account_id=ACCOUNT,
+        consumer_id=CALLER.consumer_id,
         delivery_config_id=CONFIG_ID,
         delivery_config_version=1,
         period_start=period.start,
@@ -1508,6 +1525,7 @@ async def test_a_failed_read_posts_unreadable_with_a_failure_code(
     await _run_worker_at(ledger, source, now=period.expected_at)
     obligation = await ledger.find_obligation(
         account_id=ACCOUNT,
+        consumer_id=CALLER.consumer_id,
         delivery_config_id=CONFIG_ID,
         delivery_config_version=1,
         period_start=period.start,
@@ -1560,6 +1578,7 @@ async def test_a_contract_violation_posts_content_mismatch_with_its_code(
     await _run_worker_at(ledger, source, now=period.expected_at)
     obligation = await ledger.find_obligation(
         account_id=ACCOUNT,
+        consumer_id=CALLER.consumer_id,
         delivery_config_id=CONFIG_ID,
         delivery_config_version=1,
         period_start=period.start,
