@@ -231,13 +231,15 @@ def test_publisher_pin_source_mismatched_origin_does_not_raise() -> None:
         # must skip and not raise.
         expected_key_origins={"request_signing": "https://keys.brand.example"},
     )
-    verify_request_signature(
-        method="POST",
-        url="https://seller.example.com/adcp/create_media_buy",
-        headers=headers,
-        body=body,
-        options=options,
-    )
+    with pytest.raises(SignatureVerificationError) as exc:
+        verify_request_signature(
+            method="POST",
+            url="https://seller.example.com/adcp/create_media_buy",
+            headers=headers,
+            body=body,
+            options=options,
+        )
+    assert exc.value.code == REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH
 
 
 def test_publisher_pin_source_missing_declaration_does_not_raise() -> None:
@@ -252,13 +254,15 @@ def test_publisher_pin_source_missing_declaration_does_not_raise() -> None:
         resolver,
         expected_key_origins={"webhook_signing": "https://keys.brand.example"},
     )
-    verify_request_signature(
-        method="POST",
-        url="https://seller.example.com/adcp/create_media_buy",
-        headers=headers,
-        body=body,
-        options=options,
-    )
+    with pytest.raises(SignatureVerificationError) as exc:
+        verify_request_signature(
+            method="POST",
+            url="https://seller.example.com/adcp/create_media_buy",
+            headers=headers,
+            body=body,
+            options=options,
+        )
+    assert exc.value.code == REQUEST_SIGNATURE_KEY_ORIGIN_MISSING
 
 
 # ----- legacy resolvers (no jwks_source attribute) -----

@@ -529,7 +529,47 @@ async def test_retry_horizon_is_immutable_across_crash_rotation_and_restart(
                     {"account": {"account_id": "acct_a"}, "view": "periods"},
                     transport=transport,
                 )
-                assert polling["status"] == "completed"
+                assert polling["adcp_error"]["code"] == "SERVICE_UNAVAILABLE"
+                assert polling["adcp_error"]["recovery"] == "transient"
+
+        # queued_production deliberately closes its owned lifecycle so these
+        # crash/deadline turns are deterministic. Poll retained history through
+        # a new running composition rather than bypassing that admission policy.
+        from adcp.reporting.production import ReportingProductionSupport
+        from adcp.server.serve import create_mcp_server
+
+        previous = h.production
+        previous_mount = h.mount
+        current = ReportingProductionSupport(
+            previous.materializer,
+            previous.projection,
+            offerings=previous.offerings,
+            configuration_task=previous.configuration_task,
+            resolve_account=previous.handler._receipt_account_resolver,
+            notification_workers=fresh_workers(h),
+            poll_seconds=60,
+            adcp_version=previous.handler.get_adcp_version(),
+            source_registry=previous.source_registry,
+        )
+        h.production = current
+        h.mount = create_mcp_server(current.handler)
+        try:
+            await current.start()
+            mount = MountedProduction(h)
+            mount.authorize(h.item)
+            async with mount.client() as client:
+                for transport in ("mcp", "a2a-0.3", "a2a-1.0"):
+                    _, polling = await mount.call(
+                        client,
+                        "get_reporting_status",
+                        {"account": {"account_id": "acct_a"}, "view": "periods"},
+                        transport=transport,
+                    )
+                    assert polling.get("status") == "completed", polling
+        finally:
+            await current.aclose()
+            h.production = previous
+            h.mount = previous_mount
 
 
 @pytest.mark.parametrize("backend", ["memory", "postgres"])
