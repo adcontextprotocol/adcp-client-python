@@ -85,6 +85,23 @@ DATABASE_URL=postgresql+asyncpg://postgres@localhost/adcp \
 
 The seller binds `0.0.0.0:3001` and serves both transports.
 
+For current SDK14 / AdCP3.2 storyboard runs, boot with
+`ADCP_REFERENCE_TEST_CONTROLLER=1`. This opt-in requires a loopback HTTP
+`MOCK_AD_SERVER_URL` and keeps bearer authentication, tenant routing, and
+account ownership checks enabled. It selects the canonical creative wire
+dialect and exposes two controller operations: `seed_account` persists
+caller-owned commercial accounts in SQL with server-provisioned upstream
+routing; `force_get_products_arm` supports a one-shot `rejected` business
+outcome scoped to the authenticated principal, tenant, and account. Rejection
+directives expire after five minutes and never fabricate upstream inventory.
+
+The upstream mock has no product or pricing seed API, so those fixture
+operations remain unsupported and the runner marks dependent storyboards
+`not_applicable`. Product discovery, including `list_products`, reads the
+actual upstream catalog; media-buy creation writes actual upstream orders
+and line items. The opt-in controller therefore exercises the account-only
+storyboards without claiming coverage of unsupported upstream fixtures.
+
 The commands above use the lightweight local path: async tasks are pollable
 but intentionally in-memory, and push-configured handoffs are rejected. For
 the production-shaped PostgreSQL registry, signed atomic outbox, and

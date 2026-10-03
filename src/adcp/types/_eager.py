@@ -35,6 +35,14 @@ from adcp.types import aliases  # noqa: F401
 # available under explicit Legacy* names; these imports intentionally override
 # their unqualified bindings for application code.
 from adcp.types import canonical_creative as _canonical_creative
+from adcp.types._forward_compat import (
+    AcceptProposalRequest,
+    BuyProductsRequest,
+    ControlMediaBuyRequest,
+    CreateMediaBuyRequest,
+    ReportingWebhook,
+    UpdateMediaBuyRequest,
+)
 
 # Import all types from generated code
 # V3 Protocol Discovery types
@@ -54,7 +62,6 @@ from adcp.types._generated import (
     AcceptancePolicyRequirement,
     AcceptancePolicyRule,
     AcceptedLoss,
-    AcceptProposalRequest,
     AcceptProposalResponse,
     AccessibilityViolationDetails,
     Account,
@@ -97,7 +104,6 @@ from adcp.types._generated import (
     BudgetTooLowDetails,
     BusinessEntity,
     BuyingMode,
-    BuyProductsRequest,
     BuyProductsResponse,
     ByPackageItem,
     CalibrateContentRequest,
@@ -131,7 +137,6 @@ from adcp.types._generated import (
     ContentStandards,
     ContextMatchRequest,
     ContextObject,
-    ControlMediaBuyRequest,
     ControlMediaBuyResponse,
     Country,
     CpaPricingOption,
@@ -377,7 +382,6 @@ from adcp.types._generated import (
     ReportingStatusIssue,
     ReportingVerification,
     ReportingVerificationProfile,
-    ReportingWebhook,
     ReportingWriteDestination,
     ReportPlanAdjustmentRequest,
     ReportPlanAdjustmentResponse,
@@ -894,7 +898,6 @@ from adcp.types.legacy import (
     LegacyUpdateMediaBuyRequest,
 )
 
-CreateMediaBuyRequest = _canonical_creative.CreateMediaBuyRequest
 CreateMediaBuyResponse = _canonical_creative.CreateMediaBuyResponse
 CreateMediaBuyResponse1 = _canonical_creative.CreateMediaBuyResponse1
 CreateMediaBuySuccessResponse = _canonical_creative.CreateMediaBuyResponse1
@@ -928,7 +931,6 @@ Product = _canonical_creative.Product
 ProductFormatDeclaration = _canonical_creative.ProductFormatDeclaration
 ProductFilters = _canonical_creative.ProductFilters
 SyncCreativesRequest = _canonical_creative.SyncCreativesRequest
-UpdateMediaBuyRequest = _canonical_creative.UpdateMediaBuyRequest
 UpdateMediaBuyResponse = _canonical_creative.UpdateMediaBuyResponse
 UpdateMediaBuyResponse1 = _canonical_creative.UpdateMediaBuyResponse1
 UpdateMediaBuyResponse3 = _canonical_creative.UpdateMediaBuyResponse3
