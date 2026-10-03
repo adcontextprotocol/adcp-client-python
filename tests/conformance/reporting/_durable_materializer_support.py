@@ -310,7 +310,7 @@ async def durable_case(
     _, totals = verifier.canonicalize(rows)
     pairs = tuple((t.name, t.value) for t in totals)
     revision_id = f"revision-{account}"
-    if consumer != "https://buyer.example.test/agent":
+    if hasattr(config, "consumer_id") and consumer != "https://buyer.example.test/agent":
         revision_id += "-" + hashlib.sha256(consumer.encode()).hexdigest()[:12]
     revision = ReportingRevisionRecord(
         revision_id,
