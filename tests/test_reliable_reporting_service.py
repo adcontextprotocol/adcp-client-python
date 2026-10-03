@@ -238,9 +238,9 @@ async def test_capability_block_is_schema_valid_and_only_advertises_installed_ti
     )
     service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), [_rows(1)]))
     await service.configure(_configuration())
-    assert service.capability_block() == {}
+    assert service.capability_block()["offerings"]
     await service.initialize()
-    assert service.capability_block() == {}
+    assert service.capability_block()["offerings"]
     await service.start()
     block = service.capability_block()
 
@@ -491,7 +491,7 @@ async def test_first_boot_offerings_require_their_installed_tier(tier: str) -> N
         with pytest.raises(ReliableReportingConfigurationError, match="require"):
             await service.start()
         assert not service.ready
-        assert service.capability_block() == {}
+        assert service.capability_block()["offerings"]
     finally:
         await service.close()
 
@@ -666,3 +666,12 @@ async def test_sdk_delivery_floats_publish_canonical_revision(with_packages: boo
         assert canonical_json_utf8_v1(rows)
     finally:
         await service.close()
+
+
+async def test_unconfigured_service_declares_nothing_in_any_lifecycle_state():
+    service = ReliableReportingService.memory(account_context=_account_context)
+    assert service.capability_block() == {}
+    await service.start()
+    assert service.capability_block() == {}
+    await service.close()
+    assert service.capability_block() == {}

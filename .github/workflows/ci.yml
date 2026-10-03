@@ -16,14 +16,9 @@ on:
       - conductor/reporting-production-tier-capabilities-b24
       - conductor/reporting-adcp-rc4-adoption
 
-# Gating @adcp/sdk storyboard runner. Pinned to the exact runner SDK 8.0.0
-# was validated with (13.1.3, AdCP 3.1 compliance bundle) instead of the
-# moving ``latest`` dist-tag: ``latest`` moved to 14.0.0 (AdCP 3.2.1 bundle)
-# and grades the example/reference sellers against storyboards they do not
-# yet satisfy. The 14.0.0 runs live in the ``(advisory: @adcp/sdk 14.0.0)``
-# legs below until #1273 makes them gating and this pin is removed.
+# Exact AdCP 3.2.1 runner; the reference matrix also retains the AdCP 3.0 floor.
 env:
-  ADCP_SDK_VERSION: "13.1.3"
+  ADCP_SDK_VERSION: "14.0.0"
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -1239,17 +1234,12 @@ jobs:
     name: AdCP storyboard runner — examples/seller_agent.py (@adcp/sdk ${{ matrix.adcp-sdk-tag }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Blocking gate: examples/seller_agent.py is the Python-owned
-    # reference target for bidirectional storyboard interop. The matrix
-    # runs two legs: the sticky ``adcp-3.0`` tag is a fixed, reproducible
-    # backwards-compat floor (the AdCP 3.0 runner line), while ``13.1.3``
-    # is the exact AdCP 3.1-line runner SDK 8.0.0 was validated with (see
-    # the workflow-level ``ADCP_SDK_VERSION`` comment and #1273). The
-    # AdCP 3.2.1 runner runs in ``storyboard-sdk14-advisory``.
+    # Both the current 3.2.1 runner and the sticky 3.0 compatibility floor
+    # must pass before the aggregate required check succeeds.
     strategy:
       fail-fast: false
       matrix:
-        adcp-sdk-tag: ["adcp-3.0", "13.1.3"]
+        adcp-sdk-tag: ["adcp-3.0", "14.0.0"]
 
     steps:
       - uses: actions/checkout@v6
@@ -1310,55 +1300,6 @@ jobs:
             exit 1
           fi
           echo "Reference seller storyboard matrix passed"
-
-  storyboard-sdk14-advisory:
-    name: "AdCP storyboard runner — examples/seller_agent.py (advisory: @adcp/sdk 14.0.0)"
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    # Advisory, non-required: grades examples/seller_agent.py against the
-    # AdCP 3.2.1 compliance bundle shipped in @adcp/sdk 14.0.0 so the known
-    # gaps tracked in #1273 stay visible. Deliberately outside
-    # ``storyboard-required-gate``. Promote into the gating matrix (and drop
-    # continue-on-error) once #1273 lands.
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: pyproject.toml
-
-      - name: Set up Node 22
-        uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-
-      - name: Cache ~/.npm
-        uses: actions/cache@v5
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-adcp-sdk-14.0.0
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
-      - name: Run reference seller storyboard harness
-        timeout-minutes: 15
-        env:
-          PYTHON: python
-          ADCP_SDK_VERSION: "14.0.0"
-          STORYBOARD_RESULT_PATH: storyboard-result-14.0.0-advisory.json
-        run: |
-          scripts/ci/run_storyboard_reference_seller.sh
-
-      - if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: storyboard-result-14.0.0-advisory-${{ github.run_attempt }}
-          path: storyboard-result-14.0.0-advisory.json
-          if-no-files-found: warn
 
   reporting-installed-artifact-matrix:
     name: Reliable reporting installed artifacts — positive 2x2
@@ -1531,24 +1472,10 @@ jobs:
           pytest examples/v3_reference_seller/tests/ -v
 
   storyboard-v3-reference-seller:
-    name: "${{ matrix.advisory && 'AdCP storyboard runner — v3 reference seller (translator) (advisory: @adcp/sdk 14.0.0)' || 'AdCP storyboard runner — v3 reference seller (translator)' }}"
+    name: "AdCP storyboard runner — v3 reference seller (translator)"
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        # The gating leg pins the same 13.1.3 runner as the workflow-level
-        # ADCP_SDK_VERSION and keeps the required check name unchanged.
-        # The advisory leg runs the AdCP 3.2.1 bundle (@adcp/sdk 14.0.0)
-        # non-blocking so the gaps tracked in #1273 stay visible.
-        include:
-          - advisory: false
-            adcp-sdk-version: "13.1.3"
-          - advisory: true
-            adcp-sdk-version: "14.0.0"
-    continue-on-error: ${{ matrix.advisory }}
     env:
-      ADCP_SDK_VERSION: ${{ matrix.adcp-sdk-version }}
       # Intentionally non-secret: gates loopback-only debug counters
       # inside this CI job.
       ADCP_DEBUG_TOKEN: storyboard-debug-token
@@ -1615,6 +1542,7 @@ jobs:
           cp tests/fixtures/aao-reference-formats.json "${SDK_ROOT}/test/lib/v2-projection-fixtures/aao-reference-formats.json"
           mkdir -p "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries"
           cp tests/fixtures/v1-canonical-mapping.json "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries/v1-canonical-mapping.json"
+          python scripts/ci/prepare_storyboard_sdk.py "${SDK_ROOT}"
 
       - name: Start JS mock-server upstream
         run: |
@@ -1662,6 +1590,7 @@ jobs:
           MOCK_AD_SERVER_URL: http://127.0.0.1:4503
           MOCK_AD_SERVER_API_KEY: test-key
           PORT: "3001"
+          ADCP_REFERENCE_TEST_CONTROLLER: "1"
         run: |
           cd examples/v3_reference_seller
           python -m src.app > /tmp/v3-reference-seller.log 2>&1 &
@@ -1727,11 +1656,8 @@ jobs:
       - name: Assert storyboard runner produced output
         run: |
           # Hard gate: the runner must produce a non-empty result file.
-          # The anti-façade invariant (the seller actually called upstream)
-          # is enforced by "Assert upstream traffic" below — controller_detected
-          # is observational; it has never been true for the v3 reference
-          # seller's translator topology (the runner detects it for the
-          # examples/seller_agent.py stub-mode topology only).
+          # The anti-façade invariant is enforced separately below: the
+          # translator must call its real upstream as well as pass the suite.
           python -c "
           import json, sys, pathlib
           p = pathlib.Path('examples/v3_reference_seller/v3-storyboard-result.json')
@@ -1746,69 +1672,36 @@ jobs:
           "
 
       - name: Assert storyboard passed
-        # Hard gate. This translator intentionally has no
-        # ``comply_test_controller``: it exercises a real upstream rather
-        # than owning the runner's state-control API. SDK 13 therefore grades
-        # its coverage ``partial`` even when every executable step passes.
-        # Accept only that exact topology — zero failed steps/tracks, useful
-        # executed coverage, and no skip class outside controller absence,
-        # its dependent steps, missing controller tools, or not-applicable
-        # capabilities. Any real failure or new skip class still blocks CI.
+        # The controller seeds only real SQL accounts and a scoped rejection
+        # directive. Upstream-owned fixture types remain explicitly unsupported.
+        # No failed step, missing tool, or failed prerequisite is accepted.
         run: |
           python -c "
           import json, sys, pathlib
           p = pathlib.Path('examples/v3_reference_seller/v3-storyboard-result.json')
           with p.open() as f:
               d = json.load(f)
-          status = d.get('overall_status')
           summary = d.get('summary') or {}
           skip_counts = summary.get('skipped_by_reason') or {}
-          allowed_partial_skips = {
-              'missing_test_controller',
-              'missing_tool',
-              'prerequisite_failed',
-              'not_applicable',
-          }
-          unexpected_skips = sorted(set(skip_counts) - allowed_partial_skips)
           steps = [
-              step
-              for track in d.get('tracks', [])
+              step for track in d.get('tracks', [])
               for scenario in track.get('scenarios', [])
               for step in scenario.get('steps', [])
           ]
-          unexpected_missing_tools = [
-              step.get('task')
-              for step in steps
-              if step.get('skip_reason') == 'missing_tool'
-              and step.get('task') != 'comply_test_controller'
-          ]
-          unexpected_prerequisites = [
-              step.get('error')
-              for step in steps
-              if step.get('skip_reason') == 'prerequisite_failed'
-              and 'skipped (missing_tool)' not in (step.get('error') or '')
-          ]
-          partial_is_expected = (
-              status == 'partial'
+          accepted = (
+              d.get('overall_status') == 'passing'
+              and d.get('controller_detected') is True
+              and set(d.get('controller_scenarios') or []) == {'seed_account', 'force_get_products_arm'}
               and summary.get('steps_failed') == 0
               and summary.get('tracks_failed') == 0
               and (summary.get('steps_passed') or 0) > 0
-              and (skip_counts.get('missing_test_controller') or 0) > 0
-              and not unexpected_skips
-              and not unexpected_missing_tools
-              and not unexpected_prerequisites
-              and d.get('controller_detected') is False
+              and set(skip_counts) <= {'not_applicable'}
+              and not any(step.get('skip_reason') in {'missing_tool', 'prerequisite_failed'} for step in steps)
           )
-          if status != 'passing' and not partial_is_expected:
+          if not accepted:
               print(json.dumps(d, indent=2))
-              if unexpected_skips:
-                  print(f'Unexpected partial skip classes: {unexpected_skips}')
-              if unexpected_missing_tools:
-                  print(f'Unexpected missing tools: {unexpected_missing_tools}')
-              if unexpected_prerequisites:
-                  print(f'Unexpected prerequisite skips: {unexpected_prerequisites}')
               sys.exit(1)
-          print(f'Storyboard accepted: status={status}, summary={summary}')
+          print(f'Storyboard passing: summary={summary}')
           "
 
       - name: Assert upstream traffic (anti-façade gate)
@@ -1839,38 +1732,21 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: v3-storyboard-result${{ matrix.advisory && '-advisory-sdk-14.0.0' || '' }}-${{ github.run_attempt }}
+          name: v3-storyboard-result-${{ github.run_attempt }}
           path: examples/v3_reference_seller/v3-storyboard-result.json
           if-no-files-found: warn
 
   storyboard-multi-platform-seller:
-    name: "${{ matrix.advisory && 'AdCP storyboard runner — examples/multi_platform_seller (PlatformRouter) (advisory: @adcp/sdk 14.0.0)' || 'AdCP storyboard runner — examples/multi_platform_seller (PlatformRouter)' }}"
+    name: "AdCP storyboard runner — examples/multi_platform_seller (PlatformRouter)"
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        # The gating leg pins the same 13.1.3 runner as the workflow-level
-        # ADCP_SDK_VERSION and keeps the required check name unchanged.
-        # The advisory leg runs the AdCP 3.2.1 bundle (@adcp/sdk 14.0.0)
-        # non-blocking so the gaps tracked in #1273 stay visible.
-        include:
-          - advisory: false
-            adcp-sdk-version: "13.1.3"
-          - advisory: true
-            adcp-sdk-version: "14.0.0"
-    continue-on-error: ${{ matrix.advisory }}
     # Multi-tenant proof: one process, two tenants, one router. Each
     # tenant's storyboard runs against its own subdomain
     # (tenant-a.localhost / tenant-b.localhost). Blocking gate — both
     # tenants must pass the AdCP storyboard suite for the example to
     # remain a credible reference. continue-on-error was dropped after
     # the mocks were aligned with the wire contract; future drift now
-    # blocks CI. (Only the advisory @adcp/sdk 14.0.0 matrix leg is
-    # non-blocking; see #1273.)
-    env:
-      ADCP_SDK_VERSION: ${{ matrix.adcp-sdk-version }}
-
+    # blocks CI.
     steps:
       - uses: actions/checkout@v6
 
@@ -1905,6 +1781,7 @@ jobs:
           cp tests/fixtures/aao-reference-formats.json "${SDK_ROOT}/test/lib/v2-projection-fixtures/aao-reference-formats.json"
           mkdir -p "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries"
           cp tests/fixtures/v1-canonical-mapping.json "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries/v1-canonical-mapping.json"
+          python scripts/ci/prepare_storyboard_sdk.py "${SDK_ROOT}"
 
       - name: Install dependencies
         run: |
@@ -1951,7 +1828,7 @@ jobs:
             http://tenant-a.localhost:3001/mcp media_buy_seller \
             --json --allow-http \
             > tenant-a-storyboard.json
-          cat tenant-a-storyboard.json | head -50
+          head -50 tenant-a-storyboard.json
 
       - name: Run storyboard — tenant-b (sales-non-guaranteed)
         timeout-minutes: 5
@@ -1960,45 +1837,44 @@ jobs:
             http://tenant-b.localhost:3001/mcp media_buy_seller \
             --json --allow-http \
             > tenant-b-storyboard.json
-          cat tenant-b-storyboard.json | head -50
+          head -50 tenant-b-storyboard.json
+
+      - name: Require both tenant storyboards to pass
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for tenant in ('a', 'b'):
+              result = json.loads(Path(f'tenant-{tenant}-storyboard.json').read_text())
+              summary = result.get('summary') or {}
+              assert result.get('overall_status') == 'passing', result
+              assert result.get('controller_detected') is True, result
+              assert summary.get('steps_failed') == 0, summary
+              assert summary.get('tracks_failed') == 0, summary
+              assert (summary.get('steps_passed') or 0) > 0, summary
+              assert set(summary.get('skipped_by_reason') or {}) <= {'not_applicable'}, summary
+          PY
 
       - if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: multi-platform-storyboards${{ matrix.advisory && '-advisory-sdk-14.0.0' || '' }}-${{ github.run_attempt }}
+          name: multi-platform-storyboards-${{ github.run_attempt }}
           path: |
             tenant-a-storyboard.json
             tenant-b-storyboard.json
           if-no-files-found: warn
 
   storyboard-sales-proposal-mode:
-    name: "${{ matrix.advisory && 'AdCP storyboard runner — sales-proposal-mode (proposal_finalize) (advisory: @adcp/sdk 14.0.0)' || 'AdCP storyboard runner — sales-proposal-mode (proposal_finalize)' }}"
+    name: "AdCP storyboard runner — sales-proposal-mode (proposal_finalize)"
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        # The gating leg pins the same 13.1.3 runner as the workflow-level
-        # ADCP_SDK_VERSION and keeps the required check name unchanged.
-        # The advisory leg runs the AdCP 3.2.1 bundle (@adcp/sdk 14.0.0)
-        # non-blocking so the gaps tracked in #1273 stay visible.
-        include:
-          - advisory: false
-            adcp-sdk-version: "13.1.3"
-          - advisory: true
-            adcp-sdk-version: "14.0.0"
-    continue-on-error: ${{ matrix.advisory }}
     # v1.5 ProposalManager finalize lifecycle proof. The mock seller
     # declares ``finalize=True`` + wires an ``InMemoryProposalStore``;
     # the framework's dispatch wiring intercepts ``refine[i].action='finalize'``
     # requests, runs ``finalize_proposal``, commits via the store, and
     # auto-hydrates ``ctx.recipes`` on subsequent ``create_media_buy``
     # calls. This job is the storyboard-level proof that the design
-    # works end-to-end. Blocking gate — no continue-on-error on the
-    # pinned leg; only the advisory @adcp/sdk 14.0.0 leg is non-blocking
-    # (see #1273).
-    env:
-      ADCP_SDK_VERSION: ${{ matrix.adcp-sdk-version }}
+    # works end-to-end against the current runner.
     steps:
       - uses: actions/checkout@v6
 
@@ -2033,6 +1909,7 @@ jobs:
           cp tests/fixtures/aao-reference-formats.json "${SDK_ROOT}/test/lib/v2-projection-fixtures/aao-reference-formats.json"
           mkdir -p "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries"
           cp tests/fixtures/v1-canonical-mapping.json "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries/v1-canonical-mapping.json"
+          python scripts/ci/prepare_storyboard_sdk.py "${SDK_ROOT}"
 
       - name: Install dependencies
         run: |
@@ -2076,7 +1953,7 @@ jobs:
             http://127.0.0.1:3003/mcp media_buy_seller/proposal_finalize \
             --json --allow-http \
             > proposal-finalize-storyboard.json
-          cat proposal-finalize-storyboard.json | head -200
+          head -200 proposal-finalize-storyboard.json
 
       - name: Assert v1.5 dispatch path scenarios pass
         run: |
@@ -2157,6 +2034,6 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: sales-proposal-mode-storyboard${{ matrix.advisory && '-advisory-sdk-14.0.0' || '' }}-${{ github.run_attempt }}
+          name: sales-proposal-mode-storyboard-${{ github.run_attempt }}
           path: proposal-finalize-storyboard.json
           if-no-files-found: warn

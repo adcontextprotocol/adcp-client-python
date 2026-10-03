@@ -78,6 +78,12 @@ Related skills: `build-seller-agent`, `build-generative-seller-agent`,
 `build-signals-agent`. The seller storyboard tests live at
 [`../tests/test_seller_agent_storyboard.py`](../tests/test_seller_agent_storyboard.py).
 
+The reference seller stores injected sandbox delivery events and splits their
+traffic across packages by budget, then across declared format kinds using
+descending catalog-order weights. Simulated video impressions represent
+two-second play events for `time_based_views`; these values demonstrate
+reporting behavior rather than measurements from a serving engine.
+
 ## Authentication & multi-tenancy
 
 - [`mcp_with_auth_middleware.py`](mcp_with_auth_middleware.py) — multi-tenant MCP server with bearer-token auth via `BearerTokenAuthMiddleware` + `auth_context_factory`.

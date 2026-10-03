@@ -84,3 +84,14 @@ lifecycle (brief → refine → finalize → create_media_buy).
 - **Durable store.** Uses `InMemoryProposalStore` — process-local, lost
   on restart. Production adopters wire a Postgres / Redis backing per
   the `ProposalStore` Protocol.
+
+The example declares both `brief` and `refine` buying modes. Its dispatch
+middleware uses a separate `IdempotencyStore` per tool, with a 24-hour replay
+window. Wrapping dispatch also covers the framework's finalize interception:
+a concurrent or repeated finalize request with the same key returns the
+original committed proposal rather than finalizing it again. Authenticated
+principal and tenant identities remain separate replay scopes.
+
+This local demo has one public principal for anonymous requests. Production
+deployments must provide authentication and a durable idempotency backend;
+the in-memory replay entries disappear when the process restarts.
