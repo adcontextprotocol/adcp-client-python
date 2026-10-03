@@ -21,8 +21,11 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
+from typing import Any, Literal
+
+import httpx
 
 from adcp.signing.canonical import _lookup, parse_signature_input_header, split_structured_field
 from adcp.signing.constants import (
@@ -35,15 +38,19 @@ from adcp.signing.constants import (
 )
 from adcp.signing.crypto import ALLOWED_ALGS
 from adcp.signing.errors import (
+    REQUEST_SIGNATURE_KEY_UNKNOWN,
     REQUEST_TO_WEBHOOK_CODE,
     WEBHOOK_SIGNATURE_COMPONENTS_INCOMPLETE,
     WEBHOOK_SIGNATURE_HEADER_MALFORMED,
     WEBHOOK_SIGNATURE_INVALID,
+    WEBHOOK_SIGNATURE_KEY_UNKNOWN,
+    WEBHOOK_SIGNATURE_REQUIRED,
     SignatureVerificationError,
 )
 
 logger = logging.getLogger(__name__)
-from adcp.signing.jwks import JwksResolver
+from adcp.signing.jwks import JwksResolver, SSRFValidationError
+from adcp.signing.publisher_pins import PublisherPins, matches_publisher_pins
 from adcp.signing.replay import InMemoryReplayStore, ReplayStore
 from adcp.signing.revocation import RevocationChecker, RevocationList
 from adcp.signing.verifier import (
@@ -94,6 +101,14 @@ class WebhookVerifyOptions:
     expected_key_origins: Mapping[str, str] | None = None
     posture: str | None = None
     clock: Callable[[], float] = time.time
+    publisher_pins: PublisherPins | None = None
+    refresh_publisher_pins: Callable[[], PublisherPins] | None = None
+
+    def __post_init__(self) -> None:
+        if self.publisher_pins and self.refresh_publisher_pins is None:
+            raise ValueError(
+                "publisher_pins requires refresh_publisher_pins to refresh before rejection"
+            )
 
 
 @dataclass(frozen=True)
@@ -150,7 +165,11 @@ def verify_webhook_signature(
             required_for=frozenset({"webhook"}),
         ),
         operation="webhook",
-        jwks_resolver=options.jwks_resolver,
+        jwks_resolver=(
+            _PinnedWebhookResolver(options, headers)
+            if options.publisher_pins
+            else options.jwks_resolver
+        ),
         replay_store=options.replay_store,
         revocation_checker=options.revocation_checker,
         revocation_list=options.revocation_list,
@@ -161,7 +180,11 @@ def verify_webhook_signature(
         accepted_adcp_uses=frozenset({ADCP_USE_REQUEST, ADCP_USE_WEBHOOK}),
         allowed_algs=options.allowed_algs,
         agent_url=options.sender_url,
-        expected_key_origins=options.expected_key_origins,
+        expected_key_origins=(
+            (options.expected_key_origins or {})
+            if options.publisher_pins
+            else options.expected_key_origins
+        ),
         signing_purpose="webhook_signing",
         posture=options.posture,
         # The rc.4 webhook-v1 corpus retains legacy Base64URL signatures.
@@ -266,7 +289,17 @@ def _precheck_webhook_has_required_components(headers: Mapping[str, str]) -> Non
 
 def _retag_to_webhook(exc: SignatureVerificationError) -> SignatureVerificationError:
     """Translate a request_signature_* code to its webhook_signature_* twin."""
-    webhook_code = REQUEST_TO_WEBHOOK_CODE.get(exc.code)
+    webhook_code: str | None
+    if exc.code.startswith("request_signature_brand_") or exc.code in {
+        "request_signature_agent_not_in_brand_json",
+        "request_signature_capabilities_unreachable",
+        "request_signature_key_origin_mismatch",
+        "request_signature_key_origin_missing",
+    }:
+        logger.warning("webhook key discovery failed: %s", exc.code)
+        webhook_code = WEBHOOK_SIGNATURE_KEY_UNKNOWN
+    else:
+        webhook_code = REQUEST_TO_WEBHOOK_CODE.get(exc.code)
     if webhook_code is None:
         # Unknown code means the core verifier grew a new error code and the
         # translation map wasn't updated. Surface as generic auth-failure
@@ -283,6 +316,173 @@ def _retag_to_webhook(exc: SignatureVerificationError) -> SignatureVerificationE
         webhook_code,
         step=exc.step,
         message=str(exc),
+        detail=exc.detail,
+    )
+
+
+class _PinnedWebhookResolver:
+    """Never source a key from the pin; intersect the resolved operator key."""
+
+    jwks_source = "brand_json"
+
+    def __init__(self, options: WebhookVerifyOptions, headers: Mapping[str, str]) -> None:
+        self._options = options
+        self._headers = headers
+
+    @property
+    def jwks_uri(self) -> str | None:
+        return getattr(self._options.jwks_resolver, "jwks_uri", None)
+
+    def __call__(self, keyid: str) -> dict[str, Any] | None:
+        # The core verifier has already validated the selected parameters and
+        # signature window before invoking its resolver.
+        parsed = parse_signature_input_header(_lookup(self._headers, "signature-input") or "")
+        created = int(parsed[self._options.label].params["created"])
+        key = self._options.jwks_resolver(keyid)
+        pins = self._options.publisher_pins or {}
+        if key is not None and matches_publisher_pins(key, pins, now=created):
+            return key
+        refresh = self._options.refresh_publisher_pins
+        if refresh is not None:
+            try:
+                refreshed = refresh()
+            except Exception as exc:
+                raise SignatureVerificationError(
+                    REQUEST_SIGNATURE_KEY_UNKNOWN,
+                    step=7,
+                    message="publisher pin refresh failed",
+                ) from exc
+            if set(refreshed) != set(pins):
+                raise SignatureVerificationError(
+                    REQUEST_SIGNATURE_KEY_UNKNOWN,
+                    step=7,
+                    message="publisher refresh changed the applicable inventory scope",
+                )
+            if key is not None and matches_publisher_pins(key, refreshed, now=created):
+                return key
+        return None
+
+
+async def verify_webhook_from_agent_url(
+    *,
+    method: str,
+    url: str,
+    headers: Mapping[str, str],
+    body: bytes,
+    agent_url: str,
+    publisher_domains: Sequence[str] = (),
+    replay_store: ReplayStore | None = None,
+    revocation_checker: RevocationChecker | None = None,
+    revocation_list: RevocationList | None = None,
+    allow_private_destinations: bool = False,
+    clock: Callable[[], float] = time.time,
+    protocol: Literal["mcp", "a2a"] = "mcp",
+) -> VerifiedWebhookSender:
+    """Discover operator keys and verify a webhook with publisher intersections.
+
+    ``publisher_domains`` MUST come from the receiver's own media-buy record,
+    never the webhook body. Every call reconfirms capabilities, so no cached
+    onboarding mapping can outlive the operator's advertised record. On pin
+    rejection each applicable publisher's adagents.json is fetched again.
+    """
+    from adcp.adagents import fetch_publisher_signing_pins
+    from adcp.exceptions import AdagentsValidationError
+    from adcp.signing.agent_resolver import (
+        AgentResolverError,
+        _BrandJsonStaticJwksResolver,
+        _canonical_agent_origin,
+        _default_replay_store_for_origin,
+        _refresh_jwks_after_miss,
+        async_resolve_agent,
+    )
+    from adcp.signing.canonical import parse_signature_input_header
+
+    _precheck_webhook_signature_alphabet(headers, SIG_LABEL_DEFAULT)
+    _precheck_webhook_has_required_components(headers)
+    signature_input = _lookup(headers, "signature-input")
+    if signature_input is None:
+        raise SignatureVerificationError(WEBHOOK_SIGNATURE_REQUIRED, step=1)
+    try:
+        labels = parse_signature_input_header(signature_input)
+        parsed = labels.get(SIG_LABEL_DEFAULT)
+        if parsed is None:
+            raise ValueError("selected webhook signature label is absent")
+        keyid = str(parsed.params.get("keyid", ""))
+        created = parsed.params.get("created")
+    except ValueError as exc:
+        raise SignatureVerificationError(WEBHOOK_SIGNATURE_HEADER_MALFORMED, step=1) from exc
+
+    try:
+        resolution = await async_resolve_agent(
+            agent_url,
+            allow_private_destinations=allow_private_destinations,
+            allow_legacy_fallback=True,
+            signing_purpose="webhook_signing",
+            protocol=protocol,
+        )
+    except AgentResolverError as exc:
+        cause = exc.signature_code or {
+            "capabilities_unreachable": "request_signature_capabilities_unreachable",
+            "brand_json_url_missing": "request_signature_brand_json_url_missing",
+        }.get(exc.code, "request_signature_jwks_unavailable")
+        logger.warning("webhook agent resolution failed: %s", cause)
+        raise SignatureVerificationError(
+            WEBHOOK_SIGNATURE_KEY_UNKNOWN, step=7, message="webhook key discovery failed"
+        ) from exc
+
+    resolver = _BrandJsonStaticJwksResolver(resolution.jwks, jwks_uri=resolution.jwks_uri)
+    key = resolver(keyid)
+    if key is None:
+        try:
+            refreshed = await _refresh_jwks_after_miss(
+                resolution.jwks_uri, allow_private=allow_private_destinations
+            )
+        except (ValueError, OSError, httpx.HTTPError, SSRFValidationError) as exc:
+            raise SignatureVerificationError(
+                WEBHOOK_SIGNATURE_KEY_UNKNOWN, step=7, message="operator JWKS refresh failed"
+            ) from exc
+        if refreshed is not None:
+            resolver = _BrandJsonStaticJwksResolver(refreshed, jwks_uri=resolution.jwks_uri)
+            key = resolver(keyid)
+    if publisher_domains:
+        try:
+            pins = await fetch_publisher_signing_pins(
+                tuple(publisher_domains), resolution.agent_url
+            )
+            if (
+                key is None
+                or not isinstance(created, int)
+                or not matches_publisher_pins(key, pins, now=created)
+            ):
+                pins = await fetch_publisher_signing_pins(
+                    tuple(publisher_domains), resolution.agent_url
+                )
+                if (
+                    key is None
+                    or not isinstance(created, int)
+                    or not matches_publisher_pins(key, pins, now=created)
+                ):
+                    raise ValueError("operator key does not match every publisher pin")
+        except (ValueError, OSError, httpx.HTTPError, AdagentsValidationError) as exc:
+            raise SignatureVerificationError(
+                WEBHOOK_SIGNATURE_KEY_UNKNOWN, step=7, message="publisher pin resolution failed"
+            ) from exc
+
+    options = WebhookVerifyOptions(
+        jwks_resolver=resolver,
+        sender_url=resolution.agent_url,
+        expected_key_origins=None if resolution.legacy_discovery else resolution.key_origins or {},
+        replay_store=(
+            replay_store
+            if replay_store is not None
+            else _default_replay_store_for_origin(_canonical_agent_origin(resolution.agent_url))
+        ),
+        clock=clock,
+        revocation_checker=revocation_checker,
+        revocation_list=revocation_list,
+    )
+    return verify_webhook_signature(
+        method=method, url=url, headers=headers, body=body, options=options
     )
 
 
@@ -291,4 +491,5 @@ __all__ = [
     "VerifiedWebhookSender",
     "WebhookVerifyOptions",
     "verify_webhook_signature",
+    "verify_webhook_from_agent_url",
 ]

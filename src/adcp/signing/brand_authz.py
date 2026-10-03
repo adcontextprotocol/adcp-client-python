@@ -53,6 +53,7 @@ from adcp.signing.brand_jwks import (
     _BrandJsonSnapshot,
     _ClientFactory,
 )
+from adcp.signing.canonical import canonicalize_target_uri
 from adcp.signing.etld import (
     BrandDomainValidationError,
     registrable_domain,
@@ -249,7 +250,7 @@ class BrandJsonAuthorizationResolver:
             return BrandAuthorizationResult(False, reason="agent_not_listed")
 
         if len(listing) > 1:
-            # Multiple agents[] entries byte-equal the agent URL. Per
+            # Multiple agents[] entries canonically equal the agent URL. Per
             # ADCP #3690 this maps to ``request_signature_brand_json_ambiguous``:
             # the brand.json schema does not constrain agents[] to be
             # unique-by-URL, so an operator misconfig can produce duplicates
@@ -324,6 +325,7 @@ class BrandJsonAuthorizationResolver:
 def build_brand_json_resolvers(
     brand_json_url: str,
     *,
+    agent_url: str,
     agent_type: BrandAgentType,
     agent_id: str | None = None,
     brand_id: str | None = None,
@@ -361,6 +363,7 @@ def build_brand_json_resolvers(
     )
     jwks = BrandJsonJwksResolver(
         brand_json_url,
+        agent_url=agent_url,
         agent_type=agent_type,
         agent_id=agent_id,
         brand_id=brand_id,
@@ -412,16 +415,10 @@ def _find_listed_agents(
 
     Walks top-level ``agents``, ``house.agents``, and per-brand
     ``brands[].agents`` (bounded by ``brand_id`` when provided),
-    returning every entry whose ``url`` **byte-equals** ``agent_url``.
+    returning every entry whose ``url`` canonically equals ``agent_url``.
 
-    **Byte-equal match by spec mandate.** Per ADCP #3690 security
-    profile: "Find the entry in ``agents[]`` whose ``url`` byte-equals
-    A (no canonicalization at this step). The most common failure
-    mode is a trailing-slash or scheme mismatch (e.g.,
-    ``https://x.com/mcp`` ≠ ``https://x.com/mcp/``)." Canonicalizing
-    would silently authorize agents whose URL is "close enough" to
-    what the brand declared — operators must be deliberate about what
-    they list.
+    Scheme/host case, default ports, dot segments, and unreserved percent
+    escapes normalize under the shared algorithm. Trailing slashes matter.
 
     Returning the full match list (rather than the first match) lets
     the caller distinguish ``agent_not_listed`` (0 matches),
@@ -434,14 +431,14 @@ def _find_listed_agents(
         if not isinstance(entry, dict):
             continue
         url = entry.get("url")
-        if not isinstance(url, str) or url != agent_url:
+        if not isinstance(url, str) or not _canonical_agent_match(url, agent_url):
             continue
         if agent_type is not None and entry.get("type") != agent_type:
             continue
         listed_type = entry.get("type")
         matches.append(
             _ListedAgent(
-                url=url,
+                url=canonicalize_target_uri(url),
                 type=listed_type if isinstance(listed_type, str) else None,  # type: ignore[arg-type]
             )
         )
@@ -454,16 +451,23 @@ def _has_listed_agent_at(
     agent_url: str,
     brand_id: str | None,
 ) -> bool:
-    """Return True if ``agent_url`` byte-equals any listed ``agents[].url``
+    """Return True if ``agent_url`` canonically equals any listed ``agents[].url``
     regardless of ``type`` — used to distinguish ``agent_type_mismatch``
     from ``agent_not_listed`` for caller diagnostics."""
     for entry in _walk_agents(data, brand_id=brand_id):
         if not isinstance(entry, dict):
             continue
         url = entry.get("url")
-        if isinstance(url, str) and url == agent_url:
+        if isinstance(url, str) and _canonical_agent_match(url, agent_url):
             return True
     return False
+
+
+def _canonical_agent_match(listed: str, requested: str) -> bool:
+    try:
+        return canonicalize_target_uri(listed) == canonicalize_target_uri(requested)
+    except ValueError:
+        return False
 
 
 def _walk_agents(data: dict[str, Any], *, brand_id: str | None) -> list[Any]:
