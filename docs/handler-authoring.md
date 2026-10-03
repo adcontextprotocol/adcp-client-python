@@ -2023,6 +2023,14 @@ serve(handler, config=ServeConfig(
 
 The configured Host/Origin transport policy still applies. Operator
 `asgi_middleware`, including tracing and metrics, wraps these routes.
+On `serve`, `build_asgi_app` and `build_test_client`, `max_request_size`
+also caps operational request bodies before their handlers run; `0` disables
+that common cap. Host/Origin rejection happens before the SDK reads the body.
+Direct MCP Streamable HTTP builders apply their existing `max_request_body_size`
+cap to operational routes. Direct SSE builders do the same when the installed
+MCP SDK exposes that setting. Direct A2A and MCP 2.0 SSE builders have no SDK
+body-cap setting: operators must bound their routes' bodies in their embedding
+app, handlers or reverse proxy, and configure request read timeouts.
 `SubdomainTenantMiddleware` automatically excludes matching operational Routes
 and Mount subtrees, including bare-prefix redirects and method mismatches.
 Exclusions use Starlette's matcher; `/manage` does not exclude `/management`.

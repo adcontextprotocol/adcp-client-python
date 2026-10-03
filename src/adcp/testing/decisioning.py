@@ -416,11 +416,11 @@ def build_asgi_app(
             transports=["mcp"],
             base_url=discovery_base_url,
         )
-    app = _wrap_with_size_limit(app, max_request_size)
     from adcp.server.http_policy import HostOriginMiddleware
     from adcp.server.operational_routes import wrap_operational_routes
 
     app = wrap_operational_routes(app, unauthenticated_routes)
+    app = _wrap_with_size_limit(app, max_request_size)
     app = HostOriginMiddleware(app, settings=mcp.settings.transport_security)
     app = _apply_asgi_middleware(app, asgi_middleware)
     return app

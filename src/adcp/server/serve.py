@@ -1956,8 +1956,8 @@ def _run_mcp_http(
         description=discovery_description,
         specialisms=discovery_specialisms,
     )
-    app = _wrap_with_size_limit(app, max_request_size)
     app = wrap_operational_routes(app, unauthenticated_routes)
+    app = _wrap_with_size_limit(app, max_request_size)
     app = HostOriginMiddleware(app, settings=mcp.settings.transport_security)
     app = _apply_asgi_middleware(app, asgi_middleware)
 
@@ -2073,8 +2073,8 @@ def _build_a2a_app(
             description=description,
             specialisms=specialisms,
         )
-    app = _wrap_with_size_limit(app, max_request_size)
     app = wrap_operational_routes(app, unauthenticated_routes)
+    app = _wrap_with_size_limit(app, max_request_size)
     app = HostOriginMiddleware(
         app,
         settings=transport_security_settings(
@@ -2391,11 +2391,9 @@ def _build_mcp_and_a2a_app(
             description=description,
             specialisms=specialisms,
         )
+    app = wrap_operational_routes(app, unauthenticated_routes)
     app = _wrap_with_size_limit(app, max_request_size)
-    return HostOriginMiddleware(
-        wrap_operational_routes(app, unauthenticated_routes),
-        settings=mcp.settings.transport_security,
-    )
+    return HostOriginMiddleware(app, settings=mcp.settings.transport_security)
 
 
 def _serve_mcp_and_a2a(
@@ -2964,8 +2962,11 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
             lifespan=lifespan,
         )
         if operational_routes is not None:
+            from adcp.server._size_limit import RequestSizeLimitMiddleware
+
             app.state.adcp_operational_routes = operational_routes
             app.add_middleware(OperationalRoutesMiddleware, routes=operational_routes)
+            app.add_middleware(RequestSizeLimitMiddleware, max_bytes=max_request_body_size)
         app.add_middleware(HostOriginMiddleware, settings=resolved_transport_security)
         return app
 
@@ -2990,8 +2991,22 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
             **kwargs,
         )
         if operational_routes is not None:
+            import inspect
+
+            from adcp.server._size_limit import RequestSizeLimitMiddleware
+
             app.state.adcp_operational_routes = operational_routes
             app.add_middleware(OperationalRoutesMiddleware, routes=operational_routes)
+            # MCP 2.0 SSE has no SDK body-size setting. When the installed
+            # SDK supplies one, apply that same cap before operational dispatch.
+            body_size = inspect.signature(type(self).sse_app).parameters.get(
+                "max_request_body_size"
+            )
+            if body_size is not None:
+                app.add_middleware(
+                    RequestSizeLimitMiddleware,
+                    max_bytes=kwargs.get("max_request_body_size", body_size.default),
+                )
         app.add_middleware(HostOriginMiddleware, settings=settings)
         return app
 
