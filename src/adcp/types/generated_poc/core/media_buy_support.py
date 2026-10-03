@@ -18,11 +18,11 @@ class ProductMediaBuySupport(AdCPBaseModel):
         extra='allow',
     )
     frequency_cap: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description="This product can participate in the seller's shared counter for a root MediaBuy.frequency_cap. A buy mixing this product with one that lacks this declaration, or whose resolved supported_per_units omits the root cap's per value, is rejected atomically."
         ),
-    ] = True
+    ] = None
     frequency_cap_constraints: (
         media_buy_frequency_cap_support.MediaBuyFrequencyCapSupport | None
     ) = None

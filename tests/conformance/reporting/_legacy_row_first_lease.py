@@ -1,6 +1,7 @@
 """Frozen wrong-order control from 71c2bc0f, never a production implementation.
 
-The exact predecessor SQL retains its real trigger wait and transaction rollback
+Only ownership coordinates are adapted for the new schema. The predecessor
+locking order retains its real trigger wait and transaction rollback
 behavior. Fixing the live base method must not silently disable this control.
 """
 
@@ -35,18 +36,21 @@ async def row_first_period_close(
             await connection.execute(
                 "UPDATE reporting_configurations SET lease_worker_id = %s,"
                 " lease_expires_at = %s"
-                " WHERE (account_id, delivery_config_id, delivery_config_version) = ("
-                "   SELECT c.account_id, c.delivery_config_id, c.delivery_config_version"
+                " WHERE (account_id, consumer_id, delivery_config_id, delivery_config_version) = ("
+                "   SELECT c.account_id, c.consumer_id, c.delivery_config_id,"
+                " c.delivery_config_version"
                 "   FROM reporting_configurations c"
                 "   LEFT JOIN adcp_reporting_configuration_lease_turns t"
-                "     ON (t.account_id, t.delivery_config_id, t.delivery_config_version)"
-                "      = (c.account_id, c.delivery_config_id, c.delivery_config_version)"
+                "     ON (t.account_id, t.consumer_id, t.delivery_config_id,"
+                " t.delivery_config_version)"
+                "      = (c.account_id, c.consumer_id, c.delivery_config_id,"
+                " c.delivery_config_version)"
                 "   WHERE c.lease_expires_at IS NULL OR c.lease_expires_at <= %s"
                 "   ORDER BY COALESCE(t.lease_turn, 0), c.lease_expires_at NULLS FIRST,"
-                "     c.account_id, c.delivery_config_id, c.delivery_config_version"
+                "     c.account_id, c.consumer_id, c.delivery_config_id, c.delivery_config_version"
                 "   FOR UPDATE OF c SKIP LOCKED"
                 "   LIMIT 1)"
-                " RETURNING account_id, delivery_config_id, delivery_config_version",
+                " RETURNING account_id, consumer_id, delivery_config_id, delivery_config_version",
                 (worker_id, expires, _utc(now)),
             )
         ).fetchone()
@@ -55,19 +59,22 @@ async def row_first_period_close(
             # advance without the lease or the lease without the rank.
             await connection.execute(
                 "INSERT INTO adcp_reporting_configuration_lease_turns"
-                " (account_id, delivery_config_id, delivery_config_version, lease_turn)"
-                " VALUES (%s, %s, %s,"
+                " (account_id, consumer_id, delivery_config_id, delivery_config_version,"
+                " lease_turn)"
+                " VALUES (%s, %s, %s, %s,"
                 "   nextval('adcp_reporting_configuration_lease_turn_seq'))"
-                " ON CONFLICT (account_id, delivery_config_id, delivery_config_version)"
+                " ON CONFLICT (account_id, consumer_id, delivery_config_id,"
+                " delivery_config_version)"
                 " DO UPDATE SET lease_turn ="
                 "   nextval('adcp_reporting_configuration_lease_turn_seq')",
-                (row[0], row[1], row[2]),
+                (row[0], row[1], row[2], row[3]),
             )
     if row is None:
         return None
     return LeasedConfiguration(
         account_id=row[0],
-        delivery_config_id=row[1],
-        delivery_config_version=row[2],
+        consumer_id=row[1],
+        delivery_config_id=row[2],
+        delivery_config_version=row[3],
         lease_expires_at=expires,
     )

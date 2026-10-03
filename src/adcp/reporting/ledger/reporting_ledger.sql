@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS reporting_configurations (
     delivery_config_id      TEXT COLLATE "C" NOT NULL,
     delivery_config_version INTEGER          NOT NULL,
     account_id              TEXT COLLATE "C" NOT NULL,
+    consumer_id             TEXT COLLATE "C" NOT NULL,
     report_definition_id    TEXT COLLATE "C" NOT NULL,
     reporting_profile       TEXT             NOT NULL,
     feed_purpose            TEXT             NOT NULL,
@@ -44,11 +45,13 @@ CREATE TABLE IF NOT EXISTS reporting_configurations (
     -- Binds the whole generation so a re-put with changed content is a
     -- detectable conflict rather than a silent edit of retained evidence.
     content_sha256          TEXT COLLATE "C" NOT NULL,
+    -- Maintenance imports stay readable only to their validated owner; never runnable.
+    quarantined BOOLEAN NOT NULL DEFAULT FALSE,
     -- Period-close leasing. A worker that dies mid-close releases its work by
     -- expiry instead of wedging the period forever.
     lease_worker_id         TEXT COLLATE "C",
     lease_expires_at        TIMESTAMPTZ,
-    PRIMARY KEY (account_id, delivery_config_id, delivery_config_version)
+    PRIMARY KEY (account_id, consumer_id, delivery_config_id, delivery_config_version)
 );
 
 CREATE INDEX IF NOT EXISTS reporting_configurations_account_idx
@@ -91,15 +94,17 @@ CREATE SEQUENCE IF NOT EXISTS adcp_reporting_configuration_lease_turn_seq AS BIG
 -- deleted simply stops being joined.
 CREATE TABLE IF NOT EXISTS adcp_reporting_configuration_lease_turns (
     account_id              TEXT COLLATE "C" NOT NULL,
+    consumer_id             TEXT COLLATE "C" NOT NULL,
     delivery_config_id      TEXT COLLATE "C" NOT NULL,
     delivery_config_version INTEGER          NOT NULL,
     lease_turn              BIGINT           NOT NULL,
-    PRIMARY KEY (account_id, delivery_config_id, delivery_config_version)
+    PRIMARY KEY (account_id, consumer_id, delivery_config_id, delivery_config_version)
 );
 
 CREATE TABLE IF NOT EXISTS reporting_obligations (
     reporting_obligation_id TEXT COLLATE "C" NOT NULL PRIMARY KEY,
     account_id              TEXT COLLATE "C" NOT NULL,
+    consumer_id             TEXT COLLATE "C" NOT NULL,
     delivery_config_id      TEXT COLLATE "C" NOT NULL,
     delivery_config_version INTEGER          NOT NULL,
     report_definition_id    TEXT COLLATE "C" NOT NULL,
@@ -132,7 +137,7 @@ CREATE TABLE IF NOT EXISTS reporting_obligations (
 -- and pick a winner.
 CREATE UNIQUE INDEX IF NOT EXISTS reporting_obligations_period_key
     ON reporting_obligations
-       (account_id, delivery_config_id, delivery_config_version, period_start, period_end);
+       (account_id, consumer_id, delivery_config_id, delivery_config_version, period_start, period_end);
 
 CREATE INDEX IF NOT EXISTS reporting_obligations_account_idx
     ON reporting_obligations (account_id, period_end DESC);
@@ -232,7 +237,7 @@ CREATE INDEX IF NOT EXISTS reporting_adjustments_revision_idx
 -- cheap and a migration mid-rollout is not; the ingest that writes here is off
 -- until an adopter enables it. See adcp/reporting/ledger/consumer_status.py.
 CREATE TABLE IF NOT EXISTS reporting_consumer_statuses (
-    reporting_status_id     TEXT COLLATE "C" NOT NULL PRIMARY KEY,
+    reporting_status_id     TEXT COLLATE "C" NOT NULL,
     account_id              TEXT COLLATE "C" NOT NULL,
     -- Derived from authenticated transport, never from the request body.
     consumer_id             TEXT COLLATE "C" NOT NULL,
@@ -257,7 +262,8 @@ CREATE TABLE IF NOT EXISTS reporting_consumer_statuses (
     seller_ledger_snapshot_id TEXT,
     seller_ledger_as_of     TIMESTAMPTZ,
     superseded              BOOLEAN          NOT NULL DEFAULT FALSE,
-    content_sha256          TEXT COLLATE "C" NOT NULL
+    content_sha256          TEXT COLLATE "C" NOT NULL,
+    PRIMARY KEY (account_id, consumer_id, reporting_status_id)
 );
 
 -- Exactly one unsuperseded leaf per logical chain. This is what makes
@@ -271,7 +277,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS reporting_consumer_statuses_one_leaf
     WHERE superseded = FALSE;
 
 CREATE UNIQUE INDEX IF NOT EXISTS reporting_consumer_statuses_one_successor
-    ON reporting_consumer_statuses (supersedes_reporting_status_id)
+    ON reporting_consumer_statuses (account_id, consumer_id, supersedes_reporting_status_id)
     WHERE supersedes_reporting_status_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS reporting_consumer_statuses_chain_idx
@@ -360,13 +366,14 @@ CREATE TABLE IF NOT EXISTS reporting_issue_waiver_bindings (
 CREATE TABLE IF NOT EXISTS reporting_ledger_changes (
     seq          BIGSERIAL        NOT NULL PRIMARY KEY,
     account_id   TEXT COLLATE "C" NOT NULL,
+    consumer_id  TEXT COLLATE "C" NOT NULL,
     record_kind  TEXT             NOT NULL,
     record_id    TEXT COLLATE "C" NOT NULL,
     committed_at TIMESTAMPTZ      NOT NULL DEFAULT now()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS reporting_ledger_changes_record
-    ON reporting_ledger_changes (account_id, record_kind, record_id);
+    ON reporting_ledger_changes (account_id, consumer_id, record_kind, record_id);
 
 CREATE INDEX IF NOT EXISTS reporting_ledger_changes_feed_idx
-    ON reporting_ledger_changes (account_id, seq);
+    ON reporting_ledger_changes (account_id, consumer_id, seq);

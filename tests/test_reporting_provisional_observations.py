@@ -15,6 +15,7 @@ from adcp.reporting.ledger import (
     ReportingProducer,
     revision_content_sha256,
 )
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.source import SourceBatchManifestV1
 from tests.conformance.reporting._generation_support import isolated_reporting_pool
@@ -281,7 +282,7 @@ async def test_concurrent_same_acquisition_commits_once(make_harness):
     await producer.run_worker()
     first = await latest(store)
     clock[0] = first.next_due_at
-    config = (await store.list_configurations(account_id=ACCOUNT))[0]
+    config = (await store.list_configurations(caller=OwnershipCaller(ACCOUNT, "buyer-settling")))[0]
     obligation = await _only_obligation(store)
     await asyncio.gather(
         *[

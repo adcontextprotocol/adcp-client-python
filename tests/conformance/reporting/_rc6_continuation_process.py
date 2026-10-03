@@ -75,7 +75,7 @@ async def main(settings):
 
     consumer = "https://buyer.example.test/installed-rc6"
     clock = ManualClock(START + timedelta(hours=1.5 if settings["phase"] == "seed" else 8.5))
-    config = replace(configuration(), deactivated_at=None)
+    config = replace(configuration(consumer_id=consumer), deactivated_at=None)
     caller = ReportingDeliveryPrincipal(config.account_id, consumer)
 
     async def captured_now(connection):
@@ -106,8 +106,66 @@ async def main(settings):
             projection = PgReportingStatusProjection(store, revision_ownership=True)
             await projection.activate(account_id=config.account_id)
         else:
-            # Real new write and time change; old pages must keep their capture.
-            await store.put_configuration(replace(config, deactivated_at=START))
+            import secrets
+
+            from adcp.reporting.canonical_json import canonical_json_utf8_v1
+            from tests.conformance.reporting._ownership_legacy_seed import image
+            from tests.conformance.reporting._ownership_legacy_seed import main as upgrade
+
+            prior = settings["prior"]
+            if settings["phase"] == "replay":
+                legacy = {
+                    "account": config.account_id,
+                    "consumer": consumer,
+                    "delivery_config_id": config.delivery_config_id,
+                    "delivery_config_version": config.delivery_config_version,
+                    "first": prior["pages"][0],
+                }
+                recovery = await upgrade(
+                    {
+                        "workspace": settings["workspace"],
+                        "modules": settings["modules"],
+                        "conninfo": settings["conninfo"],
+                        "kwargs": settings["kwargs"],
+                        "notifications": settings["notifications"],
+                        "action": "upgrade",
+                        "legacy": legacy,
+                        "archive": "adcp_reporting_quarantine_" + secrets.token_hex(6),
+                        "keep_archive": True,
+                        "python": [3, 10],
+                    }
+                )
+                # Fresh, separately admitted ownership never authorizes legacy replay.
+                config = replace(config, delivery_config_version=2)
+                await store.put_configuration(config)
+                producer = ReportingProducer(
+                    source=UncalledSource(), offerings=ProducerOfferings(), store=store
+                )
+                assert await producer.close_elapsed_periods(config, now=clock())
+                await PgReportingStatusProjection(store, revision_ownership=True).activate(
+                    account_id=config.account_id
+                )
+            else:
+                recovery = settings["recovery"]
+                await store.create_schema()
+            async with pool.connection() as connection:
+                retained = await image(connection, recovery["archive"])
+                assert (
+                    hashlib.sha256(
+                        json.dumps(retained, sort_keys=True, separators=(",", ":")).encode()
+                    ).hexdigest()
+                    == recovery["archive_image_sha256"]
+                )
+                row = await (
+                    await connection.execute(
+                        'SELECT document,content_sha256 FROM "'
+                        + recovery["archive"]
+                        + '".reporting_projection_feed_snapshots WHERE snapshot_id=%s',
+                        (prior["pages"][0]["ledger_snapshot_id"],),
+                    )
+                ).fetchone()
+                assert row is not None and row[1] == prior["snapshot_sha256"]
+                assert hashlib.sha256(row[0].encode()).hexdigest() == prior["snapshot_sha256"]
 
         def mounted(version):
             result = MountedFeed(h, hydrated=True, registry_kind="oauth", version=version)
@@ -122,62 +180,42 @@ async def main(settings):
             from adcp.reporting.feed.errors import ReportingFeedError
 
             first = prior["pages"][0]
-            snapshot = await store.read_reporting_feed_snapshot(
-                first["ledger_snapshot_id"], caller=caller
+            assert (
+                await store.read_reporting_feed_snapshot(first["ledger_snapshot_id"], caller=caller)
+                is None
             )
-            document = canonical_json_utf8_v1(snapshot.to_storage())
-            assert hashlib.sha256(document).hexdigest() == prior["snapshot_sha256"]
-            assert json.loads(snapshot.filters_json)["adcp_version"] == "3.2-rc.6"
             try:
                 mounted("3.2-rc.6")
             except ConfigurationError:
                 pass
             else:
-                raise AssertionError("current runtime mounted an unsupported rc.6 pin")
-            new_mount = mounted("3.2")
-            version_boundary = None
+                raise AssertionError("current reporting composition accepted a legacy pin")
             positions = (
-                {"pagination": {"max_results": 1, "cursor": first["pagination"]["cursor"]}},
+                {"pagination": {"cursor": first["pagination"]["cursor"], "max_results": 1}},
                 {"changes_after": prior["checkpoint"]},
             )
+            for position in positions:
+                try:
+                    await store.read_reporting_feed(
+                        {
+                            "account": {"account_id": config.account_id},
+                            "view": "periods",
+                            **position,
+                        },
+                        caller=caller,
+                    )
+                except ReportingFeedError as error:
+                    assert error.code == "INVALID_CHECKPOINT" and "restart" in str(error).lower()
+                else:
+                    raise AssertionError("legacy reporting position was accepted")
+            new_mount = mounted("3.2")
             current = await fresh_read_after_legacy_refusals(
                 new_mount, config.account_id, positions
             )
-            assert current["health"] == "complete"
             assert current["ledger_snapshot_id"] != first["ledger_snapshot_id"]
             get_named_validator(
                 "media-buy/get-reporting-status-response.json", version="3.2"
             ).validate(current)
-            for position in positions:
-                # An authenticated position still reports the captured version
-                # boundary when presented to a supported 3.2 read.
-                request = {
-                    "adcp_version": "3.2",
-                    "account": {"account_id": config.account_id},
-                    "view": "periods",
-                    **position,
-                }
-                try:
-                    await store.read_reporting_feed(request, caller=caller)
-                except ReportingFeedError as exc:
-                    assert exc.code == "REPORTING_FEED_VERSION_MISMATCH"
-                    version_boundary = exc.code
-                else:
-                    raise AssertionError("cross-version stored position was accepted")
-            preserved = await store.read_reporting_feed_snapshot(
-                first["ledger_snapshot_id"], caller=caller
-            )
-            assert canonical_json_utf8_v1(preserved.to_storage()) == document
-            async with pool.connection() as connection:
-                row = await (
-                    await connection.execute(
-                        "SELECT document,content_sha256 FROM reporting_projection_feed_snapshots"
-                        " WHERE account_id=%s AND consumer_id=%s AND snapshot_id=%s",
-                        (caller.account_id, caller.consumer_id, first["ledger_snapshot_id"]),
-                    )
-                ).fetchone()
-            assert row is not None and row[0].encode("utf-8") == document
-            assert row[1] == prior["snapshot_sha256"]
             return {
                 "phase": settings["phase"],
                 "python": sys.version,
@@ -186,11 +224,11 @@ async def main(settings):
                 "pages": prior["pages"],
                 "pages_sha256": prior["pages_sha256"],
                 "snapshot_sha256": prior["snapshot_sha256"],
-                "snapshot_bytes": len(document),
-                "version_boundary": version_boundary,
+                "version_boundary": "INVALID_CHECKPOINT",
                 "checkpoint": prior["checkpoint"],
                 "fresh_version": new_mount.version,
                 "fresh_snapshot_id": current["ledger_snapshot_id"],
+                "recovery": recovery,
             }
 
         old_mount = mounted("3.2-rc.6")

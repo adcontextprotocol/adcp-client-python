@@ -78,12 +78,14 @@ async def main():
     start = datetime(2026, 9, 1, tzinfo=timezone.utc)
     schedule = ReportingScheduleSpec("PT1H", "PT1H", period_anchor=start)
     period = derive_period(schedule, account_timezone="UTC", ordinal=0)
+    consumer_id = "https://buyer.example.test/agents/reporting"
     for count in (0, 501):
         ledger = InMemoryReportingReconciliationStore()
         configuration = ReportingConfiguration(
             delivery_config_id="daily",
             delivery_config_version=1,
             account_id="account",
+            consumer_id=consumer_id,
             report_definition_id=verifier.key.report_definition_id,
             reporting_profile=verifier.key.reporting_profile,
             feed_purpose="analytics",
@@ -96,6 +98,7 @@ async def main():
         obligation = ReportingObligationRecord(
             reporting_obligation_id="obligation",
             account_id="account",
+            consumer_id=consumer_id,
             delivery_config_id="daily",
             delivery_config_version=1,
             report_definition_id=verifier.key.report_definition_id,
@@ -114,7 +117,7 @@ async def main():
         await ledger.commit_obligation(obligation)
         binding = ReportingDestinationBinding(
             configuration.generation_key,
-            "https://buyer.example.test/agents/reporting",
+            consumer_id,
             "reference-destination",
             "trusted-binding",
             "file_transfer",

@@ -8,6 +8,7 @@ import pytest
 
 from adcp.reporting.feed import PgReportingFeedStore
 from adcp.reporting.ledger import PgReportingLedgerStore, PgReportingReconciliationStore
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.materializer import PgReportingMaterializerStore
 from adcp.reporting.projection import PgReportingProjectionStore
 from adcp.reporting.receipts import PgReportingReceiptStore
@@ -132,7 +133,9 @@ async def test_public_stores_lease_and_configuration_writer_keep_consistent_orde
                 )
             ).fetchone() == (0,)
             assert adoption_operation_1
-        adoption_operation_2 = await store.list_configurations(account_id=first.account_id) == (
+        adoption_operation_2 = await store.list_configurations(
+            caller=OwnershipCaller(first.account_id, first.consumer_id)
+        ) == (
             first,
             sibling,
         )

@@ -10,6 +10,7 @@ from adcp.reporting.ledger import (
     PgReportingLedgerStore,
     derive_period,
 )
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.outbox import (
     PgStatusNotificationStore,
     ReportingNotificationError,
@@ -57,7 +58,7 @@ async def test_config_obligation_collisions_siblings_and_broad_issue_fanout(stat
         revision, rows = revision_for(obligation, suffix=str(i))
         revisions.append(revision)
         await h.ledger.commit_revision(revision, rows)
-        for consumer in ("buyer", "auditor"):
+        for consumer in ("buyer",):
             await h.ledger.record_consumer_status(
                 replace(
                     statement(obligation, consumer),
@@ -71,7 +72,7 @@ async def test_config_obligation_collisions_siblings_and_broad_issue_fanout(stat
             )
     await h.status.baseline(account_id="acct_a")
     checkpoints = await h.status.checkpoints(account_id="acct_a")
-    assert len({c.scope.checkpoint_key for c in checkpoints}) == len(checkpoints) == 15
+    assert len({c.scope.checkpoint_key for c in checkpoints}) == len(checkpoints) == 5
     await h.ledger.set_revision_readable(
         account_id="acct_a",
         reporting_revision_id=revisions[0].reporting_revision_id,
@@ -79,12 +80,12 @@ async def test_config_obligation_collisions_siblings_and_broad_issue_fanout(stat
     )
     await h.drain()
     events = await h.status.outbox.list_events(account_id="acct_a")
-    assert len(events) == 6
+    assert len(events) == 2
     assert {
         (e.cause.scope.generation_key.delivery_config_id, e.cause.scope.reporting_obligation_id)
         for e in events
     } == {("shared", None), ("shared", "shared")}
-    assert {e.consumer_namespace for e in events} == {"", "buyer", "auditor"}
+    assert {e.consumer_namespace for e in events} == {"buyer"}
     for checkpoint in await h.status.checkpoints(account_id="acct_a"):
         expected = int(
             checkpoint.scope.generation_key == first.generation_key
@@ -269,7 +270,7 @@ async def test_boundary_rejects_source_writes_after_forced_early_capture():
                         "SET CONSTRAINTS reporting_status_boundary_capture IMMEDIATE"
                     )
                 await ledger.commit_obligation(obligation_for(configuration()))
-        assert not await ledger.list_configurations(account_id="acct_a")
+        assert not await ledger.list_configurations(caller=OwnershipCaller("acct_a", "buyer"))
         async with pool.connection() as conn:
             assert (
                 await (

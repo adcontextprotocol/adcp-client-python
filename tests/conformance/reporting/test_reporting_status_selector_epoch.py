@@ -95,7 +95,10 @@ async def two_feeds(h, *, issue=True):
                 ReportingStatusScope("acct_a", consumer_id="buyer", feed_purpose="billing"),
             ),
             ("analytics-public", ReportingStatusScope.for_obligation(owners["analytics"])),
-            ("billing-private", ReportingStatusScope.for_obligation(owners["billing"], "auditor")),
+            (
+                "billing-private",
+                ReportingStatusScope("acct_a", consumer_id="auditor", feed_purpose="billing"),
+            ),
         ):
             issues[key] = await h.ledger.ensure_issue_opened(
                 issue_key=key,
@@ -110,27 +113,37 @@ async def two_feeds(h, *, issue=True):
 async def test_directional_feed_public_private_configuration_obligation_scopes(status_harness):
     h = status_harness
     owners, issues = await two_feeds(h)
-    snapshot = await h.ledger.read_status_snapshot(account_id="acct_a")
+    from adcp.reporting.ledger.status_snapshot import memory_snapshot, read_snapshot_on
+
+    if isinstance(h.ledger, InMemoryReportingLedgerStore):
+        snapshot = memory_snapshot(h.ledger, "acct_a")
+    else:
+        async with h.ledger._pool.connection() as connection:
+            snapshot = await read_snapshot_on(connection, account_id="acct_a", as_of=h.clock())
     for consumer in (None, "buyer", "auditor"):
         for feed in (None, "analytics", "billing"):
             for level in ("account", "configuration", "obligation"):
-                if level != "account" and feed is None:
+                if level != "account" and (feed is None or consumer == "auditor"):
                     continue
                 owner = owners[feed] if feed else None
                 scope = ReportingStatusScope(
                     "acct_a",
-                    owner.generation_key if level != "account" else None,
+                    (
+                        replace(owner.generation_key, consumer_id=consumer or "buyer")
+                        if level != "account"
+                        else None
+                    ),
                     owner.reporting_obligation_id if level == "obligation" else None,
                     consumer,
                     feed,
                 )
                 result = project_status_scope(StatusProjectionInput(snapshot, scope))
                 expected = set()
-                if feed in (None, "analytics"):
+                if feed in (None, "analytics") and scope.consumer_id == "buyer":
                     expected.add(issues["analytics-public"].issue_id)
-                if feed in (None, "billing") and consumer == "buyer":
+                if feed in (None, "billing") and scope.consumer_id == "buyer":
                     expected.add(issues["billing-partial"].issue_id)
-                if feed in (None, "billing") and consumer == "auditor":
+                if feed in (None, "billing") and scope.consumer_id == "auditor":
                     expected.add(issues["billing-private"].issue_id)
                 assert {i.issue_id for i in result.issues} == expected, (consumer, feed, level)
                 assert all(

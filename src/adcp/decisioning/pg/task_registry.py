@@ -165,33 +165,33 @@ class PgTaskRegistry:
         # Pre-format queries at construction so the hot path avoids f-strings per call.
         # _table is whitelisted by _SAFE_IDENTIFIER_RE above.
         self._sql_insert = (  # noqa: S608 — table name is whitelisted
-            f"INSERT INTO {self._table}"
+            f"INSERT INTO {self._table}"  # nosec B608 — table identifier is constructor-validated
             f" (task_id, account_id, state, task_type, request_context,"
             f"  webhook_registration, webhook_registration_nonce, created_at, updated_at)"
             f" VALUES (%s, %s, 'submitted', %s, %s::jsonb, %s, %s, %s, %s)"
         )
         self._sql_update_progress = (  # noqa: S608
-            f"UPDATE {self._table}"
+            f"UPDATE {self._table}"  # nosec B608 — table identifier is constructor-validated
             f" SET state = CASE state WHEN 'submitted' THEN 'working' ELSE state END,"
             f"     progress = %s::jsonb, updated_at = %s"
             f" WHERE task_id = %s AND state NOT IN ('completed', 'failed')"
         )
         self._sql_complete = (  # noqa: S608
-            f"UPDATE {self._table}"
+            f"UPDATE {self._table}"  # nosec B608 — table identifier is constructor-validated
             f" SET state = 'completed', result = %s::jsonb, updated_at = %s"
             f" WHERE task_id = %s AND state NOT IN ('completed', 'failed')"
             f" RETURNING task_id, account_id, task_type, webhook_registration,"
             f" webhook_registration_nonce"
         )
         self._sql_fail = (  # noqa: S608
-            f"UPDATE {self._table}"
+            f"UPDATE {self._table}"  # nosec B608 — table identifier is constructor-validated
             f" SET state = 'failed', error = %s::jsonb, updated_at = %s"
             f" WHERE task_id = %s AND state NOT IN ('completed', 'failed')"
             f" RETURNING task_id, account_id, task_type, webhook_registration,"
             f" webhook_registration_nonce"
         )
         self._sql_clear_webhook_registration = (  # noqa: S608
-            f"UPDATE {self._table} SET webhook_registration = NULL,"
+            f"UPDATE {self._table} SET webhook_registration = NULL,"  # nosec B608 — table identifier is constructor-validated
             f" webhook_registration_nonce = NULL WHERE task_id = %s"
         )
         # Explicit ``::text`` cast on the optional account-filter
@@ -201,21 +201,18 @@ class PgTaskRegistry:
         # ``%s IS NULL`` predicate gives psycopg no type context
         # for the parameter and the query fails at prepare time.
         self._sql_get = (  # noqa: S608
-            f"SELECT task_id, account_id, state, task_type,"
+            f"SELECT task_id, account_id, state, task_type,"  # nosec B608 — table identifier is constructor-validated
             f"       progress, result, error, request_context, created_at, updated_at"
             f" FROM {self._table}"
             f" WHERE task_id = %s AND (%s::text IS NULL OR account_id = %s)"
         )
-        self._sql_get_state_result = (  # noqa: S608
-            f"SELECT state, result, task_type FROM {self._table} WHERE task_id = %s"
+        self._sql_get_state_result = (
+            f"SELECT state, result, task_type FROM {self._table}"  # nosec B608 — validated identifier
+            " WHERE task_id = %s"
         )
-        self._sql_get_task_type = (  # noqa: S608
-            f"SELECT task_type FROM {self._table} WHERE task_id = %s"
-        )
-        self._sql_get_state_error = (  # noqa: S608
-            f"SELECT state, error FROM {self._table} WHERE task_id = %s"
-        )
-        self._sql_discard = f"DELETE FROM {self._table} WHERE task_id = %s"  # noqa: S608
+        self._sql_get_task_type = f"SELECT task_type FROM {self._table} WHERE task_id = %s"  # noqa: S608  # nosec B608 — table identifier is constructor-validated
+        self._sql_get_state_error = f"SELECT state, error FROM {self._table} WHERE task_id = %s"  # noqa: S608  # nosec B608 — table identifier is constructor-validated
+        self._sql_discard = f"DELETE FROM {self._table} WHERE task_id = %s"  # noqa: S608  # nosec B608 — table identifier is constructor-validated
         self._sql_ddl = (  # noqa: S608
             f"CREATE TABLE IF NOT EXISTS {self._table} ("
             f'    task_id     TEXT             COLLATE "C" NOT NULL PRIMARY KEY,'
@@ -523,6 +520,50 @@ class PgTaskRegistry:
                 "updated_at": row[9],
                 **({"context": row[7]} if row[7] is not None else {}),
             }
+
+    async def list(
+        self,
+        *,
+        account_id: str,
+        filters: dict[str, Any] | None = None,
+        sort: dict[str, Any] | None = None,
+        pagination: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        from adcp.decisioning.task_queries import list_task_records
+
+        # Account isolation is a SQL predicate, before rows are materialized.
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                f"SELECT task_id, account_id, state, task_type, progress, result, error,"  # nosec B608 — table identifier is constructor-validated
+                f" request_context, created_at, updated_at,"
+                f" (webhook_registration IS NOT NULL) FROM {self._table} WHERE account_id = %s",
+                (account_id,),
+            )
+            rows = await cur.fetchall()
+        records = [
+            dict(
+                zip(
+                    (
+                        "task_id",
+                        "account_id",
+                        "state",
+                        "task_type",
+                        "progress",
+                        "result",
+                        "error",
+                        "context",
+                        "created_at",
+                        "updated_at",
+                        "has_webhook",
+                    ),
+                    row,
+                )
+            )
+            for row in rows
+        ]
+        return list_task_records(
+            records, account_id=account_id, filters=filters, sort=sort, pagination=pagination
+        )
 
     async def _enqueue_terminal_if_registered(
         self,

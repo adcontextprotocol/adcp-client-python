@@ -99,7 +99,18 @@ async def test_real_legacy_status_errors_and_unexpected_provider_errors_stay_dis
         feed_request(s, view="revision"),
         feed_request(s, view="revision", reporting_revision_id="unavailable-revision"),
         feed_request(
-            s, view="summary", pagination={"cursor": encode_cursor({"snapshot": "other"})}
+            s,
+            view="summary",
+            pagination={
+                "cursor": encode_cursor(
+                    {
+                        "ownership": 2,
+                        "account": caller.account_id,
+                        "consumer": caller.consumer_id,
+                        "snapshot": "other",
+                    }
+                )
+            },
         ),
     ]
     for request in requests[:3]:

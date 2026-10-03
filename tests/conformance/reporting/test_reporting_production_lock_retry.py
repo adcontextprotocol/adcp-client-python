@@ -11,6 +11,7 @@ from adcp.reporting.ledger import (
     ProducerOfferings,
     ReportingProducer,
 )
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.materializer import PgReportingMaterializerStore
 
 from ._generation_support import START, UncalledSource, configuration, isolated_reporting_pool
@@ -117,7 +118,9 @@ async def test_default_lock_wait_is_bounded_and_rolls_back(held):
                 )
             with pytest.raises(psycopg.errors.LockNotAvailable):
                 await asyncio.wait_for(operation, 8)
-        assert await store.list_configurations(account_id=config.account_id) == (config,)
+        assert await store.list_configurations(
+            caller=OwnershipCaller(config.account_id, config.consumer_id)
+        ) == (config,)
         turn = await asyncio.wait_for(producer(store).run_worker(), 3)
         assert turn.leased is not None
         async with pool.connection() as connection:

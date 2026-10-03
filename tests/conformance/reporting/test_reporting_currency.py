@@ -54,6 +54,7 @@ from adcp.reporting.ledger import (
     require_single_currency,
     revision_content_sha256,
 )
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.pg import PgReportingLedgerStore
 from adcp.reporting.source import (
     ReportingSourceCapabilitiesV1,
@@ -92,6 +93,7 @@ def configuration(
     units = (("spend", pinned_currency),) if pinned_currency else ()
     return ReportingConfiguration(
         account_id=account,
+        consumer_id="buyer",
         delivery_config_id="daily",
         delivery_config_version=1,
         report_definition_id=contract.report_definition_id,
@@ -173,6 +175,12 @@ def producer_for(
         currency_resolver=resolver,
         clock=clock or (lambda: NOW),
     )
+
+
+async def close_admitted_periods(producer, config, **kwargs):
+    """Arrange an authenticated generation before exercising period closure."""
+    await producer.store.put_configuration(config)
+    return await producer.close_elapsed_periods(config, **kwargs)
 
 
 def money_rows(request: ReportingSourceSliceRequestV1) -> list[dict[str, Any]]:
@@ -273,6 +281,7 @@ async def test_concurrent_accounts_freeze_before_acquisition_and_survive_restart
     for config in configs:
         obligation = await restarted_store.find_obligation(
             account_id=config.account_id,
+            consumer_id=config.consumer_id,
             delivery_config_id="daily",
             delivery_config_version=1,
             period_start=START,
@@ -290,7 +299,7 @@ async def test_concurrent_accounts_freeze_before_acquisition_and_survive_restart
         assert restated is not None and restated.supersedes_reporting_revision_id
         assert requests[-1].currency == expected
         assert requests[-1].identity.source_execution_key != first_keys[config.account_id]
-        assert await restarted.close_elapsed_periods(config) == []
+        assert await close_admitted_periods(restarted, config) == []
         handler = ReportingStatusHandler(restarted_store)
         payload = await handler.handle(
             {"view": "periods", "context": {"currency": "JPY"}},
@@ -362,8 +371,10 @@ async def test_invalid_resolution_cannot_commit_or_touch_source(
 ) -> None:
     producer = producer_for(store, UncalledSource(), resolver=lambda config, candidate: invalid)
     with pytest.raises(ReportingCurrencyError, match="INVALID_CURRENCY"):
-        await producer.close_elapsed_periods(configuration())
-    snapshot = await store.open_snapshot(account_id="eur", filters_fingerprint="")
+        await close_admitted_periods(producer, configuration())
+    snapshot = await store.open_snapshot(
+        caller=OwnershipCaller("eur", "buyer"), filters_fingerprint=""
+    )
     assert snapshot.max_sequence == 0
 
 
@@ -374,7 +385,7 @@ async def test_fixed_currency_option_and_sync_resolver_are_supported(
 ) -> None:
     for account, resolver in [("default", None), ("explicit", FixedCurrencyResolver(currency))]:
         producer = producer_for(store, UncalledSource(), currency=currency, resolver=resolver)
-        (obligation,) = await producer.close_elapsed_periods(configuration(account))
+        (obligation,) = await close_admitted_periods(producer, configuration(account))
         assert obligation.currency == currency
 
 
@@ -395,11 +406,13 @@ async def test_concurrent_resolutions_converge_on_one_immutable_winner(
 
     producer = producer_for(store, UncalledSource(), resolver=resolve)
     left, right = await asyncio.gather(
-        producer.close_elapsed_periods(configuration()),
-        producer.close_elapsed_periods(configuration()),
+        close_admitted_periods(producer, configuration()),
+        close_admitted_periods(producer, configuration()),
     )
     assert left == right and left[0].currency in {"USD", "EUR"}
-    assert (await store.open_snapshot(account_id="eur", filters_fingerprint="")).max_sequence == 1
+    assert (
+        await store.open_snapshot(caller=OwnershipCaller("eur", "buyer"), filters_fingerprint="")
+    ).max_sequence == 1
 
 
 async def test_trusted_mixed_scope_is_rejected_at_freeze(store: ReportingLedgerStore) -> None:
@@ -413,8 +426,10 @@ async def test_trusted_mixed_scope_is_rejected_at_freeze(store: ReportingLedgerS
         ),
     )
     with pytest.raises(ReportingCurrencyError, match="MIXED_CURRENCY_SCOPE"):
-        await producer.close_elapsed_periods(config)
-    assert (await store.open_snapshot(account_id="eur", filters_fingerprint="")).max_sequence == 0
+        await close_admitted_periods(producer, config)
+    assert (
+        await store.open_snapshot(caller=OwnershipCaller("eur", "buyer"), filters_fingerprint="")
+    ).max_sequence == 0
 
 
 @pytest.mark.parametrize("mixed", [False, True])
@@ -436,7 +451,7 @@ async def test_pinned_definition_units_are_checked_before_source(
     with pytest.raises(
         ReportingCurrencyError, match="MIXED_CURRENCY_SCOPE" if mixed else "CURRENCY_MISMATCH"
     ):
-        await producer.close_elapsed_periods(config)
+        await close_admitted_periods(producer, config)
 
 
 class CorruptingSource:
@@ -495,7 +510,7 @@ async def test_adapter_currency_and_monetary_totals_are_only_evidence(
     adapter = CorruptingSource(source, corrupt)
     producer = producer_for(store, adapter, staging, currency="EUR")
     config = configuration(pinned_currency="EUR")
-    (obligation,) = await producer.close_elapsed_periods(config)
+    (obligation,) = await close_admitted_periods(producer, config)
     code = "MONETARY_TOTAL_MISMATCH" if corruption == "total_value" else "CURRENCY_MISMATCH"
     with pytest.raises(ReportingCurrencyError, match=code):
         await producer.acquire_obligation(config, obligation)
@@ -542,7 +557,7 @@ async def test_inline_source_rejects_currency_before_aggregation(
     source, staging = source_for(fetch)
     producer = producer_for(store, source, staging, currency="EUR")
     config = configuration()
-    (obligation,) = await producer.close_elapsed_periods(config)
+    (obligation,) = await close_admitted_periods(producer, config)
     request = producer._build_slice(config, obligation, SNAPSHOT_OFFERING_ID, now=NOW)
     result = await source.execute(request, cancel=asyncio.Event())
     assert not result.ok and result.error is not None
@@ -556,7 +571,7 @@ async def test_official_and_adjustments_keep_frozen_units(store: ReportingLedger
     config = replace(configuration(pinned_currency="EUR"), required_finality="official")
     source, staging = source_for(money_rows)
     first = producer_for(store, source, staging, currency="EUR")
-    (obligation,) = await first.close_elapsed_periods(config)
+    (obligation,) = await close_admitted_periods(first, config)
     restarted = producer_for(store, source, staging, currency="USD")
     official = await restarted.acquire_obligation(config, obligation)
     assert official is not None and official.finality == "official"
@@ -593,13 +608,14 @@ async def test_low_level_writes_require_currency_and_validate_frozen_money(
     store: ReportingLedgerStore,
 ) -> None:
     config = configuration()
-    (obligation,) = await producer_for(
-        store, UncalledSource(), currency="EUR"
-    ).close_elapsed_periods(config)
+    (obligation,) = await close_admitted_periods(
+        producer_for(store, UncalledSource(), currency="EUR"), config
+    )
     assert await store.commit_obligation(replace(obligation, currency="USD")) == obligation
     unknown = replace(
         obligation, reporting_obligation_id="new_unknown", account_id="other", currency=None
     )
+    await store.put_configuration(replace(config, account_id="other"))
     with pytest.raises(ReportingCurrencyError, match="CURRENCY_UNRESOLVED"):
         await store.commit_obligation(unknown)
     revision, _ = revision_for(obligation)
@@ -634,7 +650,7 @@ async def test_pinned_monetary_semantics_are_immutable_in_both_stores(
     config = configuration(pinned_currency="EUR")
     await store.put_configuration(config)
     await store.put_configuration(config)
-    assert await store.list_configurations(account_id="eur") == (config,)
+    assert await store.list_configurations(caller=OwnershipCaller("eur", "buyer")) == (config,)
     with pytest.raises(LedgerConflictError, match="different content"):
         await store.put_configuration(configuration(pinned_currency="USD"))
 
@@ -644,7 +660,7 @@ async def test_sync_callable_returning_a_coroutine_is_awaited(store: ReportingLe
         return "EUR"
 
     producer = producer_for(store, UncalledSource(), resolver=lambda config, candidate: answer())
-    (obligation,) = await producer.close_elapsed_periods(configuration())
+    (obligation,) = await close_admitted_periods(producer, configuration())
     assert obligation.currency == "EUR"
 
 
@@ -662,7 +678,7 @@ async def test_sealed_source_retry_after_commit_failure_keeps_currency(
     source, staging = source_for(fetch)
     config = configuration(pinned_currency="EUR")
     producer = producer_for(store, source, staging, currency="EUR")
-    (obligation,) = await producer.close_elapsed_periods(config)
+    (obligation,) = await close_admitted_periods(producer, config)
     original_commit = store.commit_revision
 
     async def crash(*args: Any) -> Any:
@@ -687,7 +703,7 @@ async def test_restored_memory_history_is_readable_but_cannot_be_resolved() -> N
     store = InMemoryReportingLedgerStore(clock=lambda: NOW)
     config = configuration()
     producer = producer_for(store, UncalledSource(), currency="EUR")
-    (current,) = await producer.close_elapsed_periods(config)
+    (current,) = await close_admitted_periods(producer, config)
     # Simulate rehydrating a record written before the optional Python field
     # existed; regular new writes deliberately refuse this representation.
     old = replace(current, currency=None)
@@ -699,7 +715,7 @@ async def test_restored_memory_history_is_readable_but_cannot_be_resolved() -> N
         raise AssertionError("legacy history cannot use a current account lookup")
 
     restarted = producer_for(store, UncalledSource(), resolver=must_not_resolve)
-    assert await restarted.close_elapsed_periods(config) == []
+    assert await close_admitted_periods(restarted, config) == []
     assert await store.commit_obligation(replace(old, currency="USD")) == old
     with pytest.raises(ReportingCurrencyError, match="CURRENCY_UNRESOLVED"):
         await restarted.acquire_obligation(config, replace(old, currency="USD"))
@@ -748,7 +764,7 @@ async def test_non_usd_zero_rows_keep_the_frozen_currency(store: ReportingLedger
     source, staging = source_for(lambda request: [])
     producer = producer_for(store, source, staging, currency="EUR")
     config = configuration(pinned_currency="EUR")
-    (obligation,) = await producer.close_elapsed_periods(config)
+    (obligation,) = await close_admitted_periods(producer, config)
     revision = await producer.acquire_obligation(config, obligation)
     assert revision is not None and revision.row_count == 0
     assert dict(revision.control_totals)["spend"] == "0"
@@ -764,7 +780,7 @@ async def test_manifest_cannot_substitute_a_different_pinned_definition(
     source, staging = source_for(money_rows)
     producer = producer_for(store, CorruptingSource(source, corrupt), staging, currency="EUR")
     config = configuration(pinned_currency="EUR")
-    (obligation,) = await producer.close_elapsed_periods(config)
+    (obligation,) = await close_admitted_periods(producer, config)
     with pytest.raises(LedgerConflictError) as caught:
         await producer.acquire_obligation(config, obligation)
     assert caught.value.code == "REPORT_DEFINITION_MISMATCH"
@@ -791,7 +807,7 @@ async def test_postgres_currency_survives_closing_every_application_connection()
         )
         for config in configs:
             await store.put_configuration(config)
-            await producer.close_elapsed_periods(config)
+            await close_admitted_periods(producer, config)
         async with original_pool.connection() as connection:
             row = await (await connection.execute("SELECT current_schema()")).fetchone()
             assert row is not None
@@ -818,9 +834,10 @@ async def test_postgres_currency_survives_closing_every_application_connection()
                 restarted_store, source, staging, currency="GBP", resolver=must_not_resolve
             )
             for config in configs:
-                assert await restarted.close_elapsed_periods(config) == []
+                assert await close_admitted_periods(restarted, config) == []
                 obligation = await restarted_store.find_obligation(
                     account_id=config.account_id,
+                    consumer_id=config.consumer_id,
                     delivery_config_id=config.delivery_config_id,
                     delivery_config_version=config.delivery_config_version,
                     period_start=START,
@@ -896,7 +913,7 @@ async def test_delivery_response_currency_is_checked_before_flattening(
     source, staging = source_for(fetch)
     producer = producer_for(store, source, staging, currency="EUR")
     config = configuration()
-    (obligation,) = await producer.close_elapsed_periods(config)
+    (obligation,) = await close_admitted_periods(producer, config)
     if expected_error is None:
         revision = await producer.acquire_obligation(config, obligation)
         assert revision is not None
@@ -936,7 +953,7 @@ async def test_inline_money_is_frozen_before_staging_awaits(
     monkeypatch.setattr(staging, "stage", stage)
     producer = producer_for(store, source, staging, currency="EUR")
     config = configuration(pinned_currency="EUR")
-    (obligation,) = await producer.close_elapsed_periods(config)
+    (obligation,) = await close_admitted_periods(producer, config)
     revision = await producer.acquire_obligation(config, obligation)
     assert revision is not None and dict(revision.control_totals)["spend"] == "0.30"
     content = await store.read_revision_rows(
@@ -975,7 +992,7 @@ async def test_control_total_units_use_trusted_semantics_instead_of_guessing_fro
                 monetary_control_total_units=(("spend", "EUR"), ("custom_total", "EUR")),
             ),
         )
-    (obligation,) = await producer.close_elapsed_periods(config)
+    (obligation,) = await close_admitted_periods(producer, config)
     if monetary:
         with pytest.raises(ReportingCurrencyError, match="CURRENCY_MISMATCH"):
             await producer.acquire_obligation(config, obligation)
@@ -1021,7 +1038,7 @@ async def test_an_unresolved_legacy_obligation_cannot_starve_later_periods(
     await store.put_configuration(config)
     source, staging = source_for(money_rows)
     producer = producer_for(store, source, staging, currency="EUR")
-    legacy, later = await producer.close_elapsed_periods(config)
+    legacy, later = await close_admitted_periods(producer, config)
     if settled:
         settled_revision = await producer.acquire_obligation(config, legacy)
         assert settled_revision is not None and settled_revision.readable
@@ -1077,7 +1094,7 @@ async def test_a_metric_absent_from_some_rows_needs_no_invented_total(
     # No pinned monetary control total: a definition that pins one is entitled
     # to demand it, but the built-in spend handling must not invent that demand.
     config = configuration()
-    (obligation,) = await producer.close_elapsed_periods(config)
+    (obligation,) = await close_admitted_periods(producer, config)
     revision = await producer.acquire_obligation(config, obligation)
     assert revision is not None
     # The inline adapter declines to publish a spend total here, and the ledger
@@ -1110,9 +1127,9 @@ async def test_row_count_is_rejected_before_money_in_both_stores(
 ) -> None:
     """Both stores answer a miscounted revision with the same code."""
     config = configuration()
-    (obligation,) = await producer_for(
-        store, UncalledSource(), currency="EUR"
-    ).close_elapsed_periods(config)
+    (obligation,) = await close_admitted_periods(
+        producer_for(store, UncalledSource(), currency="EUR"), config
+    )
     revision, _ = revision_for(obligation)
     with pytest.raises(LedgerConflictError) as caught:
         await store.commit_revision(
@@ -1146,9 +1163,9 @@ async def test_a_period_with_no_rows_owes_no_derived_monetary_total(
             monetary_control_total_units=(("spend", "EUR"),) if pinned_total else (),
         ),
     )
-    (obligation,) = await producer_for(
-        store, UncalledSource(), currency="EUR"
-    ).close_elapsed_periods(config)
+    (obligation,) = await close_admitted_periods(
+        producer_for(store, UncalledSource(), currency="EUR"), config
+    )
     revision_id = "rpr_eur_empty"
     empty = replace(
         revision_for(obligation)[0],

@@ -213,18 +213,14 @@ async def foreign_targets(h, s):
         ),
     )
     await h.store.commit_adjustment(adjustment)
-    # One more valid consumer holding its own artifact for the caller's revision.
+    # An independent caller owns its own generation, obligation and revision.
     consumer_id = f"{s.binding.consumer_id}-foreign"
-    other = ReportingDeliveryScope(
-        s.obligation.generation_key, consumer_id, s.obligation.reporting_obligation_id
-    )
-    await h.store.put_destination_binding(replace(s.binding, consumer_id=consumer_id))
-    await h.store.bind_obligation_delivery(replace(s.delivery, scope=other))
+    other = await scenario(h.store, account_id=s.obligation.account_id, consumer_id=consumer_id)
     await h.store.commit_materialization_attempt(
-        replace(s.attempt, scope=other, reporting_materialization_id="materialization-consumer")
+        replace(other.attempt, reporting_materialization_id="materialization-consumer", attempt=2)
     )
     await h.store.commit_materialization(
-        replace(s.outcome, scope=other, reporting_materialization_id="materialization-consumer")
+        replace(other.outcome, reporting_materialization_id="materialization-consumer")
     )
     return ForeignTargets(
         obligation,

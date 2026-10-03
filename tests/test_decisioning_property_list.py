@@ -427,11 +427,31 @@ class TestMaybeApplyPropertyListFilter:
         assert result is response
 
     @pytest.mark.asyncio
-    async def test_filter_applied_and_flag_set(self) -> None:
+    @pytest.mark.parametrize("response_shape", ["model", "dict"])
+    async def test_filter_applied_and_flag_set(self, response_shape: str) -> None:
         """When capability+property_list present: filter applied, property_list_applied=True."""
-        p_pass = _make_product("pass", [_make_pp_all()])
-        p_fail = _make_product("fail", [_make_pp_by_id(["x"])])
-        response = _make_response([p_pass, p_fail])
+        from adcp.canonical_formats.fixtures import load_reference_product
+        from adcp.types import GetProductsResponse
+
+        product = load_reference_product("gam_3p_display_tag")
+        for declaration in product["format_options"]:
+            declaration.pop("v1_format_ref", None)
+        p_pass = {**product, "product_id": "pass"}
+        p_fail = {
+            **product,
+            "product_id": "fail",
+            "publisher_properties": [
+                {
+                    "publisher_domain": "example.com",
+                    "selection_type": "by_id",
+                    "property_ids": ["x"],
+                }
+            ],
+        }
+        payload = {"products": [p_pass, p_fail], "seller_extra": {"retained": True}}
+        response = (
+            GetProductsResponse.model_validate(payload) if response_shape == "model" else payload
+        )
         params = MagicMock()
         params.property_list = _make_property_list_ref()
 
@@ -445,8 +465,12 @@ class TestMaybeApplyPropertyListFilter:
             capability_enabled=True,
         )
 
-        assert result.property_list_applied is True
-        assert result.products == [p_pass]
+        result_payload = result.model_dump(mode="json") if response_shape == "model" else result
+        assert result_payload["property_list_applied"] is True
+        assert [p["product_id"] for p in result_payload["products"]] == ["pass"]
+        assert result_payload["seller_extra"] == {"retained": True}
+        assert GetProductsResponse.model_validate(result_payload).property_list_applied is True
+        assert len(response.products if response_shape == "model" else response["products"]) == 2
 
     @pytest.mark.asyncio
     async def test_no_fetcher_returns_response_unmodified(self, caplog: Any) -> None:
@@ -511,3 +535,59 @@ class TestMaybeApplyPropertyListFilter:
         call_kwargs = original_response.model_copy.call_args.kwargs
         assert "update" in call_kwargs
         assert call_kwargs["update"]["property_list_applied"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("response_shape", ["model", "dict"])
+@pytest.mark.parametrize("applied", [False, True, None])
+async def test_platform_filter_mode_leaves_response_and_fetcher_untouched(
+    response_shape: str, applied: bool | None
+) -> None:
+    from adcp.types import GetProductsResponse
+
+    payload = {"products": [], "property_list_applied": applied, "seller_extra": "keep"}
+    response = GetProductsResponse.model_validate(payload) if response_shape == "model" else payload
+    fetcher = AsyncMock(spec=PropertyListFetcher)
+    result = await maybe_apply_property_list_filter(
+        params=MagicMock(property_list=_make_property_list_ref()),
+        response=response,
+        fetcher=fetcher,
+        capability_enabled=True,
+        filter_mode="platform",
+    )
+    assert result is response
+    fetcher.fetch.assert_not_called()
+
+
+def test_platform_filter_mode_boot_does_not_require_fetcher() -> None:
+    validate_property_list_config(capability_enabled=True, fetcher=None, filter_mode="platform")
+
+
+@pytest.mark.parametrize(
+    "selection,ids,permissive,allowed,expected",
+    [
+        ("all", [], False, [], True),
+        ("by_id", ["a", "b"], False, ["a"], False),
+        ("by_id", ["a", "b"], True, ["a"], True),
+        ("by_id", ["a", "b"], False, ["a", "b"], True),
+        ("by_tag", [], True, ["a"], False),
+    ],
+)
+def test_wire_dict_products_follow_same_filter_rules(
+    selection: str, ids: list[str], permissive: bool, allowed: list[str], expected: bool
+) -> None:
+    from adcp.canonical_formats.fixtures import load_reference_product
+    from adcp.types import Product
+
+    product = load_reference_product("gam_3p_display_tag")
+    for declaration in product["format_options"]:
+        declaration.pop("v1_format_ref", None)
+    selector = {"selection_type": selection, "publisher_domain": "example.com"}
+    if selection == "by_id":
+        selector["property_ids"] = ids
+    if selection == "by_tag":
+        selector["property_tags"] = ["news"]
+    product.update(publisher_properties=[selector], property_targeting_allowed=permissive)
+    model = Product.model_validate(product)
+    assert bool(filter_products_by_property_list([product], set(allowed))) is expected
+    assert bool(filter_products_by_property_list([model], set(allowed))) is expected

@@ -25,6 +25,7 @@ from adcp.reporting.outbox import (
 from adcp.reporting.outbox.status_support import validate_status_claims
 
 from . import test_reporting_status_projection_contract as _contract
+from ._generation_support import configuration
 from ._reliable_support import NotificationHarness, notification_subscription
 from .test_reporting_notification_outbox import statement
 
@@ -66,8 +67,12 @@ async def test_colliding_notification_ids_isolate_reemit_fanout_delivery_restart
                 event_types=("reporting.status_changed",),
             )
         )
-    obligation, revision, _ = await h.seed(readable=True)
+    revisions = []
     for consumer in ("buyer", "auditor"):
+        obligation, revision, _ = await h.seed(
+            readable=True, config=configuration(consumer_id=consumer)
+        )
+        revisions.append(revision)
         await h.ledger.record_consumer_status(
             replace(
                 statement(obligation, consumer),
@@ -77,9 +82,12 @@ async def test_colliding_notification_ids_isolate_reemit_fanout_delivery_restart
             )
         )
     await h.status.baseline(account_id="acct_a")
-    await h.ledger.set_revision_readable(
-        account_id="acct_a", reporting_revision_id=revision.reporting_revision_id, readable=False
-    )
+    for revision in revisions:
+        await h.ledger.set_revision_readable(
+            account_id="acct_a",
+            reporting_revision_id=revision.reporting_revision_id,
+            readable=False,
+        )
     import adcp.reporting.outbox.status as status_module
 
     identifiers = cycle(("collision-configuration", "collision-obligation"))
@@ -87,8 +95,8 @@ async def test_colliding_notification_ids_isolate_reemit_fanout_delivery_restart
         patch.setattr(status_module, "uuid4", lambda: next(identifiers))
         await h.drain()
     events = await h.status.outbox.list_events(account_id="acct_a")
-    assert len(events) == 6 and len({e.notification_id for e in events}) == 2
-    assert {e.consumer_namespace for e in events} == {"", "buyer", "auditor"}
+    assert len(events) == 4 and len({e.notification_id for e in events}) == 2
+    assert {e.consumer_namespace for e in events} == {"buyer", "auditor"}
     with pytest.raises(ReportingNotificationError, match="event_unavailable"):
         await h.status.outbox.reemit(
             account_id="acct_a", notification_id="collision-obligation", now=h.clock()
@@ -97,7 +105,7 @@ async def test_colliding_notification_ids_isolate_reemit_fanout_delivery_restart
     while await worker.expand_one(account_id="acct_a"):
         pass
     original = await h.status.outbox.list_deliveries(account_id="acct_a")
-    assert len(original) == 8
+    assert len(original) == 4
     for row in original:
         opened = n.cipher.open(row.delivery)
         b = row.delivery.binding
@@ -141,8 +149,8 @@ async def test_colliding_notification_ids_isolate_reemit_fanout_delivery_restart
         assert status_operation_3 == 2
     await drain_http(h, worker)
     deliveries = await h.status.outbox.list_deliveries(account_id="acct_a")
-    assert len(deliveries) == 10
-    assert len({r.delivery.binding.idempotency_key for r in deliveries}) == 10
+    assert len(deliveries) == 6
+    assert len({r.delivery.binding.idempotency_key for r in deliveries}) == 6
     for consumer in ("buyer", "auditor"):
         activity = await h.status.outbox.list_activity(account_id="acct_a", consumer_id=consumer)
         assert activity and all(a.binding.principal_id == consumer for a in activity)

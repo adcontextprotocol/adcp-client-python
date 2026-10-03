@@ -408,7 +408,7 @@ async def production_harness(
         verifier = reference_verifier(cap)
         key = verifier.key
         config = replace(
-            configuration(),
+            configuration(consumer_id="https://buyer.example.test/agent"),
             delivery_config_id=identity_prefix + configuration().delivery_config_id,
             deactivated_at=None if periods is None else START + timedelta(hours=periods),
             definition=key.definition,

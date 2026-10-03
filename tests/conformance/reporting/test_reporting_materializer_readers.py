@@ -84,13 +84,20 @@ async def test_source_walk_rejects_incomplete_or_substituted_revision_pages_befo
                 return replace(page, reporting_revision_id="other-revision")
             if damage == "cursor-revision" and page.has_more:
                 return replace(
-                    page, cursor=encode_cursor({"revision": "other-revision", "offset": 500})
+                    page,
+                    cursor=encode_cursor(
+                        {"ownership": 2, "revision": "other-revision", "offset": 500}
+                    ),
                 )
             if damage == "cursor-offset" and page.has_more:
                 return replace(
                     page,
                     cursor=encode_cursor(
-                        {"revision": case.revision.reporting_revision_id, "offset": 0}
+                        {
+                            "ownership": 2,
+                            "revision": case.revision.reporting_revision_id,
+                            "offset": 0,
+                        }
                     ),
                 )
             if damage == "cursor-cycle":
@@ -99,11 +106,17 @@ async def test_source_walk_rejects_incomplete_or_substituted_revision_pages_befo
                     rows=(case.rows[0],),
                     has_more=True,
                     cursor=encode_cursor(
-                        {"revision": case.revision.reporting_revision_id, "offset": 1}
+                        {
+                            "ownership": 2,
+                            "revision": case.revision.reporting_revision_id,
+                            "offset": 1,
+                        }
                     ),
                 )
             if damage == "cursor-duplicate-keys":
-                raw = b'{"revision":"other","revision":"revision-first","offset":500}'
+                raw = (
+                    b'{"ownership": 2, "revision":"other","revision":"revision-first","offset":500}'
+                )
                 return replace(page, cursor=base64.urlsafe_b64encode(raw).decode())
             if damage == "cursor-type":
                 return replace(page, cursor=True)
@@ -151,9 +164,13 @@ async def test_real_store_cursor_binds_revision_and_all_501_rows(backend):
         assert len(first.rows) == 500 and len(second.rows) == 1
         assert first.total_count == second.total_count == 501 and not second.has_more
         for cursor in (
-            encode_cursor({"revision": "another", "offset": 500}),
-            encode_cursor({"revision": case.revision.reporting_revision_id, "offset": True}),
-            encode_cursor({"revision": case.revision.reporting_revision_id, "offset": -1}),
+            encode_cursor({"ownership": 2, "revision": "another", "offset": 500}),
+            encode_cursor(
+                {"ownership": 2, "revision": case.revision.reporting_revision_id, "offset": True}
+            ),
+            encode_cursor(
+                {"ownership": 2, "revision": case.revision.reporting_revision_id, "offset": -1}
+            ),
         ):
             with pytest.raises(LedgerConflictError, match="does not bind"):
                 await case.store.read_revision_rows(

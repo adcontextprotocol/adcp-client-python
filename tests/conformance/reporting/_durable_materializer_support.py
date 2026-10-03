@@ -1,5 +1,6 @@
 """Shared deterministic vectors; PostgreSQL work always uses real database time."""
 
+import hashlib
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from dataclasses import dataclass, replace
@@ -278,7 +279,7 @@ async def durable_case(
         )
     registry = ReportingRevisionVerifierRegistry((verifier,))
     config = replace(
-        configuration(account),
+        configuration(account, consumer_id=consumer),
         deactivated_at=None if active else END,
         definition=verifier.key.definition,
         report_definition_id=verifier.key.report_definition_id,
@@ -308,13 +309,16 @@ async def durable_case(
     rows = reference_rows(count)
     _, totals = verifier.canonicalize(rows)
     pairs = tuple((t.name, t.value) for t in totals)
+    revision_id = f"revision-{account}"
+    if hasattr(config, "consumer_id") and consumer != "https://buyer.example.test/agent":
+        revision_id += "-" + hashlib.sha256(consumer.encode()).hexdigest()[:12]
     revision = ReportingRevisionRecord(
-        f"revision-{account}",
+        revision_id,
         account,
         obligation.reporting_obligation_id,
         finality,
         revision_content_sha256(
-            reporting_revision_id=f"revision-{account}",
+            reporting_revision_id=revision_id,
             row_count=count,
             control_totals=pairs,
             reporting_rows=rows,

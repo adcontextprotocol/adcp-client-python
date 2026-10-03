@@ -63,6 +63,9 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
     Protocols were dead code at runtime — buyers would 404 on
     ``build_creative``, ``get_signals``, etc."""
     expected = {
+        # SDK task tools (listing is advertised only for listable registries)
+        "get_task_status",
+        "list_tasks",
         # Sales
         "get_products",
         "create_media_buy",

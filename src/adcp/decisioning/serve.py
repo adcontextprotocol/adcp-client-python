@@ -33,7 +33,7 @@ import os
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from adcp._version import resolve_adcp_version
 from adcp.decisioning.dispatch import validate_platform
@@ -101,6 +101,7 @@ def create_adcp_server_from_platform(
     brand_identity_resolver: BrandIdentityResolver | None = None,
     config_store: ProductConfigStore | None = None,
     property_list_fetcher: PropertyListFetcher | None = None,
+    property_list_filter_mode: Literal["sdk", "platform"] = "sdk",
     media_buy_store: MediaBuyStore | None = None,
     advertise_all: bool = False,
     validate_at_init: bool = True,
@@ -198,6 +199,10 @@ def create_adcp_server_from_platform(
         admits push-configured handoffs when ``PgTaskRegistry`` carries a
         conformant ``PgTaskWebhookOutbox``. Set ``False`` only when an
         external durable outbox owns delivery and capability advertisement.
+    :param property_list_filter_mode: ``"sdk"`` (default) fetches and filters
+        products after the platform returns. ``"platform"`` keeps capability
+        advertisement but skips the fetcher requirement and SDK post-filter;
+        the seller must filter and set ``property_list_applied`` itself.
     :param media_buy_store: Opt-in :class:`adcp.decisioning.MediaBuyStore`
         wrapper that gates ``targeting_overlay`` echo on the seller's
         declared specialisms. Typically built via
@@ -404,6 +409,7 @@ def create_adcp_server_from_platform(
         brand_authorization_gate=brand_authorization_gate,
         config_store=config_store,
         property_list_fetcher=property_list_fetcher,
+        property_list_filter_mode=property_list_filter_mode,
         media_buy_store=media_buy_store,
         advertise_all=advertise_all,
         timed_sync_get_products_limit=resolved_timed_sync_limit,
@@ -422,6 +428,7 @@ def create_adcp_server_from_platform(
     validate_property_list_config(
         capability_enabled=property_list_capability_enabled(platform),
         fetcher=property_list_fetcher,
+        filter_mode=property_list_filter_mode,
     )
 
     # Preserve the legacy validation hook for source compatibility. The
@@ -500,6 +507,7 @@ def serve(
     brand_identity_resolver: BrandIdentityResolver | None = None,
     config_store: ProductConfigStore | None = None,
     property_list_fetcher: PropertyListFetcher | None = None,
+    property_list_filter_mode: Literal["sdk", "platform"] = "sdk",
     media_buy_store: MediaBuyStore | None = None,
     advertise_all: bool = False,
     mock_ad_server: Any | None = None,
@@ -534,6 +542,9 @@ def serve(
     :param timed_sync_get_products_limit: Bounded admission limit for
         deadline-managed synchronous ``get_products`` calls. See
         :func:`create_adcp_server_from_platform`.
+    :param property_list_filter_mode: ``"sdk"`` (default) applies framework
+        filtering with a fetcher. ``"platform"`` skips SDK filtering and makes
+        the seller responsible for ``property_list_applied``.
     :param registry: BYO :class:`TaskRegistry`. Default is
         :class:`InMemoryTaskRegistry` (gated for production).
     :param state_reader: Custom :class:`StateReader` impl (D15).
@@ -650,6 +661,7 @@ def serve(
         brand_identity_resolver=brand_identity_resolver,
         config_store=config_store,
         property_list_fetcher=property_list_fetcher,
+        property_list_filter_mode=property_list_filter_mode,
         media_buy_store=media_buy_store,
         advertise_all=advertise_all,
         validate_at_init=validate_at_init,

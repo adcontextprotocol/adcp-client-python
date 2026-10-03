@@ -126,7 +126,7 @@ class ReportingSeller(ReportingStatusNotificationHandler):
         caller = await self._resolve_status_caller(request, context)
         # The intake observation is captured from PostgreSQL. The participant
         # independently revalidates evidence and timing under its transaction.
-        snapshot = await self.ledger.read_status_snapshot(account_id=caller.account_id)
+        snapshot = await self.ledger.read_status_snapshot(caller=caller)
         return await ConsumerStatusIngest(
             self.ledger, enabled=True, clock=lambda: snapshot.as_of
         ).handle(

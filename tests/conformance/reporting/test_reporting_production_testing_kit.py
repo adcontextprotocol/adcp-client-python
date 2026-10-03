@@ -154,6 +154,7 @@ async def test_public_failure_plan_recovers_original_obligation_after_restart(
         assert configuration.deactivated_at is not None
         obligation = await service.store.find_obligation(
             account_id=configuration.account_id,
+            consumer_id=configuration.consumer_id,
             delivery_config_id=configuration.delivery_config_id,
             delivery_config_version=configuration.delivery_config_version,
             period_start=configuration.deactivated_at - timedelta(hours=1),
