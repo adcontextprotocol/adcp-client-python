@@ -193,8 +193,9 @@ async def test_tampered_lease_cannot_cross_principal_or_generation(backend):
     async with durable_harness(backend) as h:
         case = await durable_case(h.store)
         lease = await case.claim()
+        with pytest.raises(ValueError, match="another caller"):
+            replace(lease.scope, consumer_id="another-consumer")
         for changes in (
-            {"scope": replace(lease.scope, consumer_id="another-consumer")},
             {"attempt": replace(lease.attempt, attempt=2)},
             {"token": "invalid"},
         ):

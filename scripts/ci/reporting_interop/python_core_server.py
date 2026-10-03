@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from dataclasses import fields
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -42,11 +43,22 @@ TOKENS = {
 }
 
 
+def _owner_fields(model: Any, account_id: str) -> dict[str, str]:
+    # Stable and candidate artifacts use separate fresh databases. Bind new
+    # constructors to the same trusted token register used by transport auth;
+    # this adapter makes no mixed-version storage or worker promise.
+    if any(field.name == "consumer_id" for field in fields(model)):
+        owner = next(consumer for account, consumer in TOKENS.values() if account == account_id)
+        return {"consumer_id": owner}
+    return {}
+
+
 def _configuration(account_id: str) -> ReportingConfiguration:
     return ReportingConfiguration(
         delivery_config_id="shared-daily-key",
         delivery_config_version=1,
         account_id=account_id,
+        **_owner_fields(ReportingConfiguration, account_id),
         report_definition_id="interop-core-v1",
         reporting_profile="interop-core-v1",
         feed_purpose="analytics",
@@ -70,6 +82,7 @@ def _obligation(configuration: ReportingConfiguration) -> ReportingObligationRec
     return ReportingObligationRecord(
         reporting_obligation_id=f"interop-obligation-{configuration.account_id[-1]}",
         account_id=configuration.account_id,
+        **_owner_fields(ReportingObligationRecord, configuration.account_id),
         delivery_config_id=configuration.delivery_config_id,
         delivery_config_version=configuration.delivery_config_version,
         report_definition_id=configuration.report_definition_id,

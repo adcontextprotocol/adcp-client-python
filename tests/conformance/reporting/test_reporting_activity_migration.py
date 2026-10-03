@@ -628,64 +628,39 @@ async def run_a(source, pool, *, action):
     )
 
 
-async def test_actual_a_binary_on_b_database_keeps_readiness_and_delivery_identity(actual_a_source):
+async def test_actual_a_binary_refuses_owned_schema_without_rewriting_delivery(actual_a_source):
     async with reliable_factory("postgres", notifications=True) as reliable:
-        h = NotificationHarness(reliable)
         from .test_reporting_notification_outbox import seed
 
+        h = NotificationHarness(reliable)
         await seed(h)
-        result = json.loads(await run_a(actual_a_source, reliable.blobs.pool, action="roundtrip"))
-        outbox = h.outbox
-        lease, attempt = await reserve(h, outbox)
-        assert lease.attempt_count == 2 and attempt.attempt == 1
-        assert attempt.binding.body_sha256 == result["body_sha256"]
-        assert attempt.binding.idempotency_key == result["idempotency_key"]
-        completed_attempt_4 = await outbox.complete_attempt(
-            attempt, outcome=ActivityOutcome("success", 200, 1), now=reliable.clock()
-        )
-        assert completed_attempt_4
-        finished_delivery_2 = await outbox.finish_delivery(
-            lease, state="complete", now=reliable.clock()
-        )
-        assert finished_delivery_2
+        before = await retained_physical_rows(reliable.blobs.pool)
+        with pytest.raises(AssertionError, match="actual-a-roundtrip: exit 1"):
+            await run_a(actual_a_source, reliable.blobs.pool, action="roundtrip")
+        assert await retained_physical_rows(reliable.blobs.pool) == before
         async with reliable.blobs.pool.connection() as conn:
             await validate_schema(conn, activity=True)
 
 
-async def test_b_binary_on_actual_a_schema_refuses_activity_without_corrupting_work(
-    actual_a_source,
-):
+async def test_actual_a_schema_requires_ownership_maintenance_before_activity(actual_a_source):
+    from psycopg import sql
+
+    from adcp.reporting.migration import ReportingOwnershipMigrationError, migrate_legacy_reporting
+
     async with isolated_reporting_pool(autocommit=True) as pool:
         await run_a(actual_a_source, pool, action="bootstrap")
+        ledger = PgReportingLedgerStore(pool=pool, notifications=True)
+        with pytest.raises(ReportingOwnershipMigrationError):
+            await ledger.create_schema()
         async with pool.connection() as conn:
-            await validate_schema(conn)
-            with pytest.raises(ReportingNotificationError, match="missing"):
+            with pytest.raises(ReportingNotificationError, match="consumer_id"):
+                await validate_schema(conn)
+            archive = "adcp_reporting_quarantine_activity"
+            await migrate_legacy_reporting(conn, archive_schema=archive, workers_stopped=True)
+            try:
                 await validate_schema(conn, activity=True)
-            assert (
-                await (
-                    await conn.execute("SELECT to_regclass('reporting_webhook_attempts')")
-                ).fetchone()
-            )[0] is None
-        ledger = PgReportingLedgerStore(pool=pool, clock=lambda: NOW, notifications=True)
-        config = configuration()
-        obligation = obligation_for(config)
-        revision, data = revision_for(obligation)
-        await ledger.put_configuration(config)
-        await ledger.commit_obligation(obligation)
-        await ledger.commit_revision(revision, data)
-        await run_a(actual_a_source, pool, action="roundtrip")
-        outbox = PgReportingOutbox(pool=pool, clock=lambda: NOW)
-        lease = await outbox.claim_delivery(account_id="acct_a", now=NOW, lease_seconds=60)
-        with pytest.raises(ReportingNotificationError, match="activity_store_unavailable"):
-            await outbox.reserve_attempt(
-                lease, request=ActivityRequest("https://example.test/reporting", 1), now=NOW
-            )
-        assert await outbox.delivery_lease_current(lease, now=NOW)
-        assert len(await outbox.list_events(account_id="acct_a")) == 1
-        before = (await outbox.list_deliveries(account_id="acct_a"))[0]
-        await ledger.create_schema()
-        assert (await outbox.list_deliveries(account_id="acct_a"))[0] == before
-        reserved_attempt_1 = await outbox.reserve_attempt(
-            lease, request=ActivityRequest("https://example.test/reporting", 1), now=NOW
-        )
-        assert reserved_attempt_1 is not None
+                assert await PgReportingOutbox(pool=pool).list_events(account_id="acct_a") == ()
+            finally:
+                await conn.execute(
+                    sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(archive))
+                )

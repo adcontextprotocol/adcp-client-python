@@ -36,9 +36,15 @@ from ._reliable_support import (
 )
 
 
-async def seed(h: NotificationHarness, *, account: str = "acct_a", official: bool = False):
+async def seed(
+    h: NotificationHarness,
+    *,
+    account: str = "acct_a",
+    consumer: str = "buyer",
+    official: bool = False,
+):
     store = h.reliable.store
-    config = configuration(account)
+    config = configuration(account, consumer_id=consumer)
     await store.put_configuration(config)
     obligation = await store.commit_obligation(obligation_for(config))
     revision, rows = revision_for(obligation)
@@ -115,7 +121,10 @@ async def test_two_consumers_and_rapid_mutable_transitions_remain_replayable(not
     h = notification_harness
     obligation, revision, _ = await seed(h)
     store = h.reliable.store
+    obligations = {}
     for consumer in ("buyer", "auditor"):
+        obligation, _, _ = await seed(h, consumer=consumer)
+        obligations[consumer] = obligation
         status = statement(obligation, consumer)
         assert (await store.record_consumer_status(status))[1]
         assert not (await store.record_consumer_status(status))[1]
@@ -180,9 +189,9 @@ async def test_two_consumers_and_rapid_mutable_transitions_remain_replayable(not
         assert [record.cause_generation for record in issues] == [1, 2, 3]
         assert len({record.cause_id for record in issues}) == 1
         assert {record.scope.reporting_obligation_id for record in issues} == {
-            obligation.reporting_obligation_id
+            obligations[consumer].reporting_obligation_id
         }
-    assert len(await h.outbox.list_events(account_id="acct_a")) == 1
+    assert len(await h.outbox.list_events(account_id="acct_a")) == 2
     assert "opaque" not in json.dumps([asdict(record) for record in dirty], default=str)
     await h.reliable.restart()
     assert await h.outbox.read_status_dirty(account_id="acct_a") == dirty

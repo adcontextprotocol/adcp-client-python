@@ -56,7 +56,7 @@ async def adopter(
         ReportingFeedSnapshot | None,
     )
     assert_type(await receipts.ingest_receipt_batch(request, caller=caller), dict[str, Any])
-    await ledger.list_configurations(account_id=caller.account_id)
+    await ledger.list_configurations(caller=caller)
     handler = ReportingReceiptHandler(postgres, resolve_account=resolve_account)
     assert_type(handler.reporting_feed_store, ReportingFeedStore | None)
     assert_type(

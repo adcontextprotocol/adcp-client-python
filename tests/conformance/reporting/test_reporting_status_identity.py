@@ -13,6 +13,7 @@ from adcp.reporting.ledger import (
     ReportingDeliveryPrincipal,
     ReportingIssueLifecycle,
 )
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.outbox import (
     ReportingNotificationError,
     ReportingStatusScope,
@@ -22,7 +23,7 @@ from adcp.reporting.outbox.identity import canonical_consumer
 
 from . import _reconciliation_support as _reconciliation
 from . import test_reporting_status_projection_contract as _contract
-from ._generation_support import NOW
+from ._generation_support import NOW, configuration
 from ._reconciliation_support import scenario
 from .test_reporting_notification_outbox import statement
 
@@ -108,18 +109,18 @@ def test_all_trusted_auth_coordinates_must_agree_without_choosing_body_identity(
 
 async def test_status_record_rejects_credential_namespace_before_any_durable_write(status_harness):
     h = status_harness
-    obligation, _, _ = await h.seed()
+    obligation, _, _ = await h.seed(config=configuration(consumer_id=BUYER))
     for consumer in CREDENTIAL_SHAPES:
         with pytest.raises(ValueError, match="non-secret public text"):
             record = replace(statement(obligation), consumer_id=consumer)
             await h.ledger.record_consumer_status_with_lifecycle(record)
-    snapshot = await h.ledger.read_status_snapshot(account_id="acct_a")
+    snapshot = await h.ledger.read_status_snapshot(caller=OwnershipCaller("acct_a", BUYER))
     assert not snapshot.statuses and not snapshot.lifecycles
 
 
 async def test_issue_refinement_never_broadens_or_retargets_across_recurrence(status_harness):
     h = status_harness
-    obligation, _, _ = await h.seed()
+    obligation, _, _ = await h.seed(config=configuration(consumer_id=BUYER))
     base = ReportingStatusScope("acct_a", consumer_id=BUYER)
     config = replace(
         base, generation_key=obligation.generation_key, feed_purpose=obligation.feed_purpose
@@ -136,7 +137,11 @@ async def test_issue_refinement_never_broadens_or_retargets_across_recurrence(st
     for invalid in (
         base,
         config,
-        replace(precise, consumer_id=AUDITOR),
+        replace(
+            precise,
+            consumer_id=AUDITOR,
+            generation_key=replace(precise.generation_key, consumer_id=AUDITOR),
+        ),
         replace(precise, reporting_obligation_id="rpo_unavailable"),
         replace(precise, feed_purpose="billing"),
     ):
@@ -149,7 +154,7 @@ async def test_issue_refinement_never_broadens_or_retargets_across_recurrence(st
         await h.ledger.ensure_issue_opened(**{**arguments, "consumer_id": AUDITOR})
     again = await h.ledger.ensure_issue_opened(**arguments)
     assert again.issue_id != first.issue_id and again.generation == first.generation + 1
-    snapshot = await h.ledger.read_status_snapshot(account_id="acct_a")
+    snapshot = await h.ledger.read_status_snapshot(caller=OwnershipCaller("acct_a", BUYER))
     assert dict(snapshot.issue_scopes)[again.issue_id] == precise
 
 

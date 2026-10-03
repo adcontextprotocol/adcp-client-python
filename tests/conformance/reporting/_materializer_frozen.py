@@ -3,11 +3,14 @@
 import asyncio
 import hashlib
 import importlib
+import inspect
 import json
 import sys
 import traceback
 from dataclasses import replace
 from pathlib import Path
+
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 
 
 async def main(settings):
@@ -85,7 +88,12 @@ async def main(settings):
             # aggregate closes; B/C/B1 per-object required manifests stay ready.
             assert notifications_ready == (settings["artifact"] != "a")
 
-        configs = await store.list_configurations(account_id="acct_a")
+        lookup = (
+            {"caller": OwnershipCaller("acct_a", settings["consumer"])}
+            if "caller" in inspect.signature(store.list_configurations).parameters
+            else {"account_id": "acct_a"}
+        )
+        configs = await store.list_configurations(**lookup)
         assert len(configs) == 1
         obligation = await store.get_obligation(
             account_id="acct_a", reporting_obligation_id="rpo_acct_a"
@@ -95,7 +103,12 @@ async def main(settings):
             account_id="acct_a", reporting_obligation_id=obligation.reporting_obligation_id
         )
         assert len(revisions) == 1 and revisions[0].row_count == 3
-        snapshot = await store.open_snapshot(account_id="acct_a", filters_fingerprint="frozen-b2")
+        snapshot_lookup = (
+            {"caller": OwnershipCaller("acct_a", settings["consumer"])}
+            if "caller" in inspect.signature(store.open_snapshot).parameters
+            else {"account_id": "acct_a"}
+        )
+        snapshot = await store.open_snapshot(**snapshot_lookup, filters_fingerprint="frozen-b2")
         page = await store.read_page(
             snapshot=snapshot,
             consumer_id=settings["consumer"],

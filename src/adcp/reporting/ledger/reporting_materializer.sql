@@ -24,14 +24,14 @@ BEGIN
         after_obligation_id TEXT COLLATE "C" NOT NULL DEFAULT '',
         complete BOOLEAN NOT NULL DEFAULT FALSE,
         PRIMARY KEY (account_id, consumer_id, delivery_config_id, delivery_config_version),
-        FOREIGN KEY (account_id, delivery_config_id, delivery_config_version)
-            REFERENCES reporting_configurations(account_id, delivery_config_id, delivery_config_version)
+        FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version)
+            REFERENCES reporting_configurations(account_id, consumer_id, delivery_config_id, delivery_config_version)
     );
     CREATE INDEX IF NOT EXISTS reporting_materializer_discovery_pending
         ON reporting_materializer_discovery (account_id, consumer_id, delivery_config_id,
             delivery_config_version) WHERE NOT complete;
     CREATE INDEX IF NOT EXISTS reporting_materializer_obligation_discovery
-        ON reporting_obligations (account_id, delivery_config_id, delivery_config_version,
+        ON reporting_obligations (account_id, consumer_id, delivery_config_id, delivery_config_version,
             reporting_obligation_id);
     CREATE INDEX IF NOT EXISTS reporting_materializer_binding_discovery
         ON reporting_reconciliation_records (account_id, consumer_id, delivery_config_id,
@@ -52,9 +52,8 @@ BEGIN
         served_at TIMESTAMPTZ NOT NULL DEFAULT '-infinity',
         PRIMARY KEY (account_id, consumer_id, delivery_config_id, delivery_config_version,
             reporting_obligation_id),
-        FOREIGN KEY (account_id, delivery_config_id, delivery_config_version, reporting_obligation_id)
-            REFERENCES reporting_obligations(account_id, delivery_config_id,
-                delivery_config_version, reporting_obligation_id)
+        FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version, reporting_obligation_id)
+            REFERENCES reporting_obligations(account_id, consumer_id, delivery_config_id, delivery_config_version, reporting_obligation_id)
     );
     CREATE INDEX IF NOT EXISTS reporting_materializer_candidate_due
         ON reporting_materializer_candidates (account_id, due_at, served_at,
@@ -278,7 +277,8 @@ BEGIN
         IF TG_TABLE_NAME = 'reporting_configurations' THEN
             UPDATE reporting_materializer_candidates SET generation = generation + 1,
                 due_at = clock_timestamp(), reason = 'ready'
-            WHERE account_id = NEW.account_id AND delivery_config_id = NEW.delivery_config_id
+            WHERE account_id = NEW.account_id AND consumer_id = NEW.consumer_id
+                AND delivery_config_id = NEW.delivery_config_id
                 AND delivery_config_version = NEW.delivery_config_version;
             IF FOUND THEN PERFORM reporting_materializer_wake(NEW.account_id); END IF;
         ELSIF TG_TABLE_NAME = 'reporting_revisions' THEN
@@ -288,7 +288,8 @@ BEGIN
             IF FOUND THEN PERFORM reporting_materializer_wake(NEW.account_id); END IF;
         ELSE
             FOR r IN SELECT consumer_id FROM reporting_materializer_discovery
-                WHERE account_id = NEW.account_id AND delivery_config_id = NEW.delivery_config_id
+                WHERE account_id = NEW.account_id AND consumer_id = NEW.consumer_id
+                AND delivery_config_id = NEW.delivery_config_id
                     AND delivery_config_version = NEW.delivery_config_version
                 ORDER BY consumer_id
             LOOP

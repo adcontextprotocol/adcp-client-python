@@ -13,13 +13,13 @@ BEGIN
             RETURN NEW;
         END IF;
         SELECT account_timezone,reporting_payload_sha256(jsonb_build_object(
-            'account_id',account_id,'report_definition_id',report_definition_id,
+            'account_id',account_id,'consumer_id',consumer_id,'report_definition_id',report_definition_id,
             'reporting_profile',reporting_profile,'feed_purpose',feed_purpose,
             'required_finality',required_finality,'account_timezone',account_timezone,
             'authoritative_party',authoritative_party,'media_buy_ids',media_buy_ids,
             'definition',definition,'schedule',schedule))
         INTO zone,configuration_hash FROM reporting_configurations
-        WHERE account_id=NEW.account_id AND delivery_config_id=NEW.delivery_config_id
+        WHERE account_id=NEW.account_id AND consumer_id=NEW.consumer_id AND delivery_config_id=NEW.delivery_config_id
             AND delivery_config_version=NEW.delivery_config_version;
         IF jsonb_typeof(facts) IS DISTINCT FROM 'object'
             OR NEW.source_binding->>'service_context_sha256'
@@ -29,6 +29,7 @@ BEGIN
             OR facts->>'account_timezone' IS DISTINCT FROM zone
             OR NEW.source_binding->>'configuration_sha256' IS DISTINCT FROM configuration_hash
             OR NEW.source_binding->>'account_id' IS DISTINCT FROM NEW.account_id
+            OR NEW.source_binding->>'consumer_id' IS DISTINCT FROM NEW.consumer_id
             OR NEW.source_binding->>'delivery_config_id' IS DISTINCT FROM NEW.delivery_config_id
             OR NEW.source_binding->'delivery_config_version'
                 IS DISTINCT FROM to_jsonb(NEW.delivery_config_version)

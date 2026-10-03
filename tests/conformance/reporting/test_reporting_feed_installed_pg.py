@@ -122,7 +122,7 @@ async def test_installed_python310_cold_continuation_freezes_mutable_history_and
             failure_code="access_denied",
         )
         await h.store.record_consumer_status_with_lifecycle(bad)
-        config = (await h.store.list_configurations(account_id=s.obligation.account_id))[0]
+        config = (await h.store.list_configurations(caller=s.binding.principal))[0]
         await h.store.put_configuration(replace(config, deactivated_at=None))
         options = {"python": python, "script": script, "helper": helper, "installed": installed}
         async with feed_process(h, s, feed_request(s), pause="committed", **options) as child:

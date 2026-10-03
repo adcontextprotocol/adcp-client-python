@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 from zoneinfo import ZoneInfo
 
 from adcp.reporting.currency import validate_currency, validate_currency_units
@@ -34,9 +34,11 @@ from adcp.reporting.evidence import (
     ReportingControlTotalRecord,
     consumer_reference,
     freeze_control_totals,
+    principal_reference,
 )
 
 __all__ = [
+    "ReportingCaller",
     "ConsumerStatusRecord",
     "ConsumerStatusValue",
     "ReportingDefinitionBinding",
@@ -325,9 +327,19 @@ def first_ordinal_after(
     return ordinal
 
 
+class ReportingCaller(Protocol):
+    """Authenticated account/caller coordinates supplied by a trusted transport."""
+
+    @property
+    def account_id(self) -> str: ...
+
+    @property
+    def consumer_id(self) -> str: ...
+
+
 @dataclass(frozen=True)
 class ReportingConfigurationGenerationKey:
-    """The account-qualified identity of one accepted configuration generation.
+    """The caller/account-qualified identity of one accepted configuration generation.
 
     ``delivery_config_id`` is caller-selected and may be reused by another
     account. Use this value for lookups, joins, and leases rather than a tuple
@@ -335,8 +347,13 @@ class ReportingConfigurationGenerationKey:
     """
 
     account_id: str
+    consumer_id: str
     delivery_config_id: str
     delivery_config_version: int
+
+    def __post_init__(self) -> None:
+        principal_reference(self.account_id)
+        consumer_reference(self.consumer_id)
 
 
 @dataclass(frozen=True)
@@ -352,6 +369,7 @@ class ReportingConfiguration:
     delivery_config_id: str
     delivery_config_version: int
     account_id: str
+    consumer_id: str
     report_definition_id: str
     reporting_profile: str
     feed_purpose: str
@@ -370,11 +388,18 @@ class ReportingConfiguration:
     # dropped so :meth:`ReportingLedgerStore.put_configuration` can reject it
     # with UNSUPPORTED_FEATURE. The spec forbids silently coercing it.
     authoritative_party: Literal["seller", "consumer"] = "seller"
+    # Maintenance imports are read-only; recovery requires a new generation.
+    quarantined: bool = False
+
+    def __post_init__(self) -> None:
+        principal_reference(self.account_id)
+        consumer_reference(self.consumer_id)
 
     @property
     def generation_key(self) -> ReportingConfigurationGenerationKey:
         return ReportingConfigurationGenerationKey(
             account_id=self.account_id,
+            consumer_id=self.consumer_id,
             delivery_config_id=self.delivery_config_id,
             delivery_config_version=self.delivery_config_version,
         )
@@ -392,6 +417,7 @@ class ReportingObligationRecord:
 
     reporting_obligation_id: str
     account_id: str
+    consumer_id: str
     delivery_config_id: str
     delivery_config_version: int
     report_definition_id: str
@@ -415,11 +441,14 @@ class ReportingObligationRecord:
     def generation_key(self) -> ReportingConfigurationGenerationKey:
         return ReportingConfigurationGenerationKey(
             account_id=self.account_id,
+            consumer_id=self.consumer_id,
             delivery_config_id=self.delivery_config_id,
             delivery_config_version=self.delivery_config_version,
         )
 
     def __post_init__(self) -> None:
+        principal_reference(self.account_id)
+        consumer_reference(self.consumer_id)
         if self.currency is not None:
             validate_currency(self.currency)
             if self.definition is not None:
@@ -588,12 +617,14 @@ class ConsumerStatusRecord:
     superseded: bool = False
 
     def __post_init__(self) -> None:
+        principal_reference(self.account_id)
         consumer_reference(self.consumer_id)
 
     @property
     def generation_key(self) -> ReportingConfigurationGenerationKey:
         return ReportingConfigurationGenerationKey(
             account_id=self.account_id,
+            consumer_id=self.consumer_id,
             delivery_config_id=self.delivery_config_id,
             delivery_config_version=self.delivery_config_version,
         )
@@ -725,6 +756,7 @@ class ReportingIssueLifecycle:
     waived_conflict_sha256: str | None = None
 
     def __post_init__(self) -> None:
+        principal_reference(self.account_id)
         if self.consumer_id is not None:
             consumer_reference(self.consumer_id)
 
@@ -852,5 +884,6 @@ class LedgerSnapshot:
 
     snapshot_id: str
     account_id: str
+    consumer_id: str
     ledger_as_of: datetime
     max_sequence: int

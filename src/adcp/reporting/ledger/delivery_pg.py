@@ -319,11 +319,13 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
                     " report_definition_id, reporting_profile, feed_purpose, required_finality,"
                     " account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
                     " automated_recovery_seconds, status_retention_days, definition,"
-                    " authoritative_party"
+                    " authoritative_party, consumer_id, quarantined"
                     " FROM reporting_configurations WHERE account_id = %s"
-                    " AND delivery_config_id = %s AND delivery_config_version = %s",
+                    " AND consumer_id = %s AND delivery_config_id = %s AND delivery_co"
+                    "nfig_version = %s",
                     (
                         who.account_id,
+                        who.consumer_id,
                         generation.delivery_config_id,
                         generation.delivery_config_version,
                     ),
@@ -335,8 +337,8 @@ class PgReportingReconciliationStore(PgReportingLedgerStore, _ReconciliationOper
         obligation_row = await (
             await connection.execute(
                 f"SELECT {_OBLIGATION_COLUMNS} FROM reporting_obligations"  # noqa: S608  # nosec B608
-                " WHERE account_id = %s AND reporting_obligation_id = %s",
-                (who.account_id, record.scope.reporting_obligation_id),
+                " WHERE account_id = %s AND consumer_id = %s AND reporting_obligation_id = %s",
+                (who.account_id, who.consumer_id, record.scope.reporting_obligation_id),
             )
         ).fetchone()
         revision_id = getattr(record, "reporting_revision_id", None)

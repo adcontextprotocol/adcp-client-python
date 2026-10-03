@@ -7,6 +7,7 @@ from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
 from adcp.reporting.ledger import PgReportingReconciliationStore, ReportingDeliveryEscalation
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.outbox import PgStatusNotificationStore
 
 from .test_reporting_notification_outbox import statement
@@ -128,7 +129,9 @@ async def run_status_role(role, settings, *, barrier, emit, bounded, receiver, i
                 account_id="acct_a", reporting_obligation_id="rpo_acct_a"
             )
             assert obligation is not None
-            snapshot = await ledger.read_status_snapshot(account_id="acct_a")
+            snapshot = await ledger.read_status_snapshot(
+                caller=OwnershipCaller("acct_a", obligation.consumer_id)
+            )
             record = replace(
                 statement(obligation),
                 consumer_status="unreadable",

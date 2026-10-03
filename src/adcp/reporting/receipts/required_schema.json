@@ -317,7 +317,7 @@
   },
   "function:reporting_receipt_ingestion_graph()": {
     "enabled": true,
-    "fingerprint": "570d827fe99bcd57d5f2614c0ed146d5d9cbd51d0c816ee6262cbdff140ab5f7"
+    "fingerprint": "85e920427ae4e7e2e57a5604b163ffed99f3c71c5d380cbd3d63b47b26e0b17e"
   },
   "function:reporting_receipt_ingestion_immutable()": {
     "enabled": true,

@@ -36,7 +36,7 @@ import inspect
 import logging
 import warnings
 from collections.abc import Awaitable, Callable, Mapping
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 from adcp._version import resolve_adcp_version
 from adcp.decisioning._get_products_helpers import _project_product_fields
@@ -1307,6 +1307,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             layer should fall back to the class-level set in that case
             so the handler isn't accidentally muted.
         """
+        from adcp.decisioning.platform_router import _implements_optional_method
+
         claimed = self._platform.capabilities.specialisms
         serving: set[str] = set()
         for entry in claimed:
@@ -1321,8 +1323,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         lifecycle_tools = getattr(media_buy_caps, "lifecycle_tools", None) or []
         for entry in lifecycle_tools:
             tool_name = entry.value if hasattr(entry, "value") else str(entry)
-            if tool_name in _COMPACT_LIFECYCLE_TOOLS and callable(
-                getattr(self._platform, tool_name, None)
+            if tool_name in _COMPACT_LIFECYCLE_TOOLS and _implements_optional_method(
+                self._platform, tool_name
             ):
                 serving.add(tool_name)
         # Drop sync_accounts / list_accounts when the platform's
@@ -1352,7 +1354,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             serving.discard("list_accounts")
             self._log_account_tool_dropped("list_accounts", "list")
         for wire_name, adopter_name in _OPTIONAL_LEGACY_WIRE_TO_ADOPTER.items():
-            if wire_name in serving and not callable(getattr(self._platform, adopter_name, None)):
+            if wire_name in serving and not _implements_optional_method(
+                self._platform, adopter_name
+            ):
                 serving.discard(wire_name)
         reporting = getattr(self._platform, "_reliable_reporting_service", None)
         if reporting is not None:
@@ -1440,6 +1444,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         brand_authorization_gate: BrandAuthorizationGate | None = None,
         config_store: ProductConfigStore | None = None,
         property_list_fetcher: PropertyListFetcher | None = None,
+        property_list_filter_mode: Literal["sdk", "platform"] = "sdk",
         media_buy_store: MediaBuyStore | None = None,
         advertise_all: bool = False,
         timed_sync_get_products_limit: int | None = None,
@@ -1477,6 +1482,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._brand_authorization_gate = brand_authorization_gate
         self._config_store = config_store
         self._property_list_fetcher = property_list_fetcher
+        self._property_list_filter_mode = property_list_filter_mode
         self._media_buy_store = media_buy_store
         self._advertise_all = advertise_all
         # Compatibility adapters are authored by the adopter platform, while
@@ -2560,6 +2566,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 response=response,
                 fetcher=self._property_list_fetcher,
                 capability_enabled=property_list_capability_enabled(self._platform),
+                filter_mode=self._property_list_filter_mode,
             ),
         )
         if self._platform.capabilities.auto_paginate and params.pagination is not None:
