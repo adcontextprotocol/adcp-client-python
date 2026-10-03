@@ -71,6 +71,7 @@ class ProposalModeDecisioningPlatform(DecisioningPlatform, SalesPlatform):
         media_buy=MediaBuy(
             supported_pricing_models=["cpm"],
             supports_proposals=True,
+            buying_modes=["brief", "refine"],
         ),
         supported_protocols=[SupportedProtocol.media_buy],
     )

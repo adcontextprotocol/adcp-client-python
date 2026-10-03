@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from adcp.reporting.ledger import ProducerOfferings, ReportingDeliveryEscalation, ReportingProducer
 from adcp.reporting.materializer import (
@@ -37,6 +37,7 @@ from adcp.types import ReportingDeliveryOffering
 
 if TYPE_CHECKING:
     from adcp.decisioning.registry import BuyerAgentRegistry
+    from adcp.reporting.ledger import ReportingLedgerStore
     from adcp.reporting.production.pg import PgReportingProductionStore
     from adcp.reporting.service import ReportingAdapterRegistry, ReportingContextResolver
 
@@ -94,6 +95,31 @@ class ReportingProductionOptions:
             not self.notifications or any(value is None for value in notification_inputs)
         ):
             raise ValueError("push requires notifications, subscriptions, cipher and signing")
+
+    def _capability_block(
+        self,
+        *,
+        store: ReportingLedgerStore,
+        sources: ReportingAdapterRegistry,
+        escalation: ReportingDeliveryEscalation,
+        consumer_status_enabled: bool,
+    ) -> dict[str, Any]:
+        from adcp.reporting.production._declaration import declared_reporting_delivery
+        from adcp.reporting.production.pg import PgReportingProductionStore
+        from adcp.reporting.service import _wire
+
+        if set(sources.names) != {item.adapter for item in self.offerings}:
+            return {}
+        return declared_reporting_delivery(
+            offerings=[_wire(item.offering) for item in self.offerings],
+            destination=self.destination,
+            durable=type(store) is PgReportingProductionStore,
+            escalation=escalation,
+            consumer_status_enabled=consumer_status_enabled,
+            automated_recovery_window=self.automated_recovery_window,
+            status_retention_days=self.status_retention_days,
+            notifications=self.signing is not None,
+        )
 
     def _compose(
         self,
