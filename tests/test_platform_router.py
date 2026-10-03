@@ -157,6 +157,110 @@ def _make_ctx(account: Account[Any]) -> RequestContext[Any]:
     return RequestContext(account=account)
 
 
+class _CanonicalRouterChild(DecisioningPlatform):
+    capabilities = _capabilities(["sales-non-guaranteed"])
+    accounts = _SyncSalesPlatform.accounts
+    __init__ = _SyncSalesPlatform.__init__
+    get_products = _SyncSalesPlatform.get_products
+    create_media_buy = _SyncSalesPlatform.create_media_buy
+    update_media_buy = _SyncSalesPlatform.update_media_buy
+    sync_creatives = _SyncSalesPlatform.sync_creatives
+    get_media_buy_delivery = _SyncSalesPlatform.get_media_buy_delivery
+
+
+class _OptionalRouterChild(_CanonicalRouterChild):
+    def list_creative_formats_legacy(self, req: Any, ctx: Any) -> Any:
+        return {"formats": []}
+
+    def preview_creative_legacy(self, req: Any, ctx: Any) -> Any:
+        return {"previews": []}
+
+    def list_products(self, req: Any, ctx: Any) -> Any:
+        return {"products": []}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("router_kind", ["eager", "lazy", "registry", "nested"])
+@pytest.mark.parametrize("implemented", [False, True])
+async def test_router_optional_advertisement_and_tenant_refusal(
+    router_kind: str, implemented: bool
+) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    from adcp.decisioning import LazyPlatformRouter
+    from adcp.decisioning.capabilities import MediaBuy
+    from adcp.decisioning.handler import PlatformHandler
+    from adcp.decisioning.task_registry import InMemoryTaskRegistry
+    from adcp.server.tenant_registry import TenantRegistry
+
+    accounts = _make_routing_account_store({"acct_a": "tenant-a", "acct_b": "tenant-b"})
+    caps = _capabilities(["sales-non-guaranteed", "creative-template"])
+    caps.media_buy = MediaBuy(lifecycle_tools=["list_products", "buy_products"])
+    optional = {"list_creative_formats_legacy", "preview_creative_legacy", "list_products"}
+    declaration = optional if implemented else set()
+    child = _OptionalRouterChild("a") if implemented else _CanonicalRouterChild("a")
+    canonical = _CanonicalRouterChild("b")
+    constructed: list[str] = []
+
+    async def factory(tenant_id: str) -> DecisioningPlatform:
+        constructed.append(tenant_id)
+        return child if tenant_id == "tenant-a" else canonical
+
+    if router_kind == "eager":
+        router = PlatformRouter(
+            accounts=accounts,
+            platforms={"tenant-a": child, "tenant-b": canonical},
+            capabilities=caps,
+        )
+    elif router_kind in {"lazy", "nested"}:
+        lazy = LazyPlatformRouter(
+            accounts=accounts, factory=factory, capabilities=caps, optional_methods=declaration
+        )
+        router = (
+            lazy
+            if router_kind == "lazy"
+            else PlatformRouter(
+                accounts=accounts, platforms={"tenant-a": lazy, "tenant-b": lazy}, capabilities=caps
+            )
+        )
+    else:
+        registry = TenantRegistry(validator=None)
+        for tenant_id in ("tenant-a", "tenant-b"):
+            await registry.register_lazy(
+                tenant_id, agent_url=f"https://{tenant_id}.example.com", factory=factory
+            )
+        router = registry.as_platform(
+            accounts=accounts, capabilities=caps, optional_methods=declaration
+        )
+    with ThreadPoolExecutor() as executor:
+        handler = PlatformHandler(router, executor=executor, registry=InMemoryTaskRegistry())
+        tools = handler.advertised_tools_for_instance()
+    assert constructed == []
+    expected = {"list_creative_formats", "preview_creative", "list_products"}
+    assert tools & (expected | {"buy_products"}) == (expected if implemented else set())
+    assert isinstance(router.optional_methods, frozenset)
+
+    if implemented:
+        ctx = _make_ctx(Account(id="acct_a", metadata={"tenant_id": "tenant-a"}))
+        ctx.tenant_id = "tenant-a"
+        assert await router.list_creative_formats_legacy({}, ctx) == {"formats": []}
+        ctx = _make_ctx(Account(id="acct_b", metadata={"tenant_id": "tenant-b"}))
+        ctx.tenant_id = "tenant-b"
+        with pytest.raises(AdcpError) as caught:
+            await router.list_creative_formats_legacy({}, ctx)
+        assert caught.value.code == "UNSUPPORTED_FEATURE"
+        assert "because at least one" not in str(caught.value)
+
+
+def test_eager_optional_declaration_excludes_inherited_protocol_stubs() -> None:
+    router = PlatformRouter(
+        accounts=_make_routing_account_store({"acct_a": "tenant-a"}),
+        platforms={"tenant-a": _SyncSalesPlatform("a")},
+        capabilities=_capabilities(["sales-non-guaranteed"]),
+    )
+    assert "list_creative_formats_legacy" not in router.optional_methods
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------

@@ -1307,6 +1307,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             layer should fall back to the class-level set in that case
             so the handler isn't accidentally muted.
         """
+        from adcp.decisioning.platform_router import _implements_optional_method
+
         claimed = self._platform.capabilities.specialisms
         serving: set[str] = set()
         for entry in claimed:
@@ -1321,8 +1323,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         lifecycle_tools = getattr(media_buy_caps, "lifecycle_tools", None) or []
         for entry in lifecycle_tools:
             tool_name = entry.value if hasattr(entry, "value") else str(entry)
-            if tool_name in _COMPACT_LIFECYCLE_TOOLS and callable(
-                getattr(self._platform, tool_name, None)
+            if tool_name in _COMPACT_LIFECYCLE_TOOLS and _implements_optional_method(
+                self._platform, tool_name
             ):
                 serving.add(tool_name)
         # Drop sync_accounts / list_accounts when the platform's
@@ -1352,7 +1354,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             serving.discard("list_accounts")
             self._log_account_tool_dropped("list_accounts", "list")
         for wire_name, adopter_name in _OPTIONAL_LEGACY_WIRE_TO_ADOPTER.items():
-            if wire_name in serving and not callable(getattr(self._platform, adopter_name, None)):
+            if wire_name in serving and not _implements_optional_method(
+                self._platform, adopter_name
+            ):
                 serving.discard(wire_name)
         reporting = getattr(self._platform, "_reliable_reporting_service", None)
         if reporting is not None:

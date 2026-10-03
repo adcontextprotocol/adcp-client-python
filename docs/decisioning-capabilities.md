@@ -348,3 +348,28 @@ spec evolves.
   every block including a fully-populated schema-validated response.
 - AdCP spec — `protocol/get-adcp-capabilities-response.json` defines
   every field the structured blocks mirror. Read both in parallel.
+
+## Optional methods on tenant routers
+
+`PlatformRouter.optional_methods` is the union of implementations on its eager
+children. Nested routers use their declarations, so synthesized delegates do not
+count as implementations. Lazy and registry routers default to an empty
+`frozenset`; explicitly declare the union of adopter method names without
+constructing every tenant:
+
+```python
+router = LazyPlatformRouter(
+    accounts=accounts,
+    factory=platform_factory,
+    capabilities=capabilities,
+    optional_methods={"list_creative_formats_legacy", "preview_creative_legacy", "list_products"},
+)
+# Or: registry.as_platform(..., optional_methods={"list_products"})
+```
+
+Declarations control optional legacy creative and compact lifecycle tool
+advertisement. Compact tools still require the corresponding
+`media_buy.lifecycle_tools` capability. A canonical-only router needs no legacy
+creative declarations. A tenant without an advertised implementation still
+returns `UNSUPPORTED_FEATURE` on that call. Existing non-router platform
+advertisement and version-aware boot validation retain their behavior.
