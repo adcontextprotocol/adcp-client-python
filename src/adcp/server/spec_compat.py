@@ -41,6 +41,7 @@ from adcp.server._hooks import (
     PreValidationHooks,
     compose_pre_validation_hooks,
 )
+from adcp.types._legacy_assets import coerce_legacy_asset, infer_asset_type
 
 __all__ = [
     "CANONICAL_CREATIVE_AGENT_URL",
@@ -67,27 +68,6 @@ Exposed for ``exclude=`` validation — a typo like ``exclude={"sync_creative"}`
 emits a :class:`UserWarning` instead of silently leaving the hook active.
 """
 
-# Exact set of asset_type discriminator values the spec defines.
-# Used by the asset_type inference heuristic — only exact key matches count.
-_KNOWN_ASSET_TYPES: frozenset[str] = frozenset(
-    {
-        "image",
-        "video",
-        "audio",
-        "vast",
-        "text",
-        "url",
-        "html",
-        "javascript",
-        "webhook",
-        "css",
-        "daast",
-        "markdown",
-        "brief",
-        "catalog",
-    }
-)
-
 
 def _hook_get_products(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:  # noqa: ARG001
     """Default ``buying_mode`` to ``'brief'`` when omitted.
@@ -101,53 +81,14 @@ def _hook_get_products(tool_name: str, args: dict[str, Any]) -> dict[str, Any]: 
 
 
 def _infer_asset_type(asset_key: str, asset: dict[str, Any]) -> str | None:
-    """Infer ``asset_type`` for a pre-4.4 asset dict that omits the discriminator.
-
-    Resolution order:
-    1. Exact key match against ``_KNOWN_ASSET_TYPES`` (pre-4.4 convention of
-       using the type name as the asset key, e.g. ``{"image": {...}}``.
-       Substring / partial matches are intentionally excluded — keys like
-       ``"hero_image"`` are asset IDs, not type hints.
-    2. Field-presence heuristics:
-       - ``url`` + ``width`` + ``height`` present → ``"image"``
-       - ``url`` present without dims → ``"url"``
-       - ``content`` present → ``"text"``
-    3. Returns ``None`` when inference is ambiguous — the dict is left
-       unchanged and schema validation will report the missing discriminator.
-    """
-    if asset_key in _KNOWN_ASSET_TYPES:
-        return asset_key
-    if "url" in asset:
-        if "width" in asset and "height" in asset:
-            return "image"
-        return "url"
-    if "content" in asset:
-        return "text"
-    return None
+    """Delegate to the public legacy asset inference helper."""
+    return infer_asset_type(asset_key, asset)
 
 
 def _coerce_asset(asset_key: str, asset: dict[str, Any]) -> dict[str, Any]:
-    """Apply pre-4.4 coercions to a single raw asset dict.
-
-    Mutates a copy, not the original.  Applies hooks in order so that
-    hook-3 (infer asset_type) feeds into hook-4 (image → url demotion).
-    """
-    # Hook 3: infer asset_type when missing.
-    if "asset_type" not in asset:
-        inferred = _infer_asset_type(asset_key, asset)
-        if inferred is not None:
-            asset = {**asset, "asset_type": inferred}
-
-    # Hook 4: demote asset_type='image' → 'url' when dims are absent.
-    # Only fires when url is present — if url is also absent the asset is
-    # structurally unusable either way; leave it for schema validation to
-    # report rather than silently changing the type to something equally invalid.
-    if asset.get("asset_type") == "image" and not ("width" in asset and "height" in asset):
-        if "url" in asset:
-            asset = {k: v for k, v in asset.items() if k not in ("width", "height")}
-            asset = {**asset, "asset_type": "url"}
-
-    return asset
+    """Delegate to the public, non-mutating legacy asset coercion helper."""
+    coerced = coerce_legacy_asset(asset_key, asset)
+    return asset if coerced == asset else coerced
 
 
 def _make_sync_creatives_hook(
@@ -275,8 +216,8 @@ def _spec_compat_hooks_impl(
            left for schema validation to report.
 
         Adopters who need granular control over the three sub-behaviors
-        should copy the relevant logic from
-        ``adcp.server.spec_compat._coerce_asset`` / ``_hook_get_products``
+        can use ``adcp.types.legacy.coerce_legacy_assets`` directly, adapt
+        ``_hook_get_products``
         or compose an ordered hook chain with
         :func:`adcp.server.compose_pre_validation_hooks`.
 
