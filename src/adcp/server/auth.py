@@ -698,7 +698,7 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
                     # Validator failure must not leak stack info to the caller.
                     # Fail closed — a buggy validator is an auth failure, not a
                     # 500. Logged for operators.
-                    logger.info("mcp auth rejected", extra={"reason": "validator_error"})
+                    logger.error("mcp auth rejected", extra={"reason": "validator_error"})
                     return self._unauthenticated(signature_error)
 
                 if principal is None:
@@ -1892,7 +1892,7 @@ class A2ABearerAuthMiddleware:
             result = self._config.validate_token(bearer)
             raw = await result if inspect.isawaitable(result) else result
         except Exception:
-            logger.info("a2a auth rejected", extra={"reason": "validator_error"})
+            logger.error("a2a auth rejected", extra={"reason": "validator_error"})
             return None
 
         if raw is None:

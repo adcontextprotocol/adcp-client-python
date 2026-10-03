@@ -101,7 +101,7 @@ async def test_accepted_carriers(
 @pytest.mark.parametrize("leg", ["mcp", "a2a"])
 async def test_alias_prefix_policy(leg: str) -> None:
     config = BearerTokenAuth(
-        validate_token=lambda token: Principal(token),
+        validate_token=Principal,
         legacy_header_aliases=["x-legacy"],
         legacy_aliases_bearer_prefix_required=True,
     )
@@ -123,9 +123,7 @@ async def test_alias_prefix_policy(leg: str) -> None:
 @pytest.mark.asyncio
 @pytest.mark.parametrize("leg", ["mcp", "a2a"])
 async def test_concurrent_credentials_and_anonymous_requests(leg: str) -> None:
-    config = BearerTokenAuth(
-        validate_token=lambda token: Principal(token), allow_unauthenticated=True
-    )
+    config = BearerTokenAuth(validate_token=Principal, allow_unauthenticated=True)
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=middleware_app(leg, config)), base_url="http://test"
     ) as client:
@@ -159,6 +157,10 @@ async def test_validator_exception_does_not_log_credentials(
             )
     assert response.status_code == 401
     assert "private-token" not in caplog.text + response.text
+    errors = [record for record in caplog.records if record.levelno >= logging.ERROR]
+    assert len(errors) == 1
+    assert errors[0].reason == "validator_error"
+    assert errors[0].exc_info is None
 
 
 @pytest.mark.asyncio
@@ -191,9 +193,7 @@ async def test_combined_server_credential_parity(alias: str, status: int) -> Non
         stateless_http=True,
         enable_dns_rebinding_protection=False,
         context_factory=auth_context_factory,
-        auth=BearerTokenAuth(
-            validate_token=lambda token: Principal(token), legacy_header_aliases=["x-legacy"]
-        ),
+        auth=BearerTokenAuth(validate_token=Principal, legacy_header_aliases=["x-legacy"]),
     )
     params = {"buying_mode": "brief", "brief": "video"}
     mcp = {
