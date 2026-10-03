@@ -27,6 +27,7 @@ class _CachedEntry(Protocol):
 
 class _ReservationBackend(Protocol):
     _pool: Any
+    _table: str
     _sql_now: str
     _sql_put_if_absent: str
     _active_connection: ContextVar[tuple[Any, asyncio.Task[Any] | None] | None]
@@ -61,6 +62,7 @@ class PgReservation:
         payload_hash: str,
         ttl_seconds: int,
         response: dict[str, Any] | None,
+        replay_table_oid: int,
     ) -> None:
         self._backend = backend
         self._connection = connection
@@ -68,6 +70,7 @@ class PgReservation:
         self._key = key
         self._payload_hash = payload_hash
         self._ttl_seconds = ttl_seconds
+        self._replay_table_oid = replay_table_oid
         self._response = copy.deepcopy(response)
         self._replayed = response is not None
         self._recorded = False
@@ -116,6 +119,7 @@ class PgReservation:
         if self._replayed or self._recorded or self._failed:
             raise IdempotencyReservationError("Only a fresh reservation can record once")
         try:
+            await self._check_replay_table()
             response_copy = copy.deepcopy(response)
             encoded = json.dumps(response_copy, allow_nan=False)
             response_copy = json.loads(encoded)
@@ -135,9 +139,18 @@ class PgReservation:
             self._failed = True
             raise
 
+    async def _check_replay_table(self) -> None:
+        cursor = await self._connection.execute(
+            "SELECT to_regclass(%s)::oid", (self._backend._table,)
+        )
+        row = await cursor.fetchone()
+        if row is None or row[0] != self._replay_table_oid:
+            raise IdempotencyReservationError("Reservation replay table changed during transaction")
+
     async def _verify_record(self) -> None:
         if self._failed or not self._recorded:
             raise IdempotencyReservationError("Reservation exited without a successful record")
+        await self._check_replay_table()
         cached = await self._backend._get_on_connection(
             self._connection, self._scope_key, self._key
         )
@@ -213,14 +226,23 @@ async def reserve_transaction(
                 # Take a fresh snapshot after obtaining the execution lock even
                 # when the caller configured a different connection isolation.
                 await conn.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
-                fingerprint_sql = "SELECT current_database(), pg_postmaster_start_time()"
+                fingerprint_sql = (
+                    "SELECT current_database(), pg_postmaster_start_time(), to_regclass(%s)::oid"
+                )
                 lock_connection = backend._active_connection.get()
                 assert lock_connection is not None
-                lock_cursor = await lock_connection[0].execute(fingerprint_sql)
-                business_cursor = await conn.execute(fingerprint_sql)
-                if await lock_cursor.fetchone() != await business_cursor.fetchone():
+                lock_cursor = await lock_connection[0].execute(fingerprint_sql, (backend._table,))
+                business_cursor = await conn.execute(fingerprint_sql, (backend._table,))
+                lock_identity = await lock_cursor.fetchone()
+                business_identity = await business_cursor.fetchone()
+                if (
+                    lock_identity is None
+                    or lock_identity[2] is None
+                    or lock_identity != business_identity
+                ):
                     raise IdempotencyReservationError(
-                        "Business and lock connections must use the same PostgreSQL database"
+                        "Business and lock connections must use the same "
+                        "PostgreSQL database and replay table"
                     )
                 cached = await backend._get_on_connection(conn, scope_key, key)
                 if cached is not None and cached.payload_hash != payload_hash:
@@ -243,6 +265,7 @@ async def reserve_transaction(
                     payload_hash,
                     ttl_seconds,
                     cached.response if cached is not None else None,
+                    lock_identity[2],
                 )
                 try:
                     yield slot

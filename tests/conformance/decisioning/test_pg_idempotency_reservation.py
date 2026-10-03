@@ -169,6 +169,44 @@ async def test_outer_transaction_rejected_and_idle_caller_connection_supported(b
                 pass
 
 
+@pytest.mark.parametrize("shadow", ["schema", "temporary"])
+async def test_caller_connection_cannot_shadow_the_backend_replay_table(backend, shadow):
+    schema = "test_idem_shadow_" + secrets.token_hex(6)
+    async with backend._pool.connection() as admin:
+        original_schema = (await (await admin.execute("SELECT current_schema()")).fetchone())[0]
+        await admin.execute(f"CREATE SCHEMA {schema}")
+    conn = await psycopg.AsyncConnection.connect(TEST_URL, autocommit=True)
+    try:
+        qualified = f"{original_schema}.{backend._table}"
+        if shadow == "schema":
+            await conn.execute(
+                f"CREATE TABLE {schema}.{backend._table} (LIKE {qualified} INCLUDING ALL)"
+            )
+            await conn.execute(f"SET search_path TO {schema}")
+        else:
+            await conn.execute(
+                f"CREATE TEMP TABLE {backend._table} (LIKE {qualified} INCLUDING ALL)"
+            )
+        entered = False
+        with pytest.raises(IdempotencyReservationError, match="replay table"):
+            async with backend.reserve("buyer", "key", "hash", connection=conn):
+                entered = True
+        assert not entered
+        assert await counts(backend) == (0, 0)
+        # The rejected shadow reservation cannot commit a business effect that
+        # a retry through the backend's ordinary pool would repeat.
+        async with backend.reserve("buyer", "key", "hash") as retry:
+            await write_business(retry, backend._table)
+            await retry.record({"ok": True})
+        async with backend.reserve("buyer", "key", "hash") as replay:
+            assert replay.replayed
+        assert await counts(backend) == (1, 1)
+    finally:
+        await conn.close()
+        async with backend._pool.connection() as admin:
+            await admin.execute(f"DROP SCHEMA {schema} CASCADE")
+
+
 async def test_savepoint_rollback_of_record_is_detected(backend):
     with pytest.raises(IdempotencyReservationError, match="rolled back or changed"):
         async with backend.reserve("buyer", "key", "hash") as slot:
@@ -356,3 +394,38 @@ async def test_separate_process_retry_and_termination_at_commit_boundary(backend
                 await asyncio.to_thread(process.join, 5)
         for pipe in (parent1, child1, parent2, child2):
             pipe.close()
+
+
+@pytest.mark.parametrize("switch_at", ["before_record", "after_record"])
+async def test_replay_table_cannot_change_during_business_transaction(backend, switch_at):
+    schema = f"test_shadow_{secrets.token_hex(6)}"
+    async with backend._pool.connection() as conn:
+        await conn.execute(f"CREATE SCHEMA {schema}")
+        await conn.execute(
+            f"CREATE TABLE {schema}.{backend._table} (LIKE public.{backend._table} INCLUDING ALL)"
+        )
+    try:
+        with pytest.raises(IdempotencyReservationError, match="replay table changed"):
+            async with backend.reserve("buyer", "key", "hash") as slot:
+                await write_business(slot, backend._table)
+                if switch_at == "after_record":
+                    await slot.record({"ok": True})
+                await slot.connection.execute(f"SET LOCAL search_path TO {schema}, public")
+                if switch_at == "before_record":
+                    await slot.record({"ok": True})
+        assert await counts(backend) == (0, 0)
+        async with backend._pool.connection() as conn:
+            row = await (
+                await conn.execute(f"SELECT count(*) FROM {schema}.{backend._table}")
+            ).fetchone()
+            assert row == (0,)
+        async with backend.reserve("buyer", "key", "hash") as retry:
+            assert not retry.replayed
+            await write_business(retry, backend._table)
+            await retry.record({"ok": True})
+        async with backend.reserve("buyer", "key", "hash") as replay:
+            assert replay.replayed
+        assert await counts(backend) == (1, 1)
+    finally:
+        async with backend._pool.connection() as conn:
+            await conn.execute(f"DROP SCHEMA {schema} CASCADE")

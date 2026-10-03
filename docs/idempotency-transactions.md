@@ -71,9 +71,13 @@ is needed: an unrecorded or crashed reservation leaves no durable claim.
 - `PgBackend.reserve(scope, key, payload_hash, ...)` is the lower-level API for
   adopters that already compose authenticated scope and canonical hash. Both APIs
   accept `connection=` for a real, idle `psycopg.AsyncConnection` using the same
-  PostgreSQL database as the lock pool. The caller keeps ownership of that
+  PostgreSQL database and resolving the same replay table as the lock pool.
+  Connections resolving a different schema table or a temporary table shadow
+  are rejected before business code runs. The caller keeps ownership of that
   connection; the reservation owns its transaction. Different database/server
-  fingerprints and non-psycopg objects are rejected.
+  fingerprints and non-psycopg objects are rejected. The replay table is pinned
+  through commit: changing its resolution with `SET LOCAL search_path` before
+  or after `record()` aborts the business transaction.
 - **An already active outer transaction is rejected**, including an implicit
   transaction opened by earlier SQL. This API cannot safely release its lock while
   some caller-owned outer transaction will commit after handler return. Commit or
