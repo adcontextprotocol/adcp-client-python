@@ -116,13 +116,16 @@ class TestToolCallerContextPassthrough:
 
 
 class TestEndToEndIdempotencyViaTransport:
+    # Keep this dispatch fixture independent of unrelated "Seller" registrations.
     @pytest.mark.asyncio
     async def test_a2a_transport_identity_enables_middleware_dedup(self) -> None:
         """Full wire: A2A authenticated user → ToolContext.caller_identity →
         IdempotencyStore.wrap scopes per-principal and dedups the replay."""
         store = IdempotencyStore(backend=MemoryBackend(), ttl_seconds=86400)
 
-        class Seller(ADCPHandler):
+        class CallerIdentityIdempotencySeller(ADCPHandler):
+            advertised_tools = {"create_media_buy"}
+
             def __init__(self) -> None:
                 self.calls = 0
 
@@ -133,7 +136,7 @@ class TestEndToEndIdempotencyViaTransport:
                 self.calls += 1
                 return {"media_buy_id": f"mb_{self.calls}", "status": "completed"}
 
-        seller = Seller()
+        seller = CallerIdentityIdempotencySeller()
         executor = ADCPAgentExecutor(seller, validation=None)
         key = str(uuid.uuid4())
 
@@ -153,7 +156,9 @@ class TestEndToEndIdempotencyViaTransport:
     async def test_distinct_principals_scope_independently(self) -> None:
         store = IdempotencyStore(backend=MemoryBackend(), ttl_seconds=86400)
 
-        class Seller(ADCPHandler):
+        class CallerIdentityIdempotencySeller(ADCPHandler):
+            advertised_tools = {"create_media_buy"}
+
             def __init__(self) -> None:
                 self.calls = 0
 
@@ -164,7 +169,7 @@ class TestEndToEndIdempotencyViaTransport:
                 self.calls += 1
                 return {"media_buy_id": f"mb_{self.calls}"}
 
-        seller = Seller()
+        seller = CallerIdentityIdempotencySeller()
         executor = ADCPAgentExecutor(seller, validation=None)
         key = str(uuid.uuid4())
         params = {"idempotency_key": key, "brand": "acme"}
@@ -182,7 +187,9 @@ class TestEndToEndIdempotencyViaTransport:
         """Without a principal, the middleware fails closed before side effects."""
         store = IdempotencyStore(backend=MemoryBackend(), ttl_seconds=86400)
 
-        class Seller(ADCPHandler):
+        class CallerIdentityIdempotencySeller(ADCPHandler):
+            advertised_tools = {"create_media_buy"}
+
             def __init__(self) -> None:
                 self.calls = 0
 
@@ -193,7 +200,7 @@ class TestEndToEndIdempotencyViaTransport:
                 self.calls += 1
                 return {"media_buy_id": f"mb_{self.calls}"}
 
-        seller = Seller()
+        seller = CallerIdentityIdempotencySeller()
         executor = ADCPAgentExecutor(seller, validation=None)
         key = str(uuid.uuid4())
         params = {"idempotency_key": key, "brand": "acme"}

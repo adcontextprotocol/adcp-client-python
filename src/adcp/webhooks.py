@@ -58,6 +58,7 @@ from adcp.signing.webhook_signer import sign_webhook
 from adcp.signing.webhook_verifier import (
     VerifiedWebhookSender,
     WebhookVerifyOptions,
+    verify_webhook_from_agent_url,
     verify_webhook_signature,
 )
 from adcp.types import AdcpProtocol, GeneratedTaskStatus, McpWebhookPayload, TaskType
@@ -2056,6 +2057,7 @@ __all__ = [
     "VerifiedWebhookSender",
     "WebhookVerifyOptions",
     "verify_webhook_signature",
+    "verify_webhook_from_agent_url",
     # Receiver — legacy HMAC verification (low-level, 3.x only)
     "LegacyWebhookHmacError",
     "LegacyWebhookHmacOptions",
