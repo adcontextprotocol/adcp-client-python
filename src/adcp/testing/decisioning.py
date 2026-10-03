@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     import httpx
+    from starlette.routing import Mount, Route
 
     from adcp.decisioning import (
         AuthInfo,
@@ -149,6 +150,7 @@ def build_asgi_app(
     auto_emit_completion_webhooks: bool = False,
     allowed_hosts: Sequence[str] | None = None,
     allowed_origins: Sequence[str] | None = None,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     auth: BearerTokenAuth | None = None,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     context_factory: ContextFactory | None = None,
@@ -191,7 +193,9 @@ def build_asgi_app(
     3. Discovery wrapper (only when ``discovery_base_url`` is provided) —
        serves ``/.well-known/adcp-agents.json``.
     4. Size cap (``max_request_size``; ``None`` → 10 MB default).
-    5. ``asgi_middleware`` outermost — CORS, tenant resolution, custom
+    5. Operational routes — ahead of SDK protocol authentication.
+    6. Host/Origin transport policy — wraps all HTTP routes.
+    7. ``asgi_middleware`` outermost — CORS, tenant resolution, custom
        auth, etc.
 
     :param platform: The :class:`DecisioningPlatform` instance under
@@ -348,6 +352,7 @@ def build_asgi_app(
             allowed_hosts=allowed_hosts,
             allowed_origins=allowed_origins,
             enable_dns_rebinding_protection=enable_dns_rebinding_protection,
+            unauthenticated_routes=unauthenticated_routes,
             auth=auth,
             on_startup=on_startup,
             on_shutdown=on_shutdown,
@@ -371,6 +376,10 @@ def build_asgi_app(
             pre_validation_hooks=pre_validation_hooks,
             response_enhancer=response_enhancer,
             base_url=discovery_base_url,
+            allowed_hosts=allowed_hosts,
+            allowed_origins=allowed_origins,
+            enable_dns_rebinding_protection=enable_dns_rebinding_protection,
+            unauthenticated_routes=unauthenticated_routes,
             auth=auth,
             include_discovery=discovery_base_url is not None,
         )
@@ -408,6 +417,11 @@ def build_asgi_app(
             base_url=discovery_base_url,
         )
     app = _wrap_with_size_limit(app, max_request_size)
+    from adcp.server.http_policy import HostOriginMiddleware
+    from adcp.server.operational_routes import wrap_operational_routes
+
+    app = wrap_operational_routes(app, unauthenticated_routes)
+    app = HostOriginMiddleware(app, settings=mcp.settings.transport_security)
     app = _apply_asgi_middleware(app, asgi_middleware)
     return app
 
@@ -423,6 +437,7 @@ async def build_test_client(
     auto_emit_completion_webhooks: bool = False,
     follow_redirects: bool = True,
     headers: Mapping[str, str] | None = None,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     auth: BearerTokenAuth | None = None,
     allowed_origins: Sequence[str] | None = None,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
@@ -556,6 +571,7 @@ async def build_test_client(
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
         allowed_hosts=[hostname],
         allowed_origins=allowed_origins,
+        unauthenticated_routes=unauthenticated_routes,
         auth=auth,
         asgi_middleware=asgi_middleware,
         context_factory=context_factory,

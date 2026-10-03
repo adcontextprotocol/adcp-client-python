@@ -54,6 +54,7 @@ if TYPE_CHECKING:
     )
     from a2a.server.tasks.push_notification_sender import PushNotificationSender
     from a2a.server.tasks.task_store import TaskStore
+    from starlette.routing import Mount, Route
 
     from adcp.server.auth import BearerTokenAuth
     from adcp.server.serve import ContextFactory, SkillMiddleware
@@ -1188,6 +1189,7 @@ class _PerRequestCardMiddleware:
 def create_a2a_server(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     name: str = "adcp-agent",
     port: int | None = None,
     description: str | None = None,
@@ -1205,6 +1207,9 @@ def create_a2a_server(
     validation: ValidationHookConfig | None = SERVER_DEFAULT_VALIDATION,
     pre_validation_hooks: PreValidationHooks | None = None,
     context_builder: Any | None = None,
+    allowed_hosts: Sequence[str] | None = None,
+    allowed_origins: Sequence[str] | None = None,
+    enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
     public_url: str | PublicUrlResolver | None = None,
     response_enhancer: ResponseEnhancer | None = None,
@@ -1362,6 +1367,12 @@ def create_a2a_server(
     Returns:
         A Starlette app ready to be run with uvicorn.
     """
+    from adcp.server.operational_routes import (
+        OperationalRoutesMiddleware,
+        prepare_operational_routes,
+    )
+
+    operational_routes = prepare_operational_routes(unauthenticated_routes)
     resolved_port = port or int(os.environ.get("PORT", "3001"))
     # A callable resolver takes priority; env-var fallback only applies
     # when public_url is None (not callable).
@@ -1560,6 +1571,17 @@ def create_a2a_server(
 
         register_production_mount(handler, app, transport="a2a", dispatcher=executor)
 
+    if operational_routes is not None:
+        app.state.adcp_operational_routes = operational_routes
+        app.add_middleware(OperationalRoutesMiddleware, routes=operational_routes)
+    from adcp.server.http_policy import HostOriginMiddleware, transport_security_settings
+
+    app.add_middleware(
+        HostOriginMiddleware,
+        settings=transport_security_settings(
+            allowed_hosts, allowed_origins, enable_dns_rebinding_protection
+        ),
+    )
     return app
 
 

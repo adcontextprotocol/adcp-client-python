@@ -38,6 +38,7 @@ _ADCP_MCP_REQUEST_CONTEXT: ContextVar[Any] = ContextVar("adcp_mcp_request_contex
 from adcp.server._hooks import PreValidationHooks
 from adcp.server.base import ADCPHandler, ToolContext
 from adcp.server.helpers import ResponseEnhancer
+from adcp.server.http_policy import HostOriginMiddleware, transport_security_settings
 from adcp.server.mcp_sessions import ADCPStreamableHTTPSessionManager
 from adcp.server.mcp_tools import (
     _HANDLER_TOOLS,
@@ -45,6 +46,13 @@ from adcp.server.mcp_tools import (
     _resolve_handler_adcp_version,
     create_tool_caller,
     get_tools_for_handler,
+)
+from adcp.server.operational_routes import (
+    OperationalRouteMarker,
+    OperationalRoutesMiddleware,
+    find_operational_routes,
+    prepare_operational_routes,
+    wrap_operational_routes,
 )
 from adcp.server.signed_requests import (
     apply_verified_signer,
@@ -73,6 +81,7 @@ if TYPE_CHECKING:
     )
     from a2a.server.tasks.push_notification_sender import PushNotificationSender
     from a2a.server.tasks.task_store import TaskStore
+    from starlette.routing import Mount, Route
 
     from adcp.server.a2a_server import MessageParser, PublicUrlResolver
     from adcp.server.auth import BearerTokenAuth
@@ -304,6 +313,14 @@ class ServeConfig:
     request_handler: RequestHandler | None = None
     message_parser: MessageParser | None = None
     public_url: str | PublicUrlResolver | None = None
+
+    # --- HTTP transport policy ---
+    allowed_hosts: Sequence[str] | None = None
+    allowed_origins: Sequence[str] | None = None
+    enable_dns_rebinding_protection: bool | None = None
+
+    # --- Operational endpoints ---
+    unauthenticated_routes: Sequence[Route | Mount] | None = None
 
     # --- Shared infrastructure ---
     test_controller: TestControllerStore | None = None
@@ -808,6 +825,7 @@ Both forms can be mixed in the same list.
 def serve(
     handler: ADCPHandler[Any] | Any,
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     config: ServeConfig | None = None,
     name: str = "adcp-agent",
     port: int | None = None,
@@ -1190,6 +1208,9 @@ def serve(
         host = config.host
         transport = config.transport
         instructions = config.instructions
+        allowed_hosts = config.allowed_hosts
+        allowed_origins = config.allowed_origins
+        enable_dns_rebinding_protection = config.enable_dns_rebinding_protection
         mcp_result_text = config.mcp_result_text
         test_controller = config.test_controller
         context_factory = config.context_factory
@@ -1199,6 +1220,7 @@ def serve(
         request_handler = config.request_handler
         middleware = config.middleware
         asgi_middleware = config.asgi_middleware
+        unauthenticated_routes = config.unauthenticated_routes
         message_parser = config.message_parser
         advertise_all = config.advertise_all
         max_request_size = config.max_request_size
@@ -1220,6 +1242,9 @@ def serve(
         public_url = config.public_url
         on_startup = config.on_startup
         on_shutdown = config.on_shutdown
+
+    if unauthenticated_routes and transport == "stdio":
+        raise ValueError("unauthenticated_routes requires an HTTP transport")
 
     if request_signature_verification is not None:
         if transport in ("stdio", "sse"):
@@ -1280,6 +1305,7 @@ def serve(
         _serve_a2a(
             handler,
             name=name,
+            unauthenticated_routes=unauthenticated_routes,
             port=port,
             test_controller=test_controller,
             test_controller_account_resolver=test_controller_account_resolver,
@@ -1299,6 +1325,9 @@ def serve(
             base_url=base_url,
             specialisms=specialisms,
             description=description,
+            allowed_hosts=allowed_hosts,
+            allowed_origins=allowed_origins,
+            enable_dns_rebinding_protection=enable_dns_rebinding_protection,
             auth=auth,
             request_signature_verification=request_signature_verification,
             public_url=public_url,
@@ -1307,6 +1336,7 @@ def serve(
         _serve_mcp(
             handler,
             name=name,
+            unauthenticated_routes=unauthenticated_routes,
             port=port,
             host=host,
             transport=transport,
@@ -1339,6 +1369,7 @@ def serve(
         _serve_mcp_and_a2a(
             handler,
             name=name,
+            unauthenticated_routes=unauthenticated_routes,
             port=port,
             host=host,
             instructions=instructions,
@@ -1445,13 +1476,14 @@ def _apply_asgi_middleware(
     """
     if not asgi_middleware:
         return app
+    routes = find_operational_routes(app)
     for entry in reversed(list(asgi_middleware)):
         if isinstance(entry, tuple):
             cls, kwargs = entry
             app = cls(app, **kwargs)
         else:
             app = entry(app)
-    return app
+    return OperationalRouteMarker(app, routes) if routes is not None else app
 
 
 def _wrap_mcp_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
@@ -1771,6 +1803,7 @@ def _bind_reusable_socket(host: str, port: int) -> Any:
 def _serve_mcp(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     mcp_result_text: MCPResultText | None = None,
     name: str,
     port: int | None,
@@ -1838,6 +1871,7 @@ def _serve_mcp(
         _run_mcp_http(
             mcp,
             transport=transport,
+            unauthenticated_routes=unauthenticated_routes,
             asgi_middleware=asgi_middleware,
             max_request_size=max_request_size,
             discovery_name=name,
@@ -1867,6 +1901,7 @@ def _serve_mcp(
 def _run_mcp_http(
     mcp: Any,
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     transport: str,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     max_request_size: int | None = None,
@@ -1922,6 +1957,8 @@ def _run_mcp_http(
         specialisms=discovery_specialisms,
     )
     app = _wrap_with_size_limit(app, max_request_size)
+    app = wrap_operational_routes(app, unauthenticated_routes)
+    app = HostOriginMiddleware(app, settings=mcp.settings.transport_security)
     app = _apply_asgi_middleware(app, asgi_middleware)
 
     sock = _bind_reusable_socket(host, port)
@@ -1956,6 +1993,7 @@ def _run_mcp_http(
 def _build_a2a_app(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     name: str,
     port: int,
     test_controller: TestControllerStore | None,
@@ -1976,6 +2014,9 @@ def _build_a2a_app(
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
+    allowed_hosts: Sequence[str] | None = None,
+    allowed_origins: Sequence[str] | None = None,
+    enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
     request_signature_verification: RequestSignatureVerification | None = None,
     public_url: str | PublicUrlResolver | None = None,
@@ -2005,6 +2046,9 @@ def _build_a2a_app(
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
         response_enhancer=response_enhancer,
+        allowed_hosts=allowed_hosts,
+        allowed_origins=allowed_origins,
+        enable_dns_rebinding_protection=enable_dns_rebinding_protection,
         auth=auth,
         public_url=public_url,
     )
@@ -2030,12 +2074,20 @@ def _build_a2a_app(
             specialisms=specialisms,
         )
     app = _wrap_with_size_limit(app, max_request_size)
+    app = wrap_operational_routes(app, unauthenticated_routes)
+    app = HostOriginMiddleware(
+        app,
+        settings=transport_security_settings(
+            allowed_hosts, allowed_origins, enable_dns_rebinding_protection
+        ),
+    )
     return _apply_asgi_middleware(app, asgi_middleware)
 
 
 def _serve_a2a(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     name: str,
     port: int | None,
     test_controller: TestControllerStore | None,
@@ -2056,6 +2108,9 @@ def _serve_a2a(
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
+    allowed_hosts: Sequence[str] | None = None,
+    allowed_origins: Sequence[str] | None = None,
+    enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
     request_signature_verification: RequestSignatureVerification | None = None,
     public_url: str | PublicUrlResolver | None = None,
@@ -2067,6 +2122,7 @@ def _serve_a2a(
     app = _build_a2a_app(
         handler,
         name=name,
+        unauthenticated_routes=unauthenticated_routes,
         port=resolved_port,
         test_controller=test_controller,
         test_controller_account_resolver=test_controller_account_resolver,
@@ -2086,6 +2142,9 @@ def _serve_a2a(
         base_url=base_url,
         specialisms=specialisms,
         description=description,
+        allowed_hosts=allowed_hosts,
+        allowed_origins=allowed_origins,
+        enable_dns_rebinding_protection=enable_dns_rebinding_protection,
         auth=auth,
         request_signature_verification=request_signature_verification,
         public_url=public_url,
@@ -2112,6 +2171,7 @@ def _serve_a2a(
 def _build_mcp_and_a2a_app(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     mcp_result_text: MCPResultText | None = None,
     name: str,
     port: int,
@@ -2246,6 +2306,9 @@ def _build_mcp_and_a2a_app(
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
         response_enhancer=response_enhancer,
+        allowed_hosts=allowed_hosts,
+        allowed_origins=allowed_origins,
+        enable_dns_rebinding_protection=enable_dns_rebinding_protection,
         auth=auth,
         public_url=public_url,
     )
@@ -2328,12 +2391,17 @@ def _build_mcp_and_a2a_app(
             description=description,
             specialisms=specialisms,
         )
-    return _wrap_with_size_limit(app, max_request_size)
+    app = _wrap_with_size_limit(app, max_request_size)
+    return HostOriginMiddleware(
+        wrap_operational_routes(app, unauthenticated_routes),
+        settings=mcp.settings.transport_security,
+    )
 
 
 def _serve_mcp_and_a2a(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     mcp_result_text: MCPResultText | None = None,
     name: str,
     port: int | None,
@@ -2395,6 +2463,7 @@ def _serve_mcp_and_a2a(
     app = _build_mcp_and_a2a_app(
         handler,
         name=name,
+        unauthenticated_routes=unauthenticated_routes,
         port=resolved_port,
         host=resolved_host,
         instructions=instructions,
@@ -2515,6 +2584,7 @@ class _ADCPMCPSettingsProxy:
 def create_mcp_server(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     name: str = "adcp-agent",
     port: int | None = None,
     host: str | None = None,
@@ -2690,7 +2760,6 @@ def create_mcp_server(
         >>> # run via uvicorn
     """
     from mcp.server import MCPServer
-    from mcp.server.transport_security import TransportSecuritySettings
 
     resolved_port = port or int(os.environ.get("PORT", "3001"))
     # Intentional server default, configurable by argument or deployment env.
@@ -2698,6 +2767,7 @@ def create_mcp_server(
         host if host is not None else (os.environ.get("ADCP_HOST") or "0.0.0.0")  # nosec B104
     )
     mcp: Any = MCPServer(name, instructions=instructions)
+    mcp._adcp_operational_routes = prepare_operational_routes(unauthenticated_routes)
     mcp.settings = _ADCPMCPSettingsProxy(mcp.settings)
     object.__setattr__(mcp.settings, "host", resolved_host)
     object.__setattr__(mcp.settings, "port", resolved_port)
@@ -2709,50 +2779,15 @@ def create_mcp_server(
     object.__setattr__(
         mcp.settings,
         "transport_security",
-        TransportSecuritySettings(
-            enable_dns_rebinding_protection=True,
-            allowed_hosts=["127.0.0.1:*", "localhost:*", "[::1]:*"],
-            allowed_origins=[
-                "http://127.0.0.1:*",
-                "http://localhost:*",
-                "http://[::1]:*",
-            ],
+        transport_security_settings(
+            allowed_hosts, allowed_origins, enable_dns_rebinding_protection
         ),
     )
     object.__setattr__(mcp.settings, "session_idle_timeout", session_idle_timeout)
     object.__setattr__(mcp.settings, "max_active_sessions", max_active_sessions)
     object.__setattr__(mcp.settings, "retry_interval", None)
-    # FastMCP's TransportSecurityMiddleware enforces DNS-rebinding
-    # protection: the default ``allowed_hosts`` accepts only loopback
-    # patterns (``127.0.0.1:*``, ``localhost:*``, ``[::1]:*``). Adopters
-    # serving multi-tenant subdomain hosts (``acme.example.com``,
-    # ``acme.localhost``) extend the list or the transport returns
-    # ``421 Misdirected Request`` and MCP discovery fails. Adopters
-    # whose outer ASGI middleware already validates hosts against a
-    # tenant table (e.g. :class:`SubdomainTenantMiddleware`) can set
-    # ``enable_dns_rebinding_protection=False`` so the MCP-layer check
-    # doesn't duplicate the upstream validation.
-    #
-    # ``_expand_allowed_hosts`` synthesizes the ``host:*`` sibling for
-    # any bare host (no ``:``) so adopters who pass ``acme.localhost``
-    # also cover requests on ``acme.localhost:3001``. Mirrors the port
-    # stripping :class:`InMemorySubdomainTenantRouter` does at lookup
-    # time so the two surfaces stay symmetric.
-    if (
-        enable_dns_rebinding_protection is not None
-        or allowed_hosts is not None
-        or allowed_origins is not None
-    ):
-        ts = mcp.settings.transport_security
-        if enable_dns_rebinding_protection is not None:
-            ts.enable_dns_rebinding_protection = enable_dns_rebinding_protection
-        if allowed_hosts:
-            ts.allowed_hosts = [
-                *ts.allowed_hosts,
-                *_expand_allowed_hosts(allowed_hosts),
-            ]
-        if allowed_origins:
-            ts.allowed_origins = [*ts.allowed_origins, *allowed_origins]
+    # Tenant-aware middleware may own Host validation. Explicitly configured
+    # Origins remain enforced when DNS-rebinding protection is disabled.
     _register_handler_tools(
         mcp,
         handler,
@@ -2772,7 +2807,16 @@ def create_mcp_server(
             "set None to disable reaping."
         )
     _install_adcp_mcp_transport_methods(mcp)
-    mcp._session_manager = _create_adcp_mcp_session_manager(mcp)
+    if max_active_sessions is not None and (
+        isinstance(max_active_sessions, bool)
+        or not isinstance(max_active_sessions, int)
+        or max_active_sessions <= 0
+    ):
+        raise ValueError(
+            f"max_active_sessions must be a positive integer (got {max_active_sessions!r}); "
+            "set None to disable the guard."
+        )
+    mcp._session_manager = None
     if hasattr(handler, "production"):
         from adcp.reporting.production.service import register_production_mount
 
@@ -2810,6 +2854,7 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
     def streamable_http_app(
         self: Any,
         *,
+        unauthenticated_routes: Sequence[Route | Mount] | None = None,
         streamable_http_path: str = "/mcp",
         json_response: bool | None = None,
         stateless_http: bool | None = None,
@@ -2825,6 +2870,13 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
         from starlette.requests import Request
         from starlette.routing import Route
 
+        operational_routes = (
+            prepare_operational_routes(unauthenticated_routes)
+            if unauthenticated_routes is not None
+            else self._adcp_operational_routes
+        )
+        if operational_routes is not None:
+            operational_routes.validate_protocol_paths([streamable_http_path])
         resolved_host = host if host is not None else getattr(self.settings, "host", "127.0.0.1")
         resolved_transport_security = (
             transport_security
@@ -2846,25 +2898,45 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
                 ],
             )
 
-        manager = _create_adcp_mcp_session_manager(
-            self,
-            event_store=event_store,
-            retry_interval=retry_interval,
-            json_response=(
-                getattr(self.settings, "json_response", False)
-                if json_response is None
-                else json_response
-            ),
-            stateless_http=(
-                getattr(self.settings, "stateless_http", False)
-                if stateless_http is None
-                else stateless_http
-            ),
-            transport_security=resolved_transport_security,
-            max_request_body_size=max_request_body_size,
-        )
-        self._session_manager = manager
-        streamable_http = StreamableHTTPASGIApp(manager)
+        live_endpoint: StreamableHTTPASGIApp | None = None
+
+        @contextlib.asynccontextmanager
+        async def lifespan(app: Any) -> AsyncIterator[None]:
+            nonlocal live_endpoint
+            if live_endpoint is not None:
+                raise RuntimeError("MCP app lifespan is already running")
+            manager = _create_adcp_mcp_session_manager(
+                self,
+                event_store=event_store,
+                retry_interval=retry_interval,
+                json_response=(
+                    getattr(self.settings, "json_response", False)
+                    if json_response is None
+                    else json_response
+                ),
+                stateless_http=(
+                    getattr(self.settings, "stateless_http", False)
+                    if stateless_http is None
+                    else stateless_http
+                ),
+                transport_security=(
+                    resolved_transport_security.model_copy(
+                        update={"enable_dns_rebinding_protection": False}
+                    )
+                    if resolved_transport_security is not None
+                    else None
+                ),
+                max_request_body_size=max_request_body_size,
+            )
+            self._session_manager = manager
+            live_endpoint = StreamableHTTPASGIApp(manager)
+            try:
+                async with manager.run():
+                    yield
+            finally:
+                live_endpoint = None
+                if self._session_manager is manager:
+                    self._session_manager = None
 
         class ADCPStreamableHTTPASGIApp:
             async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
@@ -2874,15 +2946,54 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
                     receive = receipt_body_receive(scope, receive, limit=max_request_body_size)
                 token = _ADCP_MCP_REQUEST_CONTEXT.set(Request(scope, receive))
                 try:
-                    await streamable_http(scope, receive, send)
+                    endpoint = live_endpoint
+                    if endpoint is None:
+                        from starlette.responses import Response
+
+                        await Response("MCP app lifespan is not running", status_code=503)(
+                            scope, receive, send
+                        )
+                        return
+                    await endpoint(scope, receive, send)
                 finally:
                     _ADCP_MCP_REQUEST_CONTEXT.reset(token)
 
-        return Starlette(
+        app = Starlette(
             debug=getattr(self.settings, "debug", False),
             routes=[Route(streamable_http_path, endpoint=ADCPStreamableHTTPASGIApp())],
-            lifespan=lambda app: manager.run(),
+            lifespan=lifespan,
         )
+        if operational_routes is not None:
+            app.state.adcp_operational_routes = operational_routes
+            app.add_middleware(OperationalRoutesMiddleware, routes=operational_routes)
+        app.add_middleware(HostOriginMiddleware, settings=resolved_transport_security)
+        return app
+
+    def sse_app(
+        self: Any, *, unauthenticated_routes: Sequence[Route | Mount] | None = None, **kwargs: Any
+    ) -> Any:
+        operational_routes = (
+            prepare_operational_routes(unauthenticated_routes)
+            if unauthenticated_routes is not None
+            else self._adcp_operational_routes
+        )
+        if operational_routes is not None:
+            operational_routes.validate_protocol_paths(
+                [kwargs.get("sse_path", "/sse"), kwargs.get("message_path", "/messages/")]
+            )
+        settings = kwargs.pop("transport_security", None) or self.settings.transport_security
+        app = type(self).sse_app(
+            self,
+            transport_security=settings.model_copy(
+                update={"enable_dns_rebinding_protection": False}
+            ),
+            **kwargs,
+        )
+        if operational_routes is not None:
+            app.state.adcp_operational_routes = operational_routes
+            app.add_middleware(OperationalRoutesMiddleware, routes=operational_routes)
+        app.add_middleware(HostOriginMiddleware, settings=settings)
+        return app
 
     def run(self: Any, transport: str = "stdio", **kwargs: Any) -> None:
         if transport == "streamable-http":
@@ -2903,6 +3014,7 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
         return None
 
     mcp.streamable_http_app = MethodType(streamable_http_app, mcp)
+    mcp.sse_app = MethodType(sse_app, mcp)
     mcp.run = MethodType(run, mcp)
 
 

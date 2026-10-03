@@ -584,7 +584,7 @@ def test_create_a2a_server_public_url_in_card(monkeypatch: pytest.MonkeyPatch):
     )
     from starlette.testclient import TestClient
 
-    client = TestClient(app, raise_server_exceptions=True)
+    client = TestClient(app, base_url="http://localhost:3001", raise_server_exceptions=True)
     resp = client.get("/.well-known/agent-card.json")
     assert resp.status_code == 200
     card_json = resp.json()
@@ -601,7 +601,7 @@ def test_create_a2a_server_no_public_url_defaults_to_localhost(monkeypatch: pyte
     app = create_a2a_server(_TestHandler(), name="test-agent", port=9000)
     from starlette.testclient import TestClient
 
-    client = TestClient(app, raise_server_exceptions=True)
+    client = TestClient(app, base_url="http://localhost:3001", raise_server_exceptions=True)
     resp = client.get("/.well-known/agent-card.json")
     assert resp.status_code == 200
     card_json = resp.json()
@@ -618,7 +618,7 @@ def test_create_a2a_server_public_url_env_var(monkeypatch: pytest.MonkeyPatch):
     app = create_a2a_server(_TestHandler(), name="test-agent")
     from starlette.testclient import TestClient
 
-    client = TestClient(app, raise_server_exceptions=True)
+    client = TestClient(app, base_url="http://localhost:3001", raise_server_exceptions=True)
     resp = client.get("/.well-known/agent-card.json")
     assert resp.status_code == 200
     card_json = resp.json()
@@ -641,7 +641,7 @@ def test_create_a2a_server_public_url_kwarg_takes_precedence_over_env(
     )
     from starlette.testclient import TestClient
 
-    client = TestClient(app, raise_server_exceptions=True)
+    client = TestClient(app, base_url="http://localhost:3001", raise_server_exceptions=True)
     resp = client.get("/.well-known/agent-card.json")
     assert resp.status_code == 200
     card_json = resp.json()
@@ -697,7 +697,7 @@ async def test_a2a_context_factory_receives_originating_http_request():
 
     app = _A2ARequestContextMiddleware(dispatch)
     transport = httpx.ASGITransport(app=app, raise_app_exceptions=True)
-    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+    async with httpx.AsyncClient(transport=transport, base_url="http://localhost:3001") as client:
         response = await client.post("/", headers={"x-tenant-id": "tenant-a"})
 
     assert response.status_code == 204
@@ -1463,7 +1463,7 @@ async def test_push_config_destination_policy_reaches_jsonrpc_error_envelope(tmp
     transport = httpx.ASGITransport(app=app, raise_app_exceptions=True)
     async with httpx.AsyncClient(
         transport=transport,
-        base_url="http://testserver",
+        base_url="http://localhost:3001",
     ) as client:
         response = await client.post(
             "/",
@@ -1565,7 +1565,7 @@ async def test_push_config_wire_dispatch_isolates_principals_and_deletes(
         return response.json()
 
     transport = httpx.ASGITransport(app=app, raise_app_exceptions=True)
-    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+    async with httpx.AsyncClient(transport=transport, base_url="http://localhost:3001") as client:
         created = await rpc(
             client,
             "CreateTaskPushNotificationConfig",

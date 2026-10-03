@@ -1950,6 +1950,99 @@ client can handle programmatically.
 - `tests/test_mcp_middleware_composition.py` — the integration test
   that protects this contract.
 
+### HTTP Host and Origin policy
+
+`serve`, `ServeConfig`, `create_mcp_server`, `create_a2a_server` and
+`build_asgi_app` accept `allowed_hosts`, `allowed_origins` and
+`enable_dns_rebinding_protection`. The policy covers MCP, A2A, AgentCard and
+ADCP discovery, and operational paths. All HTTP transports use the SDK's
+loopback allowlist by default; configure public hosts when deploying A2A.
+Configured entries extend the loopback defaults.
+
+```python
+serve(
+    handler,
+    transport="both",
+    allowed_hosts=["seller.example"],
+    allowed_origins=["https://buyer.example"],
+)
+```
+
+A bare Host entry accepts that host with or without a port. An explicit port
+accepts only that value; `:*` accepts a port suffix. Origins use exact matching
+or an explicit `:*` port suffix. Domain wildcards such as `*.example` are not
+expanded. Missing Origin is valid for native clients. A supplied Origin is
+checked on every method, including discovery GETs; Host checks also apply to
+GETs. Disallowed Hosts return 421 and disallowed Origins return 403.
+
+When `SubdomainTenantMiddleware` owns Host validation, set
+`enable_dns_rebinding_protection=False` and configure `allowed_origins`.
+Explicit Origin enforcement stays active independently of the Host flag.
+Without explicit Origins, disabling protection retains the historical opt-out.
+Tracing and other `asgi_middleware` entries remain outside this policy.
+
+### Repeated MCP application lifespans
+
+Applications from `create_mcp_server(...).streamable_http_app()` and
+`build_asgi_app` can enter and exit their lifespan repeatedly, including the
+combined MCP+A2A app. Each entry creates a new MCP session manager and binds the
+request endpoint to it. Shutdown releases the endpoint and clears ADCP session
+bookkeeping. Previous session IDs are invalid after a restart. Stateless and
+stateful configurations both support repeated lifespans without an opt-in flag.
+
+Run lifespan on the same event loop that handles requests, using `TestClient`
+as a context manager or `LifespanManager` with `httpx.ASGITransport`. Requests
+outside lifespan receive HTTP 503. Combined-app startup hooks run after both
+transport lifespans enter; shutdown hooks run before transport teardown.
+`get_mcp_session_stats(server)` reports configured, inactive defaults outside
+lifespan and the live manager's statistics during lifespan. `_session_manager`
+is private and is `None` while stopped.
+
+### Operational HTTP routes
+
+Use `unauthenticated_routes` for liveness, readiness, metrics or management
+surfaces. It accepts Starlette `Route` and `Mount` objects on `serve`,
+`ServeConfig`, both direct server builders and `build_asgi_app` /
+`build_test_client`. The operational router is built once, ahead of MCP/A2A
+routing and the SDK's bearer/signature checks. Apply authentication in a mounted
+application when an operational endpoint needs its own credentials.
+
+```python
+from starlette.responses import JSONResponse
+from starlette.routing import Route
+from adcp.server import ServeConfig, serve
+
+async def alive(request):
+    return JSONResponse({"status": "alive"})
+
+serve(handler, config=ServeConfig(
+    transport="both",
+    unauthenticated_routes=[Route("/healthz", alive, methods=["GET"])],
+))
+```
+
+The configured Host/Origin transport policy still applies. Operator
+`asgi_middleware`, including tracing and metrics, wraps these routes.
+`SubdomainTenantMiddleware` automatically excludes matching operational Routes
+and Mount subtrees, including bare-prefix redirects and method mismatches.
+Exclusions use Starlette's matcher; `/manage` does not exclude `/management`.
+Other operator-supplied auth/tenant middleware remains responsible for its own
+policy. It can inspect the SDK's `scope["adcp.operational_route"]` marker.
+
+Route methods, HEAD behavior and slash redirects follow Starlette; a known path
+with an unsupported method returns 405 before protocol auth. Routes at the same
+path may declare different methods; the first full match in the supplied order
+wins. Root catch-alls, dynamic first path segments and collisions with `/mcp`,
+`/sse`, `/messages` or `/.well-known` are rejected at construction. Operational
+routes also cannot collide with custom MCP/SSE paths passed to public app builders.
+Operational routes are HTTP-only; `stdio` rejects them. Mounted application lifespans are
+not automatically entered (standard Starlette behavior); manage their resources
+with the combined server's startup/shutdown hooks or the embedding app.
+
+A `/healthz` route reports process liveness. Define `/readyz` separately from
+actual dependency, capacity and initialization checks; return 503 when those
+checks fail. A successful liveness response alone does not prove readiness.
+
 ### MCP success text summaries
 
 `mcp_result_text` is an opt-in MCP-only formatter on `serve`, `ServeConfig`,
