@@ -32,6 +32,7 @@ from ._generation_support import (
     configuration,
     isolated_reporting_pool,
     obligation_for,
+    require_rolling_database,
     revision_for,
 )
 
@@ -171,6 +172,7 @@ async def test_legacy_positions_require_explicit_correctable_restart(owned_store
 async def test_maintenance_archive_backfill_preserves_evidence_and_never_replays():
     import json
 
+    require_rolling_database()
     from psycopg import sql
 
     from adcp.reporting.ledger.pg import _configuration_payload, _fingerprint

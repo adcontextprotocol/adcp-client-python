@@ -37,7 +37,11 @@ def receipt_record(
     caller: ReportingDeliveryPrincipal,
     obligation: ReportingObligationRecord | None,
 ) -> ReportingReceiptRecord:
-    if obligation is None or obligation.account_id != caller.account_id:
+    if (
+        obligation is None
+        or obligation.account_id != caller.account_id
+        or obligation.consumer_id != caller.consumer_id
+    ):
         fail("REPORTING_RECORD_UNAVAILABLE")
     body = dict(item)
     body.pop("reporting_obligation_id", None)

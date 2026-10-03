@@ -440,6 +440,7 @@ async def test_service_failure_stops_admission_but_preserves_ordinary_delegate(t
         with pytest.raises(ADCPTaskError) as unavailable:
             await h.production.handler.sync_accounts({})
         assert unavailable.value.error_codes == ["SERVICE_UNAVAILABLE"]
+        assert unavailable.value.error_info[0].recovery == "transient"
         assert await h.production.handler.get_products({}) == {"products": []}
         assert (await h.production.handler.get_media_buy_delivery({}))["aggregated_totals"][
             "impressions"

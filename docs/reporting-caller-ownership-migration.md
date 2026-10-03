@@ -69,6 +69,15 @@ artifact is parsed and relabelled. Configuration lease metadata is cleared in
 the imported copy and `quarantined=True` makes the generation read-only and
 unleasable. The original archive remains byte-for-byte unchanged.
 
+A trustworthy owner mapping does not supply missing reporting evidence. Older
+schemas such as beta.15 can lack columns required by the retained Core model;
+backfill then rejects the import with `legacy schema requires explicit
+reconciliation before import`. The transaction imports nothing and preserves
+the archive. Keep those records quarantined while reconciling their evidence;
+use a fresh admitted generation for new reporting. Do not fill missing evidence
+with request values or defaults, edit archived artifacts, or replay inherited
+work. Matching retained-schema records can use the validated backfill above.
+
 Consumer statements, reconciliation documents, frozen snapshots, materializer
 work, notification queues, receipt intents, production admission, source progress
 and destination/signing bindings stay in the archive. Their old canonical

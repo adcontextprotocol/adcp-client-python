@@ -92,13 +92,19 @@ def producer(source, store, *, clock=None, **kwargs):
     )
 
 
+async def close_admitted_periods(producer, config, **kwargs):
+    """Arrange an authenticated generation before exercising period closure."""
+    await producer.store.put_configuration(config)
+    return await producer.close_elapsed_periods(config, **kwargs)
+
+
 async def test_retry_backoff_survives_producer_restart_and_reports_next_attempt():
     store = InMemoryReportingLedgerStore()
     source = FailingSource()
     config = configuration()
     await store.put_configuration(config)
     first = producer(source, store)
-    obligation = (await first.close_elapsed_periods(config, now=NOW))[0]
+    obligation = (await close_admitted_periods(first, config, now=NOW))[0]
 
     turn = WorkerTurn()
     await first.acquire_obligation(config, obligation, turn=turn, now=NOW)
@@ -130,8 +136,8 @@ async def test_scoped_backoff_suppresses_other_obligations(scope):
         account="account-2" if scope == "source" else "account-1", config="config-2"
     )
     first = producer(source, store)
-    first_obligation = (await first.close_elapsed_periods(first_config, now=NOW))[0]
-    other_obligation = (await first.close_elapsed_periods(other_config, now=NOW))[0]
+    first_obligation = (await close_admitted_periods(first, first_config, now=NOW))[0]
+    other_obligation = (await close_admitted_periods(first, other_config, now=NOW))[0]
 
     failed = WorkerTurn()
     await first.acquire_obligation(first_config, first_obligation, turn=failed, now=NOW)
@@ -150,7 +156,7 @@ async def test_post_deadline_failure_uses_configured_slow_cadence():
     source = FailingSource()
     config = configuration()
     first = producer(source, store, post_deadline_retry_interval=timedelta(hours=2))
-    obligation = (await first.close_elapsed_periods(config, now=NOW))[0]
+    obligation = (await close_admitted_periods(first, config, now=NOW))[0]
     after_deadline = obligation.automated_recovery_deadline_at + timedelta(minutes=1)
 
     turn = WorkerTurn()
@@ -205,7 +211,7 @@ async def test_retry_starts_when_a_slow_source_finishes():
     source = SlowSource()
     config = configuration()
     worker = producer(source, store, clock=lambda: clock[0])
-    obligation = (await worker.close_elapsed_periods(config, now=NOW))[0]
+    obligation = (await close_admitted_periods(worker, config, now=NOW))[0]
 
     turn = WorkerTurn()
     await worker.acquire_obligation(config, obligation, turn=turn, now=NOW)
@@ -220,8 +226,8 @@ async def test_later_shared_failure_updates_turn_next_attempt():
     worker = producer(source, store)
     first_config = configuration(config="first")
     second_config = configuration(config="second")
-    first_obligation = (await worker.close_elapsed_periods(first_config, now=NOW))[0]
-    second_obligation = (await worker.close_elapsed_periods(second_config, now=NOW))[0]
+    first_obligation = (await close_admitted_periods(worker, first_config, now=NOW))[0]
+    second_obligation = (await close_admitted_periods(worker, second_config, now=NOW))[0]
 
     turn = WorkerTurn()
     await worker.acquire_obligation(first_config, first_obligation, turn=turn, now=NOW)
@@ -237,8 +243,8 @@ async def test_terminal_scope_is_parked_until_manual_replay():
     worker = producer(source, store)
     first_config = configuration(account="account-1", config="first")
     second_config = configuration(account="account-2", config="second")
-    first_obligation = (await worker.close_elapsed_periods(first_config, now=NOW))[0]
-    second_obligation = (await worker.close_elapsed_periods(second_config, now=NOW))[0]
+    first_obligation = (await close_admitted_periods(worker, first_config, now=NOW))[0]
+    second_obligation = (await close_admitted_periods(worker, second_config, now=NOW))[0]
 
     turn = WorkerTurn()
     await worker.acquire_obligation(first_config, first_obligation, turn=turn, now=NOW)
@@ -260,7 +266,7 @@ async def test_unbounded_provider_retry_floor_does_not_crash_worker():
     source = FailingSource(retry_after_seconds=float("inf"))
     config = configuration()
     worker = producer(source, store)
-    obligation = (await worker.close_elapsed_periods(config, now=NOW))[0]
+    obligation = (await close_admitted_periods(worker, config, now=NOW))[0]
     turn = WorkerTurn()
     await worker.acquire_obligation(config, obligation, turn=turn, now=NOW)
     assert turn.slices_failed == [obligation.reporting_obligation_id]
@@ -272,7 +278,7 @@ async def test_manual_replay_can_resume_retryable_work_after_terminal_error():
     source = FailingSource(code="AUTHENTICATION_FAILED", retry="terminal", scope="source")
     worker = producer(source, store)
     config = configuration()
-    obligation = (await worker.close_elapsed_periods(config, now=NOW))[0]
+    obligation = (await close_admitted_periods(worker, config, now=NOW))[0]
     await worker.acquire_obligation(config, obligation, now=NOW)
 
     source.code = "RATE_LIMITED"
@@ -328,8 +334,8 @@ async def test_turn_keeps_retry_that_became_due_during_later_fetch():
     worker = producer(source, store, clock=lambda: clock[0])
     first_config = configuration(config="first")
     second_config = configuration(config="second")
-    first_obligation = (await worker.close_elapsed_periods(first_config, now=NOW))[0]
-    second_obligation = (await worker.close_elapsed_periods(second_config, now=NOW))[0]
+    first_obligation = (await close_admitted_periods(worker, first_config, now=NOW))[0]
+    second_obligation = (await close_admitted_periods(worker, second_config, now=NOW))[0]
     turn = WorkerTurn()
     await worker.acquire_obligation(first_config, first_obligation, turn=turn, now=NOW)
     first_due = turn.earliest_retry_at
@@ -348,7 +354,7 @@ async def test_provisional_manual_replay_marks_restored_request():
         offerings=ProducerOfferings(snapshot_offering_id=SNAPSHOT_OFFERING_ID),
         clock=lambda: NOW,
     )
-    obligation = (await worker.close_elapsed_periods(config, now=NOW))[0]
+    obligation = (await close_admitted_periods(worker, config, now=NOW))[0]
     await worker.acquire_obligation(config, obligation, now=NOW, track_settling=True)
     await worker.acquire_obligation(
         config,

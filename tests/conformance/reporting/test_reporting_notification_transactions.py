@@ -13,12 +13,14 @@ from adcp.reporting.ledger import (
     InMemoryReportingLedgerStore,
     PgReportingReconciliationStore,
     ReportingAdjustmentRecord,
+    ReportingDeliveryScope,
     ReportingMaterializationCheck,
+    ReportingObligationDeliveryRecord,
     derive_period,
 )
 from adcp.reporting.outbox import PgReportingOutbox
 
-from ._generation_support import END, NOW, START, configuration, revision_for
+from ._generation_support import END, NOW, START, configuration, obligation_for, revision_for
 from ._reconciliation_support import scenario
 from ._reliable_support import (
     Barrier,
@@ -114,13 +116,29 @@ async def prepare(h: NotificationHarness, operation: str):
         s = await scenario(store)
         if operation in {"managed_check", "managed_receipt"}:
             await store.commit_materialization(s.outcome)
-        if operation == "managed_destination":
-            return lambda: store.put_destination_binding(replace(s.binding, consumer_id="auditor"))
-        if operation == "managed_obligation":
-            await store.put_destination_binding(replace(s.binding, consumer_id="auditor"))
-            return lambda: store.bind_obligation_delivery(
-                replace(s.delivery, scope=replace(s.delivery.scope, consumer_id="auditor"))
+        if operation in {"managed_destination", "managed_obligation"}:
+            config = replace(
+                configuration(consumer_id="auditor"),
+                feed_purpose=s.binding.feed_purpose,
+                required_finality=s.obligation.required_finality,
             )
+            await store.put_configuration(config)
+            binding = replace(
+                s.binding, generation_key=config.generation_key, consumer_id="auditor"
+            )
+            if operation == "managed_destination":
+                return lambda: store.put_destination_binding(binding)
+            await store.put_destination_binding(binding)
+            obligation = await store.commit_obligation(
+                replace(obligation_for(config), currency="EUR")
+            )
+            scope = ReportingDeliveryScope(
+                config.generation_key, "auditor", obligation.reporting_obligation_id
+            )
+            delivery = ReportingObligationDeliveryRecord(
+                scope, "EUR", s.delivery.resource_retained_until, END
+            )
+            return lambda: store.bind_obligation_delivery(delivery)
         if operation == "managed_attempt":
             return lambda: store.commit_materialization_attempt(
                 replace(

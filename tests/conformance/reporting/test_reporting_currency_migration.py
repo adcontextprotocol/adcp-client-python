@@ -21,6 +21,7 @@ from ._generation_support import (
     UncalledSource,
     configuration,
     isolated_reporting_pool,
+    require_rolling_database,
 )
 from .test_reporting_generation_migration import _TABLES, _primary_key
 
@@ -42,6 +43,7 @@ def test_1169_schema_fixture_is_the_reviewed_stacked_base() -> None:
 
 
 async def retained(pool: AsyncConnectionPool) -> dict[str, list[Any]]:
+    require_rolling_database()
     from psycopg import sql
 
     result = {}
@@ -71,6 +73,7 @@ async def test_migration_preserves_evidence_and_quarantines_unknown_currency(
     schema: str,
     autocommit: bool,
 ) -> None:
+    require_rolling_database()
     from psycopg import sql
 
     from adcp.reporting.migration import (

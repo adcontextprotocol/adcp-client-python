@@ -15,6 +15,8 @@ from tests.conformance.reporting._generation_support import (
     isolated_reporting_pool,
 )
 
+from ._generation_support import require_rolling_database
+
 if TYPE_CHECKING:
     from psycopg_pool import AsyncConnectionPool
 
@@ -55,6 +57,7 @@ async def _raw_upgrade(pool: AsyncConnectionPool) -> None:
 
 
 async def _retained_rows(pool: AsyncConnectionPool) -> dict[str, list[Any]]:
+    require_rolling_database()
     from psycopg import sql
 
     result = {}
@@ -166,6 +169,7 @@ async def test_concurrent_bootstrap_creates_the_owned_key(autocommit: bool) -> N
 
 
 async def test_standalone_key_upgrade_requires_explicit_maintenance() -> None:
+    require_rolling_database()
     from psycopg.errors import RaiseException
 
     async with isolated_reporting_pool(autocommit=True) as pool:

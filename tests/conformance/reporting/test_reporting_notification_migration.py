@@ -14,7 +14,12 @@ from adcp.reporting.outbox import PgReportingOutbox, ReportingNotificationError
 from adcp.reporting.outbox._schema import schema_contract, validate_schema
 from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS
 
-from ._generation_support import NOW, isolated_reporting_pool, revision_for
+from ._generation_support import (
+    NOW,
+    isolated_reporting_pool,
+    require_rolling_database,
+    revision_for,
+)
 from ._reconciliation_support import scenario
 from ._reliable_support import Barrier
 from .test_reporting_reconciliation_migration import FIXTURES
@@ -83,6 +88,7 @@ async def foundation(pool):
 
 async def retained_physical_rows(pool):
     """Include MVCC identity: no migration rewrite/backfill of retained evidence."""
+    require_rolling_database()
     from psycopg import sql
 
     tables = (
@@ -152,6 +158,7 @@ async def test_populated_pre_outbox_upgrade_never_rewrites_or_backfills(autocomm
 )
 @pytest.mark.parametrize("hopwise", [False, True])
 async def test_direct_and_hopwise_historical_schema_chain(source, hopwise):
+    require_rolling_database()
     from psycopg import sql
 
     from adcp.reporting.migration import ReportingOwnershipMigrationError, migrate_legacy_reporting

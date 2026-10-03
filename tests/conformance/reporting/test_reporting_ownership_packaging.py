@@ -161,7 +161,11 @@ async def test_owned_resources_and_private_reads_installed(b1_wheels, built_dist
         cwd=root,
     )
     python = environment / "bin/python"
-    installer = [shutil.which("uv"), "pip", "install", "--python", str(python)]
+    installer = (
+        [shutil.which("uv"), "pip", "install", "--python", str(python)]
+        if shutil.which("uv")
+        else [str(python), "-m", "pip", "install"]
+    )
     await asyncio.to_thread(
         run_step,
         [*installer, str(wheels[kind]) + "[pg]", "pytest", "pytest-asyncio", "asgi-lifespan"],

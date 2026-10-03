@@ -191,7 +191,8 @@ class ReportingStatusHandler:
             # incremental_repair permits identity-deduplicated over-inclusion.
             # Positional ordinals would instead omit later records after rebuilds.
             changes.extend(
-                (boundary.max_sequence, kind, getattr(record, attribute), "") for record in records
+                (boundary.max_sequence, kind, getattr(record, attribute), caller.consumer_id)
+                for record in records
             )
         snapshot = ReportingStatusSnapshot(
             caller.account_id,

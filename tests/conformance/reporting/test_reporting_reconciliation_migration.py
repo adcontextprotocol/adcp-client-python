@@ -21,7 +21,7 @@ from adcp.reporting.ledger import (
 )
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 
-from ._generation_support import NOW, isolated_reporting_pool
+from ._generation_support import NOW, isolated_reporting_pool, require_rolling_database
 from ._reconciliation_support import scenario
 from .test_reporting_currency_migration import retained
 
@@ -42,6 +42,7 @@ def test_literal_stacked_schema_fixture() -> None:
 async def test_upgrade_preserves_history_and_is_concurrent_idempotent(
     source: str, autocommit: bool
 ) -> None:
+    require_rolling_database()
     from psycopg import sql
 
     from adcp.reporting.migration import ReportingOwnershipMigrationError, migrate_legacy_reporting
@@ -135,6 +136,7 @@ async def test_new_evidence_and_acceptance_are_database_immutable() -> None:
 
 async def test_accepted_records_survive_all_application_connections_closing() -> None:
     pytest.importorskip("psycopg_pool")
+    require_rolling_database()
     from psycopg_pool import AsyncConnectionPool
 
     async with isolated_reporting_pool() as pool:
@@ -235,7 +237,7 @@ async def test_corrupt_retained_evidence_fails_closed_without_echoing_payload(
             # Deliberately simulate damaged storage using the database-owner role.
             # The supported SDK path cannot update/delete these immutable rows.
             await connection.execute(
-                "ALTER TABLE reporting_reconciliation_records" " DISABLE TRIGGER ALL"
+                "ALTER TABLE reporting_reconciliation_records DISABLE TRIGGER ALL"
             )
             if corruption == "missing_feed":
                 await connection.execute(
@@ -269,7 +271,7 @@ async def test_corrupt_retained_evidence_fails_closed_without_echoing_payload(
                     (path, '"MUST_NOT_RETAIN_PROVIDER_RESPONSE"'),
                 )
             await connection.execute(
-                "ALTER TABLE reporting_reconciliation_records" " ENABLE TRIGGER ALL"
+                "ALTER TABLE reporting_reconciliation_records ENABLE TRIGGER ALL"
             )
         for read in [
             store.get_materialization(s.attempt.key),
@@ -333,6 +335,7 @@ async def initial_retained_state(pool, *, kind="revision_receipt", write_change=
 
 
 async def assert_retained_quarantine(pool, before):
+    require_rolling_database()
     from psycopg import sql
 
     from adcp.reporting.migration import ReportingOwnershipMigrationError, migrate_legacy_reporting

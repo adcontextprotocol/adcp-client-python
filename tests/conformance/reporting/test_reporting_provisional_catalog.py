@@ -24,7 +24,7 @@ from .test_reporting_notification_migration import retained_physical_rows
 
 
 @pytest.mark.parametrize("autocommit", [False, True])
-async def test_atomic_observation_bootstrap_preserves_exact_763_parent_objects(
+async def test_atomic_observation_bootstrap_preserves_exact_767_parent_objects(
     autocommit, monkeypatch
 ):
     # This is a source-level DDL control, not installed historical-binary proof.
@@ -54,7 +54,7 @@ async def test_atomic_observation_bootstrap_preserves_exact_763_parent_objects(
                 files("adcp.reporting." + package).joinpath("required_schema.json").read_text()
             )
         )
-    assert len(expected_parent) == 763
+    assert len(expected_parent) == 767
     async with isolated_reporting_pool(autocommit=autocommit) as pool:
         async with pool.connection() as connection, connection.transaction():
             for name in chain:
