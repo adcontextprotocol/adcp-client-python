@@ -121,6 +121,7 @@ class VerifiedSigner:
     agent_url: str | None = None
     parsed_body: Any = field(default=None, compare=False, repr=False)
     body_authenticated: bool = field(default=False, compare=False)
+    operator_brand_json: dict[str, Any] | None = field(default=None, compare=False, repr=False)
 
 
 class RequestBodyMalformedError(SignatureVerificationError):
@@ -201,6 +202,7 @@ class VerifyOptions:
     accepted_adcp_uses: frozenset[str] = frozenset()
     allowed_algs: frozenset[str] = ALLOWED_ALGS
     agent_url: str | None = None
+    operator_brand_json: dict[str, Any] | None = None
     #: Trusted, negotiated AdCP signing profile. 3.0/3.1 accept the historical
     #: Base64URL sf-binary spelling; 3.2 enforces RFC 8941 standard Base64.
     signing_profile_version: SigningProfileVersion = "3.1"
@@ -369,15 +371,7 @@ def verify_request_signature(
         accepted_adcp_uses=options.accepted_adcp_uses,
     )
 
-    # ADCP #3690 step 7: ``identity.key_origins`` consistency check.
-    # Mandatory ONLY when the JWKS source for this (agent, purpose,
-    # role) tuple was the operator brand.json. Publisher-pinned
-    # tuples skip the check (the JWKS origin is the publisher's
-    # domain by design). The resolver advertises which branch
-    # applies via its ``jwks_source`` attribute — duck-typed so the
-    # ``JwksResolver`` Protocol stays backwards-compatible with
-    # adopter resolvers that predate this attribute (those default
-    # to "publisher_pin" semantics, i.e. skip the check).
+    # Publisher pins narrow operator keys and do not bypass origin checks.
     _maybe_check_key_origin(
         resolver=options.jwks_resolver,
         expected_key_origins=options.expected_key_origins,
@@ -505,6 +499,7 @@ def verify_request_signature(
         label=options.label,
         verified_at=options.now,
         agent_url=options.agent_url,
+        operator_brand_json=options.operator_brand_json,
         body_authenticated=body_authenticated,
     )
     if body_is_empty(body):
@@ -741,7 +736,8 @@ def _maybe_check_key_origin(
     Resolver contract (duck-typed; conformance is also surfaced by
     :class:`adcp.signing.BrandSourcedJwksResolver`):
 
-    * ``jwks_source``: ``"brand_json"`` engages the check; any other
+    * ``jwks_source``: ``"brand_json"`` and legacy ``"publisher_pin"``
+      engage the check; any other
       value (or absence) skips it. Absence is treated as "skip" so
       legacy :class:`JwksResolver` implementations that predate this
       attribute keep working without behavior change.
@@ -768,7 +764,7 @@ def _maybe_check_key_origin(
     source = getattr(resolver, "jwks_source", None)
     if expected_key_origins is None:
         return
-    if source != "brand_json":
+    if source not in {"brand_json", "publisher_pin"}:
         if source is None:
             warnings.warn(
                 "VerifyOptions supplied expected_key_origins but the JWKS "
@@ -808,6 +804,13 @@ def _maybe_check_key_origin(
         purpose=signing_purpose,
         posture=posture,
     )
+    for purpose in expected_key_origins:
+        if purpose != signing_purpose:
+            check_key_origin_consistency(
+                jwks_uri=jwks_uri,
+                key_origins=expected_key_origins,
+                purpose=purpose,
+            )
 
 
 def _check_key_purpose(

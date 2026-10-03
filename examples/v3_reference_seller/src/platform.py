@@ -62,6 +62,8 @@ changes.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import logging
 import random
 from dataclasses import replace as _dc_replace
@@ -69,6 +71,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 from urllib.parse import urlsplit
 
+from pydantic import TypeAdapter
 from sqlalchemy import select
 
 from adcp.canonical_formats import LegacyFormatConversionContext, migrated_format_option_id
@@ -121,6 +124,8 @@ from adcp.types import (
     GetProductsRequest,
     GetProductsResponse,
     ListCreativesRequest,
+    ListProductsRequest,
+    ListProductsResponse,
     MediaBuyStatus,
     Product,
     ProvidePerformanceFeedbackRequest,
@@ -371,6 +376,43 @@ def _make_account_store(
                             field="account.account_id",
                         )
                     return _project_row(row)
+
+                # Sandbox fixtures have a real, caller-owned natural key.
+                # Match it before the legacy onboarding fallback so distinct
+                # brand/operator/sandbox fixtures never alias one another.
+                if ref is not None and isinstance(ref.get("brand"), dict):
+                    fixture_result = await session.execute(
+                        select(AccountRow).where(
+                            AccountRow.tenant_id == tenant.id,
+                            AccountRow.buyer_agent_id == buyer_agent.id,
+                        )
+                    )
+                    for fixture_row in fixture_result.scalars().all():
+                        scope = (fixture_row.ext or {}).get("fixture_scope")
+                        if not isinstance(scope, dict):
+                            continue
+                        fixture_brand = scope.get("brand") or {}
+                        requested_brand = ref["brand"]
+                        fixture_unit = scope.get("operator_unit") or {}
+                        requested_unit = ref.get("operator_unit") or {}
+                        if (
+                            fixture_brand.get("domain") == requested_brand.get("domain")
+                            and fixture_brand.get("brand_id") == requested_brand.get("brand_id")
+                            and sorted(fixture_brand.get("countries") or [])
+                            == sorted(requested_brand.get("countries") or [])
+                            and scope.get("operator") == ref.get("operator")
+                            and fixture_unit.get("id") == requested_unit.get("id")
+                            and scope.get("currency") == ref.get("currency")
+                            and scope.get("timezone") == ref.get("timezone")
+                            and fixture_row.sandbox == bool(ref.get("sandbox", False))
+                        ):
+                            if fixture_row.status != "active":
+                                raise AdcpError(
+                                    "ACCOUNT_NOT_FOUND",
+                                    message="No active account matches the requested scope.",
+                                    recovery="terminal",
+                                )
+                            return _project_row(fixture_row)
 
                 # Path 2: brand-shaped reference (no account_id). Resolve
                 # to the first active account for the authenticated
@@ -799,10 +841,13 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         account=CapsAccount(supported_billing=["operator", "agent"]),
         # Pricing declared on the structured ``media_buy`` block —
         # the reference seller supports CPM only.
-        media_buy=CapsMediaBuy(
-            supported_pricing_models=["cpm"],
-            # The translator is the explicit legacy interoperability fixture.
-            features=MediaBuyFeatures(canonical_creatives=False),
+        media_buy=CapsMediaBuy.model_validate(
+            {
+                "supported_pricing_models": ["cpm"],
+                "lifecycle_tools": ["list_products"],
+                # The translator is the explicit legacy interoperability fixture.
+                "features": MediaBuyFeatures(canonical_creatives=False),
+            }
         ),
     )
 
@@ -998,7 +1043,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
 
     async def get_products(
         self, req: GetProductsRequest, ctx: RequestContext
-    ) -> GetProductsResponse:
+    ) -> GetProductsResponse | dict[str, Any]:
         """Translate ``GET /v1/products`` upstream → AdCP ``Product[]``.
 
         Maps upstream ``pricing.cpm`` + ``min_spend`` onto an AdCP
@@ -1007,6 +1052,11 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         passes through unchanged (upstream and AdCP use the same
         ``guaranteed``/``non_guaranteed`` enum).
         """
+        controller = getattr(self, "_fixture_controller", None)
+        if controller is not None and getattr(req, "buying_mode", None) == "brief":
+            rejection = controller.take_rejection(ctx)
+            if rejection is not None:
+                return cast("dict[str, Any]", rejection)
         if ctx.account is None:
             raise AdcpError(
                 "SERVICE_UNAVAILABLE",
@@ -1102,6 +1152,88 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             products.append(product)
         return GetProductsResponse(products=products)
 
+    async def list_products(
+        self, req: ListProductsRequest, ctx: RequestContext
+    ) -> ListProductsResponse:
+        """Read the upstream catalog through the compact product lifecycle.
+
+        Outcome targets are planning inputs for proposals and are inert here.
+        Other unsupported constraints fail explicitly rather than returning
+        products that do not satisfy the caller's requested selection.
+        """
+        criteria = req.criteria.model_dump(mode="json", exclude_none=True) if req.criteria else {}
+        product_ids = criteria.pop("product_ids", None)
+        criteria.pop("outcome_target", None)
+        if criteria:
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message="The reference upstream supports product_ids selection only.",
+                field="criteria",
+                recovery="correctable",
+            )
+        base = await self.get_products(
+            GetProductsRequest.model_validate({"buying_mode": "wholesale"}), ctx
+        )
+        assert isinstance(base, GetProductsResponse)
+        # Canonical list_products excludes the legacy named-format fields.
+        products = [
+            product.model_dump(mode="json", exclude_none=True, exclude_unset=True)
+            for product in base.products or []
+        ]
+        for product in products:
+            product.pop("format_ids", None)
+        if product_ids is not None:
+            products = [product for product in products if product["product_id"] in product_ids]
+        products.sort(key=lambda product: product["product_id"])
+        fields = set(req.fields.model_dump(mode="json")) if req.fields else None
+        selection = {
+            "products": products,
+            "scope": self._account_scope(ctx),
+            "fields": sorted(fields) if fields else None,
+        }
+        feed_version = hashlib.sha256(
+            json.dumps(selection, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        if req.if_pricing_version:
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message="Separate pricing versions are unsupported.",
+                recovery="correctable",
+            )
+        response: dict[str, Any] = {"feed_version": feed_version, "cache_scope": "account"}
+        if req.if_feed_version == feed_version and req.cursor is None:
+            response["outcome"] = "unchanged"
+        else:
+            offset = 0
+            if req.cursor is not None:
+                try:
+                    version, raw_offset = req.cursor.split(":", 1)
+                    offset = int(raw_offset)
+                    if version != feed_version or offset < 0 or offset >= len(products):
+                        raise ValueError
+                except ValueError as exc:
+                    raise AdcpError(
+                        "INVALID_REQUEST",
+                        message="Cursor does not match this feed.",
+                        recovery="correctable",
+                    ) from exc
+            max_results = req.max_results or 25
+            page = products[offset : offset + max_results]
+            if fields is not None:
+                page = [
+                    {
+                        key: value
+                        for key, value in product.items()
+                        if key in fields or key in {"product_id", "name"}
+                    }
+                    for product in page
+                ]
+            response.update(outcome="listed", products=page)
+            if offset + max_results < len(products):
+                response["next_cursor"] = f"{feed_version}:{offset + max_results}"
+        # Keep model defaults such as replayed=True off fresh responses.
+        return TypeAdapter(ListProductsResponse).validate_python(response)
+
     # ----- refine_get_products ---------------------------------------------
 
     async def refine_get_products(
@@ -1119,6 +1251,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         actual pricing changes onto the returned products.
         """
         base = await self.get_products(req, ctx)
+        assert isinstance(base, GetProductsResponse)
         notes = (
             "Reference seller has no refinement engine — products and pricing "
             "are returned unchanged. Adopters with a real forecaster implement "
@@ -1250,7 +1383,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 # synchronize their upstream calls. Honoring an upstream
                 # ``Retry-After`` is a follow-up — it requires plumbing
                 # the response headers through the SDK client.
-                jitter = random.uniform(0.5, 1.5)
+                jitter = random.uniform(
+                    0.5, 1.5
+                )  # nosec B311 - retry timing, not a security decision
                 await asyncio.sleep(self._approval_poll_interval_s * jitter)
             else:
                 # Loop exhausted without a terminal task status. We

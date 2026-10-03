@@ -33,11 +33,49 @@ from adcp.exceptions import (
     AdagentsTimeoutError,
     AdagentsValidationError,
 )
+from adcp.signing._strict_json import parse_strict_json
 from adcp.signing.etld import registrable_domain, same_registrable_domain
 from adcp.types.base import AdCPBaseModel
 from adcp.validation import ValidationError, validate_adagents
 
 logger = logging.getLogger(__name__)
+
+
+async def fetch_publisher_signing_pins(
+    publisher_domains: list[str] | tuple[str, ...],
+    agent_url: str,
+) -> dict[str, list[dict[str, Any]] | None]:
+    """Fetch current pins for inventory selected from a verifier's own records.
+
+    Calls the uncached fetch path so a second call force-refreshes adagents.json.
+    An absent signing_keys field imposes no pin; an empty or malformed pin
+    matches nothing. Missing or ambiguous authorization fails closed.
+    """
+    from adcp.signing.canonical import canonicalize_target_uri
+
+    canonical = canonicalize_target_uri(agent_url)
+    pins: dict[str, list[dict[str, Any]] | None] = {}
+    for domain in publisher_domains:
+        record = await fetch_adagents(domain)
+        matches = [
+            entry
+            for entry in record.get("authorized_agents", [])
+            if isinstance(entry, dict)
+            and isinstance(entry.get("url"), str)
+            and canonicalize_target_uri(entry["url"]) == canonical
+        ]
+        if len(matches) != 1:
+            raise ValueError("publisher must authorize exactly one matching agent")
+        entry = matches[0]
+        if "signing_keys" not in entry:
+            pins[domain] = None
+        else:
+            keys = entry["signing_keys"]
+            pins[domain] = (
+                [key for key in keys if isinstance(key, dict)] if isinstance(keys, list) else []
+            )
+    return pins
+
 
 DiscoveryMethod = Literal["direct", "authoritative_location", "ads_txt_managerdomain"]
 PropertyResolutionMode = Literal["strict", "permissive"]
@@ -432,17 +470,60 @@ def _resolve_well_known_redirect_url(
 
 
 def normalize_url(url: str) -> str:
-    """Normalize URL by removing protocol and trailing slash.
+    """Return a protocol-agnostic URL key with host case/default ports normalized.
 
-    Args:
-        url: URL to normalize
-
-    Returns:
-        Normalized URL (domain/path without protocol or trailing slash)
+    Paths remain case-sensitive. Query strings and fragments are ignored, and
+    trailing path slashes are removed, preserving the existing matching rules.
+    Only the default port for the supplied scheme is removed (80 for HTTP,
+    443 for HTTPS); non-default ports remain significant.
     """
     parsed = urlparse(url)
-    normalized = parsed.netloc + parsed.path
-    return normalized.rstrip("/")
+    authority = parsed.netloc
+    if parsed.hostname is not None:
+        host = parsed.hostname.lower()
+        if ":" in host:
+            host = f"[{host}]"
+        port = parsed.port
+        if port is not None and (parsed.scheme.lower(), port) not in {("http", 80), ("https", 443)}:
+            host += f":{port}"
+        userinfo = authority.rsplit("@", 1)[0] + "@" if "@" in authority else ""
+        authority = userinfo + host
+    return (authority + parsed.path).rstrip("/")
+
+
+def find_authorized_agent_entries(
+    adagents_data: dict[str, Any], agent_url: str
+) -> list[dict[str, Any]]:
+    """Return all entries listing an agent, independently of property binding.
+
+    A non-empty result distinguishes a listed agent whose selectors resolve to
+    no properties from an unlisted agent. Entries are returned in document order
+    without copying or modifying them. Malformed sibling entries and URL values
+    are skipped. Matching preserves HTTP/HTTPS equivalence and path semantics.
+
+    Raises AdagentsValidationError if the document is not an object with an
+    ``authorized_agents`` array.
+    """
+    if not isinstance(adagents_data, dict):
+        raise AdagentsValidationError("adagents_data must be a dictionary")
+    authorized_agents = adagents_data.get("authorized_agents")
+    if not isinstance(authorized_agents, list):
+        raise AdagentsValidationError("adagents.json must have 'authorized_agents' array")
+    normalized_agent_url = normalize_url(agent_url)
+    matches: list[dict[str, Any]] = []
+    for agent in authorized_agents:
+        if not isinstance(agent, dict):
+            continue
+        entry_url = agent.get("url")
+        if not isinstance(entry_url, str) or not entry_url.strip():
+            continue
+        try:
+            normalized_entry_url = normalize_url(entry_url)
+        except ValueError:
+            continue
+        if normalized_entry_url == normalized_agent_url:
+            matches.append(agent)
+    return matches
 
 
 def domain_matches(property_domain: str, agent_domain_pattern: str) -> bool:
@@ -560,30 +641,7 @@ def verify_agent_authorization(
         - Implements AdCP domain matching rules
         - Agent URLs are matched ignoring protocol and trailing slash
     """
-    # Validate structure
-    if not isinstance(adagents_data, dict):
-        raise AdagentsValidationError("adagents_data must be a dictionary")
-
-    authorized_agents = adagents_data.get("authorized_agents")
-    if not isinstance(authorized_agents, list):
-        raise AdagentsValidationError("adagents.json must have 'authorized_agents' array")
-
-    # Normalize the agent URL for comparison
-    normalized_agent_url = normalize_url(agent_url)
-
-    # Check each authorized agent
-    for agent in authorized_agents:
-        if not isinstance(agent, dict):
-            continue
-
-        agent_url_from_json = agent.get("url", "")
-        if not agent_url_from_json:
-            continue
-
-        # Match agent URL (protocol-agnostic)
-        if normalize_url(agent_url_from_json) != normalized_agent_url:
-            continue
-
+    for agent in find_authorized_agent_entries(adagents_data, agent_url):
         # Found matching agent - now check properties
         properties = agent.get("properties")
 
@@ -1084,6 +1142,11 @@ async def fetch_adagents_with_cache(
     ``body`` is returned with ``not_modified=True``, satisfying the
     7-day cache window described in adcp#4504.
 
+    Cached bodies undergo the same document and renderer checks as a fresh
+    response, including the current ``validate_structure`` policy. Switching
+    from an opt-out fetch to a strict refresh therefore validates the cached
+    document before returning it; a successful refresh preserves body identity.
+
     The first hop (``/.well-known/adagents.json``) is capped at 5 MiB;
     a dereferenced ``authoritative_location`` file is capped at 20 MiB.
     Both caps fail closed — oversized responses raise
@@ -1466,6 +1529,9 @@ def _parse_adagents_response(
             raise AdagentsValidationError(
                 "Received 304 Not Modified without a cache entry to serve"
             )
+        _validate_adagents_response_data(
+            cache_entry.body, url, validate_structure=validate_structure
+        )
         return (
             cache_entry.body,
             _safe_validator(response_headers.get("etag")) or cache_entry.etag,
@@ -1487,13 +1553,25 @@ def _parse_adagents_response(
         raise AdagentsHTTPError(status_code=status_code, url=url)
 
     try:
-        data = json.loads(body)
-    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        data = parse_strict_json(body)
+    except ValueError as e:
         # Truncate the upstream-derived error to bound log volume — a
         # malicious server can otherwise force unbounded `str(e)` content
         # into caller logs by sending a large unparsable body.
         raise AdagentsValidationError(f"Invalid JSON in adagents.json: {str(e)[:200]}") from e
 
+    _validate_adagents_response_data(data, url, validate_structure=validate_structure)
+
+    return (
+        data,
+        _safe_validator(response_headers.get("etag")),
+        _safe_validator(response_headers.get("last-modified")),
+        False,
+    )
+
+
+def _validate_adagents_response_data(data: Any, url: str, *, validate_structure: bool) -> None:
+    """Apply the same document checks to fresh and conditionally cached data."""
     if not isinstance(data, dict):
         raise AdagentsValidationError("adagents.json must be a JSON object")
 
@@ -1516,13 +1594,6 @@ def _parse_adagents_response(
         raise AdagentsValidationError(
             "adagents.json must have either 'authorized_agents' or 'authoritative_location'"
         )
-
-    return (
-        data,
-        _safe_validator(response_headers.get("etag")),
-        _safe_validator(response_headers.get("last-modified")),
-        False,
-    )
 
 
 # Cache validators (ETag / Last-Modified) are replayed on the next fetch, so
@@ -2078,12 +2149,7 @@ def _resolve_properties_for_agent(
     permissive_bare_top_level: bool,
 ) -> list[dict[str, Any]]:
     """Implementation shared by strict and opt-in permissive property resolution."""
-    if not isinstance(adagents_data, dict):
-        raise AdagentsValidationError("adagents_data must be a dictionary")
-
-    authorized_agents = adagents_data.get("authorized_agents")
-    if not isinstance(authorized_agents, list):
-        raise AdagentsValidationError("adagents.json must have 'authorized_agents' array")
+    matches = find_authorized_agent_entries(adagents_data, agent_url)
 
     top_level_properties = adagents_data.get("properties", [])
     if not isinstance(top_level_properties, list):
@@ -2100,22 +2166,7 @@ def _resolve_properties_for_agent(
         )
     ]
 
-    normalized_agent_url = normalize_url(agent_url)
-
     domain_index = _build_domain_index(revoked_top_level)
-
-    matches: list[dict[str, Any]] = []
-    for agent in authorized_agents:
-        if not isinstance(agent, dict):
-            continue
-
-        agent_url_from_json = agent.get("url", "")
-        if not agent_url_from_json:
-            continue
-
-        if normalize_url(agent_url_from_json) != normalized_agent_url:
-            continue
-        matches.append(agent)
 
     resolved: list[dict[str, Any]] = []
     for agent in matches:

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Bug Fixes
+
+* **router:** Optional legacy creative and compact lifecycle tools now follow
+  child implementation declarations. Eager routers derive the union; lazy and
+  registry routers default to none. Sellers exposing these tools should pass
+  `optional_methods={"list_creative_formats_legacy", "list_products", ...}` to
+  `LazyPlatformRouter` or `TenantRegistry.as_platform()`.
+
 ### ⚠ BREAKING CHANGES
 
 * **types:** `CreativeAsset.format_kind`, `Creative.format_kind`, and
