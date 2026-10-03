@@ -55,3 +55,12 @@ async def serve_one_turn(
     except ReliableReportingServiceError as failure:
         component: str = failure.component
         assert component
+
+
+def buyer_refusal() -> None:
+    from adcp.reporting import ReliableReportingConfigurationError
+
+    refusal = ReliableReportingConfigurationError(
+        "invalid reporting selection", kind="invalid_request"
+    )
+    assert refusal.kind == "invalid_request"
