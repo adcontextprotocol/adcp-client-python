@@ -69,6 +69,7 @@ vendor_sdk_fixtures() {
   mkdir -p "$sdk_root/schemas/cache/3.1.0-beta.2/registries"
   cp tests/fixtures/v1-canonical-mapping.json \
     "$sdk_root/schemas/cache/3.1.0-beta.2/registries/v1-canonical-mapping.json"
+  "$PYTHON" scripts/ci/prepare_storyboard_sdk.py "$sdk_root"
 }
 
 detect_global_sdk_root() {
