@@ -32,7 +32,10 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
+# Anchored: setuptools writes MANIFEST at the repository root. Unanchored, and
+# with core.ignoreCase=true on a case-insensitive filesystem, this also ignored
+# src/adcp/types/domains/manifest/, which is a generated package.
+/MANIFEST
 
 # PyInstaller
 *.manifest

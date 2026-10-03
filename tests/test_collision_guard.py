@@ -1,99 +1,133 @@
-"""Tests for the consolidate-step name-collision build guard (issue #911, Step 1).
+"""Tests for the consolidate-step reachability guard (issues #911, #1080).
 
 `consolidate_exports.py` flattens every `generated_poc/` module into a single
-namespace. When the same bare type name is defined in more than one module, one
-class silently shadows the others for adopters importing from `adcp.types`.
+namespace. When the same bare type name is declared in more than one module,
+one class wins that name in `_generated` and the others would be unreachable.
+The public mirror under `adcp.types.domains` answers that: one module per
+schema, re-exporting what that schema declares, so every variant has a path and
+nothing is renamed.
 
-The build guard fails the consolidate step for any collision that is neither
-handled via qualified imports (`KNOWN_COLLISIONS`) nor recorded in the
-checked-in allowlist snapshot. These tests assert the guard passes on the
-current tree and raises for a synthetic new collision.
+These tests assert the mirror covers every generated class, that the domain
+roots bind exactly the unambiguous names, and that the guard raises when a
+class would be left unreachable.
 """
 
 from __future__ import annotations
 
+import collections
+
 import pytest
 
 from scripts.consolidate_exports import (
-    KNOWN_COLLISIONS,
-    _enforce_collision_allowlist,
-    _scan_name_to_modules,
-    extract_exports_from_module,
+    _enforce_every_class_is_reachable,
+    _mirror_relative_paths,
+    colliding_names,
     exports_for_public_consolidation,
-    load_collision_allowlist,
+    extract_exports_from_module,
+    scan_declared_names,
+    schema_domain,
+    unambiguous_domain_bindings,
 )
 
 
-def test_allowlist_snapshot_is_present_and_nonempty():
-    """The checked-in allowlist seeds the guard with today's collision set."""
-    allowlist = load_collision_allowlist()
-    assert allowlist, "collision_allowlist.json is missing or empty"
-    # Sanity: a few names called out in issue #911 must be snapshotted.
-    for name in ("Creative", "Account", "Authentication", "Sort", "Unit"):
-        assert name in allowlist, f"{name} should be in the seeded allowlist"
+def test_a_domain_namespace_cannot_split_a_name_its_own_domain_declares_twice():
+    """The measurement that chose the depth: a domain is still one namespace."""
+    declared = scan_declared_names()
+    collisions = colliding_names(declared)
+    assert collisions, "the generated tree has no colliding names — guard is vacuous"
+
+    solvable, unsolvable = 0, 0
+    for modules in collisions.values():
+        per_domain = [schema_domain(m) for m in modules]
+        if len(set(per_domain)) == len(per_domain):
+            solvable += 1
+        else:
+            unsolvable += 1
+    # A domain root handles the names no single domain declares twice; the rest
+    # need the schema's own module, which is why the mirror exists.
+    assert solvable > 0 and unsolvable > 0, (solvable, unsolvable)
+    assert solvable + unsolvable == len(collisions)
 
 
-def test_known_collisions_are_not_in_allowlist():
-    """Qualified-import collisions are handled separately, not via the allowlist."""
-    allowlist = load_collision_allowlist()
-    overlap = set(KNOWN_COLLISIONS) & allowlist
-    assert (
-        overlap == set()
-    ), f"KNOWN_COLLISIONS names must not also be in the allowlist: {sorted(overlap)}"
+def test_core_declares_nine_units_and_no_domain_namespace_could_hold_them():
+    """The concrete case, pinned so the mirror's depth is not mistaken for noise."""
+    declared = scan_declared_names()
+    units = {m for m in declared["Unit"] if schema_domain(m) == "core"}
+    assert len(units) == 9, sorted(units)
+    assert "Unit" not in unambiguous_domain_bindings(declared)["core"]
 
 
-def test_current_tree_consolidates_cleanly():
-    """Guard passes on the current generated tree against the seeded allowlist."""
-    name_to_modules = _scan_name_to_modules()
-    # Must not raise.
-    _enforce_collision_allowlist(name_to_modules, set(KNOWN_COLLISIONS))
+def test_the_mirror_covers_every_declared_pair_exactly_once():
+    """One public module per schema, re-exporting what that schema declares."""
+    declared = scan_declared_names()
+    mirrored = collections.Counter()
+    for rel in _mirror_relative_paths():
+        module_name = ".".join([*rel.parts[:-1], rel.stem])
+        for name in extract_exports_from_module(_mirror_path(rel)):
+            mirrored[(module_name, name)] += 1
+
+    expected = {
+        (module_name, type_name)
+        for type_name, modules in declared.items()
+        for module_name in modules
+    }
+    assert set(mirrored) == expected
+    assert all(count == 1 for count in mirrored.values())
 
 
-def test_allowlist_matches_current_collisions_exactly():
-    """The snapshot is neither stale nor padded with non-colliding names.
+def _mirror_path(rel):
+    from scripts.consolidate_exports import GENERATED_POC_DIR
 
-    Every allowlisted name must still collide in the tree; every collision not
-    handled via qualified imports must be in the allowlist.
+    return GENERATED_POC_DIR / rel
+
+
+def test_a_domain_root_binds_the_unambiguous_names_and_renames_nothing():
+    """No invented name anywhere: a root key is the name codegen gave the class."""
+    declared = scan_declared_names()
+    bindings = unambiguous_domain_bindings(declared)
+    for domain, rows in bindings.items():
+        for type_name, module_name in rows.items():
+            assert schema_domain(module_name) == domain
+            assert declared[type_name] >= {module_name}
+            # One declaring module inside this domain — that is what makes the
+            # bare name unambiguous here.
+            assert len([m for m in declared[type_name] if schema_domain(m) == domain]) == 1
+
+
+def test_the_unfiltered_scan_is_what_reaches_brand_discovery():
+    """The filtered scan suppresses that module whole, so it had no public path.
+
+    ``exports_for_public_consolidation`` keeps an aggregate schema's inlined
+    copies out of the flat namespace. Three of the four aggregates keep their
+    own root; ``brand_discovery`` keeps nothing, so reading the domains layer
+    off the filtered scan left its own types unreachable.
     """
-    name_to_modules = _scan_name_to_modules()
-    collisions = {name for name, mods in name_to_modules.items() if len(mods) > 1} - set(
-        KNOWN_COLLISIONS
-    )
-    allowlist = load_collision_allowlist()
-    assert allowlist == collisions, (
-        "Allowlist drifted from the real collision set. Regenerate with "
-        "`python scripts/consolidate_exports.py --update-allowlist`.\n"
-        f"  In allowlist but no longer colliding: {sorted(allowlist - collisions)}\n"
-        f"  Colliding but missing from allowlist: {sorted(collisions - allowlist)}"
-    )
+    from scripts.consolidate_exports import GENERATED_POC_DIR
+
+    path = GENERATED_POC_DIR / "brand_discovery.py"
+    assert exports_for_public_consolidation(path) == set()
+    assert "Brand" in extract_exports_from_module(path)
+    assert "brand_discovery" in scan_declared_names()["Brand"]
 
 
-def test_new_collision_not_in_allowlist_raises():
-    """A new bare name in two modules, absent from the allowlist, fails the build."""
-    name_to_modules = _scan_name_to_modules()
-    # Synthetic collision: a name defined in two modules that is not in the
-    # allowlist and not a known collision.
-    synthetic = "WidgetCollisionGuardSentinel"
-    assert synthetic not in load_collision_allowlist()
-    name_to_modules[synthetic] = {"core.widget_a", "core.widget_b"}
+def test_current_tree_leaves_no_class_unreachable():
+    """Guard passes on the generated tree as consolidated today."""
+    # Must not raise.
+    _enforce_every_class_is_reachable(scan_declared_names())
+
+
+def test_a_declared_class_the_mirror_does_not_carry_fails_the_build():
+    """A pair with no mirror export fails the consolidate step."""
+    declared = scan_declared_names()
+    declared["WidgetGuardSentinel"] = {"core.widget_a"}
 
     with pytest.raises(ValueError) as excinfo:
-        _enforce_collision_allowlist(name_to_modules, set(KNOWN_COLLISIONS))
+        _enforce_every_class_is_reachable(declared)
 
     message = str(excinfo.value)
-    assert synthetic in message
-    assert "not in the checked-in allowlist" in message
-    # The remediation guidance must tell a contributor what to do.
-    assert "aliases.py" in message
-    assert "--update-allowlist" in message
-    assert "KNOWN_COLLISIONS" in message
-
-
-def test_single_definition_name_does_not_trip_guard():
-    """A name defined in exactly one module is not a collision."""
-    name_to_modules = {"SoloUniqueGuardSentinel": {"core.solo"}}
-    # Must not raise.
-    _enforce_collision_allowlist(name_to_modules, set(KNOWN_COLLISIONS))
+    assert "core.widget_a.WidgetGuardSentinel" in message
+    assert "reachable under no public name" in message
+    assert "adcp.types.domains.<domain>.<schema>" in message
 
 
 # ---------------------------------------------------------------------------

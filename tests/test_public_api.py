@@ -457,44 +457,72 @@ def test_removed_v4_types_raise_informative_import_error():
 
 
 def test_public_api_surface_matches_snapshot():
-    """Fail when `adcp.__all__` or `adcp.types.__all__` drifts from the snapshot.
+    """Fail when a public name is removed, added, or starts meaning something else.
 
     Regenerate after an intentional change:
 
         python scripts/regenerate_public_api_snapshot.py
 
-    Note: this test tracks names only. A name whose underlying class identity
-    changes (e.g., aliased to a different generated class) won't be caught
-    here — review the diff on `adcp/types/aliases.py` separately for that.
+    The snapshot records WHAT each name resolves to, not just that it exists.
+    That is what makes the third check possible. ``_generated`` resolves a bare
+    type name defined by several generated modules by sort order and stem
+    preference, so a schema addition can take a name an adopter already
+    imports — the class changes, the name does not, and a names-only snapshot
+    ships it green. Review a changed value before regenerating: it is a name
+    that now means a different object to everyone who imports it.
     """
+    import importlib
     import json
     from pathlib import Path
 
-    import adcp
-    import adcp.types
+    from scripts.export_resolution import expand_key, resolution_key, snapshot_modules
 
     snapshot_path = Path(__file__).parent / "fixtures" / "public_api_snapshot.json"
     snapshot = json.loads(snapshot_path.read_text())
     regen_cmd = "python scripts/regenerate_public_api_snapshot.py"
 
-    current = {
-        "adcp": sorted(adcp.__all__),
-        "adcp.types": sorted(adcp.types.__all__),
-    }
+    for label, module_path in snapshot_modules():
+        module = importlib.import_module(module_path)
+        recorded = snapshot[label]["resolves"]
+        live = {}
+        for name in module.__all__:
+            try:
+                live[name] = resolution_key(getattr(module, name))
+            except AttributeError:
+                live[name] = "<missing>"
 
-    for module_name in ("adcp", "adcp.types"):
-        expected = set(snapshot[module_name])
-        actual = set(current[module_name])
-        removed = sorted(expected - actual)
-        added = sorted(actual - expected)
+        removed = sorted(set(recorded) - set(live))
+        added = sorted(set(live) - set(recorded))
         assert not removed, (
-            f"Public names removed from {module_name}: {removed}. "
+            f"Public names removed from {label}: {removed}. "
             "Removals are breaking changes — add a CHANGELOG entry and, for "
             "a major version bump, a MIGRATION note, then regenerate the "
             f"snapshot with `{regen_cmd}`."
         )
         assert not added, (
-            f"Public names added to {module_name}: {added}. "
+            f"Public names added to {label}: {added}. "
             f"Once the addition is intentional, regenerate the snapshot with "
             f"`{regen_cmd}`."
+        )
+
+        repointed = {
+            name: (expand_key(name, recorded[name]), live[name])
+            for name in sorted(recorded)
+            if expand_key(name, recorded[name]) != live[name]
+        }
+        assert not repointed, (
+            f"Public names in {label} now resolve to a different object:\n"
+            + "\n".join(f"  {name}: {was} -> {now}" for name, (was, now) in repointed.items())
+            + "\n\nThe name is unchanged, so no import breaks and no type checker "
+            "complains, while every adopter who imports it gets a different class. "
+            "A bare type name that several generated modules define resolves by "
+            "sort order, so adding a schema is enough to cause this. Confirm the "
+            "new resolution is the intended one, then regenerate the snapshot "
+            f"with `{regen_cmd}`."
+        )
+
+        duplicates = sorted({n for n in module.__all__ if module.__all__.count(n) > 1})
+        assert duplicates == snapshot[label].get("duplicate_names", []), (
+            f"Duplicate names in {label}.__all__ changed: {duplicates}. "
+            f"Regenerate the snapshot with `{regen_cmd}`."
         )
