@@ -68,11 +68,11 @@ class Scope(AdCPBaseModel):
         Field(description="Named groups declared in this profile's region_aliases.", min_length=1),
     ] = None
     all_jurisdictions: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description='Explicitly states that the scope is not limited by delivery jurisdiction.'
         ),
-    ] = True
+    ] = None
 
 
 class RegionAliase(Jurisdiction):
