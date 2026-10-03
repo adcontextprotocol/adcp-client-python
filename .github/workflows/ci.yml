@@ -375,6 +375,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: materializer-evidence-${{ github.run_attempt }}
+          retention-days: 7
           path: materializer-evidence.log
           if-no-files-found: error
 
@@ -439,6 +440,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: pg-reporting-receipts-evidence-${{ github.run_attempt }}
+          retention-days: 7
           path: pg-reporting-receipts-evidence.log
           if-no-files-found: error
 
@@ -536,6 +538,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: pg-reporting-feed-evidence-${{ github.run_attempt }}
+          retention-days: 7
           path: pg-reporting-feed-evidence.log
           if-no-files-found: error
 
@@ -597,6 +600,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: pg-reporting-feed-compatibility-evidence-${{ github.run_attempt }}
+          retention-days: 7
           path: pg-reporting-feed-compatibility-evidence.log
           if-no-files-found: error
 
@@ -653,6 +657,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: pg-reporting-feed-installed-evidence-${{ github.run_attempt }}
+          retention-days: 7
           path: |
             pg-reporting-feed-installed-evidence.log
             ${{ runner.temp }}/hardening-installed-evidence
@@ -720,6 +725,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: pg-reporting-production-evidence-${{ github.run_attempt }}
+          retention-days: 7
           path: pg-reporting-production-evidence.log
           if-no-files-found: error
 
@@ -768,14 +774,19 @@ jobs:
           python scripts/reporting_test_harness.py pytest \
             tests/conformance/reporting/test_reporting_production_packaging.py \
             -k "$PRODUCTION_CELL" -v -s -ra | tee pg-reporting-production-installed.log
+      # Keep provenance and diagnostics; the wheel/sdist inputs are built and
+      # verified above, but repeating them in every matrix upload dominates storage.
       - name: Preserve installed origins, original inner logs and exact asset hashes
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: pg-reporting-production-installed-${{ matrix.cell }}-${{ github.run_attempt }}
+          retention-days: 7
           path: |
             pg-reporting-production-installed.log
             ${{ runner.temp }}/production-installed-evidence
+            !${{ runner.temp }}/production-installed-evidence/**/*.whl
+            !${{ runner.temp }}/production-installed-evidence/**/*.tar.gz
           if-no-files-found: error
 
   pg-reporting-production-compatibility:
@@ -822,14 +833,18 @@ jobs:
             tests/conformance/reporting/test_reporting_caller_ownership.py \
             tests/conformance/reporting/test_reporting_ownership_packaging.py \
             -v -s -ra | tee pg-reporting-production-rolling.log
+      # Preserve continuity evidence without uploading another copy of each binary.
       - name: Preserve exact installed historical continuity and fence evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: pg-reporting-production-rolling-${{ github.run_attempt }}
+          retention-days: 7
           path: |
             pg-reporting-production-rolling.log
             ${{ runner.temp }}/production-rolling-evidence
+            !${{ runner.temp }}/production-rolling-evidence/**/*.whl
+            !${{ runner.temp }}/production-rolling-evidence/**/*.tar.gz
           if-no-files-found: error
 
   ipr-policy:
@@ -1179,6 +1194,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: storyboard-result-${{ matrix.adcp-sdk-tag }}-${{ github.run_attempt }}
+          retention-days: 7
           path: storyboard-result-${{ matrix.adcp-sdk-tag }}.json
           if-no-files-found: warn
 
@@ -1316,6 +1332,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: reporting-installed-artifact-matrix-${{ github.run_attempt }}
+          retention-days: 7
           path: |
             ${{ runner.temp }}/reporting-installed-artifact-matrix
             ${{ runner.temp }}/reporting-full-installed-artifact-matrix
@@ -1631,6 +1648,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: v3-storyboard-result-${{ github.run_attempt }}
+          retention-days: 7
           path: examples/v3_reference_seller/v3-storyboard-result.json
           if-no-files-found: warn
 
@@ -1757,6 +1775,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: multi-platform-storyboards-${{ github.run_attempt }}
+          retention-days: 7
           path: |
             tenant-a-storyboard.json
             tenant-b-storyboard.json
@@ -1933,5 +1952,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: sales-proposal-mode-storyboard-${{ github.run_attempt }}
+          retention-days: 7
           path: proposal-finalize-storyboard.json
           if-no-files-found: warn
