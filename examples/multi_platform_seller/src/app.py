@@ -31,16 +31,20 @@ same boot.
 
 from __future__ import annotations
 
+import asyncio
 import os
+from typing import Any, cast
 
 from adcp.decisioning import (
     DecisioningCapabilities,
     PlatformRouter,
+    RequestContext,
     serve,
 )
 from adcp.decisioning.capabilities import Account as CapabilitiesAccount
 from adcp.decisioning.capabilities import (
     Adcp,
+    ComplianceTesting,
     IdempotencyUnsupported,
     MediaBuy,
     SupportedProtocol,
@@ -59,11 +63,34 @@ from examples.multi_platform_seller.src.mock_guaranteed import MockGuaranteedPla
 from examples.multi_platform_seller.src.mock_non_guaranteed import (
     MockNonGuaranteedPlatform,
 )
+from examples.multi_platform_seller.src.test_controller import MultiTenantTestController
 
 PORT = int(os.environ.get("ADCP_PORT") or os.environ.get("PORT") or 3001)
 
 
-def build_router() -> PlatformRouter:
+class MultiPlatformRouter(PlatformRouter):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.fixture_controller = MultiTenantTestController(
+            cast(MultiTenantAccountStore, self.accounts)
+        )
+
+    async def get_products(self, req: Any, ctx: RequestContext[Any]) -> dict[str, Any]:
+        buying_mode = (
+            req.get("buying_mode") if isinstance(req, dict) else getattr(req, "buying_mode", None)
+        )
+        if buying_mode == "brief":
+            forced = self.fixture_controller.take_rejection(ctx)
+            if forced is not None:
+                return forced
+        return cast(dict[str, Any], await super().get_products(req, ctx))
+
+    async def list_products(self, req: Any, ctx: RequestContext[Any]) -> dict[str, Any]:
+        platform = self.platform_for_tenant(ctx.account.metadata["tenant_id"])
+        return await asyncio.to_thread(getattr(platform, "list_products"), req, ctx)
+
+
+def build_router() -> MultiPlatformRouter:
     """Construct the :class:`PlatformRouter` over the two mock tenants."""
     tenants = frozenset({"tenant-a", "tenant-b"})
     accounts = MultiTenantAccountStore(tenants=tenants)
@@ -82,14 +109,16 @@ def build_router() -> PlatformRouter:
             # @IdempotencyStore.wrap and declare supported=True.
             idempotency=IdempotencyUnsupported(supported=False),
         ),
-        account=CapabilitiesAccount(supported_billing=["operator"]),
+        account=CapabilitiesAccount(supported_billing=["operator"], sandbox=True),
         media_buy=MediaBuy(
             supported_pricing_models=["cpm"],
+            lifecycle_tools=["list_products"],
         ),
+        compliance_testing=ComplianceTesting(scenarios=["seed_account", "force_get_products_arm"]),
         supported_protocols=[SupportedProtocol.media_buy],
     )
 
-    return PlatformRouter(
+    return MultiPlatformRouter(
         accounts=accounts,
         platforms={
             "tenant-a": MockGuaranteedPlatform(),
@@ -154,4 +183,5 @@ if __name__ == "__main__":
         # ``Host: tenant-x.localhost`` request before the subdomain
         # router gets a chance to resolve.
         allowed_hosts=_allowed_hosts(),
+        test_controller=router.fixture_controller,
     )

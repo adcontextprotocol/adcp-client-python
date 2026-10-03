@@ -78,7 +78,7 @@ async def test_shared_scan_cancellation_and_post_scan_dynamic_check(tmp_path, mo
 @pytest.mark.parametrize("notifications", [False, True])
 @pytest.mark.parametrize("mutation", ["closed", "replaced"])
 @pytest.mark.parametrize("reconciled", [False, True])
-async def test_warm_mounted_capability_rechecks_pool_lifecycle_and_identity(
+async def test_discovery_preserves_declaration_while_admission_rechecks_pool(
     notifications, mutation, reconciled, tmp_path, monkeypatch
 ):
     from contextlib import AsyncExitStack
@@ -135,8 +135,8 @@ async def test_warm_mounted_capability_rechecks_pool_lifecycle_and_identity(
                     _, refused = await mounted.call(
                         client, "get_adcp_capabilities", {}, transport=transport
                     )
-                    assert "reporting_delivery" not in refused.get("media_buy", {})
-                    assert "webhook_signing" not in refused
+                    assert refused == before[transport]
+                    assert await support.reporting_delivery() == {}
                     expected_code = (
                         "notification_chain_unready"
                         if replacement is not None and notifications
@@ -155,7 +155,7 @@ async def test_warm_mounted_capability_rechecks_pool_lifecycle_and_identity(
 
 @pytest.mark.parametrize("queue", ["projection", "core", "ready"])
 @pytest.mark.parametrize("replacement_open", [False, True])
-async def test_warm_mounted_capability_rechecks_each_queue_pool(
+async def test_discovery_preserves_declaration_while_admission_rechecks_queue_pool(
     queue, replacement_open, tmp_path, monkeypatch
 ):
     from contextlib import AsyncExitStack
@@ -207,8 +207,10 @@ async def test_warm_mounted_capability_rechecks_each_queue_pool(
                     _, refused = await mount.call(
                         client, "get_adcp_capabilities", {}, transport=transport
                     )
-                    assert "reporting_delivery" not in refused.get("media_buy", {})
-                    assert "webhook_signing" not in refused
+                    assert refused == baseline[transport]
+                    assert await h.production.reporting_delivery() == {}
+                    with pytest.raises(ReportingNotificationError):
+                        await h.production.activate(account_id="acct_a")
                 assert scans == 0
             for transport in baseline:
                 _, restored = await mount.call(
@@ -309,7 +311,9 @@ async def test_optional_delivery_is_owned_and_broken_enabled_chain_fails_closed(
         assert production_operation_2 == {}
 
 
-async def test_warm_catalog_proof_does_not_cache_signing_wiring(tmp_path, monkeypatch):
+async def test_discovery_preserves_signing_declaration_while_admission_rechecks_wiring(
+    tmp_path, monkeypatch
+):
     import adcp.reporting.production.schema as schema
 
     async with production_harness(
@@ -338,8 +342,8 @@ async def test_warm_catalog_proof_does_not_cache_signing_wiring(tmp_path, monkey
                     assert valid["identity"]["brand_json_url"] == (
                         "https://seller.example.test/brand.json"
                     )
-                    # Each mutation follows a successful schema proof. Every
-                    # request must inspect the current concrete participant.
+                    # Registered discovery remains stable; fresh account
+                    # admission still checks each concrete participant.
                     for target, name, replacement in (
                         (support.notification_workers[0], "signing", h.signing),
                         (h.signing, "resolve", None),
@@ -350,8 +354,8 @@ async def test_warm_catalog_proof_does_not_cache_signing_wiring(tmp_path, monkey
                             _, invalid = await mount.call(
                                 client, "get_adcp_capabilities", {}, transport=transport
                             )
-                            assert "webhook_signing" not in invalid
-                            assert "reporting_delivery" not in invalid.get("media_buy", {})
+                            assert invalid == valid
+                            assert await support.reporting_delivery() == {}
                             with pytest.raises(ReportingNotificationError):
                                 await support.activate(account_id="acct_a")
                     _, restored = await mount.call(

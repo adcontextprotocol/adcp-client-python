@@ -44,7 +44,7 @@ import os
 import typing
 import warnings
 from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 
 from adcp.decisioning.account_projection import (
     strip_credentials_from_wire_result,
