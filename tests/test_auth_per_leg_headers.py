@@ -730,7 +730,7 @@ async def test_mcp_per_leg_header_routes_through_middleware() -> None:
     async with LifespanManager(app):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app),
-            base_url="http://test",
+            base_url="http://localhost:3001",
             follow_redirects=True,
         ) as client:
             resp_x_adcp = await client.post(
@@ -837,7 +837,7 @@ async def test_agent_card_route_returns_security_envelope() -> None:
     inner = create_a2a_server(_Handler(), name="t", validation=None, auth=cfg)
     async with LifespanManager(inner):
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=inner), base_url="http://test"
+            transport=httpx.ASGITransport(app=inner), base_url="http://localhost:3001"
         ) as client:
             response = await client.get("/.well-known/agent-card.json")
     assert response.status_code == 200

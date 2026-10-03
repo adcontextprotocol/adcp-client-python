@@ -1,5 +1,7 @@
 # Durable materializer — #1167B2.1
 
+This caller-ownership release requires all reporting readers, admission and workers to stop during upgrade. Earlier additive or rolling procedures below apply only to pre-ownership releases; use the [maintenance and recovery contract](reporting-caller-ownership-migration.md) for retained state.
+
 **B2.1 of 4 within B2 of B1/B2. Refs #1167.** This unit builds on the
 independently approved B1 commit
 `5487f2bdef23c5102118b305be9e868228f6ce61`. It supplies durable reservation,

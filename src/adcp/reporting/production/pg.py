@@ -57,11 +57,12 @@ _SOURCE_CONFIGURATION = (
     " c.required_finality,c.account_timezone,c.schedule,c.media_buy_ids,"
     " c.activated_at,c.deactivated_at,"
     " c.automated_recovery_seconds,c.status_retention_days,c.definition,"
-    " c.authoritative_party,g.producer_key,g.source_binding FROM reporting_configurations c"
+    " c.authoritative_party,c.consumer_id,c.quarantined,g.producer_key"
+    ",g.source_binding FROM reporting_configurations c"
     " JOIN reporting_production_generations g"
-    " USING(account_id,delivery_config_id,delivery_config_version)"
+    " USING(account_id,consumer_id,delivery_config_id,delivery_config_version)"
     " JOIN reporting_production_accounts a ON a.account_id=g.account_id"
-    " WHERE c.account_id=%s AND c.delivery_config_id=%s"
+    " WHERE c.account_id=%s AND c.consumer_id=%s AND c.delivery_config_id=%s"
     " AND c.delivery_config_version=%s AND g.producer_key=ANY(%s)"
 )
 
@@ -74,7 +75,7 @@ _OWNED = (
     " FROM reporting_production_work)"
 )
 
-_ProducerSample = tuple[int, datetime | None, str, str, int]
+_ProducerSample = tuple[int, datetime | None, str, str, str, int]
 
 
 class _ProductionConnection:
@@ -198,11 +199,17 @@ class PgReportingProductionStore(PgReportingProjectionStore):
         service_context: ReportingProductionSourceContext | None = None,
     ) -> None:
         key = configuration.generation_key
-        identity = (key.account_id, key.delivery_config_id, key.delivery_config_version)
+        identity = (
+            key.account_id,
+            key.consumer_id,
+            key.delivery_config_id,
+            key.delivery_config_version,
+        )
         previous_context = await (
             await connection.execute(
                 "SELECT source_binding FROM reporting_production_generations"
-                " WHERE account_id=%s AND delivery_config_id=%s AND delivery_config_version=%s",
+                " WHERE account_id=%s AND consumer_id=%s AND delivery_config_id=%s"
+                " AND delivery_config_version=%s",
                 identity,
             )
         ).fetchone()
@@ -217,14 +224,15 @@ class PgReportingProductionStore(PgReportingProjectionStore):
             .document()
         )
         await connection.execute(
-            "INSERT INTO reporting_production_generations VALUES(%s,%s,%s,%s,%s::jsonb)"
+            "INSERT INTO reporting_production_generations VALUES(%s,%s,%s,%s,%s,%s::jsonb)"
             " ON CONFLICT DO NOTHING",
             (*identity, producer_key, json.dumps(binding)),
         )
         row = await (
             await connection.execute(
                 "SELECT producer_key,source_binding FROM reporting_production_generations"
-                " WHERE account_id=%s AND delivery_config_id=%s AND delivery_config_version=%s",
+                " WHERE account_id=%s AND consumer_id=%s AND delivery_config_id=%s"
+                " AND delivery_config_version=%s",
                 identity,
             )
         ).fetchone()
@@ -285,32 +293,38 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                 continuation = (
                     " AND (greatest(coalesce(t.lease_turn,0),coalesce(p.probe_turn,0)),"
                     " coalesce(c.lease_expires_at,'-infinity'::timestamptz),"
-                    " c.account_id,c.delivery_config_id,c.delivery_config_version)"
-                    " > (%s,coalesce(%s::timestamptz,'-infinity'::timestamptz),%s,%s,%s)"
+                    " c.account_id,c.consumer_id,c.delivery_config_id,c.delivery_config_version)"
+                    " > (%s,coalesce(%s::timestamptz,'-infinity'::timestamptz),%s,%s,%s,%s)"
                     if after is not None
                     else ""
                 )
                 query = (
-                    "SELECT c.account_id,c.delivery_config_id,c.delivery_config_version,"  # nosec B608
+                    "SELECT c.account_id,c.consumer_id,c.delivery_config_id,c.delivery"
+                    "_config_version,"  # nosec B608
                     " greatest(coalesce(t.lease_turn,0),coalesce(p.probe_turn,0)),"
                     " c.lease_expires_at"
                     " FROM reporting_production_generations g"
                     " JOIN reporting_production_accounts a ON a.account_id=g.account_id"
                     " JOIN reporting_configurations c"
-                    " ON (c.account_id,c.delivery_config_id,c.delivery_config_version)="
-                    " (g.account_id,g.delivery_config_id,g.delivery_config_version)"
+                    " ON (c.account_id,c.consumer_id,c.delivery_config_id,c.delivery_c"
+                    "onfig_version)="
+                    " (g.account_id,g.consumer_id,g.delivery_config_id,g.delivery_config_version)"
                     " LEFT JOIN adcp_reporting_configuration_lease_turns t"
-                    " ON (t.account_id,t.delivery_config_id,t.delivery_config_version)="
-                    " (g.account_id,g.delivery_config_id,g.delivery_config_version)"
+                    " ON (t.account_id,t.consumer_id,t.delivery_config_id,t.delivery_c"
+                    "onfig_version)="
+                    " (g.account_id,g.consumer_id,g.delivery_config_id,g.delivery_config_version)"
                     " LEFT JOIN reporting_production_source_probe_turns p"
-                    " ON (p.account_id,p.delivery_config_id,p.delivery_config_version)="
-                    " (g.account_id,g.delivery_config_id,g.delivery_config_version)"
+                    " ON (p.account_id,p.consumer_id,p.delivery_config_id,p.delivery_c"
+                    "onfig_version)="
+                    " (g.account_id,g.consumer_id,g.delivery_config_id,g.delivery_config_version)"
                     " WHERE g.producer_key=ANY(%s)"
-                    " AND (c.lease_expires_at IS NULL OR c.lease_expires_at<=%s)"
+                    " AND NOT c.quarantined AND (c.lease_expires_at IS NULL OR c.lease"
+                    "_expires_at<=%s)"
                     + continuation
                     + " ORDER BY greatest(coalesce(t.lease_turn,0),coalesce(p.probe_turn,0)),"
                     " c.lease_expires_at NULLS FIRST,"
-                    " c.account_id,c.delivery_config_id,c.delivery_config_version LIMIT 32"
+                    " c.account_id,c.consumer_id,c.delivery_config_id,c.delivery_confi"
+                    "g_version LIMIT 32"
                 )
                 # Only the fixed SDK continuation above changes this SQL;
                 # every cursor value and source identity remains a parameter.
@@ -321,8 +335,8 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                     break
                 after = None
             for candidate in rows:
-                row = candidate[:3]
-                following = (candidate[3], candidate[4], row[0], row[1], row[2])
+                row = candidate[:4]
+                following = (candidate[4], candidate[5], *row)
                 locked = await (
                     await connection.execute(
                         "SELECT pg_try_advisory_xact_lock(hashtext('adcp.reporting:' || %s))",
@@ -336,9 +350,9 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                 ).fetchone()
                 if current is None:
                     continue
-                configuration = _configuration_from_row(current[:16])
+                configuration = _configuration_from_row(current[:18])
                 try:
-                    self._owner()._check_source_binding(configuration, current[16], current[17])
+                    self._owner()._check_source_binding(configuration, current[18], current[19])
                 except Exception:
                     # A permanently revoked generation must not occupy the
                     # first bounded window forever. This is a probe, not a
@@ -347,9 +361,12 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                     # ordering clock as successful configuration acquisitions.
                     await connection.execute(
                         "INSERT INTO reporting_production_source_probe_turns"
-                        " (account_id,delivery_config_id,delivery_config_version,probe_turn)"
-                        " VALUES(%s,%s,%s,nextval('adcp_reporting_configuration_lease_turn_seq'))"
-                        " ON CONFLICT(account_id,delivery_config_id,delivery_config_version)"
+                        " (account_id,consumer_id,delivery_config_id,delivery_config_versi"
+                        "on,probe_turn)"
+                        " VALUES(%s,%s,%s,%s,nextval('adcp_reporting_configuration_lease_t"
+                        "urn_seq'))"
+                        " ON CONFLICT(account_id,consumer_id,delivery_config_id,delivery_c"
+                        "onfig_version)"
                         " DO UPDATE SET probe_turn="
                         "nextval('adcp_reporting_configuration_lease_turn_seq')",
                         tuple(row),
@@ -358,11 +375,15 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                 acquired = await (
                     await connection.execute(
                         "UPDATE reporting_configurations SET lease_worker_id=%s,lease_expires_at=%s"
-                        " WHERE (account_id,delivery_config_id,delivery_config_version) = ("
-                        " SELECT c.account_id,c.delivery_config_id,c.delivery_config_version"
+                        " WHERE (account_id,consumer_id,delivery_config_id,delivery_config"
+                        "_version) = ("
+                        " SELECT c.account_id,c.consumer_id,c.delivery_config_id,c.deliver"
+                        "y_config_version"
                         " FROM reporting_configurations c WHERE c.account_id=%s"
-                        " AND c.delivery_config_id=%s AND c.delivery_config_version=%s"
-                        " AND (c.lease_expires_at IS NULL OR c.lease_expires_at<=%s)"
+                        " AND c.consumer_id=%s AND c.delivery_config_id=%s AND c.delivery_"
+                        "config_version=%s"
+                        " AND NOT c.quarantined AND (c.lease_expires_at IS NULL OR c.lease"
+                        "_expires_at<=%s)"
                         " FOR UPDATE OF c SKIP LOCKED)"
                         " RETURNING account_id",
                         (worker_id, expires, *row, moment),
@@ -373,14 +394,16 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                 await self._retain_materializer_generation_on_lease_change(connection, tuple(row))
                 await connection.execute(
                     "INSERT INTO adcp_reporting_configuration_lease_turns"
-                    " (account_id,delivery_config_id,delivery_config_version,lease_turn)"
-                    " VALUES(%s,%s,%s,nextval('adcp_reporting_configuration_lease_turn_seq'))"
-                    " ON CONFLICT(account_id,delivery_config_id,delivery_config_version)"
+                    " (account_id,consumer_id,delivery_config_id,delivery_config_versi"
+                    "on,lease_turn)"
+                    " VALUES(%s,%s,%s,%s,nextval('adcp_reporting_configuration_lease_turn_seq'))"
+                    " ON CONFLICT(account_id,consumer_id,delivery_config_id,delivery_c"
+                    "onfig_version)"
                     " DO UPDATE SET lease_turn="
                     "nextval('adcp_reporting_configuration_lease_turn_seq')",
                     tuple(row),
                 )
-                result = LeasedConfiguration(row[0], row[1], row[2], expires)
+                result = LeasedConfiguration(row[0], row[1], row[2], row[3], expires)
                 break
         # Hints are per store and selected producer keys, not durable work or
         # leases. Publish a hint only after commit; a failed mutation retries
@@ -396,11 +419,17 @@ class PgReportingProductionStore(PgReportingProjectionStore):
     async def release_period_close(self, lease: LeasedConfiguration, *, worker_id: str) -> None:
         async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, lease.account_id)
-            identity = (lease.account_id, lease.delivery_config_id, lease.delivery_config_version)
+            identity = (
+                lease.account_id,
+                lease.consumer_id,
+                lease.delivery_config_id,
+                lease.delivery_config_version,
+            )
             released = await (
                 await connection.execute(
                     "UPDATE reporting_configurations SET lease_worker_id=NULL,lease_expires_at=NULL"
-                    " WHERE account_id=%s AND delivery_config_id=%s AND delivery_config_version=%s"
+                    " WHERE account_id=%s AND consumer_id=%s AND delivery_config_id=%s"
+                    " AND delivery_config_version=%s"
                     " AND lease_worker_id=%s AND lease_expires_at=%s RETURNING account_id",
                     (*identity, worker_id, lease.lease_expires_at),
                 )
@@ -409,7 +438,7 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                 await self._retain_materializer_generation_on_lease_change(connection, identity)
 
     async def _retain_materializer_generation_on_lease_change(
-        self, connection: Any, identity: tuple[str, str, int]
+        self, connection: Any, identity: tuple[str, str, str, int]
     ) -> None:
         # The immutable inherited trigger treats *every* configuration UPDATE
         # as source invalidation, including lease-only bookkeeping. These two
@@ -422,17 +451,23 @@ class PgReportingProductionStore(PgReportingProjectionStore):
         # the original trigger without this correction and fences old work.
         await connection.execute(
             "UPDATE reporting_materializer_candidates SET generation=generation-1"
-            " WHERE account_id=%s AND delivery_config_id=%s AND delivery_config_version=%s",
+            " WHERE account_id=%s AND consumer_id=%s AND delivery_config_id=%s"
+            " AND delivery_config_version=%s",
             identity,
         )
 
     @asynccontextmanager
     async def _source_connection(
         self, configuration: ReportingConfiguration
-    ) -> AsyncIterator[tuple[Any, tuple[str, str, int]]]:
+    ) -> AsyncIterator[tuple[Any, tuple[str, str, str, int]]]:
         keys = self._owner()._producer_keys()
         key = configuration.generation_key
-        identity = (key.account_id, key.delivery_config_id, key.delivery_config_version)
+        identity = (
+            key.account_id,
+            key.consumer_id,
+            key.delivery_config_id,
+            key.delivery_config_version,
+        )
         async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, key.account_id)
             row = await (
@@ -441,12 +476,13 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                     (*identity, list(keys)),
                 )
             ).fetchone()
-            if row is None or _configuration_from_row(row[:16]) != configuration:
+            if row is None or _configuration_from_row(row[:18]) != configuration:
                 raise LedgerConflictError("HISTORY_UNAVAILABLE", "producer generation unavailable")
-            self._owner()._check_source_binding(configuration, row[16], row[17])
+            self._owner()._check_source_binding(configuration, row[18], row[19])
             await connection.execute(
                 "INSERT INTO reporting_production_source_progress"
-                " (account_id,delivery_config_id,delivery_config_version) VALUES(%s,%s,%s)"
+                " (account_id,consumer_id,delivery_config_id,delivery_config_versi"
+                "on) VALUES(%s,%s,%s,%s)"
                 " ON CONFLICT DO NOTHING",
                 identity,
             )
@@ -467,7 +503,8 @@ class PgReportingProductionStore(PgReportingProjectionStore):
             row = await (
                 await connection.execute(
                     "SELECT producer_key,source_binding FROM reporting_production_generations"
-                    " WHERE account_id=%s AND delivery_config_id=%s AND delivery_config_version=%s",
+                    " WHERE account_id=%s AND consumer_id=%s AND delivery_config_id=%s"
+                    " AND delivery_config_version=%s",
                     identity,
                 )
             ).fetchone()
@@ -481,7 +518,8 @@ class PgReportingProductionStore(PgReportingProjectionStore):
             row = await (
                 await connection.execute(
                     "SELECT closed_through FROM reporting_production_source_progress"
-                    " WHERE account_id=%s AND delivery_config_id=%s AND delivery_config_version=%s",
+                    " WHERE account_id=%s AND consumer_id=%s AND delivery_config_id=%s"
+                    " AND delivery_config_version=%s",
                     identity,
                 )
             ).fetchone()
@@ -499,7 +537,8 @@ class PgReportingProductionStore(PgReportingProjectionStore):
             row = await (
                 await connection.execute(
                     "SELECT closed_through FROM reporting_production_source_progress"
-                    " WHERE account_id=%s AND delivery_config_id=%s AND delivery_config_version=%s",
+                    " WHERE account_id=%s AND consumer_id=%s AND delivery_config_id=%s"
+                    " AND delivery_config_version=%s",
                     identity,
                 )
             ).fetchone()
@@ -509,14 +548,16 @@ class PgReportingProductionStore(PgReportingProjectionStore):
             stored = await self.commit_obligation(obligation)
             await connection.execute(
                 "INSERT INTO reporting_production_source_work"
-                " (account_id,delivery_config_id,delivery_config_version,reporting_obligation_id,"
-                " period_end) VALUES(%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+                " (account_id,consumer_id,delivery_config_id,delivery_config_versi"
+                "on,reporting_obligation_id,"
+                " period_end) VALUES(%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
                 (*identity, stored.reporting_obligation_id, stored.period.end),
             )
             await connection.execute(
                 "UPDATE reporting_production_source_progress"
                 " SET closed_through=greatest(closed_through,%s)"
-                " WHERE account_id=%s AND delivery_config_id=%s AND delivery_config_version=%s",
+                " WHERE account_id=%s AND consumer_id=%s AND delivery_config_id=%s"
+                " AND delivery_config_version=%s",
                 (stored.period.end, *identity),
             )
             return stored
@@ -530,7 +571,8 @@ class PgReportingProductionStore(PgReportingProjectionStore):
             rows = await (
                 await connection.execute(
                     "SELECT reporting_obligation_id FROM reporting_production_source_work"
-                    " WHERE account_id=%s AND delivery_config_id=%s AND delivery_config_version=%s"
+                    " WHERE account_id=%s AND consumer_id=%s AND delivery_config_id=%s"
+                    " AND delivery_config_version=%s"
                     " AND state='pending' AND period_end<=%s"
                     " ORDER BY acquisition_turn,reporting_obligation_id LIMIT %s FOR UPDATE",
                     (*identity, now, limit),
@@ -542,7 +584,8 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                 await connection.execute(
                     "UPDATE reporting_production_source_progress"
                     " SET acquisition_turn=acquisition_turn+%s"
-                    " WHERE account_id=%s AND delivery_config_id=%s AND delivery_config_version=%s"
+                    " WHERE account_id=%s AND consumer_id=%s AND delivery_config_id=%s"
+                    " AND delivery_config_version=%s"
                     " RETURNING acquisition_turn",
                     (len(rows), *identity),
                 )
@@ -569,7 +612,8 @@ class PgReportingProductionStore(PgReportingProjectionStore):
             )
             await connection.execute(
                 "UPDATE reporting_production_source_work SET state=%s"
-                " WHERE account_id=%s AND delivery_config_id=%s AND delivery_config_version=%s"
+                " WHERE account_id=%s AND consumer_id=%s AND delivery_config_id=%s"
+                " AND delivery_config_version=%s"
                 " AND reporting_obligation_id=%s",
                 (acquisition_state(obligation, revisions), *identity, reporting_obligation_id),
             )
@@ -639,10 +683,7 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                 "INSERT INTO reporting_production_accounts(account_id,policy) VALUES(%s,%s::jsonb)",
                 (account_id, json.dumps(policy)),
             )
-            configurations = {
-                c.generation_key: c
-                for c in await self._list_configurations_on(connection, account_id=account_id)
-            }
+            configurations = {}
             bindings = await (
                 await connection.execute(
                     "SELECT payload FROM reporting_reconciliation_records"
@@ -654,6 +695,12 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                 binding = decode_record(document)
                 if not isinstance(binding, ReportingDestinationBinding):
                     raise ReportingNotificationError("reporting_production_history_corrupt")
+                owned = await self._list_configurations_on(
+                    connection, account_id=account_id, consumer_id=binding.consumer_id
+                )
+                configurations.update({c.generation_key: c for c in owned if not c.quarantined})
+                if binding.generation_key not in configurations:
+                    continue
                 configuration = configurations[binding.generation_key]
                 try:
                     offering = owner._configuration_offering(configuration, binding)
@@ -674,13 +721,15 @@ class PgReportingProductionStore(PgReportingProjectionStore):
                     "SELECT a.policy,g.producer_key,g.source_binding,d.method"
                     " FROM reporting_production_accounts a"
                     " LEFT JOIN reporting_production_generations g"
-                    " ON g.account_id=a.account_id AND g.delivery_config_id=%s"
+                    " ON g.account_id=a.account_id AND g.consumer_id=%s AND g.delivery_config_id=%s"
                     " AND g.delivery_config_version=%s"
                     " LEFT JOIN reporting_production_destination_bindings d"
-                    " ON (d.account_id,d.delivery_config_id,d.delivery_config_version)="
-                    " (g.account_id,g.delivery_config_id,g.delivery_config_version)"
+                    " ON (d.account_id,d.consumer_id,d.delivery_config_id,d.delivery_c"
+                    "onfig_version)="
+                    " (g.account_id,g.consumer_id,g.delivery_config_id,g.delivery_config_version)"
                     " AND d.consumer_id=%s WHERE a.account_id=%s",
                     (
+                        scope.consumer_id,
                         scope.generation_key.delivery_config_id,
                         scope.generation_key.delivery_config_version,
                         scope.consumer_id,

@@ -1,5 +1,7 @@
 # Frozen authorized reporting feeds
 
+This caller-ownership release requires all reporting readers, admission and workers to stop during upgrade. Earlier additive or rolling procedures below apply only to pre-ownership releases; use the [maintenance and recovery contract](reporting-caller-ownership-migration.md) for retained state.
+
 `PgReportingFeedStore` adds persisted `get_reporting_status(view="periods")`
 walks to the existing receipt/materializer store. Pass it to
 `ReportingReceiptHandler`, using the same trusted identity adapters and fresh

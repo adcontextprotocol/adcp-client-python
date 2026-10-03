@@ -109,7 +109,7 @@ async def advertised_notifications(
         obligation = await ledger.get_obligation(
             account_id=account_id, reporting_obligation_id=ready_scope.reporting_obligation_id
         )
-        configurations = await ledger.list_configurations(account_id=account_id)
+        configurations = await ledger.list_configurations(caller=ready_scope.principal)
         if (
             binding is None
             or frozen is None

@@ -103,7 +103,12 @@ def _assert_artifact_carries(body: dict[str, Any], expected_keys: set[str]) -> d
 
 
 async def _bootstrap_client() -> tuple[httpx.AsyncClient, Any]:
-    app = create_a2a_server(_MinimalSeller(), name="conformance-seller", test_controller=_Store())
+    app = create_a2a_server(
+        _MinimalSeller(),
+        name="conformance-seller",
+        test_controller=_Store(),
+        allowed_hosts=["test"],
+    )
     transport = httpx.ASGITransport(app=app)
     client = httpx.AsyncClient(transport=transport, base_url="http://test")
     return client, app

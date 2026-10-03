@@ -87,7 +87,10 @@ async def _verify_notification_replay(harness: Any) -> dict[str, Any]:
     try:
         # The original revision was committed before the subscriber existed.
         # A distinct ordinary revision supplies a real post-registration event.
-        core = replace(configuration(), delivery_config_id="interop-webhook")
+        core = replace(
+            configuration(consumer_id=h.item.binding.consumer_id),
+            delivery_config_id="interop-webhook",
+        )
         await h.store.put_configuration(core)
         obligation = await h.store.commit_obligation(
             replace(obligation_for(core), reporting_obligation_id="interop-webhook-obligation")

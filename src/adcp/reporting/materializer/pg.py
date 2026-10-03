@@ -84,7 +84,10 @@ def _scope_args(scope: ReportingDeliveryScope) -> tuple[str | int, ...]:
 def _scope(row: dict[str, Any]) -> ReportingDeliveryScope:
     return ReportingDeliveryScope(
         ReportingConfigurationGenerationKey(
-            row["account_id"], row["delivery_config_id"], row["delivery_config_version"]
+            row["account_id"],
+            row["consumer_id"],
+            row["delivery_config_id"],
+            row["delivery_config_version"],
         ),
         row["consumer_id"],
         row["reporting_obligation_id"],
@@ -167,11 +170,12 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
                 " report_definition_id, reporting_profile, feed_purpose, required_finality,"
                 " account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
                 " automated_recovery_seconds, status_retention_days, definition,"
-                " authoritative_party"
+                " authoritative_party, consumer_id, quarantined"
                 " FROM reporting_configurations WHERE account_id=%s"
-                " AND delivery_config_id=%s AND delivery_config_version=%s",
+                " AND consumer_id=%s AND delivery_config_id=%s AND delivery_config_version=%s",
                 (
                     scope.principal.account_id,
+                    scope.consumer_id,
                     scope.generation_key.delivery_config_id,
                     scope.generation_key.delivery_config_version,
                 ),
@@ -188,7 +192,7 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
             raise failure("BINDING_MISMATCH")
         obligation = _obligation_from_row(obligation_row)
         configuration = _configuration_from_row(config_row)
-        if obligation.generation_key != scope.generation_key:
+        if configuration.quarantined or obligation.generation_key != scope.generation_key:
             raise failure("BINDING_MISMATCH")
         delivery = next(
             (
@@ -240,9 +244,9 @@ class PgReportingMaterializerStore(PgReportingReconciliationStore):
         obligations = await (
             await connection.execute(
                 "SELECT reporting_obligation_id FROM reporting_obligations WHERE account_id=%s"
-                " AND delivery_config_id=%s AND delivery_config_version=%s"
+                " AND consumer_id=%s AND delivery_config_id=%s AND delivery_config_version=%s"
                 " AND reporting_obligation_id>%s ORDER BY reporting_obligation_id LIMIT 32",
-                (account_id, config, version, after),
+                (account_id, consumer, config, version, after),
             )
         ).fetchall()
         for (obligation_id,) in obligations:

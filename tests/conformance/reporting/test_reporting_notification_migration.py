@@ -11,11 +11,15 @@ import pytest
 
 from adcp.reporting.ledger import PgReportingReconciliationStore
 from adcp.reporting.outbox import PgReportingOutbox, ReportingNotificationError
-from adcp.reporting.outbox._schema import SCHEMA_CONTRACT, schema_contract, validate_schema
+from adcp.reporting.outbox._schema import schema_contract, validate_schema
 from adcp.reporting.outbox.status_schema import REQUIRED_STATUS_OBJECTS
 
-from ._generation_support import NOW, isolated_reporting_pool, revision_for
-from ._provisional_catalog import PROVISIONAL_OBJECTS
+from ._generation_support import (
+    NOW,
+    isolated_reporting_pool,
+    require_rolling_database,
+    revision_for,
+)
 from ._reconciliation_support import scenario
 from ._reliable_support import Barrier
 from .test_reporting_reconciliation_migration import FIXTURES
@@ -84,6 +88,7 @@ async def foundation(pool):
 
 async def retained_physical_rows(pool):
     """Include MVCC identity: no migration rewrite/backfill of retained evidence."""
+    require_rolling_database()
     from psycopg import sql
 
     tables = (
@@ -153,21 +158,31 @@ async def test_populated_pre_outbox_upgrade_never_rewrites_or_backfills(autocomm
 )
 @pytest.mark.parametrize("hopwise", [False, True])
 async def test_direct_and_hopwise_historical_schema_chain(source, hopwise):
+    require_rolling_database()
+    from psycopg import sql
+
+    from adcp.reporting.migration import ReportingOwnershipMigrationError, migrate_legacy_reporting
+
     async with isolated_reporting_pool(autocommit=True) as pool:
         async with pool.connection() as conn:
             await conn.execute((FIXTURES / source).read_text())
             await conn.execute((FIXTURES / "reporting_ledger_beta15_data.sql").read_text())
             if hopwise:
-                for name in CHAIN[1:]:
-                    await conn.execute(RESOURCES.joinpath(name).read_text())
-        await PgReportingReconciliationStore(pool=pool).create_schema()
+                with pytest.raises(Exception, match="maintenance|caller ownership"):
+                    async with conn.transaction():
+                        await conn.execute(RESOURCES.joinpath(CHAIN[1]).read_text())
+        with pytest.raises(ReportingOwnershipMigrationError, match="Stop reporting workers"):
+            await PgReportingReconciliationStore(pool=pool).create_schema()
+        archive = "adcp_reporting_quarantine_notification"
         async with pool.connection() as conn:
-            assert await schema_contract(conn) == {
-                **SCHEMA_CONTRACT,
-                **{key: value["fingerprint"] for key, value in WAIVER_OBJECTS.items()},
-                **{key: value["fingerprint"] for key, value in PROVISIONAL_OBJECTS.items()},
-            }
-        assert await PgReportingOutbox(pool=pool).list_events(account_id="acct_a") == ()
+            await migrate_legacy_reporting(conn, archive_schema=archive, workers_stopped=True)
+            try:
+                await validate_schema(conn)
+                assert await PgReportingOutbox(pool=pool).list_events(account_id="acct_a") == ()
+            finally:
+                await conn.execute(
+                    sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(archive))
+                )
 
 
 @pytest.mark.parametrize("autocommit", [False, True])
@@ -299,12 +314,12 @@ async def test_readiness_validates_the_installed_chain_not_table_presence(damage
 
 async def test_malformed_outbox_upgrade_rolls_back_entire_chain():
     async with isolated_reporting_pool(autocommit=True) as pool:
-        import psycopg
+        from adcp.reporting.migration import ReportingOwnershipMigrationError
 
         async with pool.connection() as conn:
             await conn.execute((FIXTURES / "reporting_ledger_beta15.sql").read_text())
             await conn.execute("CREATE TABLE reporting_notification_events (adopter_marker text)")
-        with pytest.raises(psycopg.Error):
+        with pytest.raises(ReportingOwnershipMigrationError):
             await PgReportingReconciliationStore(pool=pool).create_schema()
         async with pool.connection() as conn:
             assert (

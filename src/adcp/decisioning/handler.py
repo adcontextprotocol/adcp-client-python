@@ -36,7 +36,7 @@ import inspect
 import logging
 import warnings
 from collections.abc import Awaitable, Callable, Mapping
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 from adcp._version import resolve_adcp_version
 from adcp.decisioning._get_products_helpers import _project_product_fields
@@ -90,6 +90,8 @@ from adcp.decisioning.refine import (
     has_refine_support,
     project_refine_response,
 )
+from adcp.decisioning.task_queries import project_task, task_is_expired
+from adcp.decisioning.task_registry import ListableTaskRegistry
 from adcp.decisioning.time_budget import (
     SyncExecutorAdmission,
     project_incomplete_response,
@@ -184,6 +186,7 @@ from adcp.types import (
     GetRightsSuccessResponse,
     GetSignalsRequest,
     GetSignalsResponse,
+    GetTaskStatusRequest,
     ListAccountsRequest,
     ListAccountsResponse,
     ListCollectionListsRequest,
@@ -196,6 +199,7 @@ from adcp.types import (
     ListProductsResponse,
     ListPropertyListsRequest,
     ListPropertyListsResponse,
+    ListTasksRequest,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
     RefineProposalsRequest,
@@ -1275,7 +1279,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         | set(_CONTENT_STANDARDS_ADVERTISED_TOOLS)
         | set(_PROPERTY_LISTS_ADVERTISED_TOOLS)
         | set(_COLLECTION_LISTS_ADVERTISED_TOOLS)
-        | {"get_reporting_status", "sync_reporting_status", "sync_reporting_receipts"}
+        | {
+            "get_reporting_status",
+            "sync_reporting_status",
+            "sync_reporting_receipts",
+            "get_task_status",
+            "list_tasks",
+        }
     )
 
     _agent_type = "decisioning platform"
@@ -1327,6 +1337,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 self._platform, tool_name
             ):
                 serving.add(tool_name)
+        if not serving:
+            # Preserve the existing class-universe fallback for novel specialisms.
+            serving.update(self.advertised_tools)
+            serving.discard("list_tasks")
         # Drop sync_accounts / list_accounts when the platform's
         # AccountStore doesn't expose the corresponding optional
         # Protocol method. ``sales-*`` claims union both tools in by
@@ -1361,6 +1375,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         reporting = getattr(self._platform, "_reliable_reporting_service", None)
         if reporting is not None:
             serving.update(reporting.reporting_tools)
+        serving.add("get_task_status")
+        if isinstance(self._registry, ListableTaskRegistry):
+            serving.add("list_tasks")
         return frozenset(serving)
 
     def _log_account_tool_dropped(self, tool_name: str, method_name: str) -> None:
@@ -1444,6 +1461,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         brand_authorization_gate: BrandAuthorizationGate | None = None,
         config_store: ProductConfigStore | None = None,
         property_list_fetcher: PropertyListFetcher | None = None,
+        property_list_filter_mode: Literal["sdk", "platform"] = "sdk",
         media_buy_store: MediaBuyStore | None = None,
         advertise_all: bool = False,
         timed_sync_get_products_limit: int | None = None,
@@ -1481,6 +1499,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._brand_authorization_gate = brand_authorization_gate
         self._config_store = config_store
         self._property_list_fetcher = property_list_fetcher
+        self._property_list_filter_mode = property_list_filter_mode
         self._media_buy_store = media_buy_store
         self._advertise_all = advertise_all
         # Compatibility adapters are authored by the adopter platform, while
@@ -2335,6 +2354,51 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             await self._invoke_compact_lifecycle("control_media_buy", params, context),
         )
 
+    async def get_task_status(  # type: ignore[override]
+        self,
+        params: GetTaskStatusRequest,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Read an authenticated account's application task; hide missing references."""
+        account = await self._resolve_account(
+            params.account, context or ToolContext(), tool_name="get_task_status"
+        )
+        record = await self._registry.get(params.task_id, expected_account_id=account.id)
+        if record is None or task_is_expired(record):
+            raise AdcpError(
+                "REFERENCE_NOT_FOUND",
+                message="Task reference not found",
+                recovery="terminal",
+                field="task_id",
+            )
+        return project_task(record, include_result=bool(params.include_result))
+
+    async def list_tasks(  # type: ignore[override]
+        self,
+        params: ListTasksRequest,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any] | NotImplementedResponse:
+        """Reconcile tasks when the registry supports the optional list protocol."""
+        if not isinstance(self._registry, ListableTaskRegistry):
+            return self._not_supported("list_tasks")
+        account = await self._resolve_account(
+            params.account, context or ToolContext(), tool_name="list_tasks"
+        )
+        return await self._registry.list(
+            account_id=account.id,
+            filters=(
+                params.filters.model_dump(mode="json", exclude_none=True)
+                if params.filters
+                else None
+            ),
+            sort=params.sort.model_dump(mode="json", exclude_none=True) if params.sort else None,
+            pagination=(
+                params.pagination.model_dump(mode="json", exclude_none=True)
+                if params.pagination
+                else None
+            ),
+        )
+
     async def get_products(  # type: ignore[override]
         self,
         params: GetProductsRequest,
@@ -2564,6 +2628,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 response=response,
                 fetcher=self._property_list_fetcher,
                 capability_enabled=property_list_capability_enabled(self._platform),
+                filter_mode=self._property_list_filter_mode,
             ),
         )
         if self._platform.capabilities.auto_paginate and params.pagination is not None:

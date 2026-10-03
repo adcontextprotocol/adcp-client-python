@@ -112,8 +112,8 @@ async def replace_stored(h, old, changed):
             )
             await conn.execute(
                 "INSERT INTO reporting_notification_expansions"
-                " (account_id, notification_id, emission_generation, due_at)"
-                " SELECT %s, notification_id, emission_generation, due_at"
+                " (account_id, consumer_namespace, notification_id, emission_generation, due_at)"
+                " SELECT %s, consumer_namespace, notification_id, emission_generation, due_at"
                 " FROM reporting_notification_expansions"
                 " WHERE account_id = %s AND notification_id = %s",
                 (changed.binding.account_id, old.binding.account_id, old.binding.notification_id),

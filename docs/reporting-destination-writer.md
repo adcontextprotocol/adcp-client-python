@@ -1,5 +1,7 @@
 # Verified destination I/O — #1167B1
 
+This caller-ownership release requires all reporting readers, admission and workers to stop during upgrade. Earlier additive or rolling procedures below apply only to pre-ownership releases; use the [maintenance and recovery contract](reporting-caller-ownership-migration.md) for retained state.
+
 **B1 of B1/B2**, composed with integrated #1168C at
 `967b6e286301d7e5d089aea6fdbb90bea8ee5a16`. Refs #1167.
 

@@ -64,11 +64,11 @@ class BiddingPolicy(AdCPBaseModel):
         extra='forbid',
     )
     automatic: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description='Explicitly use seller/provider automatic bidding at this authored scope. At package scope this is a complete override of a media-buy policy, not inheritance. It MUST be the only field in the block and MUST be preserved on readback.'
         ),
-    ] = True
+    ] = None
     bid_amount: Annotated[
         float | None,
         Field(

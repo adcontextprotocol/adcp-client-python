@@ -13,6 +13,7 @@ handled by datamodel-code-generator directly:
 5. Adds deprecated=True to fields marked deprecated in JSON schema
 6. Unwraps specified RootModel unions to plain Union type aliases (#155)
 7. Widens canceled: Literal[True] = True on request types to | None = None (#641)
+8. Removes phantom optional boolean const defaults (#1347)
 """
 
 from __future__ import annotations
@@ -2155,9 +2156,9 @@ def _extract_single_literal_value(annotation: ast.AST) -> object | None:
     * ``Annotated[Literal['text'], Field(...)]`` — wrapped in Annotated
       with a Field descriptor (the typical discriminator shape)
 
-    Returns None if the annotation is a Literal with multiple values,
-    a Literal over non-strings, or anything else. We only want to
-    auto-default the unambiguous single-tag case.
+    Returns None if the annotation is not a single constant Literal.
+    Callers decide which primitive values to handle: string discriminators
+    can have ergonomic defaults, while optional boolean constants cannot.
     """
     import ast
 
@@ -2591,6 +2592,66 @@ def fix_unchanged_literal_defaults() -> None:
         print(f"  ✓ Widened {total_fixed} unchanged Literal[True] default(s) to None")
     else:
         print("  No unchanged field defaults needed fixing")
+
+
+def fix_optional_boolean_literal_defaults() -> None:
+    """Remove phantom values from optional boolean constants (#1347).
+
+    datamodel-codegen emits required boolean literals without a default, but
+    gives optional literals their constant value as a default. A constant
+    restricts a supplied value; it does not imply presence. Widen only these
+    defaulted fields to None, preserving required fields and Field metadata.
+    This covers postal capabilities, replay markers, and multiline controls
+    such as automatic bidding and frequency-cap removal, including bundled
+    copies. AST spans keep descriptions and formatting intact.
+    """
+    for py_file in sorted(OUTPUT_DIR.rglob("*.py")):
+        source = py_file.read_bytes()
+        tree = ast.parse(source)
+        offsets = [0]
+        for line in source.splitlines(keepends=True):
+            offsets.append(offsets[-1] + len(line))
+
+        edits: list[tuple[int, int, bytes]] = []
+        fields = (
+            field
+            for cls in ast.walk(tree)
+            if isinstance(cls, ast.ClassDef)
+            for field in cls.body
+            if isinstance(field, ast.AnnAssign)
+        )
+        for node in fields:
+            literal_value = _extract_single_literal_value(node.annotation)
+            if not isinstance(literal_value, bool):
+                continue
+            if not isinstance(node.value, ast.Constant) or node.value.value is not literal_value:
+                continue
+            annotation = node.annotation
+            if (
+                isinstance(annotation, ast.Subscript)
+                and _subscript_base_name(annotation) == "Annotated"
+            ):
+                annotation = _first_subscript_arg(annotation)
+            assert annotation is not None
+            for part, replacement in (
+                (annotation, f"Literal[{literal_value}] | None".encode()),
+                (node.value, b"None"),
+            ):
+                edits.append(
+                    (
+                        offsets[part.lineno - 1] + part.col_offset,
+                        offsets[part.end_lineno - 1] + part.end_col_offset,
+                        replacement,
+                    )
+                )
+
+        if edits:
+            for start, end, replacement in sorted(edits, reverse=True):
+                source = source[:start] + replacement + source[end:]
+            py_file.write_bytes(source)
+            print(
+                f"  {py_file.relative_to(OUTPUT_DIR)}: fixed {len(edits) // 2} boolean const field(s)"
+            )
 
 
 def fix_reporting_request_selectors() -> None:
@@ -6208,6 +6269,7 @@ def main(argv: list[str] | None = None):
         widen_extension_point_lists_to_sequence,
         fix_canceled_literal_defaults,
         fix_unchanged_literal_defaults,
+        fix_optional_boolean_literal_defaults,
         fix_reporting_request_selectors,
         fix_reporting_capability_defaults,
         fix_protocol_envelope_status_default,

@@ -34,14 +34,15 @@ BEGIN
         lease_expires_at TIMESTAMPTZ,
         PRIMARY KEY (account_id, consumer_namespace, delivery_config_id, version,
                      scope_kind, obligation_namespace),
-        FOREIGN KEY (account_id, delivery_config_id, version) REFERENCES reporting_configurations
-            (account_id, delivery_config_id, delivery_config_version),
+        FOREIGN KEY (account_id, consumer_namespace, delivery_config_id, version) REFERENCES reporting_configurations
+            (account_id, consumer_id, delivery_config_id, delivery_config_version),
         CHECK ((scope_kind = 'configuration') = (obligation_namespace = '')),
         CHECK ((lease_token IS NULL) = (lease_expires_at IS NULL)),
         CHECK ((scope->>'account_id') IS NOT DISTINCT FROM account_id),
         CHECK (coalesce(scope->>'consumer_id', '') = consumer_namespace),
         CHECK ((scope #>> '{generation_key,delivery_config_id}') IS NOT DISTINCT FROM delivery_config_id),
-        CHECK ((scope #>> '{generation_key,account_id}') IS NOT DISTINCT FROM account_id),
+        CHECK ((scope #>> '{generation_key,account_id}') IS NOT DISTINCT FROM account_id
+            AND (scope #>> '{generation_key,consumer_id}') IS NOT DISTINCT FROM consumer_namespace),
         CHECK ((scope #>> '{generation_key,delivery_config_version}')::bigint IS NOT DISTINCT FROM version),
         CHECK (coalesce(scope->>'reporting_obligation_id', '') = obligation_namespace),
         CHECK (snapshot->>'health' IN ('waiting','healthy','delayed','action_required','complete'))
@@ -100,7 +101,8 @@ BEGIN
         CHECK ((snapshot #>> '{cause,fingerprint}') IS NOT DISTINCT FROM fingerprint),
         CHECK ((snapshot #>> '{cause,checkpoint_generation}')::bigint IS NOT DISTINCT FROM cause_generation),
         CHECK ((snapshot #>> '{cause,scope,account_id}') IS NOT DISTINCT FROM account_id),
-        CHECK ((snapshot #>> '{cause,scope,generation_key,account_id}') IS NOT DISTINCT FROM account_id),
+        CHECK ((snapshot #>> '{cause,scope,generation_key,account_id}') IS NOT DISTINCT FROM account_id
+            AND (snapshot #>> '{cause,scope,generation_key,consumer_id}') IS NOT DISTINCT FROM consumer_namespace),
         CHECK (coalesce(snapshot #>> '{cause,scope,consumer_id}', '') = consumer_namespace),
         CHECK ((snapshot #>> '{cause,scope,generation_key,delivery_config_id}') IS NOT DISTINCT FROM delivery_config_id),
         CHECK ((snapshot #>> '{cause,scope,generation_key,delivery_config_version}')::bigint IS NOT DISTINCT FROM version),
@@ -386,7 +388,8 @@ BEGIN
         END IF;
         IF NEW.scope_kind='obligation' THEN
             SELECT * INTO owner FROM reporting_obligations
-                WHERE account_id=NEW.account_id AND reporting_obligation_id=NEW.obligation_namespace;
+                WHERE account_id=NEW.account_id AND consumer_id=NEW.consumer_namespace
+                    AND reporting_obligation_id=NEW.obligation_namespace;
             IF NOT FOUND OR owner.delivery_config_id <> NEW.delivery_config_id
                 OR owner.delivery_config_version <> NEW.version THEN
                 RAISE EXCEPTION 'invalid status scope owner' USING ERRCODE='23514';

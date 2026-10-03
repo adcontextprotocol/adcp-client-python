@@ -29,11 +29,14 @@ from adcp.reporting.ledger.notification_models import (
 )
 
 
-def revision_event(revision: ReportingRevisionRecord, at: datetime) -> ReportingDomainEvent:
+def revision_event(
+    revision: ReportingRevisionRecord, at: datetime, *, consumer_id: str
+) -> ReportingDomainEvent:
     return new_event(
         revision.account_id,
         RevisionPublished(
             revision.reporting_revision_id,
+            consumer_id,
             revision.finality,
             revision.supersedes_reporting_revision_id,
         ),
@@ -41,11 +44,14 @@ def revision_event(revision: ReportingRevisionRecord, at: datetime) -> Reporting
     )
 
 
-def adjustment_event(adjustment: ReportingAdjustmentRecord, at: datetime) -> ReportingDomainEvent:
+def adjustment_event(
+    adjustment: ReportingAdjustmentRecord, at: datetime, *, consumer_id: str
+) -> ReportingDomainEvent:
     return new_event(
         adjustment.account_id,
         AdjustmentPublished(
             adjustment.reporting_adjustment_id,
+            consumer_id,
             adjustment.adjusts_reporting_revision_id,
         ),
         at,

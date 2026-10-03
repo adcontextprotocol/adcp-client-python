@@ -1,5 +1,7 @@
 # Durable reporting status notifications (#1168C)
 
+This caller-ownership release requires all reporting readers, admission and workers to stop during upgrade. Earlier additive or rolling procedures below apply only to pre-ownership releases; use the [maintenance and recovery contract](reporting-caller-ownership-migration.md) for retained state.
+
 Install `adcp[pg]` and mount the optional status lifecycle to publish
 `reporting.status_changed`. `get_reporting_status` remains authoritative. C
 supports Core status; Managed/Reconciled materialization and receipt expiry

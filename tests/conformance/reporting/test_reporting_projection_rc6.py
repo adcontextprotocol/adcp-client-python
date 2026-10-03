@@ -13,6 +13,7 @@ from jsonschema.validators import validator_for
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.feed.errors import ReportingFeedError
 from adcp.reporting.ledger import ProducerOfferings, ReportingProducer, ReportingScheduleSpec
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.types import GetReportingStatusRequest
@@ -101,7 +102,7 @@ async def test_warm_production_proof_cannot_hide_a_changed_protocol_pin(
 async def scheduled(h, *, now=0.5, complete=True):
     h.clock.now = START + timedelta(hours=now)
     h.store._clock = h.clock
-    config = replace(configuration(), deactivated_at=None)
+    config = replace(configuration(consumer_id=CONSUMER), deactivated_at=None)
     await h.store.put_configuration(config)
     producer = ReportingProducer(
         source=UncalledSource(), offerings=ProducerOfferings(), store=h.store
@@ -151,7 +152,9 @@ async def test_complete_forecast_uses_period_start_without_creating_future_work(
         config, obligations = await scheduled(h)
         assert obligations == []
         before = await h.image()
-        captured = await h.store.read_status_snapshot(account_id=config.account_id)
+        captured = await h.store.read_status_snapshot(
+            caller=OwnershipCaller(config.account_id, config.consumer_id)
+        )
         handler = ReportingStatusHandler(h.store)
         caller = ReportingStatusCaller(config.account_id, CONSUMER)
         old = handler.render_snapshot(request(RC3), caller=caller, snapshot=captured)
@@ -359,7 +362,7 @@ async def test_rc6_nearest_captured_generation_and_historical_scope_filters(back
         h.clock.now = START + timedelta(minutes=30)
         h.store._clock = h.clock
         first = replace(
-            configuration(),
+            configuration(consumer_id=CONSUMER),
             delivery_config_id="forecast-first",
             deactivated_at=None,
             schedule=ReportingScheduleSpec("PT2H", "PT1H", "utc", period_anchor=START),
@@ -384,7 +387,9 @@ async def test_rc6_nearest_captured_generation_and_historical_scope_filters(back
             await h.store.put_configuration(config)
             production_operation_2 = await producer.close_elapsed_periods(config, now=h.clock())
             assert production_operation_2 == []
-        captured = await h.store.read_status_snapshot(account_id="acct_a")
+        captured = await h.store.read_status_snapshot(
+            caller=OwnershipCaller("acct_a", "https://buyer.example.test/agent")
+        )
         handler = ReportingStatusHandler(h.store)
         caller = ReportingStatusCaller("acct_a", CONSUMER)
         before = await h.image()
@@ -444,7 +449,7 @@ async def test_rc6_period_start_forecast_retains_civil_dst_and_offset_instants(
         )
         h.store._clock = h.clock
         config = replace(
-            configuration(),
+            configuration(consumer_id=CONSUMER),
             activated_at=start,
             deactivated_at=None,
             account_timezone="America/New_York",
@@ -458,7 +463,9 @@ async def test_rc6_period_start_forecast_retains_civil_dst_and_offset_instants(
         assert production_operation_1 == []
         caller = ReportingStatusCaller(config.account_id, CONSUMER)
         handler = ReportingStatusHandler(h.store)
-        snapshot = await h.store.read_status_snapshot(account_id=config.account_id)
+        snapshot = await h.store.read_status_snapshot(
+            caller=OwnershipCaller(config.account_id, config.consumer_id)
+        )
         result = handler.render_snapshot(request(CURRENT), caller=caller, snapshot=snapshot)
         assert result["next_expected_at"] == following
         assert result["obligation_counts"]["total"] == 0 and result["health"] == "complete"

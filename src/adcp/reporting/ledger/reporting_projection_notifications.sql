@@ -35,7 +35,8 @@ BEGIN
         CHECK ((snapshot #>> '{cause,fingerprint}') IS NOT DISTINCT FROM fingerprint),
         CHECK ((snapshot #>> '{cause,checkpoint_generation}')::bigint IS NOT DISTINCT FROM cause_generation),
         CHECK ((snapshot #>> '{cause,scope,account_id}') IS NOT DISTINCT FROM account_id),
-        CHECK ((snapshot #>> '{cause,scope,generation_key,account_id}') IS NOT DISTINCT FROM account_id),
+        CHECK ((snapshot #>> '{cause,scope,generation_key,account_id}') IS NOT DISTINCT FROM account_id
+            AND (snapshot #>> '{cause,scope,generation_key,consumer_id}') IS NOT DISTINCT FROM consumer_namespace),
         CHECK (coalesce(snapshot #>> '{cause,scope,consumer_id}', '') = consumer_namespace),
         CHECK ((snapshot #>> '{cause,scope,generation_key,delivery_config_id}') IS NOT DISTINCT FROM delivery_config_id),
         CHECK ((snapshot #>> '{cause,scope,generation_key,delivery_config_version}')::bigint IS NOT DISTINCT FROM version),

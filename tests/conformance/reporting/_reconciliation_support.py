@@ -94,7 +94,11 @@ async def scenario(
     destination_ref: str = "destination-generation-1",
 ) -> Scenario:
     feed = "billing" if billing else "analytics"
-    config = replace(configuration(account_id), feed_purpose=feed, required_finality=finality)
+    config = replace(
+        configuration(account_id, consumer_id=consumer_id),
+        feed_purpose=feed,
+        required_finality=finality,
+    )
     await store.put_configuration(config)
     obligation = replace(obligation_for(config), currency="EUR")
     if obligation_id is not None:
@@ -141,7 +145,10 @@ async def scenario(
     )
     if control_total_evidence is not None:
         total_records = control_total_evidence
-    revision_id = revision_id or f"revision-{account_id}"
+    revision_id = (
+        revision_id
+        or f"revision-{account_id}-" + hashlib.sha256(consumer_id.encode()).hexdigest()[:12]
+    )
     digest = ReportingCanonicalDigest(
         value=hashlib.sha256(canonical_json_utf8_v1(rows)).hexdigest(),
         canonicalization_id="rows-v1",

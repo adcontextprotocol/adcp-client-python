@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from adcp.decisioning import (
     AdcpError,
@@ -34,6 +35,7 @@ from adcp.decisioning.platform_router import (
     _protocol_method_names,
 )
 from adcp.decisioning.types import Account
+from adcp.types import GetMediaBuysRequest, GetProductsRequest, UpdateMediaBuyRequest
 
 # ---------------------------------------------------------------------------
 # Test fixtures: minimal child platforms
@@ -619,3 +621,141 @@ def test_account_store_methods_denylist_matches_protocols() -> None:
         f"AccountStore Protocol method drift. Update _ACCOUNT_STORE_METHODS "
         f"in platform_router.py: {sorted(drift)}"
     )
+
+
+class _NestedRouterInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    value: str
+
+
+class _StrictRouterMediaBuys(GetMediaBuysRequest):
+    model_config = ConfigDict(extra="forbid")
+    nested: _NestedRouterInput | None = None
+    marker: str = "valid"
+
+    @field_validator("marker")
+    @classmethod
+    def validate_marker(cls, value: str) -> str:
+        if value != "valid":
+            raise ValueError("invalid marker")
+        return value
+
+
+class _StrictRouterProducts(GetProductsRequest):
+    model_config = ConfigDict(extra="forbid")
+
+
+class _StrictRouterPatch(UpdateMediaBuyRequest):
+    model_config = ConfigDict(extra="forbid")
+
+
+class _StrictRouterChild(_SyncSalesPlatform):
+    def get_media_buys(self, req: _StrictRouterMediaBuys, ctx: RequestContext[Any]) -> Any:
+        self.calls.append(("get_media_buys", req))
+        return {"media_buys": []}
+
+    async def get_products(self, req: _StrictRouterProducts, ctx: RequestContext[Any]) -> Any:
+        self.calls.append(("get_products", req))
+        return {"products": []}
+
+    def update_media_buy(
+        self, media_buy_id: str, patch: _StrictRouterPatch, ctx: RequestContext[Any]
+    ) -> Any:
+        assert media_buy_id == "mb_1"
+        self.calls.append(("update_media_buy", patch))
+        return {"media_buy_id": media_buy_id}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("router_kind", ["eager", "lazy", "registry", "registry_lazy"])
+@pytest.mark.parametrize("calling", ["positional", "keyword"])
+@pytest.mark.parametrize(
+    "method_name,request_type,strict_type,payload",
+    [
+        ("get_media_buys", GetMediaBuysRequest, _StrictRouterMediaBuys, {}),
+        (
+            "get_products",
+            GetProductsRequest,
+            _StrictRouterProducts,
+            {"buying_mode": "brief", "brief": "ads"},
+        ),
+        (
+            "update_media_buy",
+            UpdateMediaBuyRequest,
+            _StrictRouterPatch,
+            {
+                "media_buy_id": "mb_1",
+                "account": {"account_id": "acct_a"},
+                "idempotency_key": "idem_aaaa1234567890",
+            },
+        ),
+    ],
+)
+async def test_router_revalidates_actual_child_annotation(
+    router_kind: str,
+    calling: str,
+    method_name: str,
+    request_type: type[BaseModel],
+    strict_type: type[BaseModel],
+    payload: dict[str, Any],
+) -> None:
+    from adcp.decisioning import LazyPlatformRouter
+    from adcp.server.tenant_registry import TenantRegistry
+
+    accounts = _make_routing_account_store({"acct_a": "tenant-a"})
+    child = _StrictRouterChild("a")
+    caps = _capabilities(["sales-non-guaranteed"])
+    ctx = _make_ctx(Account(id="acct_a", metadata={"tenant_id": "tenant-a"}))
+    registry = TenantRegistry(validator=None)
+    if router_kind == "eager":
+        router = PlatformRouter(accounts=accounts, platforms={"tenant-a": child}, capabilities=caps)
+    elif router_kind == "lazy":
+        router = LazyPlatformRouter(accounts=accounts, factory=lambda _: child, capabilities=caps)
+    else:
+        if router_kind == "registry_lazy":
+
+            async def factory(_tenant_id: str) -> DecisioningPlatform:
+                return child
+
+            await registry.register_lazy(
+                "tenant-a", agent_url="https://a.example.com", factory=factory
+            )
+        else:
+            await registry.register(
+                "tenant-a",
+                agent_url="https://a.example.com",
+                platform=child,
+                await_first_validation=True,
+            )
+        router = registry.as_platform(accounts=accounts, capabilities=caps)
+        ctx.tenant_id = "tenant-a"
+
+    async def call(data: dict[str, Any]) -> Any:
+        req = request_type.model_validate(data)
+        method = getattr(router, method_name)
+        if method_name == "update_media_buy":
+            if calling == "keyword":
+                return await method(media_buy_id="mb_1", patch=req, ctx=ctx)
+            return await method("mb_1", req, ctx)
+        if calling == "keyword":
+            return await method(req=req, ctx=ctx)
+        return await method(req, ctx)
+
+    with pytest.raises(AdcpError) as caught:
+        await call({**payload, "nonsense_field": "bad"})
+    assert caught.value.code == "INVALID_REQUEST"
+    assert caught.value.field == "nonsense_field"
+    assert caught.value.recovery == "correctable"
+    assert child.calls == []
+    if method_name == "get_media_buys":
+        for extra, field in [
+            ({"nested": {"value": "ok", "extra": 1}}, "nested.extra"),
+            ({"marker": "bad"}, "marker"),
+        ]:
+            with pytest.raises(AdcpError) as caught:
+                await call({**payload, **extra})
+            assert caught.value.code == "INVALID_REQUEST"
+            assert caught.value.field == field
+    await call(payload)
+    assert len(child.calls) == 1
+    assert isinstance(child.calls[0][1], strict_type)

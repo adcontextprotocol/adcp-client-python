@@ -6,6 +6,7 @@ from datetime import timedelta
 import pytest
 
 from adcp.reporting.ledger import ReportingDeliveryEscalation
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.status import ReportingStatusCaller, ReportingStatusHandler
 from adcp.reporting.ledger.status_projection import StatusProjectionInput, project_status_scope
 from adcp.reporting.ledger.store import LedgerConflictError
@@ -73,7 +74,7 @@ async def test_whole_summary_and_periods_schema_including_empty_scope(status_har
             "period": {"start": (START - timedelta(days=1)).isoformat(), "end": END.isoformat()}
         }
     handler = ReportingStatusHandler(h.ledger, consumer_status_enabled=True)
-    snapshot = await h.ledger.read_status_snapshot(account_id="acct_a")
+    snapshot = await h.ledger.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
     for view in ("summary", "periods"):
         response = handler.render_snapshot(
             {**request, "view": view}, caller=CALLER, snapshot=snapshot
@@ -113,7 +114,7 @@ async def test_current_unreadable_leaf_cannot_be_masked_by_a_readable_superseded
     )
     await h.ledger.commit_revision(replacement, rows)
     await h.drain()
-    snapshot = await h.ledger.read_status_snapshot(account_id="acct_a")
+    snapshot = await h.ledger.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
     handler = ReportingStatusHandler(h.ledger)
     response = handler.render_snapshot({}, caller=CALLER, snapshot=snapshot)
     validate_read(response)
@@ -158,7 +159,8 @@ async def test_period_feed_media_filters_bind_cursor_and_match_connection_bound_
                 {**request, **change, "pagination": {"cursor": cursor}}, caller=CALLER
             )
     boundary = await h.ledger.open_snapshot(
-        account_id="acct_a", filters_fingerprint="filter-contract"
+        caller=OwnershipCaller("acct_a", "buyer"),
+        filters_fingerprint="filter-contract",
     )
     page = await h.ledger.read_page(
         snapshot=boundary,
@@ -174,7 +176,7 @@ async def test_period_feed_media_filters_bind_cursor_and_match_connection_bound_
     )
     assert {o.delivery_config_id for o in page.obligations} == {"billing"}
     assert {r.reporting_revision_id for r in page.revisions} == {"rpr_acct_a_billing"}
-    snapshot = await h.ledger.read_status_snapshot(account_id="acct_a")
+    snapshot = await h.ledger.read_status_snapshot(caller=OwnershipCaller("acct_a", "buyer"))
     value = StatusProjectionInput(
         snapshot,
         ReportingStatusScope("acct_a"),
