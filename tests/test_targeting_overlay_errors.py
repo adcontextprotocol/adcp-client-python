@@ -249,7 +249,7 @@ def mounted_client() -> Iterator[TestClient]:
             stateless_http=True,
             allowed_hosts=["testserver"],
         )
-        with TestClient(app) as client:
+        with TestClient(app, base_url="http://localhost:3001") as client:
             yield client
 
 

@@ -50,8 +50,8 @@ def test_default_is_stateful() -> None:
     mcp = create_mcp_server(_BareHandler(), name="t", advertise_all=True)
     assert mcp.settings.stateless_http is False
     assert mcp.settings.json_response is True
-    assert mcp._session_manager.session_idle_timeout == 1800.0
-    assert mcp._session_manager.stateless is False
+    assert get_mcp_session_stats(mcp).session_idle_timeout == 1800.0
+    assert get_mcp_session_stats(mcp).stateless is False
     stats = get_mcp_session_stats(mcp)
     assert stats.active_sessions == 0
     assert stats.max_active_sessions is None
@@ -65,8 +65,8 @@ def test_stateless_opt_in_drops_idle_timeout() -> None:
     ``session_idle_timeout``. Verify we suppress before construction."""
     mcp = create_mcp_server(_BareHandler(), name="t", advertise_all=True, stateless_http=True)
     assert mcp.settings.stateless_http is True
-    assert mcp._session_manager.session_idle_timeout is None
-    assert mcp._session_manager.stateless is True
+    assert get_mcp_session_stats(mcp).session_idle_timeout is None
+    assert get_mcp_session_stats(mcp).stateless is True
 
 
 def test_stateful_opt_in_explicit_timeout() -> None:
@@ -77,7 +77,7 @@ def test_stateful_opt_in_explicit_timeout() -> None:
         stateless_http=False,
         session_idle_timeout=600.0,
     )
-    assert mcp._session_manager.session_idle_timeout == 600.0
+    assert get_mcp_session_stats(mcp).session_idle_timeout == 600.0
 
 
 def test_stateful_opt_in_max_active_sessions() -> None:
@@ -88,7 +88,7 @@ def test_stateful_opt_in_max_active_sessions() -> None:
         stateless_http=False,
         max_active_sessions=2,
     )
-    assert mcp._session_manager.max_active_sessions == 2
+    assert get_mcp_session_stats(mcp).max_active_sessions == 2
     assert get_mcp_session_stats(mcp).max_active_sessions == 2
 
 
@@ -113,8 +113,8 @@ def test_stateful_with_disabled_timeout() -> None:
         session_idle_timeout=None,
     )
     # Adopter explicitly opted out of reaping — pass through.
-    assert mcp._session_manager.session_idle_timeout is None
-    assert mcp._session_manager.stateless is False
+    assert get_mcp_session_stats(mcp).session_idle_timeout is None
+    assert get_mcp_session_stats(mcp).stateless is False
 
 
 def test_stateless_suppresses_caller_supplied_timeout() -> None:
@@ -129,7 +129,7 @@ def test_stateless_suppresses_caller_supplied_timeout() -> None:
         stateless_http=True,
         session_idle_timeout=600.0,
     )
-    assert mcp._session_manager.session_idle_timeout is None
+    assert get_mcp_session_stats(mcp).session_idle_timeout is None
 
 
 def test_negative_idle_timeout_rejected_at_boundary() -> None:
