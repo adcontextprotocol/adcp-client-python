@@ -68,7 +68,7 @@ class ReportingStatusSnapshot:
     issue_scopes: tuple[tuple[str, ReportingStatusScope], ...] = ()
     consumer_ids: tuple[str, ...] = ()
     adjustments: tuple[ReportingAdjustmentRecord, ...] = ()
-    # Sequence, record kind, ID, consumer namespace (empty for seller records).
+    # Sequence, record kind, ID, authenticated generation/status owner.
     changes: tuple[tuple[int, str, str, str], ...] = ()
 
     @property
@@ -397,28 +397,18 @@ def projection_scopes(snapshot: ReportingStatusSnapshot) -> tuple[ReportingStatu
     Conservative expansion deliberately includes configurations without a
     consumer statement yet. No opaque issue key is parsed to discover scope.
     """
-    consumers = {
-        None,
-        *snapshot.consumer_ids,
-        *(s.consumer_id for s in snapshot.statuses),
-        *(i.consumer_id for i in snapshot.lifecycles),
-    }
-    scopes: list[ReportingStatusScope] = []
-    for consumer in consumers:
-        for configuration in snapshot.configurations:
-            scopes.append(
-                ReportingStatusScope(
-                    snapshot.account_id,
-                    configuration.generation_key,
-                    consumer_id=consumer,
-                    feed_purpose=cast(
-                        Literal["pacing", "analytics", "billing"], configuration.feed_purpose
-                    ),
-                )
-            )
-        scopes.extend(
-            ReportingStatusScope.for_obligation(o, consumer) for o in snapshot.obligations
+    scopes = [
+        ReportingStatusScope(
+            snapshot.account_id,
+            configuration.generation_key,
+            consumer_id=configuration.consumer_id,
+            feed_purpose=cast(
+                Literal["pacing", "analytics", "billing"], configuration.feed_purpose
+            ),
         )
+        for configuration in snapshot.configurations
+    ]
+    scopes.extend(ReportingStatusScope.for_obligation(o) for o in snapshot.obligations)
     return tuple(sorted(scopes, key=lambda s: s.checkpoint_key))
 
 

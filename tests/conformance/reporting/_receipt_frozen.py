@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 import importlib
+import inspect
 import json
 import sys
 import traceback
@@ -10,6 +11,8 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from importlib.resources import files
 from pathlib import Path
+
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 
 
 async def main(settings):
@@ -71,7 +74,12 @@ async def main(settings):
             assert len(manifest) == 187
             return {"installed": True, "manifest_objects": len(manifest), "origins": origins}
         account, consumer = settings["account"], settings["consumer"]
-        configs = await store.list_configurations(account_id=account)
+        lookup = (
+            {"caller": OwnershipCaller(account, consumer)}
+            if "caller" in inspect.signature(store.list_configurations).parameters
+            else {"account_id": account}
+        )
+        configs = await store.list_configurations(**lookup)
         assert len(configs) == 1
         obligations = await store.get_obligation(
             account_id=account, reporting_obligation_id=settings["obligation"]

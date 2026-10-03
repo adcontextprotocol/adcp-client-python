@@ -58,6 +58,7 @@ class ReportingNotificationError(ValueError):
 @dataclass(frozen=True, slots=True)
 class RevisionPublished(_ClosedValue):
     reporting_revision_id: str
+    consumer_id: str
     finality: ReportingFinality
     supersedes_reporting_revision_id: str | None = None
     kind: Literal["revision_published"] = field(default="revision_published", kw_only=True)
@@ -65,6 +66,7 @@ class RevisionPublished(_ClosedValue):
     def __post_init__(self) -> None:
         _freeze_fields(self)
         reporting_identifier(self.reporting_revision_id, maximum=255)
+        consumer_reference(self.consumer_id)
         if self.supersedes_reporting_revision_id is not None:
             reporting_identifier(self.supersedes_reporting_revision_id, maximum=255)
 
@@ -72,12 +74,14 @@ class RevisionPublished(_ClosedValue):
 @dataclass(frozen=True, slots=True)
 class AdjustmentPublished(_ClosedValue):
     reporting_adjustment_id: str
+    consumer_id: str
     adjusts_reporting_revision_id: str
     kind: Literal["adjustment_published"] = field(default="adjustment_published", kw_only=True)
 
     def __post_init__(self) -> None:
         _freeze_fields(self)
         reporting_identifier(self.reporting_adjustment_id, maximum=255)
+        consumer_reference(self.consumer_id)
         reporting_identifier(self.adjusts_reporting_revision_id, maximum=255)
 
 
@@ -101,6 +105,8 @@ class MaterializationReady(_ClosedValue):
     def __post_init__(self) -> None:
         _freeze_fields(self)
         consumer_reference(self.consumer_id)
+        if self.consumer_id != self.generation_key.consumer_id:
+            raise ReportingNotificationError("invalid_status_scope")
         for value in (
             self.reporting_obligation_id,
             self.reporting_revision_id,
@@ -203,7 +209,7 @@ class ReportingDomainEvent(_ClosedValue):
     def consumer_namespace(self) -> str:
         if isinstance(self.cause, StatusChanged):
             return self.cause.scope.consumer_id or ""
-        return self.cause.consumer_id if isinstance(self.cause, MaterializationReady) else ""
+        return self.cause.consumer_id
 
     @property
     def causal_key(self) -> tuple[str, str, str, str, str, int]:
@@ -295,8 +301,13 @@ class ReportingStatusScope(_ClosedValue):
             consumer_reference(self.consumer_id)
         if self.reporting_obligation_id is not None:
             reporting_identifier(self.reporting_obligation_id, maximum=255)
-        if self.generation_key is not None and self.generation_key.account_id != self.account_id:
-            raise ReportingNotificationError("invalid_status_scope")
+        if self.generation_key is not None:
+            if self.generation_key.account_id != self.account_id or self.consumer_id not in {
+                None,
+                self.generation_key.consumer_id,
+            }:
+                raise ReportingNotificationError("invalid_status_scope")
+            object.__setattr__(self, "consumer_id", self.generation_key.consumer_id)
 
     @property
     def checkpoint_key(self) -> tuple[str, str, str, int, str, str]:
@@ -323,7 +334,7 @@ class ReportingStatusScope(_ClosedValue):
                 "account_id": obligation.account_id,
                 "generation_key": asdict(obligation.generation_key),
                 "reporting_obligation_id": obligation.reporting_obligation_id,
-                "consumer_id": consumer_id,
+                "consumer_id": obligation.consumer_id if consumer_id is None else consumer_id,
                 "feed_purpose": obligation.feed_purpose,
             }
         )

@@ -160,7 +160,7 @@ async def factory_harness(backend, path, *, push=False, existing_pool=None, star
         )
         verifier = reference_verifier(capability)
         key = verifier.key
-        config = configuration()
+        config = configuration(consumer_id="https://buyer.example.test/agent")
         config = replace(
             config,
             activated_at=activated,

@@ -98,6 +98,7 @@ from adcp.reporting.ledger.models import (
     LedgerRecordKind,
     LedgerSnapshot,
     ReportingAdjustmentRecord,
+    ReportingCaller,
     ReportingConfiguration,
     ReportingConfigurationGenerationKey,
     ReportingDefinitionBinding,
@@ -204,7 +205,7 @@ class PgReportingLedgerStore:
         # evidence rather than wherever wall-clock time happens to fall.
         self._clock = clock
         self._notifications_enabled = notifications
-        self._period_close_sample: tuple[int, datetime | None, str, str, int] | None = None
+        self._period_close_sample: tuple[int, datetime | None, str, str, str, int] | None = None
 
     @asynccontextmanager
     async def _connection(self) -> AsyncIterator[Any]:
@@ -281,6 +282,9 @@ class PgReportingLedgerStore:
                 await self._create_schema_on(connection)
 
     async def _create_schema_on(self, connection: Any) -> None:
+        from adcp.reporting.migration import require_owned_schema_or_empty
+
+        await require_owned_schema_or_empty(connection)
         for path in (
             _DDL_PATH,
             _ACCOUNT_GENERATIONS_DDL_PATH,
@@ -289,6 +293,7 @@ class PgReportingLedgerStore:
             _NOTIFICATIONS_DDL_PATH,
             _ACTIVITY_DDL_PATH,
             Path(__file__).with_name("reporting_provisional_observations.sql"),
+            Path(__file__).with_name("reporting_caller_ownership.sql"),
         ):
             await connection.execute(path.read_text())
         await self._require_provisional_schema(connection)
@@ -364,7 +369,11 @@ class PgReportingLedgerStore:
             or existing
             or ReportingStatusScope(issue.account_id, consumer_id=issue.consumer_id)
         )
-        if scope.account_id != issue.account_id or scope.consumer_id != issue.consumer_id:
+        if (
+            scope.account_id != issue.account_id
+            or issue.consumer_id is not None
+            and scope.consumer_id != issue.consumer_id
+        ):
             raise ReportingNotificationError("invalid_status_scope")
         validate_scope_refinement(existing, scope)
         if scope.generation_key is not None:
@@ -372,8 +381,14 @@ class PgReportingLedgerStore:
             configuration = await (
                 await connection.execute(
                     "SELECT feed_purpose FROM reporting_configurations WHERE account_id = %s"
-                    " AND delivery_config_id = %s AND delivery_config_version = %s",
-                    (scope.account_id, key.delivery_config_id, key.delivery_config_version),
+                    " AND consumer_id = %s AND delivery_config_id = %s AND delivery_co"
+                    "nfig_version = %s",
+                    (
+                        scope.account_id,
+                        key.consumer_id,
+                        key.delivery_config_id,
+                        key.delivery_config_version,
+                    ),
                 )
             ).fetchone()
             if configuration is None or (
@@ -385,8 +400,8 @@ class PgReportingLedgerStore:
                 await connection.execute(
                     "SELECT delivery_config_id, delivery_config_version, feed_purpose"
                     " FROM reporting_obligations WHERE account_id = %s"
-                    " AND reporting_obligation_id = %s",
-                    (scope.account_id, scope.reporting_obligation_id),
+                    " AND consumer_id = %s AND reporting_obligation_id = %s",
+                    (scope.account_id, scope.consumer_id, scope.reporting_obligation_id),
                 )
             ).fetchone()
             if (
@@ -438,14 +453,26 @@ class PgReportingLedgerStore:
     # -- change feed ------------------------------------------------------
 
     async def _append_change(
-        self, connection: Any, account_id: str, kind: LedgerRecordKind, record_id: str
+        self,
+        connection: Any,
+        account_id: str,
+        kind: LedgerRecordKind,
+        record_id: str,
+        *,
+        consumer_id: str,
     ) -> None:
         await connection.execute(
             "INSERT INTO reporting_ledger_changes"
-            " (account_id, record_kind, record_id, committed_at)"
-            " VALUES (%s, %s, %s, COALESCE(%s, now()))"
-            " ON CONFLICT (account_id, record_kind, record_id) DO NOTHING",
-            (account_id, kind, record_id, self._clock() if self._clock is not None else None),
+            " (account_id, consumer_id, record_kind, record_id, committed_at)"
+            " VALUES (%s, %s, %s, %s, COALESCE(%s, now()))"
+            " ON CONFLICT (account_id, consumer_id, record_kind, record_id) DO NOTHING",
+            (
+                account_id,
+                consumer_id,
+                kind,
+                record_id,
+                self._clock() if self._clock is not None else None,
+            ),
         )
 
     @staticmethod
@@ -514,10 +541,11 @@ class PgReportingLedgerStore:
                 "  report_definition_id, reporting_profile, feed_purpose, required_finality,"
                 "  account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
                 "  automated_recovery_seconds, status_retention_days, definition,"
-                "  authoritative_party, content_sha256)"
+                "  authoritative_party, content_sha256, consumer_id, quarantined)"
                 " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s,"
-                "         %s::jsonb, %s, %s)"
-                " ON CONFLICT (account_id, delivery_config_id, delivery_config_version) DO NOTHING"
+                "         %s::jsonb, %s, %s, %s, %s)"
+                " ON CONFLICT (account_id, consumer_id, delivery_config_id, delive"
+                "ry_config_version) DO NOTHING"
                 " RETURNING delivery_config_id",
                 (
                     key.delivery_config_id,
@@ -537,6 +565,8 @@ class PgReportingLedgerStore:
                     _json(payload["definition"]) if payload["definition"] else None,
                     configuration.authoritative_party,
                     digest,
+                    configuration.consumer_id,
+                    configuration.quarantined,
                 ),
             )
             inserted = await inserted_cursor.fetchone()
@@ -547,13 +577,22 @@ class PgReportingLedgerStore:
             row = await (
                 await connection.execute(
                     "SELECT content_sha256, activated_at, deactivated_at,"
-                    " automated_recovery_seconds, status_retention_days"
+                    " automated_recovery_seconds, status_retention_days, quarantined"
                     " FROM reporting_configurations"
-                    " WHERE account_id = %s AND delivery_config_id = %s"
+                    " WHERE account_id = %s AND consumer_id = %s AND delivery_config_id = %s"
                     " AND delivery_config_version = %s FOR UPDATE",
-                    (key.account_id, key.delivery_config_id, key.delivery_config_version),
+                    (
+                        key.account_id,
+                        key.consumer_id,
+                        key.delivery_config_id,
+                        key.delivery_config_version,
+                    ),
                 )
             ).fetchone()
+            if row is not None and row[5]:
+                raise LedgerConflictError(
+                    "REPORTING_GENERATION_QUARANTINED", "legacy evidence is read-only"
+                )
             if row is None or row[0] != digest:
                 raise LedgerConflictError(
                     "CONFIGURATION_GENERATION_IMMUTABLE",
@@ -590,7 +629,7 @@ class PgReportingLedgerStore:
             await connection.execute(
                 "UPDATE reporting_configurations SET activated_at = %s, deactivated_at = %s,"
                 " automated_recovery_seconds = %s, status_retention_days = %s"
-                " WHERE account_id = %s AND delivery_config_id = %s"
+                " WHERE account_id = %s AND consumer_id = %s AND delivery_config_id = %s"
                 " AND delivery_config_version = %s",
                 (
                     configuration.activated_at,
@@ -598,6 +637,7 @@ class PgReportingLedgerStore:
                     configuration.automated_recovery_window.total_seconds(),
                     configuration.status_retention_days,
                     key.account_id,
+                    key.consumer_id,
                     key.delivery_config_id,
                     key.delivery_config_version,
                 ),
@@ -612,11 +652,14 @@ class PgReportingLedgerStore:
                 )
 
     async def list_configurations(
-        self, *, account_id: str, delivery_config_ids: Sequence[str] | None = None
+        self, *, caller: ReportingCaller, delivery_config_ids: Sequence[str] | None = None
     ) -> tuple[ReportingConfiguration, ...]:
         async with self._connection() as connection:
             return await self._list_configurations_on(
-                connection, account_id=account_id, delivery_config_ids=delivery_config_ids
+                connection,
+                account_id=caller.account_id,
+                consumer_id=caller.consumer_id,
+                delivery_config_ids=delivery_config_ids,
             )
 
     async def list_all_configurations(self) -> tuple[ReportingConfiguration, ...]:
@@ -628,19 +671,23 @@ class PgReportingLedgerStore:
                     " report_definition_id, reporting_profile, feed_purpose, required_finality,"
                     " account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
                     " automated_recovery_seconds, status_retention_days, definition,"
-                    " authoritative_party"
-                    " FROM reporting_configurations"
-                    " ORDER BY account_id, delivery_config_id, delivery_config_version"
+                    " authoritative_party, consumer_id, quarantined"
+                    " FROM reporting_configurations WHERE NOT quarantined"
+                    " ORDER BY account_id, consumer_id, delivery_config_id, delivery_config_version"
                 )
             ).fetchall()
         return tuple(_configuration_from_row(row) for row in rows)
 
     @staticmethod
     async def _list_configurations_on(
-        connection: Any, *, account_id: str, delivery_config_ids: Sequence[str] | None = None
+        connection: Any,
+        *,
+        account_id: str,
+        consumer_id: str,
+        delivery_config_ids: Sequence[str] | None = None,
     ) -> tuple[ReportingConfiguration, ...]:
         clause = " AND delivery_config_id = ANY(%s)" if delivery_config_ids else ""
-        params: list[Any] = [account_id]
+        params: list[Any] = [account_id, consumer_id]
         if delivery_config_ids:
             params.append(list(delivery_config_ids))
         rows = await (
@@ -649,14 +696,40 @@ class PgReportingLedgerStore:
                 " report_definition_id, reporting_profile, feed_purpose, required_finality,"
                 " account_timezone, schedule, media_buy_ids, activated_at, deactivated_at,"
                 " automated_recovery_seconds, status_retention_days, definition,"
-                " authoritative_party"
+                " authoritative_party, consumer_id, quarantined"
                 " FROM reporting_configurations"
-                f" WHERE account_id = %s{clause}"  # noqa: S608 — clause is a literal
+                f" WHERE account_id = %s AND consumer_id = %s{clause}"  # noqa: S608 — clause is a literal
                 " ORDER BY delivery_config_id, delivery_config_version",
                 tuple(params),
             )
         ).fetchall()
         return tuple(_configuration_from_row(row) for row in rows)
+
+    @staticmethod
+    async def _require_writable_generation(
+        connection: Any, key: ReportingConfigurationGenerationKey
+    ) -> None:
+        row = await (
+            await connection.execute(
+                "SELECT quarantined FROM reporting_configurations WHERE account_id=%s"
+                " AND consumer_id=%s AND delivery_config_id=%s AND delivery_config_version=%s",
+                (
+                    key.account_id,
+                    key.consumer_id,
+                    key.delivery_config_id,
+                    key.delivery_config_version,
+                ),
+            )
+        ).fetchone()
+        if row is None:
+            raise LedgerConflictError(
+                "UNKNOWN_CONFIGURATION_GENERATION", "generation is unavailable"
+            )
+        if row[0]:
+            raise LedgerConflictError(
+                "REPORTING_GENERATION_QUARANTINED",
+                "establish a new owned generation after operator reconciliation",
+            )
 
     # -- obligations ------------------------------------------------------
 
@@ -666,13 +739,15 @@ class PgReportingLedgerStore:
         key = obligation.generation_key
         async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, key.account_id)
+            await self._require_writable_generation(connection, key)
             existing_row = await (
                 await connection.execute(
                     f"SELECT {_OBLIGATION_COLUMNS} FROM reporting_obligations"  # noqa: S608  # nosec B608
-                    " WHERE account_id = %s AND delivery_config_id = %s"
+                    " WHERE account_id = %s AND consumer_id = %s AND delivery_config_id = %s"
                     " AND delivery_config_version = %s AND period_start = %s AND period_end = %s",
                     (
                         key.account_id,
+                        key.consumer_id,
                         key.delivery_config_id,
                         key.delivery_config_version,
                         obligation.period.start,
@@ -692,10 +767,11 @@ class PgReportingLedgerStore:
                         "  feed_purpose, period_key, period_start, period_end, source_timezone,"
                         "  expected_at, scope_resolved_at, automated_recovery_deadline_at,"
                         "  required_finality, coverage_status, media_buy_ids, package_ids,"
-                        "  schedule, definition, created_at, currency)"
+                        "  schedule, definition, created_at, currency, consumer_id)"
                         " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
-                        "         %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s)"
-                        " ON CONFLICT (account_id, delivery_config_id, delivery_config_version,"
+                        "         %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s)"
+                        " ON CONFLICT (account_id, consumer_id, delivery_config_id, delive"
+                        "ry_config_version,"
                         "              period_start, period_end) DO NOTHING"
                         " RETURNING reporting_obligation_id",
                         (
@@ -725,6 +801,7 @@ class PgReportingLedgerStore:
                             ),
                             obligation.created_at,
                             obligation.currency,
+                            obligation.consumer_id,
                         ),
                     )
                 ).fetchone()
@@ -736,6 +813,7 @@ class PgReportingLedgerStore:
                     obligation.account_id,
                     "obligation",
                     obligation.reporting_obligation_id,
+                    consumer_id=obligation.consumer_id,
                 )
                 if self._notifications_enabled:
                     await self._dirty_status(
@@ -750,6 +828,7 @@ class PgReportingLedgerStore:
         # Another worker won the period close; converge on its obligation.
         existing = await self.find_obligation(
             account_id=obligation.account_id,
+            consumer_id=obligation.consumer_id,
             delivery_config_id=obligation.delivery_config_id,
             delivery_config_version=obligation.delivery_config_version,
             period_start=obligation.period.start,
@@ -778,6 +857,7 @@ class PgReportingLedgerStore:
         self,
         *,
         account_id: str,
+        consumer_id: str,
         delivery_config_id: str,
         delivery_config_version: int,
         period_start: datetime,
@@ -785,6 +865,7 @@ class PgReportingLedgerStore:
     ) -> ReportingObligationRecord | None:
         key = ReportingConfigurationGenerationKey(
             account_id=account_id,
+            consumer_id=consumer_id,
             delivery_config_id=delivery_config_id,
             delivery_config_version=delivery_config_version,
         )
@@ -792,10 +873,11 @@ class PgReportingLedgerStore:
             row = await (
                 await connection.execute(
                     f"SELECT {_OBLIGATION_COLUMNS} FROM reporting_obligations"  # noqa: S608  # nosec B608
-                    " WHERE account_id = %s AND delivery_config_id = %s"
+                    " WHERE account_id = %s AND consumer_id = %s AND delivery_config_id = %s"
                     " AND delivery_config_version = %s AND period_start = %s AND period_end = %s",
                     (
                         key.account_id,
+                        key.consumer_id,
                         key.delivery_config_id,
                         key.delivery_config_version,
                         period_start,
@@ -847,6 +929,9 @@ class PgReportingLedgerStore:
                     "OBLIGATION_NOT_FOUND",
                     "a revision must attach to an obligation committed at the period close",
                 )
+            await self._require_writable_generation(
+                connection, _obligation_from_row(obligation).generation_key
+            )
             validate_revision_currency(_obligation_from_row(obligation), revision, rows)
             if revision.supersedes_reporting_revision_id:
                 await self._require_current_leaf(connection, revision)
@@ -910,13 +995,22 @@ class PgReportingLedgerStore:
                     ],
                 )
             await self._append_change(
-                connection, revision.account_id, "revision", revision.reporting_revision_id
+                connection,
+                revision.account_id,
+                "revision",
+                revision.reporting_revision_id,
+                consumer_id=_obligation_from_row(obligation).consumer_id,
             )
             if self._notifications_enabled:
                 from adcp.reporting.ledger.notification_events import revision_event
 
                 await self._record_notification(
-                    connection, revision_event(revision, await self._notification_now(connection))
+                    connection,
+                    revision_event(
+                        revision,
+                        await self._notification_now(connection),
+                        consumer_id=_obligation_from_row(obligation).consumer_id,
+                    ),
                 )
                 await self._dirty_status(
                     connection,
@@ -1309,7 +1403,9 @@ class PgReportingLedgerStore:
             total_count=total,
             has_more=has_more,
             cursor=(
-                encode_cursor({"revision": reporting_revision_id, "offset": offset + limit})
+                encode_cursor(
+                    {"ownership": 2, "revision": reporting_revision_id, "offset": offset + limit}
+                )
                 if has_more
                 else None
             ),
@@ -1404,6 +1500,9 @@ class PgReportingLedgerStore:
                 raise LedgerConflictError(
                     "OBLIGATION_NOT_FOUND", "the adjustment target has no obligation"
                 )
+            await self._require_writable_generation(
+                connection, _obligation_from_row(obligation).generation_key
+            )
             validate_adjustment_currency(_obligation_from_row(obligation), adjustment)
             inserted = await (
                 await connection.execute(
@@ -1443,13 +1542,18 @@ class PgReportingLedgerStore:
                 adjustment.account_id,
                 "adjustment",
                 adjustment.reporting_adjustment_id,
+                consumer_id=_obligation_from_row(obligation).consumer_id,
             )
             if self._notifications_enabled:
                 from adcp.reporting.ledger.notification_events import adjustment_event
 
                 await self._record_notification(
                     connection,
-                    adjustment_event(adjustment, await self._notification_now(connection)),
+                    adjustment_event(
+                        adjustment,
+                        await self._notification_now(connection),
+                        consumer_id=_obligation_from_row(obligation).consumer_id,
+                    ),
                 )
                 await self._dirty_status(
                     connection,
@@ -1581,7 +1685,11 @@ class PgReportingLedgerStore:
             except Exception as error:
                 raise _translate_integrity_error(error) from error
             await self._append_change(
-                connection, status.account_id, "consumer_status", status.reporting_status_id
+                connection,
+                status.account_id,
+                "consumer_status",
+                status.reporting_status_id,
+                consumer_id=status.consumer_id,
             )
             from adcp.reporting.ledger.status_snapshot import settle_snapshot_on
 
@@ -1611,12 +1719,17 @@ class PgReportingLedgerStore:
         """Optional participant: the record and lifecycle share the source transaction."""
         return await self.record_consumer_status(status)
 
-    async def read_status_snapshot(self, *, account_id: str) -> ReportingStatusSnapshot:
+    async def read_status_snapshot(self, *, caller: ReportingCaller) -> ReportingStatusSnapshot:
+        from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
         from adcp.reporting.ledger.status_snapshot import settle_snapshot_on
+        from adcp.reporting.materializer.capture import private_snapshot
 
         async with self._connection() as connection, connection.transaction():
-            await self._lock_account(connection, account_id)
-            return await settle_snapshot_on(self, connection, account_id=account_id)
+            await self._lock_account(connection, caller.account_id)
+            return private_snapshot(
+                await settle_snapshot_on(self, connection, account_id=caller.account_id),
+                ReportingDeliveryPrincipal(caller.account_id, caller.consumer_id),
+            )
 
     @staticmethod
     async def _get_consumer_status(
@@ -1930,14 +2043,17 @@ class PgReportingLedgerStore:
 
     # -- snapshots --------------------------------------------------------
 
-    async def open_snapshot(self, *, account_id: str, filters_fingerprint: str) -> LedgerSnapshot:
+    async def open_snapshot(
+        self, *, caller: ReportingCaller, filters_fingerprint: str
+    ) -> LedgerSnapshot:
+        account_id = caller.account_id
         async with self._connection() as connection:
             row = await (
                 await connection.execute(
                     "SELECT COALESCE(MAX(seq), 0), now() FROM reporting_ledger_changes"
-                    " WHERE account_id = %s AND record_kind IN"
-                    " ('obligation', 'revision', 'adjustment', 'consumer_status')",
-                    (account_id,),
+                    " WHERE account_id=%s AND consumer_id=%s AND record_kind IN"
+                    " ('obligation','revision','adjustment','consumer_status')",
+                    (account_id, caller.consumer_id),
                 )
             ).fetchone()
         assert row is not None
@@ -1945,8 +2061,11 @@ class PgReportingLedgerStore:
         as_of = _utc(self._clock()) if self._clock is not None else _utc(row[1])
         return LedgerSnapshot(
             snapshot_id="rpls_"
-            + _fingerprint([account_id, filters_fingerprint, max_sequence])[:32],
+            + _fingerprint([account_id, caller.consumer_id, filters_fingerprint, max_sequence])[
+                :32
+            ],
             account_id=account_id,
+            consumer_id=caller.consumer_id,
             ledger_as_of=as_of,
             max_sequence=max_sequence,
         )
@@ -1965,14 +2084,19 @@ class PgReportingLedgerStore:
         period_start: datetime | None = None,
         period_end: datetime | None = None,
     ) -> LedgerPage:
+        if consumer_id not in {None, snapshot.consumer_id}:
+            raise LedgerConflictError(
+                "CURSOR_SNAPSHOT_MISMATCH", "snapshot belongs to another caller"
+            )
+        consumer_id = snapshot.consumer_id
         lower = changes_after_sequence or 0
         async with self._connection() as connection:
             rows = await (
                 await connection.execute(
                     "SELECT seq, record_kind, record_id FROM reporting_ledger_changes"
-                    " WHERE account_id = %s AND seq > %s AND seq <= %s"
+                    " WHERE account_id = %s AND consumer_id=%s AND seq > %s AND seq <= %s"
                     " ORDER BY seq",
-                    (snapshot.account_id, lower, snapshot.max_sequence),
+                    (snapshot.account_id, consumer_id, lower, snapshot.max_sequence),
                 )
             ).fetchall()
 
@@ -2061,13 +2185,16 @@ class PgReportingLedgerStore:
             start, end = record.period_start, record.period_end
         else:
             owner = await self._obligation_for(connection, kind, record)
-            if owner is None:
+            if owner is None or owner.consumer_id != consumer_id:
                 return False
             start, end = owner.period.start, owner.period.end
             if media_buy_ids and not set(media_buy_ids).intersection(owner.media_buy_ids):
                 return False
         configurations = await self._list_configurations_on(
-            connection, account_id=record.account_id, delivery_config_ids=[owner.delivery_config_id]
+            connection,
+            account_id=record.account_id,
+            consumer_id=owner.consumer_id,
+            delivery_config_ids=[owner.delivery_config_id],
         )
         configuration = next(
             (c for c in configurations if c.generation_key == owner.generation_key), None
@@ -2103,7 +2230,7 @@ class PgReportingLedgerStore:
     # -- leasing ----------------------------------------------------------
 
     async def _period_close_generations_on(
-        self, connection: Any, identity: tuple[str, str, int]
+        self, connection: Any, identity: tuple[str, str, str, int]
     ) -> list[tuple[str, str, int]]:
         # A base-tier store may share a schema installed by another participant.
         # Probe on this transaction without caching schema presence or validating
@@ -2119,7 +2246,7 @@ class PgReportingLedgerStore:
             await connection.execute(
                 "SELECT consumer_id,reporting_obligation_id,generation"
                 " FROM reporting_materializer_candidates WHERE account_id=%s"
-                " AND delivery_config_id=%s AND delivery_config_version=%s",
+                " AND consumer_id=%s AND delivery_config_id=%s AND delivery_config_version=%s",
                 identity,
             )
         ).fetchall()
@@ -2128,7 +2255,7 @@ class PgReportingLedgerStore:
     async def _restore_period_close_generations_on(
         self,
         connection: Any,
-        identity: tuple[str, str, int],
+        identity: tuple[str, str, str, int],
         snapshot: list[tuple[str, str, int]],
     ) -> None:
         # These SDK writes change only lease fields. All supported source writers
@@ -2143,7 +2270,7 @@ class PgReportingLedgerStore:
             "UPDATE reporting_materializer_candidates c SET generation=s.generation"
             " FROM unnest(%s::text[],%s::text[],%s::bigint[])"
             " AS s(consumer_id,reporting_obligation_id,generation)"
-            " WHERE c.account_id=%s AND c.delivery_config_id=%s"
+            " WHERE c.account_id=%s AND c.consumer_id=%s AND c.delivery_config_id=%s"
             " AND c.delivery_config_version=%s AND c.consumer_id=s.consumer_id"
             " AND c.reporting_obligation_id=s.reporting_obligation_id"
             " AND c.generation=s.generation+1",
@@ -2182,22 +2309,28 @@ class PgReportingLedgerStore:
                     continuation = (
                         " AND (COALESCE(t.lease_turn,0),"
                         " COALESCE(c.lease_expires_at,'-infinity'::timestamptz),"
-                        " c.account_id,c.delivery_config_id,c.delivery_config_version)"
-                        " > (%s,COALESCE(%s::timestamptz,'-infinity'::timestamptz),%s,%s,%s)"
+                        " c.account_id,c.consumer_id,c.delivery_config_id,c.delivery_confi"
+                        "g_version)"
+                        " > (%s,COALESCE(%s::timestamptz,'-infinity'::timestamptz),%s,%s,%s,%s)"
                         if after is not None
                         else ""
                     )
                     query = (
-                        "SELECT c.account_id,c.delivery_config_id,c.delivery_config_version,"  # nosec B608
+                        "SELECT c.account_id,c.consumer_id,c.delivery_config_id,c.delivery"
+                        "_config_version,"  # nosec B608
                         " COALESCE(t.lease_turn,0),c.lease_expires_at FROM"
                         " reporting_configurations c"
                         " LEFT JOIN adcp_reporting_configuration_lease_turns t"
-                        " ON (t.account_id,t.delivery_config_id,t.delivery_config_version)"
-                        " = (c.account_id,c.delivery_config_id,c.delivery_config_version)"
-                        " WHERE (c.lease_expires_at IS NULL OR c.lease_expires_at<=%s)"
+                        " ON (t.account_id,t.consumer_id,t.delivery_config_id,t.delivery_c"
+                        "onfig_version)"
+                        " = (c.account_id,c.consumer_id,c.delivery_config_id,c.delivery_co"
+                        "nfig_version)"
+                        " WHERE NOT c.quarantined AND (c.lease_expires_at IS NULL OR c.lea"
+                        "se_expires_at<=%s)"
                         + continuation
                         + " ORDER BY COALESCE(t.lease_turn,0),c.lease_expires_at NULLS FIRST,"
-                        " c.account_id,c.delivery_config_id,c.delivery_config_version LIMIT 32"
+                        " c.account_id,c.consumer_id,c.delivery_config_id,c.delivery_confi"
+                        "g_version LIMIT 32"
                     )
                     rows = await (
                         await connection.execute(query, (moment, *(after or ())))
@@ -2206,8 +2339,8 @@ class PgReportingLedgerStore:
                         break
                     after = None
                 for candidate in rows:
-                    row = candidate[:3]
-                    following = (candidate[3], candidate[4], row[0], row[1], row[2])
+                    row = candidate[:4]
+                    following = (candidate[4], candidate[5], *row)
                     locked = await (
                         await connection.execute(
                             "SELECT pg_try_advisory_xact_lock(hashtext('adcp.reporting:' || %s))",
@@ -2255,11 +2388,15 @@ class PgReportingLedgerStore:
                         await connection.execute(
                             "UPDATE reporting_configurations SET lease_worker_id = %s,"
                             " lease_expires_at = %s"
-                            " WHERE (account_id,delivery_config_id,delivery_config_version) = ("
-                            " SELECT c.account_id,c.delivery_config_id,c.delivery_config_version"
+                            " WHERE (account_id,consumer_id,delivery_config_id,delivery_config"
+                            "_version) = ("
+                            " SELECT c.account_id,c.consumer_id,c.delivery_config_id,c.deliver"
+                            "y_config_version"
                             " FROM reporting_configurations c WHERE c.account_id=%s"
-                            " AND c.delivery_config_id=%s AND c.delivery_config_version=%s"
-                            " AND (c.lease_expires_at IS NULL OR c.lease_expires_at<=%s)"
+                            " AND c.consumer_id=%s AND c.delivery_config_id=%s AND c.delivery_"
+                            "config_version=%s"
+                            " AND NOT c.quarantined AND (c.lease_expires_at IS NULL OR c.lease"
+                            "_expires_at<=%s)"
                             " FOR UPDATE OF c SKIP LOCKED) RETURNING account_id",
                             (worker_id, expires, *row, moment),
                         )
@@ -2271,14 +2408,17 @@ class PgReportingLedgerStore:
                     )
                     await connection.execute(
                         "INSERT INTO adcp_reporting_configuration_lease_turns"
-                        " (account_id,delivery_config_id,delivery_config_version,lease_turn)"
-                        " VALUES(%s,%s,%s,nextval('adcp_reporting_configuration_lease_turn_seq'))"
-                        " ON CONFLICT(account_id,delivery_config_id,delivery_config_version)"
+                        " (account_id,consumer_id,delivery_config_id,delivery_config_versi"
+                        "on,lease_turn)"
+                        " VALUES(%s,%s,%s,%s,nextval('adcp_reporting_configuration_lease_t"
+                        "urn_seq'))"
+                        " ON CONFLICT(account_id,consumer_id,delivery_config_id,delivery_c"
+                        "onfig_version)"
                         " DO UPDATE SET"
                         " lease_turn=nextval('adcp_reporting_configuration_lease_turn_seq')",
                         tuple(row),
                     )
-                    result = LeasedConfiguration(row[0], row[1], row[2], expires)
+                    result = LeasedConfiguration(row[0], row[1], row[2], row[3], expires)
                     break
         # Only sampling uses this hint: leases and fairness ranks stay transactional.
         # Continue past a busy prefix on the next turn; a successful turn returns to
@@ -2288,7 +2428,12 @@ class PgReportingLedgerStore:
 
     async def release_period_close(self, lease: LeasedConfiguration, *, worker_id: str) -> None:
         key = lease.generation_key
-        identity = (key.account_id, key.delivery_config_id, key.delivery_config_version)
+        identity = (
+            key.account_id,
+            key.consumer_id,
+            key.delivery_config_id,
+            key.delivery_config_version,
+        )
         async with self._connection() as connection, connection.transaction():
             await self._lock_account(connection, key.account_id)
             snapshot = await self._period_close_generations_on(connection, identity)
@@ -2296,7 +2441,7 @@ class PgReportingLedgerStore:
                 await connection.execute(
                     "UPDATE reporting_configurations SET lease_worker_id = NULL,"
                     " lease_expires_at = NULL"
-                    " WHERE account_id = %s AND delivery_config_id = %s"
+                    " WHERE account_id = %s AND consumer_id = %s AND delivery_config_id = %s"
                     " AND delivery_config_version = %s AND lease_worker_id = %s"
                     " AND lease_expires_at = %s RETURNING account_id",
                     (*identity, worker_id, lease.lease_expires_at),
@@ -2358,7 +2503,7 @@ _OBLIGATION_COLUMNS = (
     " report_definition_id, reporting_profile, feed_purpose, period_key, period_start,"
     " period_end, source_timezone, expected_at, scope_resolved_at,"
     " automated_recovery_deadline_at, required_finality, coverage_status, media_buy_ids,"
-    " package_ids, schedule, definition, created_at, currency"
+    " package_ids, schedule, definition, created_at, currency, consumer_id"
 )
 
 _REVISION_COLUMNS = (
@@ -2527,6 +2672,8 @@ def _configuration_from_row(row: Sequence[Any]) -> ReportingConfiguration:
         status_retention_days=row[13],
         definition=_definition_from_payload(row[14]),
         authoritative_party=row[15],
+        consumer_id=row[16],
+        quarantined=row[17],
     )
 
 
@@ -2556,6 +2703,7 @@ def _obligation_from_row(row: Sequence[Any]) -> ReportingObligationRecord:
         definition=_definition_from_payload(row[19]),
         created_at=_utc(row[20]),
         currency=row[21],
+        consumer_id=row[22],
     )
 
 

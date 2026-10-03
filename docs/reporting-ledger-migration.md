@@ -1,8 +1,11 @@
 # Reporting ledger migrations
 
-The fix for [#1169](https://github.com/adcontextprotocol/adcp-client-python/issues/1169)
+
+The caller-ownership release requires a stopped-worker maintenance upgrade. Follow [the caller-ownership migration contract](reporting-caller-ownership-migration.md) before applying these earlier migrations. Mixed-version reporting workers are unsupported for this upgrade.
+
+The fix for [#1291](https://github.com/adcontextprotocol/adcp-client-python/issues/1291)
 changes a reporting configuration generation's identity to
-`(account_id, delivery_config_id, delivery_config_version)`. Two accounts can
+`(account_id, consumer_id, delivery_config_id, delivery_config_version)`. Two callers can
 each accept `daily@1`, with different immutable contents, in one ledger.
 
 Use the frozen, hashable public value for maps and joins:
@@ -12,6 +15,7 @@ from adcp.reporting.ledger import ReportingConfigurationGenerationKey
 
 key = ReportingConfigurationGenerationKey(
     account_id="account-a",
+    consumer_id="buyer-a",
     delivery_config_id="daily",
     delivery_config_version=1,
 )
@@ -21,14 +25,15 @@ generations[key] = configuration
 `ReportingConfiguration.generation_key` now returns this value. Code that
 unpacked or indexed the beta.15 two-tuple must use the named attributes instead.
 `ReportingObligationRecord`, `ConsumerStatusRecord`, and `LeasedConfiguration`
-also expose `generation_key`. The existing constructors and store method
-arguments, including `find_obligation` and the lease/release calls, remain
-compatible. Consumer-status chain tuples, retained hashes, and derived
-obligation/issue identifiers keep their existing serialization.
+also expose `generation_key`. This release requires caller identity in constructors and lookup APIs. Old
+constructors and account-only lookups are unsupported. Retained evidence stays
+unchanged in the stopped-worker archive; new generation identifiers and canonical
+bindings include caller ownership. Follow the maintenance contract above before
+restarting any reporting process.
 
 The worker lease API still selects work across the store's accounts. Resolve
 work using the returned lease's account and generation. Releases match its
-account, config ID, version, worker ID, and expiry; a release of an expired
+account, caller, config ID, version, worker ID, and expiry; a release of an expired
 handle cannot clear a newer lease held under the same worker ID. Callers must
 retain the returned expiry when persisting or reconstructing a lease handle.
 Passing a configuration from a different account or generation to
@@ -41,7 +46,14 @@ reuses an ID for a different logical period now raises
 account's obligation in memory. When filtering consumer statements by
 obligation IDs, the named obligations must exist in the requested account.
 
-## Upgrading PostgreSQL from 8.0.0-beta.15
+## Historical account-generation upgrade
+
+The following notes describe the pre-ownership SDK release and are retained for
+operators auditing earlier upgrade steps. They are not the upgrade procedure for
+this release: startup now refuses legacy storage, including beta.15. Use the
+[maintenance archive and authoritative backfill](reporting-caller-ownership-migration.md).
+
+### PostgreSQL from 8.0.0-beta.15
 
 1. Stop and drain all older reporting workers and configuration writers that
    use this ledger. Keep them stopped throughout the upgrade. Older code

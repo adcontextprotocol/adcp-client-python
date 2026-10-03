@@ -129,18 +129,54 @@ def private_snapshot(
     snapshot: ReportingStatusSnapshot, caller: ReportingDeliveryPrincipal
 ) -> ReportingStatusSnapshot:
     """Internal boundaries also exclude other consumers' private statements."""
-    statuses = tuple(s for s in snapshot.statuses if s.consumer_id == caller.consumer_id)
-    status_ids = {s.reporting_status_id for s in statuses}
-    issues = tuple(i for i in snapshot.lifecycles if i.consumer_id in {None, caller.consumer_id})
+    if snapshot.account_id != caller.account_id:
+        raise ReportingNotificationError("private_snapshot_unavailable")
+    configurations = tuple(
+        c for c in snapshot.configurations if c.consumer_id == caller.consumer_id
+    )
+    keys = {c.generation_key for c in configurations}
+    obligations = tuple(o for o in snapshot.obligations if o.generation_key in keys)
+    obligation_ids = {o.reporting_obligation_id for o in obligations}
+    revisions = tuple(r for r in snapshot.revisions if r.reporting_obligation_id in obligation_ids)
+    revision_ids = {r.reporting_revision_id for r in revisions}
+    adjustments = tuple(
+        a for a in snapshot.adjustments if a.adjusts_reporting_revision_id in revision_ids
+    )
+    statuses = tuple(
+        s
+        for s in snapshot.statuses
+        if s.consumer_id == caller.consumer_id and s.generation_key in keys
+    )
+    issue_scopes = dict(snapshot.issue_scopes)
+    issues = tuple(
+        i
+        for i in snapshot.lifecycles
+        if i.consumer_id == caller.consumer_id
+        or (
+            i.consumer_id is None
+            and i.issue_id in issue_scopes
+            and issue_scopes[i.issue_id].generation_key in keys
+        )
+    )
     issue_ids = {i.issue_id for i in issues}
+    visible_ids = (
+        obligation_ids
+        | revision_ids
+        | {a.reporting_adjustment_id for a in adjustments}
+        | {s.reporting_status_id for s in statuses}
+    )
     return replace(
         snapshot,
+        configurations=configurations,
+        obligations=obligations,
+        revisions=revisions,
+        adjustments=adjustments,
         statuses=statuses,
         lifecycles=issues,
         consumer_ids=(caller.consumer_id,),
         issue_scopes=tuple((i, scope) for i, scope in snapshot.issue_scopes if i in issue_ids),
         changes=tuple(
-            c for c in snapshot.changes if c[1] != "consumer_status" or c[2] in status_ids
+            c for c in snapshot.changes if c[3] == caller.consumer_id and c[2] in visible_ids
         ),
     )
 

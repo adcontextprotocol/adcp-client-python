@@ -452,6 +452,19 @@ class AdagentsValidationError(ADCPError):
     """Base error for adagents.json validation issues."""
 
 
+class AdagentsHTTPError(AdagentsValidationError):
+    """An unsuccessful adagents.json HTTP response with status and source URL.
+
+    Existing specialized errors for 404, timeout and Cloudflare challenges keep
+    their meanings. Plain 403 and other terminal statuses use this error.
+    """
+
+    def __init__(self, status_code: int, url: str) -> None:
+        self.status_code = status_code
+        self.url = url
+        super().__init__(f"Failed to fetch adagents.json: HTTP {status_code} ({url})")
+
+
 class AdagentsNotFoundError(AdagentsValidationError):
     """adagents.json file not found (404)."""
 

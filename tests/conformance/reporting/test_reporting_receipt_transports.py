@@ -44,10 +44,18 @@ async def test_actual_mounts_reauthorize_exact_replay_and_bypass_both_generic_ca
         assert replay == first
         assert "replayed" not in replay
         _, sibling = await mount.mcp(client, request, token="token-two")
-        assert [r["result"] for r in sibling["results"]] == ["recorded", "recorded"]
+        assert [r["result"] for r in sibling["results"]] == ["failed", "failed"]
+        assert all(
+            r["errors"][0]["code"] == "REPORTING_RECORD_UNAVAILABLE" for r in sibling["results"]
+        )
+        assert not await h.store.get_receipt(two.receipt.key)
+        _, sibling = await mount.mcp(
+            client, request_for(two, key="own-sibling-key-0001"), token="token-two"
+        )
+        assert sibling["results"][0]["result"] == "recorded"
         assert await h.store.get_receipt(one.receipt.key)
         assert await h.store.get_receipt(two.receipt.key)
-        assert len(mount.auth_calls) == 3
+        assert len(mount.auth_calls) == 4
         if hydrated:
             assert len({c.caller_identity for c in mount.contexts}) == 1
         mount.grants.remove((one.obligation.account_id, one.binding.consumer_id))
@@ -56,7 +64,7 @@ async def test_actual_mounts_reauthorize_exact_replay_and_bypass_both_generic_ca
             _, denied = await call(client, request)
             assert error_code(denied) == "UNAUTHORIZED"
         assert await h.image() == before
-        assert len(mount.auth_calls) == 5
+        assert len(mount.auth_calls) == 6
         del mount.tokens["token-one"]
         for call in (mount.mcp, mount.a2a):
             code, _ = await call(client, request)

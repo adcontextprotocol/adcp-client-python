@@ -295,8 +295,8 @@ BEGIN
         WHERE (v.account_id,v.reporting_obligation_id,v.reporting_revision_id)
             = (NEW.account_id,NEW.reporting_obligation_id,NEW.reporting_revision_id);
         SELECT * INTO obligation FROM reporting_obligations o
-        WHERE (o.account_id,o.reporting_obligation_id,o.delivery_config_id,o.delivery_config_version)
-            = (NEW.account_id,NEW.reporting_obligation_id,NEW.delivery_config_id,NEW.delivery_config_version);
+        WHERE (o.account_id,o.consumer_id,o.reporting_obligation_id,o.delivery_config_id,o.delivery_config_version)
+            = (NEW.account_id,NEW.consumer_id,NEW.reporting_obligation_id,NEW.delivery_config_id,NEW.delivery_config_version);
         IF revision.reporting_revision_id IS NULL OR obligation.reporting_obligation_id IS NULL THEN
             RAISE EXCEPTION 'receipt target is unavailable' USING ERRCODE = '23514';
         END IF;

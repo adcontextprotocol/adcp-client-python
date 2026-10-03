@@ -26,7 +26,7 @@ BEGIN
                 cause_kind, cause_id, cause_generation),
         CHECK ((notification_type = 'reporting.delivery_ready') =
                (cause_kind = 'materialization_ready')),
-        CHECK ((cause_kind = 'materialization_ready') = (length(consumer_namespace) > 0)),
+        CHECK (length(consumer_namespace) > 0),
         CHECK (snapshot->>'account_id' = account_id AND
                snapshot->>'notification_id' = notification_id)
     );
