@@ -1027,6 +1027,11 @@ async def fetch_adagents_with_cache(
     ``body`` is returned with ``not_modified=True``, satisfying the
     7-day cache window described in adcp#4504.
 
+    Cached bodies undergo the same document and renderer checks as a fresh
+    response, including the current ``validate_structure`` policy. Switching
+    from an opt-out fetch to a strict refresh therefore validates the cached
+    document before returning it; a successful refresh preserves body identity.
+
     The first hop (``/.well-known/adagents.json``) is capped at 5 MiB;
     a dereferenced ``authoritative_location`` file is capped at 20 MiB.
     Both caps fail closed — oversized responses raise
@@ -1409,6 +1414,9 @@ def _parse_adagents_response(
             raise AdagentsValidationError(
                 "Received 304 Not Modified without a cache entry to serve"
             )
+        _validate_adagents_response_data(
+            cache_entry.body, url, validate_structure=validate_structure
+        )
         return (
             cache_entry.body,
             _safe_validator(response_headers.get("etag")) or cache_entry.etag,
@@ -1437,6 +1445,18 @@ def _parse_adagents_response(
         # into caller logs by sending a large unparsable body.
         raise AdagentsValidationError(f"Invalid JSON in adagents.json: {str(e)[:200]}") from e
 
+    _validate_adagents_response_data(data, url, validate_structure=validate_structure)
+
+    return (
+        data,
+        _safe_validator(response_headers.get("etag")),
+        _safe_validator(response_headers.get("last-modified")),
+        False,
+    )
+
+
+def _validate_adagents_response_data(data: Any, url: str, *, validate_structure: bool) -> None:
+    """Apply the same document checks to fresh and conditionally cached data."""
     if not isinstance(data, dict):
         raise AdagentsValidationError("adagents.json must be a JSON object")
 
@@ -1459,13 +1479,6 @@ def _parse_adagents_response(
         raise AdagentsValidationError(
             "adagents.json must have either 'authorized_agents' or 'authoritative_location'"
         )
-
-    return (
-        data,
-        _safe_validator(response_headers.get("etag")),
-        _safe_validator(response_headers.get("last-modified")),
-        False,
-    )
 
 
 # Cache validators (ETag / Last-Modified) are replayed on the next fetch, so
