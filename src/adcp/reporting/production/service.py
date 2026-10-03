@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from adcp.reporting._source_authorization import source_turn
 from adcp.reporting.ledger.delivery_models import ReportingDestinationBinding
-from adcp.reporting.ledger.models import ReportingConfiguration
+from adcp.reporting.ledger.models import ReportingConfiguration, ReportingDeliveryEscalation
 from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.materializer.contracts import (
     ReportingDestinationResolver,
@@ -149,7 +149,7 @@ class ReportingProductionSupport:
     """Compose, mount, start, then activate accounts after draining old workers.
 
     The owned worker performs indexed producer/materializer/projector turns.
-    Stopping it withdraws production claims and prevents fresh admission. An
+    Stopping it prevents fresh admission while registered discovery remains stable. An
     optional HTTP notification worker is independent of polling readiness;
     enabled logical enqueue is always part of the materializer transaction.
 
@@ -249,6 +249,38 @@ class ReportingProductionSupport:
         self._methods = self._handler_methods()
         self.store._production_support = weakref.ref(self)
         self._assert_components(running=False, mounted=False)
+        from adcp.reporting.production._declaration import declared_reporting_delivery
+        from adcp.reporting.production.notifications import signing_capabilities, signing_identity
+
+        writer = self.materializer.writer
+        assert isinstance(writer, ReportingProductionDestination)
+        declaration: dict[str, Any] = {
+            "reporting_delivery": declared_reporting_delivery(
+                offerings=[o.wire() for o in self.offerings],
+                destination=writer,
+                durable=not isinstance(self.store, InMemoryReportingProductionStore),
+                escalation=self.projection.escalation or ReportingDeliveryEscalation(),
+                consumer_status_enabled=self.projection.consumer_status_enabled,
+                automated_recovery_window=self.automated_recovery_window,
+                status_retention_days=self.status_retention_days,
+                notifications=bool(self.notification_workers),
+            )
+        }
+        if self.notification_workers and declaration["reporting_delivery"]:
+            declaration["webhook_signing"] = signing_capabilities(self)
+            declaration["identity"] = signing_identity(self)
+        self._declaration = json.dumps(declaration)
+
+    def _declared_capabilities(self) -> dict[str, Any]:
+        """Detached promises captured when the concrete graph was registered."""
+        # Worker state does not change registered promises. A changed protocol
+        # pin invalidates the declaration itself, even with a warm schema proof.
+        if (
+            self.handler._adcp_version != self._protocol_version
+            or self.handler.get_adcp_version() != self._protocol_version
+        ):
+            return {"reporting_delivery": {}}
+        return dict(json.loads(self._declaration))
 
     @property
     def keys(self) -> tuple[ReportingVerificationKey, ...]:

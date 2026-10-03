@@ -89,7 +89,10 @@ async def test_full_method_controls_admission_acquisition_and_raw_discovery(
                             client, "get_adcp_capabilities", {}, transport=transport
                         )
                         assert caps.get("status") == "completed", caps
-                        assert "reporting_delivery" not in caps.get("media_buy", {}), caps
+                        claims = caps.get("media_buy", {}).get("reporting_delivery", {})
+                        assert bool(claims.get("managed_delivery")) == (backend == "postgres")
+                        if claims:
+                            assert claims["offerings"] == [o.wire() for o in support.offerings]
                         assert "different-provider" not in json.dumps(caps)
                         _, status = await mounted.call(
                             client,
