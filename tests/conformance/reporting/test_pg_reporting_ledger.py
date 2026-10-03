@@ -30,6 +30,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
+
 psycopg = pytest.importorskip("psycopg")
 psycopg_pool = pytest.importorskip("psycopg_pool")
 
@@ -151,6 +153,7 @@ def _configuration(**overrides) -> ReportingConfiguration:
         delivery_config_id="daily_reporting",
         delivery_config_version=1,
         account_id=ACCOUNT,
+        consumer_id="buyer_pg",
         report_definition_id="daily_delivery_v1",
         reporting_profile="paid_media_delivery",
         feed_purpose="analytics",
@@ -179,6 +182,7 @@ def _obligation(configuration: ReportingConfiguration, ordinal: int = 0, **overr
     defaults = dict(
         reporting_obligation_id=f"rpo_pg_{ordinal}",
         account_id=configuration.account_id,
+        consumer_id=configuration.consumer_id,
         delivery_config_id=configuration.delivery_config_id,
         delivery_config_version=configuration.delivery_config_version,
         report_definition_id=configuration.report_definition_id,
@@ -238,7 +242,7 @@ async def test_create_schema_is_idempotent(store: PgReportingLedgerStore) -> Non
 async def test_configuration_round_trips(store: PgReportingLedgerStore) -> None:
     configuration = _configuration()
     await store.put_configuration(configuration)
-    loaded = await store.list_configurations(account_id=ACCOUNT)
+    loaded = await store.list_configurations(caller=OwnershipCaller(ACCOUNT, "buyer_pg"))
     assert len(loaded) == 1
     assert loaded[0].schedule.period_duration == "PT1H"
     assert loaded[0].media_buy_ids == ("mb_1",)
@@ -516,7 +520,9 @@ async def test_the_change_feed_orders_every_record_kind(store: PgReportingLedger
             created_at=obligation.period.end,
         )
     )
-    snapshot = await store.open_snapshot(account_id=ACCOUNT, filters_fingerprint="x")
+    snapshot = await store.open_snapshot(
+        caller=OwnershipCaller(ACCOUNT, "buyer_pg"), filters_fingerprint="x"
+    )
     page = await store.read_page(
         snapshot=snapshot,
         consumer_id=None,
@@ -533,11 +539,15 @@ async def test_the_change_feed_orders_every_record_kind(store: PgReportingLedger
 async def test_changes_after_returns_only_later_records(store: PgReportingLedgerStore) -> None:
     await store.put_configuration(_configuration())
     obligation = await store.commit_obligation(_obligation(_configuration()))
-    first = await store.open_snapshot(account_id=ACCOUNT, filters_fingerprint="x")
+    first = await store.open_snapshot(
+        caller=OwnershipCaller(ACCOUNT, "buyer_pg"), filters_fingerprint="x"
+    )
 
     revision, rows = _revision(obligation)
     await store.commit_revision(revision, rows)
-    later = await store.open_snapshot(account_id=ACCOUNT, filters_fingerprint="x")
+    later = await store.open_snapshot(
+        caller=OwnershipCaller(ACCOUNT, "buyer_pg"), filters_fingerprint="x"
+    )
     page = await store.read_page(
         snapshot=later,
         consumer_id=None,
@@ -556,7 +566,9 @@ async def test_changes_after_returns_only_later_records(store: PgReportingLedger
 async def test_the_feed_is_account_isolated(store: PgReportingLedgerStore) -> None:
     await store.put_configuration(_configuration())
     await store.commit_obligation(_obligation(_configuration()))
-    snapshot = await store.open_snapshot(account_id="other_account", filters_fingerprint="x")
+    snapshot = await store.open_snapshot(
+        caller=OwnershipCaller("other_account", "buyer_pg"), filters_fingerprint="x"
+    )
     page = await store.read_page(
         snapshot=snapshot,
         consumer_id=None,
@@ -789,8 +801,7 @@ async def test_a_conflicting_statement_degrades_only_its_own_caller(
         {"view": "periods"},
         caller=ReportingStatusCaller(account_id=ACCOUNT, consumer_id="another_buyer"),
     )
-    assert theirs["periods"][0]["health"] == "complete"
-    assert theirs["periods"][0]["issues"] == []
+    assert theirs["periods"] == []
     assert theirs["consumer_statuses"] == []
 
 
@@ -825,7 +836,7 @@ async def test_an_rc2_era_row_replays_as_unchanged_after_the_upgrade(
     record = ConsumerStatusRecord(
         reporting_status_id=f"status_{secrets.token_hex(8)}",
         account_id=account,
-        consumer_id="buyer_1",
+        consumer_id="buyer_pg",
         delivery_config_id=configuration.delivery_config_id,
         delivery_config_version=configuration.delivery_config_version,
         report_definition_id=configuration.report_definition_id,
@@ -905,7 +916,7 @@ async def test_issue_lifecycle_transitions_over_postgres(
     opened = await store.ensure_issue_opened(
         issue_key=key,
         account_id=account,
-        consumer_id="buyer_1",
+        consumer_id="buyer_pg",
         observed_at=datetime(2026, 9, 1, 3, tzinfo=timezone.utc),
     )
     assert opened.issue_state == "open"
@@ -917,7 +928,7 @@ async def test_issue_lifecycle_transitions_over_postgres(
     again = await store.ensure_issue_opened(
         issue_key=key,
         account_id=account,
-        consumer_id="buyer_1",
+        consumer_id="buyer_pg",
         observed_at=datetime(2026, 9, 1, 9, tzinfo=timezone.utc),
     )
     assert again.issue_id == opened.issue_id
@@ -974,7 +985,7 @@ async def test_issue_lifecycle_transitions_over_postgres(
     blocked = await store.ensure_issue_opened(
         issue_key=key,
         account_id=account,
-        consumer_id="buyer_1",
+        consumer_id="buyer_pg",
         observed_at=datetime(2026, 9, 1, 8, tzinfo=timezone.utc),
     )
     assert blocked.issue_id == opened.issue_id
@@ -989,7 +1000,7 @@ async def test_a_recurrence_after_retirement_gets_a_new_generation_over_postgres
     first = await store.ensure_issue_opened(
         issue_key=key,
         account_id=account,
-        consumer_id="buyer_1",
+        consumer_id="buyer_pg",
         observed_at=datetime(2026, 9, 1, 3, tzinfo=timezone.utc),
     )
     retired = await store.retire_issue(
@@ -1010,7 +1021,7 @@ async def test_a_recurrence_after_retirement_gets_a_new_generation_over_postgres
     recurrence = await store.ensure_issue_opened(
         issue_key=key,
         account_id=account,
-        consumer_id="buyer_1",
+        consumer_id="buyer_pg",
         observed_at=datetime(2026, 9, 1, 6, tzinfo=timezone.utc),
     )
     assert recurrence.generation == first.generation + 1

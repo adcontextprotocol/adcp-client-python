@@ -90,6 +90,7 @@ async def scope_fixture(backend, root):
             config = replace(
                 h.item.config,
                 account_id=account,
+                consumer_id=caller,
                 delivery_config_id="shared-config",
                 media_buy_ids=("shared-media-buy",),
             )

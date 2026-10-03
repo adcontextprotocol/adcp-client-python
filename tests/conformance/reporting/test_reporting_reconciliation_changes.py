@@ -433,7 +433,10 @@ async def test_position_types_and_unissued_boundaries_cannot_be_interchanged(
             await store.read_reconciliation_changes(caller=caller, **tokens)
         assert error.value.code == "INVALID_CHECKPOINT"
         assert error.value.__cause__ is None and error.value.__context__ is None
-    core = await store.open_snapshot(account_id=caller.account_id, filters_fingerprint="buyer")
+    core = await store.open_snapshot(
+        caller=caller,
+        filters_fingerprint="buyer",
+    )
     with pytest.raises(LedgerConflictError) as error:
         await store.read_reconciliation_snapshot(caller=caller, boundary=core)
     assert error.value.code == "REPORTING_RECORD_UNAVAILABLE"

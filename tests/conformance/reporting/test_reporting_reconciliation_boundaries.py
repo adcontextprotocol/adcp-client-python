@@ -156,7 +156,9 @@ async def test_cross_account_and_principal_keys_are_indistinguishable_from_absen
                     owner.delivery.scope,
                     consumer_id=caller.consumer_id,
                     generation_key=replace(
-                        owner.binding.generation_key, account_id=caller.account_id
+                        owner.binding.generation_key,
+                        account_id=caller.account_id,
+                        consumer_id=caller.consumer_id,
                     ),
                 )
             )
@@ -239,7 +241,14 @@ async def test_receipt_kinds_share_identity_but_never_replacement_chains(
     for caller in ["other-consumer", "missing-consumer"]:
         with pytest.raises(LedgerConflictError) as error:
             await store.record_adjustment_receipt(
-                replace(receipt, scope=replace(receipt.scope, consumer_id=caller))
+                replace(
+                    receipt,
+                    scope=replace(
+                        receipt.scope,
+                        consumer_id=caller,
+                        generation_key=replace(receipt.scope.generation_key, consumer_id=caller),
+                    ),
+                )
             )
         assert error.value.code == "REPORTING_RECORD_UNAVAILABLE"
 

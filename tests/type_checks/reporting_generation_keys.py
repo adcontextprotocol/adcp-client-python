@@ -29,6 +29,7 @@ async def inspect_generation(
     assert_type(status.generation_key, ReportingConfigurationGenerationKey)
     assert_type(lease.generation_key, ReportingConfigurationGenerationKey)
     assert_type(key.account_id, str)
+    assert_type(key.consumer_id, str)
     assert_type(key.delivery_config_id, str)
     assert_type(key.delivery_config_version, int)
     generations: dict[ReportingConfigurationGenerationKey, ReportingConfiguration] = {
@@ -38,6 +39,7 @@ async def inspect_generation(
     assert_type(
         await store.find_obligation(
             account_id=key.account_id,
+            consumer_id="buyer",
             delivery_config_id=key.delivery_config_id,
             delivery_config_version=key.delivery_config_version,
             period_start=obligation.period.start,
@@ -49,8 +51,12 @@ async def inspect_generation(
         await store.lease_period_close(worker_id="worker", now=now, lease_seconds=60),
         LeasedConfiguration | None,
     )
-    # The beta.15 lease constructor and release call remain valid.
+    # Ownership is required when retaining and releasing a lease.
     retained_handle = LeasedConfiguration(
-        key.account_id, key.delivery_config_id, key.delivery_config_version, lease.lease_expires_at
+        key.account_id,
+        key.consumer_id,
+        key.delivery_config_id,
+        key.delivery_config_version,
+        lease.lease_expires_at,
     )
     await store.release_period_close(retained_handle, worker_id="worker")

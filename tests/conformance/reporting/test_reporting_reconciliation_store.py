@@ -430,7 +430,13 @@ async def test_account_principal_isolation_and_shared_identifiers(
             await store.record_revision_receipt(
                 replace(
                     first.receipt,
-                    scope=replace(first.attempt.scope, consumer_id="stranger"),
+                    scope=replace(
+                        first.attempt.scope,
+                        consumer_id="stranger",
+                        generation_key=replace(
+                            first.attempt.scope.generation_key, consumer_id="stranger"
+                        ),
+                    ),
                     reporting_revision_id=revision_id,
                 )
             )

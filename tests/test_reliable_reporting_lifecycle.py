@@ -18,6 +18,7 @@ from adcp.reporting.ledger import (
     ReportingProducer,
     ReportingStatusCaller,
 )
+from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.service import (
     ReliableReportingService,
     ReliableReportingServiceError,
@@ -656,9 +657,9 @@ async def test_configure_during_startup_is_serialized_without_losing_an_accepted
     finally:
         release.set()
         await asyncio.gather(configuring, starting)
-    assert await service.store.list_configurations(account_id=configuration.account_id) == (
-        configuration,
-    )
+    assert await service.store.list_configurations(
+        caller=OwnershipCaller(configuration.account_id, configuration.consumer_id)
+    ) == (configuration,)
     await service.close()
 
 

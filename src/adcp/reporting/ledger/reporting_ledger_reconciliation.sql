@@ -108,8 +108,8 @@ BEGIN
         CHECK ((receipt_status IS NOT NULL) = (receipt_chain_key IS NOT NULL)),
         CHECK ((record_kind = 'materialization_attempt') = (attempt_number IS NOT NULL)),
         CHECK (payload->>'kind' = record_kind),
-        FOREIGN KEY (account_id, delivery_config_id, delivery_config_version)
-            REFERENCES reporting_configurations(account_id, delivery_config_id, delivery_config_version),
+        FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version)
+            REFERENCES reporting_configurations(account_id, consumer_id, delivery_config_id, delivery_config_version),
         FOREIGN KEY (account_id, reporting_obligation_id)
             REFERENCES reporting_obligations(account_id, reporting_obligation_id),
         FOREIGN KEY (account_id, reporting_revision_id)
@@ -173,7 +173,7 @@ BEGIN
 
     -- Exact Core identities, including the owner of each referenced publication.
     CREATE UNIQUE INDEX IF NOT EXISTS reporting_obligations_generation_identity
-        ON reporting_obligations(account_id, delivery_config_id, delivery_config_version,
+        ON reporting_obligations(account_id, consumer_id, delivery_config_id, delivery_config_version,
                                   reporting_obligation_id);
     CREATE UNIQUE INDEX IF NOT EXISTS reporting_revisions_obligation_identity
         ON reporting_revisions(account_id, reporting_obligation_id, reporting_revision_id);
@@ -200,7 +200,7 @@ BEGIN
         ('reporting_adjustments', 'reporting_adjustment_exact_revision',
          'FOREIGN KEY (account_id, adjusts_reporting_revision_id) REFERENCES reporting_revisions(account_id, reporting_revision_id)'),
         ('reporting_reconciliation_records', 'reporting_record_exact_obligation',
-         'FOREIGN KEY (account_id, delivery_config_id, delivery_config_version, reporting_obligation_id) REFERENCES reporting_obligations(account_id, delivery_config_id, delivery_config_version, reporting_obligation_id)'),
+         'FOREIGN KEY (account_id, consumer_id, delivery_config_id, delivery_config_version, reporting_obligation_id) REFERENCES reporting_obligations(account_id, consumer_id, delivery_config_id, delivery_config_version, reporting_obligation_id)'),
         ('reporting_reconciliation_records', 'reporting_record_exact_revision',
          'FOREIGN KEY (account_id, reporting_obligation_id, reporting_revision_id) REFERENCES reporting_revisions(account_id, reporting_obligation_id, reporting_revision_id)'),
         ('reporting_reconciliation_records', 'reporting_record_exact_adjustment',
@@ -520,16 +520,16 @@ BEGIN
             'verification_path', 'verification_profile', 'verified_at', 'verified_format'])) THEN
             RAISE EXCEPTION 'reporting payload is not closed retained evidence' USING ERRCODE = '23514';
         END IF;
-        generation := jsonb_build_object('account_id', r.account_id,
+        generation := jsonb_build_object('account_id', r.account_id, 'consumer_id', r.consumer_id,
             'delivery_config_id', r.delivery_config_id,
             'delivery_config_version', r.delivery_config_version);
         IF NOT EXISTS (SELECT 1 FROM reporting_configurations c
-            WHERE (c.account_id, c.delivery_config_id, c.delivery_config_version)
-                = (r.account_id, r.delivery_config_id, r.delivery_config_version))
+            WHERE (c.account_id, c.consumer_id, c.delivery_config_id, c.delivery_config_version)
+                = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version))
            OR (r.reporting_obligation_id IS NOT NULL AND NOT EXISTS (
                SELECT 1 FROM reporting_obligations o
-               WHERE (o.account_id, o.delivery_config_id, o.delivery_config_version, o.reporting_obligation_id)
-                   = (r.account_id, r.delivery_config_id, r.delivery_config_version, r.reporting_obligation_id)))
+               WHERE (o.account_id, o.consumer_id, o.delivery_config_id, o.delivery_config_version, o.reporting_obligation_id)
+                   = (r.account_id, r.consumer_id, r.delivery_config_id, r.delivery_config_version, r.reporting_obligation_id)))
            OR (r.reporting_revision_id IS NOT NULL AND NOT EXISTS (
                SELECT 1 FROM reporting_revisions v
                WHERE (v.account_id, v.reporting_obligation_id, v.reporting_revision_id)
@@ -543,7 +543,7 @@ BEGIN
         expected_namespace := CASE WHEN r.receipt_status IS NOT NULL THEN 'receipt' ELSE r.record_kind END;
         identity := CASE r.record_kind
             WHEN 'destination_binding' THEN reporting_identity_sha256(
-                '{"account_id":' || to_json(r.account_id)::text || ',"delivery_config_id":' ||
+                '{"account_id":' || to_json(r.account_id)::text || ',"consumer_id":' || to_json(r.consumer_id)::text || ',"delivery_config_id":' ||
                 to_json(r.delivery_config_id)::text || ',"delivery_config_version":' ||
                 r.delivery_config_version::text || '}')
             WHEN 'obligation_delivery' THEN r.reporting_obligation_id
@@ -732,7 +732,7 @@ BEGIN
             previous := previous - mutable;
             proposed := proposed - mutable;
             SELECT EXISTS (SELECT 1 FROM reporting_reconciliation_records r
-                WHERE r.account_id = OLD.account_id AND r.delivery_config_id = OLD.delivery_config_id
+                WHERE r.account_id=OLD.account_id AND r.consumer_id=OLD.consumer_id AND r.delivery_config_id = OLD.delivery_config_id
                     AND r.delivery_config_version = OLD.delivery_config_version) INTO referenced;
         ELSIF TG_TABLE_NAME = 'reporting_obligations' THEN
             SELECT EXISTS (SELECT 1 FROM reporting_reconciliation_records r

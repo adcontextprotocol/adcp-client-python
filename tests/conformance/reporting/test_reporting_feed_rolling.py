@@ -1,41 +1,22 @@
-"""Nine actual historical binaries on exact B2.2 then the additive feed schema."""
+"""Nine historical binaries before the stopped-worker caller-ownership upgrade."""
 
 import asyncio
 import hashlib
 import json
 import shutil
-import sys
-from dataclasses import replace
-from importlib.resources import files
 from pathlib import Path
 
 import pytest
 
-from adcp.reporting.feed import PgReportingFeedStore
-from adcp.reporting.ledger import (
-    ReportingControlTotalRecord,
-    ReportingDeliveryScope,
-    ReportingRevisionReceiptRecord,
-)
-from adcp.reporting.ledger.delivery import receipt_to_wire
-from adcp.reporting.materializer import PgReportingMaterializerStore
-from adcp.reporting.outbox._schema import schema_objects
-from adcp.reporting.production.pg import PgReportingProductionStore
-from adcp.reporting.production.schema import validate_production_schema
-from adcp.reporting.receipts import PgReportingReceiptStore
-
-from ._durable_materializer_support import DurableHarness, durable_case
-from ._feed_support import walk, without_feed
 from ._generation_support import isolated_reporting_pool
-from ._provisional_catalog import PROVISIONAL_OBJECTS
-from ._receipt_support import adjustment_for
+from ._ownership_upgrade_support import ownership_parent
 from .test_reporting_feed_packaging import ROOT, run_step
-from .test_reporting_materializer_process import worker
 from .test_reporting_materializer_rolling import ARTIFACTS, build_frozen, frozen_call
-from .test_reporting_receipt_rolling import B21, immutable_parent_rows, receipt_probe
+from .test_reporting_receipt_rolling import B21, receipt_probe
 
 B22 = "09fd87f79a746665d828dea66b3a1dd9d1fc189e"
 B22_TREE = "76c64bb94d8b92faed644158317bb5372b64fcb9"
+__all__ = ["ownership_parent"]
 
 
 @pytest.fixture(scope="module")
@@ -109,52 +90,21 @@ async def b22_mounted(artifact, pool, action, **kwargs):
     return result
 
 
-async def other_artifact_consumer(parent, case, outcome):
-    consumer = "https://buyer.example.test/post-migration"
-    scope = ReportingDeliveryScope(
-        case.config.generation_key, consumer, case.obligation.reporting_obligation_id
-    )
-    snapshot = await parent.read_reconciliation_snapshot(caller=case.scope.principal)
-    delivery = next(r for r in snapshot.records if r.kind == "obligation_delivery")
-    attempt = next(
-        r
-        for r in snapshot.records
-        if r.kind == "materialization_attempt"
-        and r.reporting_materialization_id == outcome.reporting_materialization_id
-    )
-    await parent.put_destination_binding(replace(case.binding, consumer_id=consumer))
-    await parent.bind_obligation_delivery(replace(delivery, scope=scope))
-    await parent.commit_materialization_attempt(replace(attempt, scope=scope))
-    await parent.commit_materialization(replace(outcome, scope=scope))
-    return scope.principal
-
-
 async def test_nine_actual_artifacts_preserve_ordinary_writes_and_frozen_b22_mounted_replay(
-    installed_feed_history, approved_feed_b21, approved_feed_b22, tmp_path
+    installed_feed_history, ownership_parent, approved_feed_b22
 ):
+    """Old workers run before maintenance; all retained bytes then fail closed."""
+    from ._ownership_upgrade_support import maintenance_upgrade, seed_legacy
+
     artifact = installed_feed_history[3]["artifact"]
     modes = [False, True] if artifact in {"b", "c", "b1", "b21", "b22"} else [False]
     for notifications in modes:
         async with isolated_reporting_pool(autocommit=True) as pool:
-            installed = await b22_mounted(
-                approved_feed_b22,
+            legacy = await seed_legacy(
+                ownership_parent,
                 pool,
-                "install",
+                kind="feed",
                 notifications=notifications,
-                legacy_status_schema=True,
-            )
-            assert installed["result"] == {
-                "installed": True,
-                "materializer_objects": 187,
-                "receipt_objects": 102,
-            }
-            parent = PgReportingReceiptStore(pool=pool, notifications=notifications)
-            case = await durable_case(
-                parent,
-                count=3,
-                finality="official",
-                required="official",
-                reconciliation_mode="consumer_receipt",
                 consumer=(
                     "frozen-buyer"
                     if artifact in {"beta15", "records", "integration", "a", "b"}
@@ -162,187 +112,36 @@ async def test_nine_actual_artifacts_preserve_ordinary_writes_and_frozen_b22_mou
                 ),
                 legacy_definition=artifact == "beta15",
             )
-            root, python, _, settings = approved_feed_b21
-            process_script = root / "feed_parent_materializer.py"
-            shutil.copy2(Path(__file__).with_name("_materializer_process.py"), process_script)
-            destination = tmp_path / f"destination-{notifications}"
-            destination.mkdir(mode=0o700)
-            h = DurableHarness(parent, None, pool)
-            async with worker(
-                h,
-                case,
-                destination,
-                python=python,
-                script=process_script,
-                installed={**settings, "python": list(sys.version_info[:2])},
-                notifications=notifications,
-            ) as child:
-                produced = await child.event("done")
-                assert produced["state"] == "verified"
-                feed_operation_3 = await asyncio.wait_for(child.process.wait(), 5)
-                assert feed_operation_3 == 0
-            outcome = (await case.outcomes())[0]
-            second = await other_artifact_consumer(parent, case, outcome)
-            evidence = outcome.verification
-            receipt = ReportingRevisionReceiptRecord(
-                case.scope,
-                "frozen-feed-revision-0001",
-                case.revision.reporting_revision_id,
-                outcome.reporting_materialization_id,
-                "accepted",
-                evidence.verification_profile,
-                evidence.row_count,
-                evidence.control_totals,
-                outcome.completed_at,
-                observed_canonical_content_digest=evidence.canonical_content_digest,
-            )
-            adjustment = await adjustment_for(
-                h,
-                case,
-                managed_control_total_deltas=(
-                    ReportingControlTotalRecord(
-                        "spend", "-1.50", "decimal", case.obligation.currency
-                    ),
-                ),
-            )
-            request = {
-                # B2.2 is an immutable installed rc.6 binary; this request
-                # deliberately uses its historical public protocol pin.
-                "adcp_version": "3.2-rc.6",
-                "account": {"account_id": case.config.account_id},
-                "idempotency_key": "frozen-feed-mixed-batch",
-                "receipts": [receipt_to_wire(receipt)],
-                "adjustment_receipts": [adjustment],
-            }
-            caller = {"account_id": case.config.account_id, "consumer_id": case.binding.consumer_id}
-            admitted = await b22_mounted(
-                approved_feed_b22,
-                pool,
-                "receipt",
-                notifications=notifications,
-                caller=caller,
-                request=request,
-            )
-            assert [r["result"] for r in admitted["result"]["results"]] == ["recorded", "recorded"]
-            captures = await parent.read_receipt_boundaries(caller=case.scope.principal)
-            kwargs = {
-                "account": case.config.account_id,
-                "consumer": case.binding.consumer_id,
-                "obligation": case.obligation.reporting_obligation_id,
-                "notifications": notifications,
-                "receipt_count": 2,
-            }
             before = await frozen_call(
-                installed_feed_history, pool, "exercise", phase="before", **kwargs
+                installed_feed_history,
+                pool,
+                "exercise",
+                phase="before",
+                account=legacy["account"],
+                consumer=legacy["consumer"],
+                obligation=legacy["obligation"],
+                notifications=notifications,
+                receipt_count=2,
             )
-            saved = await immutable_parent_rows(pool)
-            queue = await h.queue()
-            async with pool.connection() as c:
-                old_objects = await schema_objects(c)
-            feed = PgReportingFeedStore(pool=pool, notifications=notifications)
-            await feed.create_schema()
-            async with pool.connection() as c:
-                new_objects = await schema_objects(c)
-            assert {k: new_objects[k] for k in old_objects} == old_objects
-            added = new_objects.keys() - old_objects.keys()
-            feed_objects = json.loads(
-                files("adcp.reporting.feed").joinpath("required_schema.json").read_text()
-            )
-            assert len(feed_objects) == 33
-            assert added == feed_objects.keys() | PROVISIONAL_OBJECTS.keys()
-            assert new_objects == {**old_objects, **feed_objects, **PROVISIONAL_OBJECTS}
-            query = {
-                "account": request["account"],
-                "view": "periods",
-                "pagination": {"max_results": 1},
-            }
-            first = await feed.read_reporting_feed(query, caller=case.scope.principal)
-            expected = await walk(feed, query, case.scope.principal, first=first)
-            frozen = await feed.read_reporting_feed_snapshot(
-                first["ledger_snapshot_id"], caller=case.scope.principal
-            )
-            # Final B2.4 integration: the actual old binaries below exercise
-            # their ordinary read/write contract on all new objects, before
-            # incompatible autonomous projectors are drained and activated.
-            production = PgReportingProductionStore(pool=pool, notifications=notifications)
-            await production.create_schema()
-            await production.create_schema()
-            async with pool.connection() as c:
-                production_objects = await schema_objects(c)
-                await validate_production_schema(c, notifications=notifications)
-            assert {k: production_objects[k] for k in new_objects} == new_objects
-            production_added = production_objects.keys() - new_objects.keys()
-            after = await frozen_call(
-                installed_feed_history, pool, "exercise", phase="after", **kwargs
-            )
+            assert before["ordinary_core"]
+            assert before["ordinary_materializer"] == (artifact != "beta15")
             replayed = await b22_mounted(
                 approved_feed_b22,
                 pool,
                 "receipt",
                 notifications=notifications,
-                caller=caller,
-                request=request,
+                caller={"account_id": legacy["account"], "consumer_id": legacy["consumer"]},
+                request=legacy["request"],
             )
-            assert replayed["result"] == admitted["result"]
-            # Actual B2.2 binary admits the same IDs/key for another canonical
-            # consumer after migration, while the original walk is still open.
-            second_result = await b22_mounted(
-                approved_feed_b22,
-                pool,
-                "receipt",
-                notifications=notifications,
-                caller={"account_id": second.account_id, "consumer_id": second.consumer_id},
-                request=request,
-            )
-            assert [r["result"] for r in second_result["result"]["results"]] == [
-                "recorded",
-                "recorded",
-            ]
-            assert second_result["result"] != admitted["result"]
-            image = without_feed(await h.image())
-            fresh_reader = PgReportingFeedStore(pool=pool, notifications=notifications)
-            feed_operation_1 = await walk(fresh_reader, query, case.scope.principal, first=first)
-            assert feed_operation_1 == expected
-            assert (
-                await fresh_reader.read_reporting_feed_snapshot(
-                    frozen.snapshot_id, caller=case.scope.principal
-                )
-                == frozen
-            )
-            assert without_feed(await h.image()) == image
-            assert await parent.read_receipt_boundaries(caller=case.scope.principal) == captures
-            assert await immutable_parent_rows(pool) == saved
-            assert await h.queue() == queue
-            feed_operation_2 = await PgReportingMaterializerStore(
-                pool=pool, notifications=notifications
-            ).materializer_ready()
-            assert feed_operation_2
-            assert before["ordinary_core"] and after["ordinary_core"]
-            assert (
-                before["ordinary_materializer"]
-                == after["ordinary_materializer"]
-                == (artifact != "beta15")
-            )
-            assert before["notification_readiness"] == after["notification_readiness"]
+            assert replayed["result"] == legacy["response"]
+            upgrade = await maintenance_upgrade(pool, legacy, notifications=notifications)
             print(
                 json.dumps(
                     {
-                        "feed_rolling": artifact,
+                        "feed_maintenance": artifact,
                         "notifications": notifications,
-                        "parent_head": B22,
-                        "parent_tree": B22_TREE,
-                        "b21_producer_origins": produced["origins"],
                         "before": before,
-                        "after": after,
-                        "b22_mounted_origins": replayed["origins"],
-                        "historical_wheel_sha256": installed_feed_history[3]["wheel_sha256"],
-                        "b22_wheel_sha256": approved_feed_b22[3]["wheel_sha256"],
-                        "feed_objects": len(feed_objects),
-                        "provisional_objects": len(PROVISIONAL_OBJECTS),
-                        "b24_additive_objects": len(production_added),
-                        "b24_activation": False,
-                        "page_count": len(expected[0]),
-                        "quarantine_preserved": True,
+                        "upgrade": upgrade,
                     }
                 ),
                 flush=True,

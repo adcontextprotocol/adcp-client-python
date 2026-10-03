@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from typing import Any
 
 import pytest
@@ -103,8 +104,11 @@ async def test_install_dispatches_reporting_with_account_auth_and_preserves_deli
     service = ReliableReportingService.memory(
         account_context=_account_context, clock=lambda: NOW, consumer_status_enabled=True
     )
-    service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), [_rows(10)]))
-    await service.configure(_configuration())
+    service.sources.register(
+        "gam", ScriptedReportingAdapter(redacted_capabilities(), [_rows(10), _rows(10)])
+    )
+    await service.configure(replace(_configuration(), consumer_id=buyer_1))
+    await service.configure(replace(_configuration(), consumer_id=buyer_2))
     child = _SalesPlatform()
     creations: list[str] = []
 
@@ -164,7 +168,13 @@ async def test_install_dispatches_reporting_with_account_auth_and_preserves_deli
 
         turn = await service.run_worker()
         assert not turn.configuration_errors
-        (revision_id,) = turn.configurations[_configuration().generation_key].revisions_committed
+        (revision_id,) = turn.configurations[
+            replace(_configuration(), consumer_id=buyer_2).generation_key
+        ].revisions_committed
+        (foreign_revision_id,) = turn.configurations[
+            replace(_configuration(), consumer_id=buyer_1).generation_key
+        ].revisions_committed
+        assert revision_id != foreign_revision_id
         exact = GetMediaBuyDeliveryRequest.model_validate(
             {"account": REF, "reporting_revision_id": revision_id}
         )

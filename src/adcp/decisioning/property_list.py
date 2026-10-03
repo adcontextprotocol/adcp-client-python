@@ -11,8 +11,10 @@ on ``get_products``.  When an adopter declares
 3. Sets ``response.property_list_applied = True`` on the returned envelope.
 
 Adopters who want to apply the filter themselves (e.g., pushed down into a DB
-query) set ``Features(property_list_filtering=False)`` and call these helpers
-directly inside their ``get_products`` implementation.
+query) retain ``Features(property_list_filtering=True)`` and pass
+``property_list_filter_mode="platform"`` to the server builder. They own both
+filtering and the ``property_list_applied`` response flag; the SDK does not fetch
+or filter in that mode.
 
 Reference pattern: :mod:`adcp.decisioning.webhook_emit` (capability-gated
 post-adapter side effect).
@@ -22,7 +24,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
 logger = logging.getLogger(__name__)
@@ -192,16 +194,21 @@ def filter_products_by_property_list(
     return [p for p in products if _product_matches(p, allowed_property_ids)]
 
 
+def _field(value: Any, name: str, default: Any = None) -> Any:
+    """Read a field from either a wire dict or a model."""
+    return value.get(name, default) if isinstance(value, dict) else getattr(value, name, default)
+
+
 def _product_matches(product: Any, allowed: set[str]) -> bool:
     """Return True if the product should be included after property-list filtering."""
-    permissive: bool = bool(getattr(product, "property_targeting_allowed", False))
-    pub_props: list[Any] = list(getattr(product, "publisher_properties", None) or [])
-    product_id: str = str(getattr(product, "product_id", "?"))
+    permissive: bool = bool(_field(product, "property_targeting_allowed", False))
+    pub_props: list[Any] = list(_field(product, "publisher_properties") or [])
+    product_id: str = str(_field(product, "product_id", "?"))
 
     for pp_wrapper in pub_props:
         # PublisherProperties is a RootModel; unwrap to the discriminated variant.
-        pp = getattr(pp_wrapper, "root", pp_wrapper)
-        st = getattr(pp, "selection_type", None)
+        pp = _field(pp_wrapper, "root", pp_wrapper)
+        st = _field(pp, "selection_type")
 
         if st == "all":
             logger.debug(
@@ -211,7 +218,7 @@ def _product_matches(product: Any, allowed: set[str]) -> bool:
             return True
 
         if st == "by_id":
-            raw_ids: list[Any] = list(getattr(pp, "property_ids", None) or [])
+            raw_ids: list[Any] = list(_field(pp, "property_ids") or [])
             product_ids = {(pid.root if hasattr(pid, "root") else str(pid)) for pid in raw_ids}
             if permissive:
                 if product_ids & allowed:
@@ -256,6 +263,7 @@ async def maybe_apply_property_list_filter(
     response: Any,
     fetcher: PropertyListFetcher | None,
     capability_enabled: bool,
+    filter_mode: Literal["sdk", "platform"] = "sdk",
 ) -> Any:
     """Post-adapter gate: apply property-list filtering to a get_products response.
 
@@ -269,12 +277,14 @@ async def maybe_apply_property_list_filter(
     emitted and the response is returned unmodified (defense-in-depth;
     :func:`validate_property_list_config` should have caught this at boot).
 
-    Uses :meth:`model_copy` to avoid mutating the platform's return value.
+    Platform mode returns the seller's response untouched, including its
+    ``property_list_applied`` flag. SDK mode copies dict/model responses to
+    avoid mutating the platform's return value.
 
     :raises AdcpError: ``recovery='transient'`` propagated from
         :func:`resolve_property_list` on fetch failure.
     """
-    if not capability_enabled:
+    if filter_mode == "platform" or not capability_enabled:
         return response
 
     property_list_ref = getattr(params, "property_list", None)
@@ -292,18 +302,22 @@ async def maybe_apply_property_list_filter(
         return response
 
     allowed = await resolve_property_list(property_list_ref, fetcher=fetcher)
-    products: list[Any] = list(getattr(response, "products", None) or [])
+    products: list[Any] = list(_field(response, "products") or [])
     filtered = filter_products_by_property_list(products, allowed)
 
-    return response.model_copy(update={"products": filtered, "property_list_applied": True})
+    update = {"products": filtered, "property_list_applied": True}
+    if isinstance(response, dict):
+        return {**response, **update}
+    return response.model_copy(update=update)
 
 
 def validate_property_list_config(
     *,
     capability_enabled: bool,
     fetcher: PropertyListFetcher | None,
+    filter_mode: Literal["sdk", "platform"] = "sdk",
 ) -> None:
-    """Boot-time fail-fast: raise when property_list_filtering=True but no fetcher.
+    """Require a fetcher for SDK-owned filtering; platform mode needs none.
 
     Mirrors :func:`~adcp.decisioning.webhook_emit.validate_webhook_sender_for_platform`:
     a declared capability without the required runtime dependency would silently
@@ -313,7 +327,9 @@ def validate_property_list_config(
 
     :raises AdcpError: ``recovery='terminal'`` when misconfigured.
     """
-    if not capability_enabled:
+    if filter_mode not in {"sdk", "platform"}:
+        raise ValueError("property_list_filter_mode must be 'sdk' or 'platform'")
+    if filter_mode == "platform" or not capability_enabled:
         return
     if fetcher is not None:
         return
@@ -328,7 +344,8 @@ def validate_property_list_config(
             "property_list on get_products requests would have their list "
             "filter silently skipped. Pass property_list_fetcher= to "
             "adcp.decisioning.serve.create_adcp_server_from_platform, "
-            "or set Features(property_list_filtering=False) to opt out."
+            'or pass property_list_filter_mode="platform" to own filtering '
+            "and the property_list_applied flag in your platform."
         ),
         recovery="terminal",
         details={"missing": "property_list_fetcher"},

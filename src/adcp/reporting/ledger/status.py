@@ -102,6 +102,12 @@ class ReportingStatusCaller:
     account_id: str
     consumer_id: str
 
+    def __post_init__(self) -> None:
+        from adcp.reporting.evidence import consumer_reference, principal_reference
+
+        principal_reference(self.account_id)
+        consumer_reference(self.consumer_id)
+
 
 class ReportingStatusHandler:
     """Render one captured status snapshot using the same pure projection as push."""
@@ -129,13 +135,13 @@ class ReportingStatusHandler:
         from adcp.reporting.ledger.status_snapshot import ReportingStatusParticipant
 
         if isinstance(self._store, ReportingStatusParticipant):
-            return await self._store.read_status_snapshot(account_id=caller.account_id)
+            return await self._store.read_status_snapshot(caller=caller)
         # Optional upgrade: custom stores keep their original structural API.
         # This fallback cannot establish durable status-notification readiness.
         boundary = await self._store.open_snapshot(
-            account_id=caller.account_id, filters_fingerprint="status-projection-v1"
+            caller=caller, filters_fingerprint="status-projection-v1"
         )
-        configurations = await self._store.list_configurations(account_id=caller.account_id)
+        configurations = await self._store.list_configurations(caller=caller)
         obligations: list[ReportingObligationRecord] = []
         revisions: list[ReportingRevisionRecord] = []
         adjustments: list[ReportingAdjustmentRecord] = []
@@ -145,7 +151,7 @@ class ReportingStatusHandler:
         while True:
             page = await self._store.read_page(
                 snapshot=boundary,
-                consumer_id=caller.consumer_id if self._consumer_status_enabled else None,
+                consumer_id=caller.consumer_id,
                 delivery_config_ids=None,
                 media_buy_ids=None,
                 offset=offset,
@@ -185,7 +191,8 @@ class ReportingStatusHandler:
             # incremental_repair permits identity-deduplicated over-inclusion.
             # Positional ordinals would instead omit later records after rebuilds.
             changes.extend(
-                (boundary.max_sequence, kind, getattr(record, attribute), "") for record in records
+                (boundary.max_sequence, kind, getattr(record, attribute), caller.consumer_id)
+                for record in records
             )
         snapshot = ReportingStatusSnapshot(
             caller.account_id,
@@ -245,22 +252,20 @@ class ReportingStatusHandler:
             filters["adcp_version"] = version
         scope = ReportingStatusScope(
             caller.account_id,
-            consumer_id=(
-                caller.consumer_id
-                if self._consumer_status_enabled or reconciliation is not None
-                else None
-            ),
+            consumer_id=caller.consumer_id,
+        )
+        from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
+        from adcp.reporting.materializer.capture import private_snapshot
+
+        snapshot = private_snapshot(
+            snapshot, ReportingDeliveryPrincipal(caller.account_id, caller.consumer_id)
         )
         snapshot_id = (
             "rpls_"
             + _fingerprint(
                 [
                     caller.account_id,
-                    (
-                        caller.consumer_id
-                        if self._consumer_status_enabled or reconciliation is not None
-                        else None
-                    ),
+                    caller.consumer_id,
                     filters,
                     snapshot.max_sequence,
                 ]
@@ -282,10 +287,11 @@ class ReportingStatusHandler:
                 )[:32]
             )
         offset = 0
-        lower = _checkpoint_sequence(request.get("changes_after")) or 0
+        lower = _checkpoint_sequence(request.get("changes_after"), caller=caller) or 0
         cursor = (request.get("pagination") or {}).get("cursor")
         if cursor:
             decoded = decode_cursor(cursor)
+            _require_owned_cursor(decoded, caller=caller)
             if decoded.get("snapshot") != snapshot_id:
                 raise LedgerConflictError(
                     "CURSOR_SNAPSHOT_MISMATCH",
@@ -490,7 +496,7 @@ class ReportingStatusHandler:
             **common,
             "health": result.health,
             "issues": [issue.to_wire() for issue in result.issues],
-            "changes_checkpoint": _encode_checkpoint(snapshot.max_sequence),
+            "changes_checkpoint": _encode_checkpoint(snapshot.max_sequence, caller=caller),
             "periods": periods,
             "revisions": [
                 _revision_to_wire(r, owners.get(r.reporting_obligation_id))
@@ -507,6 +513,9 @@ class ReportingStatusHandler:
                     {
                         "cursor": encode_cursor(
                             {
+                                "ownership": 2,
+                                "account": caller.account_id,
+                                "consumer": caller.consumer_id,
                                 "snapshot": snapshot_id,
                                 "offset": offset + self._page_size,
                                 "lower": lower,
@@ -572,14 +581,23 @@ def _fingerprint(value: object) -> str:
     return hashlib.sha256(canonical_json_utf8_v1(value)).hexdigest()
 
 
-def _encode_checkpoint(sequence: int) -> str:
-    return encode_cursor({"seq": sequence})
+def _encode_checkpoint(sequence: int, *, caller: ReportingStatusCaller) -> str:
+    return encode_cursor(
+        {
+            "ownership": 2,
+            "account": caller.account_id,
+            "consumer": caller.consumer_id,
+            "seq": sequence,
+        }
+    )
 
 
-def _checkpoint_sequence(checkpoint: str | None) -> int | None:
+def _checkpoint_sequence(checkpoint: str | None, *, caller: ReportingStatusCaller) -> int | None:
     if not checkpoint:
         return None
-    value = decode_cursor(checkpoint).get("seq")
+    decoded = decode_cursor(checkpoint)
+    _require_owned_cursor(decoded, caller=caller)
+    value = decoded.get("seq")
     if not isinstance(value, int):
         raise LedgerConflictError("INVALID_CHECKPOINT", "changes_after is not a valid checkpoint")
     return value
@@ -937,3 +955,25 @@ def _consumer_status_to_wire(status: ConsumerStatusRecord) -> dict[str, Any]:
     }
     payload.update({key: value for key, value in optional.items() if value is not None})
     return payload
+
+
+def _require_owned_cursor(decoded: dict[str, Any], *, caller: ReportingStatusCaller) -> None:
+    if (
+        decoded.get("ownership") != 2
+        or decoded.get("account") != caller.account_id
+        or decoded.get("consumer") != caller.consumer_id
+    ):
+        from adcp.exceptions import ADCPTaskError
+
+        raise ADCPTaskError(
+            "get_reporting_status",
+            [
+                {
+                    "code": "INVALID_CHECKPOINT",
+                    "message": "Restart reporting pagination without the previous cursor or chang"
+                    "es_after checkpoint.",
+                    "recovery": "correctable",
+                    "field": "pagination.cursor",
+                }
+            ],
+        )

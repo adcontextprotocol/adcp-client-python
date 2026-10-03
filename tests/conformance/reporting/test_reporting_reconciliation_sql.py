@@ -124,7 +124,7 @@ async def graph():
         s = await scenario(store)
         await store.commit_materialization(s.outcome)
         config = replace(
-            configuration(),
+            configuration(consumer_id="buyer"),
             delivery_config_id="second-config",
             feed_purpose="billing",
             required_finality="official",
@@ -186,10 +186,7 @@ async def graph():
         )
         second = Scenario(binding, delivery, obligation, revision, attempt, outcome, receipt)
         # This principal has a real binding/delivery but no attempt or outcome.
-        await store.put_destination_binding(replace(s.binding, consumer_id="other-buyer"))
-        await store.bind_obligation_delivery(
-            replace(s.delivery, scope=replace(s.delivery.scope, consumer_id="other-buyer"))
-        )
+        await scenario(store, consumer_id="other-buyer")
         await store.commit_materialization_attempt(
             replace(s.attempt, reporting_materialization_id="pending-attempt", attempt=2)
         )
@@ -268,7 +265,14 @@ async def test_sql_rejects_inexact_graph_edges(graph: Graph, edge: str) -> None:
             candidate = replace(candidate, reporting_revision_id=t.revision.reporting_revision_id)
         if edge == "outcome_principal":
             candidate = replace(
-                candidate, scope=replace(candidate.scope, consumer_id="other-buyer")
+                candidate,
+                scope=replace(
+                    candidate.scope,
+                    consumer_id="other-buyer",
+                    generation_key=replace(
+                        candidate.scope.generation_key, consumer_id="other-buyer"
+                    ),
+                ),
             )
     if edge.startswith("check_"):
         candidate = ReportingMaterializationCheck(
@@ -280,7 +284,14 @@ async def test_sql_rejects_inexact_graph_edges(graph: Graph, edge: str) -> None:
             )
         if edge == "check_principal":
             candidate = replace(
-                candidate, scope=replace(candidate.scope, consumer_id="other-buyer")
+                candidate,
+                scope=replace(
+                    candidate.scope,
+                    consumer_id="other-buyer",
+                    generation_key=replace(
+                        candidate.scope.generation_key, consumer_id="other-buyer"
+                    ),
+                ),
             )
     if edge in {"receipt_materialization", "receipt_revision", "receipt_principal"}:
         candidate = s.receipt
@@ -296,7 +307,14 @@ async def test_sql_rejects_inexact_graph_edges(graph: Graph, edge: str) -> None:
             )
         if edge == "receipt_principal":
             candidate = replace(
-                candidate, scope=replace(candidate.scope, consumer_id="other-buyer")
+                candidate,
+                scope=replace(
+                    candidate.scope,
+                    consumer_id="other-buyer",
+                    generation_key=replace(
+                        candidate.scope.generation_key, consumer_id="other-buyer"
+                    ),
+                ),
             )
     if edge == "adjustment_revision":
         candidate = replace(
@@ -540,7 +558,9 @@ async def test_sql_cannot_rewrite_roots_referenced_by_frozen_evidence(
     await raw_insert(graph.pool, graph.adjustment)
     with pytest.raises(IntegrityError):
         async with graph.pool.connection() as connection:
-            await connection.execute(statement)
+            await connection.execute(
+                statement.replace("revision-acct_a", graph.first.revision.reporting_revision_id)
+            )
     # Operational readability is still mutable through the supported Core API.
     await graph.store.set_revision_readable(
         account_id="acct_a",

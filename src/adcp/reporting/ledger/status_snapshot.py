@@ -20,6 +20,7 @@ from adcp.reporting.ledger.status_projection import (
 from adcp.reporting.revision_selection import select_reporting_revision
 
 if TYPE_CHECKING:
+    from adcp.reporting.ledger.models import ReportingCaller
     from adcp.reporting.ledger.pg import PgReportingLedgerStore
     from adcp.reporting.ledger.store import InMemoryReportingLedgerStore
 
@@ -28,7 +29,7 @@ if TYPE_CHECKING:
 class ReportingStatusParticipant(Protocol):
     """Optional upgrade; existing ReportingLedgerStore implementations stay valid."""
 
-    async def read_status_snapshot(self, *, account_id: str) -> ReportingStatusSnapshot: ...
+    async def read_status_snapshot(self, *, caller: ReportingCaller) -> ReportingStatusSnapshot: ...
 
     async def record_consumer_status_with_lifecycle(
         self, status: ConsumerStatusRecord
@@ -142,7 +143,7 @@ def memory_snapshot(
         consumer_ids=tuple(sorted(consumer_ids)),
         adjustments=tuple(a for a in store._adjustments.values() if a.account_id == account_id),
         changes=tuple(
-            (seq, kind, record_id, "")
+            (seq, kind, record_id, store._change_owners[seq])
             for seq, a, kind, record_id, _ in store._changes
             if a == account_id
         ),
@@ -271,7 +272,7 @@ def snapshot_from_storage(raw: dict[str, Any]) -> ReportingStatusSnapshot:
             "delivery_config_id, delivery_config_version, account_id, report_definition_id,"
             " reporting_profile, feed_purpose, required_finality, account_timezone, schedule,"
             " media_buy_ids, activated_at, deactivated_at, automated_recovery_seconds,"
-            " status_retention_days, definition, authoritative_party"
+            " status_retention_days, definition, authoritative_party, consumer_id, quarantined"
         ),
         _configuration_from_row,
     )
@@ -314,7 +315,8 @@ def snapshot_from_storage(raw: dict[str, Any]) -> ReportingStatusSnapshot:
         consumer_ids=tuple(sorted(consumers)),
         adjustments=decode("adjustments", _ADJUSTMENT_COLUMNS, _adjustment_from_row),
         changes=tuple(
-            (row["seq"], row["record_kind"], row["record_id"], "") for row in raw.get("changes", [])
+            (row["seq"], row["record_kind"], row["record_id"], row["consumer_id"])
+            for row in raw.get("changes", [])
         ),
     )
 

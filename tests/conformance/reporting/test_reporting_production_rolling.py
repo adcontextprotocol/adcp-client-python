@@ -8,18 +8,11 @@ import shutil
 import subprocess
 import zipfile
 from contextlib import asynccontextmanager
-from dataclasses import asdict, replace
-from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
-from adcp.reporting.ledger import revision_content_sha256
-from adcp.reporting.ledger.models import derive_period
-
-from ._feed_support import feed_harness, feed_request, mixed_case, walk
 from ._production_packaging import copied_fixtures, inspect_distribution, source_basis
-from ._production_support import production_harness
 from .test_reporting_feed_hardening_installed import approved_b23
 from .test_reporting_feed_installed_pg import (
     b1_wheels,
@@ -190,223 +183,105 @@ async def installed_child(python, script, settings, path):
 async def test_actual_parent_page_one_to_installed_activation_sigkill_and_complete_walk(
     production_parent, production_install, notifications, tmp_path
 ):
-    old_root, old_python, old_script, old_helper, old, old_wheel = production_parent
-    python, script, current = production_install
-    evidence_key = f"{old['sha'][:12]}-{current['distribution']}-{int(notifications)}"
-    async with feed_harness("postgres", notifications=notifications) as h:
-        case, receipt_request, receipt_response = await mixed_case(h, adcp_version="3.2-rc.6")
-        # Seed public ordinary records on the parent schema. The memory fixture
-        # supplies only deterministic input values and a provider grant; the
-        # installed parent, below, creates the actual attempt and durable work.
-        async with production_harness(
-            "memory",
-            tmp_path / "destination.sqlite",
+    from types import SimpleNamespace
+
+    from ._generation_support import isolated_reporting_pool
+    from ._ownership_upgrade_support import maintenance_upgrade, pending_legacy, prepare_seed
+
+    old_root, old_python, old_script, old_helper, old, _ = production_parent
+    python, _, current = production_install
+    parent = prepare_seed((old_root, old_python, old_script, old))
+    async with isolated_reporting_pool(autocommit=True) as pool:
+        async with pending_legacy(
+            parent,
+            pool,
+            consumer="https://buyer.example.test/production-legacy-owner",
             notifications=notifications,
-            count=0,
-            reconciled=True,
-            identity_prefix="b24-",
-        ) as seed:
-            item = seed.item
-            await h.store.put_configuration(item.config)
-            await h.store.commit_obligation(item.obligation)
-            await h.store.put_destination_binding(item.binding)
-            await h.store.commit_revision(item.revision, item.rows)
-            key = asdict(item.verifier.key)
-        legacy_script = old_root / "production_legacy_process.py"
-        shutil.copy2(Path(__file__).with_name("_production_legacy_process.py"), legacy_script)
-        legacy_module = subprocess.check_output(
-            ["git", "show", f"{old['sha']}:src/adcp/reporting/outbox/status_pg.py"], cwd=ROOT
-        )
-        materializer_module = subprocess.check_output(
-            ["git", "show", f"{old['sha']}:src/adcp/reporting/materializer/pg.py"], cwd=ROOT
-        )
-        legacy_settings = {
-            "conninfo": h.pool.conninfo,
-            "kwargs": h.pool.kwargs,
-            "notifications": notifications,
-            "module_sha256": hashlib.sha256(legacy_module).hexdigest(),
-            "materializer_module_sha256": hashlib.sha256(materializer_module).hexdigest(),
-            "verification_key": key,
-            "evidence_key": evidence_key,
-        }
-        async with installed_child(
-            old_python,
-            legacy_script,
-            {
-                **legacy_settings,
-                "pending": True,
-                "pause": True,
-                "diagnostic_name": "historical-pending.log",
-                "revision_id": item.revision.reporting_revision_id,
-            },
-            tmp_path,
-        ) as child:
-            pending = await child.event("pending")
+        ) as (child, legacy):
             await child.kill()
             assert child.process.returncode == -9
-        async with h.pool.connection() as connection:
-            assert (
-                await (
-                    await connection.execute("SELECT to_regclass('reporting_production_accounts')")
-                ).fetchone()
-            )[0] is None
-        pending_before_migration = (await h.image())["reporting_materializer_work"]
-        options = {
-            "python": old_python,
-            "script": old_script,
-            "helper": old_helper,
-            "installed": old,
+        pending = legacy["pending"]
+        assert pending["external_id"] and pending["attempt"]["reporting_materialization_id"]
+        h = SimpleNamespace(pool=pool, store=SimpleNamespace(_notifications_enabled=notifications))
+        case = SimpleNamespace(
+            obligation=SimpleNamespace(account_id=legacy["account"]),
+            binding=SimpleNamespace(consumer_id=legacy["consumer"]),
+        )
+        request = {
+            "adcp_version": "3.2-rc.6",
+            "account": {"account_id": legacy["account"]},
+            "view": "periods",
+            "pagination": {"max_results": 1},
         }
-        old_feed_request = feed_request(case, adcp_version="3.2-rc.6")
-        async with feed_process(h, case, old_feed_request, pause="committed", **options) as child:
+        async with feed_process(
+            h,
+            case,
+            request,
+            pause="committed",
+            python=old_python,
+            script=old_script,
+            helper=old_helper,
+            installed=old,
+        ) as child:
             first = (await child.event("committed"))["result"]
             await child.kill()
             assert child.process.returncode == -9
-        snapshot = await h.store.read_reporting_feed_snapshot(
-            first["ledger_snapshot_id"], caller=case.binding.principal
+        legacy["first"] = first
+        root = Path(current["fixtures"])
+        upgrade = await maintenance_upgrade(
+            pool,
+            legacy,
+            notifications=notifications,
+            installed=(root, python, current),
+            keep_archive=True,
         )
-        expected = await walk(h.store, old_feed_request, case.binding.principal, first=first)
-        # Change actual live evidence while the original binary's frozen pages
-        # stay open. No reconstruction of its original representation is used.
-        await h.store.set_revision_readable(
-            account_id="acct_a",
-            reporting_revision_id=case.revision.reporting_revision_id,
-            readable=False,
-        )
-        settings = {
-            **current,
-            "conninfo": h.pool.conninfo,
-            "kwargs": h.pool.kwargs,
-            "destination": str(tmp_path / "destination.sqlite"),
-            "notifications": notifications,
-            "caller": {"account_id": "acct_a", "consumer_id": case.binding.consumer_id},
-            "receipt_request": receipt_request,
-            "receipt_response": receipt_response,
-            "historical_pending": pending,
-            "evidence_key": evidence_key,
-            "pause": True,
-        }
-        async with installed_child(python, script, settings, tmp_path) as child:
-            activated = await child.event("activated")
-            await child.kill()
-            assert child.process.returncode == -9
-        assert activated["pending_continuation"]["state"] == "verified"
-        assert activated["pending_continuation"]["external_id"] == pending["external_id"]
-        assert (
-            await h.store.read_reporting_feed_snapshot(
-                snapshot.snapshot_id, caller=case.binding.principal
+        from psycopg import sql
+
+        from ._ownership_legacy_seed import image
+
+        try:
+            # Restart the installed maintenance validation in a new process;
+            # archived pending identity and every row survive without delivery.
+            check = root / "archive_restart.py"
+            shutil.copy2(Path(__file__).with_name("_ownership_archive_restart.py"), check)
+            replay = json.loads(
+                await asyncio.to_thread(
+                    run_step,
+                    [str(python), "-I", str(check)],
+                    label="installed-quarantine-restart",
+                    cwd=root,
+                    value={
+                        "conninfo": pool.conninfo,
+                        "kwargs": pool.kwargs,
+                        "archive": upgrade["archive"],
+                        "legacy": legacy,
+                        "notifications": notifications,
+                        "archive_image_sha256": upgrade["archive_image_sha256"],
+                    },
+                    timeout=90,
+                )
             )
-            == snapshot
-        )
-        # Run the actual inherited binary's projector primitive and sweeper on
-        # this newly activated schema, with no child SDK imported into it.
-        # An actually eligible revision for the next period makes this an old
-        # reservation exclusion test, rather than an idle-worker observation.
-        selected = await h.store.get_revision(
-            account_id="acct_a", reporting_revision_id="b24-production-revision"
-        )
-        assert selected is not None and selected.row_count == 0
-        original_obligation = await h.store.get_obligation(
-            account_id="acct_a", reporting_obligation_id=selected.reporting_obligation_id
-        )
-        period = derive_period(
-            item.config.schedule, account_timezone=item.config.account_timezone, ordinal=1
-        )
-        new_obligation = replace(
-            original_obligation,
-            reporting_obligation_id="b24-fence-next-period",
-            period=period,
-            scope_resolved_at=period.end,
-            automated_recovery_deadline_at=period.expected_at
-            + item.config.automated_recovery_window,
-        )
-        await h.store.commit_obligation(new_obligation)
-        revision_id = "b24-fence-next-revision"
-        await h.store.commit_revision(
-            replace(
-                selected,
-                reporting_revision_id=revision_id,
-                reporting_obligation_id=new_obligation.reporting_obligation_id,
-                data_through=period.end,
-                observed_at=period.end,
-                finalized_at=period.end,
-                created_at=period.end + timedelta(seconds=1),
-                revision_content_sha256=revision_content_sha256(
-                    reporting_revision_id=revision_id,
-                    row_count=0,
-                    control_totals=selected.control_totals,
-                    reporting_rows=[],
-                    control_total_evidence=selected.managed_control_totals,
+            assert replay["pending_external_id"] == pending["external_id"]
+            assert (
+                replay["pending_materialization_id"]
+                == pending["attempt"]["reporting_materialization_id"]
+            )
+            assert replay["active_pending"] == 0 and replay["archive_unchanged"]
+            print(
+                json.dumps(
+                    {
+                        "production_ownership_maintenance": old["sha"],
+                        "distribution": current["distribution"],
+                        "notifications": notifications,
+                        "upgrade": upgrade,
+                        "restart": replay,
+                    }
                 ),
-            ),
-            [],
-        )
-        before_old = await h.image()
-        fenced = json.loads(
-            await asyncio.to_thread(
-                run_step,
-                [str(old_python), "-I", str(legacy_script)],
-                label="actual-parent-projector-fence",
-                cwd=old_root,
-                value=legacy_settings,
-                timeout=90,
+                flush=True,
             )
-        )
-        assert fenced["historical_projection"] == "trigger_fenced"
-        assert fenced["historical_materializer"] == "reservation_trigger_fenced"
-        assert await h.image() == before_old
-        settings.update(
-            pause=False,
-            new_revision_after_snapshot=revision_id,
-            continuation=feed_request(
-                case,
-                pagination={"cursor": first["pagination"]["cursor"], "max_results": 1},
-            ),
-            new_continuation=feed_request(
-                case,
-                pagination={"cursor": activated["first"]["pagination"]["cursor"], "max_results": 1},
-            ),
-        )
-        async with installed_child(python, script, settings, tmp_path) as child:
-            result = await child.event("done")
-            production_operation_1 = await asyncio.wait_for(child.process.wait(), 10)
-            assert production_operation_1 == 0
-        assert result["legacy"] == {
-            "pages": expected[0][1:],
-            "binding": snapshot.binding,
-            "version": snapshot.representation_version,
-            "ownership_mode": snapshot.ownership_mode,
-        }
-        assert result["new"] == activated["new_remaining"]
-        assert result["fresh_external_writes"] == 1
-        assert result["new"]["version"] == 2 and result["new"]["ownership_mode"] == "bindings"
-        assert (
-            await h.store.read_reporting_feed_snapshot(
-                snapshot.snapshot_id, caller=case.binding.principal
-            )
-            == snapshot
-        )
-        print(
-            json.dumps(
-                {
-                    "b24_actual_parent_activation_restart": old["sha"],
-                    "parent_tree": old["tree"],
-                    "parent_wheel_sha256": hashlib.sha256(old_wheel.read_bytes()).hexdigest(),
-                    "current": current,
-                    "notifications": notifications,
-                    "historical_pending": pending,
-                    "pending_continuation": activated["pending_continuation"],
-                    "pending_before_migration_sha256": hashlib.sha256(
-                        json.dumps(pending_before_migration, sort_keys=True).encode()
-                    ).hexdigest(),
-                    "parent_fence": fenced,
-                    "legacy_page_count": len(expected[0]),
-                    "new_page_count": len(result["new"]["pages"]) + 1,
-                    "legacy_snapshot_sha256": hashlib.sha256(
-                        json.dumps(expected[0], sort_keys=True).encode()
-                    ).hexdigest(),
-                    "new_origins": result["origins"],
-                }
-            ),
-            flush=True,
-        )
+        finally:
+            async with pool.connection() as connection:
+                assert await image(connection, upgrade["archive"])
+                await connection.execute(
+                    sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(upgrade["archive"]))
+                )

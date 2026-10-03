@@ -68,6 +68,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, cast
 
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
+from adcp.reporting.ledger.delivery_models import ReportingDeliveryPrincipal
 from adcp.reporting.ledger.health import issue_id_for
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
@@ -248,6 +249,7 @@ class ConsumerStatusIngest:
         if obligation is None:
             obligation = await self.store.find_obligation(
                 account_id=stored.account_id,
+                consumer_id=stored.consumer_id,
                 delivery_config_id=stored.delivery_config_id,
                 delivery_config_version=stored.delivery_config_version,
                 period_start=stored.period_start,
@@ -321,7 +323,8 @@ class ConsumerStatusIngest:
         being disputed.
         """
         configurations = await self.store.list_configurations(
-            account_id=record.account_id, delivery_config_ids=[record.delivery_config_id]
+            caller=ReportingDeliveryPrincipal(record.account_id, record.consumer_id),
+            delivery_config_ids=[record.delivery_config_id],
         )
         generation = next(
             (item for item in configurations if item.generation_key == record.generation_key),
@@ -386,6 +389,7 @@ class ConsumerStatusIngest:
         if obligation is None:
             obligation = await self.store.find_obligation(
                 account_id=record.account_id,
+                consumer_id=record.consumer_id,
                 delivery_config_id=record.delivery_config_id,
                 delivery_config_version=record.delivery_config_version,
                 period_start=record.period_start,
@@ -656,6 +660,7 @@ def consumer_mismatch_issue_key(
     """
     generation = ReportingConfigurationGenerationKey(
         account_id=account_id,
+        consumer_id=consumer_id,
         delivery_config_id=delivery_config_id,
         delivery_config_version=delivery_config_version,
     )
