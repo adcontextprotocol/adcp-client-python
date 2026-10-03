@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import argparse
 import keyword
-import re
 import sys
+from io import StringIO
 from pathlib import Path
+from tokenize import NAME, generate_tokens, untokenize
 from typing import Any
 
 from generate_versioned_stubs import VERSIONS, StubBuilder, _model_name, _pascal, _render_objects
@@ -21,6 +22,18 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from adcp.validation.schema_loader import get_portable_schema, list_validator_keys  # noqa: E402
+
+
+def _qualify_annotation(annotation: str) -> str:
+    """Qualify private type names while retaining literal strings and spacing."""
+    return untokenize(
+        (
+            token._replace(string=f"_definitions.{token.string}")
+            if token.type == NAME and token.string.startswith("_")
+            else token
+        )
+        for token in generate_tokens(StringIO(annotation).readline)
+    )
 
 
 def generate(module: str, version: str) -> dict[str, str]:
@@ -71,7 +84,7 @@ def generate(module: str, version: str) -> dict[str, str]:
                 if "None" not in annotation.split(" | "):
                     annotation += " | None"
             # Refer to the exact same nested declarations from runtime and stub.
-            stub_annotation = re.sub(r"\b(_[A-Za-z0-9_]+)\b", r"_definitions.\1", annotation)
+            stub_annotation = _qualify_annotation(annotation)
             stub_default = f" = Field(default={default})" if default != "..." else ""
             if field.isidentifier() and not keyword.iskeyword(field):
                 stub_blocks.append(f"    {field}: {stub_annotation}{stub_default}")
