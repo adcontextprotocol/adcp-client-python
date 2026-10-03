@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
-import json
 import socket
 import threading
 import time
@@ -39,6 +38,7 @@ import idna
 
 from adcp.signing._bounded_http import async_read_limited_bytes, read_limited_bytes
 from adcp.signing._idna_canonicalize import canonicalize_host
+from adcp.signing._strict_json import parse_strict_json
 from adcp.signing.errors import (
     REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
     REQUEST_SIGNATURE_JWKS_UNTRUSTED,
@@ -177,12 +177,9 @@ class BrandSourcedJwksResolver(Protocol):
     """A :class:`JwksResolver` whose keys were resolved via a
     brand.json walk (operator-attested key source per ADCP #3690).
 
-    The verifier's ``identity.key_origins`` consistency check engages
-    only on resolvers advertising ``jwks_source == "brand_json"``;
-    publisher-pinned tuples (``jwks_source == "publisher_pin"``) skip
-    the check, and legacy adopter resolvers without the attribute
-    default to skip (treated as publisher-pin-equivalent for
-    back-compat).
+    The verifier checks operator key origins even when publisher pins narrow
+    the accepted set. Legacy resolvers without source metadata retain their
+    compatibility behavior; discovery helpers always supply that metadata.
 
     Surfacing the contract as a runtime-checkable Protocol means
     ``isinstance(resolver, BrandSourcedJwksResolver)`` at the verifier
@@ -423,7 +420,7 @@ def default_jwks_fetcher(
             "GET", uri, headers={"Accept": "application/json", "Accept-Encoding": "identity"}
         ) as response:
             response.raise_for_status()
-            body = json.loads(read_limited_bytes(response, limit=max_body_bytes))
+            body = parse_strict_json(read_limited_bytes(response, limit=max_body_bytes))
     if not isinstance(body, dict) or "keys" not in body:
         raise ValueError(f"JWKS document at {uri!r} has no 'keys' array")
     return body
@@ -595,7 +592,7 @@ async def async_default_jwks_fetcher(
             "GET", uri, headers={"Accept": "application/json", "Accept-Encoding": "identity"}
         ) as response:
             response.raise_for_status()
-            body = json.loads(await async_read_limited_bytes(response, limit=max_body_bytes))
+            body = parse_strict_json(await async_read_limited_bytes(response, limit=max_body_bytes))
     if not isinstance(body, dict) or "keys" not in body:
         raise ValueError(f"JWKS document at {uri!r} has no 'keys' array")
     return body
