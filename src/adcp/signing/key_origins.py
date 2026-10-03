@@ -26,9 +26,11 @@ Reject codes:
 Publisher ``adagents.json signing_keys`` pins narrow the operator JWKS and
 never bypass this check.
 
-The webhook profile reuses this check via the
-``webhook_signature_key_origin_*`` codes; pass ``code_family="webhook"``
-to raise the webhook-family codes instead of the request family.
+The webhook profile reuses this check; pass ``code_family="webhook"`` to
+raise the webhook-family code instead. That code comes from
+``REQUEST_TO_WEBHOOK_CODE``, which maps both key-origin codes to
+``webhook_signature_key_unknown`` — the webhook profile declares no per-hop
+code for the key-discovery chain.
 """
 
 from __future__ import annotations
@@ -44,23 +46,25 @@ from adcp.signing._idna_canonicalize import canonicalize_host
 from adcp.signing.errors import (
     REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH,
     REQUEST_SIGNATURE_KEY_ORIGIN_MISSING,
-    WEBHOOK_SIGNATURE_KEY_ORIGIN_MISMATCH,
-    WEBHOOK_SIGNATURE_KEY_ORIGIN_MISSING,
+    REQUEST_TO_WEBHOOK_CODE,
     SignatureVerificationError,
 )
 
 CodeFamily = Literal["request", "webhook"]
 
-#: Per spec #3690 §"Discovering an agent's signing keys via brand_json_url"
-#: step 7. Operator JWKS origins remain authoritative with publisher pins.
-_MISMATCH_CODE: dict[CodeFamily, str] = {
-    "request": REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH,
-    "webhook": WEBHOOK_SIGNATURE_KEY_ORIGIN_MISMATCH,
-}
-_MISSING_CODE: dict[CodeFamily, str] = {
-    "request": REQUEST_SIGNATURE_KEY_ORIGIN_MISSING,
-    "webhook": WEBHOOK_SIGNATURE_KEY_ORIGIN_MISSING,
-}
+
+def _code(request_code: str, code_family: CodeFamily) -> str:
+    """Translate a request-family code into ``code_family``.
+
+    Per spec #3690 §"Discovering an agent's signing keys via brand_json_url"
+    step 7. Operator JWKS origins remain authoritative with publisher pins.
+    ``REQUEST_TO_WEBHOOK_CODE`` is the one table that decides the webhook
+    profile's code for a request-family failure, so the webhook family is read
+    from it rather than restated here.
+    """
+    if code_family == "request":
+        return request_code
+    return REQUEST_TO_WEBHOOK_CODE[request_code]
 
 
 def check_key_origin_consistency(
@@ -118,7 +122,7 @@ def check_key_origin_consistency(
         if posture:
             missing_detail["posture"] = posture
         raise SignatureVerificationError(
-            _MISSING_CODE[code_family],
+            _code(REQUEST_SIGNATURE_KEY_ORIGIN_MISSING, code_family),
             step=7,
             message=(
                 f"identity.key_origins.{purpose} declaration missing"
@@ -131,7 +135,7 @@ def check_key_origin_consistency(
     declared_host = _origin_host(declared)
     if actual_host is None or declared_host is None or actual_host != declared_host:
         raise SignatureVerificationError(
-            _MISMATCH_CODE[code_family],
+            _code(REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH, code_family),
             step=7,
             message=(
                 f"identity.key_origins.{purpose} declares {declared_host!r} "
