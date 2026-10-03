@@ -261,6 +261,7 @@ def test_select_top_level_agents() -> None:
     selected = _select_agent(
         data,
         "https://example.com/.well-known/brand.json",
+        agent_url="https://a/",
         agent_type="brand",
         agent_id=None,
         brand_id=None,
@@ -298,6 +299,7 @@ def test_select_portfolio_brand_overrides_house() -> None:
     selected = _select_agent(
         data,
         "https://example.com/.well-known/brand.json",
+        agent_url="https://nike-agent/",
         agent_type="brand",
         agent_id=None,
         brand_id="nike",
@@ -328,14 +330,15 @@ def test_select_portfolio_falls_back_to_house_when_brand_missing_type() -> None:
             }
         ],
     }
-    selected = _select_agent(
-        data,
-        "https://example.com/.well-known/brand.json",
-        agent_type="brand",
-        agent_id=None,
-        brand_id="nike",
-    )
-    assert selected.url == "https://house/"
+    with pytest.raises(BrandJsonResolverError) as exc:
+        _select_agent(
+            data,
+            "https://example.com/",
+            agent_url="https://house/",
+            agent_type="brand",
+            brand_id="nike",
+        )
+    assert exc.value.code == "agent_not_found"
 
 
 def test_select_raises_agent_not_found() -> None:
@@ -343,6 +346,7 @@ def test_select_raises_agent_not_found() -> None:
         _select_agent(
             {"agents": []},
             "https://example.com/",
+            agent_url="https://a/",
             agent_type="brand",
             agent_id=None,
             brand_id=None,
@@ -356,13 +360,14 @@ def test_select_raises_agent_ambiguous_when_multiple_match() -> None:
     data = {
         "agents": [
             {"type": "brand", "url": "https://a/", "id": "a"},
-            {"type": "brand", "url": "https://b/", "id": "b"},
+            {"type": "brand", "url": "https://A:443/", "id": "b"},
         ]
     }
     with pytest.raises(BrandJsonResolverError) as exc:
         _select_agent(
             data,
             "https://example.com/",
+            agent_url="https://a/",
             agent_type="brand",
             agent_id=None,
             brand_id=None,
@@ -380,6 +385,7 @@ def test_select_disambiguates_with_agent_id() -> None:
     selected = _select_agent(
         data,
         "https://example.com/",
+        agent_url="https://b/",
         agent_type="brand",
         agent_id="b",
         brand_id=None,
@@ -394,6 +400,7 @@ def test_select_falls_back_to_well_known_when_origin_matches() -> None:
     selected = _select_agent(
         data,
         "https://x.example/.well-known/brand.json",
+        agent_url="https://x.example/",
         agent_type="brand",
         agent_id=None,
         brand_id=None,
@@ -406,15 +413,10 @@ def test_select_rejects_well_known_fallback_on_origin_mismatch() -> None:
     ``agent.url: https://victim-internal/`` and force the verifier
     to treat that origin's JWKS as authoritative. MUST reject."""
     data = {"agents": [{"type": "brand", "url": "https://victim-internal/"}]}
-    with pytest.raises(BrandJsonResolverError) as exc:
-        _select_agent(
-            data,
-            "https://attacker.example/.well-known/brand.json",
-            agent_type="brand",
-            agent_id=None,
-            brand_id=None,
-        )
-    assert exc.value.code == "jwks_origin_mismatch"
+    selected = _select_agent(
+        data, "https://attacker.example/", agent_url="https://victim-internal/", agent_type="brand"
+    )
+    assert selected.jwks_uri == "https://victim-internal/.well-known/jwks.json"
 
 
 # ----- _compute_lifetime -----
@@ -487,6 +489,7 @@ async def test_resolver_fetches_brand_json_and_inner_jwks(patch_httpx) -> None:
     )
     resolver = BrandJsonJwksResolver(
         "https://example.com/.well-known/brand.json",
+        agent_url="https://x.example/",
         agent_type="brand",
         jwks_fetcher=_jwks_fetcher_for(
             {"https://x.example/jwks": {"kty": "OKP", "crv": "Ed25519", "x": "abc", "kid": "k1"}}
@@ -511,6 +514,7 @@ async def test_resolver_reselects_when_body_changes_without_etag(patch_httpx) ->
     clock = {"t": 0.0}
     resolver = BrandJsonJwksResolver(
         url,
+        agent_url="https://x.example/",
         agent_type="brand",
         max_age_seconds=10.0,
         min_cooldown_seconds=0.0,
@@ -553,6 +557,7 @@ async def test_resolver_returns_none_for_unknown_kid(patch_httpx) -> None:
     )
     resolver = BrandJsonJwksResolver(
         "https://example.com/.well-known/brand.json",
+        agent_url="https://x.example/",
         agent_type="brand",
         jwks_fetcher=_jwks_fetcher_for(
             {"https://x.example/jwks": {"kty": "OKP", "crv": "Ed25519", "x": "abc", "kid": "k1"}}
@@ -582,6 +587,7 @@ async def test_resolver_follows_authoritative_location_redirect(patch_httpx) -> 
     final_jwk = {"kty": "OKP", "crv": "Ed25519", "x": "abc", "kid": "k1"}
     resolver = BrandJsonJwksResolver(
         "https://entry.example/.well-known/brand.json",
+        agent_url="https://final.example/agent/",
         agent_type="brand",
         jwks_fetcher=_jwks_fetcher_for({"https://final.example/jwks": final_jwk}),
     )
@@ -610,6 +616,7 @@ async def test_resolver_follows_house_string_redirect(patch_httpx) -> None:
     portfolio_jwk = {"kty": "OKP", "crv": "Ed25519", "x": "abc", "kid": "k1"}
     resolver = BrandJsonJwksResolver(
         "https://entry.example/.well-known/brand.json",
+        agent_url="https://portfolio.example/",
         agent_type="brand",
         jwks_fetcher=_jwks_fetcher_for({"https://portfolio.example/jwks": portfolio_jwk}),
     )
@@ -634,6 +641,7 @@ async def test_resolver_rejects_invalid_house_string(patch_httpx) -> None:
     )
     resolver = BrandJsonJwksResolver(
         "https://entry.example/.well-known/brand.json",
+        agent_url="https://x.example/",
         agent_type="brand",
     )
     with pytest.raises(BrandJsonResolverError) as exc:
@@ -677,6 +685,7 @@ async def test_resolver_redirect_depth_exceeded(patch_httpx) -> None:
     )
     resolver = BrandJsonJwksResolver(
         "https://entry.example/.well-known/brand.json",
+        agent_url="https://x.example/",
         agent_type="brand",
         max_redirects=3,
     )
@@ -708,6 +717,7 @@ async def test_resolver_redirect_loop_detected(patch_httpx) -> None:
     )
     resolver = BrandJsonJwksResolver(
         "https://entry.example/.well-known/brand.json",
+        agent_url="https://x.example/",
         agent_type="brand",
     )
     with pytest.raises(BrandJsonResolverError) as exc:
@@ -720,6 +730,7 @@ async def test_resolver_handles_fetch_404(patch_httpx) -> None:
     patch_httpx({})  # nothing — 404 on every call
     resolver = BrandJsonJwksResolver(
         "https://example.com/.well-known/brand.json",
+        agent_url="https://x.example/",
         agent_type="brand",
     )
     with pytest.raises(BrandJsonResolverError) as exc:
@@ -739,6 +750,7 @@ async def test_resolver_handles_invalid_json(patch_httpx) -> None:
     )
     resolver = BrandJsonJwksResolver(
         "https://example.com/.well-known/brand.json",
+        agent_url="https://x.example/",
         agent_type="brand",
     )
     with pytest.raises(BrandJsonResolverError) as exc:
@@ -758,6 +770,7 @@ async def test_resolver_force_refresh_clears_snapshot(patch_httpx) -> None:
     )
     resolver = BrandJsonJwksResolver(
         "https://example.com/.well-known/brand.json",
+        agent_url="https://x.example/",
         agent_type="brand",
         jwks_fetcher=_jwks_fetcher_for(
             {"https://x.example/jwks": {"kty": "OKP", "crv": "Ed25519", "x": "abc", "kid": "k1"}}
@@ -775,7 +788,9 @@ async def test_resolver_force_refresh_clears_snapshot(patch_httpx) -> None:
 async def test_resolver_satisfies_jwks_resolver_protocol() -> None:
     """Structural check that the class is callable as
     ``await resolver(kid)`` per the AsyncJwksResolver Protocol."""
-    resolver = BrandJsonJwksResolver("https://x/", agent_type="brand")
+    resolver = BrandJsonJwksResolver(
+        "https://x/", agent_url="https://x.example/", agent_type="brand"
+    )
     # Just check it's awaitable-callable; we don't actually fetch.
     assert callable(resolver)
     coro = resolver.resolve("k")
@@ -816,6 +831,7 @@ async def test_resolver_rejects_oversized_brand_json(patch_httpx) -> None:
     )
     resolver = BrandJsonJwksResolver(
         "https://example.com/.well-known/brand.json",
+        agent_url="https://x.example/",
         agent_type="brand",
         max_body_bytes=256 * 1024,  # default cap
         jwks_fetcher=_jwks_fetcher_for({}),
@@ -839,6 +855,7 @@ async def test_resolver_stops_streaming_oversized_brand_json(patch_httpx) -> Non
     )
     resolver = BrandJsonJwksResolver(
         "https://example.com/.well-known/brand.json",
+        agent_url="https://x.example/",
         agent_type="brand",
         max_body_bytes=5,
     )
@@ -867,6 +884,7 @@ async def test_resolver_loop_detection_handles_case_aliasing(patch_httpx) -> Non
     )
     resolver = BrandJsonJwksResolver(
         "https://example.com/.well-known/brand.json",
+        agent_url="https://x.example/",
         agent_type="brand",
         jwks_fetcher=_jwks_fetcher_for({}),
     )
@@ -895,6 +913,7 @@ async def test_resolver_concurrent_resolve_dedups_to_one_fetch(
     jwk = {"kty": "OKP", "crv": "Ed25519", "x": "abc", "kid": "k1"}
     resolver = BrandJsonJwksResolver(
         "https://example.com/.well-known/brand.json",
+        agent_url="https://x.example/",
         agent_type="brand",
         jwks_fetcher=_jwks_fetcher_for({"https://x.example/jwks": jwk}),
     )

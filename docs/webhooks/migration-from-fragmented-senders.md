@@ -290,3 +290,10 @@ if not result.ok:
 * **Hooks bypassing SSRF** — hooks run before SSRF, but SSRF validates the post-rewrite URL; the boundary holds.
 
 If your current sender doesn't have one of these properties, this is what you're trading up to.
+
+## Reporting-stream correlation on AdCP 3.2
+
+For scheduled `media_buy_delivery` notifications, see the
+[interim reporting operation ID guide](reporting-operation-id-3.2.md).
+It covers the optional registration extension, seller persistence and echo,
+and updating existing registrations before resuming scheduled delivery.
