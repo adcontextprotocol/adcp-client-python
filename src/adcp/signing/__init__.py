@@ -83,6 +83,11 @@ The core names you'll reach for (everything else is for advanced use):
   (with SSRF validation) and pin subsequent connects to that IP.
   Closes the DNS-rebinding TOCTOU for anything built on
   :class:`httpx.Client`.
+* :func:`build_ip_pinned_transport2` /
+  :func:`build_async_ip_pinned_transport2` — the same pin for the
+  ``httpx2`` generation, which MCP SDK v2 runs on. Use these for an
+  :class:`httpx2.Client` / :class:`httpx2.AsyncClient`, including an
+  MCP ``httpx_client_factory``.
 * :func:`resolve_and_validate_host` — returns ``(host, ip, port)``;
   same SSRF rules as :func:`validate_jwks_uri`. Use this if you're
   wiring your own transport and only need the resolved + validated
@@ -211,10 +216,14 @@ from adcp.signing.etld import (
 )
 from adcp.signing.ip_pinned_transport import (
     AsyncIpPinnedTransport,
+    AsyncIpPinnedTransport2,
     IpPinnedTransport,
+    IpPinnedTransport2,
     abuild_ip_pinned_transport,
     build_async_ip_pinned_transport,
+    build_async_ip_pinned_transport2,
     build_ip_pinned_transport,
+    build_ip_pinned_transport2,
 )
 from adcp.signing.jwks import (
     DEFAULT_ALLOWED_PORTS,
@@ -345,6 +354,7 @@ __all__ = [
     "AsyncCachingJwksResolver",
     "AsyncCachingRevocationChecker",
     "AsyncIpPinnedTransport",
+    "AsyncIpPinnedTransport2",
     "AsyncJwksFetcher",
     "AsyncJwksResolver",
     "AsyncRevocationListFetcher",
@@ -373,6 +383,7 @@ __all__ = [
     "InMemoryReplayStore",
     "InMemorySigningProvider",
     "IpPinnedTransport",
+    "IpPinnedTransport2",
     "JwksResolver",
     "JwsError",
     "JwsMalformedError",
@@ -449,9 +460,11 @@ __all__ = [
     "b64url_decode",
     "b64url_encode",
     "build_async_ip_pinned_transport",
+    "build_async_ip_pinned_transport2",
     "build_brand_json_resolvers",
     "build_capability_cache_key",
     "build_ip_pinned_transport",
+    "build_ip_pinned_transport2",
     "build_signature_base",
     "BrandDomainValidationError",
     "canonicalize_authority",

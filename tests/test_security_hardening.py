@@ -14,6 +14,7 @@ from adcp.protocols.mcp import (
     _make_signing_http_factory,
 )
 from adcp.registry import RegistryClient
+from adcp.signing import AsyncIpPinnedTransport, AsyncIpPinnedTransport2
 from adcp.signing.autosign import SigningConfig
 from adcp.types.core import AgentConfig, Protocol
 
@@ -349,6 +350,56 @@ def test_custom_mcp_factory_rejects_insecure_returned_client(
 
     with pytest.raises(ValueError, match=message):
         adapter._streamable_http_client_factory()()
+
+
+def test_custom_mcp_factory_rejects_other_generation_transport() -> None:
+    """An httpx transport inside an httpx2 client is refused at wiring
+    time, naming the generation split.
+
+    httpx2 runs no type check on ``transport=``, so this client builds
+    and then fails on its first request with a bare, message-less
+    ``AssertionError`` raised out of httpx's own transport module —
+    and with ``python -O`` the assertion is gone, the request goes out,
+    and the response is unusable. The refusal happens here instead, and
+    points at the httpx2 pinned transport.
+    """
+    foreign_transport = AsyncIpPinnedTransport(
+        hostname="seller.example.com", resolved_ip="203.0.113.10"
+    )
+
+    adapter = MCPAdapter(
+        AgentConfig(
+            id="mixed-generations",
+            agent_uri="https://seller.example.com/mcp",
+            protocol=Protocol.MCP,
+        ),
+        httpx_client_factory=lambda **kwargs: httpx2.AsyncClient(
+            transport=foreign_transport, **kwargs
+        ),
+    )
+
+    with pytest.raises(TypeError, match="build_async_ip_pinned_transport2"):
+        adapter._streamable_http_client_factory()()
+
+
+def test_custom_mcp_factory_accepts_httpx2_pinned_transport() -> None:
+    """The httpx2 pinned transport is what the factory is for: same
+    client shape, accepted."""
+    pinned = AsyncIpPinnedTransport2(hostname="seller.example.com", resolved_ip="203.0.113.10")
+
+    adapter = MCPAdapter(
+        AgentConfig(
+            id="pinned-httpx2",
+            agent_uri="https://seller.example.com/mcp",
+            protocol=Protocol.MCP,
+        ),
+        httpx_client_factory=lambda **kwargs: httpx2.AsyncClient(transport=pinned, **kwargs),
+    )
+
+    client = adapter._streamable_http_client_factory()()
+    assert client._transport is pinned
+    assert client.follow_redirects is False
+    assert client.trust_env is False
 
 
 def test_custom_mcp_factory_rejects_a2a_only_client() -> None:

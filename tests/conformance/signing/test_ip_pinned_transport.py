@@ -13,26 +13,42 @@ Three kinds of coverage:
 3. **SSRF integration** — the fetchers defer resolution to
    :func:`resolve_and_validate_host`; reserved-range and
    cloud-metadata IPs still reject at construction.
+4. **Both httpx generations** — the ``2``-suffixed transports pin
+   through httpcore2 for an ``httpx2`` client, which is what MCP SDK
+   v2 runs on. An in-process loopback server proves the pin connects
+   and that a wrong-host refusal fires before any socket opens.
 """
 
 from __future__ import annotations
 
 import inspect
 import socket
+import threading
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import patch
 
 import httpcore
+import httpcore2
+import httpx
+import httpx2
 import pytest
 from httpcore._backends.anyio import AnyIOBackend  # type: ignore[attr-defined]
 from httpcore._backends.sync import SyncBackend  # type: ignore[attr-defined]
+from httpcore2._backends.anyio import AnyIOBackend as AnyIOBackend2  # type: ignore[attr-defined]
+from httpcore2._backends.sync import SyncBackend as SyncBackend2  # type: ignore[attr-defined]
 
 from adcp.signing import (
     AsyncIpPinnedTransport,
+    AsyncIpPinnedTransport2,
     IpPinnedTransport,
+    IpPinnedTransport2,
     SSRFValidationError,
     abuild_ip_pinned_transport,
     build_async_ip_pinned_transport,
+    build_async_ip_pinned_transport2,
     build_ip_pinned_transport,
+    build_ip_pinned_transport2,
     resolve_and_validate_host,
 )
 
@@ -74,6 +90,18 @@ def test_httpcore_connection_pool_accepts_network_backend() -> None:
     assert "network_backend" in sig.parameters
     sig_async = inspect.signature(httpcore.AsyncConnectionPool.__init__)
     assert "network_backend" in sig_async.parameters
+
+
+def test_httpcore2_backends_match_the_httpcore_signatures() -> None:
+    """The ``2``-suffixed transports pin through the same extension
+    point in the httpcore2 generation. One signature test covers both,
+    because the port is only valid while the two agree."""
+    assert inspect.signature(SyncBackend2.connect_tcp) == inspect.signature(SyncBackend.connect_tcp)
+    assert inspect.signature(AnyIOBackend2.connect_tcp) == inspect.signature(
+        AnyIOBackend.connect_tcp
+    )
+    assert "network_backend" in inspect.signature(httpcore2.ConnectionPool.__init__).parameters
+    assert "network_backend" in inspect.signature(httpcore2.AsyncConnectionPool.__init__).parameters
 
 
 # -- resolve_and_validate_host ---------------------------------------
@@ -118,9 +146,9 @@ def test_resolve_normalizes_idn_hostname_to_punycode() -> None:
     # Patch getaddrinfo to short-circuit DNS for the IDN test host.
     def fake_getaddrinfo(host, _port, *_args, **_kwargs):
         # Must be called with the ASCII-encoded form.
-        assert (
-            host == "xn--mnchen-3ya.example"
-        ), f"resolve_and_validate_host should IDNA-encode; got {host!r}"
+        assert host == "xn--mnchen-3ya.example", (
+            f"resolve_and_validate_host should IDNA-encode; got {host!r}"
+        )
         return [(socket.AF_INET, 0, 0, "", ("8.8.8.8", 0))]
 
     with patch("adcp.signing.jwks.socket.getaddrinfo", side_effect=fake_getaddrinfo):
@@ -365,3 +393,134 @@ def test_transport_type_is_httpx_httptransport() -> None:
     atransport = build_async_ip_pinned_transport("https://example.com/")
     assert isinstance(atransport, httpx.AsyncHTTPTransport)
     assert isinstance(atransport, AsyncIpPinnedTransport)
+
+
+# -- the httpx2 generation --------------------------------------------
+#
+# ``mcp>=2.0`` runs on httpx2, so every install carries both httpx
+# generations and an MCP ``httpx_client_factory`` has to return an
+# httpx2 client. These tests exercise the pin through a real httpx2
+# client against an in-process loopback server: no name resolution and
+# no traffic off the machine, so the subject is the httpx binding and
+# nothing else.
+
+
+@contextmanager
+def _loopback_server():
+    """Serve 200 on 127.0.0.1 and record every path actually requested.
+
+    The recorded list is the proof a refusal fired BEFORE the socket
+    opened: an empty list means no request was issued.
+    """
+    received: list[str] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            received.append(self.path)
+            body = b'{"ok":true}'
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            """Keep the test output clean."""
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever)
+    thread.start()
+    try:
+        yield server.server_port, received
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+        assert not thread.is_alive()
+
+
+def test_transport2_types_are_httpx2_transports() -> None:
+    """The pinned httpx2 transports ARE httpx2 transports, and are not
+    accepted by the httpx generation. The two packages are unrelated, so
+    a transport that satisfied both would be the surprise."""
+    transport = IpPinnedTransport2(hostname="localhost", resolved_ip="127.0.0.1")
+    assert isinstance(transport, httpx2.BaseTransport)
+    assert isinstance(transport, httpx2.HTTPTransport)
+    assert not isinstance(transport, httpx.BaseTransport)
+
+    atransport = AsyncIpPinnedTransport2(hostname="localhost", resolved_ip="127.0.0.1")
+    assert isinstance(atransport, httpx2.AsyncBaseTransport)
+    assert isinstance(atransport, httpx2.AsyncHTTPTransport)
+    assert not isinstance(atransport, httpx.AsyncBaseTransport)
+
+
+def test_transport2_serves_a_request_from_an_httpx2_client() -> None:
+    with _loopback_server() as (port, received):
+        transport = IpPinnedTransport2(hostname="localhost", resolved_ip="127.0.0.1")
+        with httpx2.Client(transport=transport, timeout=10.0) as client:
+            response = client.get(f"http://localhost:{port}/pinned")
+
+    assert response.status_code == 200
+    assert response.json() == {"ok": True}
+    assert received == ["/pinned"]
+
+
+async def test_async_transport2_serves_a_request_from_an_httpx2_async_client() -> None:
+    with _loopback_server() as (port, received):
+        transport = AsyncIpPinnedTransport2(hostname="localhost", resolved_ip="127.0.0.1")
+        async with httpx2.AsyncClient(transport=transport, timeout=10.0) as client:
+            response = await client.get(f"http://localhost:{port}/pinned")
+
+    assert response.status_code == 200
+    assert response.json() == {"ok": True}
+    assert received == ["/pinned"]
+
+
+async def test_async_transport2_refuses_a_second_host_before_connecting() -> None:
+    """The fail-closed wrong-host refusal holds in the httpx2
+    generation, and it holds at connect time: the server records no
+    request."""
+    with _loopback_server() as (port, received):
+        transport = AsyncIpPinnedTransport2(hostname="pinned.example", resolved_ip="127.0.0.1")
+        async with httpx2.AsyncClient(transport=transport, timeout=10.0) as client:
+            with pytest.raises(RuntimeError, match="pinned to 'pinned.example'"):
+                await client.get(f"http://localhost:{port}/other")
+
+    assert received == []
+
+
+@pytest.mark.parametrize("build", [build_ip_pinned_transport2, build_async_ip_pinned_transport2])
+def test_builders2_pin_the_first_resolution_against_rebinding(build) -> None:
+    """Same single-resolution contract as the httpx builders: one
+    lookup at build time, and the pin holds the IP it returned. A
+    second lookup would return cloud metadata, so a build that resolved
+    twice fails here."""
+    call_count = {"n": 0}
+
+    def fake_getaddrinfo(_host, _port, *_args, **_kwargs):
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            return [(socket.AF_INET, 0, 0, "", ("8.8.8.8", 0))]
+        return [(socket.AF_INET, 0, 0, "", ("169.254.169.254", 0))]
+
+    with patch("adcp.signing.jwks.socket.getaddrinfo", side_effect=fake_getaddrinfo):
+        transport = build("https://attacker.example/")
+
+    assert call_count["n"] == 1
+    backend = transport._pool._network_backend  # type: ignore[attr-defined]
+    assert backend._resolved_ip == "8.8.8.8"
+    assert backend._hostname == "attacker.example"
+
+
+def test_builders2_refuse_a_blocked_address() -> None:
+    """The address policy is the shared one — the generation changes the
+    transport, never the SSRF decision."""
+
+    def fake_getaddrinfo(_host, _port, *_args, **_kwargs):
+        return [(socket.AF_INET, 0, 0, "", ("169.254.169.254", 0))]
+
+    with patch("adcp.signing.jwks.socket.getaddrinfo", side_effect=fake_getaddrinfo):
+        with pytest.raises(SSRFValidationError):
+            build_ip_pinned_transport2("https://metadata.example/", allow_private=True)
+        with pytest.raises(SSRFValidationError):
+            build_async_ip_pinned_transport2("https://metadata.example/", allow_private=True)

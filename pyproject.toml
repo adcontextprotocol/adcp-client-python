@@ -36,6 +36,14 @@ dependencies = [
     # ``tests/conformance/signing/test_ip_pinned_transport_contract.py``
     # guards the specific API shapes we rely on.
     "httpcore>=1.0,<2.0",
+    # The ``mcp`` floor below runs on httpx2, a separate distribution from
+    # httpx, so every install already has both generations. The IP-pinned
+    # transports ship for both (``adcp.signing.IpPinnedTransport2`` and its
+    # async twin), which means we import httpx2 and httpcore2 directly
+    # instead of inheriting them transitively — same reasoning as httpcore
+    # above, including the reach into ``httpcore2._backends.*``.
+    "httpx2>=2.5.0,<3.0",
+    "httpcore2>=2.5,<3.0",
     # Upper bound is load-bearing for ``adcp.types.error_narrowing``,
     # which depends on pydantic-2 ValidationError.errors() internals
     # (``err[\"type\"]`` literals like ``\"literal_error\"`` /
