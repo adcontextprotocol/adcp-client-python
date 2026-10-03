@@ -2868,13 +2868,15 @@ def _allowed_top_level_fields(
     version: str | None,
     params_model: type[Any] | None,
 ) -> set[str] | None:
+    from adcp.validation.envelope import VERSION_ENVELOPE_FIELDS
+
     validator = get_validator(method_name, "request", version=version)
     if validator is not None:
         schema = getattr(validator, "schema", None)
         if isinstance(schema, dict):
             properties = schema.get("properties")
             if isinstance(properties, dict):
-                return {str(name) for name in properties}
+                return {str(name) for name in properties} | VERSION_ENVELOPE_FIELDS
 
     if params_model is None:
         return None
@@ -2889,7 +2891,7 @@ def _allowed_top_level_fields(
         alias = getattr(field, "alias", None)
         if isinstance(alias, str):
             allowed.add(alias)
-    return allowed
+    return allowed | VERSION_ENVELOPE_FIELDS
 
 
 def _apply_unknown_field_policy(

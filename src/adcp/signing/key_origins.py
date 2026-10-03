@@ -23,10 +23,8 @@ Reject codes:
 * ``request_signature_key_origin_missing`` — signing posture asserted
   but no ``identity.key_origins.{purpose}`` declaration.
 
-The carve-out for publisher ``adagents.json signing_keys`` pins (where
-the key origin is the publisher's domain, not the operator's) is the
-caller's responsibility: skip this check for the specific (agent,
-purpose, role) tuple sourced from a publisher pin.
+Publisher ``adagents.json signing_keys`` pins narrow the operator JWKS and
+never bypass this check.
 
 The webhook profile reuses this check via the
 ``webhook_signature_key_origin_*`` codes; pass ``code_family="webhook"``
@@ -54,9 +52,7 @@ from adcp.signing.errors import (
 CodeFamily = Literal["request", "webhook"]
 
 #: Per spec #3690 §"Discovering an agent's signing keys via brand_json_url"
-#: step 7. The check is mandatory only when the JWKS source was the
-#: operator brand.json (not a publisher pin). The caller decides which
-#: branch applies and either calls this function or skips it.
+#: step 7. Operator JWKS origins remain authoritative with publisher pins.
 _MISMATCH_CODE: dict[CodeFamily, str] = {
     "request": REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH,
     "webhook": WEBHOOK_SIGNATURE_KEY_ORIGIN_MISMATCH,
@@ -78,15 +74,8 @@ def check_key_origin_consistency(
     """Verify that the resolved ``jwks_uri`` host matches the declared
     ``identity.key_origins.{purpose}``.
 
-    **Caller contract: skip this call for publisher-pinned JWKS sources.**
-    Per ADCP #3690 the consistency check is mandatory only when the JWKS
-    source for the (agent, purpose, role) tuple was the operator
-    brand.json. For tuples sourced from a publisher
-    ``adagents.json signing_keys`` pin, the JWKS origin is the
-    publisher's domain by design — invoking this check on a
-    publisher-pinned tuple would incorrectly reject a legitimate key.
-    Callers are responsible for that branching; the helper takes no
-    ``source`` parameter and will always raise on host disagreement.
+    Apply this check even when a publisher pin narrows the operator keys.
+    Only the 3.x discovery fallback without brand_json_url skips it.
 
     Parameters
     ----------
