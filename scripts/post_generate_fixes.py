@@ -25,7 +25,7 @@ import json
 import re
 from copy import deepcopy
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 REPO_ROOT = Path(__file__).parent.parent
 
@@ -732,11 +732,11 @@ def fix_typed_additional_properties() -> None:
     )
 
 
-def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
-    """Remove a generated ``Field`` import when the module never references it."""
+def _remove_unused_pydantic_import(source: str, name: str) -> tuple[str, bool]:
+    """Remove a generated ``pydantic`` import when the module never uses it."""
     tree = ast.parse(source)
     if any(
-        isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id == "Field"
+        isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id == name
         for node in ast.walk(tree)
     ):
         return source, False
@@ -746,11 +746,11 @@ def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
     for node in reversed(list(ast.walk(tree))):
         if not isinstance(node, ast.ImportFrom) or node.module != "pydantic":
             continue
-        if not any(alias.name == "Field" and alias.asname is None for alias in node.names):
+        if not any(alias.name == name and alias.asname is None for alias in node.names):
             continue
 
         remaining = [
-            alias for alias in node.names if alias.name != "Field" or alias.asname is not None
+            alias for alias in node.names if alias.name != name or alias.asname is not None
         ]
         start = node.lineno - 1
         end = node.end_lineno or node.lineno
@@ -771,17 +771,25 @@ def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
 
 
 def remove_unused_pydantic_field_imports() -> None:
-    """Remove spurious ``Field`` imports emitted for generated enum modules."""
+    """Remove ``Field`` and ``RootModel`` imports the generated module never uses.
+
+    ``Field`` is spurious on generated enum modules. ``RootModel`` is left behind
+    by ``unwrap_rootmodel_unions``, which deliberately edits no imports: a fix
+    between it and here matches an exact generated import line, so the line has
+    to stay intact until every fix has run.
+    """
     modified_files = 0
     for py_path in OUTPUT_DIR.rglob("*.py"):
         source = py_path.read_text()
-        updated, changed = _remove_unused_pydantic_field_import(source)
-        if not changed:
+        updated = source
+        for name in ("Field", "RootModel"):
+            updated, _ = _remove_unused_pydantic_import(updated, name)
+        if updated == source:
             continue
         py_path.write_text(updated)
         modified_files += 1
 
-    print(f"  Removed unused pydantic.Field imports from {modified_files} file(s)")
+    print(f"  Removed unused pydantic imports from {modified_files} file(s)")
 
 
 def _find_indented_field_block(content: str, field_name: str) -> tuple[int, int] | None:
@@ -870,99 +878,314 @@ def fix_constr_type_annotations():
         print("  No constrained string annotations needed fixing")
 
 
-# Types to unwrap from RootModel to Union type alias.
-# Only genuine discriminated unions (different field shapes per variant) belong here.
-# "Validation-only" oneOf types (same fields, different required combos) are now
-# handled at the schema level by flatten_validation_oneof() in generate_types.py,
-# which produces a single BaseModel class — no RootModel or unwrapping needed.
-# Removed from this set (now single classes): GetCreativeDeliveryRequest,
-# GetSignalsRequest, ProvidePerformanceFeedbackRequest, SiSendMessageRequest,
-# UpdateMediaBuyRequest.
-# See: https://github.com/adcontextprotocol/adcp-client-python/issues/155
-_UNWRAP_TO_UNION: set[str] = {
-    "AcceptProposalResponse",
-    # Value type, unlike the rest of this set. AdCP 3.2.0-rc.3 replaced the
-    # plain MediaBuyValidAction enum on ProductAllowedAction.action,
-    # MediaBuyAvailableAction.action, and ActionNotAllowed.attempted_action
-    # with this named anyOf of that enum plus one const. Keeping the RootModel
-    # wrapper would break every adopter that writes action="pause" or
-    # action=MediaBuyValidAction.pause -- a wrapper the schema does not ask
-    # for, since anyOf of an enum and a const is a plain union. The root
-    # field's description/title are documentation only; each use site carries
-    # its own description.
-    "MediaBuyAvailableActionId",
-    "BuyProductsResponse",
-    "CheckGovernanceRequest",
-    "ControlMediaBuyResponse",
-    "DeclineProposalsResponse",
-    "ListProductsResponse",
-    "MediaBuyCommitmentResponse",
-    "RefineProposalsResponse",
-    "RequestProposalsResponse",
-    "AcquireRightsResponse",
-    "ComplyTestControllerRequest",
-    "ComplyTestControllerResponse",
-    "ActivateSignalResponse",
-    "BuildCreativeRequest",
-    "BuildCreativeResponse",
-    "CalibrateContentResponse",
-    "CreateContentStandardsResponse",
-    "CreateMediaBuyResponse",
-    "CreativeApprovalResponse",
-    "GetAccountFinancialsResponse",
-    "GetBrandIdentityResponse",
-    "GetContentStandardsResponse",
-    "GetCreativeFeaturesResponse",
-    "GetMediaBuyArtifactsResponse",
-    "GetPlanAuditLogsRequest",
-    "GetProductsRequest",
-    "GetRightsResponse",
-    "ListContentStandardsResponse",
-    "LogEventResponse",
-    "PreviewCreativeRequest",
-    "PreviewCreativeResponse",
-    "ProvidePerformanceFeedbackResponse",
-    "SyncAccountsResponse",
-    "SyncAudiencesResponse",
-    "SyncGovernanceResponse",
-    "SyncCatalogsResponse",
-    "SyncCreativesResponse",
-    "SyncEventSourcesResponse",
-    "UpdateContentStandardsResponse",
-    "UpdateMediaBuyResponse",
-    "UpdateRightsResponse",
-    "ValidateContentDeliveryResponse",
-}
+class _ComposingRootSpec(NamedTuple):
+    """One generated ``RootModel`` whose root composes rather than holds a value."""
+
+    name: str
+    root: str
+    metadata: str | None
+    is_union: bool
+    docstring: str | None
+    description: str | None
+    start_line: int
+    end_line: int
+
+
+# A root spelled as one of these is a value, and the wrapper is the only place
+# its constraints can live. ``list[...]``, ``dict[...]`` and ``Literal[...]`` are
+# recognized by their subscript instead.
+_VALUE_ROOT_NAMES = frozenset(
+    {
+        "Any",
+        "AnyUrl",
+        "AwareDatetime",
+        "Decimal",
+        "EmailStr",
+        "NaiveDatetime",
+        "bool",
+        "bytes",
+        "date",
+        "datetime",
+        "float",
+        "int",
+        "str",
+        "time",
+    }
+)
+
+
+def _is_docstring(stmt: ast.stmt) -> bool:
+    """Whether ``stmt`` is a bare string expression."""
+    return (
+        isinstance(stmt, ast.Expr)
+        and isinstance(stmt.value, ast.Constant)
+        and isinstance(stmt.value.value, str)
+    )
+
+
+def _root_is_value(node: ast.expr) -> bool:
+    """Whether a ``RootModel[...]`` argument names a value rather than a model."""
+    if isinstance(node, ast.Subscript):
+        return True
+    if isinstance(node, ast.Name):
+        return node.id in _VALUE_ROOT_NAMES
+    if isinstance(node, ast.Attribute):
+        return node.attr in _VALUE_ROOT_NAMES
+    return True
+
+
+def _composing_root_spec(source: str, node: ast.ClassDef) -> _ComposingRootSpec | None:
+    """Describe the rewrite for a composing ``class X(RootModel[...])``, or ``None``.
+
+    Composing means a union of models or a single model. ``None`` for a value
+    root — ``RootModel[str]``, ``RootModel[list[A]]``, ``RootModel[Literal[...]]``,
+    ``RootModel[AnyUrl]`` — because the wrapper is the only place a value root's
+    constraints can live. ``None`` as well for a class carrying a decorator, a
+    class keyword, a validator, a default or a second body statement: dropping
+    any of those silently would change behavior.
+    """
+    if len(node.bases) != 1 or node.keywords or node.decorator_list:
+        return None
+    base = node.bases[0]
+    if not isinstance(base, ast.Subscript):
+        return None
+    if not (isinstance(base.value, ast.Name) and base.value.id == "RootModel"):
+        return None
+    is_union = isinstance(base.slice, ast.BinOp) and isinstance(base.slice.op, ast.BitOr)
+    if not is_union and _root_is_value(base.slice):
+        return None
+    if not node.end_lineno:
+        return None
+
+    docstring = next(
+        (ast.get_source_segment(source, stmt.value) for stmt in node.body if _is_docstring(stmt)),
+        None,
+    )
+    body = [stmt for stmt in node.body if not _is_docstring(stmt)]
+    if len(body) != 1:
+        return None
+    field = body[0]
+    if not (
+        isinstance(field, ast.AnnAssign)
+        and isinstance(field.target, ast.Name)
+        and field.target.id == "root"
+        and field.value is None
+    ):
+        return None
+
+    annotation = field.annotation
+    metadata: str | None = None
+    description: str | None = None
+    if (
+        isinstance(annotation, ast.Subscript)
+        and isinstance(annotation.value, ast.Name)
+        and annotation.value.id == "Annotated"
+    ):
+        elements = list(annotation.slice.elts) if isinstance(annotation.slice, ast.Tuple) else []
+        if len(elements) != 2:
+            return None
+        annotation, candidate = elements
+        if not (
+            isinstance(candidate, ast.Call)
+            and isinstance(candidate.func, ast.Name)
+            and candidate.func.id == "Field"
+        ):
+            return None
+        metadata = ast.get_source_segment(source, candidate)
+        if metadata is None:
+            return None
+        description = next(
+            (
+                keyword.value.value
+                for keyword in candidate.keywords
+                if keyword.arg == "description"
+                and isinstance(keyword.value, ast.Constant)
+                and isinstance(keyword.value.value, str)
+            ),
+            None,
+        )
+
+    # The ``root:`` annotation restates the base's argument; emit the restated
+    # one, which is the form the field metadata was written against.
+    if is_union != (isinstance(annotation, ast.BinOp) and isinstance(annotation.op, ast.BitOr)):
+        return None
+    root = ast.get_source_segment(source, annotation)
+    if root is None:
+        return None
+
+    return _ComposingRootSpec(
+        name=node.name,
+        root=_dedent_continuation(root),
+        metadata=None if metadata is None else _dedent_continuation(metadata),
+        is_union=is_union,
+        docstring=docstring,
+        description=description,
+        start_line=node.lineno,
+        end_line=node.end_lineno,
+    )
+
+
+def _dedent_continuation(segment: str, columns: int = 4) -> str:
+    """Shift a source segment's continuation lines left by ``columns``.
+
+    A source segment lifted out of ``root: Annotated[...]`` carries that field's
+    indentation. The alias it becomes sits one level further out.
+    """
+    first, *rest = segment.split("\n")
+    return "\n".join(
+        [first, *(line[columns:] if line[:columns].isspace() else line for line in rest)]
+    )
+
+
+def _union_arm_names(node: ast.expr, into: set[str]) -> None:
+    """Collect the names a union expression joins, by their final component."""
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+        _union_arm_names(node.left, into)
+        _union_arm_names(node.right, into)
+    elif isinstance(node, ast.Name):
+        into.add(node.id)
+    elif isinstance(node, ast.Attribute):
+        into.add(node.attr)
+
+
+def _plain_model_names(output_dir: Path) -> set[str]:
+    """Names the generated tree declares only as a plain model class.
+
+    A single-model root becomes a subclass of its target, so the target has to
+    be subclassable. An enumeration with members is not, and neither is a target
+    that is itself a ``RootModel`` union, which this pass turns into a union
+    alias. A name declared both ways anywhere in the tree is excluded.
+    """
+    declared: set[str] = set()
+    excluded: set[str] = set()
+    for py_file in output_dir.rglob("*.py"):
+        source = py_file.read_text()
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            declared.add(node.name)
+            bases = [ast.get_source_segment(source, base) or "" for base in node.bases]
+            if any(
+                base in ("Enum", "StrEnum", "IntEnum") or base.startswith("RootModel[")
+                for base in bases
+            ):
+                excluded.add(node.name)
+    return declared - excluded
+
+
+def _discriminated_arm_names(output_dir: Path) -> set[str]:
+    """Names the generated tree uses as an arm of a discriminated union.
+
+    A wrapper named there is the one choice the parent's discriminator maps its
+    tag to. ``AssetVariant`` discriminates 21 arms on ``asset_type``, and three
+    of them — ``VastAsset``, ``DaastAsset``, ``DisplayTagAsset`` — are each a
+    union of shapes that share one ``asset_type`` and differ on a second
+    property. Replacing one of those with its own union inlines both shapes
+    under the same tag, and Pydantic refuses the parent union at import time.
+    """
+    names: set[str] = set()
+    for py_file in output_dir.rglob("*.py"):
+        content = py_file.read_text()
+        if "discriminator=" not in content:
+            continue
+        try:
+            tree = ast.parse(content)
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not (
+                isinstance(node, ast.Subscript)
+                and isinstance(node.value, ast.Name)
+                and node.value.id == "Annotated"
+                and isinstance(node.slice, ast.Tuple)
+                and len(node.slice.elts) >= 2
+            ):
+                continue
+            union, *metadata = node.slice.elts
+            if not (isinstance(union, ast.BinOp) and isinstance(union.op, ast.BitOr)):
+                continue
+            if any(
+                isinstance(entry, ast.Call)
+                and any(keyword.arg == "discriminator" for keyword in entry.keywords)
+                for entry in metadata
+            ):
+                _union_arm_names(union, names)
+    return names
+
+
+def _module_union_arm_names(tree: ast.Module) -> set[str]:
+    """Names a union inside this module joins.
+
+    A wrapper named as an arm of another union in the same module is that
+    union's single choice, and its own arms are not siblings of the other
+    arms. Inlining it makes them siblings, and Pydantic then picks a
+    different arm for the same payload: ``AdcpAgentsAuthorization2`` groups
+    14 catalog shapes under one choice of ``AdcpAgentsAuthorization``, and
+    ``VastAsset`` groups two delivery shapes under one choice of
+    ``AssetVariant``.
+    """
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            _union_arm_names(node, names)
+    return names
+
+
+def _ensure_typing_import(content: str, name: str) -> str:
+    """Add ``name`` to the module's ``typing`` import when it is missing."""
+    if re.search(rf"^from typing import .*\b{name}\b", content, re.MULTILINE):
+        return content
+    match = re.search(r"^from typing import ", content, re.MULTILINE)
+    if match:
+        return content[: match.end()] + f"{name}, " + content[match.end() :]
+    return f"from typing import {name}\n" + content
 
 
 def unwrap_rootmodel_unions():
-    """Unwrap specified RootModel unions to plain Union type aliases.
+    """Emit a composing schema root as what it composes, metadata intact.
 
-    Consumers that subclass library types cannot extend RootModel subclasses
-    because Pydantic 2 forbids model_config overrides on RootModel.
+    Pydantic 2 refuses ``model_config['extra']`` on a ``RootModel`` subclass, so
+    a consumer cannot extend a generated ``RootModel`` the way it extends every
+    other generated model. A root that composes — a union of object models, or a
+    single model — has no value semantics the wrapper protects.
 
-    Uses AST to find class definitions instead of regex, which avoids issues
-    with nested brackets in base class annotations.
+    A union root becomes a union type alias carrying the generator's own
+    ``Field(...)``, which keeps the description, the title and — where the schema
+    declares one — the ``discriminator``::
 
-    Replaces:
         class TypeName(RootModel[Variant1 | Variant2]):
-            root: Annotated[Variant1 | Variant2, Field(...)]
-            def __getattr__(self, name): ...
+            root: Annotated[Variant1 | Variant2, Field(discriminator='type')]
 
-    With:
-        TypeName = Variant1 | Variant2
+        TypeName = Annotated[Variant1 | Variant2, Field(discriminator='type')]
 
-    Note: the types in _UNWRAP_TO_UNION are Request/Response types whose
-    root: fields had no meaningful Field(description=..., examples=[...])
-    metadata. Value-type RootModels that carry rich metadata are otherwise
-    intentionally excluded and keep the RootModel wrapper + __getattr__ proxy;
-    MediaBuyAvailableActionId is the documented exception (see the set).
+    A single-model root becomes a subclass of that model, which keeps the name
+    constructible and moves the root description to the class docstring, where
+    Pydantic reads it for the JSON schema::
+
+        class TypeName(RootModel[Target]):
+            root: Annotated[Target, Field(description='...')]
+
+        class TypeName(Target):
+            # the root description, as a docstring
+
+    An unannotated union root becomes the bare union. A value root — ``str``,
+    ``AnyUrl``, ``list[X]``, ``Literal[...]`` — keeps its ``RootModel``, and so
+    do a wrapper another union discriminates against and a root naming an
+    enumeration.
+
+    See https://github.com/adcontextprotocol/adcp-client-python/issues/1077.
     """
     unwrapped_count = 0
+    kept_count = 0
+    keep_wrapped = _discriminated_arm_names(OUTPUT_DIR)
+    plain_models = _plain_model_names(OUTPUT_DIR)
 
     for py_file in OUTPUT_DIR.rglob("*.py"):
-        with open(py_file) as f:
-            content = f.read()
+        content = py_file.read_text()
 
         if "RootModel[" not in content:
             continue
@@ -972,81 +1195,61 @@ def unwrap_rootmodel_unions():
         except SyntaxError:
             continue
 
-        original = content
-        lines = content.split("\n")
-
-        # Collect classes to unwrap (process in reverse order to preserve line numbers)
-        replacements: list[tuple[int, int, str, str]] = (
-            []
-        )  # (start_line, end_line, name, union_types)
-
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.ClassDef) or node.name not in _UNWRAP_TO_UNION:
-                continue
-            if not node.end_lineno:
-                continue
-
-            # Find the RootModel[...] base class using AST source segments
-            for base in node.bases:
-                base_src = ast.get_source_segment(content, base)
-                if not base_src or "RootModel[" not in base_src:
-                    continue
-
-                # Extract union type from RootModel[...] using bracket depth
-                # to handle nested generics like RootModel[list[X] | Y]
-                bracket_start = base_src.index("RootModel[") + len("RootModel[")
-                depth = 1
-                pos = bracket_start
-                while pos < len(base_src) and depth > 0:
-                    if base_src[pos] == "[":
-                        depth += 1
-                    elif base_src[pos] == "]":
-                        depth -= 1
-                    pos += 1
-                bracket_end = pos - 1  # position of the matching ]
-                union_types = base_src[bracket_start:bracket_end].strip()
-
-                replacements.append((node.lineno, node.end_lineno, node.name, union_types))
-                break
-
-        if not replacements:
+        candidates = [
+            spec
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ClassDef)
+            for spec in [_composing_root_spec(content, node)]
+            if spec is not None
+        ]
+        module_arms = _module_union_arm_names(tree)
+        specs = [
+            spec
+            for spec in candidates
+            if spec.name not in keep_wrapped
+            and spec.name not in module_arms
+            and (spec.is_union or spec.root.split(".")[-1] in plain_models)
+        ]
+        kept_count += len(candidates) - len(specs)
+        if not specs:
             continue
 
-        # Apply replacements in reverse line order to preserve indices
-        for start_line, end_line, type_name, union_types in sorted(replacements, reverse=True):
-            # Wrap multi-line unions in parentheses for valid syntax
-            if "\n" in union_types:
-                # Re-indent continuation lines to 4 spaces
-                union_lines = [ln.strip() for ln in union_types.split("\n")]
-                indented = union_lines[0] + "\n" + "\n".join(f"    {ln}" for ln in union_lines[1:])
-                replacement = f"{type_name} = (\n    {indented}\n)"
-            else:
-                replacement = f"{type_name} = {union_types}"
-            lines[start_line - 1 : end_line] = [replacement]
+        lines = content.split("\n")
+        for spec in sorted(specs, key=lambda s: s.start_line, reverse=True):
+            lines[spec.start_line - 1 : spec.end_line] = [_composing_root_source(spec)]
             unwrapped_count += 1
-
         content = "\n".join(lines)
 
-        if content != original:
-            # Remove RootModel from imports if no longer used as a base class
-            if not re.search(r"\(RootModel\[", content):
-                content = re.sub(r",\s*RootModel", "", content)
-                content = re.sub(r"RootModel,\s*", "", content)
+        if any(spec.is_union and spec.metadata is not None for spec in specs):
+            content = _ensure_typing_import(content, "Annotated")
 
-            # Remove unused Any import if no longer referenced in code body
-            import_line_end = content.find("\n", content.find("from typing import"))
-            after_imports = content[import_line_end:] if import_line_end > 0 else ""
-            if "Any" not in after_imports:
-                content = re.sub(r"Any,\s*", "", content)
-                content = re.sub(r",\s*Any", "", content)
-
-            with open(py_file, "w") as f:
-                f.write(content)
+        # Imports stay as generated. A later fix matches an exact import line,
+        # so ``remove_unused_pydantic_field_imports`` drops the now-unused
+        # ``RootModel`` once every fix has run.
+        py_file.write_text(content)
 
     if unwrapped_count > 0:
-        print(f"  Unwrapped {unwrapped_count} RootModel union(s) to type aliases")
+        print(
+            f"  Unwrapped {unwrapped_count} composing RootModel root(s); "
+            f"kept {kept_count} the wrapper still carries"
+        )
     else:
-        print("  No RootModel unions needed unwrapping")
+        print("  No RootModel roots needed unwrapping")
+
+
+def _composing_root_source(spec: _ComposingRootSpec) -> str:
+    """Render the replacement for one composing ``RootModel`` class."""
+    if not spec.is_union:
+        docstring = spec.docstring or (None if spec.description is None else repr(spec.description))
+        body = "pass" if docstring is None else docstring
+        return f"class {spec.name}({spec.root}):\n    {body}"
+    if spec.metadata is None:
+        # A multi-line union needs brackets of its own to stay one expression;
+        # ``Annotated[...]`` supplies them in the other arm.
+        if "\n" in spec.root:
+            return f"{spec.name} = (\n    {spec.root}\n)"
+        return f"{spec.name} = {spec.root}"
+    return f"{spec.name} = Annotated[\n    {spec.root},\n    {spec.metadata},\n]"
 
 
 def add_rootmodel_getattr_proxy():
@@ -1077,16 +1280,25 @@ def add_rootmodel_getattr_proxy():
             else:
                 source = "from typing import Any\n" + source
 
+        # The method goes at the class's own end, which the AST reports. A
+        # module now holds union type aliases between its classes, so "just
+        # before the next ``class``" would land the method at module indent.
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+        line_offsets = [0]
+        for line in source.splitlines(keepends=True):
+            line_offsets.append(line_offsets[-1] + len(line))
+
         insertions: list[int] = []
-        for match in re.finditer(r"^class ([A-Za-z_]\w*)\b", source, re.MULTILINE):
-            header_end = source.find(":\n", match.end())
-            if header_end == -1:
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef) or not node.end_lineno:
                 continue
-            header = source[match.start() : header_end]
+            header = " ".join(ast.get_source_segment(source, base) or "" for base in node.bases)
             if "RootModel[" not in header or "|" not in header:
                 continue
-            next_class = re.compile(r"^class ", re.MULTILINE).search(source, header_end + 2)
-            insertions.append(next_class.start() if next_class is not None else len(source))
+            insertions.append(line_offsets[node.end_lineno])
 
         if not insertions:
             continue
@@ -1731,81 +1943,6 @@ def fix_allof_merge_field_override_conflicts() -> None:
         print("  No allOf-merge field override conflicts found")
 
 
-def expose_account_reference_union_fields() -> None:
-    """Replace generated AccountReference wrappers with their concrete arms.
-
-    ``AccountReference`` is public as a composable object-union alias, but
-    datamodel-codegen still annotates every schema reference with its outer
-    ``RootModel`` class. Rewrite those generated annotations at the source so
-    request, nested-input, response, and canonical-clone paths all expose the
-    same concrete arm types without import-time Pydantic patching.
-    """
-    account_ref_source = OUTPUT_DIR / "core" / "account_ref.py"
-    if not account_ref_source.exists():
-        print("  account reference model not found (skipping union-field fix)")
-        return
-
-    tree = ast.parse(account_ref_source.read_text())
-    wrapper = next(
-        (
-            node
-            for node in tree.body
-            if isinstance(node, ast.ClassDef) and node.name == "AccountReference"
-        ),
-        None,
-    )
-    if wrapper is None:
-        raise RuntimeError("generated account_ref.py has no AccountReference wrapper")
-
-    root_base = next(
-        (
-            base
-            for base in wrapper.bases
-            if isinstance(base, ast.Subscript)
-            and isinstance(base.value, ast.Name)
-            and base.value.id == "RootModel"
-        ),
-        None,
-    )
-    if root_base is None:
-        raise RuntimeError("generated AccountReference has no RootModel union base")
-
-    def union_arm_names(node: ast.expr) -> list[str]:
-        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
-            return [*union_arm_names(node.left), *union_arm_names(node.right)]
-        if isinstance(node, ast.Name):
-            return [node.id]
-        raise RuntimeError(
-            f"generated AccountReference has an unsupported union expression: {ast.unparse(node)}"
-        )
-
-    arm_names = union_arm_names(root_base.slice)
-    if len(arm_names) < 2 or len(set(arm_names)) != len(arm_names):
-        raise RuntimeError(f"generated AccountReference has invalid union arms: {arm_names!r}")
-
-    pattern = re.compile(r"\b(account_ref(?:_\d+)?)\.AccountReference\b(?!\d)")
-    total_files = 0
-    total_fields = 0
-
-    for py_file in sorted(OUTPUT_DIR.rglob("*.py")):
-        source = py_file.read_text()
-        fixed, replacements = pattern.subn(
-            lambda match: " | ".join(f"{match.group(1)}.{arm_name}" for arm_name in arm_names),
-            source,
-        )
-        if not replacements:
-            continue
-        py_file.write_text(fixed)
-        total_files += 1
-        total_fields += replacements
-
-    if total_fields:
-        print(
-            f"  Exposed AccountReference union arms in {total_fields} field(s) "
-            f"across {total_files} file(s)"
-        )
-    else:
-        print("  AccountReference field annotations already expose concrete arms")
 
 
 def fix_postal_union_arm_order() -> None:
@@ -2379,6 +2516,31 @@ def _field_already_widened(content: str, class_name: str, field_name: str) -> bo
         return False
     annotation_start, annotation_end = block
     return "Sequence[" in content[annotation_start:annotation_end]
+
+
+def _class_end_offset(content: str, class_name: str) -> int | None:
+    """Return the offset just past the last line of ``class_name``'s body.
+
+    A module holds union type aliases between its classes, so "the offset of the
+    next ``class``" overshoots into whatever follows. The AST reports the class's
+    own extent.
+    """
+    try:
+        tree = ast.parse(content)
+    except SyntaxError:
+        return None
+    node = next(
+        (n for n in ast.walk(tree) if isinstance(n, ast.ClassDef) and n.name == class_name),
+        None,
+    )
+    if node is None or not node.end_lineno:
+        return None
+    offset = 0
+    for index, line in enumerate(content.splitlines(keepends=True), start=1):
+        offset += len(line)
+        if index == node.end_lineno:
+            return offset
+    return len(content)
 
 
 def _find_class_field_block(
@@ -3012,12 +3174,14 @@ def fix_trusted_match_runtime_validators() -> None:
                     validators_1 + "\n\nclass TmpProviderRegistration2(AdCPBaseModel):",
                     1,
                 )
-                source = source.replace(
-                    "\n\nclass TmpProviderRegistration(RootModel[TmpProviderRegistration1 | TmpProviderRegistration2]):",
-                    validators_2
-                    + "\n\nclass TmpProviderRegistration(RootModel[TmpProviderRegistration1 | TmpProviderRegistration2]):",
-                    1,
-                )
+                # Arm 2 is the last class in the module, so anchor on the end
+                # of its own body rather than on whatever follows it.
+                arm_2_end = _class_end_offset(source, "TmpProviderRegistration2")
+                if arm_2_end is None:
+                    raise RuntimeError(
+                        "generated provider_registration.py has no TmpProviderRegistration2"
+                    )
+                source = source[:arm_2_end] + validators_2 + source[arm_2_end:]
                 provider_registration.write_text(source)
                 print("  trusted_match/provider_registration.py: added runtime validators")
     else:
@@ -3496,6 +3660,10 @@ def fix_product_publisher_property_model_coercion() -> None:
     else:
         print("  core/product.py pydantic import shape not found")
         return
+
+    # The method annotates ``Any``; the generated module imports it only when a
+    # class body needs it.
+    source = _ensure_typing_import(source, "Any")
 
     method = """
 
@@ -4304,17 +4472,30 @@ def restore_response_variant_aliases() -> None:
         except SyntaxError:
             return fallback
         class_names = [node.name for node in tree.body if isinstance(node, ast.ClassDef)]
-        if not class_names:
+        # A composing schema root is emitted as a module-level union alias
+        # rather than a class, and the alias is what a field references.
+        alias_names = [
+            target.id
+            for node in tree.body
+            if isinstance(node, ast.Assign)
+            for target in node.targets
+            if isinstance(target, ast.Name)
+        ] + [
+            node.target.id
+            for node in tree.body
+            if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
+        ]
+        if not class_names and not alias_names:
             return fallback
         normalized_fallback = fallback.lower()
-        for name in class_names:
+        for name in (*alias_names, *class_names):
             if name.lower() == normalized_fallback:
                 return name
         stem_fallback = _pascal(schema_rel.stem).lower()
-        for name in class_names:
+        for name in (*alias_names, *class_names):
             if name.lower() == stem_fallback:
                 return name
-        return class_names[-1]
+        return class_names[-1] if class_names else alias_names[-1]
 
     def _safe_import_alias(module_stem: str, used: set[str]) -> str:
         base = module_stem.replace("-", "_")
@@ -6086,8 +6267,9 @@ def enforce_change_term_runtime_constraints() -> None:
             start = source.find(marker)
             if start < 0:
                 continue
-            next_class = source.find("\n\nclass ", start + len(marker))
-            end = len(source) if next_class < 0 else next_class
+            end = _class_end_offset(source, class_name)
+            if end is None:
+                continue
             block = source[start:end]
             if "def _require_portable_bound" in block:
                 continue
@@ -6172,7 +6354,7 @@ def enforce_change_term_runtime_constraints() -> None:
         for term in self.change_terms:
             if term.constraints is None:
                 continue
-            constraint = term.constraints.root
+            constraint = term.constraints
             if constraint.kind == 'budget':
                 money_fields = (
                     constraint.max_delta_amount,
@@ -6238,15 +6420,15 @@ def main(argv: list[str] | None = None):
         fix_typed_additional_properties,
         fix_deprecated_rootmodel_fields,
         fix_constr_type_annotations,
+        fix_postal_union_arm_order,
+        fix_postal_country_system_pairing,
+        fix_beta3_adagents_renderer_constraints,
         unwrap_rootmodel_unions,
         add_rootmodel_getattr_proxy,
         fix_list_field_shadowing,
         rewrite_response_list_to_sequence,
         fix_reuse_model_discriminator_bug,
         fix_allof_merge_field_override_conflicts,
-        expose_account_reference_union_fields,
-        fix_postal_union_arm_order,
-        fix_postal_country_system_pairing,
         fix_adagents_duplicate_aliases,
         restore_format_category_deprecation_shim,
         restore_signal_catalog_type_alias,
@@ -6276,7 +6458,6 @@ def main(argv: list[str] | None = None):
         fix_trusted_match_runtime_validators,
         fix_beta3_secure_url_constraints,
         fix_beta3_package_request_constraints,
-        fix_beta3_adagents_renderer_constraints,
         restore_trusted_match_compatibility_aliases,
         fix_publisher_tmpx_mapping_key_constraints,
         fix_wholesale_cache_scope_defaults,

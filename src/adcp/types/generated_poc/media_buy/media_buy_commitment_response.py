@@ -129,4 +129,11 @@ class MediaBuyCommitmentResponse1(AdCPBaseModel):
     replayed: Literal[True] | None = None
 
 
-MediaBuyCommitmentResponse = MediaBuyCommitmentResponse1 | MediaBuyCommitmentResponse2 | MediaBuyCommitmentResponse3
+MediaBuyCommitmentResponse = Annotated[
+    MediaBuyCommitmentResponse1 | MediaBuyCommitmentResponse2 | MediaBuyCommitmentResponse3,
+    Field(
+        description='Shared result for clean product purchase and proposal acceptance. A successful result returns the MediaBuy identity and the immutable accepted commercial snapshot without embedding creative or package graphs. Optional warnings report non-blocking observations at the commitment boundary; continuing conditions remain readable as indicators through get_media_buys.',
+        discriminator='status',
+        title='Media Buy Commitment Response',
+    ),
+]

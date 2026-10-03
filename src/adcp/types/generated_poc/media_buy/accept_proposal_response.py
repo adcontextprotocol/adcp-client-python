@@ -145,4 +145,10 @@ class AcceptProposalResponse5(AcceptProposalResponse1, AcceptProposalResponse4):
     pass
 
 
-AcceptProposalResponse = AcceptProposalResponse5 | AcceptProposalResponse6 | AcceptProposalResponse7
+AcceptProposalResponse = Annotated[
+    AcceptProposalResponse5 | AcceptProposalResponse6 | AcceptProposalResponse7,
+    Field(
+        description='Compact proposal-acceptance result containing the resulting MediaBuy identity and accepted immutable proposal snapshot.',
+        title='Accept Proposal Response',
+    ),
+]

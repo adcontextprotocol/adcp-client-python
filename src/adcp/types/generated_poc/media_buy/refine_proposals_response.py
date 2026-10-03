@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from adcp.types._str_enum import StrEnum
-from typing import Any, Annotated, Literal
+from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AwareDatetime, ConfigDict, Field, RootModel
@@ -392,13 +392,11 @@ class Results12(AdCPBaseModel):
     ] = None
 
 
-class Results8(RootModel[Results9 | Results10 | Results11 | Results12]):
-    root: Annotated[Results9 | Results10 | Results11 | Results12, Field(discriminator='outcome')]
-    def __getattr__(self, name: str) -> Any:
-        """Proxy attribute access to the wrapped type."""
-        if name.startswith('_'):
-            raise AttributeError(name)
-        return getattr(self.root, name)
+Results8 = Annotated[
+    Results9 | Results10 | Results11 | Results12,
+    Field(discriminator='outcome'),
+]
+
 
 class Results15(AdCPBaseModel):
     model_config = ConfigDict(
@@ -539,13 +537,11 @@ class Results18(Results12):
     outcome: Literal['unable'] = 'unable'
 
 
-class Results14(RootModel[Results15 | Results16 | Results17 | Results18]):
-    root: Annotated[Results15 | Results16 | Results17 | Results18, Field(discriminator='outcome')]
-    def __getattr__(self, name: str) -> Any:
-        """Proxy attribute access to the wrapped type."""
-        if name.startswith('_'):
-            raise AttributeError(name)
-        return getattr(self.root, name)
+Results14 = Annotated[
+    Results15 | Results16 | Results17 | Results18,
+    Field(discriminator='outcome'),
+]
+
 
 class RefineProposalsResponse1(AdCPBaseModel):
     model_config = ConfigDict(
@@ -601,4 +597,10 @@ class RefineProposalsResponse2(CompactTaskSubmitted):
     replayed: Literal[True] | None = None
 
 
-RefineProposalsResponse = RefineProposalsResponse1 | RefineProposalsResponse2
+RefineProposalsResponse = Annotated[
+    RefineProposalsResponse1 | RefineProposalsResponse2,
+    Field(
+        description='One ordered result per requested source proposal. Revision results may carry multiple immutable draft proposals when alternatives were requested; finalization remains one committed proposal per source. Products contains the compact canonical products needed to evaluate the resulting terms.',
+        title='Refine Proposals Response',
+    ),
+]

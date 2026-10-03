@@ -156,7 +156,7 @@ def build_refinement_applied(
 
     :param refines: ``request.refine`` (length N).
     :param outcomes: Adopter's per-entry outcomes (must also be length N).
-    :returns: Wire-shape ``RefinementApplied`` (RootModel) instances (one per entry).
+    :returns: Wire-shape ``RefinementApplied`` instances (one per entry).
     :raises ValueError: ``len(outcomes) != len(refines)``.  Developer-facing,
         not buyer-facing — adopter-side bug.
     """
@@ -170,7 +170,6 @@ def build_refinement_applied(
         )
 
     from adcp.types import (
-        RefinementApplied,
         RefinementApplied1,
         RefinementApplied2,
         RefinementApplied3,
@@ -215,7 +214,7 @@ def build_refinement_applied(
             raise ValueError(
                 f"Unknown refine scope {scope!r}; expected " "'request' | 'product' | 'proposal'."
             )
-        out.append(RefinementApplied(root=applied))
+        out.append(applied)
     return out
 
 

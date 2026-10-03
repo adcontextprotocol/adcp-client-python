@@ -97,6 +97,22 @@ def _split_at_variant(
 _MAX_NARROW_INPUT_SIZE = 500
 
 
+def _asset_variant_index(loc: tuple[Any, ...]) -> int | None:
+    """Index of the asset-variant arm in ``loc``, or ``None``.
+
+    Pydantic spells that arm by the wrapper class name when the union is
+    wrapped (``"AssetVariant"``) and by its members when the union is inline
+    (``"tagged-union[ImageAsset,VideoAsset,...]"``). Both name the same arm,
+    and an error under it beats the sibling open-asset arm.
+    """
+    for index, segment in enumerate(loc):
+        if segment == "AssetVariant" or (
+            isinstance(segment, str) and segment.startswith("tagged-union[")
+        ):
+            return index
+    return None
+
+
 def narrow_union_errors(
     errors: Any,
 ) -> list[Any]:
@@ -154,8 +170,9 @@ def narrow_union_errors(
 
     for err in errors_list:
         loc = tuple(err.get("loc", ()))
-        if "AssetVariant" in loc:
-            asset_variant_prefixes.add(loc[: loc.index("AssetVariant")])
+        index = _asset_variant_index(loc)
+        if index is not None:
+            asset_variant_prefixes.add(loc[:index])
 
     for err in errors_list:
         loc = tuple(err.get("loc", ()))
@@ -169,7 +186,12 @@ def narrow_union_errors(
         buckets.setdefault(prefix, []).append((variant, err))
 
     if not buckets:
-        return errors_list
+        # Nothing to narrow by variant name. Return what survived the
+        # asset-variant drop above, which is already the focused set; an
+        # inline tagged union spells its arm in a form no variant-name
+        # heuristic recognizes, and falling back to the input here would put
+        # the dropped sibling arm back.
+        return [dict(err) for err in passthrough] if passthrough else errors_list
 
     # Defensive copy of the dicts we're about to surface — the caller
     # might mutate the returned list and we don't want that to leak

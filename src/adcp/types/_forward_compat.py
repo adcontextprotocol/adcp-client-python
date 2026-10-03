@@ -73,7 +73,6 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     PublisherDomain as BundledPublisherDomain,
 )
-from adcp.types.generated_poc.core.async_response_data import AdcpAsyncResponseData
 from adcp.types.generated_poc.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.generated_poc.core.canonical_product import PublisherDomain
 from adcp.types.generated_poc.core.creative_manifest import CreativeManifest
@@ -495,9 +494,9 @@ def _apply_forward_compat() -> None:
         _patch_model_field(response, "offers", GenericAlias(list, _ReadbackOffer))
         response.model_rebuild(force=True)
 
-    # These eager wrappers captured build/preview validators before the patches.
-    # Refresh both levels so completed task callbacks retain typed manifests.
-    AdcpAsyncResponseData.model_rebuild(force=True)
+    # This eager wrapper captured build/preview validators before the patches.
+    # Rebuilding it re-resolves AdcpAsyncResponseData, a union type alias, so
+    # completed task callbacks retain typed manifests.
     McpWebhookPayload.model_rebuild(force=True)
 
     _patch_model_field(Format, "assets", list[FormatAssetUnion] | None)

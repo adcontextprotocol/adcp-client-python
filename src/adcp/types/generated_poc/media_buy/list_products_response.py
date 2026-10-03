@@ -126,4 +126,11 @@ class ListProductsResponse2(AdCPBaseModel):
     ext: ext_1.ExtensionObject | None = None
 
 
-ListProductsResponse = ListProductsResponse1 | ListProductsResponse2
+ListProductsResponse = Annotated[
+    ListProductsResponse1 | ListProductsResponse2,
+    Field(
+        description="Canonical product offers and continuation state. Every product carries product_id and name; other compact detail fields follow the request's fields selection. Legacy named-format identifiers are never returned. This response never contains proposals or proposal-lifecycle fields.",
+        discriminator='outcome',
+        title='List Products Response',
+    ),
+]

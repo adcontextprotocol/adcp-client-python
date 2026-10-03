@@ -85,4 +85,11 @@ class ControlMediaBuyResponse1(AdCPBaseModel):
     replayed: Literal[True] | None = None
 
 
-ControlMediaBuyResponse = ControlMediaBuyResponse1 | ControlMediaBuyResponse2 | ControlMediaBuyResponse3
+ControlMediaBuyResponse = Annotated[
+    ControlMediaBuyResponse1 | ControlMediaBuyResponse2 | ControlMediaBuyResponse3,
+    Field(
+        description='Result of applying operational controls without embedding the package or creative object graphs.',
+        discriminator='status',
+        title='Control Media Buy Response',
+    ),
+]

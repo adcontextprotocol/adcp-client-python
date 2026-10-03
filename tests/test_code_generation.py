@@ -273,22 +273,22 @@ def test_normalize_enum_descriptions_recurses_into_embedded_schemas():
 
 
 def test_post_generate_removes_only_unused_pydantic_field_imports():
-    from scripts.post_generate_fixes import _remove_unused_pydantic_field_import
+    from scripts.post_generate_fixes import _remove_unused_pydantic_import
 
     unused = (
         "from pydantic import ConfigDict, Field\n\n"
         "class Example:\n"
         "    model_config = ConfigDict(extra='forbid')\n"
     )
-    updated, changed = _remove_unused_pydantic_field_import(unused)
+    updated, changed = _remove_unused_pydantic_import(unused, "Field")
 
     assert changed
     assert "from pydantic import ConfigDict\n" in updated
     assert "Field" not in updated
-    assert _remove_unused_pydantic_field_import(updated) == (updated, False)
+    assert _remove_unused_pydantic_import(updated, "Field") == (updated, False)
 
     used = "from pydantic import Field\n\nvalue = Field(default=None)\n"
-    assert _remove_unused_pydantic_field_import(used) == (used, False)
+    assert _remove_unused_pydantic_import(used, "Field") == (used, False)
 
     standalone = (
         "from __future__ import annotations\n\n"
@@ -297,7 +297,7 @@ def test_post_generate_removes_only_unused_pydantic_field_imports():
         "class Example(StrEnum):\n"
         "    value = 'value'\n"
     )
-    cleaned, changed = _remove_unused_pydantic_field_import(standalone)
+    cleaned, changed = _remove_unused_pydantic_import(standalone, "Field")
     assert changed
     assert cleaned == (
         "from __future__ import annotations\n\n"
@@ -823,17 +823,18 @@ def test_allof_merge_preserves_concrete_type_constraints_and_requiredness(tmp_pa
 
 def test_generated_adagents_requires_authorization_or_non_empty_catalog():
     import pytest
-    from pydantic import ValidationError
+    from pydantic import TypeAdapter, ValidationError
 
     from adcp.types.generated_poc.adagents import AdcpAgentsAuthorization
 
+    adapter = TypeAdapter(AdcpAgentsAuthorization)
     with pytest.raises(ValidationError):
-        AdcpAgentsAuthorization.model_validate({"authorized_agents": []})
+        adapter.validate_python({"authorized_agents": []})
 
-    model = AdcpAgentsAuthorization.model_validate(
+    model = adapter.validate_python(
         {"authorized_agents": [], "formats": [{"format_kind": "image"}]}
     )
-    assert model.root.root.authorized_agents == []
+    assert model.authorized_agents == []
 
 
 def test_post_generate_restores_product_fields_item_reference(tmp_path, monkeypatch):
@@ -884,12 +885,14 @@ def test_post_generate_restores_combined_get_products_field_enum(tmp_path, monke
 
 @pytest.mark.parametrize("catalog_field", ["properties", "placements", "collections", "signals"])
 def test_generated_adagents_rejects_null_required_catalog_arm(catalog_field):
-    from pydantic import ValidationError
+    from pydantic import TypeAdapter, ValidationError
 
     from adcp.types.generated_poc.adagents import AdcpAgentsAuthorization
 
     with pytest.raises(ValidationError):
-        AdcpAgentsAuthorization.model_validate({"authorized_agents": [], catalog_field: None})
+        TypeAdapter(AdcpAgentsAuthorization).validate_python(
+            {"authorized_agents": [], catalog_field: None}
+        )
 
 
 def test_post_generate_injects_postal_pairing_validator_idempotently(tmp_path, monkeypatch):
@@ -939,34 +942,190 @@ def test_post_generate_prefers_legacy_postal_union_arm_idempotently(tmp_path, mo
     assert fixed.count("PostalArea2 | PostalArea1") == 2
 
 
-def test_post_generate_exposes_account_reference_union_fields_idempotently(tmp_path, monkeypatch):
+def test_unwrap_rootmodel_unions_keeps_field_metadata_and_discriminator(tmp_path, monkeypatch):
+    """A union root becomes an annotated alias; the Field survives verbatim."""
     from scripts import post_generate_fixes
 
     generated_dir = tmp_path / "generated_poc"
-    account_ref = generated_dir / "core" / "account_ref.py"
-    account_ref.parent.mkdir(parents=True)
-    account_ref.write_text(
-        "from pydantic import RootModel\n\n"
-        "class AccountReference(RootModel["
-        "AccountReference1 | AccountReference2 | AccountReference3]):\n"
-        "    pass\n"
-    )
-    target = generated_dir / "sample_request.py"
+    generated_dir.mkdir()
+    target = generated_dir / "deployment.py"
     target.write_text(
-        "account: account_ref.AccountReference | None\n"
-        "accounts: list[account_ref_1.AccountReference]\n"
+        "from typing import Annotated, Literal\n\n"
+        "from adcp.types.base import AdCPBaseModel\nfrom pydantic import Field, RootModel\n\n\n"
+        "class Deployment1(AdCPBaseModel):\n"
+        "    type: Literal['platform'] = 'platform'\n\n\n"
+        "class Deployment2(AdCPBaseModel):\n"
+        "    type: Literal['agent'] = 'agent'\n\n\n"
+        "class Deployment(RootModel[Deployment1 | Deployment2]):\n"
+        "    root: Annotated[\n"
+        "        Deployment1 | Deployment2,\n"
+        "        Field(\n"
+        "            description='A signal deployment',\n"
+        "            discriminator='type',\n"
+        "            title='Deployment',\n"
+        "        ),\n"
+        "    ]\n"
     )
     monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
 
-    post_generate_fixes.expose_account_reference_union_fields()
-    post_generate_fixes.expose_account_reference_union_fields()
+    post_generate_fixes.unwrap_rootmodel_unions()
 
-    assert target.read_text() == (
-        "account: account_ref.AccountReference1 | account_ref.AccountReference2 | "
-        "account_ref.AccountReference3 | None\n"
-        "accounts: list[account_ref_1.AccountReference1 | account_ref_1.AccountReference2 | "
-        "account_ref_1.AccountReference3]\n"
+    assert target.read_text().endswith(
+        "Deployment = Annotated[\n"
+        "    Deployment1 | Deployment2,\n"
+        "    Field(\n"
+        "        description='A signal deployment',\n"
+        "        discriminator='type',\n"
+        "        title='Deployment',\n"
+        "    ),\n"
+        "]\n"
     )
+
+
+def test_unwrap_rootmodel_unions_keeps_value_roots_wrapped(tmp_path, monkeypatch):
+    """A value root carries its constraints on the wrapper, so it stays one."""
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    generated_dir.mkdir()
+    target = generated_dir / "values.py"
+    source = (
+        "from typing import Annotated, Literal\n\n"
+        "from pydantic import Field, RootModel\n\n\n"
+        "class PropertyId(RootModel[str]):\n"
+        "    root: Annotated[str, Field(min_length=1)]\n\n\n"
+        "class ProfileIds(RootModel[list[str]]):\n"
+        "    root: Annotated[list[str], Field(min_length=1)]\n\n\n"
+        "class CapScope(RootModel[Literal['package']]):\n"
+        "    root: Literal['package']\n"
+    )
+    target.write_text(source)
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.unwrap_rootmodel_unions()
+
+    assert target.read_text() == source
+
+
+def test_unwrap_rootmodel_unions_keeps_arms_of_a_discriminated_union(tmp_path, monkeypatch):
+    """A wrapper the parent's discriminator maps a tag to keeps its wrapper.
+
+    Both ``VastAsset`` shapes carry ``asset_type='vast'``, so inlining the union
+    would give the parent's ``asset_type`` two choices for one tag.
+    """
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    generated_dir.mkdir()
+    target = generated_dir / "asset_union.py"
+    target.write_text(
+        "from typing import Annotated, Literal\n\n"
+        "from adcp.types.base import AdCPBaseModel\nfrom pydantic import Field, RootModel\n\n\n"
+        "class VastAsset1(AdCPBaseModel):\n"
+        "    asset_type: Literal['vast'] = 'vast'\n"
+        "    delivery_type: Literal['url'] = 'url'\n\n\n"
+        "class VastAsset2(AdCPBaseModel):\n"
+        "    asset_type: Literal['vast'] = 'vast'\n"
+        "    delivery_type: Literal['inline'] = 'inline'\n\n\n"
+        "class ImageAsset(AdCPBaseModel):\n"
+        "    asset_type: Literal['image'] = 'image'\n\n\n"
+        "class VastAsset(RootModel[VastAsset1 | VastAsset2]):\n"
+        "    root: Annotated[VastAsset1 | VastAsset2, Field(discriminator='delivery_type')]\n\n\n"
+        "class AssetVariant(RootModel[ImageAsset | VastAsset]):\n"
+        "    root: Annotated[ImageAsset | VastAsset, Field(discriminator='asset_type')]\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.unwrap_rootmodel_unions()
+
+    rewritten = target.read_text()
+    assert "class VastAsset(RootModel[VastAsset1 | VastAsset2]):" in rewritten
+    assert "AssetVariant = Annotated[" in rewritten
+
+
+def test_unwrap_rootmodel_unions_subclasses_a_single_model_root(tmp_path, monkeypatch):
+    """A root naming one model becomes a subclass carrying its description."""
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    generated_dir.mkdir()
+    target = generated_dir / "check_governance_request.py"
+    target.write_text(
+        "from typing import Annotated\n\n"
+        "from adcp.types.base import AdCPBaseModel\nfrom pydantic import Field, RootModel\n\n\n"
+        "class CheckGovernanceRequest3(AdCPBaseModel):\n"
+        "    plan_id: str\n\n\n"
+        "class CheckGovernanceRequest(RootModel[CheckGovernanceRequest3]):\n"
+        "    root: Annotated[\n"
+        "        CheckGovernanceRequest3,\n"
+        "        Field(description='Universal governance check.'),\n"
+        "    ]\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.unwrap_rootmodel_unions()
+
+    assert target.read_text().endswith(
+        "class CheckGovernanceRequest(CheckGovernanceRequest3):\n"
+        "    'Universal governance check.'\n"
+    )
+
+
+def test_unwrap_rootmodel_unions_keeps_a_root_with_a_validator(tmp_path, monkeypatch):
+    """The wrapper is the only place a cross-arm validator can live."""
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    generated_dir.mkdir()
+    target = generated_dir / "postal_area.py"
+    source = (
+        "from typing import Annotated\n\n"
+        "from pydantic import Field, RootModel, model_validator\n\n\n"
+        "class PostalArea(RootModel[PostalArea1 | PostalArea2]):\n"
+        "    root: Annotated[PostalArea1 | PostalArea2, Field(title='Postal Area')]\n\n"
+        "    @model_validator(mode='after')\n"
+        "    def _check(self) -> 'PostalArea':\n"
+        "        return self\n"
+    )
+    target.write_text(source)
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.unwrap_rootmodel_unions()
+
+    assert target.read_text() == source
+
+
+def test_discriminated_union_roots_report_one_tag_error():
+    """A union the schema discriminates reports the tag, not every arm.
+
+    ``core/deployment.json`` and ``media-buy/list-products-response.json`` both
+    declare ``discriminator``. An unwrap that drops it turns one
+    ``union_tag_invalid`` into one error per arm per mismatched field.
+    """
+    import pytest
+    from pydantic import TypeAdapter, ValidationError
+
+    from adcp.types import ListProductsResponse
+    from adcp.types.generated_poc.core.deployment import Deployment
+
+    for union_type, payload in (
+        (Deployment, {"type": "nope", "is_live": True}),
+        (ListProductsResponse, {"outcome": "nope", "feed_version": "v1"}),
+    ):
+        with pytest.raises(ValidationError) as caught:
+            TypeAdapter(union_type).validate_python(payload)
+        errors = caught.value.errors()
+        assert [error["type"] for error in errors] == ["union_tag_invalid"], errors
+
+
+def test_account_reference_arms_are_reachable_through_the_alias():
+    """The union alias exposes its arms wherever a field references it."""
+    import types as builtin_types
+
+    from adcp.types import AccountReference, AccountReferenceById
+
+    assert isinstance(AccountReference, builtin_types.UnionType)
+    assert AccountReferenceById in AccountReference.__args__
 
 
 def test_product_change_map_uses_valid_constrained_string_key_type():
@@ -1673,8 +1832,10 @@ def test_no_request_response_rootmodels():
     or custom fields. All Request/Response union types should be unwrapped
     to plain Union type aliases in post_generate_fixes.py.
 
-    If this test fails after a schema update, add the new type to
-    _UNWRAP_TO_UNION in scripts/post_generate_fixes.py.
+    unwrap_rootmodel_unions() in post_generate_fixes.py derives this: a root
+    that composes is emitted as what it composes. A type reaching this guard has
+    a root the wrapper still carries — a value, a validator, or a tag another
+    union discriminates on — and the schema is what to look at.
 
     See: https://github.com/adcontextprotocol/adcp-client-python/issues/155
     """
@@ -1705,8 +1866,7 @@ def test_no_request_response_rootmodels():
 
     assert rootmodel_violations == [], (
         f"These Request/Response types are RootModel classes, which blocks "
-        f"consumer subclassing. Add them to _UNWRAP_TO_UNION in "
-        f"scripts/post_generate_fixes.py: {rootmodel_violations}"
+        f"consumer subclassing: {rootmodel_violations}"
     )
 
 

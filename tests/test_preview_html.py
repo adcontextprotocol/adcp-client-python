@@ -250,8 +250,7 @@ async def test_preview_creative():
             assert result.success
             assert result.data
             assert len(result.data.previews) == 1
-            # PreviewRender is a RootModel - access .root for the actual variant data
-            render = result.data.previews[0].renders[0].root
+            render = result.data.previews[0].renders[0]
             assert str(render.preview_url) == "https://preview.example.com/abc123"
             mock_call.assert_called_once()
 

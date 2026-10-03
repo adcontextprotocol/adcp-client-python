@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from pydantic import TypeAdapter
 
 from adcp.canonical_formats import (
     find_declaration_by_v1_format_id,
@@ -76,7 +77,7 @@ def _load_product(name: str) -> dict[str, Any]:
 def _load_declarations(raw_product: dict[str, Any]) -> list[ProductFormatDeclaration]:
     """Pull the typed ``format_options[]`` out of a raw-dict product."""
     return [
-        ProductFormatDeclaration.model_validate(opt)
+        TypeAdapter(ProductFormatDeclaration).validate_python(opt)
         for opt in raw_product.get("format_options", [])
     ]
 

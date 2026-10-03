@@ -19,7 +19,7 @@ from typing import Any, Protocol
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 from adcp.server.idempotency import canonical_json_sha256
 from adcp.types import (
@@ -35,6 +35,11 @@ from adcp.types import (
     PrincipalState,
     SyncPrincipalRequest,
     SyncPrincipalResponse,
+)
+
+# AgentReportingDestination is a union, so validation goes through an adapter.
+_REPORTING_DESTINATION_ADAPTER: TypeAdapter[AgentReportingDestination] = TypeAdapter(
+    AgentReportingDestination
 )
 
 
@@ -299,7 +304,7 @@ def _normalize_destination(destination: AgentReportingDestination) -> AgentRepor
             recipient["identity"] = _normalize_coordinate(
                 identity, field="reporting_destinations.recipient.identity"
             )
-    return AgentReportingDestination.model_validate(payload)
+    return _REPORTING_DESTINATION_ADAPTER.validate_python(payload)
 
 
 class PrincipalService:

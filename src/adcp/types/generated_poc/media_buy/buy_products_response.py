@@ -145,4 +145,10 @@ class BuyProductsResponse5(BuyProductsResponse1, BuyProductsResponse4):
     pass
 
 
-BuyProductsResponse = BuyProductsResponse5 | BuyProductsResponse6 | BuyProductsResponse7
+BuyProductsResponse = Annotated[
+    BuyProductsResponse5 | BuyProductsResponse6 | BuyProductsResponse7,
+    Field(
+        description='Compact direct-purchase result containing the MediaBuy identity and accepted immutable proposal snapshot.',
+        title='Buy Products Response',
+    ),
+]

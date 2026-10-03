@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from adcp.media_buy_actions import (
     ActionAvailabilityStatus,
@@ -461,7 +461,9 @@ def test_generated_canonical_action_requires_action_field() -> None:
     from adcp.types import CanonicalMediaBuyAction
 
     with pytest.raises(ValidationError):
-        CanonicalMediaBuyAction.model_validate({"task": "control_media_buy", "mode": "self_serve"})
+        TypeAdapter(CanonicalMediaBuyAction).validate_python(
+            {"task": "control_media_buy", "mode": "self_serve"}
+        )
 
 
 def test_generated_change_term_rejects_incompatible_constraint_kind() -> None:

@@ -140,8 +140,8 @@ def test_mapping_is_snapshot_with_explicit_upstream_information_loss_limit() -> 
     evidence = capture_reporting_adjustment_evidence(raw, typed_adjustment=typed, scope=SCOPE)
     before = evidence.raw_json, evidence.canonical_json, evidence.observed_adjustment_sha256
     raw["control_total_deltas"][0]["value"] = "999"
-    typed.control_total_deltas[0].root.value = "999"
-    evidence.adjustment.control_total_deltas[0].root.value = "999"
+    typed.control_total_deltas[0].value = "999"
+    evidence.adjustment.control_total_deltas[0].value = "999"
     assert (
         evidence.raw_json,
         evidence.canonical_json,
@@ -542,7 +542,7 @@ def test_selected_context_requires_exact_ownership_and_reconciled_billing_offici
         SCOPE, obligation=obligation, revision=revision, revision_owner="obligation-1"
     )
     assert context == CONTEXT
-    revision.control_totals[0].root.unit = "EUR"
+    revision.control_totals[0].unit = "EUR"
     assert context.control_total_units == (("spend", "USD"),)
     assert build(context=context).status == "accepted"
     rejected(

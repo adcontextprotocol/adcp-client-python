@@ -1,43 +1,201 @@
 # Generated-types delta
 
-## Files added
+## Files removed
 
-- `core/outcome_target_cost_per.py` — OutcomeTargetCostPer
-- `core/product_execution_requirement.py` — Connection, ProductExecutionRequirement, ProductExecutionRequirement1, ProductExecutionRequirement2, ProductExecutionRequirement3, RequiredForItem, Status
-- `core/reporting_delivery_offering_id.py` — ReportingDeliveryOfferingId
-- `enums/outcome_target_cost_strength.py` — OutcomeTargetCostStrength
-- `error_details/execution_requirement_unmet.py` — ExecutionRequirementUnmetDetails, Reason, UnmetRequirement
+- `compliance/task_completion_data.py` — ComplianceTaskCompletionData
+- `core/async_response_data.py` — AdcpAsyncResponseData
+- `core/localized_creative_asset.py` — LocalizedCreativeAsset
+- `core/pricing_option.py` — PricingOption
+- `core/requirements/asset_requirements.py` — AssetRequirements
+- `core/start_timing.py` — StartTiming
 
 ## Field changes
 
+- `a2ui/bound_value.py`
+  - **classes removed**: A2UiBoundValue
+- `adagents.py`
+  - **classes removed**: AuthorizedAgents
+- `brand/verify_brand_claims_request.py`
+  - **classes removed**: ClaimEntry
+- `brand_discovery.py`
+  - **classes removed**: BrandDiscovery
 - `bundled/protocol/get_adcp_capabilities_response.py`
-  - `Features1`: `+seller_optimized_min_spend_targets`, `+seller_optimized_package_budgets`, `+seller_optimized_package_pacing`
-- `core/canonical_media_buy_features.py`
-  - `CanonicalMediaBuyFeatures`: `+seller_optimized_min_spend_targets`, `+seller_optimized_package_budgets`, `+seller_optimized_package_pacing`
+  - **classes removed**: AnyOf3, Tasks10
+- `collection/base_collection_source.py`
+  - **classes removed**: BaseCollectionSource
+- `compliance/comply_test_controller_response.py`
+  - **classes removed**: RecordedCalls
+- `content_standards/artifact.py`
+  - **classes removed**: Assets
+- `core/account_identity_change.py`
+  - **classes removed**: AccountIdentityChange
+- `core/account_identity_change_preview.py`
+  - **classes removed**: AccountIdentityChangePreview
+- `core/account_ref.py`
+  - **classes removed**: AccountReference
+- `core/activation_key.py`
+  - **classes removed**: ActivationKey
+- `core/agent_reporting_destination.py`
+  - **classes removed**: AgentReportingDestination
+- `core/assets/asset_union.py`
+  - **classes removed**: AssetVariant, MacroBearingUrl
+- `core/attestation_issuer.py`
+  - **classes removed**: AttestationIssuer
+- `core/attestation_subject.py`
+  - **classes removed**: AttestationSubject
+- `core/audience_activation_method.py`
+  - **classes removed**: AudienceActivationMethod
+- `core/audience_selector.py`
+  - **classes removed**: AudienceSelector
+- `core/audience_source.py`
+  - **classes removed**: AudienceSource
+- `core/brand_response_authorization_result.py`
+  - **classes removed**: BrandResponseAuthorizationResult
+- `core/budget_allocation.py`
+  - **classes removed**: BudgetAllocation, OptimizationGoal
+- `core/canonical_account_ref.py`
+  - **classes removed**: CanonicalAccountReference
+- `core/canonical_budget_allocation.py`
+  - **classes removed**: CanonicalBudgetAllocation
+- `core/canonical_media_buy_action.py`
+  - **classes removed**: CanonicalMediaBuyAction
+- `core/canonical_optimization_goal.py`
+  - **classes removed**: CanonicalOptimizationGoal
+- `core/canonical_placement.py`
+  - **classes removed**: CanonicalProductPlacement
 - `core/canonical_product.py`
-  - `CanonicalProduct`: `+collection_targeting_allowed`, `+collections`, `+execution_requirements`, `+targeting_resolution`
-- `core/canonical_reporting_capabilities.py`
-  - `CanonicalReportingCapabilities`: `+reporting_delivery_offering_ids`
-- `core/media_buy_features.py`
-  - `MediaBuyFeatures`: `+seller_optimized_min_spend_targets`, `+seller_optimized_package_budgets`, `+seller_optimized_package_pacing`
+  - **classes removed**: PublisherProperty
+- `core/canonical_reporting_commitment.py`
+  - **classes removed**: CanonicalReportingCommitment
+- `core/collection_selection.py`
+  - **classes removed**: CollectionSelection
+- `core/committed_metric.py`
+  - **classes removed**: CommittedMetric
+- `core/creative_item.py`
+  - **classes removed**: CreativeItem
+- `core/creative_localization_readback.py`
+  - **classes removed**: Variants
+- `core/data_provider_signal_selector.py`
+  - **classes removed**: DataProviderSignalSelector
+- `core/delivery_metric_aggregate.py`
+  - **classes removed**: DeliveryMetricAggregate
+- `core/deployment.py`
+  - **classes removed**: Deployment
+- `core/destination.py`
+  - **classes removed**: Destination
+- `core/evaluator_spec.py`
+  - **classes removed**: EvaluatorSpec
+- `core/format.py`
+  - **classes removed**: Assets30
+- `core/format_option_ref.py`
+  - **classes removed**: FormatOptionReference
+- `core/geo_place_system.py`
+  - **classes removed**: GeographicPlaceIdentifierSystem
+- `core/geo_place_type.py`
+  - **classes removed**: GeographicPlaceType
+- `core/inventory_list_application.py`
+  - **classes removed**: InventoryListApplication
+- `core/macro_bearing_url.py`
+  - **classes removed**: MacroBearingUrl
+- `core/missing_metric.py`
+  - **classes removed**: MissingMetric
+- `core/offering_asset_group.py`
+  - **classes removed**: Items
+- `core/optimization_goal.py`
+  - **classes removed**: OptimizationGoal
+- `core/package_format_snapshot.py`
+  - **classes removed**: PackageFormatSnapshot
+- `core/package_signal_targeting.py`
+  - **classes removed**: PackageSignalTargeting
+- `core/performance_feedback_metric.py`
+  - **classes removed**: PerformanceFeedbackMetric
+- `core/placement_identity.py`
+  - **classes removed**: PlacementIdentity
+- `core/placement_selection.py`
+  - **classes removed**: PlacementSelection
+- `core/postal_country_system.py`
+  - **classes removed**: PostalCountrySystem
 - `core/product.py`
-  - `Product`: `+execution_requirements`
-- `core/reporting_capabilities.py`
-  - **classes removed**: ReportingDeliveryOfferingId
-- `governance/sync_plans_response.py`
-  - **classes added**: Status51
-  - **classes removed**: Status50
-- `media_buy/get_media_buy_delivery_response.py`
-  - `ReportingPeriod`: `+timezone`
+  - **classes removed**: PublisherProperty
+- `core/product_audience_evidence_requirements.py`
+  - **classes removed**: AcceptedAttestationIssuers
+- `core/product_execution_requirement.py`
+  - **classes removed**: ProductExecutionRequirement
+- `core/product_filters.py`
+  - **classes removed**: SignalTargetingItem
+- `core/product_format_declaration.py`
+  - **classes removed**: ProductFormatDeclaration
+- `core/publisher_property_selector.py`
+  - **classes removed**: PublisherPropertySelector
+- `core/registry_event.py`
+  - **classes removed**: RegistryEvent
+- `core/reporting_control_total.py`
+  - **classes removed**: ReportingControlTotal
+- `core/reporting_dataset_share_destination.py`
+  - **classes removed**: ReportingDatasetShareDestination
+- `core/reporting_delivery_method.py`
+  - **classes removed**: ReportingDeliveryMethod
+- `core/reporting_write_destination.py`
+  - **classes removed**: ReportingWriteDestination
+- `core/requirements/catalog_field_binding.py`
+  - **classes removed**: CatalogFieldBinding, PerItemBindings
+- `core/signal_id.py`
+  - **classes removed**: SignalId
+- `core/signal_pricing.py`
+  - **classes removed**: VendorPricing
+- `core/signal_ref.py`
+  - **classes removed**: SignalRef
+- `core/signal_targeting.py`
+  - **classes removed**: SignalTargeting
+- `core/signal_targeting_expression.py`
+  - **classes removed**: SignalTargetingExpression
+- `core/targeting.py`
+  - **classes removed**: CollectionListExclude, Demographics, PropertyListExclude
+- `core/targeting_modification.py`
+  - **classes removed**: TargetingModification
+- `core/tracker_execution_selector.py`
+  - **classes removed**: TrackerExecutionSelector
+- `core/transformer.py`
+  - **classes removed**: InputFormat
+- `core/vendor_pricing_option.py`
+  - **classes removed**: VendorPricingOption
+- `core/wholesale_feed_event.py`
+  - **classes removed**: AppliesTo, WholesaleFeedEvent
+- `creative/preview_render.py`
+  - **classes removed**: PreviewRender
+- `creative/sync_creatives_request.py`
+  - **classes removed**: AssignmentOperations
+- `creative/validate_input_request.py`
+  - **classes removed**: Targets
+- `error_details/governance_agent_not_accepted.py`
+  - **classes removed**: GovernanceAgentNotAcceptedDetails
+- `error_details/vast_version_mismatch.py`
+  - **classes removed**: VastVersionMismatchDetails
+- `governance/reported_outcome_error.py`
+  - **classes removed**: BoundedValue, BoundedValueLevel2, BoundedValueLevel3
+- `media_buy/acceptance_policy_requirement.py`
+  - **classes removed**: AcceptancePolicyRequirement
+- `media_buy/build_creative_request.py`
+  - **classes removed**: SignalCondition
+- `media_buy/change_term_constraints.py`
+  - **classes removed**: MediaBuyChangeTermConstraints
+- `media_buy/decline_proposals_response.py`
+  - **classes removed**: Results, Results3
 - `media_buy/get_products_request.py`
-  - `Field1`: `+execution_requirements`
-  - `Fields`: `-collection_targeting_allowed`, `-collections`, `-targeting_resolution`
-- `media_buy/media_buy_delivery_webhook_result.py`
-  - `ReportingPeriod`: `+timezone`
-- `media_buy/outcome_target.py`
-  - `OutcomeTarget`: `+cost_per`
-- `media_buy/product_fields.py`
-  - `ProductResponseField`: `+collection_targeting_allowed`, `+collections`, `+execution_requirements`, `+targeting_resolution`
-- `sponsored_intelligence/si_sponsored_context_receipt.py`
-  - **classes added**: Status46
-  - **classes removed**: Status45
+  - **classes removed**: Refine
+- `media_buy/get_products_response.py`
+  - **classes removed**: RefinementApplied
+- `media_buy/package_request.py`
+  - **classes removed**: CommittedMetrics
+- `media_buy/product_purchase.py`
+  - **classes removed**: Bidding, Context, Ext, Pricing
+- `media_buy/product_refinement.py`
+  - **classes removed**: ProductRefinementRequests1
+- `media_buy/proposal_refinement.py`
+  - **classes removed**: ProposalRefinement
+- `media_buy/refine_proposals_response.py`
+  - **classes removed**: Results14, Results8
+- `property/base_property_source.py`
+  - **classes removed**: BasePropertySource
+- `trusted_match/provider_registration.py`
+  - **classes removed**: TmpProviderRegistration

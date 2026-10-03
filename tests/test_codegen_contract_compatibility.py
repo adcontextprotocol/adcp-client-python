@@ -44,10 +44,16 @@ def test_response_dispatch_omits_newer_pydantic_keywords_at_their_defaults() -> 
 
 
 def test_product_signal_targeting_option_keeps_discriminated_signal_ref() -> None:
+    from typing import get_args
+
     from adcp import ProductSignalTargetingOption
     from adcp.types.generated_poc.core.signal_ref import SignalRef
 
-    assert ProductSignalTargetingOption.model_fields["signal_ref"].annotation is SignalRef
+    # SignalRef is Annotated[SignalRef1 | SignalRef2 | SignalRef3, Field(...)];
+    # Pydantic lifts the metadata into FieldInfo and keeps the union.
+    arms, metadata = get_args(SignalRef)
+    assert ProductSignalTargetingOption.model_fields["signal_ref"].annotation is arms
+    assert metadata.discriminator == "scope"
     assert ProductSignalTargetingOption.model_json_schema()["properties"]["signal_ref"][
         "description"
     ].startswith("Canonical signal reference.")
@@ -55,15 +61,17 @@ def test_product_signal_targeting_option_keeps_discriminated_signal_ref() -> Non
     option = ProductSignalTargetingOption.model_validate(
         {"signal_ref": {"scope": "product", "signal_id": "signal_1"}}
     )
-    assert isinstance(option.signal_ref, SignalRef)
+    assert isinstance(option.signal_ref, get_args(arms))
     assert option.signal_ref.scope == "product"
 
-    for invalid_signal_ref in (
-        {"scope": "unknown", "signal_id": "signal_1"},
-        "signal_1",
-    ):
-        with pytest.raises(ValidationError):
-            ProductSignalTargetingOption.model_validate({"signal_ref": invalid_signal_ref})
+    with pytest.raises(ValidationError) as unknown_scope:
+        ProductSignalTargetingOption.model_validate(
+            {"signal_ref": {"scope": "unknown", "signal_id": "signal_1"}}
+        )
+    assert [error["type"] for error in unknown_scope.value.errors()] == ["union_tag_invalid"]
+
+    with pytest.raises(ValidationError):
+        ProductSignalTargetingOption.model_validate({"signal_ref": "signal_1"})
 
 
 def test_creative_representation_keeps_canonical_format_contract() -> None:
