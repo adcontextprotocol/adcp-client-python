@@ -61,6 +61,15 @@ def test_validate_card_url_rejects_empty() -> None:
 # ---------------------------------------------------------------------------
 
 
+_CARD_HOSTS = [
+    "test",
+    "tenant-a.example.com",
+    "tenant-b.example.com",
+    "tenant.example.com",
+    "async.example.com",
+]
+
+
 @pytest.mark.asyncio
 async def test_callable_public_url_serves_per_request_card() -> None:
     """Callable ``public_url`` returns a card with the resolver's URL on each request."""
@@ -71,7 +80,13 @@ async def test_callable_public_url_serves_per_request_card() -> None:
         calls.append(host)
         return f"https://{host}/"
 
-    app = create_a2a_server(_OkHandler(), name="test-agent", validation=None, public_url=resolver)
+    app = create_a2a_server(
+        _OkHandler(),
+        allowed_hosts=_CARD_HOSTS,
+        name="test-agent",
+        validation=None,
+        public_url=resolver,
+    )
     async with LifespanManager(app):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
@@ -102,7 +117,13 @@ async def test_callable_public_url_different_hosts_per_request() -> None:
         host = request.headers.get("host", "localhost")
         return f"https://{host}/"
 
-    app = create_a2a_server(_OkHandler(), name="test-agent", validation=None, public_url=resolver)
+    app = create_a2a_server(
+        _OkHandler(),
+        allowed_hosts=_CARD_HOSTS,
+        name="test-agent",
+        validation=None,
+        public_url=resolver,
+    )
     async with LifespanManager(app):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
@@ -135,7 +156,13 @@ async def test_callable_public_url_0_3_alias_also_per_request() -> None:
         host = request.headers.get("host", "localhost")
         return f"https://{host}/"
 
-    app = create_a2a_server(_OkHandler(), name="test-agent", validation=None, public_url=resolver)
+    app = create_a2a_server(
+        _OkHandler(),
+        allowed_hosts=_CARD_HOSTS,
+        name="test-agent",
+        validation=None,
+        public_url=resolver,
+    )
     async with LifespanManager(app):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
@@ -159,7 +186,13 @@ async def test_callable_public_url_resolver_error_returns_500() -> None:
     def resolver(request) -> str:  # type: ignore[no-untyped-def]
         raise RuntimeError("upstream lookup failed")
 
-    app = create_a2a_server(_OkHandler(), name="test-agent", validation=None, public_url=resolver)
+    app = create_a2a_server(
+        _OkHandler(),
+        allowed_hosts=_CARD_HOSTS,
+        name="test-agent",
+        validation=None,
+        public_url=resolver,
+    )
     async with LifespanManager(app):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
@@ -176,7 +209,13 @@ async def test_callable_public_url_invalid_url_returns_500() -> None:
     def resolver(request) -> str:  # type: ignore[no-untyped-def]
         return "http://acme.example.com/"  # http non-loopback — invalid
 
-    app = create_a2a_server(_OkHandler(), name="test-agent", validation=None, public_url=resolver)
+    app = create_a2a_server(
+        _OkHandler(),
+        allowed_hosts=_CARD_HOSTS,
+        name="test-agent",
+        validation=None,
+        public_url=resolver,
+    )
     async with LifespanManager(app):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
@@ -194,7 +233,13 @@ async def test_async_resolver_works() -> None:
         host = request.headers.get("host", "localhost")
         return f"https://{host}/"
 
-    app = create_a2a_server(_OkHandler(), name="test-agent", validation=None, public_url=resolver)
+    app = create_a2a_server(
+        _OkHandler(),
+        allowed_hosts=_CARD_HOSTS,
+        name="test-agent",
+        validation=None,
+        public_url=resolver,
+    )
     async with LifespanManager(app):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
@@ -216,6 +261,7 @@ async def test_static_public_url_unchanged() -> None:
     """Existing static ``public_url`` string behaviour is preserved."""
     app = create_a2a_server(
         _OkHandler(),
+        allowed_hosts=_CARD_HOSTS,
         name="test-agent",
         validation=None,
         public_url="https://agent.example.com/",
@@ -236,7 +282,12 @@ async def test_static_public_url_unchanged() -> None:
 @pytest.mark.asyncio
 async def test_no_public_url_unchanged() -> None:
     """Existing ``public_url=None`` behaviour is preserved (localhost URL)."""
-    app = create_a2a_server(_OkHandler(), name="test-agent", validation=None)
+    app = create_a2a_server(
+        _OkHandler(),
+        allowed_hosts=_CARD_HOSTS,
+        name="test-agent",
+        validation=None,
+    )
     async with LifespanManager(app):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"

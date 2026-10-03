@@ -368,6 +368,9 @@ def build_asgi_app(
             pre_validation_hooks=pre_validation_hooks,
             response_enhancer=response_enhancer,
             base_url=discovery_base_url,
+            allowed_hosts=allowed_hosts,
+            allowed_origins=allowed_origins,
+            enable_dns_rebinding_protection=enable_dns_rebinding_protection,
             auth=auth,
             include_discovery=discovery_base_url is not None,
         )
@@ -404,6 +407,9 @@ def build_asgi_app(
             base_url=discovery_base_url,
         )
     app = _wrap_with_size_limit(app, max_request_size)
+    from adcp.server.http_policy import HostOriginMiddleware
+
+    app = HostOriginMiddleware(app, settings=mcp.settings.transport_security)
     app = _apply_asgi_middleware(app, asgi_middleware)
     return app
 
@@ -572,6 +578,7 @@ async def build_test_client(
     async with LifespanManager(app):
         async with _httpx.AsyncClient(
             transport=_httpx.ASGITransport(app=app),
+            timeout=5.0,
             base_url=base_url,
             headers=headers,
             follow_redirects=follow_redirects,
