@@ -329,7 +329,7 @@ async def test_timed_out_and_cancelled_close_retain_live_sync_adapter(background
             await waiter
         assert service.state is ReliableReportingState.STOPPING
         assert closed == []
-        assert service.capability_block() == {}
+        assert service.capability_block()["offerings"]
         with pytest.raises(ReliableReportingUnavailableError):
             await service.run_worker()
     finally:
@@ -484,8 +484,12 @@ async def test_installed_receipt_admission_drains_before_owned_cleanup(fail_work
         with pytest.raises(ReliableReportingShutdownTimeoutError):
             await service.close(timeout=0)
         assert order == []
-        with pytest.raises(ReliableReportingUnavailableError):
+        from adcp.exceptions import ADCPTaskError
+
+        with pytest.raises(ADCPTaskError) as caught:
             await handler.sync_reporting_receipts({})
+        assert caught.value.error_codes == ["SERVICE_UNAVAILABLE"]
+        assert caught.value.is_retryable
     finally:
         release.set()
         result = await receipt
@@ -552,7 +556,7 @@ async def test_repeated_rpc_cancellation_cannot_interrupt_transaction_cleanup() 
 
 
 @pytest.mark.parametrize("fail_scheduler", [False, True])
-async def test_only_scheduler_failure_withdraws_capabilities_and_sdk_logs_stay_redacted(
+async def test_scheduler_failure_preserves_declarations_and_sdk_logs_stay_redacted(
     caplog: Any,
     fail_scheduler: bool,
 ) -> None:
@@ -600,9 +604,7 @@ async def test_only_scheduler_failure_withdraws_capabilities_and_sdk_logs_stay_r
     service.sources.register("gam", ScriptedReportingAdapter(redacted_capabilities(), [_rows(1)]))
     await service.configure(_configuration())
     handler = service.install(Handler())
-    assert "reporting_delivery" not in (await handler.get_adcp_capabilities({})).get(
-        "media_buy", {}
-    )
+    assert "reporting_delivery" in (await handler.get_adcp_capabilities({})).get("media_buy", {})
     await service.start()
     await asyncio.wait_for(entered.wait(), 2)
     assert (await handler.get_adcp_capabilities({}))["media_buy"]["reporting_delivery"]["supported"]
@@ -614,7 +616,7 @@ async def test_only_scheduler_failure_withdraws_capabilities_and_sdk_logs_stay_r
                 await asyncio.wait_for(service.wait(), 2)
             assert not service.ready
             assert "secret" not in repr(service.failure)
-            assert "reporting_delivery" not in (await handler.get_adcp_capabilities({})).get(
+            assert "reporting_delivery" in (await handler.get_adcp_capabilities({})).get(
                 "media_buy", {}
             )
         else:
