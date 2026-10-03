@@ -18,13 +18,13 @@ async def registry(request: pytest.FixtureRequest) -> AsyncIterator[Any]:
     if request.param == "memory":
         yield InMemoryTaskRegistry()
         return
+    url = os.environ.get("ADCP_PG_TEST_URL")
+    if not url:
+        pytest.skip("ADCP_PG_TEST_URL required")
     from psycopg_pool import AsyncConnectionPool
 
     from adcp.decisioning.pg import PgTaskRegistry
 
-    url = os.environ.get("ADCP_PG_TEST_URL")
-    if not url:
-        pytest.skip("ADCP_PG_TEST_URL required")
     table = f"test_lifecycle_{secrets.token_hex(6)}"
     async with AsyncConnectionPool(
         url,
