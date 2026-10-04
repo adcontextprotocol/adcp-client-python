@@ -14,15 +14,21 @@ from collections.abc import Callable
 from typing import Annotated, Any, Literal
 
 from pydantic import (
+    AfterValidator,
+    AnyUrl,
     BaseModel,
     BeforeValidator,
     ConfigDict,
     SerializerFunctionWrapHandler,
     StrictInt,
+    StrictStr,
+    TypeAdapter,
+    WithJsonSchema,
     model_serializer,
 )
 from pydantic_core import PydanticSerializationError
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.types._scalar import as_json_schema_integer
 
 # Type alias to shorten long type annotations
@@ -257,6 +263,34 @@ def _provide_performance_feedback_error_message(self: Any) -> str:
 #: same field. The generator marks every such field and
 #: ``scripts/post_generate_fixes.py`` points the marker here.
 SchemaInt = Annotated[StrictInt, BeforeValidator(as_json_schema_integer)]
+
+
+def _require_absolute_url(value: str) -> str:
+    """Validate ``value`` as a URL and return it unchanged.
+
+    ``AnyUrl`` normalizes what it parses — ``https://creative.adcontextprotocol.org``
+    comes back with a trailing slash — and a format reference's ``agent_url``
+    is hashed byte for byte into the ``migrated_…`` option ID (#1384). The
+    wire string is the identity, so it is validated with the same parser the
+    other ``format: uri`` fields use and then kept as sent.
+    """
+    _url_adapter().validate_python(value)
+    return value
+
+
+@deferred_adapter
+def _url_adapter() -> TypeAdapter[AnyUrl]:
+    return TypeAdapter(AnyUrl)
+
+
+#: A ``format: uri`` string whose bytes are part of an identity. Validated as a
+#: URL, carried as the ``str`` the wire delivered. ``scripts/post_generate_fixes.py``
+#: points the format-reference ``agent_url`` here.
+WireUrl = Annotated[
+    StrictStr,
+    AfterValidator(_require_absolute_url),
+    WithJsonSchema({"type": "string", "format": "uri"}),
+]
 
 
 class AdCPBaseModel(BaseModel):

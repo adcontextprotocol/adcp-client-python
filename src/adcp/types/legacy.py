@@ -145,9 +145,10 @@ class LegacyFormatId(FormatReferenceStructuredObject):
 
     model_config = ConfigDict(extra="allow")
 
-    # A wire-preserving string intentionally narrows the generated AnyUrl
-    # field: AnyUrl appends a slash and changes the normative legacy tuple.
-    agent_url: str  # type: ignore[assignment]
+    # The generated parent already carries ``agent_url`` as a URL-validated
+    # wire string (``WireUrl``, #1384); the override keeps this model's own
+    # validator and the plain ``str`` spelling the legacy tuple documents.
+    agent_url: str
     id: Annotated[str, Field(pattern=r"^[a-zA-Z0-9_-]+$")]
     width: Annotated[StrictInt | None, Field(ge=1)] = None
     height: Annotated[StrictInt | None, Field(ge=1)] = None

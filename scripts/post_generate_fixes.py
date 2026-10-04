@@ -882,6 +882,45 @@ def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
     return _remove_unused_imports(source, {"pydantic": ("Field",)})
 
 
+def preserve_format_reference_agent_url_wire_string() -> None:
+    """Type the format reference's ``agent_url`` as the wire string, URL-validated.
+
+    ``core/format-id.json`` declares ``agent_url`` as ``format: uri`` and the
+    generator renders it ``AnyUrl``, which normalizes the value it parses:
+    ``https://creative.adcontextprotocol.org`` reads back with a trailing slash.
+    ``migrated_format_option_id`` hashes ``str(ref.agent_url)`` byte for byte —
+    the cross-SDK algorithm, pinned by the TypeScript parity fixture — so the
+    same wire format produced two option IDs depending on whether the reference
+    came from the wire mapping or from a validated model (#1384). Canonicalizing
+    inside the ID algorithm would change IDs already derived; keeping the bytes
+    on the model is the fix. ``adcp.types.base.WireUrl`` validates with the same
+    ``AnyUrl`` parser and returns the string as sent.
+    """
+    target = OUTPUT_DIR / "core" / "format_id.py"
+    if not target.exists():
+        print("  core/format_id.py not found (skipping agent_url wire string)")
+        return
+    source = target.read_text()
+    old = "    agent_url: Annotated[\n        AnyUrl,\n"
+    if old not in source:
+        print("  core/format_id.py: agent_url is not an AnyUrl annotation")
+        return
+    source = source.replace(old, "    agent_url: Annotated[\n        WireUrl,\n")
+    if re.search(r"^from adcp\.types\.base import ", source, re.MULTILINE):
+        source = add_to_import(source, "adcp.types.base", "WireUrl")
+    else:
+        anchor = _import_pattern("pydantic").search(source)
+        assert anchor is not None, target
+        source = (
+            source[: anchor.start()]
+            + "from adcp.types.base import WireUrl\n"
+            + source[anchor.start() :]
+        )
+    source, _ = _remove_unused_imports(source, {"pydantic": ("AnyUrl",)})
+    target.write_text(source)
+    print("  core/format_id.py: agent_url keeps the wire string (WireUrl)")
+
+
 def point_integer_fields_at_the_schema_integer_type() -> None:
     """Rewrite the generator's ``StrictInt`` marker to ``SchemaInt``.
 
@@ -7366,6 +7405,7 @@ def main(argv: list[str] | None = None) -> int:
         rewrite_scalar_rootmodels,
         rewrite_generated_enums_to_strenum,
         annotate_registry_track_verdict,
+        preserve_format_reference_agent_url_wire_string,
         point_integer_fields_at_the_schema_integer_type,
         remove_imports_shadowed_by_a_local_class,
         remove_unused_pydantic_field_imports,
