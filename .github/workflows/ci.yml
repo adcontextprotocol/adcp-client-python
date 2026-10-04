@@ -269,7 +269,9 @@ jobs:
     timeout-minutes: 5
     permissions: {}
     needs: [changes, pg-conformance, pg-reporting-status, pg-reporting-materializer, pg-reporting-receipts, pg-reporting-receipt-compatibility, pg-reporting-feed, pg-reporting-feed-compatibility, pg-reporting-feed-installed, pg-reporting-production, pg-reporting-production-compatibility, pg-reporting-production-installed, reporting-installed-artifact-matrix]
-    if: ${{ always() }}
+    # Failed lanes must still fail the gate; superseded runs should release
+    # their concurrency slot instead of keeping an uncancelable job queued.
+    if: ${{ !cancelled() }}
     steps:
       - name: Require every Postgres conformance lane
         env:
