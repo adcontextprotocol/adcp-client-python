@@ -557,17 +557,22 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
                     _set_request_state(request, None, None, None)
                     return await call_next(request)
                 if self._allow_unauthenticated and signature_error is None:
-                    # Network-trust deployment: no bearer is expected on this
-                    # leg — the agent is reachable only via the host's
-                    # authenticated proxy, which propagates identity downstream
-                    # (e.g. X-Identity-* / X-Principal-Id). Pass through with no
-                    # principal, exactly like the discovery bypass; the app
-                    # resolves and enforces identity. A token that IS present but
-                    # invalid still falls through to rejection below.
-                    principal_token = current_principal.set(None)
-                    tenant_token = current_tenant.set(None)
-                    metadata_token = current_principal_metadata.set(None)
-                    _set_request_state(request, None, None, None)
+                    # Preserve identity explicitly established by an outer
+                    # auth layer. A present state carrier (including None)
+                    # takes precedence over ContextVars; never read identity
+                    # from arbitrary caller headers here.
+                    outer = _read_request_state_auth(request)
+                    if outer is None:
+                        outer = (
+                            current_principal.get(),
+                            current_tenant.get(),
+                            current_principal_metadata.get(),
+                        )
+                    principal_identity, tenant_id, principal_metadata = outer
+                    principal_token = current_principal.set(principal_identity)
+                    tenant_token = current_tenant.set(tenant_id)
+                    metadata_token = current_principal_metadata.set(principal_metadata)
+                    _set_request_state(request, *outer)
                     return await call_next(request)
                 return self._unauthenticated(signature_error)
 

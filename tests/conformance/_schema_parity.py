@@ -40,6 +40,11 @@ else:  # pragma: no cover - Python 3.10 spells the same modules at top level
 # A string matching a regex, so a ``pattern`` field can be instantiated.
 # ---------------------------------------------------------------------------
 
+# Atomic groups arrived with Python 3.11's regex engine; on 3.10 the constant
+# does not exist, and reaching for it made every anchored pattern fail to
+# synthesize (the ``^`` node matched no branch and the lookup raised).
+_ATOMIC_GROUP = getattr(sre, "ATOMIC_GROUP", None)
+
 _CATEGORY_SAMPLE = {
     sre.CATEGORY_DIGIT: "5",
     sre.CATEGORY_WORD: "a",
@@ -80,7 +85,7 @@ def _sample_from_nodes(nodes: Any) -> str:
             out.append(_sample_from_nodes(arg[3]))
         elif op is sre.BRANCH:
             out.append(_sample_from_nodes(arg[1][0]))
-        elif op is sre.ATOMIC_GROUP:
+        elif op is _ATOMIC_GROUP:
             out.append(_sample_from_nodes(arg))
     return "".join(out)
 

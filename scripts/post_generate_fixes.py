@@ -670,7 +670,9 @@ def _first_generated_class_name(content: str) -> str | None:
             (
                 base.id
                 if isinstance(base, ast.Name)
-                else base.attr if isinstance(base, ast.Attribute) else ""
+                else base.attr
+                if isinstance(base, ast.Attribute)
+                else ""
             )
             for base in node.bases
         }
@@ -4318,9 +4320,7 @@ def fix_mcp_webhook_operation_id_optional() -> None:
 def fix_signal_listing_range_subclasses() -> None:
     """Reuse SignalListing.Range for generated subclasses that redeclare range."""
     replacements = {
-        OUTPUT_DIR
-        / "signals"
-        / "get_signals_response.py": [
+        OUTPUT_DIR / "signals" / "get_signals_response.py": [
             (
                 "from ..core.signal_listing import SignalListing\n",
                 "from ..core.signal_listing import Range, SignalListing\n",
@@ -4335,9 +4335,7 @@ def fix_signal_listing_range_subclasses() -> None:
                 "",
             ),
         ],
-        OUTPUT_DIR
-        / "core"
-        / "wholesale_feed_event.py": [
+        OUTPUT_DIR / "core" / "wholesale_feed_event.py": [
             (
                 "from .signal_listing import SignalListing\n",
                 "from .signal_listing import Range, SignalListing\n",
