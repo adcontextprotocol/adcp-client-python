@@ -394,6 +394,7 @@ async def verify_webhook_from_agent_url(
         _default_replay_store_for_origin,
         _refresh_jwks_after_miss,
         async_resolve_agent,
+        request_signature_code,
     )
     from adcp.signing.canonical import parse_signature_input_header
 
@@ -421,11 +422,7 @@ async def verify_webhook_from_agent_url(
             protocol=protocol,
         )
     except AgentResolverError as exc:
-        cause = exc.signature_code or {
-            "capabilities_unreachable": "request_signature_capabilities_unreachable",
-            "brand_json_url_missing": "request_signature_brand_json_url_missing",
-        }.get(exc.code, "request_signature_jwks_unavailable")
-        logger.warning("webhook agent resolution failed: %s", cause)
+        logger.warning("webhook agent resolution failed: %s", request_signature_code(exc))
         raise SignatureVerificationError(
             WEBHOOK_SIGNATURE_KEY_UNKNOWN, step=7, message="webhook key discovery failed"
         ) from exc
