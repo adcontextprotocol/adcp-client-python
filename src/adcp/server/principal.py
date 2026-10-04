@@ -21,6 +21,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, TypeAdapter
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.server.idempotency import canonical_json_sha256
 from adcp.types import (
     AgentDeclarations,
@@ -38,9 +39,11 @@ from adcp.types import (
 )
 
 # AgentReportingDestination is a union, so validation goes through an adapter.
-_REPORTING_DESTINATION_ADAPTER: TypeAdapter[AgentReportingDestination] = TypeAdapter(
-    AgentReportingDestination
-)
+
+
+@deferred_adapter
+def _reporting_destination_adapter() -> TypeAdapter[AgentReportingDestination]:
+    return TypeAdapter(AgentReportingDestination)
 
 
 @dataclass(frozen=True)
@@ -304,7 +307,7 @@ def _normalize_destination(destination: AgentReportingDestination) -> AgentRepor
             recipient["identity"] = _normalize_coordinate(
                 identity, field="reporting_destinations.recipient.identity"
             )
-    return _REPORTING_DESTINATION_ADAPTER.validate_python(payload)
+    return _reporting_destination_adapter().validate_python(payload)
 
 
 class PrincipalService:

@@ -922,3 +922,9 @@ Version modules import lazily and construct only requested bases. Run
 `make validate-generated` checks both the runtime annotations and stubs for
 staleness. The generator does not read current generated-model annotations,
 so the scalar rewrite in #1286 cannot change these pinned nested types.
+
+## Migrating to 9.0
+
+The 9.0 generator changes — scalar roots, composing roots, pointer refs,
+strict scalars and root required groups — are collected with before/after
+examples in [the 9.0 types migration guide](types-9-migration.md).

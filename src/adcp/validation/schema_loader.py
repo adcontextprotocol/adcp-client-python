@@ -39,13 +39,18 @@ from urllib.parse import unquote, urlparse
 
 from pydantic import AnyUrl, TypeAdapter, ValidationError
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.validation.version import resolve_bundle_key
 
 logger = logging.getLogger(__name__)
 
-# Built once: the generated models validate every ``format: uri`` field
-# through this same adapter.
-_URI_ADAPTER: TypeAdapter[AnyUrl] = TypeAdapter(AnyUrl)
+
+@deferred_adapter
+def _uri_adapter() -> TypeAdapter[AnyUrl]:
+    """Built on first use: the generated models validate every ``format: uri``
+    field through this same adapter."""
+    return TypeAdapter(AnyUrl)
+
 
 # Serialize first-time init and validator compilation. Concurrent callers
 # on a fresh process can otherwise both walk the schema tree or compile
@@ -113,7 +118,7 @@ def _is_uri(instance: Any) -> bool:
     if not isinstance(instance, str):
         return True
     try:
-        _URI_ADAPTER.validate_python(instance)
+        _uri_adapter().validate_python(instance)
     except ValidationError:
         return False
     return True

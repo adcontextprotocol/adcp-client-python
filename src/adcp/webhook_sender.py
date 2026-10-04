@@ -40,6 +40,7 @@ import httpx
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519
 from pydantic import BaseModel, TypeAdapter
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.signing.crypto import (
     ALG_ED25519,
     ALG_ES256,
@@ -76,7 +77,12 @@ from adcp.webhook_transport_hooks import (
 )
 
 # WholesaleFeedEvent is a union, so validation goes through an adapter.
-_WHOLESALE_FEED_EVENT_ADAPTER: TypeAdapter[WholesaleFeedEvent] = TypeAdapter(WholesaleFeedEvent)
+
+
+@deferred_adapter
+def _wholesale_feed_event_adapter() -> TypeAdapter[WholesaleFeedEvent]:
+    return TypeAdapter(WholesaleFeedEvent)
+
 
 # NOTE: ``from adcp.webhooks import (...)`` is deliberately at the BOTTOM of this
 # module (after WebhookSender / WebhookDeliveryResult are defined) to resolve the
@@ -1409,7 +1415,7 @@ class WebhookSender:
 
         # WholesaleFeedEvent is a union, so one adapter accepts both an
         # already-validated arm and a raw mapping.
-        event_model = _WHOLESALE_FEED_EVENT_ADAPTER.validate_python(event)
+        event_model = _wholesale_feed_event_adapter().validate_python(event)
         notification_type_value = _enum_value(notification_type)
         event_type = _enum_value(event_model.event_type)
         entity_type = _enum_value(event_model.entity_type)
