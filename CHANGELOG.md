@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Security fixes
+
+* **auth:** MCP and A2A reject conflicting accepted credentials (401),
+  including repeated headers; identical decoded duplicates are accepted.
+  Empty or malformed accepted headers cannot bypass auth or fall back to an
+  alias. Auth diagnostics include reason codes, never credential values or
+  validator exception text. During migration, send the same token in every
+  accepted carrier, or send only one. Refs #1305.
+
 ### Bug Fixes
 
 * **router:** Optional legacy creative and compact lifecycle tools now follow

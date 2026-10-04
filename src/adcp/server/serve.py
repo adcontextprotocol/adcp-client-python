@@ -2736,7 +2736,16 @@ def create_mcp_server(
             "set None to disable reaping."
         )
     _install_adcp_mcp_transport_methods(mcp)
-    mcp._session_manager = _create_adcp_mcp_session_manager(mcp)
+    if max_active_sessions is not None and (
+        isinstance(max_active_sessions, bool)
+        or not isinstance(max_active_sessions, int)
+        or max_active_sessions <= 0
+    ):
+        raise ValueError(
+            f"max_active_sessions must be a positive integer (got {max_active_sessions!r}); "
+            "set None to disable the guard."
+        )
+    mcp._session_manager = None
     if hasattr(handler, "production"):
         from adcp.reporting.production.service import register_production_mount
 
@@ -2810,31 +2819,45 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
                 ],
             )
 
-        manager = _create_adcp_mcp_session_manager(
-            self,
-            event_store=event_store,
-            retry_interval=retry_interval,
-            json_response=(
-                getattr(self.settings, "json_response", False)
-                if json_response is None
-                else json_response
-            ),
-            stateless_http=(
-                getattr(self.settings, "stateless_http", False)
-                if stateless_http is None
-                else stateless_http
-            ),
-            transport_security=(
-                resolved_transport_security.model_copy(
-                    update={"enable_dns_rebinding_protection": False}
-                )
-                if resolved_transport_security is not None
-                else None
-            ),
-            max_request_body_size=max_request_body_size,
-        )
-        self._session_manager = manager
-        streamable_http = StreamableHTTPASGIApp(manager)
+        live_endpoint: StreamableHTTPASGIApp | None = None
+
+        @contextlib.asynccontextmanager
+        async def lifespan(app: Any) -> AsyncIterator[None]:
+            nonlocal live_endpoint
+            if live_endpoint is not None:
+                raise RuntimeError("MCP app lifespan is already running")
+            manager = _create_adcp_mcp_session_manager(
+                self,
+                event_store=event_store,
+                retry_interval=retry_interval,
+                json_response=(
+                    getattr(self.settings, "json_response", False)
+                    if json_response is None
+                    else json_response
+                ),
+                stateless_http=(
+                    getattr(self.settings, "stateless_http", False)
+                    if stateless_http is None
+                    else stateless_http
+                ),
+                transport_security=(
+                    resolved_transport_security.model_copy(
+                        update={"enable_dns_rebinding_protection": False}
+                    )
+                    if resolved_transport_security is not None
+                    else None
+                ),
+                max_request_body_size=max_request_body_size,
+            )
+            self._session_manager = manager
+            live_endpoint = StreamableHTTPASGIApp(manager)
+            try:
+                async with manager.run():
+                    yield
+            finally:
+                live_endpoint = None
+                if self._session_manager is manager:
+                    self._session_manager = None
 
         class ADCPStreamableHTTPASGIApp:
             async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
@@ -2844,14 +2867,22 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
                     receive = receipt_body_receive(scope, receive, limit=max_request_body_size)
                 token = _ADCP_MCP_REQUEST_CONTEXT.set(Request(scope, receive))
                 try:
-                    await streamable_http(scope, receive, send)
+                    endpoint = live_endpoint
+                    if endpoint is None:
+                        from starlette.responses import Response
+
+                        await Response("MCP app lifespan is not running", status_code=503)(
+                            scope, receive, send
+                        )
+                        return
+                    await endpoint(scope, receive, send)
                 finally:
                     _ADCP_MCP_REQUEST_CONTEXT.reset(token)
 
         app = Starlette(
             debug=getattr(self.settings, "debug", False),
             routes=[Route(streamable_http_path, endpoint=ADCPStreamableHTTPASGIApp())],
-            lifespan=lambda app: manager.run(),
+            lifespan=lifespan,
         )
         app.add_middleware(HostOriginMiddleware, settings=resolved_transport_security)
         return app
