@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any, Union
 
 __all__ = [
@@ -46,6 +47,8 @@ __all__ = [
 #: ECMAScript ``Number.MAX_SAFE_INTEGER``.  The contract permits only integers
 #: that survive a round trip through a JavaScript producer unchanged.
 MAX_SAFE_INTEGER = 9007199254740991
+
+_SURROGATE_CODE_POINT = re.compile(r"[\ud800-\udfff]")
 
 JsonValue = Union[
     None,
@@ -77,7 +80,12 @@ def _encode_string(value: str) -> str:
     then fail to UTF-8 encode, so they are escaped here the way well-formed
     ``JSON.stringify`` does.
     """
-    if any(0xD800 <= ord(character) <= 0xDFFF for character in value):
+    has_surrogates = (
+        _SURROGATE_CODE_POINT.search(value) is not None
+        if type(value) is str
+        else any(0xD800 <= ord(character) <= 0xDFFF for character in value)
+    )
+    if has_surrogates:
         return _encode_string_with_lone_surrogates(value)
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 

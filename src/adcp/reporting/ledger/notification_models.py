@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from pydantic import TypeAdapter, ValidationError
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.reporting.evidence import (
     aware_utc,
     consumer_reference,
@@ -458,9 +459,19 @@ def event_storage(event: ReportingDomainEvent) -> dict[str, Any]:
     return dict(json.loads(json.dumps(asdict(event), default=iso)))
 
 
-_EVENT = TypeAdapter(ReportingDomainEvent)
-_SCOPE = TypeAdapter(ReportingStatusScope)
-_DIRTY = TypeAdapter(ReportingStatusDirty)
+@deferred_adapter
+def _event_adapter() -> TypeAdapter[ReportingDomainEvent]:
+    return TypeAdapter(ReportingDomainEvent)
+
+
+@deferred_adapter
+def _scope_adapter() -> TypeAdapter[ReportingStatusScope]:
+    return TypeAdapter(ReportingStatusScope)
+
+
+@deferred_adapter
+def _dirty_adapter() -> TypeAdapter[ReportingStatusDirty]:
+    return TypeAdapter(ReportingStatusDirty)
 
 
 def dirty_storage(record: ReportingStatusDirty) -> dict[str, Any]:
@@ -469,7 +480,7 @@ def dirty_storage(record: ReportingStatusDirty) -> dict[str, Any]:
 
 def decode_dirty(value: object) -> ReportingStatusDirty:
     try:
-        record = _DIRTY.validate_python(value)
+        record = _dirty_adapter().validate_python(value)
         if dirty_storage(record) == value:
             return record
     except (ValidationError, ValueError, TypeError):
@@ -480,7 +491,7 @@ def decode_dirty(value: object) -> ReportingStatusDirty:
 
 def decode_event(value: object) -> ReportingDomainEvent:
     try:
-        event = _EVENT.validate_python(value)
+        event = _event_adapter().validate_python(value)
         if event_storage(event) == value:
             event.body(subscriber_id="validation", idempotency_key="0" * 32)
             return event
@@ -492,7 +503,7 @@ def decode_event(value: object) -> ReportingDomainEvent:
 
 def decode_status_scope(value: object) -> ReportingStatusScope:
     try:
-        scope = _SCOPE.validate_python(value)
+        scope = _scope_adapter().validate_python(value)
         if asdict(scope) == value:
             return scope
     except (ValidationError, ValueError, TypeError):

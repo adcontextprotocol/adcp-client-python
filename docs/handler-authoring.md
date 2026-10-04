@@ -1980,3 +1980,20 @@ When `SubdomainTenantMiddleware` owns Host validation, set
 Explicit Origin enforcement stays active independently of the Host flag.
 Without explicit Origins, disabling protection retains the historical opt-out.
 Tracing and other `asgi_middleware` entries remain outside this policy.
+
+### Repeated MCP application lifespans
+
+Applications from `create_mcp_server(...).streamable_http_app()` and
+`build_asgi_app` can enter and exit their lifespan repeatedly, including the
+combined MCP+A2A app. Each entry creates a new MCP session manager and binds the
+request endpoint to it. Shutdown releases the endpoint and clears ADCP session
+bookkeeping. Previous session IDs are invalid after a restart. Stateless and
+stateful configurations both support repeated lifespans without an opt-in flag.
+
+Run lifespan on the same event loop that handles requests, using `TestClient`
+as a context manager or `LifespanManager` with `httpx.ASGITransport`. Requests
+outside lifespan receive HTTP 503. Combined-app startup hooks run after both
+transport lifespans enter; shutdown hooks run before transport teardown.
+`get_mcp_session_stats(server)` reports configured, inactive defaults outside
+lifespan and the live manager's statistics during lifespan. `_session_manager`
+is private and is `None` while stopped.
