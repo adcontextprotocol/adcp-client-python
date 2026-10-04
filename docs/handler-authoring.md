@@ -2050,3 +2050,37 @@ with the combined server's startup/shutdown hooks or the embedding app.
 A `/healthz` route reports process liveness. Define `/readyz` separately from
 actual dependency, capacity and initialization checks; return 503 when those
 checks fail. A successful liveness response alone does not prove readiness.
+
+### MCP success text summaries
+
+`mcp_result_text` is an opt-in MCP-only formatter on `serve`, `ServeConfig`,
+`create_mcp_server` and the public testing helpers. A callback receives the tool
+name, JSON-ready result dictionary and `ToolContext | None`. Sync and async
+callbacks are supported. The exported `MCPResultText` type describes both forms.
+
+```python
+from typing import Any
+from adcp.server import ToolContext, create_mcp_server
+
+async def summarize(name: str, result: dict[str, Any], context: ToolContext | None) -> str | None:
+    if name == "get_products":
+        return f"Found {len(result.get('products', []))} products."
+    return None
+
+mcp = create_mcp_server(handler, mcp_result_text=summarize)
+```
+
+The callback runs after context echo, response enhancement and response
+validation. It gets a detached copy so editing a nested value while formatting
+cannot change `structuredContent`. A string, including an empty string, replaces
+the text block. `None` keeps the serialized JSON fallback. A field-name shorthand
+such as `mcp_result_text="message"` uses a string-valued response field and falls
+back to JSON when the field is absent or not a string. A2A payloads and default
+MCP output stay unchanged.
+
+Error results retain their existing structured error/text conversion. Successful
+or error `CallToolResult` values supplied by middleware retain their content and
+structured data, including empty content, without wrapping them again or calling
+the formatter. Callback failures follow MCP's ordinary tool-error behavior; an
+invalid return type raises `TypeError` internally. Formatting happens after
+handler execution and does not roll back its effects, so keep callbacks simple.

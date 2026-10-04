@@ -168,6 +168,7 @@ from adcp.server.serve import (
     ASGIMiddlewareEntry,
     ContextFactory,
     LifespanHook,
+    MCPResultText,
     RequestMetadata,
     ServeConfig,
     SkillMiddleware,
@@ -243,6 +244,7 @@ __all__ = [
     "ProposalNotSupported",
     # MCP integration
     "ContextFactory",
+    "MCPResultText",
     "DISCOVERY_METHODS",
     "DISCOVERY_TOOLS",
     "LifespanHook",
