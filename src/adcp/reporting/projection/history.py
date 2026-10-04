@@ -16,6 +16,7 @@ from typing import Any, Literal
 
 from pydantic import TypeAdapter
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.ledger.models import ReportingDeliveryEscalation
 from adcp.reporting.ledger.notification_models import (
@@ -36,7 +37,11 @@ from adcp.reporting.receipts.capture import ReportingReceiptBoundary, decode_rec
 
 HistoricalBoundary = ReportingMaterializerBoundary | ReportingReceiptBoundary
 HistoricalKind = Literal["materializer", "receipt"]
-_CHECKPOINT = TypeAdapter(StatusCheckpoint)
+
+
+@deferred_adapter
+def _checkpoint_adapter() -> TypeAdapter[StatusCheckpoint]:
+    return TypeAdapter(StatusCheckpoint)
 
 
 def decode_boundary(kind: HistoricalKind, value: dict[str, Any]) -> HistoricalBoundary:
@@ -52,12 +57,12 @@ def checkpoint_key(checkpoint: StatusCheckpoint) -> str:
 
 
 def checkpoint_document(checkpoint: StatusCheckpoint) -> dict[str, Any]:
-    result: dict[str, Any] = _CHECKPOINT.dump_python(checkpoint, mode="json")
+    result: dict[str, Any] = _checkpoint_adapter().dump_python(checkpoint, mode="json")
     return result
 
 
 def decode_checkpoint(document: dict[str, Any]) -> StatusCheckpoint:
-    value = _CHECKPOINT.validate_python(document)
+    value = _checkpoint_adapter().validate_python(document)
     if checkpoint_document(value) != document:
         raise ReportingNotificationError("status_projection_history_corrupt")
     return value

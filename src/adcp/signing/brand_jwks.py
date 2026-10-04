@@ -36,6 +36,7 @@ from __future__ import annotations
 import asyncio
 import re
 import time
+import warnings
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
@@ -377,9 +378,16 @@ class BrandJsonJwksResolver:
     (which will refetch its own URL if cooldown has elapsed); if
     still unknown, refresh brand.json in case ``jwks_uri`` rotated.
 
-    ``agent_url`` is required. Role and id only narrow a canonical URL match.
+    Pass ``agent_url``. Role and id only narrow a canonical URL match.
     Portfolio operator records scan house and inline-brand agents. Publisher
     pins never replace this resolver's JWKS or bypass key-origin consistency.
+
+    Omitting ``agent_url`` is deprecated and will be rejected in the next
+    major release. Without it, ``agent_type`` is required and the resolver
+    uses the 8.0 selection scope (``brands[brand_id]`` then ``house``, or
+    top-level ``agents``), but fails closed with ``agent_ambiguous`` unless
+    exactly one entry matches the type and id. A defaulted JWKS on that path
+    must share the brand.json origin (``jwks_origin_mismatch`` otherwise).
     """
 
     #: Discriminant for the verifier-side key_origin consistency
@@ -390,7 +398,7 @@ class BrandJsonJwksResolver:
         self,
         brand_json_url: str,
         *,
-        agent_url: str,
+        agent_url: str | None = None,
         agent_type: BrandAgentType | None = None,
         agent_id: str | None = None,
         brand_id: str | None = None,
@@ -405,8 +413,20 @@ class BrandJsonJwksResolver:
         timeout_seconds: float = DEFAULT_BRAND_JSON_TIMEOUT_SECONDS,
         _client_factory: _ClientFactory | None = None,
         _fetcher: _BrandJsonFetcher | None = None,
+        _warn_missing_agent_url: bool = True,
     ) -> None:
-        self._agent_url = _canonicalize_url(agent_url, allow_private=allow_private_destinations)
+        self._agent_url: str | None
+        if agent_url is None:
+            if agent_type is None:
+                raise TypeError(
+                    "BrandJsonJwksResolver requires agent_url "
+                    "(or agent_type for the deprecated 8.0 selection)"
+                )
+            if _warn_missing_agent_url:
+                _deprecated_agent_url_warning("BrandJsonJwksResolver", stacklevel=2)
+            self._agent_url = None
+        else:
+            self._agent_url = _canonicalize_url(agent_url, allow_private=allow_private_destinations)
         self._agent_type = agent_type
         self._agent_id = agent_id
         self._brand_id = brand_id
@@ -535,14 +555,24 @@ class BrandJsonJwksResolver:
         """Reselect the agent from the current body, independent of validators."""
         identity = (snap.final_url, snap.etag)
         try:
-            agent = _select_agent(
-                snap.data,
-                snap.final_url,
-                agent_url=self._agent_url,
-                agent_type=self._agent_type,
-                agent_id=self._agent_id,
-                brand_id=self._brand_id,
-            )
+            if self._agent_url is None:
+                assert self._agent_type is not None  # enforced at construction
+                agent = _select_agent_without_url(
+                    snap.data,
+                    snap.final_url,
+                    agent_type=self._agent_type,
+                    agent_id=self._agent_id,
+                    brand_id=self._brand_id,
+                )
+            else:
+                agent = _select_agent(
+                    snap.data,
+                    snap.final_url,
+                    agent_url=self._agent_url,
+                    agent_type=self._agent_type,
+                    agent_id=self._agent_id,
+                    brand_id=self._brand_id,
+                )
         except BrandJsonResolverError:
             self._selected = None
             self._selected_for = identity
@@ -964,6 +994,84 @@ def _pick_agent(
     return _SelectedAgent(url=canonical, jwks_uri=jwks_uri, entry=dict(entry))
 
 
+def _deprecated_agent_url_warning(entry_point: str, *, stacklevel: int) -> None:
+    """Emit the deprecation for brand.json key selection without ``agent_url``."""
+    warnings.warn(
+        f"{entry_point} without agent_url is deprecated and will be rejected in the "
+        "next major release. Pass agent_url so keys are selected by the canonical "
+        "agent URL; the 8.0 type-based selection now fails closed unless exactly "
+        "one agent matches.",
+        DeprecationWarning,
+        stacklevel=stacklevel + 1,
+    )
+
+
+def _select_agent_without_url(
+    data: dict[str, Any],
+    final_brand_url: str,
+    *,
+    agent_type: BrandAgentType,
+    agent_id: str | None = None,
+    brand_id: str | None = None,
+) -> _SelectedAgent:
+    """Deprecated 8.0 selection by role, failing closed on any ambiguity.
+
+    Scope matches 8.0: on a portfolio, ``brands[brand_id].agents`` when it has
+    a match, else ``house.agents``; otherwise top-level ``agents``. Unlike
+    8.0, more than one matching entry is rejected even when ``agent_id`` was
+    supplied, and a defaulted JWKS must share the brand.json origin.
+    """
+    house = data.get("house")
+    collections: list[Any]
+    if isinstance(house, dict):
+        collections = []
+        if brand_id is not None:
+            brands = data.get("brands")
+            if isinstance(brands, list):
+                brand = next(
+                    (b for b in brands if isinstance(b, dict) and b.get("id") == brand_id),
+                    None,
+                )
+                if brand is not None:
+                    collections.append(brand.get("agents"))
+        collections.append(house.get("agents"))
+    else:
+        collections = [data.get("agents")]
+    for agents in collections:
+        if not isinstance(agents, list):
+            continue
+        matches = [
+            entry
+            for entry in agents
+            if isinstance(entry, dict)
+            and entry.get("type") == agent_type
+            and (agent_id is None or entry.get("id") == agent_id)
+            and isinstance(entry.get("url"), str)
+        ]
+        if not matches:
+            continue
+        if len(matches) != 1:
+            raise BrandJsonResolverError(
+                "agent_ambiguous",
+                f"brand.json declares {len(matches)} matching {agent_type} agents; "
+                "pass agent_url to select one",
+            )
+        entry = matches[0]
+        url = str(entry["url"])
+        jwks_uri = entry.get("jwks_uri")
+        if not isinstance(jwks_uri, str):
+            jwks_uri = _same_origin_default_jwks_uri(url, final_brand_url)
+        return _SelectedAgent(url=url, jwks_uri=jwks_uri, entry=dict(entry))
+    descriptor = f"type={agent_type}"
+    if agent_id is not None:
+        descriptor += f" id={agent_id}"
+    if brand_id is not None:
+        descriptor += f" brand={brand_id}"
+    raise BrandJsonResolverError(
+        "agent_not_found", f"brand.json has no agent matching {descriptor}; pass agent_url"
+    )
+
+
 def _canonical_origin(raw: str, label: str) -> str:
     """`scheme://host[:port]` in the same canonical form on both sides.
 
@@ -999,8 +1107,38 @@ def _canonical_origin(raw: str, label: str) -> str:
 
 
 def _default_jwks_uri(agent_url: str, final_brand_url: str) -> str:
-    """Default to the matched entry's origin, including cross-origin agents."""
+    """Default to the matched entry's origin, including cross-origin agents.
+
+    Safe only when the caller selected the entry by its own ``agent_url``: the
+    defaulted JWKS then lives on the origin the caller already named.
+    """
     agent_origin = _canonical_origin(agent_url, "agent.url")
+    return f"{agent_origin}/.well-known/jwks.json"
+
+
+def _same_origin_default_jwks_uri(agent_url: str, final_brand_url: str) -> str:
+    """Default ``<agent_origin>/.well-known/jwks.json`` for a role-selected entry.
+
+    Security: the agent origin MUST match the final brand.json origin. When the
+    entry was selected by role rather than by a caller-supplied URL, an
+    attacker-controlled brand.json could otherwise set
+    ``agent.url: "https://victim-internal.example/"`` and make that origin's
+    JWKS authoritative, a cross-origin trust pivot. Publishers hosting an agent
+    on another origin must declare an explicit ``jwks_uri``.
+    """
+    agent_origin = _canonical_origin(agent_url, "agent.url")
+    # Both sides go through the same canonicalization so spelling differences
+    # (U-labels, trailing root dots, default ports) never cause a false mismatch.
+    brand_origin = _canonical_origin(final_brand_url, "brand.json URL")
+    if agent_origin != brand_origin:
+        raise BrandJsonResolverError(
+            "jwks_origin_mismatch",
+            (
+                f"agent.url origin ({agent_origin}) does not match "
+                f"brand.json origin ({brand_origin}); publisher must "
+                "declare an explicit jwks_uri for cross-origin agents"
+            ),
+        )
     return f"{agent_origin}/.well-known/jwks.json"
 
 

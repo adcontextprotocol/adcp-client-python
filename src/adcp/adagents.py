@@ -34,7 +34,7 @@ from adcp.exceptions import (
     AdagentsValidationError,
 )
 from adcp.signing._strict_json import parse_strict_json
-from adcp.signing.etld import same_registrable_domain
+from adcp.signing.etld import registrable_domain, same_registrable_domain
 from adcp.types.base import AdCPBaseModel
 from adcp.validation import ValidationError, validate_adagents
 
@@ -302,11 +302,9 @@ async def _dns_validate_host(host: str, port: int) -> None:
     ``169.254.169.254``). ``_check_safe_host`` only sees the string;
     this helper sees what the resolver returns.
 
-    Residual rebinding window: a determined attacker controlling the
-    authoritative DNS can still return a public IP on this lookup and
-    a private IP on httpx's connect lookup milliseconds later. Closing
-    that window requires intercepting httpx's network backend to pin
-    the connection IP — tracked separately.
+    SDK-owned default clients additionally resolve/validate and pin the connect
+    IP via _owned_pinned_client. For injected clients/custom factories, this
+    pre-check cannot control a later resolution by the caller's transport.
     """
     if not host:
         return
@@ -695,6 +693,7 @@ MAX_WELL_KNOWN_REDIRECT_HOPS = 3
 # preventing a hostile publisher from forcing the SDK to buffer an
 # arbitrarily large body during the MANAGERDOMAIN fallback.
 MAX_ADS_TXT_BYTES = 1_048_576  # 1 MiB
+MAX_ADS_TXT_REDIRECT_HOPS = 5  # At most six requests, including the initial URL.
 
 # Two-tier size caps for adagents.json fetches (adcp#4504). The pointer
 # file served at /.well-known/adagents.json is small (URL reference or
@@ -861,6 +860,117 @@ async def _resolve_direct(
     raise AssertionError("Unreachable")  # pragma: no cover
 
 
+def _validated_ads_txt_url(url: str) -> str:
+    """Validate and canonicalize one ads.txt hop, retaining its path and query."""
+    if any(ord(char) < 32 or ord(char) == 127 or char == "\\" for char in url):
+        raise AdagentsValidationError("ads.txt redirect URL contains invalid characters")
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme.lower() != "https":
+            raise AdagentsValidationError("ads.txt redirect must be an HTTPS URL")
+        if parsed.username is not None or parsed.password is not None:
+            raise AdagentsValidationError("ads.txt redirect must not contain credentials")
+        # Validate port syntax even for caller-injected transports.
+        _ = parsed.port
+        _validate_redirect_url(url)
+        _idna_ascii_host(parsed.hostname or "", "ads.txt redirect")
+        # httpx normalizes host case, default ports and dot segments; fragments
+        # do not travel on the wire and must not let a loop evade detection.
+        return str(httpx.URL(url).copy_with(fragment=None))
+    except (ValueError, httpx.InvalidURL) as exc:
+        raise AdagentsValidationError(f"Invalid ads.txt redirect URL: {url!r}") from exc
+
+
+def _ads_txt_remaining(deadline: float) -> float:
+    remaining = deadline - asyncio.get_running_loop().time()
+    if remaining <= 0:
+        raise asyncio.TimeoutError("ads.txt redirect deadline exceeded")
+    return remaining
+
+
+async def _follow_ads_txt_redirects(
+    publisher_domain: str,
+    timeout: float,
+    user_agent: str,
+    client: httpx.AsyncClient | None,
+    transport_factory: AdagentsTransportFactory | None,
+) -> list[str]:
+    """Follow bounded HTTPS hops; an off-root destination must be terminal."""
+    current_url = _validated_ads_txt_url(f"https://{publisher_domain}/ads.txt")
+    root = registrable_domain(publisher_domain)
+    deadline = asyncio.get_running_loop().time() + timeout
+    headers = {"User-Agent": user_agent, "Accept": "text/plain"}
+    visited: set[str] = set()
+    off_domain = False
+    current_client = client
+
+    for hop in range(MAX_ADS_TXT_REDIRECT_HOPS + 1):
+        if current_url in visited:
+            raise AdagentsValidationError("Circular redirect detected in ads.txt fetch")
+        visited.add(current_url)
+        parsed = urlparse(current_url)
+        await _dns_validate_host(parsed.hostname or "", parsed.port or 443)
+        remaining = _ads_txt_remaining(deadline)
+        if current_client is not None:
+            body, status, response_headers = await _stream_capped(
+                current_client,
+                current_url,
+                headers,
+                remaining,
+                MAX_ADS_TXT_BYTES,
+                read_success_only=True,
+            )
+        else:
+            # Fresh default transport re-resolves and validates before pinning
+            # each hop, closing the gap between DNS pre-check and connect.
+            factory = transport_factory or _owned_pinned_client
+            async with factory(current_url, remaining) as owned_client:
+                body, status, response_headers = await _stream_capped(
+                    owned_client,
+                    current_url,
+                    headers,
+                    _ads_txt_remaining(deadline),
+                    MAX_ADS_TXT_BYTES,
+                    read_success_only=True,
+                )
+        _ads_txt_remaining(deadline)
+        if 200 <= status < 300:
+            # Match httpx's historical text behavior for non-UTF8 ads.txt.
+            # aiter_bytes() already decoded Content-Encoding. Retain only the
+            # charset header so reconstruction cannot decompress the body twice.
+            text = httpx.Response(
+                status,
+                content=body,
+                headers={"content-type": response_headers.get("content-type", "")},
+            ).text
+            return parse_managerdomains(text)
+        if status not in {301, 302, 303, 307, 308}:
+            return []
+        if off_domain:
+            raise AdagentsValidationError("Off-domain ads.txt destination must not redirect")
+        if hop >= MAX_ADS_TXT_REDIRECT_HOPS:
+            raise AdagentsValidationError("Maximum ads.txt redirect hops exceeded")
+        location = response_headers.get("location")
+        if not location or not location.strip():
+            raise AdagentsValidationError("ads.txt redirect missing Location header")
+        # Validate Location before urljoin can silently discard control chars.
+        if any(ord(char) < 32 or ord(char) == 127 or char == "\\" for char in location):
+            raise AdagentsValidationError("ads.txt Location contains invalid characters")
+        try:
+            next_url = _validated_ads_txt_url(urljoin(current_url, location.strip()))
+        except ValueError as exc:
+            raise AdagentsValidationError("Invalid ads.txt Location URL") from exc
+        if root is None:
+            raise AdagentsValidationError("ads.txt publisher has no registrable root domain")
+        off_domain = registrable_domain(next_url) != root
+        current_url = next_url
+        # Never forward caller client credentials/cookies or reuse a pin on
+        # a redirected host, even for same-root redirects.
+        current_client = None
+
+    raise AssertionError("Unreachable")  # pragma: no cover
+
+
 async def _fetch_ads_txt_managerdomains(
     publisher_domain: str,
     timeout: float,
@@ -869,49 +979,32 @@ async def _fetch_ads_txt_managerdomains(
     *,
     transport_factory: AdagentsTransportFactory | None = None,
 ) -> list[str]:
-    """Fetch /ads.txt for publisher and return MANAGERDOMAIN= directives in order.
+    """Best-effort MANAGERDOMAIN discovery through a manual ads.txt redirect loop.
 
-    Returns an empty list on any failure (non-200, network error, timeout,
-    or oversized body) — the fallback is best-effort and absence is not
-    an error. Bodies larger than :data:`MAX_ADS_TXT_BYTES` are discarded
-    so a hostile publisher can't force the SDK to buffer arbitrary data.
+    At most five redirects are followed within one total ``timeout`` budget.
+    Same-root hops use the bundled ICANN+PRIVATE PSL; at most one destination
+    may be outside that root, and it must not redirect again. Every hop is
+    HTTPS-only and DNS-validated, with a fresh pinned default client for each
+    SDK-owned hop. Relative Location values are resolved against the current URL.
 
-    ``follow_redirects=False`` matches the adagents.json streaming path:
-    HTTP 30x is not a sanctioned cross-host delegation mechanism for
-    ads.txt either, and following one transparently would bypass the
-    SSRF gate on the resolved Location host. Publishers who serve
-    ads.txt behind a redirect will fall through to "no MANAGERDOMAIN
-    found" — the SDK then surfaces the publisher's original 404,
-    which is the correct outcome for a best-effort fallback.
+    Redirect/error bodies are never read. Terminal 2xx bodies are streamed with
+    a 1 MiB cap; other terminal statuses produce no directives. Missing Location,
+    repeated canonical URLs, downgrade, unsafe DNS, network errors and expired
+    deadlines likewise return no directives, preserving the publisher's 404.
+
+    A caller-injected client is used only for the initial ads.txt URL; its
+    transport-level DNS/proxy policy is outside SDK control. A custom factory
+    likewise owns its pinning policy. URL/DNS gates still apply on these paths.
     """
-    url = f"https://{publisher_domain}/ads.txt"
-    headers = {"User-Agent": user_agent, "Accept": "text/plain"}
     try:
-        await _dns_validate_host(publisher_domain, 443)
-    except AdagentsValidationError:
-        return []
-    try:
-        if client is not None:
-            response = await client.get(
-                url, headers=headers, timeout=timeout, follow_redirects=False
-            )
-        else:
-            async with (transport_factory or _owned_pinned_client)(url, timeout) as new_client:
-                response = await new_client.get(
-                    url, headers=headers, timeout=timeout, follow_redirects=False
-                )
-        if response.status_code != 200:
-            return []
-        if len(response.content) > MAX_ADS_TXT_BYTES:
-            return []
-        return _parse_managerdomains(response.text)
-    except (httpx.TimeoutException, httpx.RequestError):
-        return []
-    except AdagentsValidationError:
-        # The pinned-transport build re-resolves the host; if it now points
-        # at a blocked address (DNS rebinding between the pre-check and the
-        # connect), fail closed. This fallback is best-effort, so a blocked
-        # resolution is "no MANAGERDOMAIN found", same as a network error.
+        return await asyncio.wait_for(
+            _follow_ads_txt_redirects(
+                publisher_domain, timeout, user_agent, client, transport_factory
+            ),
+            timeout=timeout,
+        )
+    except (asyncio.TimeoutError, httpx.RequestError, AdagentsValidationError) as exc:
+        logger.debug("ads.txt MANAGERDOMAIN discovery failed for %s: %s", publisher_domain, exc)
         return []
 
 
@@ -956,7 +1049,9 @@ async def fetch_adagents(
        ``MANAGERDOMAIN=`` directive and, if present, tries
        ``https://{manager}/.well-known/adagents.json``.
 
-    The fallback is one-hop only. If the manager domain also 404s,
+    The ads.txt fetch follows up to five HTTPS redirects within a single timeout,
+    permitting same-root redirects followed by one terminal off-root hop. Manager
+    delegation remains one-hop only. If the manager domain also 404s,
     this raises :class:`AdagentsNotFoundError` for the original
     publisher — not a silent pass.
 
@@ -1519,6 +1614,8 @@ async def _stream_capped(
     headers: dict[str, str],
     timeout: float,
     max_bytes: int,
+    *,
+    read_success_only: bool = False,
 ) -> tuple[bytes, int, httpx.Headers]:
     """Stream a GET and abort if the body exceeds ``max_bytes``.
 
@@ -1533,8 +1630,10 @@ async def _stream_capped(
     async with client.stream(
         "GET", url, headers=headers, timeout=timeout, follow_redirects=False
     ) as response:
-        if response.status_code == 304:
-            return b"", 304, response.headers
+        if response.status_code == 304 or (
+            read_success_only and not 200 <= response.status_code < 300
+        ):
+            return b"", response.status_code, response.headers
 
         content_length = response.headers.get("content-length")
         if content_length is not None:
