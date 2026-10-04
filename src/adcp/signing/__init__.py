@@ -65,6 +65,8 @@ The core names you'll reach for (everything else is for advanced use):
   is the spec error string
 * :func:`unauthorized_response_headers` — builds the 401
   ``WWW-Authenticate: Signature error="..."`` header
+* :func:`signature_challenge` — the header *value* alone, for a seller
+  composing the 401 itself
 * :class:`InMemoryReplayStore` for single-process deployments;
   :class:`PgReplayStore` (behind ``[pg]`` extra) for multi-worker
 
@@ -83,6 +85,11 @@ The core names you'll reach for (everything else is for advanced use):
   (with SSRF validation) and pin subsequent connects to that IP.
   Closes the DNS-rebinding TOCTOU for anything built on
   :class:`httpx.Client`.
+* :func:`build_ip_pinned_transport2` /
+  :func:`build_async_ip_pinned_transport2` — the same pin for the
+  ``httpx2`` generation, which MCP SDK v2 runs on. Use these for an
+  :class:`httpx2.Client` / :class:`httpx2.AsyncClient`, including an
+  MCP ``httpx_client_factory``.
 * :func:`resolve_and_validate_host` — returns ``(host, ip, port)``;
   same SSRF rules as :func:`validate_jwks_uri`. Use this if you're
   wiring your own transport and only need the resolved + validated
@@ -112,6 +119,7 @@ from adcp.signing.agent_resolver import (
     AgentResolverErrorCode,
     TraceEntry,
     async_resolve_agent,
+    request_signature_code,
     resolve_agent,
     verify_from_agent_url,
 )
@@ -139,6 +147,7 @@ from adcp.signing.canonical import (
     build_signature_base,
     canonicalize_authority,
     canonicalize_target_uri,
+    malformed_authority_reason,
     parse_signature_input_header,
 )
 from adcp.signing.capability_cache import (
@@ -211,6 +220,7 @@ from adcp.signing.errors import (
     REQUEST_SIGNATURE_TAG_INVALID,
     REQUEST_SIGNATURE_WINDOW_INVALID,
     SignatureVerificationError,
+    signature_challenge,
 )
 from adcp.signing.etld import (
     BrandDomainValidationError,
@@ -223,10 +233,14 @@ from adcp.signing.etld import (
 )
 from adcp.signing.ip_pinned_transport import (
     AsyncIpPinnedTransport,
+    AsyncIpPinnedTransport2,
     IpPinnedTransport,
+    IpPinnedTransport2,
     abuild_ip_pinned_transport,
     build_async_ip_pinned_transport,
+    build_async_ip_pinned_transport2,
     build_ip_pinned_transport,
+    build_ip_pinned_transport2,
 )
 from adcp.signing.jwks import (
     DEFAULT_ALLOWED_PORTS,
@@ -315,6 +329,7 @@ from adcp.signing.verifier import (
     VerifiedSigner,
     VerifierCapability,
     VerifyOptions,
+    strict_header_precheck,
     verify_request_signature,
 )
 
@@ -357,6 +372,7 @@ __all__ = [
     "AsyncCachingJwksResolver",
     "AsyncCachingRevocationChecker",
     "AsyncIpPinnedTransport",
+    "AsyncIpPinnedTransport2",
     "AsyncJwksFetcher",
     "AsyncJwksResolver",
     "AsyncRevocationListFetcher",
@@ -385,6 +401,7 @@ __all__ = [
     "InMemoryReplayStore",
     "InMemorySigningProvider",
     "IpPinnedTransport",
+    "IpPinnedTransport2",
     "JwksResolver",
     "JwsError",
     "JwsMalformedError",
@@ -461,9 +478,11 @@ __all__ = [
     "b64url_decode",
     "b64url_encode",
     "build_async_ip_pinned_transport",
+    "build_async_ip_pinned_transport2",
     "build_brand_json_resolvers",
     "build_capability_cache_key",
     "build_ip_pinned_transport",
+    "build_ip_pinned_transport2",
     "build_signature_base",
     "BrandDomainValidationError",
     "canonicalize_authority",
@@ -483,12 +502,14 @@ __all__ = [
     "is_development_brand_domain",
     "install_signing_event_hook",
     "load_private_key_pem",
+    "malformed_authority_reason",
     "operation_needs_signing",
     "parse_signature_input_header",
     "pem_to_adcp_jwk",
     "private_key_from_jwk",
     "public_key_from_jwk",
     "registrable_domain",
+    "request_signature_code",
     "resolve_agent",
     "resolve_and_validate_host",
     "validate_resolved_ip",
@@ -499,7 +520,9 @@ __all__ = [
     "sign_signature_base",
     "signing_profile_for_adcp_version",
     "sign_standard_webhook",
+    "signature_challenge",
     "signing_operation",
+    "strict_header_precheck",
     "unauthorized_response_headers",
     "validate_jwks_uri",
     "validate_brand_domain",

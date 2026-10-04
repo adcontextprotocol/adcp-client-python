@@ -39,6 +39,23 @@ class SignatureVerificationError(Exception):
         self.detail = dict(detail) if detail is not None else None
 
 
+def signature_challenge(code: str) -> str:
+    """``WWW-Authenticate`` value for a 401 the signing profile rejects.
+
+    security.mdx § Transport error taxonomy: "AdCP does NOT define a realm
+    value for request-signing challenges. Verifiers MUST emit
+    ``WWW-Authenticate: Signature error="<code>"`` with no ``realm``
+    parameter and no other parameters."
+
+    Every 401 the SDK emits for a signature failure formats the value here —
+    the request leg (:func:`adcp.signing.middleware.unauthorized_response_headers`),
+    the webhook leg (:mod:`adcp.webhook_receiver`), and the bearer middleware's
+    signature-fallback challenge (:mod:`adcp.server.auth`) — so the three
+    cannot drift from the byte string peers and conformance harnesses match.
+    """
+    return f'Signature error="{code}"'
+
+
 REQUEST_SIGNATURE_REQUIRED = "request_signature_required"
 REQUEST_SIGNATURE_HEADER_MALFORMED = "request_signature_header_malformed"
 REQUEST_SIGNATURE_PARAMS_INCOMPLETE = "request_signature_params_incomplete"
@@ -106,19 +123,21 @@ WEBHOOK_SIGNATURE_JWKS_UNAVAILABLE = "webhook_signature_jwks_unavailable"
 WEBHOOK_SIGNATURE_JWKS_UNTRUSTED = "webhook_signature_jwks_untrusted"
 WEBHOOK_SIGNATURE_RATE_ABUSE = "webhook_signature_rate_abuse"
 
-# brand.json discovery chain mirrors for the webhook profile. The chain
-# walks identically (capabilities → brand.json → agents[] → jwks_uri),
-# just consulting the ``webhook_signing`` purpose under
-# ``identity.key_origins`` instead of ``request_signing``.
-WEBHOOK_SIGNATURE_BRAND_JSON_URL_MISSING = "webhook_signature_brand_json_url_missing"
-WEBHOOK_SIGNATURE_CAPABILITIES_UNREACHABLE = "webhook_signature_capabilities_unreachable"
-WEBHOOK_SIGNATURE_BRAND_JSON_UNREACHABLE = "webhook_signature_brand_json_unreachable"
-WEBHOOK_SIGNATURE_BRAND_JSON_MALFORMED = "webhook_signature_brand_json_malformed"
-WEBHOOK_SIGNATURE_BRAND_ORIGIN_MISMATCH = "webhook_signature_brand_origin_mismatch"
-WEBHOOK_SIGNATURE_AGENT_NOT_IN_BRAND_JSON = "webhook_signature_agent_not_in_brand_json"
-WEBHOOK_SIGNATURE_BRAND_JSON_AMBIGUOUS = "webhook_signature_brand_json_ambiguous"
-WEBHOOK_SIGNATURE_KEY_ORIGIN_MISMATCH = "webhook_signature_key_origin_mismatch"
-WEBHOOK_SIGNATURE_KEY_ORIGIN_MISSING = "webhook_signature_key_origin_missing"
+# The webhook profile declares no per-hop code for the key-discovery chain.
+# security.mdx § "Webhook callbacks" → JWKS discovery walks four steps
+# (brand.json fetch → ``agents[]`` match → ``jwks_uri`` fetch → ``keyid``
+# resolve) and names exactly one rejection code for the whole chain,
+# ``webhook_signature_key_unknown``; webhook checklist step 7 repeats it and
+# adds "Reject if ``keyid`` cannot be resolved to a specific ``agents[]``
+# entry in the signer's brand.json". The webhook error taxonomy table carries
+# no brand.json, capabilities or key-origin row. That is the deliberate
+# asymmetry with the request profile, whose own discovery-chain
+# rejection-code table assigns a distinct code and a structured ``detail``
+# shape to every hop: a webhook sender learns that its key did not resolve
+# and nothing about the receiver's walk to reach that conclusion.
+#
+# Every ``request_signature_*`` discovery code therefore translates to
+# ``WEBHOOK_SIGNATURE_KEY_UNKNOWN`` in ``REQUEST_TO_WEBHOOK_CODE`` below.
 
 # Structural code for a malformed authority on the webhook profile. Named
 # without the ``webhook_signature_`` prefix the rest of this family carries
@@ -133,6 +152,14 @@ WEBHOOK_BODY_MALFORMED = "webhook_body_malformed"
 # pipeline raises request_signature_* codes; the wrapper retags them into
 # webhook_signature_* before exposing to callers. Keeps the 300-line verifier
 # unchanged and guarantees webhook routes never leak request-family codes.
+#
+# This table is the only place the webhook profile's code for a request-family
+# failure is decided. A row that mirrors the request code into the webhook
+# family keeps its suffix; a row that maps to a coarser webhook code because
+# the profile declares nothing finer changes it, and the wrapper logs the
+# precise request-family cause whenever that happens. Readers grade the webhook
+# profile's emitted taxonomy off the values in this table — so a row that no
+# input can reach is a row that lies.
 REQUEST_TO_WEBHOOK_CODE = {
     REQUEST_SIGNATURE_REQUIRED: WEBHOOK_SIGNATURE_REQUIRED,
     REQUEST_SIGNATURE_HEADER_MALFORMED: WEBHOOK_SIGNATURE_HEADER_MALFORMED,
@@ -154,13 +181,16 @@ REQUEST_TO_WEBHOOK_CODE = {
     REQUEST_SIGNATURE_JWKS_UNTRUSTED: WEBHOOK_SIGNATURE_JWKS_UNTRUSTED,
     REQUEST_SIGNATURE_RATE_ABUSE: WEBHOOK_SIGNATURE_RATE_ABUSE,
     REQUEST_BODY_MALFORMED: WEBHOOK_BODY_MALFORMED,
-    REQUEST_SIGNATURE_BRAND_JSON_URL_MISSING: WEBHOOK_SIGNATURE_BRAND_JSON_URL_MISSING,
-    REQUEST_SIGNATURE_CAPABILITIES_UNREACHABLE: WEBHOOK_SIGNATURE_CAPABILITIES_UNREACHABLE,
-    REQUEST_SIGNATURE_BRAND_JSON_UNREACHABLE: WEBHOOK_SIGNATURE_BRAND_JSON_UNREACHABLE,
-    REQUEST_SIGNATURE_BRAND_JSON_MALFORMED: WEBHOOK_SIGNATURE_BRAND_JSON_MALFORMED,
-    REQUEST_SIGNATURE_BRAND_ORIGIN_MISMATCH: WEBHOOK_SIGNATURE_BRAND_ORIGIN_MISMATCH,
-    REQUEST_SIGNATURE_AGENT_NOT_IN_BRAND_JSON: WEBHOOK_SIGNATURE_AGENT_NOT_IN_BRAND_JSON,
-    REQUEST_SIGNATURE_BRAND_JSON_AMBIGUOUS: WEBHOOK_SIGNATURE_BRAND_JSON_AMBIGUOUS,
-    REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH: WEBHOOK_SIGNATURE_KEY_ORIGIN_MISMATCH,
-    REQUEST_SIGNATURE_KEY_ORIGIN_MISSING: WEBHOOK_SIGNATURE_KEY_ORIGIN_MISSING,
+    # Key-discovery chain. The webhook profile stops at
+    # ``webhook_signature_key_unknown`` for every hop — see the comment above
+    # the WEBHOOK_* constants.
+    REQUEST_SIGNATURE_BRAND_JSON_URL_MISSING: WEBHOOK_SIGNATURE_KEY_UNKNOWN,
+    REQUEST_SIGNATURE_CAPABILITIES_UNREACHABLE: WEBHOOK_SIGNATURE_KEY_UNKNOWN,
+    REQUEST_SIGNATURE_BRAND_JSON_UNREACHABLE: WEBHOOK_SIGNATURE_KEY_UNKNOWN,
+    REQUEST_SIGNATURE_BRAND_JSON_MALFORMED: WEBHOOK_SIGNATURE_KEY_UNKNOWN,
+    REQUEST_SIGNATURE_BRAND_ORIGIN_MISMATCH: WEBHOOK_SIGNATURE_KEY_UNKNOWN,
+    REQUEST_SIGNATURE_AGENT_NOT_IN_BRAND_JSON: WEBHOOK_SIGNATURE_KEY_UNKNOWN,
+    REQUEST_SIGNATURE_BRAND_JSON_AMBIGUOUS: WEBHOOK_SIGNATURE_KEY_UNKNOWN,
+    REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH: WEBHOOK_SIGNATURE_KEY_UNKNOWN,
+    REQUEST_SIGNATURE_KEY_ORIGIN_MISSING: WEBHOOK_SIGNATURE_KEY_UNKNOWN,
 }

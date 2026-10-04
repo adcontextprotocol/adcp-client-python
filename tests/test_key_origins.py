@@ -8,7 +8,8 @@ Behavior under test (matches ADCP request-signing spec #3690 step 7):
   ``*_key_origin_mismatch``.
 * Canonicalization: ASCII-lowercase + IDNA-A-label so case differences
   and IDN U-label vs A-label compare equal.
-* ``code_family`` switches between request and webhook code families.
+* ``code_family`` switches between request and webhook code families, the
+  webhook one read from ``REQUEST_TO_WEBHOOK_CODE``.
 * ``None`` / empty ``key_origins`` map equivalent.
 """
 
@@ -19,8 +20,7 @@ import pytest
 from adcp.signing.errors import (
     REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH,
     REQUEST_SIGNATURE_KEY_ORIGIN_MISSING,
-    WEBHOOK_SIGNATURE_KEY_ORIGIN_MISMATCH,
-    WEBHOOK_SIGNATURE_KEY_ORIGIN_MISSING,
+    WEBHOOK_SIGNATURE_KEY_UNKNOWN,
     SignatureVerificationError,
 )
 from adcp.signing.key_origins import check_key_origin_consistency
@@ -143,6 +143,9 @@ def test_consistency_raises_mismatch_on_invalid_jwks_uri() -> None:
 
 
 def test_consistency_webhook_family_uses_webhook_codes() -> None:
+    # The webhook profile names one code for the whole key-discovery chain
+    # (security.mdx webhook checklist step 7), so a key-origin mismatch
+    # rejects as ``webhook_signature_key_unknown``.
     with pytest.raises(SignatureVerificationError) as exc_info:
         check_key_origin_consistency(
             jwks_uri="https://attacker.example.org/.well-known/jwks.json",
@@ -150,7 +153,7 @@ def test_consistency_webhook_family_uses_webhook_codes() -> None:
             purpose="webhook_signing",
             code_family="webhook",
         )
-    assert exc_info.value.code == WEBHOOK_SIGNATURE_KEY_ORIGIN_MISMATCH
+    assert exc_info.value.code == WEBHOOK_SIGNATURE_KEY_UNKNOWN
 
 
 def test_consistency_webhook_family_missing_uses_webhook_code() -> None:
@@ -161,7 +164,7 @@ def test_consistency_webhook_family_missing_uses_webhook_code() -> None:
             purpose="webhook_signing",
             code_family="webhook",
         )
-    assert exc_info.value.code == WEBHOOK_SIGNATURE_KEY_ORIGIN_MISSING
+    assert exc_info.value.code == WEBHOOK_SIGNATURE_KEY_UNKNOWN
 
 
 # ----- spec-mandated structured detail fields -----

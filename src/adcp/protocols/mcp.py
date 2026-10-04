@@ -194,6 +194,42 @@ def _preserve_http_auth_response(
     return wrapped
 
 
+def _reject_foreign_httpx_transport(client: Any) -> None:
+    """Refuse a client carrying a transport from the other httpx generation.
+
+    MCP SDK v2 runs on ``httpx2``. An ``httpx`` transport inside an
+    ``httpx2.AsyncClient`` is accepted at construction — httpx2 runs no
+    type check — and then fails on the first request with a bare,
+    message-less ``AssertionError`` raised from
+    ``httpx/_transports/default.py``. Under ``python -O`` that assertion
+    is compiled out, the request reaches the network, and the response
+    comes back unusable. Name the generation mismatch here, at wiring
+    time, where it is fixable.
+    """
+    if not MCP_AVAILABLE or not HTTPX_AVAILABLE:
+        return
+
+    candidates: list[tuple[str, Any]] = [("transport", getattr(client, "_transport", None))]
+    mounts = getattr(client, "_mounts", None)
+    if isinstance(mounts, dict):
+        candidates.extend((f"transport mounted at {pattern}", t) for pattern, t in mounts.items())
+
+    for label, transport in candidates:
+        if transport is None:
+            continue
+        if isinstance(
+            transport, (_httpx.BaseTransport, _httpx.AsyncBaseTransport)
+        ) and not isinstance(transport, (_mcp_httpx.BaseTransport, _mcp_httpx.AsyncBaseTransport)):
+            raise TypeError(
+                f"httpx_client_factory returned a client whose {label} is an httpx "
+                f"transport ({type(transport).__name__}); MCP SDK v2 runs on httpx2, "
+                "and an httpx transport inside an httpx2 client fails on the first "
+                "request with a bare AssertionError. Build the httpx2 transport "
+                "instead — adcp.signing.build_async_ip_pinned_transport2 for an "
+                "IP-pinned one."
+            )
+
+
 def _make_custom_mcp_http_factory(
     custom_factory: MCPHttpxClientFactory,
     request_hooks: Sequence[Callable[[Any], Awaitable[None]]] = (),
@@ -230,6 +266,7 @@ def _make_custom_mcp_http_factory(
                 "httpx_client_factory must return an MCP-compatible client exposing sse(); "
                 "MCP SDK v2 uses httpx2, so a plain httpx.AsyncClient is not compatible"
             )
+        _reject_foreign_httpx_transport(client)
 
         if request_hooks or response_hooks:
             event_hooks = getattr(client, "event_hooks", None)
@@ -566,8 +603,7 @@ class MCPAdapter(ProtocolAdapter):
             and ("cancel scope" in exc_str or "async context" in exc_str)
         ) or (
             # HTTP errors during cleanup (if httpx is available)
-            HTTPX_AVAILABLE
-            and isinstance(exc, _ALL_HTTP_STATUS_ERROR_TYPES)
+            HTTPX_AVAILABLE and isinstance(exc, _ALL_HTTP_STATUS_ERROR_TYPES)
         )
 
         if is_known_cleanup_error:

@@ -6348,11 +6348,10 @@ def fix_creative_manifest_standalone_asset_coercion() -> None:
     if "_coerce_standalone_assets" in source:
         target.write_text(source)
         return
-    source = source.replace(
-        "from pydantic import ConfigDict, Field, RootModel, StringConstraints",
-        "from pydantic import ConfigDict, Field, RootModel, StringConstraints, model_validator",
-        1,
-    )
+    # Idempotent: an earlier pass (``enforce_root_required_groups``) may already
+    # have put ``model_validator`` on this line, and a literal prefix replace
+    # appended it a second time on every regeneration.
+    source = ensure_pydantic_import(source, "model_validator")
     helper = """
 
 def _normalize_asset_models(value: Any) -> Any:

@@ -418,6 +418,92 @@ async def test_mcp_tampered_body_rejected() -> None:
     _assert_rejected(response, "request_signature_digest_mismatch")
 
 
+# ---------------------------------------------------------------------------
+# Checklist step 1 at the transport edge, on both legs
+# ---------------------------------------------------------------------------
+
+#: ``(path, body, extra headers)`` per leg, for tests that assert the same
+#: rule on the MCP and A2A transports.
+_LEGS = {
+    "mcp": ("/mcp", _tools_call("get_products"), MCP_HEADERS),
+    "a2a": ("/", _a2a_send("get_products"), {}),
+}
+
+
+def _signed_for_leg(leg: str) -> tuple[str, bytes, dict[str, str]]:
+    path, body, extra = _LEGS[leg]
+    raw, headers = _signed(f"http://localhost{path}", body, headers=extra)
+    return path, raw, headers
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("leg", sorted(_LEGS))
+async def test_duplicate_signature_label_rejected_on_both_legs(leg: str) -> None:
+    """A repeated ``sig1`` on the ``Signature`` Dictionary is step-1 malformed.
+
+    Appending the same, valid entry again is the case that must not verify:
+    a last-wins parser and a first-wins parser agree here only by accident.
+    """
+    handler = _Recording()
+    app = _both_app(handler, _config())
+    path, raw, headers = _signed_for_leg(leg)
+    signature_key = next(k for k in headers if k.lower() == "signature")
+    headers[signature_key] = f"{headers[signature_key]}, {headers[signature_key]}"
+    response = await _post(app, path, raw, headers)
+    _assert_rejected(response, "request_signature_header_malformed")
+    assert handler.contexts == []
+
+
+def _app_without_host_policy(handler: ADCPHandler[Any]) -> Any:
+    from adcp.server.serve import _build_mcp_and_a2a_app
+
+    return _build_mcp_and_a2a_app(
+        handler,
+        name="test-agent",
+        port=0,
+        host="127.0.0.1",
+        instructions=None,
+        test_controller=None,
+        validation=None,
+        advertise_all=True,
+        stateless_http=True,
+        enable_dns_rebinding_protection=False,
+        request_signature_verification=_config(),
+    )
+
+
+_MALFORMED_HOSTS = ["::1", "[::1", "[fe80::1%25eth0]", ":443", "user@"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("host", _MALFORMED_HOSTS)
+@pytest.mark.parametrize("leg", sorted(_LEGS))
+async def test_malformed_host_rejected_at_step_1_on_both_legs(leg: str, host: str) -> None:
+    """With the Host policy disabled, the verifier is what refuses the shape.
+
+    ``request.url`` does not carry these authorities over from the header, so
+    only the step-1 precheck over the raw ``Host`` header sees them.
+    """
+    handler = _Recording()
+    app = _app_without_host_policy(handler)
+    path, raw, headers = _signed_for_leg(leg)
+    response = await _post(app, path, raw, {**headers, "host": host})
+    _assert_rejected(response, "request_signature_header_malformed")
+    assert handler.contexts == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("leg", sorted(_LEGS))
+async def test_malformed_host_refused_by_host_policy_before_verification(leg: str) -> None:
+    """With the default Host policy on, the request never reaches the verifier."""
+    handler = _Recording()
+    app = _both_app(handler, _config())
+    path, raw, headers = _signed_for_leg(leg)
+    response = await _post(app, path, raw, {**headers, "host": "[::1"})
+    assert response.status_code == 421, response.text
+    assert handler.contexts == []
+
+
 @pytest.mark.asyncio
 async def test_warn_for_failure_continues_without_identity() -> None:
     handler = _Recording()
@@ -904,11 +990,18 @@ def _bearer() -> BearerTokenAuth:
     )
 
 
-def _assert_dual_challenge(response: httpx.Response) -> None:
+#: The 401 challenge for an unsigned call to a ``required`` operation, byte
+#: for byte. security.mdx § Transport error taxonomy: "Verifiers MUST emit
+#: ``WWW-Authenticate: Signature error="<code>"`` with no ``realm`` parameter
+#: and no other parameters." Peers and conformance harnesses match the value,
+#: so the assertion is equality — a substring check passes on a header that
+#: carries parameters the verifier must not send.
+_SIGNATURE_REQUIRED_CHALLENGE = 'Signature error="request_signature_required"'
+
+
+def _assert_signature_challenge(response: httpx.Response) -> None:
     assert response.status_code == 401, response.text
-    challenge = response.headers["www-authenticate"]
-    assert challenge.startswith('Signature error="request_signature_required"')
-    assert "Bearer" in challenge
+    assert response.headers["www-authenticate"] == _SIGNATURE_REQUIRED_CHALLENGE
 
 
 @pytest.mark.asyncio
@@ -926,8 +1019,8 @@ async def test_bearer_fallback_admits_unsigned_required_call_with_valid_bearer()
         )
     assert with_bearer.status_code == 200, with_bearer.text
     assert len(handler.contexts) == 1
-    _assert_dual_challenge(without)
-    _assert_dual_challenge(bad)
+    _assert_signature_challenge(without)
+    _assert_signature_challenge(bad)
 
 
 @pytest.mark.asyncio
@@ -941,7 +1034,7 @@ async def test_bearer_fallback_disables_discovery_bypass_for_required_operation(
     response = await _post(
         app, "/mcp", json.dumps(_tools_call("get_adcp_capabilities")).encode(), MCP_HEADERS
     )
-    _assert_dual_challenge(response)
+    _assert_signature_challenge(response)
 
 
 @pytest.mark.asyncio
@@ -957,7 +1050,76 @@ async def test_bearer_fallback_on_a2a_leg() -> None:
         )
         without = await client.post("/", content=body, headers={"content-type": "application/json"})
     assert with_bearer.status_code == 200, with_bearer.text
-    _assert_dual_challenge(without)
+    _assert_signature_challenge(without)
+
+
+_BEARER_CHALLENGE = 'Bearer realm="adcp", error="invalid_token"'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fallback", [True, False], ids=["fallback", "strict"])
+@pytest.mark.parametrize("leg", ["mcp", "a2a"])
+@pytest.mark.parametrize(
+    ("operation", "bearer", "bad_signature", "challenge"),
+    [
+        # No signature failure: a bearer rejection, RFC 6750 §3.
+        ("get_media_buys", None, False, _BEARER_CHALLENGE),
+        ("get_media_buys", "nope", False, _BEARER_CHALLENGE),
+        # Unauthenticated call to a required operation: the signing challenge alone.
+        ("get_products", None, False, _SIGNATURE_REQUIRED_CHALLENGE),
+        ("get_products", "nope", False, _SIGNATURE_REQUIRED_CHALLENGE),
+        # A presented signature that fails never downgrades to bearer.
+        ("get_products", None, True, 'Signature error="request_signature_key_unknown"'),
+        ("get_products", "good", True, 'Signature error="request_signature_key_unknown"'),
+    ],
+    ids=[
+        "absent-optional",
+        "bad-bearer-optional",
+        "absent-required",
+        "bad-bearer-required",
+        "bad-signature",
+        "bad-signature-good-bearer",
+    ],
+)
+async def test_challenge_by_credential_state_on_both_legs(
+    leg: str,
+    fallback: bool,
+    operation: str,
+    bearer: str | None,
+    bad_signature: bool,
+    challenge: str,
+) -> None:
+    """Which ``WWW-Authenticate`` a 401 carries, byte for byte, on MCP and A2A.
+
+    Absent or rejected bearer credentials with no signature failure keep the
+    RFC 6750 ``Bearer`` challenge. A signature failure -- missing on a
+    ``required`` operation, or presented and invalid -- carries only the
+    signing profile's ``Signature error="<code>"``, whether or not bearer
+    fallback is enabled.
+    """
+    handler = _Recording()
+    app = _both_app(handler, _config(allow_bearer_fallback=fallback), auth=_bearer())
+    path, body, headers = (
+        ("/mcp", _tools_call(operation), dict(MCP_HEADERS))
+        if leg == "mcp"
+        else ("/", _a2a_send(operation), {"content-type": "application/json"})
+    )
+    if bearer is not None:
+        headers["authorization"] = f"Bearer {bearer}"
+    if bad_signature:
+        raw, headers = _signed(
+            f"http://localhost{path}",
+            body,
+            headers=headers,
+            private_key=load_private_key_pem(_OTHER_PEM),
+            key_id="stranger-key",
+        )
+    else:
+        raw = json.dumps(body).encode()
+    response = await _post(app, path, raw, headers)
+    assert response.status_code == 401, response.text
+    assert response.headers["www-authenticate"] == challenge
+    assert handler.contexts == []
 
 
 def test_bearer_fallback_requires_an_authenticator() -> None:

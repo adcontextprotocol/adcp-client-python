@@ -53,10 +53,21 @@ from adcp.signing.brand_jwks import (
     BrandAgentType,
     BrandJsonJwksResolver,
     BrandJsonResolverError,
+    BrandJsonResolverErrorCode,
     _canonical_origin,
     _canonicalize_url,
 )
 from adcp.signing.canonical import canonicalize_target_uri
+from adcp.signing.errors import (
+    REQUEST_SIGNATURE_AGENT_NOT_IN_BRAND_JSON,
+    REQUEST_SIGNATURE_BRAND_JSON_AMBIGUOUS,
+    REQUEST_SIGNATURE_BRAND_JSON_MALFORMED,
+    REQUEST_SIGNATURE_BRAND_JSON_UNREACHABLE,
+    REQUEST_SIGNATURE_BRAND_JSON_URL_MISSING,
+    REQUEST_SIGNATURE_CAPABILITIES_UNREACHABLE,
+    REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
+    REQUEST_SIGNATURE_JWKS_UNTRUSTED,
+)
 from adcp.signing.etld import host_from, registrable_domain, same_registrable_domain
 from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
 from adcp.signing.jwks import (
@@ -88,9 +99,9 @@ DEFAULT_CAPABILITIES_MAX_REDIRECTS = 0
 DEFAULT_CAPABILITIES_TIMEOUT_SECONDS = 10.0
 
 #: Stable error codes raised by :class:`AgentResolverError`. Surface
-#: matches the resolver-side concerns (the verifier-side
-#: ``request_signature_*`` codes ship with :func:`verify_from_agent_url`,
-#: not here).
+#: matches the resolver-side concerns; :func:`request_signature_code`
+#: maps each one to the ``request_signature_*`` code a verifier rejects
+#: a signed request with.
 AgentResolverErrorCode = Literal[
     "invalid_agent_url",
     "capabilities_unreachable",
@@ -114,6 +125,64 @@ class AgentResolverError(Exception):
         self.code: AgentResolverErrorCode = code
         self.message = message
         self.signature_code = signature_code
+
+
+#: The ``request_signature_*`` code the discovery-chain rejection table assigns each
+#: resolver failure. Every member of :data:`AgentResolverErrorCode` has a row and the
+#: lookup takes no default: a default arm absorbs a newly added resolver code into
+#: whichever code it names, which is how a failed capabilities fetch came to be
+#: reported as ``request_signature_jwks_unavailable``.
+_SPEC_CODE_BY_RESOLVER_CODE: dict[AgentResolverErrorCode, str] = {
+    # Terminal trust-boundary rejection: the URL would not canonicalize, or names a
+    # scheme or address the SSRF gate refuses. The spec scopes JWKS_UNTRUSTED to a
+    # "JWKS URL or resolved network destination" failing trust validation, and the
+    # capabilities destination is such a destination.
+    "invalid_agent_url": REQUEST_SIGNATURE_JWKS_UNTRUSTED,
+    # Table: "Capabilities fetch failed (DNS, TCP, TLS, timeout, non-2xx)". Transient,
+    # and its retry discipline differs from JWKS_UNAVAILABLE's — retry once with
+    # jittered backoff, and do not negative-cache for more than 60 s.
+    "capabilities_unreachable": REQUEST_SIGNATURE_CAPABILITIES_UNREACHABLE,
+    # The capabilities body did not parse, exceeded the cap, or was not a JSON object,
+    # so `identity.brand_json_url` was never obtainable from it. The table assigns no
+    # code to a malformed capabilities body; this is the closest fit and matches the
+    # remediation an operator needs (fix the capabilities response).
+    "capabilities_invalid": REQUEST_SIGNATURE_BRAND_JSON_URL_MISSING,
+    "brand_json_url_missing": REQUEST_SIGNATURE_BRAND_JSON_URL_MISSING,
+    # Reached only for a BrandJsonResolverError code `_brand_resolution_error` does not
+    # map; those are transport-shaped (redirect loop, redirect depth).
+    "brand_json_resolution_failed": REQUEST_SIGNATURE_BRAND_JSON_UNREACHABLE,
+    "jwks_fetch_failed": REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
+}
+
+
+def request_signature_code(exc: AgentResolverError) -> str:
+    """The ``request_signature_*`` code the discovery-chain rejection table assigns ``exc``.
+
+    Verifiers reject a signed request with a spec error code; the resolver raises its own
+    short codes. This is the one mapping between them, so every verifier surface answers a
+    given discovery failure with the same code.
+
+    ``signature_code`` wins when it is set, because one resolver code fans out to several
+    spec codes: ``brand_json_resolution_failed`` carries the brand.json hop's specific
+    outcome (ambiguous, malformed, not-in-brand-json) from :func:`_brand_resolution_error`.
+    """
+    if exc.signature_code is not None:
+        return exc.signature_code
+    return _SPEC_CODE_BY_RESOLVER_CODE[exc.code]
+
+
+def _ssrf_signature_code(exc: SSRFValidationError) -> str | None:
+    """The spec code for a hop whose destination the SSRF gate refused.
+
+    A refused destination -- a reserved or metadata address, a disallowed scheme
+    or port -- is ``request_signature_jwks_untrusted``: "the JWKS URL or resolved
+    network destination failed SSRF and trust-boundary validation", recovery
+    terminal. The gate also raises when the host does not resolve, and marks
+    that ``transient``; a DNS failure is the hop's own transient row, so this
+    returns ``None`` and :func:`request_signature_code` falls through to the
+    table.
+    """
+    return None if exc.transient else REQUEST_SIGNATURE_JWKS_UNTRUSTED
 
 
 # ---- Trace + AgentResolution ----
@@ -224,7 +293,9 @@ async def _fetch_capabilities(
             transport = build_async_ip_pinned_transport(agent_url, allow_private=allow_private)
         except SSRFValidationError as exc:
             raise AgentResolverError(
-                "capabilities_unreachable", f"agent_url failed SSRF check: {exc}"
+                "capabilities_unreachable",
+                f"agent_url failed SSRF check: {exc}",
+                signature_code=_ssrf_signature_code(exc),
             ) from exc
         except ValueError as exc:
             raise AgentResolverError(
@@ -541,7 +612,19 @@ async def async_resolve_agent(
                 error_message=str(exc),
             )
         )
-        raise AgentResolverError("jwks_fetch_failed", f"JWKS URL failed SSRF check: {exc}") from exc
+        # A JWKS URL the SSRF gate refuses is terminal, not transient. The table
+        # row for ``jwks_fetch_failed`` names the transient code, which is right
+        # for the fetch failure below but wrong here: the gate refuses this
+        # destination on every attempt, so telling the peer to retry it is a
+        # retry loop that cannot succeed. The two codes differ in the
+        # ``enumMetadata.recovery`` classification the spec requires SDKs to
+        # consume, so this hop carries its own code explicitly -- except for a
+        # host that did not resolve, which the gate reports as transient.
+        raise AgentResolverError(
+            "jwks_fetch_failed",
+            f"JWKS URL failed SSRF check: {exc}",
+            signature_code=_ssrf_signature_code(exc),
+        ) from exc
     except (httpx.HTTPError, ValueError, OSError) as exc:
         trace.append(
             TraceEntry(
@@ -756,14 +839,18 @@ async def verify_from_agent_url(
     consumed once; downstream handlers calling ``await request.body()``
     again get the same cached bytes (Starlette behavior).
 
-    Resolver-side failures (capabilities unreachable, brand.json
-    walk failed, JWKS fetch failed) are mapped to
-    :class:`SignatureVerificationError` with
-    ``REQUEST_SIGNATURE_JWKS_UNAVAILABLE`` so callers handle
-    resolution and verification failures through one ``except`` clause.
-    The exception to that rule is ``invalid_agent_url`` — that's a
-    trust-boundary rejection, so it maps to
-    ``REQUEST_SIGNATURE_JWKS_UNTRUSTED``.
+    Resolver-side failures become a :class:`SignatureVerificationError`
+    carrying the ``request_signature_*`` code the discovery-chain
+    rejection table assigns that failure — :func:`request_signature_code`
+    is the mapping — so callers handle resolution and verification
+    failures through one ``except`` clause without losing the
+    distinction the spec draws between them. A capabilities fetch that
+    timed out reports ``request_signature_capabilities_unreachable``
+    (transient, retry once), a brand.json hop reports its
+    ``request_signature_brand_*`` outcome, and a destination the SSRF
+    gate refuses on any hop reports ``request_signature_jwks_untrusted``
+    (terminal) -- a host that does not resolve keeps its hop's
+    transient code.
 
     Adopters needing finer-grain dispatch on the resolver-side cause
     can read ``exc.__cause__`` and check the
@@ -792,8 +879,6 @@ async def verify_from_agent_url(
 
     from adcp.signing.errors import (
         REQUEST_SIGNATURE_AGENT_NOT_IN_BRAND_JSON,
-        REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
-        REQUEST_SIGNATURE_JWKS_UNTRUSTED,
         REQUEST_SIGNATURE_KEY_UNKNOWN,
         SignatureVerificationError,
     )
@@ -811,19 +896,8 @@ async def verify_from_agent_url(
             protocol=protocol,
         )
     except AgentResolverError as exc:
-        # invalid_agent_url is a trust-boundary rejection (URL wouldn't
-        # canonicalize / scheme / SSRF-banned host). Everything else
-        # (capabilities_unreachable, brand_json_resolution_failed,
-        # jwks_fetch_failed) is a discovery-time failure even when
-        # underlying cause was SSRF — verifiers map those to
-        # JWKS_UNAVAILABLE per the spec's "couldn't get keys" reading.
-        mapped = exc.signature_code or (
-            REQUEST_SIGNATURE_JWKS_UNTRUSTED
-            if exc.code == "invalid_agent_url"
-            else REQUEST_SIGNATURE_JWKS_UNAVAILABLE
-        )
         raise SignatureVerificationError(
-            mapped,
+            request_signature_code(exc),
             step="resolve",
             message=f"agent-url resolution failed ({exc.code}): {exc.message}",
         ) from exc
@@ -911,16 +985,36 @@ async def verify_from_agent_url(
 # ---- helpers ----
 
 
+#: The spec code for each brand.json hop outcome. ``invalid_url`` and
+#: ``invalid_house`` describe a document whose content the resolver rejected, which
+#: the table calls malformed rather than unreachable; ``redirect_loop`` and
+#: ``redirect_depth_exceeded`` are fetch failures. ``jwks_origin_mismatch`` has no
+#: row: the document parsed and matched, and no `jwks_uri` could be derived from the
+#: matched entry, which the discovery-chain table does not describe.
+_BRAND_JSON_SPEC_CODES: dict[BrandJsonResolverErrorCode, str] = {
+    "agent_not_found": REQUEST_SIGNATURE_AGENT_NOT_IN_BRAND_JSON,
+    "agent_ambiguous": REQUEST_SIGNATURE_BRAND_JSON_AMBIGUOUS,
+    "invalid_body": REQUEST_SIGNATURE_BRAND_JSON_MALFORMED,
+    "schema_invalid": REQUEST_SIGNATURE_BRAND_JSON_MALFORMED,
+    "invalid_url": REQUEST_SIGNATURE_BRAND_JSON_MALFORMED,
+    "invalid_house": REQUEST_SIGNATURE_BRAND_JSON_MALFORMED,
+    "fetch_failed": REQUEST_SIGNATURE_BRAND_JSON_UNREACHABLE,
+    "redirect_loop": REQUEST_SIGNATURE_BRAND_JSON_UNREACHABLE,
+    "redirect_depth_exceeded": REQUEST_SIGNATURE_BRAND_JSON_UNREACHABLE,
+}
+
+
 def _brand_resolution_error(exc: BrandJsonResolverError) -> AgentResolverError:
-    codes = {
-        "agent_not_found": "request_signature_agent_not_in_brand_json",
-        "agent_ambiguous": "request_signature_brand_json_ambiguous",
-        "invalid_body": "request_signature_brand_json_malformed",
-        "schema_invalid": "request_signature_brand_json_malformed",
-        "fetch_failed": "request_signature_brand_json_unreachable",
-    }
+    signature_code = _BRAND_JSON_SPEC_CODES.get(exc.code)
+    cause = exc.__cause__
+    if exc.code == "fetch_failed" and isinstance(cause, SSRFValidationError):
+        # The brand.json resolver reports an SSRF refusal as ``fetch_failed``;
+        # a refused destination is terminal, as on the other two hops.
+        signature_code = _ssrf_signature_code(cause) or signature_code
     return AgentResolverError(
-        "brand_json_resolution_failed", str(exc), signature_code=codes.get(exc.code)
+        "brand_json_resolution_failed",
+        str(exc),
+        signature_code=signature_code,
     )
 
 
@@ -947,6 +1041,7 @@ __all__ = [
     "AgentResolverErrorCode",
     "TraceEntry",
     "async_resolve_agent",
+    "request_signature_code",
     "resolve_agent",
     "verify_from_agent_url",
 ]
