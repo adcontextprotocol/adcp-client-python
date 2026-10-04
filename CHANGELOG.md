@@ -44,6 +44,57 @@
   [migration guide](docs/canonical-format-kinds-migration.md).
   This closes [#1241](https://github.com/adcontextprotocol/adcp-client-python/issues/1241).
 
+## [9.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0...v9.0.0) (2026-10-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* **auth:** Requests that supply different tokens in multiple accepted credential carriers now return HTTP 401 on both MCP and A2A instead of selecting a preferred carrier. Before upgrading, remove stale proxy/client aliases or send the same decoded token in every accepted carrier. This replaces the prior Authorization-wins/first-nonempty migration behavior documented by #720.
+* **types:** Omitted optional boolean const fields now return None instead of True; callers must handle None and explicitly pass True when intended.
+* **server:** Public A2A deployments now enforce the SDK Host and Origin policy by default. The default Host allowlist is loopback-only, so deployments serving a public hostname must configure allowed_hosts for their controlled public or proxy Host values before upgrading; otherwise requests including agent-card discovery return HTTP 421. A discovery/public URL does not itself grant Host trust. Configure browser allowed_origins separately when needed. Preserve fail-closed enforcement rather than trusting arbitrary inbound Host values.
+* **reporting:** Reporting generation APIs and storage require authenticated caller ownership. Stop reporting readers, admission and workers for the documented maintenance migration and authoritative backfill; unmapped state and inherited work remain quarantined without automatic replay.
+* **signing:** Direct brand.json signing-key resolvers require agent_url and select keys by canonical agent URL.
+* **accounts:** Account task errors now raise typed buyer-setup exceptions, unknown natural references follow account_policy, and wholesale feed scope is required. ExplicitAccounts.resolve(None) returns None for public discovery. Migration guidance is in docs/account-lifecycle.md.
+
+### Features
+
+* **accounts:** add provisioning-aware discovery and scoped feeds ([#1288](https://github.com/adcontextprotocol/adcp-client-python/issues/1288)) ([0499d6b](https://github.com/adcontextprotocol/adcp-client-python/commit/0499d6b825c0f9abaada83dc53b4ee855cad3cb1))
+* **adagents:** expose typed fetch errors and transport options ([#1330](https://github.com/adcontextprotocol/adcp-client-python/issues/1330)) ([a344195](https://github.com/adcontextprotocol/adcp-client-python/commit/a3441958c875defa6b05c28b7dc1493b2d660787))
+* **idempotency:** commit business writes and replay in explicit reservations ([#1322](https://github.com/adcontextprotocol/adcp-client-python/issues/1322)) ([f4525ad](https://github.com/adcontextprotocol/adcp-client-python/commit/f4525ad2d9fe4f468394ffc3b5124fecd4ee12a6))
+* **types:** add statically typed pinned versioned bases ([#1340](https://github.com/adcontextprotocol/adcp-client-python/issues/1340)) ([8d27463](https://github.com/adcontextprotocol/adcp-client-python/commit/8d274639ad0f15f0b61b1169fcf1c03bf1bdda9d))
+* **types:** export shared legacy asset coercion helpers ([#1334](https://github.com/adcontextprotocol/adcp-client-python/issues/1334)) ([4a84082](https://github.com/adcontextprotocol/adcp-client-python/commit/4a840821d5a7d81ebc2b129ab726d97ff45797c4))
+* **webhooks:** add transactional PostgreSQL notification outbox ([#1338](https://github.com/adcontextprotocol/adcp-client-python/issues/1338)) ([a0fbee3](https://github.com/adcontextprotocol/adcp-client-python/commit/a0fbee3f3a96a8aefdc9db43864e93bdf6db8fba))
+* **webhooks:** prepare validated non-task notifications ([#1335](https://github.com/adcontextprotocol/adcp-client-python/issues/1335)) ([3d4df2b](https://github.com/adcontextprotocol/adcp-client-python/commit/3d4df2ba5a1d045fcc645ace2464d2c0d47994ec))
+
+
+### Bug Fixes
+
+* **accounts:** restore 8.0 defaults behind opt-in strict modes for 8.1 ([#1348](https://github.com/adcontextprotocol/adcp-client-python/issues/1348)) ([3598d09](https://github.com/adcontextprotocol/adcp-client-python/commit/3598d09ad49db591a0d8644399824916b1e4051c))
+* **adagents:** follow bounded ads.txt redirects with per-hop pins ([#1332](https://github.com/adcontextprotocol/adcp-client-python/issues/1332)) ([4c59734](https://github.com/adcontextprotocol/adcp-client-python/commit/4c59734ecd5f6203be039d8033dd7737eb39606b))
+* **adagents:** normalize agent matching and expose listing lookup ([#1329](https://github.com/adcontextprotocol/adcp-client-python/issues/1329)) ([decbcdf](https://github.com/adcontextprotocol/adcp-client-python/commit/decbcdf416a106a0c5a9e2ecc88f829f4aa4bc18))
+* **auth:** unify duplicate credential policy across transports ([#1325](https://github.com/adcontextprotocol/adcp-client-python/issues/1325)) ([7f9b670](https://github.com/adcontextprotocol/adcp-client-python/commit/7f9b6700f0cc41df68374ebe60a3147614c478ea))
+* **ci:** make SDK 14 storyboard lanes pass and gate merges ([#1345](https://github.com/adcontextprotocol/adcp-client-python/issues/1345)) ([a5d56a6](https://github.com/adcontextprotocol/adcp-client-python/commit/a5d56a683661a79d76861ea6d1043a3aceda77f8))
+* **decisioning:** serve account-scoped task polling and listing ([#1320](https://github.com/adcontextprotocol/adcp-client-python/issues/1320)) ([56fefd2](https://github.com/adcontextprotocol/adcp-client-python/commit/56fefd26609b9a9a230692b6300e2a445fb16b86))
+* **decisioning:** support dict products and platform-owned property filtering ([#1324](https://github.com/adcontextprotocol/adcp-client-python/issues/1324)) ([3fd42a1](https://github.com/adcontextprotocol/adcp-client-python/commit/3fd42a1323ef0090153782b288eae1c4f9324dbc))
+* **idempotency:** coalesce local retries before borrowing lock connections ([#1317](https://github.com/adcontextprotocol/adcp-client-python/issues/1317)) ([a76d81a](https://github.com/adcontextprotocol/adcp-client-python/commit/a76d81a9037e637ab8ce31eee8991f1418e87690))
+* **idempotency:** recognize registered wrappers through outer decorators ([#1315](https://github.com/adcontextprotocol/adcp-client-python/issues/1315)) ([03da98a](https://github.com/adcontextprotocol/adcp-client-python/commit/03da98aba7ab41f2ca68ef33c27a229c44d72053))
+* **reporting:** isolate generations by authenticated caller ([#1342](https://github.com/adcontextprotocol/adcp-client-python/issues/1342)) ([096a637](https://github.com/adcontextprotocol/adcp-client-python/commit/096a637eedaa6a13897f9c63dffaf1c197ee84c1))
+* **reporting:** preserve declared capabilities across lifecycle states ([#1319](https://github.com/adcontextprotocol/adcp-client-python/issues/1319)) ([6e8c3e2](https://github.com/adcontextprotocol/adcp-client-python/commit/6e8c3e2347c4c34e229229e4f69e6b4f4ebd52c6))
+* **reporting:** translate installed service errors by recovery policy ([#1316](https://github.com/adcontextprotocol/adcp-client-python/issues/1316)) ([9dfc52c](https://github.com/adcontextprotocol/adcp-client-python/commit/9dfc52c82beb51a42f94a6761175452be9bc46f9))
+* **router:** advertise only declared optional implementations ([#1321](https://github.com/adcontextprotocol/adcp-client-python/issues/1321)) ([382954e](https://github.com/adcontextprotocol/adcp-client-python/commit/382954e744d6568fbc2e7404f1ae949b1b878160))
+* **router:** validate requests against resolved child annotations ([#1318](https://github.com/adcontextprotocol/adcp-client-python/issues/1318)) ([8a38b64](https://github.com/adcontextprotocol/adcp-client-python/commit/8a38b644b83c5b76e913750b013c4f80bf35b747))
+* **sdk:** restore buyer compatibility and error diagnostics ([#1285](https://github.com/adcontextprotocol/adcp-client-python/issues/1285)) ([fa4f945](https://github.com/adcontextprotocol/adcp-client-python/commit/fa4f9450b3d2292d4909786518dae1991e1ab7e3))
+* **server:** bind fresh MCP managers and endpoints for each lifespan ([#1333](https://github.com/adcontextprotocol/adcp-client-python/issues/1333)) ([a6e7673](https://github.com/adcontextprotocol/adcp-client-python/commit/a6e7673844dc165354f079e8a0ef6ab86d73521b))
+* **server:** enforce shared Host and Origin policy across HTTP transports ([#1331](https://github.com/adcontextprotocol/adcp-client-python/issues/1331)) ([44a07e6](https://github.com/adcontextprotocol/adcp-client-python/commit/44a07e62b13f555e2be7f9aa67c31d796a636192))
+* **signing:** align agent resolution and publisher pins with AdCP 3.3 ([#1312](https://github.com/adcontextprotocol/adcp-client-python/issues/1312)) ([6677169](https://github.com/adcontextprotocol/adcp-client-python/commit/6677169e80b6d691dad370c3246a4909d61a14c3))
+* **signing:** fetch resolver capabilities over the agent protocol ([#1284](https://github.com/adcontextprotocol/adcp-client-python/issues/1284)) ([5e243c9](https://github.com/adcontextprotocol/adcp-client-python/commit/5e243c95fccb9607986191eafbd63e740f0ebe15))
+* **signing:** make agent_url optional with a fail-closed 8.0 fallback ([#1350](https://github.com/adcontextprotocol/adcp-client-python/issues/1350)) ([a083a19](https://github.com/adcontextprotocol/adcp-client-python/commit/a083a19accdd8668e0cf1b5acfa6fb8f77e6f25b))
+* **tests:** isolate caller identity handler registration ([#1344](https://github.com/adcontextprotocol/adcp-client-python/issues/1344)) ([92b6994](https://github.com/adcontextprotocol/adcp-client-python/commit/92b6994438c46e67ae9f5cec15d41cf33a1f4566))
+* **types:** defer adapters and prebuild models before freezing time ([#1339](https://github.com/adcontextprotocol/adcp-client-python/issues/1339)) ([357726e](https://github.com/adcontextprotocol/adcp-client-python/commit/357726e9c2fa0950b07cc5afa3267a893b61e456))
+* **types:** preserve omission of optional boolean constants ([#1351](https://github.com/adcontextprotocol/adcp-client-python/issues/1351)) ([63bfadb](https://github.com/adcontextprotocol/adcp-client-python/commit/63bfadb4e1b3ef7c20c24dc7ba5c654642ac9a1c))
+* **types:** restore opt-in reporting correlation on AdCP 3.2 ([#1349](https://github.com/adcontextprotocol/adcp-client-python/issues/1349)) ([48b1776](https://github.com/adcontextprotocol/adcp-client-python/commit/48b1776f516a8c5b5aa303f4c78dd97fb85f3f79))
+* **validation:** preserve wire version envelopes under unknown-field policies ([#1314](https://github.com/adcontextprotocol/adcp-client-python/issues/1314)) ([07b5d04](https://github.com/adcontextprotocol/adcp-client-python/commit/07b5d048485a7ca24e3ec093caae38a183bf7a84))
+
 ## [8.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-rc.3...v8.0.0) (2026-10-01)
 
 
