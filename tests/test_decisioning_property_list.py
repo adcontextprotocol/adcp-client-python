@@ -16,6 +16,7 @@ from adcp.decisioning.property_list import (
     validate_property_list_config,
 )
 from adcp.decisioning.types import AdcpError
+from adcp.types import PropertyId
 
 
 @pytest.fixture(autouse=True)
@@ -60,11 +61,9 @@ def _make_pp_by_tag(tags: list[str]) -> MagicMock:
     return pp
 
 
-def _make_property_id(pid: str) -> MagicMock:
-    """PropertyId(root=pid) stub."""
-    obj = MagicMock()
-    obj.root = pid
-    return obj
+def _make_property_id(pid: str) -> PropertyId:
+    """The real scalar type: PropertyId is a constrained str, not a wrapper (#1277)."""
+    return PropertyId(pid)
 
 
 def _make_pp_wrapper(pp: MagicMock) -> MagicMock:

@@ -26,6 +26,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from pydantic import RootModel
+
 from adcp._version import ADCP_MAJOR_VERSION, get_supported_adcp_versions
 from adcp.server.helpers import valid_actions_for_status
 from adcp.types.canonical_creative import Format, strip_legacy_creative_identity
@@ -115,7 +117,8 @@ def _apply_canonical_creatives_capability(
 def _major_version_values(major_versions: list[Any]) -> list[int]:
     values: list[int] = []
     for version in major_versions:
-        raw = version.root if hasattr(version, "root") else version
+        # Scalar schemas are plain ints; only a RootModel wrapper needs unwrapping (#1277).
+        raw = version.root if isinstance(version, RootModel) else version
         if isinstance(raw, int):
             values.append(raw)
     return values

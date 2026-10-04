@@ -12,6 +12,8 @@ from __future__ import annotations
 # strings that are never evaluated at runtime.
 from typing import TYPE_CHECKING, Any
 
+from pydantic import RootModel
+
 from adcp.exceptions import ADCPFeatureUnsupportedError
 
 if TYPE_CHECKING:
@@ -220,7 +222,9 @@ class FeatureResolver:
             True if major_versions includes 3.
         """
         for v in self._caps.adcp.major_versions:
-            if (v.root if hasattr(v, "root") else v) == 3:
+            # Scalar schemas are plain ints, so they compare directly; only a
+            # genuine RootModel wrapper still needs unwrapping (#1277).
+            if (v.root if isinstance(v, RootModel) else v) == 3:
                 return True
         return False
 
@@ -233,7 +237,7 @@ class FeatureResolver:
             ext_name = feature[4:]
             if caps.extensions_supported is None:
                 return False
-            return any(item.root == ext_name for item in caps.extensions_supported)
+            return any(item == ext_name for item in caps.extensions_supported)
 
         # Targeting check: "targeting.geo_countries"
         if feature.startswith("targeting."):
@@ -335,7 +339,7 @@ class FeatureResolver:
         # Extensions
         if caps.extensions_supported is not None:
             for item in caps.extensions_supported:
-                declared.append(f"ext:{item.root}")
+                declared.append(f"ext:{item}")
 
         return declared
 

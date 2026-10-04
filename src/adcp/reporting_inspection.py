@@ -635,7 +635,7 @@ class ManifestReportingInspector:
                 ReportingInspectionCode.MANIFEST_IDENTITY_MISMATCH,
                 "manifest does not match the reporting ledger records",
             )
-        refs = [entry.object_ref.root for entry in manifest.files]
+        refs = [str(entry.object_ref) for entry in manifest.files]
         if len(refs) != len(set(refs)):
             raise ReportingInspectionError(
                 ReportingInspectionCode.DUPLICATE_OBJECT,
@@ -648,12 +648,12 @@ class ManifestReportingInspector:
             )
         verification = materialization.verification
         physical = {
-            item.object_ref.root: item.value.lower()
+            str(item.object_ref): item.value.lower()
             for item in (verification.physical_checksums if verification else None) or []
             if str(item.algorithm) == "sha256"
         }
         if any(
-            physical.get(entry.object_ref.root) != entry.sha256.lower() for entry in manifest.files
+            physical.get(str(entry.object_ref)) != entry.sha256.lower() for entry in manifest.files
         ):
             raise ReportingInspectionError(
                 ReportingInspectionCode.MANIFEST_IDENTITY_MISMATCH,
@@ -675,7 +675,7 @@ class ManifestReportingInspector:
         total_decoded_bytes = 0
         total_rows = 0
         for entry in manifest.files:
-            object_ref = entry.object_ref.root
+            object_ref = str(entry.object_ref)
             if entry.size_bytes > self._max_object_bytes:
                 raise ReportingInspectionError(
                     ReportingInspectionCode.RESOURCE_TOO_LARGE,
@@ -896,7 +896,7 @@ class ManifestReportingInspector:
                 ReportingInspectionCode.INVALID_CONTRACT,
                 "canonicalization contract targets a different row schema",
             )
-        keys = [item.root for item in contract.primary_keys]
+        keys = [str(item) for item in contract.primary_keys]
         try:
             _validate_golden_vectors(contract, keys)
             value = hashlib.sha256(_canonical_rows_bytes(rows, keys)).hexdigest()

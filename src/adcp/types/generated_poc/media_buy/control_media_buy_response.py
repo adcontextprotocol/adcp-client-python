@@ -8,7 +8,8 @@ from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
-from pydantic import AwareDatetime, ConfigDict, Field, RootModel
+from adcp.types._scalar import ScalarStr
+from pydantic import AwareDatetime, ConfigDict, Field
 
 from ..core import canonical_media_buy_action
 from ..core import context as context_1
@@ -18,8 +19,9 @@ from ..core.warning import Warning as Warning_1
 from ..enums import media_buy_status as media_buy_status_1
 
 
-class AffectedPackageId(RootModel[str]):
-    root: Annotated[str, Field(min_length=1)]
+class AffectedPackageId(ScalarStr):
+    __slots__ = ()
+    _constraints = {'min_length': 1}
 
 
 class Code(StrEnum):

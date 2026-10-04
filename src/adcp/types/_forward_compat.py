@@ -295,7 +295,7 @@ def _patch_model_field(model: type[BaseModel], field_name: str, new_annotation: 
     model.__annotations__[field_name] = new_annotation
 
 
-def _annotation_contains(annotation: Any, expected: type[BaseModel]) -> bool:
+def _annotation_contains(annotation: Any, expected: type) -> bool:
     """Return whether a possibly nested annotation contains ``expected``."""
     return annotation is expected or any(
         _annotation_contains(arg, expected) for arg in get_args(annotation)
@@ -305,7 +305,10 @@ def _annotation_contains(annotation: Any, expected: type[BaseModel]) -> bool:
 def _patch_equivalent_model_field(
     model: type[BaseModel],
     field_name: str,
-    bundled_model: type[BaseModel],
+    # A bundled clone is matched by class identity, so any class works. Not
+    # ``type[BaseModel]``: a bundled scalar root (``PublisherDomain``,
+    # ``PrimaryCountry``) is a ``str`` subclass, not a Pydantic model (#1277).
+    bundled_model: type,
     canonical_annotation: Any,
 ) -> None:
     """Replace a bundled clone only after verifying the generated field shape."""

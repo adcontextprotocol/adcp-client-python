@@ -20,7 +20,7 @@ from math import isfinite
 from typing import TYPE_CHECKING, Any, NoReturn, Protocol, TypeVar
 from uuid import uuid4
 
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 
 from adcp.reporting._consumer import (
     ConsumerLoopView,
@@ -256,7 +256,10 @@ def _enum(value: object) -> str:
 
 
 def _identifiers(values: Iterable[object] | None) -> tuple[str, ...]:
-    return tuple(sorted(str(getattr(value, "root", value)) for value in values or []))
+    # Scalar schemas are plain strs; only a RootModel wrapper needs unwrapping (#1277).
+    return tuple(
+        sorted(str(value.root if isinstance(value, RootModel) else value) for value in values or [])
+    )
 
 
 def _coverage_is_full(coverage: BaseModel, media_buy_ids: Iterable[object]) -> bool:
