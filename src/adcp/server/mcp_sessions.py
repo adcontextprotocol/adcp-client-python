@@ -13,6 +13,8 @@ import json
 import logging
 import time
 from collections import deque
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Any
@@ -118,6 +120,19 @@ class ADCPStreamableHTTPSessionManager(StreamableHTTPSessionManager):
         self._session_creation_events: deque[float] = deque()
         self._total_sessions_created = 0
         self._session_bindings: dict[str, _UnboundSession | _ClaimedSession] = {}
+
+    @asynccontextmanager
+    async def run(self) -> AsyncIterator[None]:
+        try:
+            async with super().run():
+                yield
+        finally:
+            # Upstream clears transports before cancelling their tasks, so
+            # per-session finally blocks cannot reliably prune SDK state.
+            self._session_bindings.clear()
+            self._session_created_at.clear()
+            self._session_last_seen_at.clear()
+            self._session_creation_events.clear()
 
     def session_stats(self) -> MCPSessionStats:
         """Return a point-in-time session snapshot."""
@@ -438,6 +453,22 @@ def get_mcp_session_stats(mcp_or_manager: Any) -> MCPSessionStats:
     internals are populated.
     """
     manager = getattr(mcp_or_manager, "_session_manager", mcp_or_manager)
+    if manager is None:
+        settings = mcp_or_manager.settings
+        return MCPSessionStats(
+            active_sessions=0,
+            max_active_sessions=getattr(settings, "max_active_sessions", None),
+            total_sessions_created=0,
+            sessions_created_last_60s=0,
+            stateless=bool(getattr(settings, "stateless_http", False)),
+            session_idle_timeout=(
+                None
+                if getattr(settings, "stateless_http", False)
+                else getattr(settings, "session_idle_timeout", None)
+            ),
+            session_age_seconds=(),
+            session_idle_seconds=(),
+        )
     if hasattr(manager, "session_stats"):
         stats = manager.session_stats()
         if isinstance(stats, MCPSessionStats):

@@ -13,8 +13,8 @@ duplicates with identical ids. House Portfolio operator discovery scans
 `house.agents[]` and all inline `brands[].agents[]`; repeated attestations across
 collections count once when their type and resolved JWKS source agree.
 
-Direct resolver construction and the shared resolver builder now require
-`agent_url`:
+Pass `agent_url` to direct resolver construction and to the shared resolver
+builder:
 
 ```python
 from adcp.signing import BrandJsonJwksResolver
@@ -25,6 +25,22 @@ resolver = BrandJsonJwksResolver(
     agent_type="sales",
 )
 ```
+
+Omitting `agent_url` is deprecated in 8.1. It emits a `DeprecationWarning`
+and is rejected in the next major release. Without it, `agent_type` is required
+and selection falls back to the 8.0 role-based scope: `brands[brand_id].agents`
+when that brand has a matching role, otherwise `house.agents`, or top-level
+`agents` outside a portfolio. The fallback fails closed in two cases:
+
+- Any ambiguity raises `agent_ambiguous` and asks for `agent_url`. More than one
+  entry matching the role (and `agent_id`, when given) is ambiguous, even when
+  the duplicates share an id.
+- A defaulted JWKS (entry without `jwks_uri`) must share the brand.json origin,
+  or resolution raises `jwks_origin_mismatch`. This restores the 8.0 guard that
+  stops an attacker-controlled record from naming a victim origin and making its
+  `/.well-known/jwks.json` authoritative. An explicit `jwks_uri` may live on any
+  origin, as in 8.0. With `agent_url`, the caller has named the agent, so a
+  defaulted JWKS on that agent's own origin is accepted.
 
 Direct resolvers use operator-style collection selection, including all sibling
 collections in a House Portfolio unless `brand_id` selects one inline brand.
@@ -45,6 +61,13 @@ A different host for any purpose rejects discovery with
 `request_signature_key_origin_mismatch`, even when the active purpose matches.
 The SDK follows this explicit all-purpose rule. The draft's separate guidance
 on origin separation remains in tension with that rule pending clarification.
+
+`verify_from_agent_url` always takes the signer identity (`VerifiedSigner.agent_url`)
+and the replay namespace from the URL the caller passed. A brand.json entry's `url`
+never supplies them. Discovery selects the entry by that URL. A resolution whose
+entry names a different URL fails closed with
+`request_signature_agent_not_in_brand_json`. A record that lists a victim's URL
+with its own keys therefore cannot verify as the victim.
 
 For webhooks, use the asynchronous discovery helper:
 
@@ -90,3 +113,22 @@ authenticated buyer's exact record, `issuer`, and the governed request's
 brand overrides, and never searches sibling brands. For signed requests, pass
 `VerifiedSigner.operator_brand_json`, which `verify_from_agent_url` retains from
 discovery. Do not refetch a different document from the operator's host.
+
+## Enforced in 8.1 and tightening in the next major
+
+8.1 enforces these discovery and verification checks by default. Each one
+closes an impersonation or key-confusion path, and each fails with a specific
+error code:
+
+| Check | Applies to | Why it stays enforced |
+|---|---|---|
+| URL-based selection and caller-derived signer identity | `async_resolve_agent`, `verify_from_agent_url`, webhook discovery | Closes the 8.0 cross-tenant impersonation, where type-based selection plus the entry `url` let a record verify as any URL it listed. |
+| Agent and operator origin binding (same registrable domain, or `authorized_operators` on a House Portfolio) | Discovery helpers | The bound record becomes `VerifiedSigner.operator_brand_json` and supplies governance keys. Without binding, a record on an unrelated domain could decide the agent's keys and governance authority. Cross-domain operators publish `authorized_operators`. |
+| Every declared `identity.key_origins` purpose checked | Discovery helpers and the verifier | A JWKS host that disagrees with any declared key origin means the record and keys are inconsistent, which is a key-confusion signal. Discovery step 7 requires it. |
+| `jwks_source="publisher_pin"` resolvers get the key-origin check | Verifier | In AdCP 3.3, publisher pins narrow the operator JWKS. Skipping the check let a publisher-declared key verify as the operator's agent. |
+
+`brand_id` selection without a house fallback applies only to the `agent_url`
+path, which is new in 8.1. The deprecated fallback keeps the 8.0 house fallback.
+
+The next major release requires `agent_url` on `BrandJsonJwksResolver` and
+`build_brand_json_resolvers`, and removes the role-based fallback.

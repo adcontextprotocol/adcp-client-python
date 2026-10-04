@@ -584,6 +584,12 @@ class ExplicitAccounts(Generic[TMeta]):
     :param loader: Callable taking ``account_id: str`` and returning an
         :class:`Account` instance. Sync or async. Raises
         ``AdcpError(code='ACCOUNT_NOT_FOUND')`` on miss.
+    :param allow_public_discovery: When True (default), an absent reference
+        resolves to ``None`` so account-optional discovery (``get_products``,
+        ``list_products``, ``get_signals``, proposal negotiation) is served
+        with a public ``ctx.account`` whose ``id`` is empty. Pass False to
+        keep the pre-8.1 behavior of rejecting every absent reference with
+        ``ACCOUNT_NOT_FOUND``.
     """
 
     resolution: ClassVar[str] = "explicit"
@@ -591,8 +597,11 @@ class ExplicitAccounts(Generic[TMeta]):
     def __init__(
         self,
         loader: Callable[[str], Awaitable[Account[TMeta]] | Account[TMeta]],
+        *,
+        allow_public_discovery: bool = True,
     ) -> None:
         self._loader = loader
+        self._allow_public_discovery = allow_public_discovery
 
     def resolve(
         self,
@@ -605,7 +614,7 @@ class ExplicitAccounts(Generic[TMeta]):
         # signature is account_id-only by contract, so auth_info isn't
         # threaded through here.
         del auth_info
-        if ref is None:
+        if ref is None and self._allow_public_discovery:
             return None
         if not ref or not ref.get("account_id"):
             from adcp.decisioning.types import AdcpError

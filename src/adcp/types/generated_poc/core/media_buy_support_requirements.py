@@ -17,11 +17,11 @@ class ProductMediaBuySupportRequirements(AdCPBaseModel):
         extra='forbid',
     )
     frequency_cap: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description='Require product participation in one shared MediaBuy frequency-cap counter.'
         ),
-    ] = True
+    ] = None
     frequency_cap_constraints: (
         media_buy_frequency_cap_requirement.MediaBuyFrequencyCapRequirement | None
     ) = None

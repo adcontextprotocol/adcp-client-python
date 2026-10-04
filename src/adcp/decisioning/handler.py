@@ -1620,17 +1620,6 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         from adcp.account_identity import is_provisioning_task
         from adcp.decisioning.accounts import ResolveContext
 
-        if ref is None and tool_name in {"get_products", "list_products"}:
-            caps, _ = await self._effective_capabilities_for_request(None, ctx)
-            if getattr(caps.account, "required_for_products", False):
-                from adcp.decisioning.types import AdcpError
-
-                raise AdcpError(
-                    "ACCOUNT_REQUIRED",
-                    message="An account is required for product discovery",
-                    recovery="correctable",
-                    field="account",
-                )
         store = self._platform.accounts
         if hasattr(store, "resolve_for_task"):
             result = store.resolve_for_task(
@@ -1652,6 +1641,17 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         if resolved is None:
             from adcp.decisioning.types import AdcpError
 
+            # Checked only when the store cannot establish an account, so
+            # stores resolving an absent ref from auth keep serving products.
+            if ref is None and tool_name in {"get_products", "list_products"}:
+                caps, _ = await self._effective_capabilities_for_request(None, ctx)
+                if getattr(caps.account, "required_for_products", False):
+                    raise AdcpError(
+                        "ACCOUNT_REQUIRED",
+                        message="An account is required for product discovery",
+                        recovery="correctable",
+                        field="account",
+                    )
             if ref is None and tool_name in {
                 "get_products",
                 "list_products",

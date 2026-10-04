@@ -778,3 +778,49 @@ and a missing dimension to `url`, removing any remaining dimensions.
 also exported from `adcp.compat.legacy`. Coercion copies dictionaries and keeps
 unknown keys and values for normal schema validation; it does not validate or
 change strict construction defaults.
+
+### Named bases for statically typed version extensions
+
+Import a named base when subclassing a pinned protocol model. Assigning the
+result of `make_versioned_base()` to a variable remains useful at runtime, but
+mypy cannot use that variable as a statically typed class base, even with
+Literal overloads.
+
+```python
+from pydantic import Field
+from adcp.types.versioned_bases.v31 import ListCreativesRequestBase, PackageRequestBase
+
+class SellerListCreatives(ListCreativesRequestBase):
+    tenant_id: str | None = Field(default=None, exclude=True)
+
+class SellerPackage(PackageRequestBase):
+    inventory_key: str | None = Field(default=None, exclude=True)
+
+request = SellerListCreatives(include_assignments=True, tenant_id="tenant-1")
+include_assignments: bool = request.include_assignments
+wire = request.model_dump(mode="json")  # tenant_id is excluded
+```
+
+`versioned_bases.v30`, `.v31`, and `.v32` provide `<ModelName>Base` for every
+model advertised by the corresponding existing version namespace. They pin
+the same bundled contracts: 3.0, 3.1, and **3.2-beta.6**, respectively. `v32`
+does not mean the current rc.7 surface. The current `adcp.types` surface and the
+existing dict-shaped `adcp.types.v31` boundary models keep their behavior.
+
+Runtime field annotations and static declarations come from the same pinned
+portable schemas. Nested wire objects are typed dictionaries, accessed with
+keys, and dates/URLs remain their JSON string representations. Optional fields
+without defaults allow `None` to mean omission when the schema forbids null;
+protocol defaults, such as `include_assignments`, keep their concrete
+static types. Normal Pydantic coercion runs first, then the existing bundled
+validator enforces the resulting wire payload, including conditional rules.
+Unknown undeclared top-level fields are rejected; adopter fields must use
+`Field(exclude=True)` to stay outside the contract. Non-identifier JSON metadata
+(such as `$schema`) is supported through `model_validate()` and dictionary
+input rather than a Python attribute declaration.
+
+Version modules import lazily and construct only requested bases. Run
+`scripts/generate_versioned_bases.py` when bundled schemas change;
+`make validate-generated` checks both the runtime annotations and stubs for
+staleness. The generator does not read current generated-model annotations,
+so the scalar rewrite in #1286 cannot change these pinned nested types.

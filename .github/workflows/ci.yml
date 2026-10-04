@@ -109,6 +109,12 @@ jobs:
         if: matrix.python-version == '3.12'
         run: mypy --strict tests/type_checks/ examples/reporting_webhook_activity.py examples/reporting_status_notifications.py examples/reporting_destination_writer.py examples/reporting_durable_materializer.py examples/reporting_receipt_ingress.py examples/reporting_production.py
 
+      - name: Check versioned typing generation
+        if: matrix.python-version == '3.12'
+        run: |
+          python scripts/generate_versioned_stubs.py --check
+          python scripts/generate_versioned_bases.py --check
+
       - name: Enforce adopter type-check fixture contract
         if: matrix.python-version == '3.12'
         run: python scripts/check_type_ignore_contract.py
