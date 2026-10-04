@@ -301,6 +301,10 @@ async def factory_harness(backend, path, *, push=False, existing_pool=None, star
         )
         handler = h.service.install(FactoryApplication())
         h.production = h.service._production
+        # These factory scenarios inspect one reporting period per turn. A live
+        # PostgreSQL clock can cross an hourly boundary during setup; bound the
+        # existing producer batch size without changing active admission or clocks.
+        h.production.offerings[0].producer._max_periods_per_turn = 1
         h.store = h.service.store
         h.mount = create_mcp_server(handler)
         if start:
@@ -330,6 +334,9 @@ async def admit(h):
             },
         )
         assert response.get("status") == "completed", response
+        state = response["accounts"][0]["reporting_delivery_configs"][0]
+        assert state["configuration"]["active"] is True and state["state"] == "ready"
+        assert state["current_coverage"]["status"] == "full"
     return mounted
 
 
@@ -366,6 +373,36 @@ async def test_factory_admits_registered_adapter_and_materializes(backend, push,
                 caps["media_buy"].get("reporting_delivery", {}).get("managed_delivery")
             ) == (backend == "postgres")
         assert h.adapter.checks >= 3
+
+
+async def test_factory_turns_keep_one_period_when_setup_crosses_hour(tmp_path):
+    async with factory_harness("memory", tmp_path / "rollover.sqlite") as h:
+        await admit(h)
+        # Close a second period between capturing the active generation and its
+        # first source turn. Advance only the already deterministic memory clock;
+        # PostgreSQL factory tests keep their actual backend and lease clocks live.
+        h.clock.advance(timedelta(hours=1))
+        first = await source_turn(h.production)
+        assert len(first.obligations_committed) == len(first.revisions_committed) == 1
+        assert not first.slices_failed
+        assert len(h.source.requests) == 1
+        assert h.source.requests[0].period.start == h.item.config.activated_at
+        first_end = h.item.config.activated_at + timedelta(hours=1)
+        assert h.source.requests[0].period.end == first_end
+        materialized = await h.production.materializer.run_once()
+        assert materialized.state == "verified", materialized
+
+        # The next closed period remains available to a later bounded turn.
+        second = await source_turn(h.production)
+        assert len(second.obligations_committed) == len(second.revisions_committed) == 1
+        assert not second.slices_failed
+        assert set(first.revisions_committed).isdisjoint(second.revisions_committed)
+        assert len(h.source.requests) == 2
+        assert h.source.requests[1].period.start == first_end
+        assert h.source.requests[1].period.end == first_end + timedelta(hours=1)
+        materialized = await h.production.materializer.run_once()
+        assert materialized.state == "verified", materialized
+        assert h.resolved == [h.item.config.generation_key]
 
 
 @pytest.mark.parametrize("backend", ["memory", "postgres"])
