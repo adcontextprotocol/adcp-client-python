@@ -35,6 +35,14 @@ from adcp.decisioning.pg.buyer_agent_registry import (
     PG_AVAILABLE,
     PgBuyerAgentRegistry,
 )
+from adcp.decisioning.pg.lazy import (
+    LazyProposalStore,
+    LazyProposalStoreFactory,
+    LazyTaskRegistry,
+    LazyTaskRegistryFactory,
+    LazyTaskWebhookOutbox,
+    LazyTaskWebhookOutboxFactory,
+)
 from adcp.decisioning.pg.proposal_store import PgProposalStore
 from adcp.decisioning.pg.task_registry import (
     PgTaskRegistry,
@@ -46,6 +54,12 @@ from adcp.decisioning.pg.task_webhook_outbox import PgTaskWebhookOutbox
 __all__ = [
     "DEFAULT_TABLE_NAME",
     "PG_AVAILABLE",
+    "LazyProposalStore",
+    "LazyProposalStoreFactory",
+    "LazyTaskRegistry",
+    "LazyTaskRegistryFactory",
+    "LazyTaskWebhookOutbox",
+    "LazyTaskWebhookOutboxFactory",
     "PgBuyerAgentRegistry",
     "PgProposalStore",
     "PgTaskRegistry",

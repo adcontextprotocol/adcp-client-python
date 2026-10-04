@@ -8,6 +8,7 @@ from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
+from adcp.types._scalar import ScalarStr
 from pydantic import AwareDatetime, ConfigDict, Field, RootModel
 
 from ..core import canonical_delivery_forecast, canonical_product, canonical_proposal
@@ -51,8 +52,9 @@ class TotalBudgetGuidance(AdCPBaseModel):
     currency: Annotated[str, Field(pattern='^[A-Z]{3}$')]
 
 
-class UnsatisfiedConstraint(RootModel[str]):
-    root: Annotated[str, Field(min_length=1)]
+class UnsatisfiedConstraint(ScalarStr):
+    __slots__ = ()
+    _constraints = {'min_length': 1}
 
 
 class Suggestion(UnsatisfiedConstraint):

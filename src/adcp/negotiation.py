@@ -142,7 +142,7 @@ def unsupported_refinement_recovery(
         return None
     return UnsupportedRefinementRecovery(
         unsupported_dimension=parsed.unsupported_dimension,
-        supported_dimensions=tuple(item.root for item in parsed.supported_dimensions),
+        supported_dimensions=tuple(str(item) for item in parsed.supported_dimensions),
     )
 
 

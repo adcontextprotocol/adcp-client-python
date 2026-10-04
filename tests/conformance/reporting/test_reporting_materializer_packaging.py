@@ -75,8 +75,7 @@ def b1_wheels(built_distribution):
 
 
 @pytest.mark.parametrize("kind", ["vcs", "sdist"])
-def test_python310_installed_wheel_exports_verifier_reference_and_strict_adopter(b1_wheels, kind):
-    path, wheels, hashes = b1_wheels
+def test_python310_installed_wheel_exports_verifier_reference_and_strict_adopter(request, kind):
     interpreter = os.environ.get("ADCP_PYTHON310") or (
         sys.executable if sys.version_info[:2] == (3, 10) else None
     )
@@ -84,6 +83,7 @@ def test_python310_installed_wheel_exports_verifier_reference_and_strict_adopter
         pytest.skip(
             "Python 3.10 matrix job runs this gate; ADCP_PYTHON310 enables it on other hosts"
         )
+    path, wheels, hashes = request.getfixturevalue("b1_wheels")
     environment = path / f"b1-python310-{kind}"
     run_step(
         [interpreter, "-m", "venv", str(environment)],

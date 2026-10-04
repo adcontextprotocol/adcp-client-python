@@ -178,6 +178,10 @@ __all__ = [
     "infer_asset_type",
     "coerce_legacy_asset",
     "coerce_legacy_assets",
+    # The class generated model fields are typed with, and the parent
+    # ``LegacyFormatId`` narrows. Exported here and deliberately not on
+    # ``adcp.types``, which carries the canonical format model instead.
+    "FormatReferenceStructuredObject",
     "LegacyBuildCreativeRequest",
     "LegacyBuildCreativeResponse",
     "LegacyBuildCreativeResponse1",

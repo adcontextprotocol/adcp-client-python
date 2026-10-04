@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import socket
+from copy import deepcopy
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -16,6 +17,7 @@ from adcp.decisioning.property_list import (
     validate_property_list_config,
 )
 from adcp.decisioning.types import AdcpError
+from adcp.types import PropertyId
 
 
 @pytest.fixture(autouse=True)
@@ -60,11 +62,9 @@ def _make_pp_by_tag(tags: list[str]) -> MagicMock:
     return pp
 
 
-def _make_property_id(pid: str) -> MagicMock:
-    """PropertyId(root=pid) stub."""
-    obj = MagicMock()
-    obj.root = pid
-    return obj
+def _make_property_id(pid: str) -> PropertyId:
+    """The real scalar type: PropertyId is a constrained str, not a wrapper (#1277)."""
+    return PropertyId(pid)
 
 
 def _make_pp_wrapper(pp: MagicMock) -> MagicMock:
@@ -433,7 +433,7 @@ class TestMaybeApplyPropertyListFilter:
         from adcp.canonical_formats.fixtures import load_reference_product
         from adcp.types import GetProductsResponse
 
-        product = load_reference_product("gam_3p_display_tag")
+        product = deepcopy(load_reference_product("gam_3p_display_tag"))
         for declaration in product["format_options"]:
             declaration.pop("v1_format_ref", None)
         p_pass = {**product, "product_id": "pass"}
@@ -579,7 +579,7 @@ def test_wire_dict_products_follow_same_filter_rules(
     from adcp.canonical_formats.fixtures import load_reference_product
     from adcp.types import Product
 
-    product = load_reference_product("gam_3p_display_tag")
+    product = deepcopy(load_reference_product("gam_3p_display_tag"))
     for declaration in product["format_options"]:
         declaration.pop("v1_format_ref", None)
     selector = {"selection_type": selection, "publisher_domain": "example.com"}

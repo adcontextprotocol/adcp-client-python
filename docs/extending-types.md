@@ -45,6 +45,40 @@ Code written against the former wrappers should replace
 The validated wire shapes are unchanged; only the unnecessary outer public
 wrapper is removed, and validation returns the selected schema arm directly.
 
+## Scalar Schemas Are Plain Scalars
+
+Schemas whose root is a scalar — `PropertyTag`, `PropertyId`, `Gtin`,
+`PricingCurrency`, `MediaBuyChangeTermId`, `ViewThreshold`, and the rest — are
+`str`, `int`, or `float` subclasses rather than Pydantic `RootModel` wrappers.
+They carry the schema's constraints, so an invalid value is rejected at
+construction, and they otherwise behave exactly like the scalar on the wire:
+
+```python
+from adcp import PropertyTag
+
+tag = PropertyTag("sports")
+
+isinstance(tag, str)        # True
+str(tag)                    # 'sports'
+tag == "sports"             # True
+{tag} & {"sports"}          # {'sports'}
+PropertyTag("Invalid-Tag")  # raises ValidationError: pattern mismatch
+```
+
+Code written against the former wrappers keeps working: `PropertyTag(root="x")`
+and `tag.root` both still work, each with a `DeprecationWarning`. Drop the
+`root` indirection when you touch the call site — the value *is* the scalar:
+
+```python
+tags = {tag.root for tag in product.property_tags}   # deprecated
+tags = set(product.property_tags)                    # the values are strs
+```
+
+A root that composes keeps its `RootModel`, because there is no single scalar to
+collapse onto: unions, arrays, `$ref`s to objects, `AnyUrl`, and date-times are
+unchanged. `isinstance(x, RootModel)` is the reliable way to tell the two apart
+if you need to handle both.
+
 ## Composed Schemas Are Base Classes
 
 A schema whose root is `allOf` plus a `$ref` composes the referenced schema,

@@ -24,7 +24,7 @@ from urllib.parse import urlsplit
 
 import httpx
 import rfc8785
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, RootModel, TypeAdapter, ValidationError
 
 from adcp.registry import RegistryClient
 from adcp.signing._bounded_http import (
@@ -199,7 +199,8 @@ def _safe_diagnostic_id(value: str | None) -> str | None:
 
 
 def _root_string(value: Any) -> str:
-    root = getattr(value, "root", value)
+    # Scalar schemas are plain strs; only a RootModel wrapper needs unwrapping (#1277).
+    root = value.root if isinstance(value, RootModel) else value
     return str(getattr(root, "value", root))
 
 
@@ -454,7 +455,7 @@ class AcceptancePolicyResolver:
     def _normalize_product_profile_ids(
         value: AcceptancePolicyProfileIds | Sequence[str | AcceptancePolicyProfileId],
     ) -> list[str]:
-        raw = getattr(value, "root", value)
+        raw = value.root if isinstance(value, RootModel) else value
         if isinstance(raw, (str, bytes)) or not isinstance(raw, Sequence):
             raise TypeError("product_profile_ids must be an array")
         if not raw:

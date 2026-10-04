@@ -8,7 +8,8 @@ from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
-from pydantic import AwareDatetime, ConfigDict, Field, RootModel
+from adcp.types._scalar import ScalarStr
+from pydantic import AwareDatetime, ConfigDict, Field
 
 from ..core import canonical_product
 from ..core import context as context_1
@@ -26,8 +27,9 @@ class Outcome(StrEnum):
     rejected = 'rejected'
 
 
-class Suggestion(RootModel[str]):
-    root: Annotated[str, Field(min_length=1)]
+class Suggestion(ScalarStr):
+    __slots__ = ()
+    _constraints = {'min_length': 1}
 
 
 class ProposalStatus(StrEnum):

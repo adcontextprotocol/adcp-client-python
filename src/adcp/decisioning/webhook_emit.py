@@ -44,10 +44,15 @@ def _sdk_task_outbox_pair_ready(registry: Any, task_outbox: Any) -> bool:
     if registry is None or task_outbox is None:
         return False
     try:
+        from adcp.decisioning.pg.lazy import LazyTaskRegistry
         from adcp.decisioning.pg.task_registry import PgTaskRegistry
         from adcp.decisioning.pg.task_webhook_outbox import PgTaskWebhookOutbox
     except ImportError:
         return False
+    if type(registry) is LazyTaskRegistry:
+        registry = registry.resolved
+        if registry is None:
+            return False
     return (
         type(registry) is PgTaskRegistry
         and type(task_outbox) is PgTaskWebhookOutbox

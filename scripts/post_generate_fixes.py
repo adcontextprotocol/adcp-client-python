@@ -14,6 +14,7 @@ handled by datamodel-code-generator directly:
 6. Unwraps specified RootModel unions to plain Union type aliases (#155)
 7. Widens canceled: Literal[True] = True on request types to | None = None (#641)
 8. Removes phantom optional boolean const defaults (#1347)
+9. Rewrites scalar RootModel roots to str/int/float subclasses (#1277)
 """
 
 from __future__ import annotations
@@ -23,9 +24,10 @@ import ast
 import importlib.util
 import json
 import re
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 REPO_ROOT = Path(__file__).parent.parent
 
@@ -44,6 +46,28 @@ def _load_resolve_bundle_key():
 
 
 resolve_bundle_key = _load_resolve_bundle_key()
+
+
+# Same reason as above: load ``adcp.types._scalar`` by path so the keyword sets
+# the rewriter and the runtime bases share live in exactly one place. The module
+# itself depends only on pydantic, so it is importable while ``generated_poc/``
+# is still unfixed.
+def _load_scalar_module():
+    src = REPO_ROOT / "src" / "adcp" / "types" / "_scalar.py"
+    spec = importlib.util.spec_from_file_location("_adcp_scalar", src)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_scalar_module = _load_scalar_module()
+_SCALAR_BASES: dict[str, str] = {
+    scalar: base.__name__ for scalar, base in _scalar_module.SCALAR_BASES.items()
+}
+_SCALAR_CONSTRAINT_KEYWORDS: frozenset[str] = _scalar_module.CONSTRAINT_KEYWORDS
+_SCALAR_DOCUMENTATION_KEYWORDS: frozenset[str] = _scalar_module.DOCUMENTATION_KEYWORDS
+_SCALAR_MODULE_PATH = "adcp.types._scalar"
 
 _VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
 _BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())
@@ -732,25 +756,36 @@ def fix_typed_additional_properties() -> None:
     )
 
 
-def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
-    """Remove a generated ``Field`` import when the module never references it."""
+def _remove_unused_imports(source: str, targets: Mapping[str, Sequence[str]]) -> tuple[str, bool]:
+    """Remove imported names the module body no longer references.
+
+    ``targets`` maps an absolute module name to the names worth reconsidering,
+    e.g. ``{"pydantic": ("Field", "RootModel"), "typing": ("Annotated",)}``.
+    Aliased imports (``import X as Y``) are left alone.
+    """
     tree = ast.parse(source)
-    if any(
-        isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id == "Field"
+    used = {
+        node.id
         for node in ast.walk(tree)
-    ):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
+    }
+    droppable = {
+        module: {name for name in names if name not in used} for module, names in targets.items()
+    }
+    if not any(droppable.values()):
         return source, False
 
     lines = source.splitlines(keepends=True)
     changed = False
     for node in reversed(list(ast.walk(tree))):
-        if not isinstance(node, ast.ImportFrom) or node.module != "pydantic":
+        if not isinstance(node, ast.ImportFrom) or node.level != 0:
             continue
-        if not any(alias.name == "Field" and alias.asname is None for alias in node.names):
+        unused = droppable.get(node.module or "", set())
+        if not any(alias.name in unused and alias.asname is None for alias in node.names):
             continue
 
         remaining = [
-            alias for alias in node.names if alias.name != "Field" or alias.asname is not None
+            alias for alias in node.names if alias.asname is not None or alias.name not in unused
         ]
         start = node.lineno - 1
         end = node.end_lineno or node.lineno
@@ -760,7 +795,7 @@ def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
                 for alias in remaining
             )
             newline = "\n" if lines[end - 1].endswith("\n") else ""
-            lines[start:end] = [f"from pydantic import {names}{newline}"]
+            lines[start:end] = [f"from {node.module} import {names}{newline}"]
         else:
             if start > 0 and not lines[start - 1].strip():
                 start -= 1
@@ -768,6 +803,11 @@ def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
         changed = True
 
     return "".join(lines), changed
+
+
+def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
+    """Remove a generated ``Field`` import when the module never references it."""
+    return _remove_unused_imports(source, {"pydantic": ("Field",)})
 
 
 def remove_unused_pydantic_field_imports() -> None:
@@ -1111,6 +1151,284 @@ def add_rootmodel_getattr_proxy():
         print(f"  Added __getattr__ proxy to {fixed_count} RootModel union type(s)")
     else:
         print("  No RootModel union types needed __getattr__ proxy")
+
+
+class _ScalarRootSpec(NamedTuple):
+    """One generated class that will become a scalar subclass."""
+
+    name: str
+    base: str
+    docstring: str | None
+    constraints: list[tuple[str, str]]
+    documentation: list[tuple[str, str]]
+    start_line: int
+    end_line: int
+
+
+def _rootmodel_scalar(node: ast.ClassDef) -> str | None:
+    """Return the wrapped scalar when ``node`` is ``class X(RootModel[<scalar>])``.
+
+    ``None`` for anything that composes — ``RootModel[A | B]``,
+    ``RootModel[list[A]]``, ``RootModel[AnyUrl]``, ``RootModel[Literal[...]]`` —
+    and for any class that carries decorators or class keywords.
+    """
+    if len(node.bases) != 1 or node.keywords or node.decorator_list:
+        return None
+    base = node.bases[0]
+    if not isinstance(base, ast.Subscript):
+        return None
+    if not (isinstance(base.value, ast.Name) and base.value.id == "RootModel"):
+        return None
+    if isinstance(base.slice, ast.Name) and base.slice.id in _SCALAR_BASES:
+        return base.slice.id
+    return None
+
+
+def _scalar_root_spec(source: str, node: ast.ClassDef, scalar: str) -> _ScalarRootSpec | None:
+    """Describe the rewrite for a scalar root, or ``None`` if it is not plain.
+
+    "Plain" means the whole class is the wrapper and nothing else: an optional
+    docstring plus ``root: <scalar>`` or ``root: Annotated[<scalar>, Field(...)]``
+    with no default, no second metadata entry, and only known keywords. A class
+    carrying a validator, a default, or an unrecognized keyword keeps its
+    ``RootModel``, because dropping any of those silently would change behavior.
+    """
+    body = list(node.body)
+    docstring: str | None = None
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        docstring = ast.get_source_segment(source, body[0].value)
+        body = body[1:]
+
+    if len(body) != 1:
+        return None
+    field = body[0]
+    if not (
+        isinstance(field, ast.AnnAssign)
+        and isinstance(field.target, ast.Name)
+        and field.target.id == "root"
+        and field.value is None
+    ):
+        return None
+
+    annotation = field.annotation
+    metadata: ast.Call | None = None
+    if (
+        isinstance(annotation, ast.Subscript)
+        and isinstance(annotation.value, ast.Name)
+        and annotation.value.id == "Annotated"
+    ):
+        elements = list(annotation.slice.elts) if isinstance(annotation.slice, ast.Tuple) else []
+        if len(elements) != 2:
+            return None
+        annotation, candidate = elements
+        if not (
+            isinstance(candidate, ast.Call)
+            and isinstance(candidate.func, ast.Name)
+            and candidate.func.id in ("Field", "StringConstraints")
+        ):
+            return None
+        metadata = candidate
+
+    if not (isinstance(annotation, ast.Name) and annotation.id == scalar):
+        return None
+
+    constraints: list[tuple[str, str]] = []
+    documentation: list[tuple[str, str]] = []
+    if metadata is not None:
+        if metadata.args:
+            return None
+        for keyword in metadata.keywords:
+            if keyword.arg is None:
+                return None
+            try:
+                value = ast.literal_eval(keyword.value)
+            except (SyntaxError, TypeError, ValueError):
+                return None
+            if keyword.arg in _SCALAR_CONSTRAINT_KEYWORDS:
+                constraints.append((keyword.arg, repr(value)))
+            elif keyword.arg in _SCALAR_DOCUMENTATION_KEYWORDS:
+                documentation.append((keyword.arg, repr(value)))
+            else:
+                return None
+
+    return _ScalarRootSpec(
+        name=node.name,
+        base=_SCALAR_BASES[scalar],
+        docstring=docstring,
+        constraints=constraints,
+        documentation=documentation,
+        start_line=node.lineno,
+        end_line=node.end_lineno or node.lineno,
+    )
+
+
+def _render_class_dict(attribute: str, items: list[tuple[str, str]]) -> list[str]:
+    """Render a class-level dict literal, one key per line once it gets long."""
+    inline = (
+        f"    {attribute} = {{" + ", ".join(f"{key!r}: {value}" for key, value in items) + "}\n"
+    )
+    if len(inline) <= 100:
+        return [inline]
+    rendered = [f"    {attribute} = {{\n"]
+    rendered.extend(f"        {key!r}: {value},\n" for key, value in items)
+    rendered.append("    }\n")
+    return rendered
+
+
+def _render_scalar_class(spec: _ScalarRootSpec) -> str:
+    lines = [f"class {spec.name}({spec.base}):\n"]
+    if spec.docstring is not None:
+        lines.append(f"    {spec.docstring}\n")
+        lines.append("\n")
+    # ``__slots__`` on the subclass too, or it regains the ``__dict__`` the bases
+    # dropped and a schema value silently accepts arbitrary attributes. The
+    # RootModel wrapper rejected those.
+    lines.append("    __slots__ = ()\n")
+    for attribute, items in (
+        ("_constraints", spec.constraints),
+        ("_json_schema_extra", spec.documentation),
+    ):
+        if items:
+            lines.extend(_render_class_dict(attribute, items))
+    return "".join(lines)
+
+
+def _insert_scalar_import(source: str, bases: set[str]) -> str:
+    """Import the scalar bases this module now uses from ``adcp.types._scalar``."""
+    tree = ast.parse(source)
+    lines = source.splitlines(keepends=True)
+
+    existing = next(
+        (
+            node
+            for node in tree.body
+            if isinstance(node, ast.ImportFrom)
+            and node.level == 0
+            and node.module == _SCALAR_MODULE_PATH
+        ),
+        None,
+    )
+    if existing is not None:
+        names = sorted({alias.name for alias in existing.names} | bases)
+        lines[existing.lineno - 1 : existing.end_lineno or existing.lineno] = [
+            f"from {_SCALAR_MODULE_PATH} import {', '.join(names)}\n"
+        ]
+        return "".join(lines)
+
+    statement = f"from {_SCALAR_MODULE_PATH} import {', '.join(sorted(bases))}\n"
+
+    # Group with the sibling ``adcp.types`` imports the other fixers emit
+    # (``adcp.types.base``, ``adcp.types._str_enum``) when the module has one.
+    siblings = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom)
+        and node.level == 0
+        and (node.module or "").startswith("adcp.types")
+    ]
+    if siblings:
+        lines.insert(siblings[-1].end_lineno or siblings[-1].lineno, statement)
+        return "".join(lines)
+
+    # Otherwise start a new block below ``from __future__ import annotations``,
+    # falling back to the end of the leading import block.
+    future = next(
+        (
+            node
+            for node in tree.body
+            if isinstance(node, ast.ImportFrom) and node.module == "__future__"
+        ),
+        None,
+    )
+    if future is not None:
+        lines.insert(future.end_lineno or future.lineno, f"\n{statement}")
+        return "".join(lines)
+
+    anchor = 0
+    for node in tree.body:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            anchor = max(anchor, node.end_lineno or node.lineno)
+        elif anchor:
+            break
+    lines.insert(anchor, statement)
+    return "".join(lines)
+
+
+def rewrite_scalar_rootmodels() -> None:
+    """Make generated scalar roots real ``str``/``int``/``float`` subclasses.
+
+    A JSON Schema whose root is a scalar describes a *value*.
+    ``datamodel-code-generator`` cannot express that and emits
+    ``class PropertyTag(RootModel[str])``, which is not a ``str`` anywhere
+    Python treats one — ``str(x)`` renders ``"root='sports'"``, ``x ==
+    "sports"`` is ``False``, and ``hash(x)`` raises. Rewrite those classes to
+    subclass ``adcp.types._scalar.ScalarStr`` / ``ScalarInt`` / ``ScalarFloat``,
+    carrying the schema's constraint and documentation keywords with them.
+
+    Roots that compose keep their ``RootModel``: see :func:`_rootmodel_scalar`
+    for the condition. ``bool`` roots keep it too — Python forbids subclassing
+    ``bool``.
+
+    Anything that looks scalar but is not plain enough to rewrite is reported
+    rather than rewritten; ``tests/test_scalar_roots.py`` fails on a leftover,
+    so a new schema shape surfaces as a test failure instead of a silent
+    regression to the broken wrapper.
+
+    See: https://github.com/adcontextprotocol/adcp-client-python/issues/1277
+    """
+    rewritten = 0
+    files_changed = 0
+    skipped: list[str] = []
+
+    for py_file in sorted(OUTPUT_DIR.rglob("*.py")):
+        source = py_file.read_text()
+        if "RootModel[" not in source:
+            continue
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+
+        specs: list[_ScalarRootSpec] = []
+        for node in tree.body:
+            if not isinstance(node, ast.ClassDef):
+                continue
+            scalar = _rootmodel_scalar(node)
+            if scalar is None:
+                continue
+            spec = _scalar_root_spec(source, node, scalar)
+            if spec is None:
+                skipped.append(f"{py_file.relative_to(OUTPUT_DIR)}::{node.name}")
+                continue
+            specs.append(spec)
+
+        if not specs:
+            continue
+
+        lines = source.splitlines(keepends=True)
+        for spec in sorted(specs, key=lambda item: item.start_line, reverse=True):
+            lines[spec.start_line - 1 : spec.end_line] = [_render_scalar_class(spec)]
+        updated = _insert_scalar_import("".join(lines), {spec.base for spec in specs})
+        updated, _ = _remove_unused_imports(
+            updated,
+            {"pydantic": ("Field", "RootModel", "StringConstraints"), "typing": ("Annotated",)},
+        )
+
+        py_file.write_text(updated)
+        files_changed += 1
+        rewritten += len(specs)
+
+    print(f"  Rewrote {rewritten} scalar RootModel root(s) across {files_changed} file(s)")
+    if skipped:
+        print(
+            f"  WARNING: {len(skipped)} scalar root(s) kept their RootModel wrapper "
+            f"(not a plain root field): {', '.join(sorted(skipped))}"
+        )
 
 
 # Response-only list fields changed to Sequence[T] so adopters can narrow the
@@ -2744,8 +3062,7 @@ def fix_reporting_request_selectors() -> None:
     @model_validator(mode='after')
     def _unique_reporting_scope(self) -> {node.name}:
         if self.media_buy_ids is not None:
-            ids = [getattr(item, 'root', item) for item in self.media_buy_ids]
-            if len(ids) != len(set(ids)):
+            if len(self.media_buy_ids) != len(set(self.media_buy_ids)):
                 raise ValueError('media_buy_ids must be unique')
         return self
 
@@ -5963,7 +6280,7 @@ def fix_legacy_purchase_accepted_losses() -> None:
     def _selected_product_ids_are_unique(
         cls, values: list[SelectedProductId]
     ) -> list[SelectedProductId]:
-        if len(values) != len({value.root for value in values}):
+        if len(values) != len(set(values)):
             raise ValueError('selected_product_ids must contain unique items')
         return values
 
@@ -6292,6 +6609,9 @@ def main(argv: list[str] | None = None):
         fix_creative_manifest_standalone_asset_coercion,
         fix_update_rights_legacy_response_defaults,
         fix_list_creatives_format_reference_xor,
+        # Last of the substantive fixes: every earlier fixer may still emit or
+        # edit a ``RootModel[<scalar>]`` class, and this one consumes them all.
+        rewrite_scalar_rootmodels,
         rewrite_generated_enums_to_strenum,
         annotate_registry_track_verdict,
         remove_unused_pydantic_field_imports,

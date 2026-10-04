@@ -18,7 +18,7 @@ from enum import Enum
 from functools import cmp_to_key
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias, cast
 
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 from typing_extensions import NotRequired, Required, TypedDict
 
 from adcp._version import normalize_to_release_precision
@@ -1186,7 +1186,9 @@ def _is_compact_release(value: str) -> bool:
 
 
 def _root_value(value: Any) -> str:
-    return str(getattr(value, "root", getattr(value, "value", value)))
+    # Scalar schemas are plain strs; only a RootModel wrapper needs unwrapping (#1277).
+    root = value.root if isinstance(value, RootModel) else value
+    return str(getattr(root, "value", root))
 
 
 def _mapping(value: Any) -> JsonObject:

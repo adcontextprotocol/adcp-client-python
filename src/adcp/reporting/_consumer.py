@@ -40,6 +40,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, Protocol
 
+from pydantic import RootModel
+
 from adcp.reporting.revision_selection import RevisionHistoryEntry, select_reporting_revision
 from adcp.types import (
     GetReportingStatusRequest,
@@ -137,7 +139,8 @@ def _ids(values: Iterable[Any] | None) -> tuple[str, ...]:
         return ()
     out: list[str] = []
     for item in values:
-        root = getattr(item, "root", item)
+        # Scalar schemas are plain strs; only a RootModel wrapper needs unwrapping (#1277).
+        root = item.root if isinstance(item, RootModel) else item
         out.append(str(getattr(root, "value", root)))
     return tuple(sorted(out))
 

@@ -29,6 +29,7 @@ from adcp.decisioning.update_media_buy import (
     decompose_update_media_buy,
 )
 from adcp.types import MediaBuyChangeTerm
+from adcp.types._scalar import plain_scalar
 from adcp.types._str_enum import StrEnum
 
 _ACTION_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.:-]{0,127}$")
@@ -1359,7 +1360,9 @@ def _string_value(value: Any) -> str | None:
     if isinstance(value, StrEnum):
         return str(value.value)
     if isinstance(value, str):
-        return value
+        # plain_scalar: a generated scalar schema is a str subclass, and this
+        # helper's callers key comparisons and reports off the result (#1277).
+        return str(plain_scalar(value))
     return None
 
 
@@ -1389,7 +1392,7 @@ def _normalized_value(value: Any) -> Any:
         return value.value
     if isinstance(value, datetime):
         return value.isoformat()
-    return value
+    return plain_scalar(value)
 
 
 def _check(kind: str, name: str, outcome: ConstraintOutcome, field: str | None) -> ConstraintCheck:
