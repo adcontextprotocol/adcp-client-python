@@ -78,6 +78,18 @@ src/adcp/
 - Aim for >80% code coverage
 - Use `pytest-asyncio` for async tests
 
+CI runs the full Python 3.10–3.13, PostgreSQL, packaging, and storyboard checks
+for code changes and pushes to main. PRs limited to Markdown in `docs/` or the
+allowlisted contributor/changelog files skip the SDK lanes while still running
+workflow security and contribution policies. README, license, migration guides,
+schemas, scripts, and CI configuration always require the full matrix; missing
+diff history also falls back to full CI.
+
+The reporting test harness reuses a fingerprint-verified wheel and sdist within
+each invocation's private temporary directory. Isolated installations and test
+assertions still run, and changed build inputs invalidate reuse. CI uses `uv`
+for dependency installation and reports the slowest native tests in its logs.
+
 ### Type Safety
 - All functions must have type hints
 - Use Pydantic for data validation
