@@ -20,12 +20,14 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import inspect
 import logging
 import os
 import sys
 import warnings
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextvars import ContextVar
+from copy import deepcopy
 from dataclasses import dataclass
 from types import MethodType
 from typing import TYPE_CHECKING, Any, Literal
@@ -44,6 +46,13 @@ from adcp.server.mcp_tools import (
     _resolve_handler_adcp_version,
     create_tool_caller,
     get_tools_for_handler,
+)
+from adcp.server.operational_routes import (
+    OperationalRouteMarker,
+    OperationalRoutesMiddleware,
+    find_operational_routes,
+    prepare_operational_routes,
+    wrap_operational_routes,
 )
 from adcp.server.signed_requests import (
     apply_verified_signer,
@@ -72,6 +81,7 @@ if TYPE_CHECKING:
     )
     from a2a.server.tasks.push_notification_sender import PushNotificationSender
     from a2a.server.tasks.task_store import TaskStore
+    from starlette.routing import Mount, Route
 
     from adcp.server.a2a_server import MessageParser, PublicUrlResolver
     from adcp.server.auth import BearerTokenAuth
@@ -290,6 +300,7 @@ class ServeConfig:
 
     # --- MCP only ---
     instructions: str | None = None
+    mcp_result_text: MCPResultText | None = None
     streaming_responses: bool = False
     stateless_http: bool = False
     session_idle_timeout: float | None = 1800.0
@@ -307,6 +318,9 @@ class ServeConfig:
     allowed_hosts: Sequence[str] | None = None
     allowed_origins: Sequence[str] | None = None
     enable_dns_rebinding_protection: bool | None = None
+
+    # --- Operational endpoints ---
+    unauthenticated_routes: Sequence[Route | Mount] | None = None
 
     # --- Shared infrastructure ---
     test_controller: TestControllerStore | None = None
@@ -352,6 +366,7 @@ class ServeConfig:
         # cleanly with the heuristic.
         _mcp_only = (
             "instructions",
+            "mcp_result_text",
             "streaming_responses",
             "stateless_http",
             "max_active_sessions",
@@ -376,6 +391,22 @@ class ServeConfig:
                     UserWarning,
                     stacklevel=3,
                 )
+
+
+MCPResultText = (
+    str
+    | Callable[
+        [str, dict[str, Any], ToolContext | None],
+        str | None | Awaitable[str | None],
+    ]
+)
+"""MCP-only success text: a response field name or sync/async callback.
+
+Callbacks run after response validation and context echo, on a detached copy of
+JSON-ready structured data. Return a string (including an empty string) for the
+text block, or None for the existing JSON fallback. Structured content is never
+changed. Prebuilt CallToolResult and error results retain their own text.
+"""
 
 
 SkillMiddleware = Callable[
@@ -794,11 +825,13 @@ Both forms can be mixed in the same list.
 def serve(
     handler: ADCPHandler[Any] | Any,
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     config: ServeConfig | None = None,
     name: str = "adcp-agent",
     port: int | None = None,
     host: str | None = None,
     transport: str = "streamable-http",
+    mcp_result_text: MCPResultText | None = None,
     instructions: str | None = None,
     test_controller: TestControllerStore | None = None,
     test_controller_account_resolver: Any | None = None,
@@ -1178,6 +1211,7 @@ def serve(
         allowed_hosts = config.allowed_hosts
         allowed_origins = config.allowed_origins
         enable_dns_rebinding_protection = config.enable_dns_rebinding_protection
+        mcp_result_text = config.mcp_result_text
         test_controller = config.test_controller
         context_factory = config.context_factory
         task_store = config.task_store
@@ -1186,6 +1220,7 @@ def serve(
         request_handler = config.request_handler
         middleware = config.middleware
         asgi_middleware = config.asgi_middleware
+        unauthenticated_routes = config.unauthenticated_routes
         message_parser = config.message_parser
         advertise_all = config.advertise_all
         max_request_size = config.max_request_size
@@ -1207,6 +1242,9 @@ def serve(
         public_url = config.public_url
         on_startup = config.on_startup
         on_shutdown = config.on_shutdown
+
+    if unauthenticated_routes and transport == "stdio":
+        raise ValueError("unauthenticated_routes requires an HTTP transport")
 
     if request_signature_verification is not None:
         if transport in ("stdio", "sse"):
@@ -1267,6 +1305,7 @@ def serve(
         _serve_a2a(
             handler,
             name=name,
+            unauthenticated_routes=unauthenticated_routes,
             port=port,
             test_controller=test_controller,
             test_controller_account_resolver=test_controller_account_resolver,
@@ -1297,10 +1336,12 @@ def serve(
         _serve_mcp(
             handler,
             name=name,
+            unauthenticated_routes=unauthenticated_routes,
             port=port,
             host=host,
             transport=transport,
             instructions=instructions,
+            mcp_result_text=mcp_result_text,
             test_controller=test_controller,
             test_controller_account_resolver=test_controller_account_resolver,
             context_factory=context_factory,
@@ -1328,9 +1369,11 @@ def serve(
         _serve_mcp_and_a2a(
             handler,
             name=name,
+            unauthenticated_routes=unauthenticated_routes,
             port=port,
             host=host,
             instructions=instructions,
+            mcp_result_text=mcp_result_text,
             test_controller=test_controller,
             test_controller_account_resolver=test_controller_account_resolver,
             context_factory=context_factory,
@@ -1433,13 +1476,14 @@ def _apply_asgi_middleware(
     """
     if not asgi_middleware:
         return app
+    routes = find_operational_routes(app)
     for entry in reversed(list(asgi_middleware)):
         if isinstance(entry, tuple):
             cls, kwargs = entry
             app = cls(app, **kwargs)
         else:
             app = entry(app)
-    return app
+    return OperationalRouteMarker(app, routes) if routes is not None else app
 
 
 def _wrap_mcp_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
@@ -1759,6 +1803,8 @@ def _bind_reusable_socket(host: str, port: int) -> Any:
 def _serve_mcp(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
+    mcp_result_text: MCPResultText | None = None,
     name: str,
     port: int | None,
     host: str | None = None,
@@ -1794,6 +1840,7 @@ def _serve_mcp(
         port=port,
         host=host,
         instructions=instructions,
+        mcp_result_text=mcp_result_text,
         include_test_controller=test_controller is not None,
         context_factory=context_factory,
         middleware=middleware,
@@ -1824,6 +1871,7 @@ def _serve_mcp(
         _run_mcp_http(
             mcp,
             transport=transport,
+            unauthenticated_routes=unauthenticated_routes,
             asgi_middleware=asgi_middleware,
             max_request_size=max_request_size,
             discovery_name=name,
@@ -1853,6 +1901,7 @@ def _serve_mcp(
 def _run_mcp_http(
     mcp: Any,
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     transport: str,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     max_request_size: int | None = None,
@@ -1907,6 +1956,7 @@ def _run_mcp_http(
         description=discovery_description,
         specialisms=discovery_specialisms,
     )
+    app = wrap_operational_routes(app, unauthenticated_routes)
     app = _wrap_with_size_limit(app, max_request_size)
     app = HostOriginMiddleware(app, settings=mcp.settings.transport_security)
     app = _apply_asgi_middleware(app, asgi_middleware)
@@ -1943,6 +1993,7 @@ def _run_mcp_http(
 def _build_a2a_app(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     name: str,
     port: int,
     test_controller: TestControllerStore | None,
@@ -2022,6 +2073,7 @@ def _build_a2a_app(
             description=description,
             specialisms=specialisms,
         )
+    app = wrap_operational_routes(app, unauthenticated_routes)
     app = _wrap_with_size_limit(app, max_request_size)
     app = HostOriginMiddleware(
         app,
@@ -2035,6 +2087,7 @@ def _build_a2a_app(
 def _serve_a2a(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     name: str,
     port: int | None,
     test_controller: TestControllerStore | None,
@@ -2069,6 +2122,7 @@ def _serve_a2a(
     app = _build_a2a_app(
         handler,
         name=name,
+        unauthenticated_routes=unauthenticated_routes,
         port=resolved_port,
         test_controller=test_controller,
         test_controller_account_resolver=test_controller_account_resolver,
@@ -2117,6 +2171,8 @@ def _serve_a2a(
 def _build_mcp_and_a2a_app(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
+    mcp_result_text: MCPResultText | None = None,
     name: str,
     port: int,
     host: str,
@@ -2178,6 +2234,7 @@ def _build_mcp_and_a2a_app(
         port=port,
         host=host,
         instructions=instructions,
+        mcp_result_text=mcp_result_text,
         include_test_controller=test_controller is not None,
         context_factory=context_factory,
         middleware=middleware,
@@ -2334,6 +2391,7 @@ def _build_mcp_and_a2a_app(
             description=description,
             specialisms=specialisms,
         )
+    app = wrap_operational_routes(app, unauthenticated_routes)
     app = _wrap_with_size_limit(app, max_request_size)
     return HostOriginMiddleware(app, settings=mcp.settings.transport_security)
 
@@ -2341,6 +2399,8 @@ def _build_mcp_and_a2a_app(
 def _serve_mcp_and_a2a(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
+    mcp_result_text: MCPResultText | None = None,
     name: str,
     port: int | None,
     host: str | None = None,
@@ -2401,9 +2461,11 @@ def _serve_mcp_and_a2a(
     app = _build_mcp_and_a2a_app(
         handler,
         name=name,
+        unauthenticated_routes=unauthenticated_routes,
         port=resolved_port,
         host=resolved_host,
         instructions=instructions,
+        mcp_result_text=mcp_result_text,
         test_controller=test_controller,
         test_controller_account_resolver=test_controller_account_resolver,
         context_factory=context_factory,
@@ -2520,9 +2582,11 @@ class _ADCPMCPSettingsProxy:
 def create_mcp_server(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     name: str = "adcp-agent",
     port: int | None = None,
     host: str | None = None,
+    mcp_result_text: MCPResultText | None = None,
     instructions: str | None = None,
     include_test_controller: bool = False,
     context_factory: ContextFactory | None = None,
@@ -2550,6 +2614,9 @@ def create_mcp_server(
         name: Server name.
         port: Port to listen on.
         instructions: Optional system instructions.
+        mcp_result_text: Optional response field name or sync/async callback
+            for concise MCP text. None preserves the JSON fallback;
+            structured content uses the unchanged canonical conversion.
         include_test_controller: When False (default), skip registering
             ``comply_test_controller`` as a handler tool. Sellers who want
             compliance-testing support should pass ``test_controller=`` to
@@ -2698,6 +2765,7 @@ def create_mcp_server(
         host if host is not None else (os.environ.get("ADCP_HOST") or "0.0.0.0")  # nosec B104
     )
     mcp: Any = MCPServer(name, instructions=instructions)
+    mcp._adcp_operational_routes = prepare_operational_routes(unauthenticated_routes)
     mcp.settings = _ADCPMCPSettingsProxy(mcp.settings)
     object.__setattr__(mcp.settings, "host", resolved_host)
     object.__setattr__(mcp.settings, "port", resolved_port)
@@ -2729,6 +2797,7 @@ def create_mcp_server(
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
         response_enhancer=response_enhancer,
+        mcp_result_text=mcp_result_text,
     )
     if session_idle_timeout is not None and session_idle_timeout <= 0:
         raise ValueError(
@@ -2783,6 +2852,7 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
     def streamable_http_app(
         self: Any,
         *,
+        unauthenticated_routes: Sequence[Route | Mount] | None = None,
         streamable_http_path: str = "/mcp",
         json_response: bool | None = None,
         stateless_http: bool | None = None,
@@ -2798,6 +2868,13 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
         from starlette.requests import Request
         from starlette.routing import Route
 
+        operational_routes = (
+            prepare_operational_routes(unauthenticated_routes)
+            if unauthenticated_routes is not None
+            else self._adcp_operational_routes
+        )
+        if operational_routes is not None:
+            operational_routes.validate_protocol_paths([streamable_http_path])
         resolved_host = host if host is not None else getattr(self.settings, "host", "127.0.0.1")
         resolved_transport_security = (
             transport_security
@@ -2884,10 +2961,27 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
             routes=[Route(streamable_http_path, endpoint=ADCPStreamableHTTPASGIApp())],
             lifespan=lifespan,
         )
+        if operational_routes is not None:
+            from adcp.server._size_limit import RequestSizeLimitMiddleware
+
+            app.state.adcp_operational_routes = operational_routes
+            app.add_middleware(OperationalRoutesMiddleware, routes=operational_routes)
+            app.add_middleware(RequestSizeLimitMiddleware, max_bytes=max_request_body_size)
         app.add_middleware(HostOriginMiddleware, settings=resolved_transport_security)
         return app
 
-    def sse_app(self: Any, **kwargs: Any) -> Any:
+    def sse_app(
+        self: Any, *, unauthenticated_routes: Sequence[Route | Mount] | None = None, **kwargs: Any
+    ) -> Any:
+        operational_routes = (
+            prepare_operational_routes(unauthenticated_routes)
+            if unauthenticated_routes is not None
+            else self._adcp_operational_routes
+        )
+        if operational_routes is not None:
+            operational_routes.validate_protocol_paths(
+                [kwargs.get("sse_path", "/sse"), kwargs.get("message_path", "/messages/")]
+            )
         settings = kwargs.pop("transport_security", None) or self.settings.transport_security
         app = type(self).sse_app(
             self,
@@ -2896,6 +2990,23 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
             ),
             **kwargs,
         )
+        if operational_routes is not None:
+            import inspect
+
+            from adcp.server._size_limit import RequestSizeLimitMiddleware
+
+            app.state.adcp_operational_routes = operational_routes
+            app.add_middleware(OperationalRoutesMiddleware, routes=operational_routes)
+            # MCP 2.0 SSE has no SDK body-size setting. When the installed
+            # SDK supplies one, apply that same cap before operational dispatch.
+            body_size = inspect.signature(type(self).sse_app).parameters.get(
+                "max_request_body_size"
+            )
+            if body_size is not None:
+                app.add_middleware(
+                    RequestSizeLimitMiddleware,
+                    max_bytes=kwargs.get("max_request_body_size", body_size.default),
+                )
         app.add_middleware(HostOriginMiddleware, settings=settings)
         return app
 
@@ -2926,6 +3037,7 @@ def _register_handler_tools(
     mcp: Any,
     handler: ADCPHandler[Any],
     *,
+    mcp_result_text: MCPResultText | None = None,
     include_test_controller: bool = False,
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
@@ -2980,6 +3092,7 @@ def _register_handler_tools(
             middleware=middleware_tuple,
             output_schema=output_schema,
             response_enhancer=response_enhancer,
+            mcp_result_text=mcp_result_text,
         )
         registered.append(tool_name)
 
@@ -2998,6 +3111,7 @@ def _register_tool(
     input_schema: dict[str, Any],
     caller: Callable[..., Any],
     *,
+    mcp_result_text: MCPResultText | None = None,
     context_factory: ContextFactory | None = None,
     middleware: tuple[SkillMiddleware, ...] = (),
     output_schema: dict[str, Any] | None = None,
@@ -3138,10 +3252,40 @@ def _register_tool(
         if isinstance(result, CallToolResult):
             return result  # type: ignore[return-value]
         if hasattr(result, "model_dump"):
-            return result.model_dump(mode="json", exclude_none=True)  # type: ignore[no-any-return]
-        if isinstance(result, dict):
-            return result
-        return {"result": result}
+            result_dict = result.model_dump(mode="json", exclude_none=True)
+        elif isinstance(result, dict):
+            result_dict = result
+        else:
+            result_dict = {"result": result}
+        if mcp_result_text is not None:
+            # Use MCP's normal conversion before formatting so datetime,
+            # Decimal, aliases and nested models have exactly the baseline's
+            # JSON representation in both the callback and structured content.
+            canonical_result = FuncMetadata.convert_result(tool.fn_metadata, result_dict)
+            assert isinstance(canonical_result, CallToolResult)
+            if canonical_result.structured_content is not None:
+                result_dict = canonical_result.structured_content
+            if isinstance(mcp_result_text, str):
+                summary = result_dict.get(mcp_result_text)
+                if not isinstance(summary, str):
+                    summary = None
+            else:
+                # A formatter cannot mutate the canonical payload, even if it
+                # annotates a nested product while composing its summary.
+                summary = mcp_result_text(name, deepcopy(result_dict), context)
+                if inspect.isawaitable(summary):
+                    summary = await summary
+            if summary is not None:
+                if not isinstance(summary, str):
+                    raise TypeError("mcp_result_text must return str or None")
+                from mcp.types import TextContent
+
+                return CallToolResult(  # type: ignore[return-value]
+                    content=[TextContent(type="text", text=summary)],
+                    structured_content=result_dict,
+                )
+            return canonical_result  # type: ignore[return-value]
+        return result_dict  # type: ignore[no-any-return]
 
     # Create tool from function (gives us proper fn_metadata scaffolding)
     tool = Tool.from_function(fn, name=name, description=description, structured_output=True)
@@ -3164,19 +3308,15 @@ def _register_tool(
             return result
 
     class _AdcpFuncMetadata(FuncMetadata):
-        """FuncMetadata that skips success-path output validation for error
-        ``CallToolResult`` returns.
+        """Keep prebuilt success/error envelopes intact through MCP conversion.
 
-        FastMCP's stock ``convert_result`` validates ``result.structuredContent``
-        against the success-path ``output_model`` whenever the tool returns a
-        ``CallToolResult`` — but when the framework projects an ``AdcpError``
-        as ``{"adcp_error": {...}}``, that payload doesn't conform to the
-        success schema. Skip validation for ``isError=True`` envelopes; success
-        envelopes still validate normally.
+        Handler dictionaries have already gone through SDK validation. MCP
+        summaries carry that same structured payload; passing through avoids
+        wrapping content a second time. Error envelopes use a different schema.
         """
 
         def convert_result(self, result: Any) -> Any:
-            if isinstance(result, CallToolResult) and result.is_error:
+            if isinstance(result, CallToolResult):
                 return result
             return super().convert_result(result)
 
