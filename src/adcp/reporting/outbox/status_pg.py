@@ -17,6 +17,7 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.reporting.ledger.delivery_models import ReportingDeliveryRecord
 from adcp.reporting.ledger.models import ReportingDeliveryEscalation, ReportingIssueLifecycle
 from adcp.reporting.ledger.notification_models import (
@@ -62,7 +63,10 @@ _CHECKPOINT = (
     " lease_token, lease_expires_at, selector_semantics_version, selector_writer_floor, initialized"
 )
 
-_LIFECYCLE = TypeAdapter(ReportingIssueLifecycle)
+
+@deferred_adapter
+def _lifecycle_adapter() -> TypeAdapter[ReportingIssueLifecycle]:
+    return TypeAdapter(ReportingIssueLifecycle)
 
 
 def _replay_storage(snapshot: ReportingStatusSnapshot) -> str:
@@ -70,7 +74,7 @@ def _replay_storage(snapshot: ReportingStatusSnapshot) -> str:
     return json.dumps(
         [
             {
-                "lifecycle": _LIFECYCLE.dump_python(i, mode="json"),
+                "lifecycle": _lifecycle_adapter().dump_python(i, mode="json"),
                 "scope": asdict(scopes[i.issue_id]) if i.issue_id in scopes else None,
             }
             for i in snapshot.lifecycles
@@ -83,7 +87,7 @@ def _with_replay(
 ) -> ReportingStatusSnapshot:
     prior = replace(
         snapshot,
-        lifecycles=tuple(_LIFECYCLE.validate_python(r["lifecycle"]) for r in rows),
+        lifecycles=tuple(_lifecycle_adapter().validate_python(r["lifecycle"]) for r in rows),
         issue_scopes=tuple(
             (r["lifecycle"]["issue_id"], decode_status_scope(r["scope"]))
             for r in rows

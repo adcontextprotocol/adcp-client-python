@@ -13,6 +13,8 @@ extend it over the cases where a naive Python implementation silently diverges.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import pytest
 
 from adcp.reporting.canonical_json import (
@@ -151,3 +153,71 @@ def test_lone_surrogates_are_escaped_not_emitted() -> None:
     # A raw lone surrogate cannot be UTF-8 encoded at all, so the only
     # byte-stable answer is the ES2019 well-formed ``JSON.stringify`` escape.
     assert canonical_json_utf8_v1({"k": "\ud800"}) == b'{"k":"\\ud800"}'
+
+
+@pytest.mark.parametrize(
+    ("text", "encoded"),
+    [
+        ("\ud7ff", b'"\xed\x9f\xbf"'),
+        ("\ud800", b'"\\ud800"'),
+        ("\udbff", b'"\\udbff"'),
+        ("\udc00", b'"\\udc00"'),
+        ("\udfff", b'"\\udfff"'),
+        ("\ue000", b'"\xee\x80\x80"'),
+        ("\ud800\udc00", b'"\\ud800\\udc00"'),
+        ("\udbff\udfff", b'"\\udbff\\udfff"'),
+        ("\udc00\ud800", b'"\\udc00\\ud800"'),
+        ("\U00010000\U0010ffff", b'"\xf0\x90\x80\x80\xf4\x8f\xbf\xbf"'),
+        ("\ud800\n\u00e9\udfff", b'"\\ud800\\n\xc3\xa9\\udfff"'),
+    ],
+)
+def test_surrogate_boundary_bytes_in_values_and_keys(text: str, encoded: bytes) -> None:
+    assert canonical_json_utf8_v1(text) == encoded
+    assert canonical_json_utf8_v1({text: text}) == b"{" + encoded + b":" + encoded + b"}"
+
+
+def test_surrogate_keys_retain_utf16_order_and_explicit_pair_bytes() -> None:
+    entries = [("\ue000", 5), ("\udfff", 4), ("\ud800\udc00", 2), ("\ud800", 1), ("\udc00", 3)]
+    assert canonical_json_utf8_v1(dict(entries)) == (
+        b'{"\\ud800":1,"\\ud800\\udc00":2,"\\udc00":3,"\\udfff":4,"\xee\x80\x80":5}'
+    )
+
+
+@pytest.mark.parametrize("as_key", [False, True])
+def test_string_subclass_uses_its_iterator_for_surrogate_detection(as_key: bool) -> None:
+    iterations: list[str] = []
+
+    class IteratedString(str):
+        def __iter__(self) -> Iterator[str]:
+            iterations.append("iterated")
+            return iter("\ud800")
+
+    text = IteratedString("ordinary")
+    value = {text: 1} if as_key else text
+    assert canonical_json_utf8_v1(value) == (b'{"ordinary":1}' if as_key else b'"ordinary"')
+    assert iterations == ["iterated"]
+
+
+@pytest.mark.parametrize("as_key", [False, True])
+def test_string_subclass_iterator_error_is_preserved(as_key: bool) -> None:
+    error = RuntimeError("iterator failed")
+
+    class FailingString(str):
+        def __iter__(self) -> Iterator[str]:
+            raise error
+
+    text = FailingString("ordinary")
+    with pytest.raises(RuntimeError) as caught:
+        canonical_json_utf8_v1({text: 1} if as_key else text)
+    assert caught.value is error
+
+
+@pytest.mark.parametrize("as_key", [False, True])
+def test_string_subclass_empty_iterator_retains_utf8_error(as_key: bool) -> None:
+    class EmptyIteratorString(str):
+        def __iter__(self) -> Iterator[str]:
+            return iter(())
+
+    text = EmptyIteratorString("\ud800")
+    with pytest.raises(UnicodeEncodeError, match="surrogates not allowed"):
+        canonical_json_utf8_v1({text: 1} if as_key else text)

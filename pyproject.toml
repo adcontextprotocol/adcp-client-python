@@ -125,6 +125,7 @@ dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.0.0",
+    "freezegun==1.5.5",  # isolated deferred-schema compatibility regressions
     "mypy==1.20.2",
     "pyright==1.1.414",  # real imported-base adopter regressions
     "black>=23.0.0",
@@ -193,6 +194,7 @@ adcp = [
     "types/*.pyi",
     "types/versioned_bases/*.pyi",
     "ADCP_VERSION",
+    "notification_outbox.sql",
     "signing/pg/*.sql",
     "decisioning/pg/*.sql",
     "reporting/ledger/*.sql",

@@ -18,6 +18,7 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.decisioning.types import AdcpError
 from adcp.negotiation import (
     NegotiationVerificationIssue,
@@ -27,8 +28,15 @@ from adcp.negotiation import (
 )
 from adcp.types import RefineProposalsRequest, RefineProposalsResponse
 
-_REFINE_REQUEST_ADAPTER: TypeAdapter[Any] = TypeAdapter(RefineProposalsRequest)
-_REFINE_RESPONSE_ADAPTER: TypeAdapter[Any] = TypeAdapter(RefineProposalsResponse)
+
+@deferred_adapter
+def _refine_request_adapter() -> TypeAdapter[RefineProposalsRequest]:
+    return TypeAdapter(RefineProposalsRequest)
+
+
+@deferred_adapter
+def _refine_response_adapter() -> TypeAdapter[RefineProposalsResponse]:
+    return TypeAdapter(RefineProposalsResponse)
 
 
 class RefinementProcessor(Protocol):
@@ -143,7 +151,7 @@ def preflight_refinement_batch_or_raise(
 
     wire_request = _wire_request_mapping(request)
     try:
-        _REFINE_REQUEST_ADAPTER.validate_python(wire_request)
+        _refine_request_adapter().validate_python(wire_request)
     except ValidationError as exc:
         raise AdcpError(
             "VALIDATION_ERROR",
@@ -222,7 +230,7 @@ def validate_refinement_response_or_raise(
 
     wire_response = _wire_mapping(response)
     try:
-        _REFINE_RESPONSE_ADAPTER.validate_python(wire_response)
+        _refine_response_adapter().validate_python(wire_response)
     except ValidationError as exc:
         raise AdcpError(
             "INTERNAL_ERROR",
