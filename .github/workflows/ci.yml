@@ -1206,6 +1206,21 @@ jobs:
         run: |
           uv pip install --system -e ".[dev]"
 
+      # Blocking. Grades the COMMITTED generated tree against a regeneration
+      # from the COMMITTED schemas, so it runs before the sync steps below
+      # replace `schemas/cache/`. A hand edit to `src/adcp/types/generated_poc/**`,
+      # `_generated.py` or `_ergonomic.py` fails here; without this step the
+      # "Generate models" step overwrites the edit before anything inspects it.
+      # `generate_types.py --check` stages the regeneration in a temp tree and
+      # leaves the checkout alone. It also grades every post-generation fix
+      # against `scripts/post_generation_manifest.json`.
+      #
+      # `make validate-generated` is the same set of checks contributors run in
+      # `make pre-push` and `make ci-local`; until now no CI job ran any of
+      # them, including the versioned-stub check.
+      - name: Validate committed generated code
+        run: make validate-generated
+
       - name: Check ADCP version
         id: version-check
         run: |
@@ -1264,34 +1279,38 @@ jobs:
       - name: Check for schema drift
         if: steps.version-check.outputs.is_prerelease != 'true'
         run: |
-          # datamodel-codegen's numbered-variant class names
-          # (Pass1/Pass4, Status16/Status17, StatusFilter1/StatusFilter4,
-          # Type80, etc.) shift between regens because the generator
-          # walks the schema graph in filesystem-iteration order and
-          # APFS (macOS) vs. ext4 (Linux CI) sort differently. The
-          # numbers are an implementation detail; semantic aliases in
-          # ``src/adcp/types/aliases.py`` pin the names downstream
-          # actually uses.
+          # This step compares the committed tree against a regeneration from
+          # schemas freshly synced from upstream, so a diff here reports
+          # UPSTREAM movement, not a stale commit. Staleness is graded by the
+          # blocking "Validate committed generated code" step above, which runs
+          # before the sync.
           #
-          # The real drift guarantees we need are enforced elsewhere:
-          #   * ``tests/test_schemas_version_pin.py`` — ADCP_VERSION
-          #     matches ``schemas/cache/index.json.adcp_version`` on
-          #     every test run.
-          #   * This job's "Validate generated code syntax/imports"
-          #     steps above — the regenerated code compiles and imports.
-          #   * ``tests/test_asset_aliases_stable.py`` — the semantic
-          #     aliases still point at valid classes.
+          # Advisory, for two reasons:
+          #   * upstream publishing a schema would otherwise turn every
+          #     unrelated PR red;
+          #   * datamodel-code-generator walks its input as
+          #     ``sorted(path.rglob("*"), key=lambda p: p.name)``. Every pair
+          #     of same-basename inputs ties (316 of 1169 inputs share a
+          #     basename) and resolves in readdir order, which differs between
+          #     APFS and ext4. Flipping every tie renumbers anonymous variant
+          #     classes (Result9 -> Result13) in protocol/get_principal_response,
+          #     protocol/sync_principal_response, both
+          #     get_adcp_capabilities_response modules and _generated.py — 5
+          #     files, measured. The semantic aliases in
+          #     ``src/adcp/types/aliases.py`` re-point correctly, so the names
+          #     adopters import are stable across the flip.
           #
-          # We keep this step as a "regen runs without error on stable
-          # tags" smoke — but don't fail on line-level diff, because
-          # the non-determinism produces false positives that block
-          # release PRs for cosmetic churn.
+          # The blocking step above shares that exposure: it is sound as long as
+          # the generator's input order is total. Feeding the generator an
+          # explicit file list, or sorting its walk by full path rather than
+          # basename, closes it.
           if git diff --quiet src/adcp/types/_generated.py schemas/cache/; then
             echo "✓ Schemas are up-to-date (no diff)"
           else
-            echo "ℹ Regen produced cosmetic diff — see aliases.py for stable names"
-            echo "  Numbered-variant class-name churn is expected; the semantic"
-            echo "  alias tests and drift-version-pin test guard the real surface."
+            echo "ℹ Upstream schemas have moved since the last sync, or the"
+            echo "  anonymous variant numbering shifted with the filesystem."
+            echo "  Run: make regenerate-schemas — then commit the result."
+            git diff --stat src/adcp/types/_generated.py schemas/cache/
           fi
 
   storyboard:

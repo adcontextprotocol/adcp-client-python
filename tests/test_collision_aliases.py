@@ -1,10 +1,10 @@
 """Tests for cross-module name collision aliases (#911, Step 2).
 
-Several bare type names are defined in more than one generated_poc module
-(snapshotted in scripts/collision_allowlist.json). When adopters write
-``from adcp.types import Creative`` they silently get whichever module wins
-the consolidate sort order. aliases.py provides ``<Context><BaseName>`` aliases
-so each per-module variant can be imported unambiguously.
+Several bare type names are defined in more than one generated_poc module.
+When adopters write ``from adcp.types import Creative`` they silently get
+whichever module wins the consolidate sort order. ``adcp.types.disambiguated``
+carries every variant under a module-derived qualified name; aliases.py gives
+the high-traffic ones a semantic ``<Context><BaseName>`` name as well.
 
 These tests assert that each alias resolves to the class defined in its named
 source module (by ``__module__``), NOT to the first-sorted winner, so that a

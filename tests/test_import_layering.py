@@ -17,8 +17,19 @@ This test enforces a **frozen baseline**: existing violations are listed in
 *new* file or *new* import that bypasses the public surface fails the test.
 
 To shrink the baseline:
-- Re-route the import through ``adcp.types`` or ``adcp``; if the symbol
-  isn't exported there, add it to ``aliases.py`` and ``__init__.py``.
+- Re-route the import through a public namespace. Only ``adcp.types._generated``
+  and ``adcp.types.generated_poc`` are forbidden; ``adcp``, ``adcp.types``,
+  ``adcp.types.domains.<domain>[.<schema>]``, ``adcp.types.legacy``,
+  ``adcp.types.aliases``, ``adcp.types.error_details`` and
+  ``adcp.types.capabilities`` are public and all pass.
+- Which one depends on WHY the import is deep, and the two answers differ. If
+  the name is merely absent from the public surface, the surface is incomplete:
+  every generated type is exported from the module for the schema that declares
+  it, so ``adcp.types.domains...`` serves it. If the name is QUARANTINED — the
+  legacy v1 ``format_id`` world is reachable only under explicitly named
+  ``Legacy*`` paths, which ``tests/test_canonical_creatives_rc3.py`` asserts —
+  then ``adcp.types.legacy`` is the door, and adding the name to the root
+  surface is the wrong fix.
 - Then remove the file from ``_KNOWN_VIOLATIONS``.
 """
 
@@ -48,6 +59,15 @@ ALLOWED_FILES = {
     # Same architectural role as ``aliases.py`` (re-exports + renames),
     # so the same direct ``generated_poc`` import access applies.
     SRC_ROOT / "types" / "capabilities.py",
+    # ``error_details.py`` and every module under ``domains/`` are generated
+    # re-export layers written by ``scripts/consolidate_exports.py`` alongside
+    # ``_generated.py``: one carries the error-details models with the field
+    # types they reference, the others re-export each schema domain faithfully
+    # so a type name several domains declare is unambiguous by module path.
+    # Same architectural role as ``_generated.py``, so the same direct
+    # generated-layer access applies.
+    SRC_ROOT / "types" / "error_details.py",
+    *(SRC_ROOT / "types" / "domains").rglob("*.py"),
     # ``_forward_compat.py`` patches Format.assets and Assets94.assets at
     # import time with open union types (issue #742). It must import the
     # generated classes in-place to call model_rebuild() on them, giving it

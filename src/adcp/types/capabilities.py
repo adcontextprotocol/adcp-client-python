@@ -10,9 +10,11 @@ already exist in
 but three of them (``Account``, ``MediaBuy``, ``Creative``) collide on
 name with unrelated wire types already exported from :mod:`adcp.types`.
 
-This module sits in the import-architecture whitelist (alongside
-``aliases.py``, ``_ergonomic.py``, ``_forward_compat.py``,
-``_generated.py``) for direct ``generated_poc`` imports. It pulls the capabilities sub-models out
+This module sits in the import-architecture whitelist for direct
+``generated_poc`` imports, alongside the other re-export layers
+(``aliases.py``, ``_ergonomic.py``, ``_forward_compat.py``, ``_generated.py``,
+``error_details.py`` and the ``domains/`` modules); see
+``ALLOWED_FILES`` in ``tests/test_import_layering.py`` for the current set. It pulls the capabilities sub-models out
 under disambiguated names, so the colliding three don't shadow the
 wire types when re-exported from :mod:`adcp.types`. Adopters never
 import from this module directly — :mod:`adcp.decisioning.capabilities`

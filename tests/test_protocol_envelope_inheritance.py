@@ -25,6 +25,7 @@ from adcp.types import ProtocolEnvelope, canonical_creative
 from adcp.types import aliases as aliases_module
 from adcp.types.generated_poc.enums.task_status import TaskStatus
 from adcp.validation.version import resolve_bundle_key
+from tests import canonical_stub_gap
 
 _ENVELOPE_FIELDS = frozenset(ProtocolEnvelope.model_fields)
 
@@ -323,3 +324,43 @@ def test_canonical_response_stub_status_matches_runtime() -> None:
         assert stub_annotation == _stub_status_annotation(runtime.annotation), name
         # The stub marks the field defaulted (``= ...``); the runtime agrees.
         assert not runtime.is_required(), name
+
+
+def test_canonical_stub_declares_every_runtime_field() -> None:
+    """``canonical_creative.pyi`` must not fall behind the models it types.
+
+    The models are built with ``create_model``, so the stub is the only thing a
+    type checker reads. A field the stub omits does not exist to mypy: the
+    synthesized ``__init__`` rejects it as an unexpected keyword argument and
+    reading it is an attribute error, both on fields that are required at
+    runtime. The stub currently omits several hundred, ledgered per class in
+    ``canonical_stub_field_gap.json``; the ledger may only shrink, so a schema
+    bump that adds a field the stub does not declare fails here instead of
+    reaching adopters.
+    """
+    recorded: dict[str, list[str]] = json.loads(
+        canonical_stub_gap.LEDGER_FILE.read_text(encoding="utf-8")
+    )["gap"]
+    measured = canonical_stub_gap.stub_field_gap()
+
+    grown = {
+        name: sorted(set(fields) - set(recorded.get(name, ())))
+        for name, fields in measured.items()
+        if set(fields) - set(recorded.get(name, ()))
+    }
+    assert not grown, (
+        "canonical_creative.pyi does not declare these runtime fields, and the "
+        f"ledger does not record them: {grown}. Declare them in the stub. If a "
+        "field genuinely left the stub, run "
+        "`python scripts/update_canonical_stub_ledger.py` — it refuses to record a loss."
+    )
+
+    closed = {
+        name: sorted(set(fields) - set(measured.get(name, ())))
+        for name, fields in recorded.items()
+        if set(fields) - set(measured.get(name, ()))
+    }
+    assert not closed, (
+        f"The stub now declares these ledgered fields: {closed}. "
+        "Run `python scripts/update_canonical_stub_ledger.py` to shrink the ledger."
+    )

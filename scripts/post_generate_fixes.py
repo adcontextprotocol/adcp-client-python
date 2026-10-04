@@ -3,27 +3,31 @@
 """
 Post-generation fixes for generated Pydantic models.
 
-This script applies necessary modifications to generated files that cannot be
-handled by datamodel-code-generator directly:
+This script applies modifications to generated files that cannot be handled by
+datamodel-code-generator directly: StrEnum rewrites, model validators for
+mutual-exclusivity checks, self-referential RootModel annotations, forward
+references, schema-declared ``deprecated=True`` metadata, RootModel union
+unwrapping (#155), and widening ``canceled: Literal[True]`` on request types
+(#641), among others. ``main`` holds the authoritative list.
 
-1. Rewrites generated string enums to StrEnum
-2. Adds model_validators to types requiring mutual exclusivity checks
-3. Fixes self-referential RootModel type annotations
-4. Fixes BrandManifest forward references
-5. Adds deprecated=True to fields marked deprecated in JSON schema
-6. Unwraps specified RootModel unions to plain Union type aliases (#155)
-7. Widens canceled: Literal[True] = True on request types to | None = None (#641)
-8. Removes phantom optional boolean const defaults (#1347)
-9. Rewrites scalar RootModel roots to str/int/float subclasses (#1277)
+Each fix locates something in the generated tree and rewrites it. A schema bump
+that renames the module, class or field a fix looks for leaves the fix with
+nothing to match, and the fix returns without touching a file. The effect
+manifest (``scripts/post_generation_manifest.json``) is what makes that loud:
+it records which fixes change the generated tree, this script measures what
+each fix actually changed, and a fix the manifest records as firing that now
+changes nothing fails the run.
 """
 
 from __future__ import annotations
 
 import argparse
 import ast
+import hashlib
 import importlib.util
 import json
 import re
+import sys
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from pathlib import Path
@@ -6878,6 +6882,117 @@ def enforce_change_term_runtime_constraints() -> None:
             print("  media_buy/commercial_terms.py: restored change-term set invariants")
 
 
+MANIFEST_FILE = REPO_ROOT / "scripts" / "post_generation_manifest.json"
+
+# Attribution is per file: a fix that rewrites one file and carries a second,
+# now-stale locator for another edit in the *same* file still reports a hit.
+# Per-site attribution needs a located-rewrite primitive the fixes do not share
+# yet; until then the manifest grades each fix at file granularity.
+_MANIFEST_HEADER = (
+    "Effect manifest for scripts/post_generate_fixes.py. ``true`` records a fix "
+    "that changes the generated tree; a string records a fix that changes "
+    "nothing on the pinned schema set, and states why. Regenerate with "
+    "`python scripts/post_generate_fixes.py --update-manifest`."
+)
+
+
+def _tree_digest(root: Path) -> dict[str, str]:
+    """Content hash per generated module, keyed by path relative to ``root``."""
+    return {
+        path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in root.rglob("*.py")
+    }
+
+
+def _digest_delta(before: dict[str, str], after: dict[str, str]) -> list[str]:
+    """Generated modules whose content differs between two tree digests."""
+    return sorted(key for key in before.keys() | after.keys() if before.get(key) != after.get(key))
+
+
+def _load_manifest() -> dict[str, bool | str]:
+    if not MANIFEST_FILE.exists():
+        return {}
+    return json.loads(MANIFEST_FILE.read_text(encoding="utf-8"))["fixes"]
+
+
+def _report(title: str, names: list[str], advice: str) -> None:
+    print(f"\n✗ {title}:", file=sys.stderr)
+    for name in names:
+        print(f"    {name}", file=sys.stderr)
+    print(f"  {advice}", file=sys.stderr)
+
+
+def _check_manifest(observed: dict[str, list[str]], manifest: dict[str, bool | str]) -> int:
+    """Fail when a fix's effect disagrees with the manifest."""
+    dead = [
+        name for name, changed in observed.items() if not changed and manifest.get(name) is True
+    ]
+    revived = [
+        name
+        for name, changed in observed.items()
+        if changed and isinstance(manifest.get(name), str)
+    ]
+    undeclared = [name for name in observed if name not in manifest]
+    removed = sorted(set(manifest) - set(observed))
+
+    if dead:
+        _report(
+            f"{len(dead)} fix(es) the manifest records as firing changed nothing",
+            dead,
+            "The target moved or no longer exists. Repair the fix, or declare the "
+            "silence with a reason in " + MANIFEST_FILE.name + ".",
+        )
+    if revived:
+        _report(
+            f"{len(revived)} fix(es) declared silent changed the generated tree",
+            revived,
+            "The declared reason no longer holds. Run --update-manifest.",
+        )
+    if undeclared:
+        _report(
+            f"{len(undeclared)} fix(es) missing from the manifest",
+            undeclared,
+            "Run --update-manifest, then state a reason for any fix that changes nothing.",
+        )
+    if removed:
+        _report(
+            f"{len(removed)} manifest entry(ies) name a fix that no longer runs",
+            removed,
+            "Run --update-manifest.",
+        )
+    if dead or revived or undeclared or removed:
+        return 1
+    print(f"✓ Effect manifest holds for {len(observed)} fixes")
+    return 0
+
+
+def _write_manifest(observed: dict[str, list[str]], previous: dict[str, bool | str]) -> int:
+    """Record each fix's measured effect, preserving declared silences."""
+    fixes: dict[str, bool | str] = {}
+    undeclared: list[str] = []
+    for name, changed in observed.items():
+        reason = previous.get(name)
+        if changed:
+            fixes[name] = True
+        elif isinstance(reason, str):
+            fixes[name] = reason
+        else:
+            undeclared.append(name)
+    MANIFEST_FILE.write_text(
+        json.dumps({"_comment": _MANIFEST_HEADER, "fixes": fixes}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    firing = sum(1 for value in fixes.values() if value is True)
+    print(f"\nWrote {MANIFEST_FILE.name}: {firing} firing, {len(fixes) - firing} declared silent")
+    if undeclared:
+        _report(
+            f"{len(undeclared)} fix(es) changed nothing and have no declared reason",
+            undeclared,
+            f"Add each to {MANIFEST_FILE.name} with the reason it changes nothing, "
+            "or repair the fix. A silent fix is not recorded for you.",
+        )
+        return 1
+    return 0
 _REQUIRED_GROUP_VALIDATOR = "_require_schema_required_group"
 
 # Bases that declare no schema fields of their own. Any other base the
@@ -7165,11 +7280,16 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=OUTPUT_DIR,
         help="generated_poc tree to modify",
     )
+    parser.add_argument(
+        "--update-manifest",
+        action="store_true",
+        help="record each fix's measured effect in the effect manifest",
+    )
     return parser.parse_args(argv)
 
 
-def main(argv: list[str] | None = None):
-    """Apply all post-generation fixes."""
+def main(argv: list[str] | None = None) -> int:
+    """Apply all post-generation fixes and grade them against the effect manifest."""
     global OUTPUT_DIR
 
     args = _parse_args(argv)
@@ -7251,12 +7371,22 @@ def main(argv: list[str] | None = None):
         remove_unused_pydantic_field_imports,
         strip_extra_blank_lines_at_eof,
     ]
+    observed: dict[str, list[str]] = {}
+    digest = _tree_digest(OUTPUT_DIR)
     for fix in fixes:
         print(f"Running {fix.__name__}...", flush=True)
         fix()
+        after = _tree_digest(OUTPUT_DIR)
+        changed = _digest_delta(digest, after)
+        digest = after
+        observed[fix.__name__] = changed
+        print(f"  {len(changed)} file(s) changed" if changed else "  no change")
 
     print("\n✓ Post-generation fixes complete\n")
+    if args.update_manifest:
+        return _write_manifest(observed, _load_manifest())
+    return _check_manifest(observed, _load_manifest())
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

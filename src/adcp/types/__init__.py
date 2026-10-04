@@ -110,6 +110,13 @@ __all__ = [
     "BudgetTooLowDetails",
     "ConflictDetails",
     "CreativeRejectedDetails",
+    "CreativeRepresentationUnresolvedDetails",
+    "CreativeRevisionContentMismatchDetails",
+    "ExecutionRequirementUnmetDetails",
+    "GovernanceAgentNotAcceptedDetails",
+    "MacroResolutionFailedDetails",
+    "RequoteRequiredDetails",
+    "VastVersionMismatchDetails",
     "PolicyViolationDetails",
     "RateLimitedDetails",
     "StaleResponseDetails",
@@ -176,6 +183,7 @@ __all__ = [
     "ActivateSignalResponse",
     "ActivateSignalResponse1",
     "AdcpProtocol",
+    "AdcpVersionEnvelope",
     "AuthorizationRequiredDetails",
     "CreativeAction",
     "AggregatedTotals",
@@ -438,6 +446,7 @@ __all__ = [
     "DoohMetrics",
     "Error",
     "ErrorCode",
+    "Issue",
     "EventType",
     "ExtensionObject",
     "FeedFormat",
@@ -1182,7 +1191,11 @@ if TYPE_CHECKING:
     # submodules resolve as real submodules; the two dead back-compat
     # ``__all__`` entries are intentionally unbound.
     from adcp.types import _generated as generated  # noqa: F401
-    from adcp.types import aliases  # noqa: F401
+    from adcp.types import (
+        aliases,  # noqa: F401
+        domains,  # noqa: F401
+        error_details,  # noqa: F401
+    )
     from adcp.types._eager import (
         MEDIA_BUY_LEGACY_STATUS_VALUES as MEDIA_BUY_LEGACY_STATUS_VALUES,
     )
@@ -1228,6 +1241,7 @@ if TYPE_CHECKING:
         ActivateSignalResponse1,
         ActivateSignalSuccessResponse,
         AdcpProtocol,
+        AdcpVersionEnvelope,
         AdvertiserIndustry,
         AgentConfig,
         AgentDeclarations,
@@ -1403,6 +1417,8 @@ if TYPE_CHECKING:
         CreativeManifest,
         CreativePolicy,
         CreativeRejectedDetails,
+        CreativeRepresentationUnresolvedDetails,
+        CreativeRevisionContentMismatchDetails,
         CreativeStatus,
         CreativeVariant,
         CreditLimit,
@@ -1450,6 +1466,7 @@ if TYPE_CHECKING:
         Error,
         ErrorCode,
         EventType,
+        ExecutionRequirementUnmetDetails,
         ExtensionObject,
         FeedbackSource,
         FeedFormat,
@@ -1551,6 +1568,7 @@ if TYPE_CHECKING:
         GetTaskStatusRequest,
         GetTaskStatusResponse,
         GovernanceAgent,
+        GovernanceAgentNotAcceptedDetails,
         GovernanceAuthentication,
         GroupFormatAssetUnion,
         Gtin,
@@ -1570,6 +1588,7 @@ if TYPE_CHECKING:
         InlineDaastAsset,
         InlineVastAsset,
         Input,
+        Issue,
         JavascriptContent,
         JavascriptFormatAsset,
         JavascriptFormatGroupAsset,
@@ -1658,6 +1677,7 @@ if TYPE_CHECKING:
         LogEventResponse1,
         LogEventSuccessResponse,
         Logo,
+        MacroResolutionFailedDetails,
         MarkdownAsset,
         MarkdownFlavor,
         MarkdownFormatAsset,
@@ -1876,6 +1896,7 @@ if TYPE_CHECKING:
         RequestProposalsRequest,
         RequestProposalsResponse,
         RequestSigningRequiredForItem,
+        RequoteRequiredDetails,
         ResolvedBrand,
         ResolvedProperty,
         Response,
@@ -2054,6 +2075,7 @@ if TYPE_CHECKING:
         VastTrackerAsset,
         VastTrackingEvent,
         VastVersion,
+        VastVersionMismatchDetails,
         VcpmAuctionPricingOption,
         VcpmFixedRatePricingOption,
         VcpmPricingOption,

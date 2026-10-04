@@ -2801,3 +2801,50 @@ def test_root_required_group_asks_whether_the_caller_supplied_the_field(tmp_path
     # `replayed` carries a default the caller never sent, so its group is unsatisfied.
     with pytest.raises(ValidationError, match="at least one of these field groups"):
         model.model_validate({})
+
+
+def test_codegen_input_order_is_total(tmp_path, monkeypatch):
+    """Same-basename inputs resolve by full path, whatever order the filesystem yields.
+
+    datamodel-code-generator sorts a directory input by basename alone, so two
+    schemas with the same filename in different directories tie and resolve in
+    ``readdir`` order — APFS and ext4 disagree, and the anonymous variant
+    numbering shifts with them. ``scripts/run_datamodel_codegen.py`` patches
+    ``Path.rglob`` to yield a full-path order underneath that sort.
+    """
+    import pathlib
+    import random
+
+    from scripts import run_datamodel_codegen
+
+    for directory in ("creative", "media_buy", "signals", "bundled/creative"):
+        (tmp_path / directory).mkdir(parents=True)
+        (tmp_path / directory / "list-request.json").write_text("{}")
+        (tmp_path / directory / f"{directory.split('/')[-1]}-only.json").write_text("{}")
+
+    expected = sorted(pathlib.Path.rglob(tmp_path, "*"), key=lambda p: ("bundled" in p.parts, p))
+    orders: list[list[pathlib.Path]] = []
+    for seed in range(5):
+        shuffled = list(expected)
+        random.Random(seed).shuffle(shuffled)
+        monkeypatch.setattr(
+            run_datamodel_codegen, "_original_rglob", lambda self, pattern, _s=shuffled: iter(_s)
+        )
+        walked = list(run_datamodel_codegen._sorted_rglob(tmp_path, "*"))
+        assert walked == expected
+        # What the generator does with the walk: a stable sort on the basename.
+        orders.append(sorted((p for p in walked if p.is_file()), key=lambda p: p.name))
+    assert all(order == orders[0] for order in orders)
+    assert [p.name for p in orders[0]][:3] == [
+        "creative-only.json",
+        "creative-only.json",
+        "list-request.json",
+    ]
+    # The bundled mirror ties with the top-level copy and sorts after it, which
+    # is the order the committed numbering was generated in.
+    assert [str(p.relative_to(tmp_path)) for p in orders[0] if p.name == "list-request.json"] == [
+        "creative/list-request.json",
+        "media_buy/list-request.json",
+        "signals/list-request.json",
+        "bundled/creative/list-request.json",
+    ]

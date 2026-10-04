@@ -55,6 +55,7 @@ SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY
 OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 TEMP_DIR = REPO_ROOT / ".schema_temp"
 DELTAS_FILE = REPO_ROOT / "SCHEMA_DELTAS.md"
+SHARED_TYPE_NAMES_FILE = REPO_ROOT / "docs" / "shared-type-names.md"
 
 # Bundled schemas are self-contained: each message schema inlines its entire
 # ``$ref`` graph, so every bundled module re-emits its own copy of the shared
@@ -836,8 +837,10 @@ def _run_datamodel_codegen(input_path: Path, output_path: Path) -> subprocess.Co
     """
     args = [
         sys.executable,  # Use same Python as running this script
-        "-m",
-        "datamodel_code_generator",
+        # The wrapper gives the generator a total input order: its own walk
+        # sorts by basename alone, and same-basename inputs tie in filesystem
+        # order, which renumbers anonymous variant classes between machines.
+        str(REPO_ROOT / "scripts" / "run_datamodel_codegen.py"),
         "--input",
         str(input_path),
         "--input-file-type",
@@ -1062,13 +1065,20 @@ def prune_unused_bundled_modules(output_dir: Path = OUTPUT_DIR):
     print(f"  ✓ Removed {removed} unused bundled module(s)\n")
 
 
-def apply_post_generation_fixes(output_dir: Path = OUTPUT_DIR):
-    """Apply post-generation fixes using the dedicated script."""
+def apply_post_generation_fixes(output_dir: Path = OUTPUT_DIR, update_manifest: bool = False):
+    """Apply post-generation fixes using the dedicated script.
+
+    The fixes grade themselves against ``scripts/post_generation_manifest.json``
+    and exit non-zero when a fix the manifest records as firing changes nothing,
+    which fails this pipeline. ``update_manifest`` re-measures the manifest from
+    the freshly generated tree — the only tree the fixes have not run on yet.
+    """
     print("Running post-generation fixes...")
 
     post_fix_script = REPO_ROOT / "scripts" / "post_generate_fixes.py"
     result = subprocess.run(
-        [sys.executable, str(post_fix_script), "--output-dir", str(output_dir)],
+        [sys.executable, str(post_fix_script), "--output-dir", str(output_dir)]
+        + (["--update-manifest"] if update_manifest else []),
         capture_output=True,
         text=True,
     )
@@ -1090,6 +1100,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--check",
         action="store_true",
         help="report generated drift without modifying the checkout",
+    )
+    parser.add_argument(
+        "--update-fix-manifest",
+        action="store_true",
+        help="re-measure scripts/post_generation_manifest.json from this regeneration",
     )
     return parser.parse_args(argv)
 
@@ -1209,7 +1224,7 @@ def main(argv: list[str] | None = None):
                 return 1
 
             fix_forward_references(staged_output)
-            if not apply_post_generation_fixes(staged_output):
+            if not apply_post_generation_fixes(staged_output, args.update_fix_manifest):
                 return 1
             prune_unused_bundled_modules(staged_output)
             restore_unchanged_files(staged_output)
@@ -1218,6 +1233,9 @@ def main(argv: list[str] | None = None):
             staged_types = staged_source / "adcp" / "types"
             staged_consolidated = staged_types / "_generated.py"
             staged_ergonomic = staged_types / "_ergonomic.py"
+            staged_domains = staged_types / "domains"
+            staged_error_details = staged_types / "error_details.py"
+            staged_report = staging_root / "shared-type-names.md"
 
             consolidate_script = REPO_ROOT / "scripts" / "consolidate_exports.py"
             result = subprocess.run(
@@ -1228,6 +1246,10 @@ def main(argv: list[str] | None = None):
                     str(staged_output),
                     "--output-file",
                     str(staged_consolidated),
+                    "--source-root",
+                    str(staged_source),
+                    "--report-file",
+                    str(staged_report),
                 ],
                 capture_output=True,
                 text=True,
@@ -1265,11 +1287,17 @@ def main(argv: list[str] | None = None):
             current_types = REPO_ROOT / "src" / "adcp" / "types"
             restore_unchanged_file(staged_consolidated, current_types / "_generated.py")
             restore_unchanged_file(staged_ergonomic, current_types / "_ergonomic.py")
+            restore_unchanged_file(staged_error_details, current_types / "error_details.py")
+            restore_unchanged_file(staged_report, SHARED_TYPE_NAMES_FILE)
+            restore_unchanged_files(staged_domains, current_types / "domains")
 
             artifacts = [
                 (staged_output, OUTPUT_DIR),
                 (staged_consolidated, current_types / "_generated.py"),
                 (staged_ergonomic, current_types / "_ergonomic.py"),
+                (staged_domains, current_types / "domains"),
+                (staged_error_details, current_types / "error_details.py"),
+                (staged_report, SHARED_TYPE_NAMES_FILE),
             ]
             changed = [
                 target for candidate, target in artifacts if not _paths_equal(candidate, target)
