@@ -27,15 +27,18 @@ classifiers = [
 ]
 
 dependencies = [
-    "httpx>=0.24.0,<1.0",
+    # Floor is the lowest release the dependency set can install: a2a-sdk 1.0.1
+    # requires httpx>=0.28.1.
+    "httpx>=0.28.1,<1.0",
     # httpcore is a transitive dep of httpx, but we import from it
     # directly (``adcp.signing.ip_pinned_transport`` subclasses
     # ``SyncBackend`` / ``AnyIOBackend`` from ``httpcore._backends.*``).
     # Pin the major so a breaking upgrade fails at install rather than
     # at runtime. The contract test in
     # ``tests/conformance/signing/test_ip_pinned_transport_contract.py``
-    # guards the specific API shapes we rely on.
-    "httpcore>=1.0,<2.0",
+    # guards the specific API shapes we rely on. Floor at 1.0.9: earlier 1.0.x
+    # releases require h11<0.15, and httpcore2 (below) requires h11>=0.16.
+    "httpcore>=1.0.9,<2.0",
     # The ``mcp`` floor below runs on httpx2, a separate distribution from
     # httpx, so every install already has both generations. The IP-pinned
     # transports ship for both (``adcp.signing.IpPinnedTransport2`` and its
@@ -55,7 +58,7 @@ dependencies = [
     # generated __pydantic_extra__ annotations (NameError: Dict). 2.13.0 is the first
     # supported release; the targeting import/runtime regressions cover it.
     "pydantic>=2.13.0,<3",
-    "typing-extensions>=4.5.0",
+    "typing-extensions>=4.14.1",  # pydantic 2.13.0 requires 4.14.1
     # A2A protocol v1.0 (protobuf types, ProtoJSON on the wire). We run
     # on the v1.0 Python SDK with ``enable_v0_3_compat=True`` on the
     # server-side JSON-RPC route factory, which dual-serves the AgentCard
@@ -66,19 +69,22 @@ dependencies = [
     # decorator (``@validate_proto_required_fields``) blows up with
     # ``'_upb._message.FieldDescriptor' object has no attribute 'label'``.
     # Lower bound: 1.0.1 reads ``field.is_repeated`` on the same descriptor,
-    # which protobuf 5.x doesn't expose — same decorator, mirror failure
-    # mode (``no attribute 'is_repeated'``). The protobuf floor below
-    # closes the 5.x cell so this pin is safe.
+    # which protobuf 5.x and 6.30.x don't expose — same decorator, mirror
+    # failure mode (``no attribute 'is_repeated'``). The protobuf floor below
+    # closes those cells so this pin is safe.
     "a2a-sdk>=1.0.1,<1.0.2",
     # Floor coupled to ``a2a-sdk`` above. a2a-sdk 1.0.1 reads
     # ``field.is_repeated`` on the upb FieldDescriptor inside
     # ``@validate_proto_required_fields`` — the attribute exists on the
-    # upb extension only from protobuf 6.x onward. With protobuf 5.x
-    # adopters land in a broken cell where every ``message/send`` raises
-    # ``AttributeError`` before any handler runs. Direct constraint here
-    # rather than relying on a2a-sdk's transitive pin (which is wider).
-    "protobuf>=6,<8",
-    "sse-starlette>=2.0",  # required by a2a-sdk v0.3 compat adapter
+    # upb extension only from protobuf 6.31.0 onward (6.30.x, the first 6.x
+    # releases, still lack it). Below that adopters land in a broken cell
+    # where every ``message/send`` raises ``AttributeError`` before any
+    # handler runs; ``tests/test_a2a_protobuf_compat.py`` fails there. Direct
+    # constraint here rather than relying on a2a-sdk's transitive pin
+    # (which is wider).
+    "protobuf>=6.31.0,<8",
+    # Required by the a2a-sdk v0.3 compat adapter; mcp 2.0.0 requires >=3.0.0.
+    "sse-starlette>=3.0.0",
     # MCP Python SDK v2 is the stable line for the 2026-07-28 MCP spec.
     # The ADCP integration uses the v2 ``MCPServer`` API and the
     # streamable-HTTP session manager's explicit configuration arguments.
@@ -92,8 +98,8 @@ dependencies = [
     # JSON Schema validation — backs adcp.validation.schema_validator for
     # pre-send request / post-receive response drift detection against the
     # bundled AdCP schemas. Pin to the Draft 7 generation the schemas
-    # declare via ``$schema``.
-    "jsonschema>=4.0.0",
+    # declare via ``$schema``. Floor at 4.20.0 because mcp 2.0.0 requires it.
+    "jsonschema>=4.20.0",
     # Public Suffix List lookups — used by ``adcp.signing.etld`` to compute
     # the eTLD+1 (registrable domain) for the brand-authorization binding
     # mandated by ADCP request-signing spec (#3690). We pin a recent floor
@@ -117,9 +123,10 @@ dependencies = [
     # CVE-2024-3651 — a quadratic-complexity DoS in ``idna.encode()``,
     # which this package calls on attacker-influenceable hosts (JWKS
     # URI authority, redirect targets, revocation-issuer canonicalization,
-    # key_origins consistency check). Upper bound at <4 because IDNA
+    # key_origins consistency check). The installable floor is higher:
+    # httpx2 2.5.0 requires idna>=3.18. Upper bound at <4 because IDNA
     # semantics across a major are not contracted.
-    "idna>=3.7,<4",
+    "idna>=3.18,<4",
 ]
 
 [project.scripts]

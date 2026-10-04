@@ -468,7 +468,7 @@ def _make_ref_resolver(state: _LoaderState, base_file: Path, schema: dict[str, A
         except ImportError as exc:  # pragma: no cover - guarded by dep install
             raise RuntimeError(
                 "jsonschema is required for AdCP schema validation. "
-                "Install with: pip install 'jsonschema>=4.0.0'"
+                "Install with: pip install 'jsonschema>=4.20.0'"
             ) from exc
 
         _load_schema_registry(state)
@@ -671,7 +671,7 @@ def get_validator(
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
             "jsonschema is required for AdCP schema validation. "
-            "Install with: pip install 'jsonschema>=4.0.0'"
+            "Install with: pip install 'jsonschema>=4.20.0'"
         ) from exc
 
     with _compile_lock:
@@ -738,7 +738,7 @@ def get_named_validator(
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
             "jsonschema is required for AdCP schema validation. "
-            "Install with: pip install 'jsonschema>=4.0.0'"
+            "Install with: pip install 'jsonschema>=4.20.0'"
         ) from exc
 
     with _compile_lock:
