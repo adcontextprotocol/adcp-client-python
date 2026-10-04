@@ -412,6 +412,7 @@
       "PaginationRequest": "core.pagination_request",
       "PendingOAuthAuthorization": "adcp.oauth",
       "PendingOAuthFlowStore": "adcp.oauth",
+      "PgNotificationOutbox": "adcp.notification_outbox_pg",
       "PixelTrackerAsset": "core.assets.pixel_tracker_asset",
       "Placement": "adcp.types.canonical_creative",
       "PlacementPresentationDocument": "core.placement_presentation",
