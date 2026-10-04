@@ -1282,8 +1282,8 @@ jobs:
           # This step compares the committed tree against a regeneration from
           # schemas freshly synced from upstream, so a diff here reports
           # UPSTREAM movement, not a stale commit. Staleness is graded by the
-          # blocking "Check committed generated types match a regeneration"
-          # step above, which runs before the sync.
+          # blocking "Validate committed generated code" step above, which runs
+          # before the sync.
           #
           # Advisory, for two reasons:
           #   * upstream publishing a schema would otherwise turn every

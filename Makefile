@@ -93,8 +93,8 @@ validate-generated: ## Validate generated code (syntax, imports, and equality wi
 	@echo "Validating generated code..."
 	@$(PYTHON) -m py_compile src/adcp/types/_generated.py
 	@$(PYTHON) scripts/generate_versioned_stubs.py --check
-	@$(PYTHON) scripts/generate_versioned_bases.py --check
 	@$(PYTHON) scripts/generate_types.py --check
+	@$(PYTHON) scripts/generate_versioned_bases.py --check
 	@echo "✓ Generated code validation passed"
 
 pre-push: format lint typecheck-all test validate-generated ## Run all checks before pushing (format, lint, typecheck, test, validate)
