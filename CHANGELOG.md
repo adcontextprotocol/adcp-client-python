@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Bug fixes
+
+* **auth:** MCP's `allow_unauthenticated` path preserves principal, tenant,
+  and metadata established by outer middleware in request state or ContextVars,
+  matching A2A. Explicit request state takes precedence, including anonymous
+  state. Caller identity headers remain untrusted. Refs #1304 (outer identity).
+
 ### Security fixes
 
 * **auth:** MCP and A2A reject conflicting accepted credentials (401),
