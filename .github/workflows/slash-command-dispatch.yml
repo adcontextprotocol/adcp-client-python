@@ -3,15 +3,14 @@ name: Slash Command Dispatch
 # Routes `/<command>` comments on issues and PRs to dedicated handler
 # workflows via repository_dispatch events. Uses peter-evans/slash-command-
 # dispatch so we get:
-#   - Built-in permission checks (only OWNER / MEMBER / COLLABORATOR trigger)
+#   - Current repository permission checks (write, maintain, or admin)
 #   - Reactions on the triggering comment (eyes on ack, +1 on success, -1 on fail)
 #   - Clean separation: this workflow routes, downstream handlers do the work
 #
-# Required repo secret:
-#   TRIAGE_DISPATCH_PAT  — Personal Access Token with `repo` scope (or fine-
-#                         grained: contents:write, issues:write, pull-requests:write
-#                         on this repo). GITHUB_TOKEN cannot fire
-#                         repository_dispatch events.
+# Required repo secrets:
+#   IPR_APP_ID / IPR_APP_PRIVATE_KEY — existing AAO IPR Bot App installation.
+# The repository-scoped App token needs contents:write for dispatch and
+# pull-requests:read for PR context. The job token adds comment reactions.
 #
 # Current commands:
 #   /triage [modifier]  — fire the triage routine on this issue. Modifiers
@@ -22,22 +21,34 @@ on:
     types: [created]
 
 permissions:
-  contents: read
+  issues: write # Reactions on issue and PR comments.
 
 jobs:
   dispatch:
     name: Dispatch slash command
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    # Skip bot-authored comments always.
+    # Mint credentials only for human-authored /triage command candidates.
     if: >-
       github.event.comment.user.type != 'Bot' &&
-      !endsWith(github.event.comment.user.login, '[bot]')
+      !endsWith(github.event.comment.user.login, '[bot]') &&
+      startsWith(github.event.comment.body, '/triage')
     steps:
+      - name: Mint repository dispatch App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.IPR_APP_ID }}
+          private-key: ${{ secrets.IPR_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: adcp-client-python
+          permission-contents: write
+          permission-pull-requests: read
       - name: Slash command dispatch
         uses: peter-evans/slash-command-dispatch@9bdcd7914ec1b75590b790b844aa3b8eee7c683a # v5.0.2
         with:
-          token: ${{ secrets.TRIAGE_DISPATCH_PAT }}
+          token: ${{ steps.app-token.outputs.token }}
+          reaction-token: ${{ github.token }}
           commands: |
             triage
           permission: write

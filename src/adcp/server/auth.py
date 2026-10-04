@@ -61,15 +61,10 @@ What this middleware does NOT do:
 * **Authorization.** The middleware answers "who is this?", not "can
   they do X?". Authorization checks run on the authenticated principal
   inside your handlers or as :data:`~adcp.server.SkillMiddleware`.
-* **A2A auth.** A2A uses a different transport; the same
-  :class:`BearerTokenAuth` config object drives both legs when wired
-  via :func:`adcp.server.serve`'s ``auth=`` kwarg. The A2A side is
-  authenticated by a :class:`BearerTokenContextBuilder` plumbed into
-  ``a2a-sdk``'s ``create_jsonrpc_routes(context_builder=...)`` seam,
-  not by a Starlette middleware — that placement bypasses the
-  ``/.well-known/agent-card.json`` route automatically (which is
-  registered separately and never invokes the builder), satisfying
-  A2A spec §4.1's mandate that the agent card be publicly accessible.
+Both MCP and A2A are configured by :class:`BearerTokenAuth` via
+:func:`adcp.server.serve`'s ``auth=`` kwarg. A2A's pure-ASGI middleware
+validates credentials and awaits optional principal resolution before the
+JSON-RPC dispatcher. It exempts public agent-card routes explicitly.
 """
 
 from __future__ import annotations
@@ -83,10 +78,12 @@ import warnings
 from collections.abc import Awaitable, Callable, Collection, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar
 
 _V = TypeVar("_V")
 
+from starlette.datastructures import URL, Headers, QueryParams
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
@@ -224,6 +221,111 @@ class Principal:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class AuthRequest:
+    """Metadata-only snapshot passed to a :data:`PrincipalResolver` on either leg.
+
+    Headers preserve duplicates and support case-insensitive lookup/getlist.
+    State contains server-installed middleware metadata; TLS contains the ASGI
+    ``extensions["tls"]`` metadata, when supplied by the server. Both mappings
+    are read-only snapshots (their values are not deep-copied). There is no
+    body, receive channel, or mutable ASGI scope on this view. Client headers
+    alone are not proof of identity: the resolver must validate the trusted
+    proxy, certificate, or other deployment-specific trust boundary.
+    """
+
+    transport: Literal["mcp", "a2a"]
+    method: str
+    url: URL = field(repr=False)
+    headers: Headers = field(repr=False)
+    query_params: QueryParams = field(repr=False)
+    client: tuple[str, int] | None
+    state: Mapping[str, Any] = field(repr=False)
+    tls: Mapping[str, Any] | None = field(default=None, repr=False)
+
+
+class SyncPrincipalResolver(Protocol):
+    """Synchronous resolver accepting the same metadata view on both legs."""
+
+    def __call__(self, request: AuthRequest) -> Principal | None: ...
+
+
+class AsyncPrincipalResolver(Protocol):
+    """Asynchronous resolver awaited at each transport's async auth boundary."""
+
+    def __call__(self, request: AuthRequest) -> Awaitable[Principal | None]: ...
+
+
+PrincipalResolver = SyncPrincipalResolver | AsyncPrincipalResolver
+"""Resolve non-bearer identity only when accepted credential headers are absent.
+
+Return Principal to authenticate, None to apply the usual missing-bearer rules,
+or raise PrincipalResolverError for a safe 401/403 denial. Supplied invalid,
+empty or conflicting credentials never obtain fallback identity. Verified
+RFC 9421 signers retain their existing path; required-signature bearer fallback
+still requires a valid bearer. Public transport discovery routes are exempt.
+"""
+
+
+class PrincipalResolverError(Exception):
+    """Intentional resolver rejection. Only the status is sent to the caller.
+
+    401 means identity was not established; 403 means it is forbidden by the
+    resolver's policy. Responses use fixed generic bodies, never exception text.
+    """
+
+    def __init__(self, status_code: Literal[401, 403] = 401) -> None:
+        if status_code not in (401, 403):
+            raise ValueError("PrincipalResolverError status_code must be 401 or 403")
+        self.status_code = status_code
+        super().__init__("Principal resolution rejected")
+
+
+def _auth_request(scope: Any, transport: Literal["mcp", "a2a"]) -> AuthRequest:
+    tls = scope.get("extensions", {}).get("tls")
+    return AuthRequest(
+        transport=transport,
+        method=scope.get("method", ""),
+        url=URL(scope=scope),
+        headers=Headers(raw=list(scope.get("headers", ()))),
+        query_params=QueryParams(scope.get("query_string", b"")),
+        client=scope.get("client"),
+        state=MappingProxyType(dict(scope.get("state", {}))),
+        tls=MappingProxyType(dict(tls)) if isinstance(tls, Mapping) else None,
+    )
+
+
+async def _resolve_request_principal(
+    resolver: PrincipalResolver, scope: Any, transport: Literal["mcp", "a2a"]
+) -> Principal | None:
+    try:
+        result = resolver(_auth_request(scope, transport))
+        principal = await result if inspect.isawaitable(result) else result
+        if principal is not None and not isinstance(principal, Principal):
+            raise TypeError("Invalid principal resolver result")
+        return principal
+    except PrincipalResolverError:
+        raise
+    except Exception:
+        # Exception messages/tracebacks can contain identity secrets or tokens.
+        logger.error("principal resolver rejected", extra={"reason": "resolver_error"})
+        raise PrincipalResolverError() from None
+
+
+def _resolver_rejection(error: PrincipalResolverError) -> JSONResponse:
+    if error.status_code == 403:
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    return JSONResponse(
+        {"error": "unauthenticated"},
+        status_code=401,
+        headers={"WWW-Authenticate": _WWW_AUTHENTICATE_CHALLENGE},
+    )
+
+
+# Internal source marker travels in the existing request-local metadata channel.
+_RESOLVER_METADATA_KEY = "adcp.principal_resolver"
+
+
 class SyncTokenValidator(Protocol):
     """Synchronous token validator — ``def validate_token(token) -> Principal | None``."""
 
@@ -251,9 +353,8 @@ because mypy narrows Protocol unions per-call-site: downstream code
 using ``async def validate_token`` gets the async branch without
 ``type: ignore`` noise. Either protocol is a valid ``TokenValidator``.
 
-**Do not raise on invalid tokens.** Exceptions become ``500 Internal
-Server Error`` responses, which leak the presence of an auth path
-to attackers who can't know a valid token. Return ``None`` instead.
+Return ``None`` for invalid tokens. Validator exceptions fail closed with
+HTTP 401 and a coarse diagnostic; exception text is kept out of auth logs.
 """
 
 
@@ -392,6 +493,9 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
     :param app: The inner ASGI app. Passed by Starlette —
         ``app.add_middleware`` supplies it automatically.
     :param validate_token: Your token lookup. See :data:`TokenValidator`.
+    :param resolve_principal: Optional sync/async metadata-only resolver,
+        consulted only when accepted credential headers are absent. See
+        :data:`PrincipalResolver` and :doc:`/principal-resolution`.
     :param unauthenticated_response: Optional override for the 401
         response body. Default is ``{"error": "unauthenticated"}``.
     :param legacy_header_aliases: Optional list of legacy header names
@@ -467,9 +571,11 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         bearer_prefix_required: bool | None = None,
         discovery_tools: frozenset[str] | None = None,
         allow_unauthenticated: bool = False,
+        resolve_principal: PrincipalResolver | None = None,
     ) -> None:
         super().__init__(app)
         self._validate_token = validate_token
+        self._resolve_principal = resolve_principal
         self._allow_unauthenticated = allow_unauthenticated
         self._unauth_body = unauthenticated_response or {"error": "unauthenticated"}
         # Per-instance discovery-tool set delivers on the extension hook
@@ -539,61 +645,79 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
                 logger.info("mcp auth rejected", extra={"reason": credential.reason})
                 return self._unauthenticated(signature_error)
             bearer = credential
-            if is_discovery and not bearer:
-                principal_token = current_principal.set(None)
-                tenant_token = current_tenant.set(None)
-                metadata_token = current_principal_metadata.set(None)
-                _set_request_state(request, None, None, None)
-                return await call_next(request)
-
-            if not bearer:
-                if scope_has_verified_signer(request.scope):
-                    # Framework request-signature verification already
-                    # authenticated this caller; the signed identity is
-                    # overlaid on the ToolContext at dispatch.
+            principal: Principal | None = None
+            resolved_by_request = False
+            if (
+                bearer is None
+                and signature_error is None
+                and method not in DISCOVERY_METHODS
+                and not scope_has_verified_signer(request.scope)
+                and self._resolve_principal is not None
+            ):
+                try:
+                    principal = await _resolve_request_principal(
+                        self._resolve_principal, request.scope, "mcp"
+                    )
+                except PrincipalResolverError as error:
+                    return _resolver_rejection(error)
+                resolved_by_request = principal is not None
+            if principal is None:
+                if is_discovery and not bearer:
                     principal_token = current_principal.set(None)
                     tenant_token = current_tenant.set(None)
                     metadata_token = current_principal_metadata.set(None)
                     _set_request_state(request, None, None, None)
                     return await call_next(request)
-                if self._allow_unauthenticated and signature_error is None:
-                    # Preserve identity explicitly established by an outer
-                    # auth layer. A present state carrier (including None)
-                    # takes precedence over ContextVars; never read identity
-                    # from arbitrary caller headers here.
-                    outer = _read_request_state_auth(request)
-                    if outer is None:
-                        outer = (
-                            current_principal.get(),
-                            current_tenant.get(),
-                            current_principal_metadata.get(),
-                        )
-                    principal_identity, tenant_id, principal_metadata = outer
-                    principal_token = current_principal.set(principal_identity)
-                    tenant_token = current_tenant.set(tenant_id)
-                    metadata_token = current_principal_metadata.set(principal_metadata)
-                    _set_request_state(request, *outer)
-                    return await call_next(request)
-                return self._unauthenticated(signature_error)
 
-            try:
-                raw = self._validate_token(bearer)
-                principal: Principal | None
-                if inspect.isawaitable(raw):
-                    principal = await raw
-                else:
-                    principal = raw
-            except Exception:
-                # Validator failure must not leak stack info to the caller.
-                # Fail closed — a buggy validator is an auth failure, not a
-                # 500. Logged for operators.
-                logger.error("mcp auth rejected", extra={"reason": "validator_error"})
-                return self._unauthenticated(signature_error)
+                if not bearer:
+                    if scope_has_verified_signer(request.scope):
+                        # Framework request-signature verification already
+                        # authenticated this caller; the signed identity is
+                        # overlaid on the ToolContext at dispatch.
+                        principal_token = current_principal.set(None)
+                        tenant_token = current_tenant.set(None)
+                        metadata_token = current_principal_metadata.set(None)
+                        _set_request_state(request, None, None, None)
+                        return await call_next(request)
+                    if self._allow_unauthenticated and signature_error is None:
+                        # Preserve identity explicitly established by an outer
+                        # auth layer. A present state carrier (including None)
+                        # takes precedence over ContextVars; never read identity
+                        # from arbitrary caller headers here.
+                        outer = _read_request_state_auth(request)
+                        if outer is None:
+                            outer = (
+                                current_principal.get(),
+                                current_tenant.get(),
+                                current_principal_metadata.get(),
+                            )
+                        principal_identity, tenant_id, principal_metadata = outer
+                        principal_token = current_principal.set(principal_identity)
+                        tenant_token = current_tenant.set(tenant_id)
+                        metadata_token = current_principal_metadata.set(principal_metadata)
+                        _set_request_state(request, *outer)
+                        return await call_next(request)
+                    return self._unauthenticated(signature_error)
 
-            if principal is None:
-                return self._unauthenticated(signature_error)
+                try:
+                    raw = self._validate_token(bearer)
+                    if inspect.isawaitable(raw):
+                        principal = await raw
+                    else:
+                        principal = raw
+                except Exception:
+                    # Validator failure must not leak stack info to the caller.
+                    # Fail closed — a buggy validator is an auth failure, not a
+                    # 500. Logged for operators.
+                    logger.error("mcp auth rejected", extra={"reason": "validator_error"})
+                    return self._unauthenticated(signature_error)
+
+                if principal is None:
+                    return self._unauthenticated(signature_error)
 
             principal_metadata = dict(principal.metadata) if principal.metadata else None
+            if resolved_by_request:
+                principal_metadata = {**(principal_metadata or {}), _RESOLVER_METADATA_KEY: True}
             principal_token = current_principal.set(principal.caller_identity)
             tenant_token = current_tenant.set(principal.tenant_id)
             metadata_token = current_principal_metadata.set(principal_metadata)
@@ -756,8 +880,9 @@ def auth_context_factory(meta: RequestMetadata) -> ToolContext:
     :class:`~adcp.decisioning.AuthInfo` when the request is
     authenticated, so :meth:`~adcp.decisioning.PlatformHandler._extract_auth_info`
     surfaces a non-``None`` :attr:`~adcp.decisioning.RequestContext.auth_info`
-    for bearer flows — the same typed surface signed-request flows already
-    populate.  ``credential`` is ``None`` for bearer flows because inbound
+    for bearer and resolved flows — the same typed surface signed-request
+    flows already populate. Resolved principals use kind ``derived``;
+    bearer principals use kind ``bearer``. ``credential`` is ``None`` because inbound
     bearer tokens are not for upstream propagation; adopters who need
     :class:`~adcp.decisioning.BuyerAgentRegistry` dispatch must supply a
     typed credential in a custom ``context_factory`` subclass.
@@ -805,7 +930,7 @@ def auth_context_factory(meta: RequestMetadata) -> ToolContext:
         from adcp.decisioning.context import AuthInfo  # noqa: PLC0415
 
         combined_metadata["adcp.auth_info"] = AuthInfo(
-            kind="bearer",
+            kind="derived" if principal_metadata.get(_RESOLVER_METADATA_KEY) is True else "bearer",
             principal=principal_identity,
             credential=None,  # explicit None: no synthesis, no DeprecationWarning
         )
@@ -1077,6 +1202,14 @@ class BearerTokenAuth:
     execution cannot disagree. Messages containing multiple recognizable
     invocations fail closed. The same read-only registry validation runs for
     both fields.
+
+    **Non-bearer identities.** ``resolve_principal`` accepts the same
+    metadata-only :class:`AuthRequest` on both legs, synchronously or
+    asynchronously. It runs only when accepted credential headers are absent;
+    invalid bearer credentials cannot obtain fallback identity. Return a
+    :class:`Principal`, ``None`` for normal missing-bearer policy, or raise
+    :class:`PrincipalResolverError` for a safe 401/403 rejection. See
+    :doc:`/principal-resolution` for trust boundaries and migration examples.
     """
 
     validate_token: TokenValidator
@@ -1150,6 +1283,7 @@ class BearerTokenAuth:
     # historical path-only bypass. When configured, bearer-less A2A message
     # requests may invoke exactly one skill from this read-only allowlist.
     a2a_discovery_skills: Collection[str] | None = None
+    resolve_principal: PrincipalResolver | None = None
 
     def __post_init__(self) -> None:
         if self.header_name is not None and (
@@ -1572,16 +1706,6 @@ class A2ABearerAuthMiddleware:
         self._discovery_skills = config.resolved_a2a_discovery_skills()
         self._message_parser = message_parser
 
-    def _has_bearer(self, scope: Any) -> bool:
-        """True if the request carries any non-empty auth header.
-
-        Used only to distinguish "no credential" (pass through under
-        ``allow_unauthenticated``) from "credential present but invalid"
-        (still rejected). Checks the canonical ``authorization`` header and
-        every configured A2A legacy alias.
-        """
-        return self._resolve_credential(scope) is not None
-
     def _resolve_credential(self, scope: Any) -> str | _RejectedCredential | None:
         return _resolve_bearer_headers(
             scope.get("headers", ()), self._alias_header_names, self._alias_prefix_required
@@ -1608,58 +1732,86 @@ class A2ABearerAuthMiddleware:
             await self._app(scope, receive, send)
             return
 
-        # Network-trust: a request with NO bearer is passed through — the host
-        # resolves identity downstream from trusted headers (the agent is
-        # reachable only via the host's authenticated proxy). A token that IS
-        # present but invalid still falls through to rejection below.
         signature_error = signature_fallback_code(scope)
+        credential = self._resolve_credential(scope)
+        principal: Principal | None = None
+        resolved_by_request = False
         if (
-            self._config.allow_unauthenticated
+            credential is None
             and signature_error is None
-            and not self._has_bearer(scope)
+            and not scope_has_verified_signer(scope)
+            and self._config.resolve_principal is not None
         ):
-            await self._app(scope, receive, send)
-            return
-
-        # A framework-verified request signature authenticates a caller that
-        # presents no bearer; its identity is overlaid on the ToolContext.
-        if scope_has_verified_signer(scope) and not self._has_bearer(scope):
-            await self._app(scope, receive, send)
-            return
-
-        # Skill-level discovery is opt-in. Preserve the zero-copy historical
-        # path when unset, and never parse an authenticated request merely to
-        # authorize it. A supplied-but-invalid credential still receives 401,
-        # matching the MCP leg's discovery behavior.
-        if (
-            self._discovery_skills is not None
-            and signature_error is None
-            and not self._has_bearer(scope)
-        ):
-            buffered = await self._buffer_and_parse_discovery(receive)
-            if buffered is None:
+            try:
+                principal = await _resolve_request_principal(
+                    self._config.resolve_principal, scope, "a2a"
+                )
+            except PrincipalResolverError as error:
+                await _resolver_rejection(error)(scope, receive, send)
                 return
-            parsed, replay_receive = buffered
-            skill_name, _params = parsed
-            if skill_name is not None and skill_name in self._discovery_skills:
-                from adcp.server.a2a_server import _A2A_PARSED_REQUEST_SCOPE_KEY
-
-                scope[_A2A_PARSED_REQUEST_SCOPE_KEY] = parsed
-                await self._app(scope, replay_receive, send)
-                return
-            await self._send_unauthenticated(send)
-            return
-
-        principal = self._authenticate_scope(scope)
+            resolved_by_request = principal is not None
         if principal is None:
-            await self._send_unauthenticated(send, signature_error)
-            return
+            # Network-trust: a request with NO bearer is passed through — the host
+            # resolves identity downstream from trusted headers (the agent is
+            # reachable only via the host's authenticated proxy). A token that IS
+            # present but invalid still falls through to rejection below.
+            if (
+                self._config.allow_unauthenticated
+                and signature_error is None
+                and credential is None
+            ):
+                await self._app(scope, receive, send)
+                return
+
+            # A framework-verified request signature authenticates a caller that
+            # presents no bearer; its identity is overlaid on the ToolContext.
+            if scope_has_verified_signer(scope) and credential is None:
+                await self._app(scope, receive, send)
+                return
+
+            # Skill-level discovery is opt-in. Preserve the zero-copy historical
+            # path when unset, and never parse an authenticated request merely to
+            # authorize it. A supplied-but-invalid credential still receives 401,
+            # matching the MCP leg's discovery behavior.
+            if (
+                self._discovery_skills is not None
+                and signature_error is None
+                and credential is None
+            ):
+                buffered = await self._buffer_and_parse_discovery(receive)
+                if buffered is None:
+                    return
+                parsed, replay_receive = buffered
+                skill_name, _params = parsed
+                if skill_name is not None and skill_name in self._discovery_skills:
+                    from adcp.server.a2a_server import _A2A_PARSED_REQUEST_SCOPE_KEY
+
+                    scope[_A2A_PARSED_REQUEST_SCOPE_KEY] = parsed
+                    await self._app(scope, replay_receive, send)
+                    return
+                await self._send_unauthenticated(send)
+                return
+
+            principal = await self._authenticate_scope(scope)
+            if principal is None:
+                await self._send_unauthenticated(send, signature_error)
+                return
 
         # Stash both the duck-typed user (for DefaultServerCallContextBuilder)
         # and the raw Principal (for downstream code reading scope['auth']).
         # Mutating the scope dict before delegating propagates state to
         # nested apps without copying.
         principal_metadata = dict(principal.metadata) if principal.metadata else None
+        if resolved_by_request:
+            principal_metadata = {**(principal_metadata or {}), _RESOLVER_METADATA_KEY: True}
+        scope.setdefault("state", {}).update(
+            {
+                REQUEST_STATE_PRINCIPAL: principal.caller_identity,
+                REQUEST_STATE_TENANT: principal.tenant_id,
+                REQUEST_STATE_PRINCIPAL_METADATA: principal_metadata,
+                REQUEST_STATE_ROUTED_TENANT: _current_routed_tenant_id(),
+            }
+        )
         scope["user"] = _A2AAuthenticatedUser(
             display_name=principal.caller_identity,
             tenant_id=principal.tenant_id,
@@ -1681,8 +1833,7 @@ class A2ABearerAuthMiddleware:
         # ``request.state`` is what survives the stateful session-task
         # boundary; A2A's dispatcher reads ContextVars directly. If A2A
         # ever grows a long-lived dispatch task that decouples from the
-        # request task, we'll need to thread the request through
-        # ``RequestMetadata`` on the A2A side too.
+        # request task, the request-state mirror above also preserves identity.
         principal_token = current_principal.set(principal.caller_identity)
         tenant_token = current_tenant.set(principal.tenant_id)
         metadata_token = current_principal_metadata.set(principal_metadata)
@@ -1730,8 +1881,8 @@ class A2ABearerAuthMiddleware:
             parsed = (None, {})
         return parsed, make_replay_receive(chunks)
 
-    def _authenticate_scope(self, scope: Any) -> Principal | None:
-        """Read + validate the bearer header off raw ASGI scope.
+    async def _authenticate_scope(self, scope: Any) -> Principal | None:
+        """Read + validate the bearer header at the async ASGI boundary.
 
         Validator exceptions are projected to :data:`None` (logged for
         operators) so a buggy validator never leaks 500-level stack
@@ -1749,22 +1900,10 @@ class A2ABearerAuthMiddleware:
         bearer = credential
 
         try:
-            raw = self._config.validate_token(bearer)
+            result = self._config.validate_token(bearer)
+            raw = await result if inspect.isawaitable(result) else result
         except Exception:
             logger.error("a2a auth rejected", extra={"reason": "validator_error"})
-            return None
-
-        if inspect.isawaitable(raw):
-            # Should be unreachable — :func:`_assert_sync_validator` at
-            # config time rejects async validators before any traffic
-            # lands. This branch is the in-depth catch in case an
-            # adopter swaps in an async validator at runtime via a
-            # closure that conditionally awaits.
-            logger.error(
-                "a2a auth rejected: validator returned awaitable at request "
-                "time. Async validators are not supported on the A2A leg; "
-                "wrap with a sync bridge."
-            )
             return None
 
         if raw is None:

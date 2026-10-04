@@ -73,7 +73,7 @@ We reach into httpcore at two points, in both generations:
 
 Mitigations:
 
-* ``pyproject.toml`` pins ``httpcore>=1.0,<2.0`` and
+* ``pyproject.toml`` pins ``httpcore>=1.0.9,<2.0`` and
   ``httpcore2>=2.5,<3.0``.
 * :class:`adcp.signing.ip_pinned_transport` exports the backend
   signatures from a contract test that fails on import if upstream

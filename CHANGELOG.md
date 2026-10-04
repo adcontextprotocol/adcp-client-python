@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Features
+
+* **auth:** `BearerTokenAuth.resolve_principal` supports sync/async non-bearer
+  principal resolution on MCP and A2A using the same metadata-only `AuthRequest`.
+  Supplied credential headers always select bearer auth; invalid credentials
+  cannot obtain fallback identity. `PrincipalResolverError` provides safe typed
+  401/403 denial, resolved identities populate all existing channels, and async
+  bearer validators now work on A2A. See [migration and precedence](docs/principal-resolution.md).
+  Refs #1304.
+
 ### Bug fixes
 
 * **signing:** The webhook receiver's `WWW-Authenticate` challenge now carries

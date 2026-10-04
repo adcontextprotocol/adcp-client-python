@@ -38,6 +38,7 @@ jobs:
       run_postgres: ${{ steps.scope.outputs.run_postgres }}
       run_packaging: ${{ steps.scope.outputs.run_packaging }}
       run_storyboards: ${{ steps.scope.outputs.run_storyboards }}
+      release_metadata: ${{ steps.scope.outputs.release_metadata }}
       expected_results: ${{ steps.scope.outputs.expected_results }}
     steps:
       # A PR merge commit's two parents contain the complete base/head diff.
@@ -156,14 +157,22 @@ jobs:
         run: python scripts/ci/run_native_tests.py --mode full --unit-workers 2
 
       - name: Run interpreter compatibility checks
-        if: matrix.python-version != '3.12' && needs.changes.outputs.full_matrix != 'true'
+        if: (matrix.python-version != '3.12' && needs.changes.outputs.full_matrix != 'true') || needs.changes.outputs.release_metadata == 'true'
         timeout-minutes: 10
         run: python scripts/ci/run_native_tests.py --mode compatibility
 
       - name: Run canonical suite with coverage
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.12' && needs.changes.outputs.release_metadata != 'true'
         timeout-minutes: 55
         run: python scripts/ci/run_native_tests.py --mode full --coverage --unit-workers 2
+
+      - name: Validate release metadata and built distributions
+        if: matrix.python-version == '3.12' && needs.changes.outputs.release_metadata == 'true'
+        timeout-minutes: 10
+        run: |
+          python -m pytest tests/test_release_configuration.py tests/test_normalize_pyproject_prerelease.py -n 0 -q
+          python -m build --outdir "${RUNNER_TEMP}/release-metadata-dist"
+          python -m scripts.ci.check_release_artifacts "${RUNNER_TEMP}/release-metadata-dist"
 
   pg-conformance:
     needs: changes

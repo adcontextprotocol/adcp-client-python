@@ -19,7 +19,8 @@ attributes depending on the protobuf release:
 protobuf release  ``is_repeated``   ``label``
 ================  ================  ============
 5.x               **missing**       present
-6.x               present           present
+6.30.x            **missing**       present
+6.31+             present           present
 7.x               present           **missing**
 ================  ================  ============
 
@@ -32,7 +33,7 @@ after a dep upgrade — when the resolved combo lands on a broken cell,
 so the regression surfaces in CI rather than at runtime in an adopter's
 deployment.
 
-Both project-level pins (``a2a-sdk>=1.0.1,<1.0.2`` and ``protobuf>=6,<8``
+Both project-level pins (``a2a-sdk>=1.0.1,<1.0.2`` and ``protobuf>=6.31.0,<8``
 in ``pyproject.toml``) keep us in the working column. Loosen either
 without re-running this test at your own peril.
 """
@@ -110,14 +111,14 @@ def test_a2a_sdk_required_field_attribute_is_readable_on_resolved_protobuf() -> 
 
 
 def test_protobuf_floor_blocks_known_broken_5x_cell() -> None:
-    """The floor pin in pyproject.toml (``protobuf>=6``) must keep us out
-    of the 5.x cell where a2a-sdk 1.0.1 breaks. This is a sanity check
-    that the resolved environment honours the floor."""
+    """The floor pin in pyproject.toml (``protobuf>=6.31.0``) must keep us
+    out of the 5.x and 6.30.x cells where a2a-sdk 1.0.1 breaks. This is a
+    sanity check that the resolved environment honours the floor."""
     version = _resolved_protobuf_version()
-    major = int(version.split(".", 1)[0])
-    assert major >= 6, (
-        f"protobuf {version} is below the 6.x floor. a2a-sdk 1.0.1's "
+    major, minor = (int(part) for part in version.split(".")[:2])
+    assert (major, minor) >= (6, 31), (
+        f"protobuf {version} is below the 6.31.0 floor. a2a-sdk 1.0.1's "
         f"@validate_proto_required_fields reads is_repeated, which is "
-        f"missing on protobuf 5.x upb FieldDescriptor — message/send "
-        f"will fail. Honour the pyproject.toml pin."
+        f"missing on the protobuf 5.x and 6.30.x upb FieldDescriptor — "
+        f"message/send will fail. Honour the pyproject.toml pin."
     )

@@ -1,7 +1,7 @@
 name: AI PR Review (Ladon)
 
 # Ladon reviews every non-draft, non-dependabot PR. The engine lives in
-# adcontextprotocol/actions (ladon/), consumed here by floating major tag. This
+# adcontextprotocol/actions (ladon/), consumed here by immutable commit. This
 # workflow handles the pull_request_target security posture (trusted base-SHA
 # checkout only; the PR head is never fetched, checked out, or executed - setup
 # reads head content via the GitHub API), the review-workflow-modification gate,
@@ -95,7 +95,7 @@ jobs:
         if: steps.workflow-mod.outputs.modified != 'true'
         # Pin the shared reviewer because this step receives the Secretariat
         # private key and Anthropic API key. Update from ladon/review/v1 deliberately.
-        uses: adcontextprotocol/actions/ladon/review@48c0dfef96594f74f9606d68597c0f7062a5a337 # includes reviewer/v1.0.7
+        uses: adcontextprotocol/actions/ladon/review@b9788ad120605e1a6e825ccb5f2851f34e34d62e # inline findings MCP config; pinned Ladon stages
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           app-id: ${{ secrets.SECRETARIAT_APP_ID }}

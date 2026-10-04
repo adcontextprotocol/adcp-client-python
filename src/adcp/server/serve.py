@@ -1526,6 +1526,7 @@ def _wrap_mcp_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
     app.add_middleware(
         BearerTokenAuthMiddleware,
         validate_token=auth.validate_token,
+        resolve_principal=auth.resolve_principal,
         unauthenticated_response=auth.unauthenticated_response,
         legacy_header_aliases=auth.resolved_mcp_legacy_aliases(),
         legacy_aliases_bearer_prefix_required=(
@@ -1574,33 +1575,17 @@ def _wrap_a2a_with_auth(
     Same type guard as :func:`_wrap_mcp_with_auth` — a misconfig
     that passes a dict / lambda / wrong type is loud at boot.
 
-    Async validators are rejected at boot because the A2A leg's
-    middleware path is sync (the MCP middleware awaits async
-    validators transparently — A2A can't without restructuring
-    a2a-sdk's dispatcher). Catching the misuse at ``serve()`` time
-    instead of on the first request prevents production deployments
-    from shipping with silently-failing auth.
+    Sync and async token validators and principal resolvers are handled by
+    the middleware's async ASGI boundary before the A2A dispatcher.
     """
     if auth is None:
         return app
-    import inspect as _inspect
-
     from adcp.server.auth import A2ABearerAuthMiddleware, BearerTokenAuth
 
     if not isinstance(auth, BearerTokenAuth):
         raise TypeError(
             f"serve(auth=...) expects BearerTokenAuth, got {type(auth).__name__}. "
             "Import from adcp.server.auth.BearerTokenAuth."
-        )
-    if _inspect.iscoroutinefunction(auth.validate_token):
-        raise TypeError(
-            "BearerTokenAuth.validate_token is async, which the A2A leg "
-            "cannot call directly — a2a-sdk's middleware path is sync. "
-            "Wrap your async validator with a sync bridge "
-            "(e.g. `lambda t: anyio.from_thread.run(my_async_validate, t)`) "
-            "before passing it to BearerTokenAuth, or use transport="
-            "'streamable-http' (MCP middleware awaits async validators "
-            "transparently)."
         )
     return A2ABearerAuthMiddleware(app, auth, message_parser=message_parser)
 
