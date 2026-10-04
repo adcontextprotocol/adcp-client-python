@@ -37,7 +37,7 @@ def b1_wheels(built_distribution):
             fcntl.flock(lock, fcntl.LOCK_EX)
             print("notification_distribution stage=vcs-build-lock acquired", flush=True)
         run_step(
-            [sys.executable, "-m", "build", "--wheel", "--outdir", str(direct), str(ROOT)],
+            distribution.build_command(ROOT, direct, wheel=True),
             label="b1-vcs-wheel",
             cwd=ROOT,
             timeout=180,

@@ -33,6 +33,20 @@ from .test_reporting_notification_migration import CHAIN, WAIVER_OBJECTS
 ROOT = Path(__file__).resolve().parents[3]
 
 
+def build_command(project, output, *, wheel=False):
+    """Use the cached installer while keeping build isolation and archive coverage."""
+    return [
+        sys.executable,
+        "-m",
+        "build",
+        *(["--installer", "uv"] if shutil.which("uv") else []),
+        *(["--wheel"] if wheel else []),
+        "--outdir",
+        str(output),
+        str(project),
+    ]
+
+
 def redacted_stage_stderr(stderr):
     """Keep known error signatures, never arbitrary build/provider prose.
 
@@ -206,6 +220,54 @@ def test_distribution_failure_diagnostics_classify_without_echoing_prose(tmp_pat
     assert "unclassified" in unknown and "provider" not in unknown and "secret" not in unknown
 
 
+@pytest.fixture
+def build_policy_project(tmp_path, monkeypatch):
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "pyproject.toml").write_text(
+        '[build-system]\nrequires = []\nbuild-backend = "backend"\nbackend-path = ["."]\n'
+    )
+    shutil.copy2(ROOT / "tests/fixtures/distribution_build_backend.py", project / "backend.py")
+    trace = tmp_path / "build-hooks.jsonl"
+    monkeypatch.setenv("ADCP_BUILD_POLICY_TRACE", str(trace))
+    monkeypatch.delenv("ADCP_BUILD_POLICY_FAIL", raising=False)
+    return project, tmp_path / "dist", trace
+
+
+@pytest.mark.parametrize("installer", ["uv", "pip"])
+def test_distribution_builds_isolated_wheel_from_sdist(
+    build_policy_project, installer, monkeypatch
+):
+    project, output, trace = build_policy_project
+    uv = shutil.which("uv")
+    if installer == "uv" and uv is None:
+        pytest.skip("uv installer is unavailable; the pip path remains covered")
+    monkeypatch.setattr(shutil, "which", lambda name: uv if installer == "uv" else None)
+    command = build_command(project, output)
+    assert ("--installer" in command) == (installer == "uv")
+    run_step(command, label="build-policy-probe", cwd=project)
+    hooks = [json.loads(line) for line in trace.read_text().splitlines()]
+    assert [entry["hook"] for entry in hooks] == ["sdist", "wheel"]
+    assert len({entry["prefix"] for entry in hooks}) == 2
+    assert all(Path(entry["prefix"]) != Path(sys.prefix) for entry in hooks)
+    assert Path(hooks[0]["cwd"]) == project and Path(hooks[1]["cwd"]) != project
+    assert not (project / "archive-marker").exists()
+    with zipfile.ZipFile(next(output.glob("*.whl"))) as wheel:
+        module = wheel.read("probe.py")
+        scope = {}
+        exec(compile(module, "probe.py", "exec"), scope)
+        assert scope["ARCHIVE_MARKER"] == "from-sdist"
+
+
+def test_distribution_build_failure_is_not_retried(build_policy_project, monkeypatch):
+    project, output, trace = build_policy_project
+    monkeypatch.setenv("ADCP_BUILD_POLICY_FAIL", "1")
+    with pytest.raises(AssertionError, match="build-policy-failure: exit"):
+        run_step(build_command(project, output), label="build-policy-failure", cwd=project)
+    assert [json.loads(line)["hook"] for line in trace.read_text().splitlines()] == ["sdist"]
+    assert not list(output.glob("*.whl")) and not list(output.glob("*.tar.gz"))
+
+
 @pytest.fixture(scope="module")
 def built_distribution(tmp_path_factory, request):
     path = tmp_path_factory.mktemp("reporting-outbox-distribution")
@@ -266,9 +328,12 @@ def built_distribution(tmp_path_factory, request):
     dist = path / "dist"
     # build's default path makes an sdist, then builds the wheel FROM that sdist.
     run_step(
-        [sys.executable, "-m", "build", "--outdir", str(dist), str(project)],
+        build_command(project, dist),
         label="build-sdist-and-wheel",
         cwd=path,
+        # This stage builds two distributions in separate isolated environments
+        # from the complete schema tree; it needs its own bounded build budget.
+        timeout=300,
     )
     wheel, source = next(dist.glob("*.whl")), next(dist.glob("*.tar.gz"))
     if cached is not None:
