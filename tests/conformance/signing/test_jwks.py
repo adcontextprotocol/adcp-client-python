@@ -18,6 +18,7 @@ from adcp.signing import (
     SignatureVerificationError,
     SSRFValidationError,
     StaticJwksResolver,
+    jwks,
     validate_jwks_uri,
     validate_resolved_ip,
     validate_uri_static,
@@ -253,28 +254,138 @@ def test_ssrf_ipv6_accepted_against_ipv4_only_extra_networks(resolved_ip: str, w
         validate_jwks_uri("https://ipv6-host.example/jwks.json")
 
 
-def test_ssrf_6to4_relay_honours_allow_private_override() -> None:
-    """The 6to4 relay range follows the same `allow_private` gate as CGNAT.
+# Every range `allow_private` must leave blocked, with the RFC that reserves
+# it. `allow_private` admits destinations on a network the operator controls
+# (RFC 1918, RFC 4193, loopback — see `_PRIVATE_DESTINATION_NETWORKS`); none of
+# these is one, so none may be relaxed by it.
+#
+# Rows marked `is_private` are the trap this table exists to pin:
+# `ipaddress.is_private` reports True for them, so any implementation that
+# relaxes the flag wholesale admits documentation, benchmarking and tunnel
+# space along with RFC 1918.
+_SPECIAL_USE_NOT_PRIVATE = [
+    ("100.64.0.1", "RFC 6598 carrier-grade NAT — AdCP 3.1.1 names it MUST-reject"),
+    ("100.127.255.254", "RFC 6598 upper bound"),
+    ("192.88.99.1", "RFC 7526 deprecated 6to4 relay anycast"),
+    ("192.31.196.1", "RFC 7535 AS112-v4 anycast"),
+    ("192.52.193.1", "RFC 7450 AMT anycast"),
+    ("192.175.48.1", "RFC 7534 AS112 direct delegation"),
+    ("2001:20::1", "RFC 7343 ORCHIDv2"),
+    ("169.254.1.1", "RFC 3927 link-local — autoconfiguration and metadata space"),
+    ("fe80::1", "RFC 4291 link-local"),
+    ("224.0.0.1", "RFC 5771 multicast — not a unicast destination"),
+    ("ff02::1", "RFC 4291 multicast"),
+    ("0.0.0.0", "RFC 1122 unspecified"),
+    ("::", "RFC 4291 unspecified"),
+    ("192.0.2.1", "RFC 5737 TEST-NET-1 documentation (is_private)"),
+    ("198.51.100.1", "RFC 5737 TEST-NET-2 documentation (is_private)"),
+    ("203.0.113.1", "RFC 5737 TEST-NET-3 documentation (is_private)"),
+    ("2001:db8::1", "RFC 3849 documentation (is_private)"),
+    ("198.18.0.1", "RFC 2544 benchmarking (is_private)"),
+    ("192.0.0.1", "RFC 6890 IETF protocol assignments (is_private)"),
+    ("240.0.0.1", "RFC 1112 reserved 240.0.0.0/4 (is_private)"),
+    ("2002::1", "RFC 3056 6to4 (is_private)"),
+    ("2001::1", "RFC 4380 Teredo (is_private)"),
+    ("64:ff9b::1", "RFC 6052 NAT64 well-known prefix"),
+    ("100::1", "RFC 6666 discard-only (is_private)"),
+]
 
-    Only CGNAT had override coverage; both new ranges sit behind the same
-    gate, so pin both rather than inferring the second from the first.
+
+@pytest.mark.parametrize(("resolved_ip", "why"), _SPECIAL_USE_NOT_PRIVATE)
+def test_ssrf_special_use_ranges_stay_blocked_under_allow_private(
+    resolved_ip: str, why: str
+) -> None:
+    """`allow_private=True` admits private destinations and nothing else.
+
+    The flag's purpose is a destination on a network the operator controls.
+    Relaxing the special-use ranges along with it hands a caller who enabled
+    one thing a second thing it never asked for — shared carrier space,
+    unattributable anycast relays, autoconfiguration space — on the paths
+    where the dialled URL is publisher- or buyer-supplied.
     """
     with patch(
         "adcp.signing.jwks.socket.getaddrinfo",
-        return_value=[(2, 1, 6, "", ("192.88.99.1", 0))],
+        return_value=[_addrinfo(resolved_ip)],
     ):
-        validate_jwks_uri("https://relay-host.example/jwks.json", allow_private=True)
+        with pytest.raises(SSRFValidationError, match="reserved range"):
+            validate_jwks_uri("https://buyer-supplied.example/jwks.json", allow_private=True)
 
 
-def test_ssrf_cgnat_honours_allow_private_override() -> None:
-    """CGNAT follows the same `allow_private` gate as every other reserved
-    range — it is not unconditional like the cloud-metadata list, so on-prem
-    and test deployments keep their documented escape hatch."""
+@pytest.mark.parametrize(("resolved_ip", "why"), _SPECIAL_USE_NOT_PRIVATE)
+def test_ssrf_special_use_ranges_admitted_only_by_their_own_flag(
+    resolved_ip: str, why: str
+) -> None:
+    """`allow_special_use=True` is the one way to admit the same set.
+
+    The escape hatch the previous `allow_private` behavior provided, now
+    reachable only by asking for it.
+    """
     with patch(
         "adcp.signing.jwks.socket.getaddrinfo",
-        return_value=[(2, 1, 6, "", ("100.64.0.1", 0))],
+        return_value=[_addrinfo(resolved_ip)],
     ):
-        validate_jwks_uri("https://cgnat-host.example/jwks.json", allow_private=True)
+        validate_jwks_uri(
+            "https://operator-chosen.example/jwks.json",
+            allow_special_use=True,
+        )
+
+
+@pytest.mark.parametrize(
+    ("resolved_ip", "why"),
+    [
+        ("10.0.0.1", "RFC 1918 10/8"),
+        ("172.17.0.1", "RFC 1918 172.16/12 — the container-bridge case"),
+        ("192.168.1.1", "RFC 1918 192.168/16"),
+        ("127.0.0.1", "RFC 1122 loopback — a test's own origin"),
+        ("::1", "RFC 4291 loopback"),
+        ("fd00::1", "RFC 4193 unique local"),
+    ],
+)
+def test_ssrf_private_destinations_honour_allow_private(resolved_ip: str, why: str) -> None:
+    """The ranges `allow_private` exists for keep working.
+
+    Loopback test origins and container-bridge addresses are what the flag is
+    documented for; narrowing its scope must not reach them.
+    """
+    with patch(
+        "adcp.signing.jwks.socket.getaddrinfo",
+        return_value=[_addrinfo(resolved_ip)],
+    ):
+        validate_jwks_uri("https://local-origin.example/jwks.json", allow_private=True)
+
+    with patch(
+        "adcp.signing.jwks.socket.getaddrinfo",
+        return_value=[_addrinfo(resolved_ip)],
+    ):
+        with pytest.raises(SSRFValidationError, match="reserved range"):
+            validate_jwks_uri("https://local-origin.example/jwks.json")
+
+
+def test_private_destination_networks_are_a_subset_of_the_base_policy() -> None:
+    """Neither gate may admit an address the policy did not already block.
+
+    `allow_private=False, allow_special_use=False` has to refuse exactly what
+    the single pre-split predicate refused. That holds only while the private
+    set is a subset of the base policy's union — if a range were added to
+    `_PRIVATE_DESTINATION_NETWORKS` that the union does not cover, the split
+    would turn a refusal into an acceptance for the default posture.
+    """
+    for network in jwks._PRIVATE_DESTINATION_NETWORKS:
+        for address in (network.network_address, network.broadcast_address):
+            assert jwks._is_blocked_by_base_policy(address), (
+                f"{address} is in _PRIVATE_DESTINATION_NETWORKS but the base policy "
+                f"does not block it, so the default posture now accepts it"
+            )
+
+
+def test_private_and_special_use_sets_are_disjoint() -> None:
+    """One address, one gate. A range in both would be admitted by either flag."""
+    for network in jwks._PRIVATE_DESTINATION_NETWORKS:
+        for address in (network.network_address, network.broadcast_address):
+            assert not any(address in extra for extra in jwks._EXTRA_BLOCKED_NETWORKS), (
+                f"{address} is in both _PRIVATE_DESTINATION_NETWORKS and "
+                f"_EXTRA_BLOCKED_NETWORKS"
+            )
 
 
 def test_ssrf_alibaba_metadata_blocked_despite_allow_private() -> None:
@@ -287,6 +398,36 @@ def test_ssrf_alibaba_metadata_blocked_despite_allow_private() -> None:
     ):
         with pytest.raises(SSRFValidationError, match="metadata"):
             validate_jwks_uri("http://alibaba-metadata.example/jwks.json", allow_private=True)
+
+
+@pytest.mark.parametrize(
+    ("resolved_ip", "why"),
+    [
+        ("169.254.169.254", "AWS/Azure/GCP — inside the link-local special-use range"),
+        ("100.100.100.200", "Alibaba — inside the RFC 6598 special-use range"),
+        ("192.0.0.192", "Oracle — inside RFC 6890 protocol assignments"),
+        ("fd00:ec2::254", "AWS IPv6 — inside RFC 4193 unique-local"),
+    ],
+)
+def test_ssrf_metadata_blocked_under_both_relaxations(resolved_ip: str, why: str) -> None:
+    """No combination of flags reaches a cloud metadata endpoint.
+
+    Every entry in `BLOCKED_METADATA_IPS` sits inside a range one of the two
+    gates admits, so the unconditional metadata check has to run before either
+    of them. `allow_special_use` is a second way to attempt this, so it is
+    graded alongside `allow_private` rather than inferred from it.
+    """
+    for kwargs in (
+        {"allow_private": True},
+        {"allow_special_use": True},
+        {"allow_private": True, "allow_special_use": True},
+    ):
+        with patch(
+            "adcp.signing.jwks.socket.getaddrinfo",
+            return_value=[_addrinfo(resolved_ip)],
+        ):
+            with pytest.raises(SSRFValidationError, match="metadata"):
+                validate_jwks_uri("http://metadata-probe.example/jwks.json", **kwargs)
 
 
 def test_ssrf_caps_resolved_address_scan() -> None:
