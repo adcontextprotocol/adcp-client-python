@@ -225,8 +225,10 @@ from adcp.decisioning.task_registry import (
     InMemoryTaskRegistry,
     ListableTaskRegistry,
     TaskHandoffContext,
+    TaskLifecycleObserver,
     TaskRegistry,
     TaskState,
+    TaskTransition,
     TaskWebhookAuthentication,
 )
 from adcp.decisioning.tenant_store import create_tenant_store
@@ -475,6 +477,8 @@ __all__ = [
     "TaskHandoff",
     "TaskHandoffContext",
     "TaskRegistry",
+    "TaskLifecycleObserver",
+    "TaskTransition",
     "TaskState",
     "TaskWebhookAuthentication",
     "WebhookSenderResolver",

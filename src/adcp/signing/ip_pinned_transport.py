@@ -293,6 +293,7 @@ def build_ip_pinned_transport(
     uri: str,
     *,
     allow_private: bool = False,
+    allow_special_use: bool = False,
     allowed_ports: frozenset[int] | None = None,
     verify: bool = True,
 ) -> IpPinnedTransport:
@@ -317,6 +318,7 @@ def build_ip_pinned_transport(
     hostname, resolved_ip, _port = resolve_and_validate_host(
         uri,
         allow_private=allow_private,
+        allow_special_use=allow_special_use,
         allowed_ports=allowed_ports,
     )
     return IpPinnedTransport(hostname=hostname, resolved_ip=resolved_ip, verify=verify)
@@ -326,6 +328,7 @@ def build_async_ip_pinned_transport(
     uri: str,
     *,
     allow_private: bool = False,
+    allow_special_use: bool = False,
     allowed_ports: frozenset[int] | None = None,
     verify: bool = True,
 ) -> AsyncIpPinnedTransport:
@@ -342,6 +345,7 @@ def build_async_ip_pinned_transport(
     hostname, resolved_ip, _port = resolve_and_validate_host(
         uri,
         allow_private=allow_private,
+        allow_special_use=allow_special_use,
         allowed_ports=allowed_ports,
     )
     return AsyncIpPinnedTransport(hostname=hostname, resolved_ip=resolved_ip, verify=verify)
@@ -351,6 +355,7 @@ def abuild_ip_pinned_transport(
     uri: str,
     *,
     allow_private: bool = False,
+    allow_special_use: bool = False,
     allowed_ports: frozenset[int] | None = None,
     verify: bool = True,
 ) -> AsyncIpPinnedTransport:
@@ -371,6 +376,7 @@ def abuild_ip_pinned_transport(
     return build_async_ip_pinned_transport(
         uri,
         allow_private=allow_private,
+        allow_special_use=allow_special_use,
         allowed_ports=allowed_ports,
         verify=verify,
     )
