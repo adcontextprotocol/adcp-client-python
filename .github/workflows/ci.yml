@@ -101,6 +101,9 @@ jobs:
     # shared build/schema/type changes retain exhaustive interpreter coverage.
     timeout-minutes: ${{ matrix.python-version == '3.12' && 70 || needs.changes.outputs.full_matrix == 'true' && 60 || 15 }}
     strategy:
+      # Complete exhaustive lanes independently so late interpreter failures
+      # preserve coverage results. Fast PR compatibility checks cancel early.
+      fail-fast: ${{ needs.changes.outputs.full_matrix != 'true' }}
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
 

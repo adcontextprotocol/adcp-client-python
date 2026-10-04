@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import socket
+from copy import deepcopy
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -433,7 +434,7 @@ class TestMaybeApplyPropertyListFilter:
         from adcp.canonical_formats.fixtures import load_reference_product
         from adcp.types import GetProductsResponse
 
-        product = load_reference_product("gam_3p_display_tag")
+        product = deepcopy(load_reference_product("gam_3p_display_tag"))
         for declaration in product["format_options"]:
             declaration.pop("v1_format_ref", None)
         p_pass = {**product, "product_id": "pass"}
@@ -579,7 +580,7 @@ def test_wire_dict_products_follow_same_filter_rules(
     from adcp.canonical_formats.fixtures import load_reference_product
     from adcp.types import Product
 
-    product = load_reference_product("gam_3p_display_tag")
+    product = deepcopy(load_reference_product("gam_3p_display_tag"))
     for declaration in product["format_options"]:
         declaration.pop("v1_format_ref", None)
     selector = {"selection_type": selection, "publisher_domain": "example.com"}
