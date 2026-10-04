@@ -1997,3 +1997,56 @@ transport lifespans enter; shutdown hooks run before transport teardown.
 `get_mcp_session_stats(server)` reports configured, inactive defaults outside
 lifespan and the live manager's statistics during lifespan. `_session_manager`
 is private and is `None` while stopped.
+
+### Operational HTTP routes
+
+Use `unauthenticated_routes` for liveness, readiness, metrics or management
+surfaces. It accepts Starlette `Route` and `Mount` objects on `serve`,
+`ServeConfig`, both direct server builders and `build_asgi_app` /
+`build_test_client`. The operational router is built once, ahead of MCP/A2A
+routing and the SDK's bearer/signature checks. Apply authentication in a mounted
+application when an operational endpoint needs its own credentials.
+
+```python
+from starlette.responses import JSONResponse
+from starlette.routing import Route
+from adcp.server import ServeConfig, serve
+
+async def alive(request):
+    return JSONResponse({"status": "alive"})
+
+serve(handler, config=ServeConfig(
+    transport="both",
+    unauthenticated_routes=[Route("/healthz", alive, methods=["GET"])],
+))
+```
+
+The configured Host/Origin transport policy still applies. Operator
+`asgi_middleware`, including tracing and metrics, wraps these routes.
+On `serve`, `build_asgi_app` and `build_test_client`, `max_request_size`
+also caps operational request bodies before their handlers run; `0` disables
+that common cap. Host/Origin rejection happens before the SDK reads the body.
+Direct MCP Streamable HTTP builders apply their existing `max_request_body_size`
+cap to operational routes. Direct SSE builders do the same when the installed
+MCP SDK exposes that setting. Direct A2A and MCP 2.0 SSE builders have no SDK
+body-cap setting: operators must bound their routes' bodies in their embedding
+app, handlers or reverse proxy, and configure request read timeouts.
+`SubdomainTenantMiddleware` automatically excludes matching operational Routes
+and Mount subtrees, including bare-prefix redirects and method mismatches.
+Exclusions use Starlette's matcher; `/manage` does not exclude `/management`.
+Other operator-supplied auth/tenant middleware remains responsible for its own
+policy. It can inspect the SDK's `scope["adcp.operational_route"]` marker.
+
+Route methods, HEAD behavior and slash redirects follow Starlette; a known path
+with an unsupported method returns 405 before protocol auth. Routes at the same
+path may declare different methods; the first full match in the supplied order
+wins. Root catch-alls, dynamic first path segments and collisions with `/mcp`,
+`/sse`, `/messages` or `/.well-known` are rejected at construction. Operational
+routes also cannot collide with custom MCP/SSE paths passed to public app builders.
+Operational routes are HTTP-only; `stdio` rejects them. Mounted application lifespans are
+not automatically entered (standard Starlette behavior); manage their resources
+with the combined server's startup/shutdown hooks or the embedding app.
+
+A `/healthz` route reports process liveness. Define `/readyz` separately from
+actual dependency, capacity and initialization checks; return 503 when those
+checks fail. A successful liveness response alone does not prove readiness.

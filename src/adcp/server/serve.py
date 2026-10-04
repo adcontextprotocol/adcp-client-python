@@ -45,6 +45,13 @@ from adcp.server.mcp_tools import (
     create_tool_caller,
     get_tools_for_handler,
 )
+from adcp.server.operational_routes import (
+    OperationalRouteMarker,
+    OperationalRoutesMiddleware,
+    find_operational_routes,
+    prepare_operational_routes,
+    wrap_operational_routes,
+)
 from adcp.server.signed_requests import (
     apply_verified_signer,
     check_request_signature_verification,
@@ -72,6 +79,7 @@ if TYPE_CHECKING:
     )
     from a2a.server.tasks.push_notification_sender import PushNotificationSender
     from a2a.server.tasks.task_store import TaskStore
+    from starlette.routing import Mount, Route
 
     from adcp.server.a2a_server import MessageParser, PublicUrlResolver
     from adcp.server.auth import BearerTokenAuth
@@ -307,6 +315,9 @@ class ServeConfig:
     allowed_hosts: Sequence[str] | None = None
     allowed_origins: Sequence[str] | None = None
     enable_dns_rebinding_protection: bool | None = None
+
+    # --- Operational endpoints ---
+    unauthenticated_routes: Sequence[Route | Mount] | None = None
 
     # --- Shared infrastructure ---
     test_controller: TestControllerStore | None = None
@@ -794,6 +805,7 @@ Both forms can be mixed in the same list.
 def serve(
     handler: ADCPHandler[Any] | Any,
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     config: ServeConfig | None = None,
     name: str = "adcp-agent",
     port: int | None = None,
@@ -1186,6 +1198,7 @@ def serve(
         request_handler = config.request_handler
         middleware = config.middleware
         asgi_middleware = config.asgi_middleware
+        unauthenticated_routes = config.unauthenticated_routes
         message_parser = config.message_parser
         advertise_all = config.advertise_all
         max_request_size = config.max_request_size
@@ -1207,6 +1220,9 @@ def serve(
         public_url = config.public_url
         on_startup = config.on_startup
         on_shutdown = config.on_shutdown
+
+    if unauthenticated_routes and transport == "stdio":
+        raise ValueError("unauthenticated_routes requires an HTTP transport")
 
     if request_signature_verification is not None:
         if transport in ("stdio", "sse"):
@@ -1267,6 +1283,7 @@ def serve(
         _serve_a2a(
             handler,
             name=name,
+            unauthenticated_routes=unauthenticated_routes,
             port=port,
             test_controller=test_controller,
             test_controller_account_resolver=test_controller_account_resolver,
@@ -1297,6 +1314,7 @@ def serve(
         _serve_mcp(
             handler,
             name=name,
+            unauthenticated_routes=unauthenticated_routes,
             port=port,
             host=host,
             transport=transport,
@@ -1328,6 +1346,7 @@ def serve(
         _serve_mcp_and_a2a(
             handler,
             name=name,
+            unauthenticated_routes=unauthenticated_routes,
             port=port,
             host=host,
             instructions=instructions,
@@ -1433,13 +1452,14 @@ def _apply_asgi_middleware(
     """
     if not asgi_middleware:
         return app
+    routes = find_operational_routes(app)
     for entry in reversed(list(asgi_middleware)):
         if isinstance(entry, tuple):
             cls, kwargs = entry
             app = cls(app, **kwargs)
         else:
             app = entry(app)
-    return app
+    return OperationalRouteMarker(app, routes) if routes is not None else app
 
 
 def _wrap_mcp_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
@@ -1759,6 +1779,7 @@ def _bind_reusable_socket(host: str, port: int) -> Any:
 def _serve_mcp(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     name: str,
     port: int | None,
     host: str | None = None,
@@ -1824,6 +1845,7 @@ def _serve_mcp(
         _run_mcp_http(
             mcp,
             transport=transport,
+            unauthenticated_routes=unauthenticated_routes,
             asgi_middleware=asgi_middleware,
             max_request_size=max_request_size,
             discovery_name=name,
@@ -1853,6 +1875,7 @@ def _serve_mcp(
 def _run_mcp_http(
     mcp: Any,
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     transport: str,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     max_request_size: int | None = None,
@@ -1907,6 +1930,7 @@ def _run_mcp_http(
         description=discovery_description,
         specialisms=discovery_specialisms,
     )
+    app = wrap_operational_routes(app, unauthenticated_routes)
     app = _wrap_with_size_limit(app, max_request_size)
     app = HostOriginMiddleware(app, settings=mcp.settings.transport_security)
     app = _apply_asgi_middleware(app, asgi_middleware)
@@ -1943,6 +1967,7 @@ def _run_mcp_http(
 def _build_a2a_app(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     name: str,
     port: int,
     test_controller: TestControllerStore | None,
@@ -2022,6 +2047,7 @@ def _build_a2a_app(
             description=description,
             specialisms=specialisms,
         )
+    app = wrap_operational_routes(app, unauthenticated_routes)
     app = _wrap_with_size_limit(app, max_request_size)
     app = HostOriginMiddleware(
         app,
@@ -2035,6 +2061,7 @@ def _build_a2a_app(
 def _serve_a2a(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     name: str,
     port: int | None,
     test_controller: TestControllerStore | None,
@@ -2069,6 +2096,7 @@ def _serve_a2a(
     app = _build_a2a_app(
         handler,
         name=name,
+        unauthenticated_routes=unauthenticated_routes,
         port=resolved_port,
         test_controller=test_controller,
         test_controller_account_resolver=test_controller_account_resolver,
@@ -2117,6 +2145,7 @@ def _serve_a2a(
 def _build_mcp_and_a2a_app(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     name: str,
     port: int,
     host: str,
@@ -2334,6 +2363,7 @@ def _build_mcp_and_a2a_app(
             description=description,
             specialisms=specialisms,
         )
+    app = wrap_operational_routes(app, unauthenticated_routes)
     app = _wrap_with_size_limit(app, max_request_size)
     return HostOriginMiddleware(app, settings=mcp.settings.transport_security)
 
@@ -2341,6 +2371,7 @@ def _build_mcp_and_a2a_app(
 def _serve_mcp_and_a2a(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     name: str,
     port: int | None,
     host: str | None = None,
@@ -2401,6 +2432,7 @@ def _serve_mcp_and_a2a(
     app = _build_mcp_and_a2a_app(
         handler,
         name=name,
+        unauthenticated_routes=unauthenticated_routes,
         port=resolved_port,
         host=resolved_host,
         instructions=instructions,
@@ -2520,6 +2552,7 @@ class _ADCPMCPSettingsProxy:
 def create_mcp_server(
     handler: ADCPHandler[Any],
     *,
+    unauthenticated_routes: Sequence[Route | Mount] | None = None,
     name: str = "adcp-agent",
     port: int | None = None,
     host: str | None = None,
@@ -2698,6 +2731,7 @@ def create_mcp_server(
         host if host is not None else (os.environ.get("ADCP_HOST") or "0.0.0.0")  # nosec B104
     )
     mcp: Any = MCPServer(name, instructions=instructions)
+    mcp._adcp_operational_routes = prepare_operational_routes(unauthenticated_routes)
     mcp.settings = _ADCPMCPSettingsProxy(mcp.settings)
     object.__setattr__(mcp.settings, "host", resolved_host)
     object.__setattr__(mcp.settings, "port", resolved_port)
@@ -2783,6 +2817,7 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
     def streamable_http_app(
         self: Any,
         *,
+        unauthenticated_routes: Sequence[Route | Mount] | None = None,
         streamable_http_path: str = "/mcp",
         json_response: bool | None = None,
         stateless_http: bool | None = None,
@@ -2798,6 +2833,13 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
         from starlette.requests import Request
         from starlette.routing import Route
 
+        operational_routes = (
+            prepare_operational_routes(unauthenticated_routes)
+            if unauthenticated_routes is not None
+            else self._adcp_operational_routes
+        )
+        if operational_routes is not None:
+            operational_routes.validate_protocol_paths([streamable_http_path])
         resolved_host = host if host is not None else getattr(self.settings, "host", "127.0.0.1")
         resolved_transport_security = (
             transport_security
@@ -2884,10 +2926,27 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
             routes=[Route(streamable_http_path, endpoint=ADCPStreamableHTTPASGIApp())],
             lifespan=lifespan,
         )
+        if operational_routes is not None:
+            from adcp.server._size_limit import RequestSizeLimitMiddleware
+
+            app.state.adcp_operational_routes = operational_routes
+            app.add_middleware(OperationalRoutesMiddleware, routes=operational_routes)
+            app.add_middleware(RequestSizeLimitMiddleware, max_bytes=max_request_body_size)
         app.add_middleware(HostOriginMiddleware, settings=resolved_transport_security)
         return app
 
-    def sse_app(self: Any, **kwargs: Any) -> Any:
+    def sse_app(
+        self: Any, *, unauthenticated_routes: Sequence[Route | Mount] | None = None, **kwargs: Any
+    ) -> Any:
+        operational_routes = (
+            prepare_operational_routes(unauthenticated_routes)
+            if unauthenticated_routes is not None
+            else self._adcp_operational_routes
+        )
+        if operational_routes is not None:
+            operational_routes.validate_protocol_paths(
+                [kwargs.get("sse_path", "/sse"), kwargs.get("message_path", "/messages/")]
+            )
         settings = kwargs.pop("transport_security", None) or self.settings.transport_security
         app = type(self).sse_app(
             self,
@@ -2896,6 +2955,23 @@ def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
             ),
             **kwargs,
         )
+        if operational_routes is not None:
+            import inspect
+
+            from adcp.server._size_limit import RequestSizeLimitMiddleware
+
+            app.state.adcp_operational_routes = operational_routes
+            app.add_middleware(OperationalRoutesMiddleware, routes=operational_routes)
+            # MCP 2.0 SSE has no SDK body-size setting. When the installed
+            # SDK supplies one, apply that same cap before operational dispatch.
+            body_size = inspect.signature(type(self).sse_app).parameters.get(
+                "max_request_body_size"
+            )
+            if body_size is not None:
+                app.add_middleware(
+                    RequestSizeLimitMiddleware,
+                    max_bytes=kwargs.get("max_request_body_size", body_size.default),
+                )
         app.add_middleware(HostOriginMiddleware, settings=settings)
         return app
 
