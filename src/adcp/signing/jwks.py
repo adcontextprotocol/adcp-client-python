@@ -106,6 +106,51 @@ _EXTRA_BLOCKED_NETWORKS: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ..
     ipaddress.ip_network("2001:20::/28"),
 )
 
+# The ranges ``allow_private`` admits, and the only ones it admits.
+#
+# ``allow_private`` exists so a deployment can dial a destination on a network
+# the operator controls: a test's own loopback origin, a container-bridge
+# address, an on-prem service on RFC 1918 or RFC 4193 space. Those are the
+# ranges below.
+#
+# Every other range the policy blocks stays blocked under ``allow_private``
+# and moves behind ``allow_special_use``. The distinction is reachability
+# intent, not classification accident:
+#
+# * ``ipaddress.is_private`` is a far wider predicate than RFC 1918. On every
+#   supported interpreter it also reports True for, among others, RFC 5737
+#   documentation space (``192.0.2.0/24``, ``198.51.100.0/24``,
+#   ``203.0.113.0/24``), RFC 2544 benchmarking (``198.18.0.0/15``),
+#   RFC 6890 IETF protocol assignments (``192.0.0.0/24``), ``240.0.0.0/4``,
+#   RFC 3849 ``2001:db8::/32``, 6to4 ``2002::/16`` and Teredo ``2001::/32``.
+#   None of those is a private destination an operator deploys a service to.
+# * ``is_multicast``, ``is_reserved``, ``is_unspecified`` and the
+#   ``_EXTRA_BLOCKED_NETWORKS`` anycast and identifier ranges are never a
+#   unicast destination at all. ``is_reserved`` alone covers unallocated IPv6
+#   space (``400::/8`` and up), which is why the special-use half is DERIVED
+#   as "blocked by the base policy, not a private destination" rather than
+#   enumerated — an enumeration cannot be complete, and a range CPython
+#   reclassifies later lands on the right side without an edit here.
+#   ``100.64.0.0/10`` in particular is a range AdCP names in the deny list a
+#   fetcher MUST apply (spec 3.1.1, "Webhook URL validation (SSRF)", step 2).
+# * Link-local (``169.254.0.0/16``, ``fe80::/10``) is autoconfiguration and
+#   metadata space — three of the four entries in
+#   :data:`BLOCKED_METADATA_IPS` live in or beside it — so it sits with the
+#   special-use ranges rather than with the private ones.
+#
+# Membership is a subset of what the base policy below blocks, so
+# ``allow_private=False`` refuses exactly what it refused before this split.
+# ``test_private_destination_networks_are_a_subset_of_the_base_policy`` pins
+# that.
+_PRIVATE_DESTINATION_NETWORKS: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...] = (
+    ipaddress.ip_network("10.0.0.0/8"),  # RFC 1918
+    ipaddress.ip_network("172.16.0.0/12"),  # RFC 1918
+    ipaddress.ip_network("192.168.0.0/16"),  # RFC 1918
+    ipaddress.ip_network("127.0.0.0/8"),  # RFC 1122 loopback
+    ipaddress.ip_network("fc00::/7"),  # RFC 4193 unique local
+    ipaddress.ip_network("::1/128"),  # RFC 4291 loopback
+)
+
 # Recommended destination ports for hardened SSRF-validated outbound HTTP
 # deployments. AdCP itself does not constrain ``pushNotificationConfig.url``
 # ports (see ``schemas/cache/core/push-notification-config.json``), so the
@@ -210,6 +255,7 @@ def validate_jwks_uri(
     uri: str,
     *,
     allow_private: bool = False,
+    allow_special_use: bool = False,
     allowed_ports: frozenset[int] | None = None,
 ) -> None:
     """Raise SSRFValidationError on blocked IP, bad scheme, or disallowed port.
@@ -218,7 +264,12 @@ def validate_jwks_uri(
     :func:`resolve_and_validate_host` returns the accepted IP when the
     caller needs it for IP-pinned connects.
     """
-    resolve_and_validate_host(uri, allow_private=allow_private, allowed_ports=allowed_ports)
+    resolve_and_validate_host(
+        uri,
+        allow_private=allow_private,
+        allow_special_use=allow_special_use,
+        allowed_ports=allowed_ports,
+    )
 
 
 def validate_uri_static(
@@ -268,22 +319,14 @@ def _normalize_resolved_ip(
     return ip
 
 
-def validate_resolved_ip(
-    ip: ipaddress.IPv4Address | ipaddress.IPv6Address,
-    *,
-    allow_private: bool = False,
-) -> None:
-    """Validate one already-resolved address against the shared SSRF policy.
+def _is_blocked_by_base_policy(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """True when the address is outside the set a hardened fetcher may dial.
 
-    Cloud metadata endpoints are always rejected. Private and special-use
-    ranges are rejected unless ``allow_private`` is enabled. IPv4-mapped IPv6
-    addresses are unwrapped internally so behavior is identical on Python
-    3.10 and newer.
+    The union the policy has always refused: the six ``ipaddress`` flags plus
+    the ranges those flags miss. Spelled once so the two relaxation gates
+    partition this set instead of each restating part of it.
     """
-    ip = _normalize_resolved_ip(ip)
-    if str(ip) in BLOCKED_METADATA_IPS:
-        raise SSRFValidationError(f"cloud metadata IP {ip} blocked")
-    if not allow_private and (
+    return (
         ip.is_private
         or ip.is_loopback
         or ip.is_link_local
@@ -291,14 +334,63 @@ def validate_resolved_ip(
         or ip.is_reserved
         or ip.is_unspecified
         or any(ip in network for network in _EXTRA_BLOCKED_NETWORKS)
-    ):
-        raise SSRFValidationError(f"resolved IP {ip} is in a reserved range")
+    )
+
+
+def _is_private_destination(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """True for a destination on a network the operator controls.
+
+    See :data:`_PRIVATE_DESTINATION_NETWORKS` for the ranges and why the
+    rest of the blocked set is not among them.
+    """
+    return any(ip in network for network in _PRIVATE_DESTINATION_NETWORKS)
+
+
+def validate_resolved_ip(
+    ip: ipaddress.IPv4Address | ipaddress.IPv6Address,
+    *,
+    allow_private: bool = False,
+    allow_special_use: bool = False,
+) -> None:
+    """Validate one already-resolved address against the shared SSRF policy.
+
+    Cloud metadata endpoints are always rejected. The rest of the blocked set
+    splits in two, and each half has its own gate:
+
+    * **Private destinations** — RFC 1918, RFC 4193 unique-local, and
+      loopback. ``allow_private`` admits these, which is what lets a test
+      dial its own loopback origin or a container-bridge address.
+    * **Special-use ranges** — everything else the policy refuses:
+      link-local, multicast, unspecified, documentation and benchmarking
+      space, RFC 6598 carrier-grade NAT, and the IANA anycast and identifier
+      ranges in :data:`_EXTRA_BLOCKED_NETWORKS`. ``allow_special_use`` admits
+      these. None is a destination an operator deploys a service to, so
+      enabling private addresses leaves them refused.
+
+    IPv4-mapped IPv6 addresses are unwrapped internally so behavior is
+    identical on Python 3.10 and newer.
+    """
+    ip = _normalize_resolved_ip(ip)
+    if str(ip) in BLOCKED_METADATA_IPS:
+        raise SSRFValidationError(f"cloud metadata IP {ip} blocked")
+    if not _is_blocked_by_base_policy(ip):
+        return
+    if _is_private_destination(ip):
+        if not allow_private:
+            raise SSRFValidationError(f"resolved IP {ip} is in a reserved range")
+        return
+    if not allow_special_use:
+        raise SSRFValidationError(
+            f"resolved IP {ip} is in a reserved range (IANA special-use; "
+            f"allow_private does not admit it)"
+        )
 
 
 def resolve_and_validate_host(
     uri: str,
     *,
     allow_private: bool = False,
+    allow_special_use: bool = False,
     allowed_ports: frozenset[int] | None = None,
 ) -> tuple[str, str, int]:
     """Resolve the URI's hostname once and return ``(hostname, ip, port)``.
@@ -318,8 +410,14 @@ def resolve_and_validate_host(
     uri:
         A full URL. Only ``http`` and ``https`` schemes are accepted.
     allow_private:
-        Skip the reserved-range check. For tests only; cloud-metadata
-        IPs remain blocked unconditionally.
+        Admit RFC 1918, RFC 4193 unique-local and loopback destinations.
+        For tests and on-prem deployments; cloud-metadata IPs and the
+        special-use ranges remain blocked.
+    allow_special_use:
+        Admit the rest of the blocked set — link-local, multicast,
+        unspecified, documentation and benchmarking space, RFC 6598
+        carrier-grade NAT, and the IANA anycast and identifier ranges.
+        Cloud-metadata IPs remain blocked unconditionally.
     allowed_ports:
         Optional destination-port allowlist. ``None`` (default) imposes
         no port filter — the URL's port is unrestricted. Hardened
@@ -365,7 +463,9 @@ def resolve_and_validate_host(
         # per pyproject.toml so we unwrap explicitly.
         ip = _normalize_resolved_ip(ip)
         try:
-            validate_resolved_ip(ip, allow_private=allow_private)
+            validate_resolved_ip(
+                ip, allow_private=allow_private, allow_special_use=allow_special_use
+            )
         except SSRFValidationError as exc:
             last_rejection = str(exc)
             # Historical behavior of validate_jwks_uri was to raise on

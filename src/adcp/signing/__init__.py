@@ -90,6 +90,18 @@ The core names you'll reach for (everything else is for advanced use):
 * :func:`validate_uri_static` / :func:`validate_resolved_ip` — the
   DNS-free registration check and resolved-address policy as separate
   primitives for applications that resolve only when they dial.
+
+Each of those that inspects an address — everything above except
+:func:`validate_uri_static`, which is the DNS-free scheme, host and
+port half — takes two independent relaxations, both off by default.
+``allow_private`` admits RFC 1918, RFC 4193 unique-local and loopback
+destinations: a test's own origin, a container bridge, an on-prem
+service. ``allow_special_use`` admits the rest of the blocked set,
+among it link-local, multicast, the unspecified address, documentation
+and benchmarking space, RFC 6598 carrier-grade NAT, and the IANA
+anycast and identifier ranges. Enabling private destinations leaves the
+special-use ranges refused. Cloud metadata endpoints are refused under
+both.
 """
 
 from __future__ import annotations

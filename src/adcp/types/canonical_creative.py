@@ -46,8 +46,6 @@ from adcp.types.generated_poc.core.pricing_option import PricingOption as _Legac
 from adcp.types.generated_poc.core.product import Product as _LegacyProduct
 from adcp.types.generated_poc.core.product_filters import ProductFilters as _LegacyProductFilters
 from adcp.types.generated_poc.core.product_format_declaration import SellerPreference
-from adcp.types.generated_poc.core.protocol_envelope import ProtocolEnvelope
-from adcp.types.generated_poc.core.version_envelope import AdcpVersionEnvelope
 from adcp.types.generated_poc.creative.get_creative_delivery_response import (
     Creative as _LegacyDeliveryCreative,
 )
@@ -419,30 +417,40 @@ def _serialize_canonical_model(
     )
 
 
-#: Protocol envelopes a generated wire model may compose at its schema root.
-#: A canonical clone copies the envelope *fields*, but a clone built on
-#: ``CanonicalBoundaryModel`` alone would drop the envelope *ancestry* — so
-#: ``issubclass(GetProductsResponse, ProtocolEnvelope)`` would be ``False`` even
-#: though the response carries ``status``/``replayed``/``task_id``. Re-declare
-#: the envelopes as additional bases so the canonical surface keeps the same
-#: ancestry as the generated surface it replaces.
-_ENVELOPE_BASES: tuple[type[AdCPBaseModel], ...] = (AdcpVersionEnvelope, ProtocolEnvelope)
-
-
 def _canonical_clone_bases(source: type[AdCPBaseModel]) -> tuple[type[AdCPBaseModel], ...]:
-    """Return the clone bases for ``source``: its envelopes, then the boundary.
+    """Return the clone bases for ``source``: what it composes, then the boundary.
+
+    A canonical clone copies the composed *fields*, but a clone built on
+    ``CanonicalBoundaryModel`` alone would drop the composed *ancestry* — so
+    ``issubclass(GetProductsResponse, ProtocolEnvelope)`` would be ``False``
+    even though the response carries ``status``/``replayed``/``task_id``. The
+    bases ``source`` already has are what its schema composes at its root, so
+    carrying them over keeps the canonical surface's ancestry identical to the
+    generated surface it replaces. Reading them off ``source`` rather than
+    naming the envelopes is what makes that true for every composed base:
+    naming them covered ``AdcpVersionEnvelope`` and ``ProtocolEnvelope`` and
+    silently dropped ``DeliveryMetrics`` from ``CreativeVariant`` and
+    ``IndicatorBearingResourceState`` from ``MediaBuy``.
 
     ``CanonicalBoundaryModel`` comes last on purpose. Pydantic merges
     ``model_config`` across bases left to right, so the right-most base wins;
-    the envelopes inherit :class:`AdCPBaseModel`'s ``extra`` policy and would
-    otherwise override the boundary's ``extra="allow"`` and start dropping
-    caller-supplied extension keys. Method resolution is unaffected — the
-    envelopes override nothing, so ``CanonicalBoundaryModel`` still supplies
-    ``model_dump``/``model_json_schema`` ahead of :class:`AdCPBaseModel`.
+    a composed base inherits :class:`AdCPBaseModel`'s ``extra`` policy and
+    would otherwise override the boundary's ``extra="allow"`` and start
+    dropping caller-supplied extension keys. Method resolution is unaffected —
+    the composed bases override nothing, so ``CanonicalBoundaryModel`` still
+    supplies ``model_dump``/``model_json_schema`` ahead of
+    :class:`AdCPBaseModel`.
+
+    ``source`` is sometimes a clone itself — ``_DeliveryCreativeVariantBase``
+    and the guard fixtures in ``tests/test_code_generation.py`` clone one — so
+    the two bases this function supplies are dropped before it supplies them
+    again. Without that, re-cloning a clone is ``TypeError: duplicate base
+    class CanonicalBoundaryModel``.
     """
 
-    envelopes = tuple(envelope for envelope in _ENVELOPE_BASES if issubclass(source, envelope))
-    return (*envelopes, CanonicalBoundaryModel)
+    supplied = (AdCPBaseModel, CanonicalBoundaryModel)
+    composed = tuple(base for base in source.__bases__ if base not in supplied)
+    return (*composed, CanonicalBoundaryModel)
 
 
 def _validator_references(function: Any) -> set[str]:
