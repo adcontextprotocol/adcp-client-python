@@ -72,12 +72,18 @@ def scope_for_paths(paths: list[str]) -> Scope:
                 "src/adcp/signing/",
                 "src/adcp/server/",
                 "src/adcp/protocols/",
+                "src/adcp/notification_outbox",
                 "tests/conformance/reporting/",
                 "tests/conformance/decisioning/",
                 "tests/conformance/signing/",
             )
         ) or path.startswith(
-            ("tests/test_reporting_", "tests/test_decisioning_", "src/adcp/webhook")
+            (
+                "tests/test_reporting_",
+                "tests/test_decisioning_",
+                "tests/test_notification_outbox",
+                "src/adcp/webhook",
+            )
         ):
             current = Scope(True, False, True, True, True)
         elif path in {

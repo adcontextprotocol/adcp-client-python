@@ -127,6 +127,11 @@ def test_missing_history_and_empty_diffs_require_full_matrix(repository: tuple[P
         (["src/adcp/reporting/outbox/status.py"], ci_scope.Scope(True, False, True, True, True)),
         (["src/adcp/server/serve.py"], ci_scope.Scope(True, False, True, True, True)),
         (["src/adcp/signing/replay.py"], ci_scope.Scope(True, False, True, True, True)),
+        (["src/adcp/notification_outbox_pg.py"], ci_scope.Scope(True, False, True, True, True)),
+        (
+            ["tests/test_notification_outbox_artifacts.py"],
+            ci_scope.Scope(True, False, True, True, True),
+        ),
         (["src/adcp/decisioning/platform.py"], ci_scope.Scope(True, False, True, True, True)),
         (
             ["tests/conformance/reporting/test_status.py"],

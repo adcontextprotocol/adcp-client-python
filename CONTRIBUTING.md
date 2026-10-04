@@ -100,6 +100,8 @@ The canonical runner uses two workers for unit tests, keeping each file on one
 worker. Conformance and integration tests run sequentially, appending their
 coverage into one report before enforcing the coverage threshold. Integration
 tests marked `integration` retain the normal pytest exclusion.
+Root-level files named `test_*_artifacts.py` or `test_*_packaging.py` also run
+sequentially, including notification-outbox installed distributions.
 
 ### Type Safety
 - All functions must have type hints

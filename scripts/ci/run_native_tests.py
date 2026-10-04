@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+SERIAL_PATTERNS = ("test_*_artifacts.py", "test_*_packaging.py")
 COMPATIBILITY_TESTS = (
     "tests/test_adagents.py",
     "tests/test_adagents_matching.py",
@@ -60,6 +61,7 @@ def test_commands(mode: str, *, coverage: bool = False, workers: int = 0) -> lis
         "tests/",
         "--ignore=tests/conformance",
         "--ignore=tests/integration",
+        *(f"--ignore-glob=tests/{pattern}" for pattern in SERIAL_PATTERNS),
         "-n",
         str(workers),
         "-v",
@@ -71,6 +73,13 @@ def test_commands(mode: str, *, coverage: bool = False, workers: int = 0) -> lis
     conformance = [
         "tests/conformance/",
         "tests/integration/",
+        *sorted(
+            {
+                str(path.relative_to(ROOT))
+                for pattern in SERIAL_PATTERNS
+                for path in (ROOT / "tests").glob(pattern)
+            }
+        ),
         "-n",
         "0",
         "-v",

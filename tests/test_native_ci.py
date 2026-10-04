@@ -82,6 +82,7 @@ def test_two_phases_collect_every_native_case_and_merge_real_worker_coverage(
         "def unit_value():\n    return 1\n\n"
         "def conformance_value():\n    return 2\n\n"
         "def integration_value():\n    return 3\n"
+        "\ndef artifact_value():\n    return 4\n"
     )
     (root / "pyproject.toml").write_text(
         '[tool.pytest.ini_options]\npythonpath=["src"]\n'
@@ -102,6 +103,12 @@ def test_two_phases_collect_every_native_case_and_merge_real_worker_coverage(
     (root / "tests/integration/test_live.py").write_text(
         "import pytest\n@pytest.mark.integration\ndef test_live(): assert False\n"
     )
+    (root / "tests/test_fixture_artifacts.py").write_text(
+        "from adcp.probe import artifact_value\n"
+        "def test_serial_artifact(request):\n"
+        "    assert not hasattr(request.config, 'workerinput')\n"
+        "    assert artifact_value() == 4\n"
+    )
     harness = root / "scripts/reporting_test_harness.py"
     harness.parent.mkdir()
     shutil.copy2(native.ROOT / "scripts/reporting_test_harness.py", harness)
@@ -120,7 +127,7 @@ def test_two_phases_collect_every_native_case_and_merge_real_worker_coverage(
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "1 passed" in result.stdout
-    assert "2 passed, 1 deselected" in result.stdout
+    assert "3 passed, 1 deselected" in result.stdout
     measured = coverage.Coverage(data_file=str(root / ".coverage"))
     measured.load()
     _, executable, _, missing, _ = measured.analysis2(str(module))
