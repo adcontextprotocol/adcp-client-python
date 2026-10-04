@@ -1317,6 +1317,57 @@ def _discriminated_arm_names(output_dir: Path) -> set[str]:
     return names
 
 
+def _field_union_arm_names(output_dir: Path) -> set[str]:
+    """Names any module's *field* unions join, when the union has two or more arms.
+
+    The same-module guard above is not enough on its own: a composing root
+    that another module's field names as an arm of a smart (non-discriminated)
+    union — ``assets: LocalizedCreativeAsset | Assets`` in
+    ``core/creative_localization.py``, where ``LocalizedCreativeAsset`` is a
+    ``oneOf`` root defined in its own module — would be unwrapped, and the
+    field's union would then compare the root's arms against ``Assets``
+    directly. Pydantic's smart mode scores the successful arms (fields set,
+    exactness), so inlining can select a different arm for the same payload,
+    silently. The wrapper keeps the root one choice, as it was.
+
+    Only field annotations count, and only for union roots: a single-model root
+    is one class whichever way it is spelled. A module-level union *root* that names other
+    roots as arms — ``core/async-response-data.json`` composing every task
+    response — is a union of unions by schema and was flattened before this
+    pass existed; keeping its arms wrapped would re-wrap unions adopters
+    already use unwrapped. Discriminated roots are exempt as well: a tagged
+    union nested as an arm is selected by its tag, not scored.
+    """
+    names: set[str] = set()
+    for py_file in output_dir.rglob("*.py"):
+        content = py_file.read_text()
+        if "|" not in content:
+            continue
+        try:
+            tree = ast.parse(content)
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            for statement in node.body:
+                if not isinstance(statement, ast.AnnAssign):
+                    continue
+                # A wrapper's own ``root:`` annotation restates a root union;
+                # it is the composition this pass rewrites, not a field that
+                # scores arms.
+                if isinstance(statement.target, ast.Name) and statement.target.id == "root":
+                    continue
+                for union in ast.walk(statement.annotation):
+                    if not (isinstance(union, ast.BinOp) and isinstance(union.op, ast.BitOr)):
+                        continue
+                    arms: set[str] = set()
+                    _union_arm_names(union, arms)
+                    if len(arms - {"None"}) >= 2:
+                        names.update(arms)
+    return names
+
+
 def _module_union_arm_names(tree: ast.Module) -> set[str]:
     """Names a union inside this module joins.
 
@@ -1382,6 +1433,7 @@ def unwrap_rootmodel_unions():
     unwrapped_count = 0
     kept_count = 0
     keep_wrapped = _discriminated_arm_names(OUTPUT_DIR)
+    field_union_arms = _field_union_arm_names(OUTPUT_DIR)
     plain_models = _plain_model_names(OUTPUT_DIR)
 
     for py_file in OUTPUT_DIR.rglob("*.py"):
@@ -1408,6 +1460,11 @@ def unwrap_rootmodel_unions():
             for spec in candidates
             if spec.name not in keep_wrapped
             and spec.name not in module_arms
+            and not (
+                spec.is_union
+                and spec.name in field_union_arms
+                and (spec.metadata is None or "discriminator=" not in spec.metadata)
+            )
             and (spec.is_union or spec.root.split(".")[-1] in plain_models)
         ]
         kept_count += len(candidates) - len(specs)

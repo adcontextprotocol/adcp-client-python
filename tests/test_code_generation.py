@@ -1048,6 +1048,62 @@ def test_unwrap_rootmodel_unions_keeps_arms_of_a_discriminated_union(tmp_path, m
     assert "AssetVariant = Annotated[" in rewritten
 
 
+def test_unwrap_rootmodel_unions_keeps_an_arm_of_another_modules_field_union(tmp_path, monkeypatch):
+    """A composing root another module's smart union names as an arm keeps its wrapper.
+
+    ``creative_localization.assets`` is ``LocalizedCreativeAsset | Assets``; inlining
+    the root would let Pydantic's smart mode score its arms against ``Assets``
+    directly and pick a different one for the same payload. A discriminated root
+    is exempt (a nested tagged union is selected by its tag), and so is a root a
+    union *root* composes — that flattening predates this pass.
+    """
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    (generated_dir / "core").mkdir(parents=True)
+    (generated_dir / "core" / "localized_creative_asset.py").write_text(
+        "from typing import Annotated\n\n"
+        "from adcp.types.base import AdCPBaseModel\nfrom pydantic import Field, RootModel\n\n\n"
+        "class LocalizedCreativeAsset1(AdCPBaseModel):\n    url: str\n\n\n"
+        "class LocalizedCreativeAsset2(AdCPBaseModel):\n    text: str\n\n\n"
+        "class LocalizedCreativeAsset(RootModel[LocalizedCreativeAsset1 | LocalizedCreativeAsset2]):\n"
+        "    root: Annotated[LocalizedCreativeAsset1 | LocalizedCreativeAsset2, Field(title='x')]\n"
+    )
+    (generated_dir / "core" / "tagged.py").write_text(
+        "from typing import Annotated, Literal\n\n"
+        "from adcp.types.base import AdCPBaseModel\nfrom pydantic import Field, RootModel\n\n\n"
+        "class Tagged1(AdCPBaseModel):\n    kind: Literal['a'] = 'a'\n\n\n"
+        "class Tagged2(AdCPBaseModel):\n    kind: Literal['b'] = 'b'\n\n\n"
+        "class Tagged(RootModel[Tagged1 | Tagged2]):\n"
+        "    root: Annotated[Tagged1 | Tagged2, Field(discriminator='kind')]\n"
+    )
+    (generated_dir / "core" / "creative_localization.py").write_text(
+        "from adcp.types.base import AdCPBaseModel\n\n"
+        "from . import localized_creative_asset, tagged\n\n\n"
+        "class Assets(AdCPBaseModel):\n    pass\n\n\n"
+        "class CreativeLocalization(AdCPBaseModel):\n"
+        "    assets: localized_creative_asset.LocalizedCreativeAsset | Assets | None = None\n"
+        "    choice: tagged.Tagged | Assets | None = None\n"
+    )
+    (generated_dir / "core" / "composed_root.py").write_text(
+        "from typing import Annotated\n\n"
+        "from adcp.types.base import AdCPBaseModel\nfrom pydantic import Field, RootModel\n\n"
+        "from . import localized_creative_asset\n\n\n"
+        "class Other(AdCPBaseModel):\n    pass\n\n\n"
+        "class ComposedRoot(RootModel[Other | localized_creative_asset.LocalizedCreativeAsset]):\n"
+        "    root: Annotated[Other | localized_creative_asset.LocalizedCreativeAsset, Field(title='r')]\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.unwrap_rootmodel_unions()
+
+    kept = (generated_dir / "core" / "localized_creative_asset.py").read_text()
+    assert "class LocalizedCreativeAsset(RootModel[" in kept
+    assert "Tagged = Annotated[" in (generated_dir / "core" / "tagged.py").read_text()
+    # The union root that composes the kept root is itself unwrapped as before.
+    assert "ComposedRoot = Annotated[" in (generated_dir / "core" / "composed_root.py").read_text()
+
+
 def test_unwrap_rootmodel_unions_subclasses_a_single_model_root(tmp_path, monkeypatch):
     """A root naming one model becomes a subclass carrying its description."""
     from scripts import post_generate_fixes

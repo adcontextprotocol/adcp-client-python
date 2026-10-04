@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -49,6 +50,71 @@ logger = logging.getLogger(__name__)
 #: ``submitted`` = task created but not yet started; ``working`` = adopter
 #: callback running; ``completed`` / ``failed`` = terminal.
 TaskState = Literal["submitted", "working", "completed", "failed"]
+
+
+TaskTransition = Literal["submitted", "working", "completed", "failed", "discarded"]
+
+
+class TaskLifecycleObserver(Protocol):
+    """Synchronous best-effort metrics hook; no durable delivery guarantee."""
+
+    def __call__(
+        self,
+        event: TaskTransition,
+        *,
+        task_id: str,
+        account_id: str,
+        task_type: str,
+        created_at: float,
+        updated_at: float,
+    ) -> None: ...
+
+
+class _TaskLifecycleObservers:
+    """Thread-safe observer registration, shared by SDK registry implementations."""
+
+    def _init_lifecycle_observers(self) -> None:
+        self._lifecycle_observers: list[TaskLifecycleObserver] = []
+        self._lifecycle_observers_lock = threading.Lock()
+
+    def add_lifecycle_observer(self, observer: TaskLifecycleObserver) -> None:
+        """Register a synchronous hook fired after commit/outside registry locks.
+
+        Re-registering the same callback is a no-op. Notifications use a snapshot;
+        registration changes during delivery apply to the next notification.
+        Observer exceptions are logged and swallowed. Hooks are best-effort metrics,
+        not a durable event stream, and concurrent transitions may notify out of order.
+        """
+        with self._lifecycle_observers_lock:
+            if observer not in self._lifecycle_observers:
+                self._lifecycle_observers.append(observer)
+
+    def remove_lifecycle_observer(self, observer: TaskLifecycleObserver) -> bool:
+        """Remove a hook, returning whether it was registered."""
+        with self._lifecycle_observers_lock:
+            try:
+                self._lifecycle_observers.remove(observer)
+            except ValueError:
+                return False
+        return True
+
+    def _notify_lifecycle_observers(self, event: TaskTransition, record: dict[str, Any]) -> None:
+        with self._lifecycle_observers_lock:
+            observers = tuple(self._lifecycle_observers)
+        for observer in observers:
+            try:
+                observer(
+                    event,
+                    task_id=record["task_id"],
+                    account_id=record["account_id"],
+                    task_type=record["task_type"],
+                    created_at=record["created_at"],
+                    updated_at=record["updated_at"],
+                )
+            except Exception:
+                logger.exception(
+                    "Task lifecycle observer failed for %s task %s", event, record["task_id"]
+                )
 
 
 @dataclass(frozen=True)
@@ -408,7 +474,7 @@ class ListableTaskRegistry(Protocol):
 # ---------------------------------------------------------------------------
 
 
-class InMemoryTaskRegistry:
+class InMemoryTaskRegistry(_TaskLifecycleObservers):
     """Process-local task registry — v6.0 reference implementation.
 
     Storage is a plain ``dict[str, TaskRecord]`` guarded by an
@@ -431,6 +497,7 @@ class InMemoryTaskRegistry:
     is_durable: ClassVar[bool] = False
 
     def __init__(self) -> None:
+        self._init_lifecycle_observers()
         self._records: dict[str, TaskRecord] = {}
         self._lock = asyncio.Lock()
 
@@ -474,6 +541,8 @@ class InMemoryTaskRegistry:
                 task_type=task_type,
                 request_context=(dict(request_context) if request_context is not None else None),
             )
+            event_record = self._records[task_id].to_dict()
+        self._notify_lifecycle_observers("submitted", event_record)
         return task_id
 
     async def update_progress(
@@ -503,10 +572,14 @@ class InMemoryTaskRegistry:
                     record.state,
                 )
                 return
+            transitioned = record.state == "submitted"
             record.progress = dict(progress)
             if record.state == "submitted":
                 record.state = "working"
             record.updated_at = time.time()
+            event_record = record.to_dict()
+        if transitioned:
+            self._notify_lifecycle_observers("working", event_record)
 
     async def complete(
         self,
@@ -535,9 +608,13 @@ class InMemoryTaskRegistry:
                 if record.result == stripped:
                     return  # idempotent
                 raise ValueError(f"Task {task_id!r} already completed with a different result")
+            if record.state == "failed":
+                raise ValueError(f"Task {task_id!r} already in terminal state {record.state!r}")
             record.state = "completed"
             record.result = dict(stripped) if isinstance(stripped, dict) else stripped
             record.updated_at = time.time()
+            event_record = record.to_dict()
+        self._notify_lifecycle_observers("completed", event_record)
 
     async def fail(
         self,
@@ -552,9 +629,13 @@ class InMemoryTaskRegistry:
                 if record.error == error:
                     return  # idempotent
                 raise ValueError(f"Task {task_id!r} already failed with a different error")
+            if record.state == "completed":
+                raise ValueError(f"Task {task_id!r} already in terminal state {record.state!r}")
             record.state = "failed"
             record.error = dict(error)
             record.updated_at = time.time()
+            event_record = record.to_dict()
+        self._notify_lifecycle_observers("failed", event_record)
 
     async def get(
         self,
@@ -602,7 +683,12 @@ class InMemoryTaskRegistry:
             # Idempotent: pop with default. The Protocol contract
             # tolerates discarding an unknown id (no raise) so the
             # WorkflowHandoff projection's rollback can be unconditional.
-            self._records.pop(task_id, None)
+            record = self._records.pop(task_id, None)
+            if record is not None:
+                event_record = record.to_dict()
+                event_record["updated_at"] = time.time()
+        if record is not None:
+            self._notify_lifecycle_observers("discarded", event_record)
 
 
 # ---------------------------------------------------------------------------

@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from urllib.parse import urlsplit, urlunsplit
+
+from pydantic import AnyUrl
+
+from adcp.types.legacy import FormatReferenceStructuredObject, LegacyFormatId
 
 # Default ports per RFC 3986 §3.2.3 — stripped during canonicalization
 # so ``https://x.example:443`` matches ``https://x.example``.
@@ -40,3 +45,34 @@ def canonicalize_agent_url(raw: object) -> str:
     authority_host = f"[{host}]" if ":" in host else host
     netloc = authority_host if port is None else f"{authority_host}:{port}"
     return urlunsplit((scheme, netloc, parts.path or "/", parts.query, ""))
+
+
+def coerce_format_id(value: object) -> LegacyFormatId:
+    """Return ``value`` as a ``LegacyFormatId``.
+
+    ``value`` is a ``FormatReferenceStructuredObject``, a mapping of its
+    fields, or unvalidated adopter input that ``LegacyFormatId`` judges.
+
+    Generated model fields carry the schema class
+    ``FormatReferenceStructuredObject``, whose ``agent_url`` is an ``AnyUrl``.
+    ``LegacyFormatId`` narrows that field to ``str`` to preserve the wire
+    spelling, so a reference taken off a model — or a mapping that model's
+    ``model_dump()`` produced — needs its ``agent_url`` stringified before it
+    validates. Stringifying is sufficient on its own:
+    :func:`canonicalize_agent_url` runs at comparison time, where
+    ``core/format-id.json`` requires it.
+
+    Anything else validates exactly as ``LegacyFormatId.model_validate`` does.
+    """
+    if isinstance(value, LegacyFormatId):
+        return value
+    if isinstance(value, FormatReferenceStructuredObject):
+        body = value.model_dump()
+    elif isinstance(value, Mapping):
+        body = dict(value)
+    else:
+        return LegacyFormatId.model_validate(value)
+    agent_url = body.get("agent_url")
+    if isinstance(agent_url, AnyUrl):
+        body["agent_url"] = str(agent_url)
+    return LegacyFormatId.model_validate(body)

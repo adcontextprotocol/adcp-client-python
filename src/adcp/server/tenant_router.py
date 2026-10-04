@@ -429,7 +429,17 @@ class SubdomainTenantMiddleware:
             return
 
         path = scope.get("path", "")
-        if path in self._excluded:
+        from adcp.server.operational_routes import (
+            OPERATIONAL_ROUTE_SCOPE_KEY,
+            find_operational_routes,
+        )
+
+        operational_routes = find_operational_routes(scope.get("app"))
+        if (
+            path in self._excluded
+            or scope.get(OPERATIONAL_ROUTE_SCOPE_KEY) is True
+            or (operational_routes is not None and operational_routes.handles(scope))
+        ):
             await self._app(scope, receive, send)
             return
 

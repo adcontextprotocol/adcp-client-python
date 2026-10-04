@@ -46,7 +46,12 @@ def main() -> int:
         flush=True,
     )
     started = time.monotonic()
-    result = subprocess.run(command, check=False)
+    # Imported module-scoped packaging fixtures can build the same distribution
+    # repeatedly. Reuse the existing fingerprint-verified cache within this
+    # invocation's private root, separate from pytest's module cleanup trees.
+    environment = os.environ.copy()
+    environment.setdefault("ADCP_REPORTING_DISTRIBUTION", str(root / "distribution"))
+    result = subprocess.run(command, check=False, env=environment)
     print(
         json.dumps(
             {
