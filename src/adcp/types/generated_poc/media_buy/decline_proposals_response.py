@@ -5,10 +5,10 @@
 from __future__ import annotations
 
 from adcp.types._str_enum import StrEnum
-from typing import Any, Annotated, Literal
+from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
-from pydantic import ConfigDict, Field, RootModel
+from pydantic import ConfigDict, Field
 
 from ..core import context as context_1
 from ..core import error
@@ -51,13 +51,11 @@ class Results2(AdCPBaseModel):
     ]
 
 
-class Results(RootModel[Results1 | Results2]):
-    root: Annotated[Results1 | Results2, Field(discriminator='outcome')]
-    def __getattr__(self, name: str) -> Any:
-        """Proxy attribute access to the wrapped type."""
-        if name.startswith('_'):
-            raise AttributeError(name)
-        return getattr(self.root, name)
+Results = Annotated[
+    Results1 | Results2,
+    Field(discriminator='outcome'),
+]
+
 
 class Results4(Results1):
     outcome: Literal['declined'] = 'declined'
@@ -67,13 +65,11 @@ class Results5(Results2):
     outcome: Literal['unable'] = 'unable'
 
 
-class Results3(RootModel[Results4 | Results5]):
-    root: Annotated[Results4 | Results5, Field(discriminator='outcome')]
-    def __getattr__(self, name: str) -> Any:
-        """Proxy attribute access to the wrapped type."""
-        if name.startswith('_'):
-            raise AttributeError(name)
-        return getattr(self.root, name)
+Results3 = Annotated[
+    Results4 | Results5,
+    Field(discriminator='outcome'),
+]
+
 
 class DeclineProposalsResponse1(AdCPBaseModel):
     model_config = ConfigDict(
@@ -103,4 +99,10 @@ class DeclineProposalsResponse2(CompactTaskSubmitted):
     replayed: Literal[True] | None = None
 
 
-DeclineProposalsResponse = DeclineProposalsResponse1 | DeclineProposalsResponse2
+DeclineProposalsResponse = Annotated[
+    DeclineProposalsResponse1 | DeclineProposalsResponse2,
+    Field(
+        description='One ordered terminal result for each requested proposal decline.',
+        title='Decline Proposals Response',
+    ),
+]

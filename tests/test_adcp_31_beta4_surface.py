@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pydantic import TypeAdapter
+
 _BETA4_EXPORTS = (
     "FormatOptionReference",
     "PackageSignalTargeting",
@@ -34,10 +36,10 @@ def test_beta4_symbols_are_publicly_exported() -> None:
 def test_format_option_references_accept_product_and_publisher_scopes() -> None:
     from adcp import FormatOptionReference, PackageRequest
 
-    product_ref = FormatOptionReference.model_validate(
+    product_ref = TypeAdapter(FormatOptionReference).validate_python(
         {"scope": "product", "format_option_id": "display_image"}
     )
-    publisher_ref = FormatOptionReference.model_validate(
+    publisher_ref = TypeAdapter(FormatOptionReference).validate_python(
         {
             "scope": "publisher",
             "publisher_domain": "example.com",
@@ -114,17 +116,17 @@ def test_signal_refs_and_targeting_validate_new_grouped_shapes() -> None:
         "signals.example.com"
     )
 
-    binary = SignalTargeting.model_validate(
+    binary = TypeAdapter(SignalTargeting).validate_python(
         {"signal_ref": signal_ref, "value_type": "binary", "value": True}
     )
-    categorical = SignalTargeting.model_validate(
+    categorical = TypeAdapter(SignalTargeting).validate_python(
         {
             "signal_ref": signal_ref,
             "value_type": "categorical",
             "values": ["suv", "ev"],
         }
     )
-    numeric = SignalTargeting.model_validate(
+    numeric = TypeAdapter(SignalTargeting).validate_python(
         {
             "signal_ref": signal_ref,
             "value_type": "numeric",

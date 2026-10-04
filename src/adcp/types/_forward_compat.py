@@ -73,7 +73,6 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     PublisherDomain as BundledPublisherDomain,
 )
-from adcp.types.generated_poc.core.async_response_data import AdcpAsyncResponseData
 from adcp.types.generated_poc.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.generated_poc.core.canonical_product import PublisherDomain
 from adcp.types.generated_poc.core.creative_manifest import CreativeManifest
@@ -295,7 +294,7 @@ def _patch_model_field(model: type[BaseModel], field_name: str, new_annotation: 
     model.__annotations__[field_name] = new_annotation
 
 
-def _annotation_contains(annotation: Any, expected: type[BaseModel]) -> bool:
+def _annotation_contains(annotation: Any, expected: type) -> bool:
     """Return whether a possibly nested annotation contains ``expected``."""
     return annotation is expected or any(
         _annotation_contains(arg, expected) for arg in get_args(annotation)
@@ -305,7 +304,10 @@ def _annotation_contains(annotation: Any, expected: type[BaseModel]) -> bool:
 def _patch_equivalent_model_field(
     model: type[BaseModel],
     field_name: str,
-    bundled_model: type[BaseModel],
+    # A bundled clone is matched by class identity, so any class works. Not
+    # ``type[BaseModel]``: a bundled scalar root (``PublisherDomain``,
+    # ``PrimaryCountry``) is a ``str`` subclass, not a Pydantic model (#1277).
+    bundled_model: type,
     canonical_annotation: Any,
 ) -> None:
     """Replace a bundled clone only after verifying the generated field shape."""
@@ -495,9 +497,9 @@ def _apply_forward_compat() -> None:
         _patch_model_field(response, "offers", GenericAlias(list, _ReadbackOffer))
         response.model_rebuild(force=True)
 
-    # These eager wrappers captured build/preview validators before the patches.
-    # Refresh both levels so completed task callbacks retain typed manifests.
-    AdcpAsyncResponseData.model_rebuild(force=True)
+    # This eager wrapper captured build/preview validators before the patches.
+    # Rebuilding it re-resolves AdcpAsyncResponseData, a union type alias, so
+    # completed task callbacks retain typed manifests.
     McpWebhookPayload.model_rebuild(force=True)
 
     _patch_model_field(Format, "assets", list[FormatAssetUnion] | None)

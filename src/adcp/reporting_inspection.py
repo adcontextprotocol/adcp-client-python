@@ -21,8 +21,9 @@ import httpx
 import idna
 import jsonschema
 import rfc8785
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.reporting import ReportingInspectionContext, ReportingObservation
 from adcp.signing._bounded_http import ResponseTooLargeError, async_read_limited_bytes
 from adcp.signing._idna_canonicalize import canonicalize_host
@@ -35,6 +36,13 @@ from adcp.types import (
     ReportingFileManifest,
     ReportingReportDefinition,
 )
+
+# ReportingControlTotal is a union, so validation goes through an adapter.
+
+
+@deferred_adapter
+def _control_total_adapter() -> TypeAdapter[ReportingControlTotal]:
+    return TypeAdapter(ReportingControlTotal)
 
 
 class ReportingInspectionCode(str, Enum):
@@ -542,7 +550,7 @@ def _default_control_totals(
         try:
             payload = target.model_dump(mode="json", exclude_none=True)
             payload["value"] = _decimal_string(value, str(target.value_type))
-            totals.append(ReportingControlTotal.model_validate(payload))
+            totals.append(_control_total_adapter().validate_python(payload))
         except (ValueError, ValidationError) as error:
             raise ReportingInspectionError(
                 ReportingInspectionCode.CONTROL_TOTAL_MISMATCH,
@@ -635,7 +643,7 @@ class ManifestReportingInspector:
                 ReportingInspectionCode.MANIFEST_IDENTITY_MISMATCH,
                 "manifest does not match the reporting ledger records",
             )
-        refs = [entry.object_ref.root for entry in manifest.files]
+        refs = [str(entry.object_ref) for entry in manifest.files]
         if len(refs) != len(set(refs)):
             raise ReportingInspectionError(
                 ReportingInspectionCode.DUPLICATE_OBJECT,
@@ -648,12 +656,12 @@ class ManifestReportingInspector:
             )
         verification = materialization.verification
         physical = {
-            item.object_ref.root: item.value.lower()
+            str(item.object_ref): item.value.lower()
             for item in (verification.physical_checksums if verification else None) or []
             if str(item.algorithm) == "sha256"
         }
         if any(
-            physical.get(entry.object_ref.root) != entry.sha256.lower() for entry in manifest.files
+            physical.get(str(entry.object_ref)) != entry.sha256.lower() for entry in manifest.files
         ):
             raise ReportingInspectionError(
                 ReportingInspectionCode.MANIFEST_IDENTITY_MISMATCH,
@@ -675,7 +683,7 @@ class ManifestReportingInspector:
         total_decoded_bytes = 0
         total_rows = 0
         for entry in manifest.files:
-            object_ref = entry.object_ref.root
+            object_ref = str(entry.object_ref)
             if entry.size_bytes > self._max_object_bytes:
                 raise ReportingInspectionError(
                     ReportingInspectionCode.RESOURCE_TOO_LARGE,
@@ -896,7 +904,7 @@ class ManifestReportingInspector:
                 ReportingInspectionCode.INVALID_CONTRACT,
                 "canonicalization contract targets a different row schema",
             )
-        keys = [item.root for item in contract.primary_keys]
+        keys = [str(item) for item in contract.primary_keys]
         try:
             _validate_golden_vectors(contract, keys)
             value = hashlib.sha256(_canonical_rows_bytes(rows, keys)).hexdigest()

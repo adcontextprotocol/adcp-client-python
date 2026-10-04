@@ -11,10 +11,19 @@ every JSON Schema conditional or ``x-adcp-validation`` behavioral rule.
 
 import os
 from collections.abc import Callable
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, SerializerFunctionWrapHandler, model_serializer
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    SerializerFunctionWrapHandler,
+    StrictInt,
+    model_serializer,
+)
 from pydantic_core import PydanticSerializationError
+
+from adcp.types._scalar import as_json_schema_integer
 
 # Type alias to shorten long type annotations
 MessageFormatter = Callable[[Any], str]
@@ -240,6 +249,14 @@ def _provide_performance_feedback_error_message(self: Any) -> str:
         f"Performance feedback recording failed with "
         f"{error_count} {_pluralize(error_count, 'error')}."
     )
+
+
+#: The annotation for a schema's ``type: integer``. Accepts an ``int`` and a
+#: float with no fractional part; refuses a fractional float, a bool and a
+#: numeric string, which is exactly what the bundled validator does for the
+#: same field. The generator marks every such field and
+#: ``scripts/post_generate_fixes.py`` points the marker here.
+SchemaInt = Annotated[StrictInt, BeforeValidator(as_json_schema_integer)]
 
 
 class AdCPBaseModel(BaseModel):

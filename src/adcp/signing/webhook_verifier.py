@@ -288,18 +288,19 @@ def _precheck_webhook_has_required_components(headers: Mapping[str, str]) -> Non
 
 
 def _retag_to_webhook(exc: SignatureVerificationError) -> SignatureVerificationError:
-    """Translate a request_signature_* code to its webhook_signature_* twin."""
-    webhook_code: str | None
-    if exc.code.startswith("request_signature_brand_") or exc.code in {
-        "request_signature_agent_not_in_brand_json",
-        "request_signature_capabilities_unreachable",
-        "request_signature_key_origin_mismatch",
-        "request_signature_key_origin_missing",
-    }:
-        logger.warning("webhook key discovery failed: %s", exc.code)
-        webhook_code = WEBHOOK_SIGNATURE_KEY_UNKNOWN
-    else:
-        webhook_code = REQUEST_TO_WEBHOOK_CODE.get(exc.code)
+    """Translate a request_signature_* code to its webhook-profile code.
+
+    ``REQUEST_TO_WEBHOOK_CODE`` decides the code. Most rows mirror the request
+    code into the webhook family and keep its suffix; the key-discovery rows
+    map to the coarser ``webhook_signature_key_unknown`` because the webhook
+    profile declares nothing finer. A changed suffix is exactly that collapse,
+    so the precise request-family cause goes to the log rather than the wire.
+    """
+    webhook_code: str | None = REQUEST_TO_WEBHOOK_CODE.get(exc.code)
+    if webhook_code is not None and webhook_code.removeprefix("webhook_") != exc.code.removeprefix(
+        "request_"
+    ):
+        logger.warning("webhook profile has no code for %r; emitting %r", exc.code, webhook_code)
     if webhook_code is None:
         # Unknown code means the core verifier grew a new error code and the
         # translation map wasn't updated. Surface as generic auth-failure
@@ -394,6 +395,7 @@ async def verify_webhook_from_agent_url(
         _default_replay_store_for_origin,
         _refresh_jwks_after_miss,
         async_resolve_agent,
+        request_signature_code,
     )
     from adcp.signing.canonical import parse_signature_input_header
 
@@ -421,11 +423,7 @@ async def verify_webhook_from_agent_url(
             protocol=protocol,
         )
     except AgentResolverError as exc:
-        cause = exc.signature_code or {
-            "capabilities_unreachable": "request_signature_capabilities_unreachable",
-            "brand_json_url_missing": "request_signature_brand_json_url_missing",
-        }.get(exc.code, "request_signature_jwks_unavailable")
-        logger.warning("webhook agent resolution failed: %s", cause)
+        logger.warning("webhook agent resolution failed: %s", request_signature_code(exc))
         raise SignatureVerificationError(
             WEBHOOK_SIGNATURE_KEY_UNKNOWN, step=7, message="webhook key discovery failed"
         ) from exc

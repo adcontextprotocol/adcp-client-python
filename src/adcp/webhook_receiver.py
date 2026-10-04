@@ -72,7 +72,11 @@ import rfc8785
 from pydantic import ValidationError
 
 from adcp.server.idempotency.webhook_dedup import WebhookDedupStore
-from adcp.signing.errors import WEBHOOK_BODY_MALFORMED, SignatureVerificationError
+from adcp.signing.errors import (
+    WEBHOOK_BODY_MALFORMED,
+    SignatureVerificationError,
+    signature_challenge,
+)
 from adcp.signing.webhook_hmac import (
     LegacyWebhookHmacError,
     LegacyWebhookHmacOptions,
@@ -798,7 +802,7 @@ def _www_authenticate_header(code: str) -> dict[str, str]:
     a response header.
     """
     safe_code = code if code in _VALID_WWW_AUTHENTICATE_CODES else "webhook_signature_invalid"
-    return {"WWW-Authenticate": f'Signature error="{safe_code}"'}
+    return {"WWW-Authenticate": signature_challenge(safe_code)}
 
 
 def _reject(reason: RejectionReason, *, sender_identity: str | None) -> WebhookOutcome:

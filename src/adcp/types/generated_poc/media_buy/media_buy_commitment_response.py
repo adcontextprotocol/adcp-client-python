@@ -7,7 +7,7 @@ from __future__ import annotations
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from adcp.types.base import AdCPBaseModel
+from adcp.types.base import AdCPBaseModel, SchemaInt
 from pydantic import AwareDatetime, ConfigDict, Field
 
 from ..core import canonical_media_buy_action
@@ -29,7 +29,7 @@ class PurchaseBinding(AdCPBaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    purchase_index: Annotated[int, Field(ge=0)]
+    purchase_index: Annotated[SchemaInt, Field(ge=0)]
     product_id: Annotated[str, Field(min_length=1)]
     package_id: Annotated[str, Field(min_length=1)]
 
@@ -105,7 +105,7 @@ class MediaBuyCommitmentResponse1(AdCPBaseModel):
             pattern='\\S',
         ),
     ] = None
-    revision: Annotated[int, Field(ge=1)]
+    revision: Annotated[SchemaInt, Field(ge=1)]
     media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
     confirmed_at: AwareDatetime | None = None
     accepted_proposal: AcceptedProposal
@@ -129,4 +129,11 @@ class MediaBuyCommitmentResponse1(AdCPBaseModel):
     replayed: Literal[True] | None = None
 
 
-MediaBuyCommitmentResponse = MediaBuyCommitmentResponse1 | MediaBuyCommitmentResponse2 | MediaBuyCommitmentResponse3
+MediaBuyCommitmentResponse = Annotated[
+    MediaBuyCommitmentResponse1 | MediaBuyCommitmentResponse2 | MediaBuyCommitmentResponse3,
+    Field(
+        description='Shared result for clean product purchase and proposal acceptance. A successful result returns the MediaBuy identity and the immutable accepted commercial snapshot without embedding creative or package graphs. Optional warnings report non-blocking observations at the commitment boundary; continuing conditions remain readable as indicators through get_media_buys.',
+        discriminator='status',
+        title='Media Buy Commitment Response',
+    ),
+]

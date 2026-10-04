@@ -96,12 +96,9 @@ def test_public_overlay_subclass_preserves_identity_and_internal_behavior(
 
     assert result.targeting_overlay is overlay
     assert result.targeting_overlay.route() == "seller-1"
-    # Mutation variants retain their collection RootModel wrappers; beta.14
-    # objects keep their existing lists. Neither arm is converted into the other.
-    if isinstance(overlay, TargetingOverlay):
-        assert [region.root for region in overlay.geo_regions] == ["US-NY"]
-    else:
-        assert [region.root for region in overlay.geo_regions.root] == ["US-NY"]
+    # Both arms read a collection field as the collection. Neither arm is
+    # converted into the other; they agree on the type the field already has.
+    assert [region.root for region in overlay.geo_regions] == ["US-NY"]
     assert result.model_dump(mode="json", exclude_none=True)["targeting_overlay"] == {
         "geo_regions": ["US-NY"]
     }

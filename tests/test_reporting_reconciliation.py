@@ -11,6 +11,7 @@ from urllib.parse import urljoin
 import httpx
 import pytest
 import rfc8785
+from pydantic import TypeAdapter
 
 from adcp.decisioning.capabilities import MediaBuy
 from adcp.reporting import (
@@ -894,7 +895,9 @@ async def test_reconciles_billing_and_records_matching_receipt() -> None:
             raise OSError("transient warehouse read")
         return ReportingObservation(
             row_count=7,
-            control_totals=[ReportingControlTotal.model_validate(item) for item in TOTALS],
+            control_totals=[
+                TypeAdapter(ReportingControlTotal).validate_python(item) for item in TOTALS
+            ],
             canonical_content_digest=ReportingCanonicalContentDigest.model_validate(DIGEST),
             consumer_commit_ref="buyer-ledger-42",
         )
@@ -1033,7 +1036,7 @@ def test_consumer_billing_mismatch_creates_rejected_receipt() -> None:
         ReportingObservation(
             row_count=8,
             control_totals=[
-                ReportingControlTotal.model_validate(
+                TypeAdapter(ReportingControlTotal).validate_python(
                     {
                         "name": "impressions",
                         "value": "4199",
@@ -1041,7 +1044,7 @@ def test_consumer_billing_mismatch_creates_rejected_receipt() -> None:
                         "unit": "impressions",
                     }
                 ),
-                ReportingControlTotal.model_validate(TOTALS[1]),
+                TypeAdapter(ReportingControlTotal).validate_python(TOTALS[1]),
             ],
             canonical_content_digest=ReportingCanonicalContentDigest.model_validate(
                 {**DIGEST, "value": "d" * 64}
@@ -1733,7 +1736,9 @@ async def test_recorded_rejected_checkpoint_is_reinspected() -> None:
         ),
         ReportingObservation(
             row_count=8,
-            control_totals=[ReportingControlTotal.model_validate(item) for item in TOTALS],
+            control_totals=[
+                TypeAdapter(ReportingControlTotal).validate_python(item) for item in TOTALS
+            ],
             canonical_content_digest=ReportingCanonicalContentDigest.model_validate(DIGEST),
         ),
         reporting_receipt_id="reporting-receipt:rejected-checkpoint",
@@ -1758,7 +1763,9 @@ async def test_recorded_rejected_checkpoint_is_reinspected() -> None:
         inspections += 1
         return ReportingObservation(
             row_count=7,
-            control_totals=[ReportingControlTotal.model_validate(item) for item in TOTALS],
+            control_totals=[
+                TypeAdapter(ReportingControlTotal).validate_python(item) for item in TOTALS
+            ],
             canonical_content_digest=ReportingCanonicalContentDigest.model_validate(DIGEST),
         )
 

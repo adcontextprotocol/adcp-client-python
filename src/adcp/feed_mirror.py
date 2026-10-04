@@ -661,7 +661,9 @@ class FeedMirror:
 
     def _apply_event(self, event: WholesaleFeedEvent) -> None:
         event_type = str(event.event_type)
-        payload = event.payload
+        # Each branch below knows its arm from event_type, which is a string
+        # rather than the union's discriminator, so the payload stays untyped.
+        payload: Any = event.payload
         if event_type in ("product.created", "product.updated"):
             product = getattr(payload, "product", None)
             if product is not None:

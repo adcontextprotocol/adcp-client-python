@@ -534,8 +534,9 @@ def signature_fallback_code(scope: Mapping[str, Any]) -> str | None:
 
     Set by framework verification for an unsigned request to a required
     operation admitted under ``allow_bearer_fallback``. Bearer middleware
-    then disables its discovery and network-trust bypasses and adds a
-    ``Signature`` challenge to its ``401``. ``warn_for`` shadow mode never
+    then disables its discovery and network-trust bypasses and answers its
+    ``401`` with the ``Signature`` challenge in place of the ``Bearer`` one.
+    ``warn_for`` shadow mode never
     sets it: shadow mode observes and leaves authentication to the
     configured ``auth=`` as-is.
     """

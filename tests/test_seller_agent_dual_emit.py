@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from pydantic import TypeAdapter
 
 from adcp.canonical_formats import (
     find_declaration_by_v1_format_id,
@@ -87,7 +88,10 @@ def test_v2_to_v1_projection_round_trips_each_product(
     MUST NOT raise any unexpected advisories.
     """
     for p in seller_agent_products:
-        declarations = [ProductFormatDeclaration.model_validate(opt) for opt in p["format_options"]]
+        declarations = [
+            TypeAdapter(ProductFormatDeclaration).validate_python(opt)
+            for opt in p["format_options"]
+        ]
 
         class _Product:
             product_id = p["product_id"]

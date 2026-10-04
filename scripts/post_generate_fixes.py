@@ -14,6 +14,7 @@ handled by datamodel-code-generator directly:
 6. Unwraps specified RootModel unions to plain Union type aliases (#155)
 7. Widens canceled: Literal[True] = True on request types to | None = None (#641)
 8. Removes phantom optional boolean const defaults (#1347)
+9. Rewrites scalar RootModel roots to str/int/float subclasses (#1277)
 """
 
 from __future__ import annotations
@@ -23,9 +24,10 @@ import ast
 import importlib.util
 import json
 import re
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 REPO_ROOT = Path(__file__).parent.parent
 
@@ -44,6 +46,107 @@ def _load_resolve_bundle_key():
 
 
 resolve_bundle_key = _load_resolve_bundle_key()
+
+
+# Same reason as above: load ``adcp.types._scalar`` by path so the keyword sets
+# the rewriter and the runtime bases share live in exactly one place. The module
+# itself depends only on pydantic, so it is importable while ``generated_poc/``
+# is still unfixed.
+def _load_scalar_module():
+    src = REPO_ROOT / "src" / "adcp" / "types" / "_scalar.py"
+    spec = importlib.util.spec_from_file_location("_adcp_scalar", src)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_scalar_module = _load_scalar_module()
+_SCALAR_BASES: dict[str, str] = {
+    scalar: base.__name__ for scalar, base in _scalar_module.SCALAR_BASES.items()
+}
+_SCALAR_CONSTRAINT_KEYWORDS: frozenset[str] = _scalar_module.CONSTRAINT_KEYWORDS
+_SCALAR_DOCUMENTATION_KEYWORDS: frozenset[str] = _scalar_module.DOCUMENTATION_KEYWORDS
+_SCALAR_MODULE_PATH = "adcp.types._scalar"
+
+
+def _import_pattern(module: str) -> re.Pattern[str]:
+    """Match either import form the formatter produces for ``module``.
+
+    A single line, or a parenthesized block once the line grows past the
+    formatter's width.
+    """
+    return re.compile(
+        rf"^from {re.escape(module)} import (?:\((?P<paren>[^)]*)\)|(?P<flat>[^\n(]+))$",
+        re.MULTILINE,
+    )
+
+
+def _render_import(module: str, names: list[str], parenthesized: bool) -> str:
+    if parenthesized:
+        return f"from {module} import (\n" + "".join(f"    {n},\n" for n in names) + ")"
+    return f"from {module} import " + ", ".join(names)
+
+
+def add_to_import(source: str, module: str, *names: str) -> str:
+    """Add ``names`` to the first ``from <module> import`` statement.
+
+    Matching that statement by its exact spelling couples a fix to the set of
+    symbols datamodel-code-generator happens to emit for one file, so changing
+    a field annotation anywhere breaks an unrelated fix somewhere else. This
+    reads whichever names are there and keeps the statement in the form it was
+    written in.
+
+    Raises when the module has no import to extend: the generated shape then
+    changed in a way the caller's fix no longer matches, which is a
+    regeneration failure rather than something to paper over.
+    """
+    for match in _import_pattern(module).finditer(source):
+        existing = match["paren"] if match["paren"] is not None else match["flat"]
+        imported = {n.strip() for n in existing.split(",") if n.strip()}
+        if imported.issuperset(names):
+            return source
+        statement = _render_import(
+            module, sorted(imported | set(names)), match["paren"] is not None
+        )
+        return source[: match.start()] + statement + source[match.end() :]
+    raise RuntimeError(f"no 'from {module} import' statement to extend with {list(names)}")
+
+
+def drop_from_imports(source: str, module: str, name: str) -> str:
+    """Remove ``name`` from every ``from <module> import`` statement.
+
+    A generated module can carry more than one import from the same module --
+    the post-generate passes that inject a validator or serializer add their
+    own -- so a rewrite that stops at the first statement renames a symbol
+    the second one still imports.
+    """
+    while True:
+        for match in _import_pattern(module).finditer(source):
+            existing = match["paren"] if match["paren"] is not None else match["flat"]
+            imported = {n.strip() for n in existing.split(",") if n.strip()}
+            if name not in imported:
+                continue
+            remaining = imported - {name}
+            if not remaining:
+                end = (
+                    match.end() + 1
+                    if source[match.end() : match.end() + 1] == "\n"
+                    else match.end()
+                )
+                source = source[: match.start()] + source[end:]
+            else:
+                statement = _render_import(module, sorted(remaining), match["paren"] is not None)
+                source = source[: match.start()] + statement + source[match.end() :]
+            break
+        else:
+            return source
+
+
+def ensure_pydantic_import(source: str, *names: str) -> str:
+    """Add ``names`` to the module's ``from pydantic import`` statement."""
+    return add_to_import(source, "pydantic", *names)
+
 
 _VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
 _BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())
@@ -563,7 +666,9 @@ def _first_generated_class_name(content: str) -> str | None:
             (
                 base.id
                 if isinstance(base, ast.Name)
-                else base.attr if isinstance(base, ast.Attribute) else ""
+                else base.attr
+                if isinstance(base, ast.Attribute)
+                else ""
             )
             for base in node.bases
         }
@@ -645,21 +750,8 @@ def _set_class_extra_allow(content: str, class_name: str) -> tuple[str, str]:
 def _ensure_configdict_import(content: str) -> str:
     if "ConfigDict" not in content:
         return content
-    if re.search(r"^from pydantic import .*ConfigDict", content, re.MULTILINE):
-        return content
     if "from pydantic import" in content:
-        return re.sub(
-            r"^from pydantic import ([^\n]+)$",
-            lambda m: (
-                "from pydantic import "
-                + ", ".join(
-                    sorted({*[part.strip() for part in m.group(1).split(",")], "ConfigDict"})
-                )
-            ),
-            content,
-            count=1,
-            flags=re.MULTILINE,
-        )
+        return ensure_pydantic_import(content, "ConfigDict")
 
     future_imports = list(re.finditer(r"^from __future__ import [^\n]+$", content, re.MULTILINE))
     if future_imports:
@@ -732,25 +824,36 @@ def fix_typed_additional_properties() -> None:
     )
 
 
-def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
-    """Remove a generated ``Field`` import when the module never references it."""
+def _remove_unused_imports(source: str, targets: Mapping[str, Sequence[str]]) -> tuple[str, bool]:
+    """Remove imported names the module body no longer references.
+
+    ``targets`` maps an absolute module name to the names worth reconsidering,
+    e.g. ``{"pydantic": ("Field", "RootModel"), "typing": ("Annotated",)}``.
+    Aliased imports (``import X as Y``) are left alone.
+    """
     tree = ast.parse(source)
-    if any(
-        isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id == "Field"
+    used = {
+        node.id
         for node in ast.walk(tree)
-    ):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
+    }
+    droppable = {
+        module: {name for name in names if name not in used} for module, names in targets.items()
+    }
+    if not any(droppable.values()):
         return source, False
 
     lines = source.splitlines(keepends=True)
     changed = False
     for node in reversed(list(ast.walk(tree))):
-        if not isinstance(node, ast.ImportFrom) or node.module != "pydantic":
+        if not isinstance(node, ast.ImportFrom) or node.level != 0:
             continue
-        if not any(alias.name == "Field" and alias.asname is None for alias in node.names):
+        unused = droppable.get(node.module or "", set())
+        if not any(alias.name in unused and alias.asname is None for alias in node.names):
             continue
 
         remaining = [
-            alias for alias in node.names if alias.name != "Field" or alias.asname is not None
+            alias for alias in node.names if alias.asname is not None or alias.name not in unused
         ]
         start = node.lineno - 1
         end = node.end_lineno or node.lineno
@@ -760,7 +863,7 @@ def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
                 for alias in remaining
             )
             newline = "\n" if lines[end - 1].endswith("\n") else ""
-            lines[start:end] = [f"from pydantic import {names}{newline}"]
+            lines[start:end] = [f"from {node.module} import {names}{newline}"]
         else:
             if start > 0 and not lines[start - 1].strip():
                 start -= 1
@@ -770,18 +873,116 @@ def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
     return "".join(lines), changed
 
 
+def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
+    """Remove a generated ``Field`` import when the module never references it."""
+    return _remove_unused_imports(source, {"pydantic": ("Field",)})
+
+
+def point_integer_fields_at_the_schema_integer_type() -> None:
+    """Rewrite the generator's ``StrictInt`` marker to ``SchemaInt``.
+
+    ``--strict-types int`` makes the generator annotate every ``type: integer``
+    field, which is the derivation this pass needs — but ``StrictInt`` refuses
+    a float with no fractional part, and JSON Schema's ``integer`` admits one
+    (the bundled validator accepts ``1.0`` for an integer field and rejects
+    ``1.5``). ``adcp.types.base.SchemaInt`` is ``StrictInt`` plus that
+    narrowing, so the model's accepted set matches the schema's.
+    """
+    modified = 0
+    for path in OUTPUT_DIR.rglob("*.py"):
+        source = path.read_text()
+        if not re.search(r"\bStrictInt\b", source):
+            continue
+        source = drop_from_imports(source, "pydantic", "StrictInt")
+        source = re.sub(r"\bStrictInt\b", "SchemaInt", source)
+        if re.search(r"^from adcp\.types\.base import ", source, re.MULTILINE):
+            source = add_to_import(source, "adcp.types.base", "SchemaInt")
+        else:
+            anchor = _import_pattern("pydantic").search(source)
+            assert anchor is not None, path
+            source = (
+                source[: anchor.start()]
+                + "from adcp.types.base import SchemaInt\n"
+                + source[anchor.start() :]
+            )
+        path.write_text(source)
+        modified += 1
+    print(f"  Pointed integer fields at SchemaInt in {modified} file(s)")
+
+
+def remove_imports_shadowed_by_a_local_class() -> None:
+    """Drop an import whose name a class in the same module redefines.
+
+    ``--reuse-model`` imports a structurally identical model from the module
+    that defined it first. When two schemas describe the same shape with
+    different field descriptions the reuse does not apply, and the generator
+    emits the class locally while keeping the import — leaving the name bound
+    twice. The local class wins at runtime (``from __future__ import
+    annotations`` defers every reference in the module), so the import is dead,
+    and mypy reports ``no-redef`` for it.
+    """
+    modified = 0
+    for path in OUTPUT_DIR.rglob("*.py"):
+        source = path.read_text()
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+        defined = {
+            node.name for node in tree.body if isinstance(node, (ast.ClassDef, ast.FunctionDef))
+        }
+        shadowed = [
+            (node, alias)
+            for node in tree.body
+            if isinstance(node, (ast.Import, ast.ImportFrom))
+            for alias in node.names
+            if (alias.asname or alias.name.split(".")[0]) in defined
+        ]
+        if not shadowed:
+            continue
+        lines = source.splitlines(keepends=True)
+        for node, alias in shadowed:
+            assert node.end_lineno is not None
+            block = "".join(lines[node.lineno - 1 : node.end_lineno])
+            remaining = [a for a in node.names if a is not alias]
+            if not remaining:
+                replacement = ""
+            elif isinstance(node, ast.ImportFrom):
+                names = ", ".join(a.asname or a.name for a in remaining)
+                dots = "." * (node.level or 0)
+                replacement = f"from {dots}{node.module or ''} import {names}\n"
+            else:
+                names = ", ".join(a.asname or a.name for a in remaining)
+                replacement = f"import {names}\n"
+            source = source.replace(block, replacement, 1)
+            print(
+                f"  {path.relative_to(OUTPUT_DIR)}: dropped import of {alias.name} "
+                f"shadowed by a local definition"
+            )
+        path.write_text(source)
+        modified += 1
+    if not modified:
+        print("  no imports shadowed by a local class")
+
+
 def remove_unused_pydantic_field_imports() -> None:
-    """Remove spurious ``Field`` imports emitted for generated enum modules."""
+    """Remove ``Field`` and ``RootModel`` imports the generated module never uses.
+
+    ``Field`` is spurious on generated enum modules. ``RootModel`` is left behind
+    by ``unwrap_rootmodel_unions``, which deliberately edits no imports: a fix
+    between it and here matches an exact generated import line, so the line has
+    to stay intact until every fix has run.
+    """
     modified_files = 0
     for py_path in OUTPUT_DIR.rglob("*.py"):
         source = py_path.read_text()
-        updated, changed = _remove_unused_pydantic_field_import(source)
+        updated, changed = _remove_unused_imports(source, {"pydantic": ("Field", "RootModel")})
         if not changed:
             continue
         py_path.write_text(updated)
         modified_files += 1
 
-    print(f"  Removed unused pydantic.Field imports from {modified_files} file(s)")
+    print(f"  Removed unused pydantic imports from {modified_files} file(s)")
 
 
 def _find_indented_field_block(content: str, field_name: str) -> tuple[int, int] | None:
@@ -870,99 +1071,371 @@ def fix_constr_type_annotations():
         print("  No constrained string annotations needed fixing")
 
 
-# Types to unwrap from RootModel to Union type alias.
-# Only genuine discriminated unions (different field shapes per variant) belong here.
-# "Validation-only" oneOf types (same fields, different required combos) are now
-# handled at the schema level by flatten_validation_oneof() in generate_types.py,
-# which produces a single BaseModel class — no RootModel or unwrapping needed.
-# Removed from this set (now single classes): GetCreativeDeliveryRequest,
-# GetSignalsRequest, ProvidePerformanceFeedbackRequest, SiSendMessageRequest,
-# UpdateMediaBuyRequest.
-# See: https://github.com/adcontextprotocol/adcp-client-python/issues/155
-_UNWRAP_TO_UNION: set[str] = {
-    "AcceptProposalResponse",
-    # Value type, unlike the rest of this set. AdCP 3.2.0-rc.3 replaced the
-    # plain MediaBuyValidAction enum on ProductAllowedAction.action,
-    # MediaBuyAvailableAction.action, and ActionNotAllowed.attempted_action
-    # with this named anyOf of that enum plus one const. Keeping the RootModel
-    # wrapper would break every adopter that writes action="pause" or
-    # action=MediaBuyValidAction.pause -- a wrapper the schema does not ask
-    # for, since anyOf of an enum and a const is a plain union. The root
-    # field's description/title are documentation only; each use site carries
-    # its own description.
-    "MediaBuyAvailableActionId",
-    "BuyProductsResponse",
-    "CheckGovernanceRequest",
-    "ControlMediaBuyResponse",
-    "DeclineProposalsResponse",
-    "ListProductsResponse",
-    "MediaBuyCommitmentResponse",
-    "RefineProposalsResponse",
-    "RequestProposalsResponse",
-    "AcquireRightsResponse",
-    "ComplyTestControllerRequest",
-    "ComplyTestControllerResponse",
-    "ActivateSignalResponse",
-    "BuildCreativeRequest",
-    "BuildCreativeResponse",
-    "CalibrateContentResponse",
-    "CreateContentStandardsResponse",
-    "CreateMediaBuyResponse",
-    "CreativeApprovalResponse",
-    "GetAccountFinancialsResponse",
-    "GetBrandIdentityResponse",
-    "GetContentStandardsResponse",
-    "GetCreativeFeaturesResponse",
-    "GetMediaBuyArtifactsResponse",
-    "GetPlanAuditLogsRequest",
-    "GetProductsRequest",
-    "GetRightsResponse",
-    "ListContentStandardsResponse",
-    "LogEventResponse",
-    "PreviewCreativeRequest",
-    "PreviewCreativeResponse",
-    "ProvidePerformanceFeedbackResponse",
-    "SyncAccountsResponse",
-    "SyncAudiencesResponse",
-    "SyncGovernanceResponse",
-    "SyncCatalogsResponse",
-    "SyncCreativesResponse",
-    "SyncEventSourcesResponse",
-    "UpdateContentStandardsResponse",
-    "UpdateMediaBuyResponse",
-    "UpdateRightsResponse",
-    "ValidateContentDeliveryResponse",
-}
+class _ComposingRootSpec(NamedTuple):
+    """One generated ``RootModel`` whose root composes rather than holds a value."""
+
+    name: str
+    root: str
+    metadata: str | None
+    is_union: bool
+    docstring: str | None
+    description: str | None
+    start_line: int
+    end_line: int
+
+
+# A root spelled as one of these is a value, and the wrapper is the only place
+# its constraints can live. ``list[...]``, ``dict[...]`` and ``Literal[...]`` are
+# recognized by their subscript instead.
+_VALUE_ROOT_NAMES = frozenset(
+    {
+        "Any",
+        "AnyUrl",
+        "AwareDatetime",
+        "Decimal",
+        "EmailStr",
+        "NaiveDatetime",
+        "SchemaInt",
+        "StrictBool",
+        "StrictFloat",
+        "StrictInt",
+        "StrictStr",
+        "bool",
+        "bytes",
+        "date",
+        "datetime",
+        "float",
+        "int",
+        "str",
+        "time",
+    }
+)
+
+
+def _is_docstring(stmt: ast.stmt) -> bool:
+    """Whether ``stmt`` is a bare string expression."""
+    return (
+        isinstance(stmt, ast.Expr)
+        and isinstance(stmt.value, ast.Constant)
+        and isinstance(stmt.value.value, str)
+    )
+
+
+def _root_is_value(node: ast.expr) -> bool:
+    """Whether a ``RootModel[...]`` argument names a value rather than a model."""
+    if isinstance(node, ast.Subscript):
+        return True
+    if isinstance(node, ast.Name):
+        return node.id in _VALUE_ROOT_NAMES
+    if isinstance(node, ast.Attribute):
+        return node.attr in _VALUE_ROOT_NAMES
+    return True
+
+
+def _composing_root_spec(source: str, node: ast.ClassDef) -> _ComposingRootSpec | None:
+    """Describe the rewrite for a composing ``class X(RootModel[...])``, or ``None``.
+
+    Composing means a union of models or a single model. ``None`` for a value
+    root — ``RootModel[str]``, ``RootModel[list[A]]``, ``RootModel[Literal[...]]``,
+    ``RootModel[AnyUrl]`` — because the wrapper is the only place a value root's
+    constraints can live. ``None`` as well for a class carrying a decorator, a
+    class keyword, a validator, a default or a second body statement: dropping
+    any of those silently would change behavior.
+    """
+    if len(node.bases) != 1 or node.keywords or node.decorator_list:
+        return None
+    base = node.bases[0]
+    if not isinstance(base, ast.Subscript):
+        return None
+    if not (isinstance(base.value, ast.Name) and base.value.id == "RootModel"):
+        return None
+    is_union = isinstance(base.slice, ast.BinOp) and isinstance(base.slice.op, ast.BitOr)
+    if not is_union and _root_is_value(base.slice):
+        return None
+    if not node.end_lineno:
+        return None
+
+    docstring = next(
+        (ast.get_source_segment(source, stmt.value) for stmt in node.body if _is_docstring(stmt)),
+        None,
+    )
+    body = [stmt for stmt in node.body if not _is_docstring(stmt)]
+    if len(body) != 1:
+        return None
+    field = body[0]
+    if not (
+        isinstance(field, ast.AnnAssign)
+        and isinstance(field.target, ast.Name)
+        and field.target.id == "root"
+        and field.value is None
+    ):
+        return None
+
+    annotation = field.annotation
+    metadata: str | None = None
+    description: str | None = None
+    if (
+        isinstance(annotation, ast.Subscript)
+        and isinstance(annotation.value, ast.Name)
+        and annotation.value.id == "Annotated"
+    ):
+        elements = list(annotation.slice.elts) if isinstance(annotation.slice, ast.Tuple) else []
+        if len(elements) != 2:
+            return None
+        annotation, candidate = elements
+        if not (
+            isinstance(candidate, ast.Call)
+            and isinstance(candidate.func, ast.Name)
+            and candidate.func.id == "Field"
+        ):
+            return None
+        metadata = ast.get_source_segment(source, candidate)
+        if metadata is None:
+            return None
+        description = next(
+            (
+                keyword.value.value
+                for keyword in candidate.keywords
+                if keyword.arg == "description"
+                and isinstance(keyword.value, ast.Constant)
+                and isinstance(keyword.value.value, str)
+            ),
+            None,
+        )
+
+    # The ``root:`` annotation restates the base's argument; emit the restated
+    # one, which is the form the field metadata was written against.
+    if is_union != (isinstance(annotation, ast.BinOp) and isinstance(annotation.op, ast.BitOr)):
+        return None
+    root = ast.get_source_segment(source, annotation)
+    if root is None:
+        return None
+
+    return _ComposingRootSpec(
+        name=node.name,
+        root=_dedent_continuation(root),
+        metadata=None if metadata is None else _dedent_continuation(metadata),
+        is_union=is_union,
+        docstring=docstring,
+        description=description,
+        start_line=node.lineno,
+        end_line=node.end_lineno,
+    )
+
+
+def _dedent_continuation(segment: str, columns: int = 4) -> str:
+    """Shift a source segment's continuation lines left by ``columns``.
+
+    A source segment lifted out of ``root: Annotated[...]`` carries that field's
+    indentation. The alias it becomes sits one level further out.
+    """
+    first, *rest = segment.split("\n")
+    return "\n".join(
+        [first, *(line[columns:] if line[:columns].isspace() else line for line in rest)]
+    )
+
+
+def _union_arm_names(node: ast.expr, into: set[str]) -> None:
+    """Collect the names a union expression joins, by their final component."""
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+        _union_arm_names(node.left, into)
+        _union_arm_names(node.right, into)
+    elif isinstance(node, ast.Name):
+        into.add(node.id)
+    elif isinstance(node, ast.Attribute):
+        into.add(node.attr)
+
+
+def _plain_model_names(output_dir: Path) -> set[str]:
+    """Names the generated tree declares only as a plain model class.
+
+    A single-model root becomes a subclass of its target, so the target has to
+    be subclassable. An enumeration with members is not, and neither is a target
+    that is itself a ``RootModel`` union, which this pass turns into a union
+    alias. A name declared both ways anywhere in the tree is excluded.
+    """
+    declared: set[str] = set()
+    excluded: set[str] = set()
+    for py_file in output_dir.rglob("*.py"):
+        source = py_file.read_text()
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            declared.add(node.name)
+            bases = [ast.get_source_segment(source, base) or "" for base in node.bases]
+            if any(
+                base in ("Enum", "StrEnum", "IntEnum") or base.startswith("RootModel[")
+                for base in bases
+            ):
+                excluded.add(node.name)
+    return declared - excluded
+
+
+def _discriminated_arm_names(output_dir: Path) -> set[str]:
+    """Names the generated tree uses as an arm of a discriminated union.
+
+    A wrapper named there is the one choice the parent's discriminator maps its
+    tag to. ``AssetVariant`` discriminates 21 arms on ``asset_type``, and three
+    of them — ``VastAsset``, ``DaastAsset``, ``DisplayTagAsset`` — are each a
+    union of shapes that share one ``asset_type`` and differ on a second
+    property. Replacing one of those with its own union inlines both shapes
+    under the same tag, and Pydantic refuses the parent union at import time.
+    """
+    names: set[str] = set()
+    for py_file in output_dir.rglob("*.py"):
+        content = py_file.read_text()
+        if "discriminator=" not in content:
+            continue
+        try:
+            tree = ast.parse(content)
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not (
+                isinstance(node, ast.Subscript)
+                and isinstance(node.value, ast.Name)
+                and node.value.id == "Annotated"
+                and isinstance(node.slice, ast.Tuple)
+                and len(node.slice.elts) >= 2
+            ):
+                continue
+            union, *metadata = node.slice.elts
+            if not (isinstance(union, ast.BinOp) and isinstance(union.op, ast.BitOr)):
+                continue
+            if any(
+                isinstance(entry, ast.Call)
+                and any(keyword.arg == "discriminator" for keyword in entry.keywords)
+                for entry in metadata
+            ):
+                _union_arm_names(union, names)
+    return names
+
+
+def _field_union_arm_names(output_dir: Path) -> set[str]:
+    """Names any module's *field* unions join, when the union has two or more arms.
+
+    The same-module guard above is not enough on its own: a composing root
+    that another module's field names as an arm of a smart (non-discriminated)
+    union — ``assets: LocalizedCreativeAsset | Assets`` in
+    ``core/creative_localization.py``, where ``LocalizedCreativeAsset`` is a
+    ``oneOf`` root defined in its own module — would be unwrapped, and the
+    field's union would then compare the root's arms against ``Assets``
+    directly. Pydantic's smart mode scores the successful arms (fields set,
+    exactness), so inlining can select a different arm for the same payload,
+    silently. The wrapper keeps the root one choice, as it was.
+
+    Only field annotations count, and only for union roots: a single-model root
+    is one class whichever way it is spelled. A module-level union *root* that names other
+    roots as arms — ``core/async-response-data.json`` composing every task
+    response — is a union of unions by schema and was flattened before this
+    pass existed; keeping its arms wrapped would re-wrap unions adopters
+    already use unwrapped. Discriminated roots are exempt as well: a tagged
+    union nested as an arm is selected by its tag, not scored.
+    """
+    names: set[str] = set()
+    for py_file in output_dir.rglob("*.py"):
+        content = py_file.read_text()
+        if "|" not in content:
+            continue
+        try:
+            tree = ast.parse(content)
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            for statement in node.body:
+                if not isinstance(statement, ast.AnnAssign):
+                    continue
+                # A wrapper's own ``root:`` annotation restates a root union;
+                # it is the composition this pass rewrites, not a field that
+                # scores arms.
+                if isinstance(statement.target, ast.Name) and statement.target.id == "root":
+                    continue
+                for union in ast.walk(statement.annotation):
+                    if not (isinstance(union, ast.BinOp) and isinstance(union.op, ast.BitOr)):
+                        continue
+                    arms: set[str] = set()
+                    _union_arm_names(union, arms)
+                    if len(arms - {"None"}) >= 2:
+                        names.update(arms)
+    return names
+
+
+def _module_union_arm_names(tree: ast.Module) -> set[str]:
+    """Names a union inside this module joins.
+
+    A wrapper named as an arm of another union in the same module is that
+    union's single choice, and its own arms are not siblings of the other
+    arms. Inlining it makes them siblings, and Pydantic then picks a
+    different arm for the same payload: ``AdcpAgentsAuthorization2`` groups
+    14 catalog shapes under one choice of ``AdcpAgentsAuthorization``, and
+    ``VastAsset`` groups two delivery shapes under one choice of
+    ``AssetVariant``.
+    """
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            _union_arm_names(node, names)
+    return names
+
+
+def _ensure_typing_import(content: str, name: str) -> str:
+    """Add ``name`` to the module's ``typing`` import when it is missing."""
+    if re.search(rf"^from typing import .*\b{name}\b", content, re.MULTILINE):
+        return content
+    match = re.search(r"^from typing import ", content, re.MULTILINE)
+    if match:
+        return content[: match.end()] + f"{name}, " + content[match.end() :]
+    return f"from typing import {name}\n" + content
 
 
 def unwrap_rootmodel_unions():
-    """Unwrap specified RootModel unions to plain Union type aliases.
+    """Emit a composing schema root as what it composes, metadata intact.
 
-    Consumers that subclass library types cannot extend RootModel subclasses
-    because Pydantic 2 forbids model_config overrides on RootModel.
+    Pydantic 2 refuses ``model_config['extra']`` on a ``RootModel`` subclass, so
+    a consumer cannot extend a generated ``RootModel`` the way it extends every
+    other generated model. A root that composes — a union of object models, or a
+    single model — has no value semantics the wrapper protects.
 
-    Uses AST to find class definitions instead of regex, which avoids issues
-    with nested brackets in base class annotations.
+    A union root becomes a union type alias carrying the generator's own
+    ``Field(...)``, which keeps the description, the title and — where the schema
+    declares one — the ``discriminator``::
 
-    Replaces:
         class TypeName(RootModel[Variant1 | Variant2]):
-            root: Annotated[Variant1 | Variant2, Field(...)]
-            def __getattr__(self, name): ...
+            root: Annotated[Variant1 | Variant2, Field(discriminator='type')]
 
-    With:
-        TypeName = Variant1 | Variant2
+        TypeName = Annotated[Variant1 | Variant2, Field(discriminator='type')]
 
-    Note: the types in _UNWRAP_TO_UNION are Request/Response types whose
-    root: fields had no meaningful Field(description=..., examples=[...])
-    metadata. Value-type RootModels that carry rich metadata are otherwise
-    intentionally excluded and keep the RootModel wrapper + __getattr__ proxy;
-    MediaBuyAvailableActionId is the documented exception (see the set).
+    A single-model root becomes a subclass of that model, which keeps the name
+    constructible and moves the root description to the class docstring, where
+    Pydantic reads it for the JSON schema::
+
+        class TypeName(RootModel[Target]):
+            root: Annotated[Target, Field(description='...')]
+
+        class TypeName(Target):
+            # the root description, as a docstring
+
+    An unannotated union root becomes the bare union. A value root — ``str``,
+    ``AnyUrl``, ``list[X]``, ``Literal[...]`` — keeps its ``RootModel``, and so
+    do a wrapper another union discriminates against and a root naming an
+    enumeration.
+
+    See https://github.com/adcontextprotocol/adcp-client-python/issues/1077.
     """
     unwrapped_count = 0
+    kept_count = 0
+    keep_wrapped = _discriminated_arm_names(OUTPUT_DIR)
+    field_union_arms = _field_union_arm_names(OUTPUT_DIR)
+    plain_models = _plain_model_names(OUTPUT_DIR)
 
     for py_file in OUTPUT_DIR.rglob("*.py"):
-        with open(py_file) as f:
-            content = f.read()
+        content = py_file.read_text()
 
         if "RootModel[" not in content:
             continue
@@ -972,81 +1445,66 @@ def unwrap_rootmodel_unions():
         except SyntaxError:
             continue
 
-        original = content
-        lines = content.split("\n")
-
-        # Collect classes to unwrap (process in reverse order to preserve line numbers)
-        replacements: list[tuple[int, int, str, str]] = (
-            []
-        )  # (start_line, end_line, name, union_types)
-
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.ClassDef) or node.name not in _UNWRAP_TO_UNION:
-                continue
-            if not node.end_lineno:
-                continue
-
-            # Find the RootModel[...] base class using AST source segments
-            for base in node.bases:
-                base_src = ast.get_source_segment(content, base)
-                if not base_src or "RootModel[" not in base_src:
-                    continue
-
-                # Extract union type from RootModel[...] using bracket depth
-                # to handle nested generics like RootModel[list[X] | Y]
-                bracket_start = base_src.index("RootModel[") + len("RootModel[")
-                depth = 1
-                pos = bracket_start
-                while pos < len(base_src) and depth > 0:
-                    if base_src[pos] == "[":
-                        depth += 1
-                    elif base_src[pos] == "]":
-                        depth -= 1
-                    pos += 1
-                bracket_end = pos - 1  # position of the matching ]
-                union_types = base_src[bracket_start:bracket_end].strip()
-
-                replacements.append((node.lineno, node.end_lineno, node.name, union_types))
-                break
-
-        if not replacements:
+        candidates = [
+            spec
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ClassDef)
+            for spec in [_composing_root_spec(content, node)]
+            if spec is not None
+        ]
+        module_arms = _module_union_arm_names(tree)
+        specs = [
+            spec
+            for spec in candidates
+            if spec.name not in keep_wrapped
+            and spec.name not in module_arms
+            and not (
+                spec.is_union
+                and spec.name in field_union_arms
+                and (spec.metadata is None or "discriminator=" not in spec.metadata)
+            )
+            and (spec.is_union or spec.root.split(".")[-1] in plain_models)
+        ]
+        kept_count += len(candidates) - len(specs)
+        if not specs:
             continue
 
-        # Apply replacements in reverse line order to preserve indices
-        for start_line, end_line, type_name, union_types in sorted(replacements, reverse=True):
-            # Wrap multi-line unions in parentheses for valid syntax
-            if "\n" in union_types:
-                # Re-indent continuation lines to 4 spaces
-                union_lines = [ln.strip() for ln in union_types.split("\n")]
-                indented = union_lines[0] + "\n" + "\n".join(f"    {ln}" for ln in union_lines[1:])
-                replacement = f"{type_name} = (\n    {indented}\n)"
-            else:
-                replacement = f"{type_name} = {union_types}"
-            lines[start_line - 1 : end_line] = [replacement]
+        lines = content.split("\n")
+        for spec in sorted(specs, key=lambda s: s.start_line, reverse=True):
+            lines[spec.start_line - 1 : spec.end_line] = [_composing_root_source(spec)]
             unwrapped_count += 1
-
         content = "\n".join(lines)
 
-        if content != original:
-            # Remove RootModel from imports if no longer used as a base class
-            if not re.search(r"\(RootModel\[", content):
-                content = re.sub(r",\s*RootModel", "", content)
-                content = re.sub(r"RootModel,\s*", "", content)
+        if any(spec.is_union and spec.metadata is not None for spec in specs):
+            content = _ensure_typing_import(content, "Annotated")
 
-            # Remove unused Any import if no longer referenced in code body
-            import_line_end = content.find("\n", content.find("from typing import"))
-            after_imports = content[import_line_end:] if import_line_end > 0 else ""
-            if "Any" not in after_imports:
-                content = re.sub(r"Any,\s*", "", content)
-                content = re.sub(r",\s*Any", "", content)
-
-            with open(py_file, "w") as f:
-                f.write(content)
+        # Imports stay as generated. A later fix matches an exact import line,
+        # so ``remove_unused_pydantic_field_imports`` drops the now-unused
+        # ``RootModel`` once every fix has run.
+        py_file.write_text(content)
 
     if unwrapped_count > 0:
-        print(f"  Unwrapped {unwrapped_count} RootModel union(s) to type aliases")
+        print(
+            f"  Unwrapped {unwrapped_count} composing RootModel root(s); "
+            f"kept {kept_count} the wrapper still carries"
+        )
     else:
-        print("  No RootModel unions needed unwrapping")
+        print("  No RootModel roots needed unwrapping")
+
+
+def _composing_root_source(spec: _ComposingRootSpec) -> str:
+    """Render the replacement for one composing ``RootModel`` class."""
+    if not spec.is_union:
+        docstring = spec.docstring or (None if spec.description is None else repr(spec.description))
+        body = "pass" if docstring is None else docstring
+        return f"class {spec.name}({spec.root}):\n    {body}"
+    if spec.metadata is None:
+        # A multi-line union needs brackets of its own to stay one expression;
+        # ``Annotated[...]`` supplies them in the other arm.
+        if "\n" in spec.root:
+            return f"{spec.name} = (\n    {spec.root}\n)"
+        return f"{spec.name} = {spec.root}"
+    return f"{spec.name} = Annotated[\n    {spec.root},\n    {spec.metadata},\n]"
 
 
 def add_rootmodel_getattr_proxy():
@@ -1077,16 +1535,25 @@ def add_rootmodel_getattr_proxy():
             else:
                 source = "from typing import Any\n" + source
 
+        # The method goes at the class's own end, which the AST reports. A
+        # module now holds union type aliases between its classes, so "just
+        # before the next ``class``" would land the method at module indent.
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+        line_offsets = [0]
+        for line in source.splitlines(keepends=True):
+            line_offsets.append(line_offsets[-1] + len(line))
+
         insertions: list[int] = []
-        for match in re.finditer(r"^class ([A-Za-z_]\w*)\b", source, re.MULTILINE):
-            header_end = source.find(":\n", match.end())
-            if header_end == -1:
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef) or not node.end_lineno:
                 continue
-            header = source[match.start() : header_end]
+            header = " ".join(ast.get_source_segment(source, base) or "" for base in node.bases)
             if "RootModel[" not in header or "|" not in header:
                 continue
-            next_class = re.compile(r"^class ", re.MULTILINE).search(source, header_end + 2)
-            insertions.append(next_class.start() if next_class is not None else len(source))
+            insertions.append(line_offsets[node.end_lineno])
 
         if not insertions:
             continue
@@ -1111,6 +1578,294 @@ def add_rootmodel_getattr_proxy():
         print(f"  Added __getattr__ proxy to {fixed_count} RootModel union type(s)")
     else:
         print("  No RootModel union types needed __getattr__ proxy")
+
+
+class _ScalarRootSpec(NamedTuple):
+    """One generated class that will become a scalar subclass."""
+
+    name: str
+    base: str
+    docstring: str | None
+    constraints: list[tuple[str, str]]
+    documentation: list[tuple[str, str]]
+    start_line: int
+    end_line: int
+
+
+def _rootmodel_scalar(node: ast.ClassDef) -> str | None:
+    """Return the wrapped scalar when ``node`` is ``class X(RootModel[<scalar>])``.
+
+    ``None`` for anything that composes — ``RootModel[A | B]``,
+    ``RootModel[list[A]]``, ``RootModel[AnyUrl]``, ``RootModel[Literal[...]]`` —
+    and for any class that carries decorators or class keywords.
+    """
+    if len(node.bases) != 1 or node.keywords or node.decorator_list:
+        return None
+    base = node.bases[0]
+    if not isinstance(base, ast.Subscript):
+        return None
+    if not (isinstance(base.value, ast.Name) and base.value.id == "RootModel"):
+        return None
+    if isinstance(base.slice, ast.Name) and base.slice.id in _SCALAR_BASES:
+        return base.slice.id
+    return None
+
+
+def _scalar_root_spec(source: str, node: ast.ClassDef, scalar: str) -> _ScalarRootSpec | None:
+    """Describe the rewrite for a scalar root, or ``None`` if it is not plain.
+
+    "Plain" means the whole class is the wrapper and nothing else: an optional
+    docstring plus ``root: <scalar>`` or ``root: Annotated[<scalar>, Field(...)]``
+    with no default, no second metadata entry, and only known keywords. A class
+    carrying a validator, a default, or an unrecognized keyword keeps its
+    ``RootModel``, because dropping any of those silently would change behavior.
+    """
+    body = list(node.body)
+    docstring: str | None = None
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        docstring = ast.get_source_segment(source, body[0].value)
+        body = body[1:]
+
+    if len(body) != 1:
+        return None
+    field = body[0]
+    if not (
+        isinstance(field, ast.AnnAssign)
+        and isinstance(field.target, ast.Name)
+        and field.target.id == "root"
+        and field.value is None
+    ):
+        return None
+
+    annotation = field.annotation
+    metadata: ast.Call | None = None
+    if (
+        isinstance(annotation, ast.Subscript)
+        and isinstance(annotation.value, ast.Name)
+        and annotation.value.id == "Annotated"
+    ):
+        elements = list(annotation.slice.elts) if isinstance(annotation.slice, ast.Tuple) else []
+        if len(elements) != 2:
+            return None
+        annotation, candidate = elements
+        if not (
+            isinstance(candidate, ast.Call)
+            and isinstance(candidate.func, ast.Name)
+            and candidate.func.id in ("Field", "StringConstraints")
+        ):
+            return None
+        metadata = candidate
+
+    if not (isinstance(annotation, ast.Name) and annotation.id == scalar):
+        return None
+
+    constraints: list[tuple[str, str]] = []
+    documentation: list[tuple[str, str]] = []
+    if metadata is not None:
+        if metadata.args:
+            return None
+        for keyword in metadata.keywords:
+            if keyword.arg is None:
+                return None
+            try:
+                value = ast.literal_eval(keyword.value)
+            except (SyntaxError, TypeError, ValueError):
+                return None
+            if keyword.arg in _SCALAR_CONSTRAINT_KEYWORDS:
+                constraints.append((keyword.arg, repr(value)))
+            elif keyword.arg in _SCALAR_DOCUMENTATION_KEYWORDS:
+                documentation.append((keyword.arg, repr(value)))
+            else:
+                return None
+
+    return _ScalarRootSpec(
+        name=node.name,
+        base=_SCALAR_BASES[scalar],
+        docstring=docstring,
+        constraints=constraints,
+        documentation=documentation,
+        start_line=node.lineno,
+        end_line=node.end_lineno or node.lineno,
+    )
+
+
+def _render_class_dict(attribute: str, items: list[tuple[str, str]]) -> list[str]:
+    """Render a class-level dict literal, one key per line once it gets long."""
+    inline = (
+        f"    {attribute} = {{" + ", ".join(f"{key!r}: {value}" for key, value in items) + "}\n"
+    )
+    if len(inline) <= 100:
+        return [inline]
+    rendered = [f"    {attribute} = {{\n"]
+    rendered.extend(f"        {key!r}: {value},\n" for key, value in items)
+    rendered.append("    }\n")
+    return rendered
+
+
+def _render_scalar_class(spec: _ScalarRootSpec) -> str:
+    lines = [f"class {spec.name}({spec.base}):\n"]
+    if spec.docstring is not None:
+        lines.append(f"    {spec.docstring}\n")
+        lines.append("\n")
+    # ``__slots__`` on the subclass too, or it regains the ``__dict__`` the bases
+    # dropped and a schema value silently accepts arbitrary attributes. The
+    # RootModel wrapper rejected those.
+    lines.append("    __slots__ = ()\n")
+    for attribute, items in (
+        ("_constraints", spec.constraints),
+        ("_json_schema_extra", spec.documentation),
+    ):
+        if items:
+            lines.extend(_render_class_dict(attribute, items))
+    return "".join(lines)
+
+
+def _insert_scalar_import(source: str, bases: set[str]) -> str:
+    """Import the scalar bases this module now uses from ``adcp.types._scalar``."""
+    tree = ast.parse(source)
+    lines = source.splitlines(keepends=True)
+
+    existing = next(
+        (
+            node
+            for node in tree.body
+            if isinstance(node, ast.ImportFrom)
+            and node.level == 0
+            and node.module == _SCALAR_MODULE_PATH
+        ),
+        None,
+    )
+    if existing is not None:
+        names = sorted({alias.name for alias in existing.names} | bases)
+        lines[existing.lineno - 1 : existing.end_lineno or existing.lineno] = [
+            f"from {_SCALAR_MODULE_PATH} import {', '.join(names)}\n"
+        ]
+        return "".join(lines)
+
+    statement = f"from {_SCALAR_MODULE_PATH} import {', '.join(sorted(bases))}\n"
+
+    # Group with the sibling ``adcp.types`` imports the other fixers emit
+    # (``adcp.types.base``, ``adcp.types._str_enum``) when the module has one.
+    siblings = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom)
+        and node.level == 0
+        and (node.module or "").startswith("adcp.types")
+    ]
+    if siblings:
+        lines.insert(siblings[-1].end_lineno or siblings[-1].lineno, statement)
+        return "".join(lines)
+
+    # Otherwise start a new block below ``from __future__ import annotations``,
+    # falling back to the end of the leading import block.
+    future = next(
+        (
+            node
+            for node in tree.body
+            if isinstance(node, ast.ImportFrom) and node.module == "__future__"
+        ),
+        None,
+    )
+    if future is not None:
+        lines.insert(future.end_lineno or future.lineno, f"\n{statement}")
+        return "".join(lines)
+
+    anchor = 0
+    for node in tree.body:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            anchor = max(anchor, node.end_lineno or node.lineno)
+        elif anchor:
+            break
+    lines.insert(anchor, statement)
+    return "".join(lines)
+
+
+def rewrite_scalar_rootmodels() -> None:
+    """Make generated scalar roots real ``str``/``int``/``float`` subclasses.
+
+    A JSON Schema whose root is a scalar describes a *value*.
+    ``datamodel-code-generator`` cannot express that and emits
+    ``class PropertyTag(RootModel[str])``, which is not a ``str`` anywhere
+    Python treats one — ``str(x)`` renders ``"root='sports'"``, ``x ==
+    "sports"`` is ``False``, and ``hash(x)`` raises. Rewrite those classes to
+    subclass ``adcp.types._scalar.ScalarStr`` / ``ScalarInt`` / ``ScalarFloat``,
+    carrying the schema's constraint and documentation keywords with them.
+
+    Roots that compose keep their ``RootModel``: see :func:`_rootmodel_scalar`
+    for the condition. ``bool`` roots keep it too — Python forbids subclassing
+    ``bool``.
+
+    Anything that looks scalar but is not plain enough to rewrite is reported
+    rather than rewritten; ``tests/test_scalar_roots.py`` fails on a leftover,
+    so a new schema shape surfaces as a test failure instead of a silent
+    regression to the broken wrapper.
+
+    See: https://github.com/adcontextprotocol/adcp-client-python/issues/1277
+    """
+    rewritten = 0
+    files_changed = 0
+    skipped: list[str] = []
+
+    for py_file in sorted(OUTPUT_DIR.rglob("*.py")):
+        source = py_file.read_text()
+        if "RootModel[" not in source:
+            continue
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+
+        specs: list[_ScalarRootSpec] = []
+        for node in tree.body:
+            if not isinstance(node, ast.ClassDef):
+                continue
+            scalar = _rootmodel_scalar(node)
+            if scalar is None:
+                continue
+            spec = _scalar_root_spec(source, node, scalar)
+            if spec is None:
+                skipped.append(f"{py_file.relative_to(OUTPUT_DIR)}::{node.name}")
+                continue
+            specs.append(spec)
+
+        if not specs:
+            continue
+
+        lines = source.splitlines(keepends=True)
+        for spec in sorted(specs, key=lambda item: item.start_line, reverse=True):
+            lines[spec.start_line - 1 : spec.end_line] = [_render_scalar_class(spec)]
+        updated = _insert_scalar_import("".join(lines), {spec.base for spec in specs})
+        updated, _ = _remove_unused_imports(
+            updated,
+            {
+                "pydantic": (
+                    "Field",
+                    "RootModel",
+                    "StringConstraints",
+                    "StrictFloat",
+                    "StrictInt",
+                    "StrictStr",
+                ),
+                "typing": ("Annotated",),
+            },
+        )
+
+        py_file.write_text(updated)
+        files_changed += 1
+        rewritten += len(specs)
+
+    print(f"  Rewrote {rewritten} scalar RootModel root(s) across {files_changed} file(s)")
+    if skipped:
+        print(
+            f"  WARNING: {len(skipped)} scalar root(s) kept their RootModel wrapper "
+            f"(not a plain root field): {', '.join(sorted(skipped))}"
+        )
 
 
 # Response-only list fields changed to Sequence[T] so adopters can narrow the
@@ -1731,83 +2486,6 @@ def fix_allof_merge_field_override_conflicts() -> None:
         print("  No allOf-merge field override conflicts found")
 
 
-def expose_account_reference_union_fields() -> None:
-    """Replace generated AccountReference wrappers with their concrete arms.
-
-    ``AccountReference`` is public as a composable object-union alias, but
-    datamodel-codegen still annotates every schema reference with its outer
-    ``RootModel`` class. Rewrite those generated annotations at the source so
-    request, nested-input, response, and canonical-clone paths all expose the
-    same concrete arm types without import-time Pydantic patching.
-    """
-    account_ref_source = OUTPUT_DIR / "core" / "account_ref.py"
-    if not account_ref_source.exists():
-        print("  account reference model not found (skipping union-field fix)")
-        return
-
-    tree = ast.parse(account_ref_source.read_text())
-    wrapper = next(
-        (
-            node
-            for node in tree.body
-            if isinstance(node, ast.ClassDef) and node.name == "AccountReference"
-        ),
-        None,
-    )
-    if wrapper is None:
-        raise RuntimeError("generated account_ref.py has no AccountReference wrapper")
-
-    root_base = next(
-        (
-            base
-            for base in wrapper.bases
-            if isinstance(base, ast.Subscript)
-            and isinstance(base.value, ast.Name)
-            and base.value.id == "RootModel"
-        ),
-        None,
-    )
-    if root_base is None:
-        raise RuntimeError("generated AccountReference has no RootModel union base")
-
-    def union_arm_names(node: ast.expr) -> list[str]:
-        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
-            return [*union_arm_names(node.left), *union_arm_names(node.right)]
-        if isinstance(node, ast.Name):
-            return [node.id]
-        raise RuntimeError(
-            f"generated AccountReference has an unsupported union expression: {ast.unparse(node)}"
-        )
-
-    arm_names = union_arm_names(root_base.slice)
-    if len(arm_names) < 2 or len(set(arm_names)) != len(arm_names):
-        raise RuntimeError(f"generated AccountReference has invalid union arms: {arm_names!r}")
-
-    pattern = re.compile(r"\b(account_ref(?:_\d+)?)\.AccountReference\b(?!\d)")
-    total_files = 0
-    total_fields = 0
-
-    for py_file in sorted(OUTPUT_DIR.rglob("*.py")):
-        source = py_file.read_text()
-        fixed, replacements = pattern.subn(
-            lambda match: " | ".join(f"{match.group(1)}.{arm_name}" for arm_name in arm_names),
-            source,
-        )
-        if not replacements:
-            continue
-        py_file.write_text(fixed)
-        total_files += 1
-        total_fields += replacements
-
-    if total_fields:
-        print(
-            f"  Exposed AccountReference union arms in {total_fields} field(s) "
-            f"across {total_files} file(s)"
-        )
-    else:
-        print("  AccountReference field annotations already expose concrete arms")
-
-
 def fix_postal_union_arm_order() -> None:
     """Prefer the legacy postal arm when a payload omits ``country``.
 
@@ -1921,15 +2599,7 @@ def fix_postal_country_system_pairing() -> None:
     else:
         insertion_line = first_method.lineno
 
-    if "model_validator" not in source:
-        source, count = re.subn(
-            r"from pydantic import ([^\n]+)",
-            lambda match: f"from pydantic import {match.group(1)}, model_validator",
-            source,
-            count=1,
-        )
-        if count != 1:
-            raise RuntimeError("generated postal_area.py has no pydantic import to extend")
+    source = ensure_pydantic_import(source, "model_validator")
 
     validator = f"""    @model_validator(mode='before')
     @classmethod
@@ -2381,6 +3051,31 @@ def _field_already_widened(content: str, class_name: str, field_name: str) -> bo
     return "Sequence[" in content[annotation_start:annotation_end]
 
 
+def _class_end_offset(content: str, class_name: str) -> int | None:
+    """Return the offset just past the last line of ``class_name``'s body.
+
+    A module holds union type aliases between its classes, so "the offset of the
+    next ``class``" overshoots into whatever follows. The AST reports the class's
+    own extent.
+    """
+    try:
+        tree = ast.parse(content)
+    except SyntaxError:
+        return None
+    node = next(
+        (n for n in ast.walk(tree) if isinstance(n, ast.ClassDef) and n.name == class_name),
+        None,
+    )
+    if node is None or not node.end_lineno:
+        return None
+    offset = 0
+    for index, line in enumerate(content.splitlines(keepends=True), start=1):
+        offset += len(line)
+        if index == node.end_lineno:
+            return offset
+    return len(content)
+
+
 def _find_class_field_block(
     content: str, class_name: str, field_name: str
 ) -> tuple[int, int] | None:
@@ -2744,8 +3439,7 @@ def fix_reporting_request_selectors() -> None:
     @model_validator(mode='after')
     def _unique_reporting_scope(self) -> {node.name}:
         if self.media_buy_ids is not None:
-            ids = [getattr(item, 'root', item) for item in self.media_buy_ids]
-            if len(ids) != len(set(ids)):
+            if len(self.media_buy_ids) != len(set(self.media_buy_ids)):
                 raise ValueError('media_buy_ids must be unique')
         return self
 
@@ -3012,12 +3706,14 @@ def fix_trusted_match_runtime_validators() -> None:
                     validators_1 + "\n\nclass TmpProviderRegistration2(AdCPBaseModel):",
                     1,
                 )
-                source = source.replace(
-                    "\n\nclass TmpProviderRegistration(RootModel[TmpProviderRegistration1 | TmpProviderRegistration2]):",
-                    validators_2
-                    + "\n\nclass TmpProviderRegistration(RootModel[TmpProviderRegistration1 | TmpProviderRegistration2]):",
-                    1,
-                )
+                # Arm 2 is the last class in the module, so anchor on the end
+                # of its own body rather than on whatever follows it.
+                arm_2_end = _class_end_offset(source, "TmpProviderRegistration2")
+                if arm_2_end is None:
+                    raise RuntimeError(
+                        "generated provider_registration.py has no TmpProviderRegistration2"
+                    )
+                source = source[:arm_2_end] + validators_2 + source[arm_2_end:]
                 provider_registration.write_text(source)
                 print("  trusted_match/provider_registration.py: added runtime validators")
     else:
@@ -3271,16 +3967,7 @@ def fix_beta3_adagents_renderer_constraints() -> None:
         )
 
     if "def _validate_reference_renderer_catalog(" not in source:
-        source, import_count = re.subn(
-            r"^(from pydantic import .+)$",
-            r"\1, model_validator",
-            source,
-            count=1,
-            flags=re.MULTILINE,
-        )
-        if import_count != 1:
-            print("  adagents.py pydantic import shape not found")
-            return
+        source = ensure_pydantic_import(source, "model_validator")
         class_start = source.find(
             "class AdcpAgentsAuthorization(RootModel[AdcpAgentsAuthorization1 | AdcpAgentsAuthorization2]):"
         )
@@ -3485,17 +4172,17 @@ def fix_product_publisher_property_model_coercion() -> None:
         print("  core/product.py publisher property coercion already fixed")
         return
 
-    if (
-        "from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field, RootModel"
-        in source
-    ):
-        source = source.replace(
-            "from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field, RootModel",
-            "from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field, RootModel, model_validator",
-        )
-    else:
+    # Not an exact-literal match on the import line: strict scalar annotations
+    # and the formatter's parenthesized form change that line's spelling, and
+    # the fix went silent on it once already (caught by the effect manifest).
+    if _import_pattern("pydantic").search(source) is None:
         print("  core/product.py pydantic import shape not found")
         return
+    source = ensure_pydantic_import(source, "model_validator")
+
+    # The method annotates ``Any``; the generated module imports it only when a
+    # class body needs it.
+    source = _ensure_typing_import(source, "Any")
 
     method = """
 
@@ -3629,9 +4316,7 @@ def fix_mcp_webhook_operation_id_optional() -> None:
 def fix_signal_listing_range_subclasses() -> None:
     """Reuse SignalListing.Range for generated subclasses that redeclare range."""
     replacements = {
-        OUTPUT_DIR
-        / "signals"
-        / "get_signals_response.py": [
+        OUTPUT_DIR / "signals" / "get_signals_response.py": [
             (
                 "from ..core.signal_listing import SignalListing\n",
                 "from ..core.signal_listing import Range, SignalListing\n",
@@ -3646,9 +4331,7 @@ def fix_signal_listing_range_subclasses() -> None:
                 "",
             ),
         ],
-        OUTPUT_DIR
-        / "core"
-        / "wholesale_feed_event.py": [
+        OUTPUT_DIR / "core" / "wholesale_feed_event.py": [
             (
                 "from .signal_listing import SignalListing\n",
                 "from .signal_listing import Range, SignalListing\n",
@@ -3945,13 +4628,7 @@ def restore_flattened_contract_field_types() -> None:
         raise RuntimeError("creative_representation.py: expected model configuration not found")
 
     if "@model_validator(mode='before')" not in source:
-        if "from pydantic import ConfigDict, Field\n" not in source:
-            raise RuntimeError("creative_representation.py: missing Pydantic import")
-        source = source.replace(
-            "from pydantic import ConfigDict, Field\n",
-            "from pydantic import ConfigDict, Field, model_validator\n",
-            1,
-        )
+        source = ensure_pydantic_import(source, "model_validator")
         source = (
             source.rstrip()
             + """
@@ -4031,14 +4708,7 @@ def enforce_transformer_output_contract() -> None:
         return
     if "class Transformer(" not in source:
         raise RuntimeError("transformer.py: Transformer class not found")
-    if "from pydantic import AnyUrl, ConfigDict, Field, RootModel\n" not in source:
-        raise RuntimeError("transformer.py: missing Pydantic import")
-
-    source = source.replace(
-        "from pydantic import AnyUrl, ConfigDict, Field, RootModel\n",
-        "from pydantic import AnyUrl, ConfigDict, Field, RootModel, model_validator\n",
-        1,
-    )
+    source = ensure_pydantic_import(source, "model_validator")
     target.write_text(
         source.rstrip()
         + """
@@ -4304,17 +4974,30 @@ def restore_response_variant_aliases() -> None:
         except SyntaxError:
             return fallback
         class_names = [node.name for node in tree.body if isinstance(node, ast.ClassDef)]
-        if not class_names:
+        # A composing schema root is emitted as a module-level union alias
+        # rather than a class, and the alias is what a field references.
+        alias_names = [
+            target.id
+            for node in tree.body
+            if isinstance(node, ast.Assign)
+            for target in node.targets
+            if isinstance(target, ast.Name)
+        ] + [
+            node.target.id
+            for node in tree.body
+            if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
+        ]
+        if not class_names and not alias_names:
             return fallback
         normalized_fallback = fallback.lower()
-        for name in class_names:
+        for name in (*alias_names, *class_names):
             if name.lower() == normalized_fallback:
                 return name
         stem_fallback = _pascal(schema_rel.stem).lower()
-        for name in class_names:
+        for name in (*alias_names, *class_names):
             if name.lower() == stem_fallback:
                 return name
-        return class_names[-1]
+        return class_names[-1] if class_names else alias_names[-1]
 
     def _safe_import_alias(module_stem: str, used: set[str]) -> str:
         base = module_stem.replace("-", "_")
@@ -5575,11 +6258,7 @@ def fix_list_creatives_format_reference_xor() -> None:
             print("  creative/list_creatives_response.py: merged creative XOR already fixed")
             return
 
-        source = source.replace(
-            "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StringConstraints",
-            "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StringConstraints, model_validator",
-            1,
-        )
+        source = ensure_pydantic_import(source, "model_validator")
         merged_validator = """
 
     @model_validator(mode='after')
@@ -5603,11 +6282,7 @@ Creatives1 = Creative
         print("  creative/list_creatives_response.py: format reference XOR already fixed")
         return
 
-    source = source.replace(
-        "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StringConstraints",
-        "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StringConstraints, model_validator",
-        1,
-    )
+    source = ensure_pydantic_import(source, "model_validator")
 
     legacy_validator = """
 
@@ -5895,13 +6570,8 @@ def fix_legacy_purchase_accepted_losses() -> None:
         count=1,
     )
     fixed = fixed.replace("list[AcceptedLoss] | AcceptedLosses", "list[AcceptedLoss]", 1)
-    if "from pydantic import " in fixed and "field_validator" not in fixed:
-        fixed = re.sub(
-            r"from pydantic import ([^\n]+)",
-            lambda match: f"from pydantic import {match.group(1)}, field_validator",
-            fixed,
-            count=1,
-        )
+    if "from pydantic import " in fixed:
+        fixed = ensure_pydantic_import(fixed, "field_validator")
     fixed = fixed.replace(
         "description='Non-empty subset of the product IDs bound into the continuation.',\n"
         "            min_length=1,\n",
@@ -5963,7 +6633,7 @@ def fix_legacy_purchase_accepted_losses() -> None:
     def _selected_product_ids_are_unique(
         cls, values: list[SelectedProductId]
     ) -> list[SelectedProductId]:
-        if len(values) != len({value.root for value in values}):
+        if len(values) != len(set(values)):
             raise ValueError('selected_product_ids must contain unique items')
         return values
 
@@ -6086,8 +6756,9 @@ def enforce_change_term_runtime_constraints() -> None:
             start = source.find(marker)
             if start < 0:
                 continue
-            next_class = source.find("\n\nclass ", start + len(marker))
-            end = len(source) if next_class < 0 else next_class
+            end = _class_end_offset(source, class_name)
+            if end is None:
+                continue
             block = source[start:end]
             if "def _require_portable_bound" in block:
                 continue
@@ -6172,7 +6843,7 @@ def enforce_change_term_runtime_constraints() -> None:
         for term in self.change_terms:
             if term.constraints is None:
                 continue
-            constraint = term.constraints.root
+            constraint = term.constraints
             if constraint.kind == 'budget':
                 money_fields = (
                     constraint.max_delta_amount,
@@ -6238,15 +6909,15 @@ def main(argv: list[str] | None = None):
         fix_typed_additional_properties,
         fix_deprecated_rootmodel_fields,
         fix_constr_type_annotations,
+        fix_postal_union_arm_order,
+        fix_postal_country_system_pairing,
+        fix_beta3_adagents_renderer_constraints,
         unwrap_rootmodel_unions,
         add_rootmodel_getattr_proxy,
         fix_list_field_shadowing,
         rewrite_response_list_to_sequence,
         fix_reuse_model_discriminator_bug,
         fix_allof_merge_field_override_conflicts,
-        expose_account_reference_union_fields,
-        fix_postal_union_arm_order,
-        fix_postal_country_system_pairing,
         fix_adagents_duplicate_aliases,
         restore_format_category_deprecation_shim,
         restore_signal_catalog_type_alias,
@@ -6276,7 +6947,6 @@ def main(argv: list[str] | None = None):
         fix_trusted_match_runtime_validators,
         fix_beta3_secure_url_constraints,
         fix_beta3_package_request_constraints,
-        fix_beta3_adagents_renderer_constraints,
         restore_trusted_match_compatibility_aliases,
         fix_publisher_tmpx_mapping_key_constraints,
         fix_wholesale_cache_scope_defaults,
@@ -6292,8 +6962,13 @@ def main(argv: list[str] | None = None):
         fix_creative_manifest_standalone_asset_coercion,
         fix_update_rights_legacy_response_defaults,
         fix_list_creatives_format_reference_xor,
+        # Last of the substantive fixes: every earlier fixer may still emit or
+        # edit a ``RootModel[<scalar>]`` class, and this one consumes them all.
+        rewrite_scalar_rootmodels,
         rewrite_generated_enums_to_strenum,
         annotate_registry_track_verdict,
+        point_integer_fields_at_the_schema_integer_type,
+        remove_imports_shadowed_by_a_local_class,
         remove_unused_pydantic_field_imports,
         strip_extra_blank_lines_at_eof,
     ]

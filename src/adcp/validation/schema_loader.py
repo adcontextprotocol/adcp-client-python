@@ -37,9 +37,20 @@ from pathlib import Path
 from typing import Any, Literal, cast
 from urllib.parse import unquote, urlparse
 
+from pydantic import AnyUrl, TypeAdapter, ValidationError
+
+from adcp._deferred_adapters import deferred_adapter
 from adcp.validation.version import resolve_bundle_key
 
 logger = logging.getLogger(__name__)
+
+
+@deferred_adapter
+def _uri_adapter() -> TypeAdapter[AnyUrl]:
+    """Built on first use: the generated models validate every ``format: uri``
+    field through this same adapter."""
+    return TypeAdapter(AnyUrl)
+
 
 # Serialize first-time init and validator compilation. Concurrent callers
 # on a fresh process can otherwise both walk the schema tree or compile
@@ -83,6 +94,71 @@ def _is_rfc3339_date_time(instance: Any) -> bool:
     except ValueError:
         return False
     return True
+
+
+# Hostname grammar from RFC 1123 section 2.1: dot-separated labels of
+# alphanumerics and hyphens, each label 1-63 characters and neither starting
+# nor ending with a hyphen. This is the same grammar the generated models
+# carry as a ``pattern`` constraint on every ``format: hostname`` field, so
+# both validators accept the same set of strings.
+_HOSTNAME = re.compile(
+    r"(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])\.)*"
+    r"([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]{0,61}[A-Za-z0-9])",
+    re.ASCII,
+)
+
+
+def _is_uri(instance: Any) -> bool:
+    """Return whether ``instance`` is an absolute URI.
+
+    Delegates to the same ``pydantic.AnyUrl`` parser the generated models
+    apply to every ``format: uri`` field, so a payload cannot pass schema
+    validation and then fail model validation on the same string.
+    """
+    if not isinstance(instance, str):
+        return True
+    try:
+        _uri_adapter().validate_python(instance)
+    except ValidationError:
+        return False
+    return True
+
+
+def _is_hostname(instance: Any) -> bool:
+    """Return whether ``instance`` is an RFC 1123 hostname."""
+    if not isinstance(instance, str):
+        return True
+    return _HOSTNAME.fullmatch(instance) is not None
+
+
+#: Formats whose checker this module supplies. ``jsonschema`` resolves the
+#: rest of the formats the AdCP bundle uses (``date``, ``date-time``,
+#: ``email``, ``uuid``) from its own registry, and treats a format with no
+#: checker as a bare annotation — accepting every string. The bundle uses
+#: ``format: uri`` more than any other keyword, and ``jsonschema`` only
+#: checks it when the optional ``rfc3987`` package happens to be installed,
+#: which would make validation strength depend on the adopter's environment.
+#: Supplying the checker here pins it to the SDK instead.
+_SUPPLIED_FORMAT_CHECKS: dict[str, Any] = {
+    "date-time": _is_rfc3339_date_time,
+    "uri": _is_uri,
+    "hostname": _is_hostname,
+}
+
+
+def _build_format_checker() -> Any:
+    """Return the format checker every bundled-schema validator uses.
+
+    One builder for every validator this module compiles: task validators and
+    named-document validators enforce the same formats, so a format added
+    here participates in both.
+    """
+    from jsonschema import FormatChecker
+
+    checker = FormatChecker()
+    for name, check in _SUPPLIED_FORMAT_CHECKS.items():
+        checker.checks(name)(check)
+    return checker
 
 
 class _SchemaRoot:
@@ -590,7 +666,7 @@ def get_validator(
     schema = _effective_task_schema(schema, tool_name, direction, bundle_key=state.bundle_key)
 
     try:
-        from jsonschema import Draft7Validator, FormatChecker
+        from jsonschema import Draft7Validator
         from jsonschema.exceptions import SchemaError
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
@@ -606,12 +682,10 @@ def get_validator(
             return cached
         try:
             resolver = _make_ref_resolver(state, file, schema)
-            format_checker = FormatChecker()
-            format_checker.checks("date-time")(_is_rfc3339_date_time)
             validator = Draft7Validator(
                 schema,
                 resolver=resolver,
-                format_checker=format_checker,
+                format_checker=_build_format_checker(),
             )
         except SchemaError as exc:
             logger.warning("Invalid schema %s for %s: %s", file, key, exc)
@@ -659,7 +733,7 @@ def get_named_validator(
         return None
 
     try:
-        from jsonschema import Draft7Validator, FormatChecker
+        from jsonschema import Draft7Validator
         from jsonschema.exceptions import SchemaError
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
@@ -681,12 +755,10 @@ def get_named_validator(
                     referrer=schema,
                     store=_reachable_schema_store(state, file, schema),
                 )
-            format_checker = FormatChecker()
-            format_checker.checks("date-time")(_is_rfc3339_date_time)
             validator = Draft7Validator(
                 schema,
                 resolver=resolver,
-                format_checker=format_checker,
+                format_checker=_build_format_checker(),
             )
         except (OSError, json.JSONDecodeError, SchemaError, ValueError):
             return None

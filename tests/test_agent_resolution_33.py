@@ -359,15 +359,41 @@ def test_governance_selects_only_governed_brand() -> None:
 
 
 @pytest.mark.asyncio
-async def test_webhook_discovery_failure_uses_key_unknown_and_logs_cause(
-    monkeypatch: pytest.MonkeyPatch, caplog: Any
-) -> None:
-    async def failed(*args: Any, **kwargs: Any) -> Any:
-        raise AgentResolverError(
+@pytest.mark.parametrize(
+    ("resolver_code", "signature_code", "logged"),
+    [
+        (
             "brand_json_resolution_failed",
-            "ambiguous",
-            signature_code="request_signature_brand_json_ambiguous",
-        )
+            "request_signature_brand_json_ambiguous",
+            "request_signature_brand_json_ambiguous",
+        ),
+        ("capabilities_unreachable", None, "request_signature_capabilities_unreachable"),
+        ("jwks_fetch_failed", None, "request_signature_jwks_unavailable"),
+        (
+            "jwks_fetch_failed",
+            "request_signature_jwks_untrusted",
+            "request_signature_jwks_untrusted",
+        ),
+        ("invalid_agent_url", None, "request_signature_jwks_untrusted"),
+    ],
+    ids=["brand-ambiguous", "capabilities", "jwks-transient", "jwks-ssrf", "invalid-agent-url"],
+)
+async def test_webhook_discovery_failure_uses_key_unknown_and_logs_cause(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: Any,
+    resolver_code: Any,
+    signature_code: str | None,
+    logged: str,
+) -> None:
+    """Every discovery failure is ``webhook_signature_key_unknown`` on the wire.
+
+    The webhook profile names one code for steps 1-3 of JWKS discovery -- even
+    the terminal SSRF refusal the request profile reports as ``jwks_untrusted``
+    -- and buyers log the specific ``request_signature_*`` cause.
+    """
+
+    async def failed(*args: Any, **kwargs: Any) -> Any:
+        raise AgentResolverError(resolver_code, "failed", signature_code=signature_code)
 
     monkeypatch.setattr(agent_resolver, "async_resolve_agent", failed)
     with pytest.raises(SignatureVerificationError) as exc:
@@ -375,7 +401,7 @@ async def test_webhook_discovery_failure_uses_key_unknown_and_logs_cause(
             method="POST", url=URL, headers=signed_headers(), body=b"{}", agent_url=AGENT
         )
     assert exc.value.code == "webhook_signature_key_unknown"
-    assert "request_signature_brand_json_ambiguous" in caplog.text
+    assert logged in caplog.text
 
 
 @pytest.mark.asyncio

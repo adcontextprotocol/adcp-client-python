@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
+from pydantic import TypeAdapter
 
 from adcp.adagents import (
     AuthorizationContext,
@@ -4037,7 +4038,7 @@ class TestValidateAdagentsStructure:
     def test_generated_publisher_catalog_does_not_invent_registry_role(self):
         from adcp.types.generated_poc.adagents import AdcpAgentsAuthorization
 
-        model = AdcpAgentsAuthorization.model_validate(
+        model = TypeAdapter(AdcpAgentsAuthorization).validate_python(
             {
                 "authorized_agents": [
                     {
@@ -4056,7 +4057,7 @@ class TestValidateAdagentsStructure:
         from adcp.types.generated_poc.adagents import AdcpAgentsAuthorization
 
         with pytest.raises(ValueError, match="Field required"):
-            AdcpAgentsAuthorization.model_validate(
+            TypeAdapter(AdcpAgentsAuthorization).validate_python(
                 {
                     "authorized_agents": [],
                     "catalog_etag": "catalog-v1",

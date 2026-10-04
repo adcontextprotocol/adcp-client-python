@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts" / "ci" / "reporting_interop"
@@ -63,8 +64,13 @@ def test_required_installed_job_runs_both_core_and_full_lifecycle_stages() -> No
     assert "run_installed_artifact_matrix.py" in job
     assert "run_full_installed_artifact_matrix.py" in job
     assert "pytest==9.0.2" in job
-    assert "needs: reporting-installed-artifact-matrix" in gate
-    assert 'needs.reporting-installed-artifact-matrix.result }}" != "success"' in gate
+    definition = yaml.load(workflow, Loader=yaml.BaseLoader)["jobs"][
+        "reporting-installed-artifact-required-gate"
+    ]
+    assert "reporting-installed-artifact-matrix" in definition["needs"]
+    assert definition["if"] == "${{ !cancelled() }}"
+    assert definition["steps"][0]["env"]["CI_NEEDS"] == "${{ toJSON(needs) }}"
+    assert "expected_results" in gate
 
 
 def _full_evidence() -> dict:

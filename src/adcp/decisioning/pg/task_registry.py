@@ -71,7 +71,7 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
 from adcp.decisioning.account_projection import strip_credentials_from_wire_result
-from adcp.decisioning.task_registry import TaskWebhookAuthentication
+from adcp.decisioning.task_registry import TaskWebhookAuthentication, _TaskLifecycleObservers
 
 if TYPE_CHECKING:
     from psycopg_pool import AsyncConnectionPool
@@ -102,7 +102,7 @@ _SAFE_IDENTIFIER_RE = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 WebhookSigningScopeResolver: TypeAlias = Callable[["RequestContext[Any]"], str | Awaitable[str]]
 
 
-class PgTaskRegistry:
+class PgTaskRegistry(_TaskLifecycleObservers):
     """PostgreSQL-backed :class:`~adcp.decisioning.TaskRegistry` — v6.1.
 
     Durable counterpart to :class:`~adcp.decisioning.InMemoryTaskRegistry`.
@@ -156,6 +156,7 @@ class PgTaskRegistry:
                 "webhook_signing_scope_resolver is required exactly when the "
                 "PgTaskWebhookOutbox uses sender_resolver"
             )
+        self._init_lifecycle_observers()
         self._pool = pool
         self._table = _table
         self.task_webhook_outbox = task_webhook_outbox
@@ -171,24 +172,28 @@ class PgTaskRegistry:
             f" VALUES (%s, %s, 'submitted', %s, %s::jsonb, %s, %s, %s, %s)"
         )
         self._sql_update_progress = (  # noqa: S608
-            f"UPDATE {self._table}"  # nosec B608 — table identifier is constructor-validated
-            f" SET state = CASE state WHEN 'submitted' THEN 'working' ELSE state END,"
+            f"WITH previous AS (SELECT task_id, state FROM {self._table}"  # nosec B608 — table identifier is constructor-validated
+            f" WHERE task_id = %s AND state NOT IN ('completed', 'failed') FOR UPDATE)"
+            f" UPDATE {self._table} AS task"
+            f" SET state = CASE task.state WHEN 'submitted' THEN 'working' ELSE task.state END,"
             f"     progress = %s::jsonb, updated_at = %s"
-            f" WHERE task_id = %s AND state NOT IN ('completed', 'failed')"
+            f" FROM previous WHERE task.task_id = previous.task_id"
+            f" RETURNING previous.state, task.task_id, task.account_id, task.task_type,"
+            f" task.created_at, task.updated_at"
         )
         self._sql_complete = (  # noqa: S608
             f"UPDATE {self._table}"  # nosec B608 — table identifier is constructor-validated
             f" SET state = 'completed', result = %s::jsonb, updated_at = %s"
             f" WHERE task_id = %s AND state NOT IN ('completed', 'failed')"
             f" RETURNING task_id, account_id, task_type, webhook_registration,"
-            f" webhook_registration_nonce"
+            f" webhook_registration_nonce, created_at, updated_at"
         )
         self._sql_fail = (  # noqa: S608
             f"UPDATE {self._table}"  # nosec B608 — table identifier is constructor-validated
             f" SET state = 'failed', error = %s::jsonb, updated_at = %s"
             f" WHERE task_id = %s AND state NOT IN ('completed', 'failed')"
             f" RETURNING task_id, account_id, task_type, webhook_registration,"
-            f" webhook_registration_nonce"
+            f" webhook_registration_nonce, created_at, updated_at"
         )
         self._sql_clear_webhook_registration = (  # noqa: S608
             f"UPDATE {self._table} SET webhook_registration = NULL,"  # nosec B608 — table identifier is constructor-validated
@@ -206,13 +211,16 @@ class PgTaskRegistry:
             f" FROM {self._table}"
             f" WHERE task_id = %s AND (%s::text IS NULL OR account_id = %s)"
         )
-        self._sql_get_state_result = (
+        self._sql_get_state_result = (  # noqa: S608
             f"SELECT state, result, task_type FROM {self._table}"  # nosec B608 — validated identifier
             " WHERE task_id = %s"
         )
         self._sql_get_task_type = f"SELECT task_type FROM {self._table} WHERE task_id = %s"  # noqa: S608  # nosec B608 — table identifier is constructor-validated
         self._sql_get_state_error = f"SELECT state, error FROM {self._table} WHERE task_id = %s"  # noqa: S608  # nosec B608 — table identifier is constructor-validated
-        self._sql_discard = f"DELETE FROM {self._table} WHERE task_id = %s"  # noqa: S608  # nosec B608 — table identifier is constructor-validated
+        self._sql_discard = (  # noqa: S608
+            f"DELETE FROM {self._table} WHERE task_id = %s"  # nosec B608 — table identifier is constructor-validated
+            f" RETURNING task_id, account_id, task_type, created_at, updated_at"
+        )
         self._sql_ddl = (  # noqa: S608
             f"CREATE TABLE IF NOT EXISTS {self._table} ("
             f'    task_id     TEXT             COLLATE "C" NOT NULL PRIMARY KEY,'
@@ -328,6 +336,16 @@ class PgTaskRegistry:
                     now,
                 ),
             )
+        self._notify_lifecycle_observers(
+            "submitted",
+            {
+                "task_id": task_id,
+                "account_id": account_id,
+                "task_type": task_type,
+                "created_at": now,
+                "updated_at": now,
+            },
+        )
         return task_id
 
     async def resolve_webhook_signing_scope(
@@ -387,21 +405,29 @@ class PgTaskRegistry:
         straggler progress event.
         """
         async with self._pool.connection() as conn:
-            await conn.execute(
+            cur = await conn.execute(
                 self._sql_update_progress,
-                (json.dumps(progress), time.time(), task_id),
+                (task_id, json.dumps(progress), time.time()),
             )
-            # Zero rows updated means unknown task_id or terminal state — silent
-            # no-op per Protocol contract. The InMemoryTaskRegistry logs a
-            # WARNING on terminal-state drops; we omit the extra SELECT needed
-            # to distinguish the two cases since the dispatch wrapper swallows
-            # the result either way.
+            row = await cur.fetchone()
+        if row is not None and row[0] == "submitted":
+            self._notify_lifecycle_observers("working", self._lifecycle_record(row[1:]))
 
-    async def complete(
+    @staticmethod
+    def _lifecycle_record(row: tuple[Any, ...]) -> dict[str, Any]:
+        return dict(zip(("task_id", "account_id", "task_type", "created_at", "updated_at"), row))
+
+    async def complete(self, task_id: str, result: dict[str, Any]) -> None:
+        """Complete once; notify metrics only after the transaction commits."""
+        row = await self._complete(task_id, result)
+        if row is not None:
+            self._notify_lifecycle_observers("completed", self._lifecycle_record(row[:3] + row[5:]))
+
+    async def _complete(
         self,
         task_id: str,
         result: dict[str, Any],
-    ) -> None:
+    ) -> tuple[Any, ...] | None:
         """Mark the task ``completed`` with ``result`` as the terminal artifact.
 
         Idempotent on repeated calls with an equal ``result``; raises
@@ -427,7 +453,7 @@ class PgTaskRegistry:
                     self._sql_complete,
                     (json.dumps(safe_result), time.time(), task_id),
                 )
-                row = await cur.fetchone()
+                row: tuple[Any, ...] | None = await cur.fetchone()
                 if row is not None:
                     await self._enqueue_terminal_if_registered(
                         conn,
@@ -435,7 +461,7 @@ class PgTaskRegistry:
                         status="completed",
                         payload=safe_result,
                     )
-                    return  # updated successfully
+                    return row  # connection and transaction exit before the caller notifies
 
                 # Zero rows in RETURNING — task is unknown or already terminal.
                 cur2 = await conn.execute(self._sql_get_state_result, (task_id,))
@@ -446,15 +472,21 @@ class PgTaskRegistry:
                 safe_result = strip_credentials_from_wire_result(task_type, result)
                 if state == "completed":
                     if existing_result == safe_result:
-                        return  # idempotent
+                        return None  # idempotent
                     raise ValueError(f"Task {task_id!r} already completed with a different result")
                 raise ValueError(f"Task {task_id!r} already in terminal state {state!r}")
 
-    async def fail(
+    async def fail(self, task_id: str, error: dict[str, Any]) -> None:
+        """Fail once; notify metrics only after the transaction commits."""
+        row = await self._fail(task_id, error)
+        if row is not None:
+            self._notify_lifecycle_observers("failed", self._lifecycle_record(row[:3] + row[5:]))
+
+    async def _fail(
         self,
         task_id: str,
         error: dict[str, Any],
-    ) -> None:
+    ) -> tuple[Any, ...] | None:
         """Mark the task ``failed`` with ``error`` as the terminal payload.
 
         Idempotent on repeated calls with an equal ``error``; raises
@@ -466,7 +498,7 @@ class PgTaskRegistry:
                     self._sql_fail,
                     (json.dumps(error), time.time(), task_id),
                 )
-                row = await cur.fetchone()
+                row: tuple[Any, ...] | None = await cur.fetchone()
                 if row is not None:
                     await self._enqueue_terminal_if_registered(
                         conn,
@@ -474,7 +506,7 @@ class PgTaskRegistry:
                         status="failed",
                         payload=error,
                     )
-                    return  # updated successfully
+                    return row  # notify only after connection/transaction exit
 
                 # Zero rows in RETURNING — task is unknown or already terminal.
                 cur2 = await conn.execute(self._sql_get_state_error, (task_id,))
@@ -484,7 +516,7 @@ class PgTaskRegistry:
                 state, existing_error = row
                 if state == "failed":
                     if existing_error == error:
-                        return  # idempotent
+                        return None  # idempotent
                     raise ValueError(f"Task {task_id!r} already failed with a different error")
                 raise ValueError(f"Task {task_id!r} already in terminal state {state!r}")
 
@@ -574,7 +606,7 @@ class PgTaskRegistry:
         payload: dict[str, Any],
     ) -> None:
         """Enqueue on ``conn`` so task state and webhook commit atomically."""
-        task_id, account_id, task_type, encrypted_registration, registration_nonce = row
+        task_id, account_id, task_type, encrypted_registration, registration_nonce = row[:5]
         if encrypted_registration is None:
             return
         if self.task_webhook_outbox is None:
@@ -617,7 +649,12 @@ class PgTaskRegistry:
         matching the :class:`~adcp.decisioning.InMemoryTaskRegistry` contract.
         """
         async with self._pool.connection() as conn:
-            await conn.execute(self._sql_discard, (task_id,))
+            cur = await conn.execute(self._sql_discard, (task_id,))
+            row = await cur.fetchone()
+        if row is not None:
+            event_record = self._lifecycle_record(row)
+            event_record["updated_at"] = time.time()
+            self._notify_lifecycle_observers("discarded", event_record)
 
 
 #: Backwards-compat alias. Renamed to :class:`PgTaskRegistry` in

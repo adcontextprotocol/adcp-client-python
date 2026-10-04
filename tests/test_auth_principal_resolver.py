@@ -245,6 +245,8 @@ async def test_safe_rejection(
             response = await client.post("/", json=CALL)
     assert response.status_code == (403 if denial == 403 else 401)
     assert ("www-authenticate" in response.headers) == (denial != 403)
+    if denial != 403:
+        assert response.headers["www-authenticate"] == 'Bearer realm="adcp", error="invalid_token"'
     assert response.json() == {"error": "forbidden" if denial == 403 else "unauthenticated"}
     assert "private-token" not in caplog.text + response.text
     assert all(
@@ -550,3 +552,93 @@ async def test_verified_signer_and_required_bearer_fallback_keep_precedence(leg:
         assert bearer.status_code == 200, bearer.text
         assert handler.contexts[-1].caller_identity == BEARER.caller_identity
     assert invoked == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("leg", ["mcp", "a2a"])
+@pytest.mark.parametrize("denial", [401, 403, "unexpected"])
+@pytest.mark.parametrize("credential", ["absent", "invalid-bearer", "required", "bad-signature"])
+async def test_resolver_denial_and_signature_challenges(
+    leg: str, denial: int | str, credential: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    from adcp.signing import load_private_key_pem
+    from tests.test_signed_request_verification import (
+        _OTHER_PEM,
+        MCP_HEADERS,
+        _a2a_send,
+        _both_app,
+        _client,
+        _config,
+        _Recording,
+        _signed,
+        _tools_call,
+    )
+
+    invoked: list[AuthRequest] = []
+
+    def resolve(request: AuthRequest) -> Principal | None:
+        invoked.append(request)
+        if denial == "unexpected":
+            raise RuntimeError("resolver-private-sentinel")
+        error = PrincipalResolverError(403 if denial == 403 else 401)
+        error.args = ("resolver-private-sentinel",)
+        raise error
+
+    handler = _Recording()
+    app = _both_app(
+        handler,
+        _config(allow_bearer_fallback=True),
+        auth=BearerTokenAuth(validate_token=lambda token: None, resolve_principal=resolve),
+    )
+    operation = "get_products" if credential == "required" else "get_media_buys"
+    path = "/mcp" if leg == "mcp" else "/"
+    body = _tools_call(operation) if leg == "mcp" else _a2a_send(operation)
+    headers = dict(MCP_HEADERS)
+    if credential == "invalid-bearer":
+        headers["authorization"] = "Bearer supplied-invalid"
+    if credential == "bad-signature":
+        raw, headers = _signed(
+            f"http://localhost{path}",
+            body,
+            headers=headers,
+            private_key=load_private_key_pem(_OTHER_PEM),
+            key_id="stranger-key",
+        )
+    else:
+        raw = json.dumps(body).encode()
+    with caplog.at_level(logging.DEBUG, logger="adcp.server.auth"):
+        async with _client(app) as client:
+            response = await client.post(path, content=raw, headers=headers)
+
+    forbidden = credential == "absent" and denial == 403
+    assert response.status_code == (403 if forbidden else 401), response.text
+    if credential == "absent":
+        assert len(invoked) == 1
+        assert response.json() == {"error": "forbidden" if forbidden else "unauthenticated"}
+    else:
+        assert invoked == []
+    challenge = response.headers.get("www-authenticate")
+    if forbidden:
+        assert challenge is None
+    elif credential == "required":
+        assert challenge == 'Signature error="request_signature_required"'
+    elif credential == "bad-signature":
+        assert challenge == 'Signature error="request_signature_key_unknown"'
+    else:
+        assert challenge == 'Bearer realm="adcp", error="invalid_token"'
+    assert "resolver-private-sentinel" not in response.text + caplog.text
+    errors = [
+        record
+        for record in caplog.records
+        if record.name == "adcp.server.auth" and record.levelno >= logging.ERROR
+    ]
+    assert len(errors) == int(credential == "absent" and denial == "unexpected")
+    for record in errors:
+        assert record.reason == "resolver_error"
+        assert record.args == ()
+        assert record.exc_info is None
+        assert record.exc_text is None
+    assert handler.contexts == []
+    assert current_principal.get() is None
+    assert current_tenant.get() is None
+    assert current_principal_metadata.get() is None

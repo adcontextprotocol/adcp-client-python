@@ -427,30 +427,38 @@ def test_publisher_properties_aliases_in_exports():
     assert "PublisherPropertiesByTag" in aliases_module.__all__
 
 
-def test_property_id_and_tag_are_root_models():
+def test_property_id_and_tag_are_constrained_strings():
     """Test that core PropertyId and PropertyTag are properly constrained string types.
 
     Note: PropertyId is defined in both core/property_id.json and content_standards/artifact.json
-    with different structures. The core PropertyId is a RootModel[str] while the artifact
+    with different structures. The core PropertyId is a scalar string schema while the artifact
     PropertyId is an object type. This test verifies the core types from their original modules.
+
+    Both scalar schemas are ``str`` subclasses rather than ``RootModel`` wrappers, so they
+    compare and hash as their wire value — see #1277.
     """
-    from pydantic import RootModel
+    import pytest
+    from pydantic import RootModel, ValidationError
 
     # Import directly from the core modules to avoid collision
     from adcp.types.generated_poc.core.property_id import PropertyId as CorePropertyId
     from adcp.types.generated_poc.core.property_tag import PropertyTag
 
     # Create valid PropertyId and PropertyTag
-    prop_id = CorePropertyId(root="my_property_id")
-    prop_tag = PropertyTag(root="premium")
+    prop_id = CorePropertyId("my_property_id")
+    prop_tag = PropertyTag("premium")
 
-    # Verify they are created successfully
-    assert prop_id.root == "my_property_id"
-    assert prop_tag.root == "premium"
+    # Each is its wire value, with the schema's pattern enforced at construction
+    assert prop_id == "my_property_id"
+    assert prop_tag == "premium"
+    assert isinstance(prop_id, str)
+    assert isinstance(prop_tag, str)
+    with pytest.raises(ValidationError):
+        PropertyTag("Not A Tag")
 
-    # Both should be RootModel subclasses (but not related to each other)
-    assert issubclass(CorePropertyId, RootModel)
-    assert issubclass(PropertyTag, RootModel)
+    # Neither is a RootModel wrapper any more
+    assert not issubclass(CorePropertyId, RootModel)
+    assert not issubclass(PropertyTag, RootModel)
 
     # They are separate types, not in an inheritance relationship
     assert CorePropertyId is not PropertyTag

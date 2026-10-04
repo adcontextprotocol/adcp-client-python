@@ -70,7 +70,7 @@ class Seller(DecisioningPlatform):
         raise NotImplementedError
 
 
-@pytest.fixture(params=["memory", "postgres"])
+@pytest.fixture(params=["memory", "postgres", "lazy-postgres"])
 async def registry(request: pytest.FixtureRequest) -> AsyncIterator[Any]:
     if request.param == "memory":
         yield InMemoryTaskRegistry()
@@ -86,7 +86,12 @@ async def registry(request: pytest.FixtureRequest) -> AsyncIterator[Any]:
     async with AsyncConnectionPool(url, open=False) as pool:
         reg = PgTaskRegistry(pool=pool, _table=table)
         await reg.create_schema()
-        yield reg
+        if request.param == "lazy-postgres":
+            from adcp.decisioning.pg import LazyTaskRegistry
+
+            yield LazyTaskRegistry(lambda: reg)
+        else:
+            yield reg
         async with pool.connection() as conn:
             await conn.execute(f"DROP TABLE {table}")
 

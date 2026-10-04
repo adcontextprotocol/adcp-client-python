@@ -143,7 +143,7 @@ def test_refinement_applied_request_scope_echoes_scope() -> None:
     outcomes = [RefinementOutcome(status="applied", notes="added video products")]
     out = build_refinement_applied(req.refine or [], outcomes)
     assert len(out) == 1
-    inner = out[0].root
+    inner = out[0]
     assert inner.scope == "request"
     assert inner.status.value == "applied"
     assert inner.notes == "added video products"
@@ -153,7 +153,7 @@ def test_refinement_applied_product_scope_echoes_product_id() -> None:
     req = _refine_request_product_scope("prod_42")
     outcomes = [RefinementOutcome(status="partial", notes="updated pricing only")]
     out = build_refinement_applied(req.refine or [], outcomes)
-    inner = out[0].root
+    inner = out[0]
     assert inner.scope == "product"
     assert inner.product_id == "prod_42"
     assert inner.status.value == "partial"
@@ -163,7 +163,7 @@ def test_refinement_applied_proposal_scope_echoes_proposal_id() -> None:
     req = _refine_request_proposal_scope("prop_xyz")
     outcomes = [RefinementOutcome(status="unable", notes="not available in inventory")]
     out = build_refinement_applied(req.refine or [], outcomes)
-    inner = out[0].root
+    inner = out[0]
     assert inner.scope == "proposal"
     assert inner.proposal_id == "prop_xyz"
     assert inner.status.value == "unable"
@@ -186,11 +186,11 @@ def test_refinement_applied_mixed_outcomes() -> None:
         RefinementOutcome(status="partial", notes="capacity reduced"),
     ]
     out = build_refinement_applied(req.refine or [], outcomes)
-    assert [r.root.scope for r in out] == ["product", "product", "proposal"]
-    assert out[0].root.product_id == "p1"
-    assert out[1].root.product_id == "p2"
-    assert out[2].root.proposal_id == "pp1"
-    assert out[2].root.notes == "capacity reduced"
+    assert [r.scope for r in out] == ["product", "product", "proposal"]
+    assert out[0].product_id == "p1"
+    assert out[1].product_id == "p2"
+    assert out[2].proposal_id == "pp1"
+    assert out[2].notes == "capacity reduced"
 
 
 def test_mismatched_outcome_count_raises() -> None:
@@ -216,7 +216,7 @@ def test_project_refine_response_attaches_products_and_outcomes() -> None:
     assert response.proposals is None
     assert response.refinement_applied is not None
     assert len(response.refinement_applied) == 1
-    assert response.refinement_applied[0].root.scope == "request"
+    assert response.refinement_applied[0].scope == "request"
 
 
 def test_project_refine_response_keeps_proposals_when_provided() -> None:
@@ -286,8 +286,8 @@ async def test_handler_dispatches_to_refine_get_products(executor) -> None:
 
     class _P(_PlatformWithRefine):
         def refine_get_products(self, req, ctx):
-            called["scope"] = req.refine[0].root.scope
-            called["ask"] = req.refine[0].root.ask
+            called["scope"] = req.refine[0].scope
+            called["ask"] = req.refine[0].ask
             return RefineResult(
                 products=[],
                 proposals=None,
@@ -299,7 +299,7 @@ async def test_handler_dispatches_to_refine_get_products(executor) -> None:
     resp = await handler.get_products(req, ToolContext())
     assert called == {"scope": "request", "ask": "less display"}
     assert resp.refinement_applied is not None
-    assert resp.refinement_applied[0].root.notes == "ok"
+    assert resp.refinement_applied[0].notes == "ok"
 
 
 @pytest.mark.asyncio

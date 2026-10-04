@@ -6,6 +6,8 @@ import subprocess
 import sys
 from typing import get_args
 
+from pydantic import RootModel
+
 from adcp.types import (
     AccountReferenceById,
     CompatibilityPurchaseCoordinatorInput,
@@ -13,14 +15,19 @@ from adcp.types import (
     ListCreativesRequest,
     SyncAccountsRequest,
 )
-from adcp.types.generated_poc.core.account_ref import AccountReference as GeneratedAccountReference
 from adcp.types.versioned import make_versioned_base
 
 
 def _contains_generated_wrapper(annotation: object) -> bool:
-    return annotation is GeneratedAccountReference or any(
-        _contains_generated_wrapper(arg) for arg in get_args(annotation)
-    )
+    """Whether a RootModel wrapper appears anywhere in the annotation.
+
+    The obligation is that the field exposes concrete arms. ``AccountReference``
+    is itself the union of those arms, so the thing to look for is a wrapper
+    class, not a name.
+    """
+    if isinstance(annotation, type) and issubclass(annotation, RootModel):
+        return True
+    return any(_contains_generated_wrapper(arg) for arg in get_args(annotation))
 
 
 def test_alias_first_import_order_keeps_concrete_request_arms() -> None:

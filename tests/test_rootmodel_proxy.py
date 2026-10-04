@@ -16,7 +16,6 @@ from adcp.types import (
     DeliveryType,
     FlatRatePricingOption,
     Format,
-    PlatformDeployment,
     Product,
     ReportingCapabilities,
 )
@@ -77,12 +76,12 @@ def test_cpm_variant_attribute_access(product_with_pricing: Product):
     assert po.pricing_option_id == "cpm_1"
 
 
-def test_pricing_option_root_still_works(product_with_pricing: Product):
-    """Existing .root access pattern is unaffected."""
+def test_pricing_option_is_the_arm_itself(product_with_pricing: Product):
+    """A union root publishes its arms, so an element has no wrapper to unwrap."""
     po = product_with_pricing.pricing_options[0]
 
-    assert po.root.pricing_option_id == "flat_1"
-    assert po.root.pricing_model == "flat_rate"
+    assert type(po).__name__ == "FlatRatePricingOption"
+    assert not hasattr(po, "root")
 
 
 def test_pricing_option_iteration(product_with_pricing: Product):
@@ -121,13 +120,20 @@ def test_pricing_option_serialization_roundtrip(product_with_pricing: Product):
     assert restored.pricing_model == "flat_rate"
 
 
-def test_other_rootmodel_unions_have_getattr():
-    """Other RootModel union types also proxy attribute access."""
-    from adcp.types.generated_poc.core.deployment import Deployment
+def test_retained_rootmodel_unions_have_getattr():
+    """A union another union discriminates against keeps its wrapper and its proxy.
 
-    dep = PlatformDeployment(type="platform", platform="the-trade-desk", is_live=True)
-    wrapped = Deployment(root=dep)
+    ``AssetVariant`` discriminates on ``asset_type``, and both ``VastAsset``
+    shapes carry ``asset_type='vast'``, so the wrapper is the one choice that
+    tag maps to.
+    """
+    from adcp.types.generated_poc.core.assets.asset_union import VastAsset, VastAsset1
 
-    assert wrapped.type == "platform"
-    assert wrapped.platform == "the-trade-desk"
-    assert wrapped.is_live is True
+    inner = VastAsset1(
+        asset_type="vast", delivery_type="url", asset_id="a-1", url="https://cdn.test/v.xml"
+    )
+    wrapped = VastAsset(root=inner)
+
+    assert wrapped.asset_type == "vast"
+    assert wrapped.delivery_type == "url"
+    assert wrapped.asset_id == "a-1"

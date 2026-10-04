@@ -192,8 +192,7 @@ class PreviewURLGenerator:
                 first_render = preview.renders[0] if preview.renders else None
 
                 if first_render:
-                    # PreviewRender is a RootModel - access .root for the actual data
-                    render = getattr(first_render, "root", first_render)
+                    render = first_render
                     preview_data = {
                         "preview_id": preview.preview_id,
                         "input": preview.input.model_dump(),

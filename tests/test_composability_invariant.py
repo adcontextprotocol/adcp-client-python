@@ -6,7 +6,7 @@ import inspect
 from typing import Any, get_args
 
 import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 import adcp.types as public_types
 import adcp.types.capabilities as capability_types
@@ -81,11 +81,15 @@ def test_composability_patch_preserves_generated_field_constraints() -> None:
     ],
 )
 def test_composed_model_classes_have_equivalent_wire_schemas(
-    canonical_model: type[BaseModel], bundled_model: type[BaseModel]
+    canonical_model: type, bundled_model: type
 ) -> None:
-    """A schema drift must be reviewed before an identity patch remains valid."""
+    """A schema drift must be reviewed before an identity patch remains valid.
+
+    ``TypeAdapter`` rather than ``model_json_schema()``: the scalar schemas in
+    this list are ``str`` subclasses, not Pydantic models — see #1277.
+    """
     assert canonical_model is not bundled_model
-    assert canonical_model.model_json_schema() == bundled_model.model_json_schema()
+    assert TypeAdapter(canonical_model).json_schema() == TypeAdapter(bundled_model).json_schema()
 
 
 def test_capability_fields_have_no_unreviewed_public_model_collisions() -> None:

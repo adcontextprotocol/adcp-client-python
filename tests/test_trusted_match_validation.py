@@ -1,5 +1,5 @@
 import pytest
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from adcp.types.generated_poc.trusted_match.identity_match_response import (
     IdentityMatchResponse,
@@ -17,7 +17,7 @@ from adcp.types.generated_poc.trusted_match.publisher_tmpx_config import (
 
 def test_provider_registration_requires_identity_dimensions_when_identity_match_enabled():
     with pytest.raises(ValidationError, match="countries is required"):
-        TmpProviderRegistration.model_validate(
+        TypeAdapter(TmpProviderRegistration).validate_python(
             {
                 "provider_id": "provider_1",
                 "endpoint": "https://example.com",
@@ -28,7 +28,7 @@ def test_provider_registration_requires_identity_dimensions_when_identity_match_
 
 def test_provider_registration_rejects_non_https_endpoint():
     with pytest.raises(ValidationError, match="endpoint must use https"):
-        TmpProviderRegistration.model_validate(
+        TypeAdapter(TmpProviderRegistration).validate_python(
             {
                 "provider_id": "provider_1",
                 "endpoint": "http://example.com",
@@ -38,7 +38,7 @@ def test_provider_registration_rejects_non_https_endpoint():
 
 
 def test_provider_registration_accepts_valid_identity_registration():
-    registration = TmpProviderRegistration.model_validate(
+    registration = TypeAdapter(TmpProviderRegistration).validate_python(
         {
             "provider_id": "provider_1",
             "endpoint": "https://example.com",

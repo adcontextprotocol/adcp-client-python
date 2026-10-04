@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, TypeVar, Union, cast, get_args, get_origin
+from typing import Annotated, Any, TypeVar, Union, cast, get_args, get_origin
 
 from pydantic import BaseModel, ValidationError
 
@@ -27,6 +27,11 @@ def _validate_union_type(data: dict[str, Any], response_type: type[T]) -> T:
     Raises:
         ValidationError: If data doesn't match any Union variant
     """
+    # A union schema root is published as ``Annotated[A | B, Field(...)]``, so
+    # peel the metadata before asking whether this is a union.
+    if get_origin(response_type) is Annotated:
+        response_type = cast("type[T]", get_args(response_type)[0])
+
     # Check if this is a Union type (handles both typing.Union and types.UnionType)
     origin = get_origin(response_type)
 
