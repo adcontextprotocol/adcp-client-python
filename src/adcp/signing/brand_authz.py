@@ -52,6 +52,7 @@ from adcp.signing.brand_jwks import (
     _BrandJsonFetcher,
     _BrandJsonSnapshot,
     _ClientFactory,
+    _deprecated_agent_url_warning,
 )
 from adcp.signing.canonical import canonicalize_target_uri
 from adcp.signing.etld import (
@@ -325,7 +326,7 @@ class BrandJsonAuthorizationResolver:
 def build_brand_json_resolvers(
     brand_json_url: str,
     *,
-    agent_url: str,
+    agent_url: str | None = None,
     agent_type: BrandAgentType,
     agent_id: str | None = None,
     brand_id: str | None = None,
@@ -349,7 +350,13 @@ def build_brand_json_resolvers(
     Returns ``(jwks_resolver, authz_resolver)``. Hand the JWKS resolver
     to the request-signature verifier; hand the authz resolver to the
     framework's ``serve(brand_authz_resolver=...)``.
+
+    Pass ``agent_url``. Omitting it is deprecated (rejected in the next major)
+    and uses the fail-closed role selection described on
+    :class:`BrandJsonJwksResolver`.
     """
+    if agent_url is None:
+        _deprecated_agent_url_warning("build_brand_json_resolvers", stacklevel=2)
     fetcher = _BrandJsonFetcher(
         brand_json_url,
         min_cooldown_seconds=min_cooldown_seconds,
@@ -376,6 +383,7 @@ def build_brand_json_resolvers(
         timeout_seconds=timeout_seconds,
         clock=clock,
         _fetcher=fetcher,
+        _warn_missing_agent_url=False,
     )
     authz = BrandJsonAuthorizationResolver(
         brand_json_url,

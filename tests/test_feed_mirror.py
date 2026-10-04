@@ -676,7 +676,8 @@ async def test_missing_or_unknown_scope_keeps_last_good_mirror(scope) -> None:
             },
         ]
     )
-    mirror = FeedMirror(client)
+    # Unknown literals always fail; a missing scope fails in strict mode.
+    mirror = FeedMirror(client, strict_scope=True)
     await mirror.bootstrap("product")
     if scope == "invalid":
         # Invalid wire literals are normally rejected by Pydantic. Exercise
@@ -707,7 +708,7 @@ async def test_failed_second_feed_keeps_both_last_good_feeds() -> None:
             {"signals": [], "cache_scope": None},
         ],
     )
-    mirror = FeedMirror(client)
+    mirror = FeedMirror(client, strict_scope=True)
     await mirror.bootstrap()
     with pytest.raises(FeedMirrorError):
         await mirror.refresh()
@@ -917,7 +918,7 @@ async def test_account_webhooks_require_recipient_binding(natural):
     ref = TypeAdapter(AccountReference).validate_python(
         key if natural else {"account_id": "acc_acme"}
     )
-    overlay = FeedMirror(StubClient(), account=ref)
+    overlay = FeedMirror(StubClient(), account=ref, strict_scope=True)
     event = make_event(
         "018f0000-0000-7000-8000-000000000052",
         "product.created",
@@ -990,3 +991,110 @@ async def test_failed_read_raises() -> None:
 
     with pytest.raises(FeedMirrorError, match="get_products"):
         await mirror.bootstrap("product")
+
+
+# ---------------------------------------------------------------------------
+# 8.x compatibility defaults (strict_scope unset) vs opt-in strict mode
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_default_mirror_treats_missing_scope_as_public_with_deprecation() -> None:
+    client = StubClient(
+        products=[
+            {
+                "products": [make_product_dict("p1")],
+                "cache_scope": None,
+                "wholesale_feed_version": "v1",
+            }
+        ]
+    )
+    mirror = FeedMirror(client)
+    assert mirror.strict_scope is False
+    assert mirror.product_state.cache_scope == "public"
+    with pytest.warns(DeprecationWarning, match="omitted cache_scope"):
+        await mirror.bootstrap("product")
+    assert set(mirror.products) == {"p1"}
+    assert mirror.product_state.cache_scope == "public"
+    assert mirror.product_state.wholesale_feed_version == "v1"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("strict", [False, True])
+async def test_account_scope_on_unscoped_mirror_is_compat_or_strict(strict) -> None:
+    client = StubClient(
+        products=[{"products": [make_product_dict("p1")], "cache_scope": "account"}]
+    )
+    mirror = FeedMirror(client, strict_scope=strict)
+    if strict:
+        with pytest.raises(FeedMirrorError, match="account mirror"):
+            await mirror.bootstrap("product")
+        assert mirror.products == {}
+        return
+    with pytest.warns(DeprecationWarning, match="account-scoped prices"):
+        await mirror.bootstrap("product")
+    assert set(mirror.products) == {"p1"}
+    assert mirror.product_state.cache_scope == "account"
+    # A mirror holding account prices cannot become a shared public layer.
+    with pytest.raises(ValueError, match="account-scoped state"):
+        mirror.for_account(TypeAdapter(AccountReference).validate_python({"account_id": "a"}))
+
+
+@pytest.mark.asyncio
+async def test_default_natural_mirror_accepts_unbound_account_webhook_with_deprecation():
+    key = {"brand": {"domain": "acme.example"}, "operator": "agency.example"}
+    mirror = FeedMirror(StubClient(), account=TypeAdapter(AccountReference).validate_python(key))
+    event = make_event(
+        "018f0000-0000-7000-8000-000000000054",
+        "product.created",
+        "product",
+        "private",
+        {
+            "product_id": "private",
+            "product": make_product_dict("private"),
+            "applies_to": {"scope": "account"},
+        },
+    )
+    with pytest.warns(DeprecationWarning, match="account_id binding"):
+        await mirror.apply_webhook(make_webhook(event, cache_scope="account"))
+    assert mirror.get_product("private") is not None
+
+
+@pytest.mark.asyncio
+async def test_shared_public_mirror_and_overlays_are_always_strict() -> None:
+    client = StubClient(
+        products=[
+            {"products": [make_product_dict("p1")], "cache_scope": "public"},
+            {"products": [make_product_dict("p2")], "cache_scope": None},
+        ]
+    )
+    public = FeedMirror(client)
+    await public.bootstrap("product")
+    overlay = public.for_account(
+        TypeAdapter(AccountReference).validate_python({"account_id": "acc_acme"})
+    )
+    assert public.strict_scope is True
+    assert overlay.strict_scope is True
+    with pytest.raises(FeedMirrorError, match="cache_scope"):
+        await overlay.refresh("product")
+    assert set(public.products) == {"p1"}
+
+
+@pytest.mark.asyncio
+async def test_default_mirror_inherits_scope_across_pages_like_8_0() -> None:
+    account = TypeAdapter(AccountReference).validate_python({"account_id": "acc_acme"})
+    client = StubClient(
+        products=[
+            {
+                "products": [make_product_dict("p1")],
+                "cache_scope": "account",
+                "pagination": {"has_more": True, "cursor": "c2"},
+            },
+            {"products": [make_product_dict("p2")], "cache_scope": None},
+        ]
+    )
+    mirror = FeedMirror(client, account=account)
+    with pytest.warns(DeprecationWarning, match="omitted cache_scope"):
+        await mirror.bootstrap("product")
+    assert set(mirror.products) == {"p1", "p2"}
+    assert mirror.product_state.cache_scope == "account"

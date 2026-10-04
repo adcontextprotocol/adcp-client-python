@@ -389,6 +389,8 @@ async def test_timeout_backoff_duplicate_workers_and_configuration_change_keep_f
 async def test_worker_timeout_after_reservation_preserves_original_window_and_pending_activity(
     backend, queue, tmp_path, monkeypatch
 ):
+    from adcp.reporting.outbox import worker as worker_module
+
     from ._reliable_support import Barrier
 
     async with queued_production(backend, tmp_path, monkeypatch) as h:
@@ -402,19 +404,63 @@ async def test_worker_timeout_after_reservation_preserves_original_window_and_pe
         assert production_operation_11
         barrier = Barrier()
         h.notification_failures.at("http.before", barrier)
-        task = asyncio.create_task(worker.deliver_one(account_id="acct_a"))
-        try:
-            await barrier.wait()
-            original = await retained_windows(h)
-            assert len(original) == 1
-            use_clock(h, original[0][5])
-            production_operation_19 = await asyncio.wait_for(task, 3)
-            assert production_operation_19
-        finally:
-            barrier.release()
-            if not task.done():
-                task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
+        timed_out = False
+
+        async def post_reservation_timeout(awaitable, timeout):
+            nonlocal timed_out
+            assert timeout == worker.lease_seconds * 0.8 == 0.8
+            attempt = asyncio.create_task(awaitable)
+            entered = asyncio.create_task(barrier.entered.wait())
+            try:
+                done, _ = await asyncio.wait(
+                    {attempt, entered}, return_when=asyncio.FIRST_COMPLETED
+                )
+                if attempt in done:
+                    return await attempt
+                # This test targets cancellation after the actual reservation.
+                # Signing/DNS/TLS preparation can otherwise spend the entire
+                # 0.8-second deadline before reaching the receiver barrier.
+                try:
+                    return await asyncio.wait_for(attempt, timeout)
+                except asyncio.TimeoutError:
+                    timed_out = True
+                    assert attempt.cancelled()
+                    raise
+            finally:
+                for pending in (attempt, entered):
+                    if not pending.done():
+                        pending.cancel()
+                await asyncio.gather(attempt, entered, return_exceptions=True)
+
+        with monkeypatch.context() as patch:
+            # Scope the deadline seam to this worker module and this turn;
+            # asyncio itself and the actual signing/transport stay untouched.
+            patch.setattr(
+                worker_module,
+                "asyncio",
+                SimpleNamespace(
+                    wait_for=post_reservation_timeout, TimeoutError=asyncio.TimeoutError
+                ),
+            )
+            task = asyncio.create_task(worker.deliver_one(account_id="acct_a"))
+            entered = asyncio.create_task(barrier.wait())
+            try:
+                done, _ = await asyncio.wait({task, entered}, return_when=asyncio.FIRST_COMPLETED)
+                if task in done:
+                    result = await task  # Surface errors instead of hiding them during cleanup.
+                    pytest.fail(f"worker completed before the HTTP barrier: {result!r}")
+                await entered  # Retain the barrier's ten-second preparation budget.
+                original = await retained_windows(h)
+                assert len(original) == 1
+                use_clock(h, original[0][5])
+                production_operation_19 = await asyncio.wait_for(task, 3)
+                assert production_operation_19 and timed_out
+            finally:
+                barrier.release()
+                for pending in (task, entered):
+                    if not pending.done():
+                        pending.cancel()
+                await asyncio.gather(task, entered, return_exceptions=True)
         restarted = fresh_workers(h)[queue]
         production_operation_12 = await restarted.deliver_one(account_id="acct_a")
         assert production_operation_12

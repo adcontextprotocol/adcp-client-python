@@ -7,6 +7,7 @@ from typing import Any, cast
 
 from pydantic import TypeAdapter, ValidationError
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.reporting.evidence import ReportingCanonicalDigest
 from adcp.reporting.ledger._delivery_state import DeliveryContext, fail, replay, validate_transition
 from adcp.reporting.ledger.delivery import receipt_to_wire
@@ -27,8 +28,15 @@ from adcp.reporting.ledger.store import LedgerConflictError
 from adcp.reporting.receipts.wire import ReceiptKind
 from adcp.reporting.revision_selection import select_reporting_revision
 
-_REVISION_RECEIPT = TypeAdapter(ReportingRevisionReceiptRecord)
-_ADJUSTMENT_RECEIPT = TypeAdapter(ReportingAdjustmentReceiptRecord)
+
+@deferred_adapter
+def _revision_receipt_adapter() -> TypeAdapter[ReportingRevisionReceiptRecord]:
+    return TypeAdapter(ReportingRevisionReceiptRecord)
+
+
+@deferred_adapter
+def _adjustment_receipt_adapter() -> TypeAdapter[ReportingAdjustmentReceiptRecord]:
+    return TypeAdapter(ReportingAdjustmentReceiptRecord)
 
 
 def receipt_record(
@@ -59,7 +67,11 @@ def receipt_record(
                 body["observed_canonical_content_digest"] = ReportingCanonicalDigest(
                     **{k: v for k, v in digest.items() if k != "algorithm"}
                 )
-        adapter = _REVISION_RECEIPT if kind == "revision_receipt" else _ADJUSTMENT_RECEIPT
+        adapter = (
+            _revision_receipt_adapter()
+            if kind == "revision_receipt"
+            else _adjustment_receipt_adapter()
+        )
         value = adapter.validate_python(body)
     except (ValueError, TypeError, ValidationError):
         # Reject the record below without attaching private validation details as context.

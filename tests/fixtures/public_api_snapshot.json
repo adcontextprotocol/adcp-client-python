@@ -412,6 +412,7 @@
     "PaginationRequest",
     "PendingOAuthAuthorization",
     "PendingOAuthFlowStore",
+    "PgNotificationOutbox",
     "PixelTrackerAsset",
     "Placement",
     "PlacementPresentationDocument",

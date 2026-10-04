@@ -707,7 +707,8 @@ class ADCPHandler(ABC, Generic[TContext]):
     ) -> Any:
         """Get task status.
 
-        Override this to expose persisted async task status.
+        PlatformHandler implements this using its TaskRegistry.
+        Other handlers override it to expose persisted async task status.
         """
         return self._not_supported("get_task_status")
 
@@ -718,7 +719,8 @@ class ADCPHandler(ABC, Generic[TContext]):
     ) -> Any:
         """List tasks.
 
-        Override this to expose persisted async tasks.
+        PlatformHandler implements this for ListableTaskRegistry stores.
+        Other handlers override it to expose persisted async tasks.
         """
         return self._not_supported("list_tasks")
 
