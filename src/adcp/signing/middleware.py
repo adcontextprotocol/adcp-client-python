@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from adcp.signing.errors import SignatureVerificationError
+from adcp.signing.errors import SignatureVerificationError, signature_challenge
 from adcp.signing.verifier import (
     VerifiedSigner,
     VerifyOptions,
@@ -38,7 +38,7 @@ VERIFIED_SIGNER_SCOPE_KEY = "adcp.signing.verified_signer"
 
 def unauthorized_response_headers(exc: SignatureVerificationError) -> dict[str, str]:
     """Headers for the 401 response. Realm is intentionally omitted per spec."""
-    return {"WWW-Authenticate": f'Signature error="{exc.code}"'}
+    return {"WWW-Authenticate": signature_challenge(exc.code)}
 
 
 def _wsgi_raw_headers(request: Any) -> list[tuple[bytes, bytes]] | None:

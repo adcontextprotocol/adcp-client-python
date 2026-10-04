@@ -39,6 +39,23 @@ class SignatureVerificationError(Exception):
         self.detail = dict(detail) if detail is not None else None
 
 
+def signature_challenge(code: str) -> str:
+    """``WWW-Authenticate`` value for a 401 the signing profile rejects.
+
+    security.mdx § Transport error taxonomy: "AdCP does NOT define a realm
+    value for request-signing challenges. Verifiers MUST emit
+    ``WWW-Authenticate: Signature error="<code>"`` with no ``realm``
+    parameter and no other parameters."
+
+    Every 401 the SDK emits for a signature failure formats the value here —
+    the request leg (:func:`adcp.signing.middleware.unauthorized_response_headers`),
+    the webhook leg (:mod:`adcp.webhook_receiver`), and the bearer middleware's
+    signature-fallback challenge (:mod:`adcp.server.auth`) — so the three
+    cannot drift from the byte string peers and conformance harnesses match.
+    """
+    return f'Signature error="{code}"'
+
+
 REQUEST_SIGNATURE_REQUIRED = "request_signature_required"
 REQUEST_SIGNATURE_HEADER_MALFORMED = "request_signature_header_malformed"
 REQUEST_SIGNATURE_PARAMS_INCOMPLETE = "request_signature_params_incomplete"

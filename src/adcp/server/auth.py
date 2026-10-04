@@ -93,6 +93,7 @@ from starlette.responses import JSONResponse
 from adcp.server.base import ToolContext
 from adcp.server.mcp_tools import DISCOVERY_METHODS, DISCOVERY_TOOLS
 from adcp.server.signed_requests import scope_has_verified_signer, signature_fallback_code
+from adcp.signing.errors import signature_challenge
 
 logger = logging.getLogger("adcp.server.auth")
 
@@ -166,8 +167,8 @@ if TYPE_CHECKING:
     from adcp.server.serve import RequestMetadata
 
 
-# RFC 6750 §3 challenge string emitted on every 401 from MCP and A2A
-# legs. Realm value is shared (``"adcp"``) because per RFC 7235 §2.2
+# RFC 6750 §3 challenge string emitted on a bearer-only 401 from the MCP
+# and A2A legs. Realm value is shared (``"adcp"``) because per RFC 7235 §2.2
 # the realm identifies the protection space, and both transports
 # proxy to the same ``BearerTokenAuth.validate_token`` — a buyer agent
 # caching credentials by realm should treat the two as one space and
@@ -178,12 +179,22 @@ _WWW_AUTHENTICATE_CHALLENGE = 'Bearer realm="adcp", error="invalid_token"'
 
 
 def _www_authenticate(signature_error: str | None) -> str:
-    """Bearer challenge, preceded by a ``Signature`` challenge (RFC 7235 §4.1
-    allows several) when request-signature verification admitted the request
-    only on condition that bearer auth succeed."""
+    """Challenge for a 401 from the bearer middleware.
+
+    A request-signature failure makes this a signing challenge, and the
+    signing profile fixes its bytes: security.mdx § Transport error taxonomy
+    requires ``Signature error="<code>"`` with no ``realm`` parameter and no
+    other parameters. Appending the bearer challenge adds parameters the
+    verifier MUST NOT emit, so the signing challenge stands alone and
+    :func:`adcp.signing.errors.signature_challenge` formats it — the same
+    emitter the request and webhook legs use.
+
+    Without a signature error the 401 is a bearer rejection and carries the
+    RFC 6750 §3 ``Bearer`` challenge.
+    """
     if signature_error is None:
         return _WWW_AUTHENTICATE_CHALLENGE
-    return f'Signature error="{signature_error}", {_WWW_AUTHENTICATE_CHALLENGE}'
+    return signature_challenge(signature_error)
 
 
 @dataclass(frozen=True)
