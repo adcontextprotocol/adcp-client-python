@@ -128,11 +128,11 @@ asyncio.run(main())
 
 
 @pytest.mark.parametrize("kind", ["vcs", "sdist"])
-async def test_owned_resources_and_private_reads_installed(b1_wheels, built_distribution, kind):
+async def test_owned_resources_and_private_reads_installed(request, kind):
     require_rolling_database()
     url = os.environ["ADCP_PG_TEST_URL"]
-    root, wheels, _ = b1_wheels
-    _, _, source = built_distribution
+    root, wheels, _ = request.getfixturevalue("b1_wheels")
+    _, _, source = request.getfixturevalue("built_distribution")
     resources = [
         "migration.py",
         "ledger/reporting_caller_ownership.sql",
