@@ -15,6 +15,7 @@ on:
       - conductor/reporting-schema-proof-receipt-diagnostics-hardening
       - conductor/reporting-production-tier-capabilities-b24
       - conductor/reporting-adcp-rc4-adoption
+  workflow_dispatch:
 
 # Exact AdCP 3.2.1 runner; the reference matrix also retains the AdCP 3.0 floor.
 env:
@@ -33,6 +34,11 @@ jobs:
       contents: read
     outputs:
       run_tests: ${{ steps.scope.outputs.run_tests }}
+      full_matrix: ${{ steps.scope.outputs.full_matrix }}
+      run_postgres: ${{ steps.scope.outputs.run_postgres }}
+      run_packaging: ${{ steps.scope.outputs.run_packaging }}
+      run_storyboards: ${{ steps.scope.outputs.run_storyboards }}
+      expected_results: ${{ steps.scope.outputs.expected_results }}
     steps:
       # A PR merge commit's two parents contain the complete base/head diff.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -90,16 +96,10 @@ jobs:
     if: needs.changes.outputs.run_tests == 'true'
     name: Test Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    # The job ceiling is not the suite's budget: it also has to absorb
-    # checkout, Python setup, the editable [dev] install and, on 3.12 only,
-    # ruff/mypy/mypy --strict/the type-ignore contract before pytest starts,
-    # then post-job cleanup after it ends. On an ubuntu-latest runner that
-    # pre-test work is ~1m30s and the plain suite is ~16m, but 3.12 adds
-    # coverage tracing on the full suite: even a 45-minute coverage step can
-    # time out near 99% on a loaded runner with no failing test. Bound the
-    # suite itself so a hang fails the named step. The 3.12 job keeps 15
-    # minutes beyond that step for setup and cleanup; other jobs keep 60.
-    timeout-minutes: ${{ matrix.python-version == '3.12' && 70 || 60 }}
+    # 3.12 always runs the canonical suite and coverage. Ordinary PRs use
+    # compatibility checks on the other interpreters; main/manual runs and
+    # shared build/schema/type changes retain exhaustive interpreter coverage.
+    timeout-minutes: ${{ matrix.python-version == '3.12' && 70 || needs.changes.outputs.full_matrix == 'true' && 60 || 15 }}
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
@@ -147,21 +147,24 @@ jobs:
         if: matrix.python-version == '3.12'
         run: python scripts/check_type_ignore_contract.py
 
-      # Bound the plain and coverage runs separately so a genuinely stuck
-      # suite fails its named step rather than cancelling the entire job.
-      - name: Run tests
-        if: matrix.python-version != '3.12'
+      - name: Run full native suite
+        if: matrix.python-version != '3.12' && needs.changes.outputs.full_matrix == 'true'
         timeout-minutes: 45
-        run: python scripts/reporting_test_harness.py pytest tests/ -v -ra --durations=20
+        run: python scripts/ci/run_native_tests.py --mode full --unit-workers 2
 
-      - name: Run tests with coverage
+      - name: Run interpreter compatibility checks
+        if: matrix.python-version != '3.12' && needs.changes.outputs.full_matrix != 'true'
+        timeout-minutes: 10
+        run: python scripts/ci/run_native_tests.py --mode compatibility
+
+      - name: Run canonical suite with coverage
         if: matrix.python-version == '3.12'
         timeout-minutes: 55
-        run: python scripts/reporting_test_harness.py pytest tests/ -v -ra --durations=20 --cov=src/adcp --cov-report=term-missing
+        run: python scripts/ci/run_native_tests.py --mode full --coverage --unit-workers 2
 
   pg-conformance:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_postgres == 'true'
     name: Postgres conformance tests (Postgres 16, ${{ matrix.lane }})
     runs-on: ubuntu-latest
     timeout-minutes: ${{ matrix.timeout_minutes }}
@@ -281,19 +284,21 @@ jobs:
           import json, os
           needs = json.loads(os.environ["CI_NEEDS"])
           scope = needs.pop("changes")
-          run_tests = scope.get("outputs", {}).get("run_tests")
-          if scope["result"] != "success" or run_tests not in ("true", "false"):
+          expected = json.loads(scope.get("outputs", {}).get("expected_results", "{}"))
+          if scope["result"] != "success" or not isinstance(expected, dict) or not expected:
               raise SystemExit("CI scope could not be verified")
-          expected = "success" if run_tests == "true" else "skipped"
-          bad = {name: job["result"] for name, job in needs.items() if job["result"] != expected}
+          bad = {
+              name: job["result"] for name, job in needs.items()
+              if expected.get(name) not in ("success", "skipped") or job["result"] != expected[name]
+          }
           if not needs or bad:
               raise SystemExit("Required CI lanes did not complete as expected: " + json.dumps(bad))
-          print("All required lanes passed" if run_tests == "true" else "Documentation-only PR: SDK lanes skipped")
+          print("All required lanes completed according to the verified CI scope")
           PY
 
   pg-reporting-status:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_postgres == 'true'
     name: Reporting status conformance (Postgres 16)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -348,7 +353,7 @@ jobs:
 
   pg-reporting-materializer:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_postgres == 'true'
     name: Durable materializer and frozen artifacts (Postgres 16)
     runs-on: ubuntu-latest
     # Actual wheel builds/installations plus isolated worker processes are a
@@ -428,7 +433,7 @@ jobs:
 
   pg-reporting-receipts:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_postgres == 'true'
     name: Authenticated receipts and installed replay (Postgres 16)
     runs-on: ubuntu-latest
     # Separate databases avoid shared account advisory locks. Keep five minutes
@@ -502,7 +507,7 @@ jobs:
 
   pg-reporting-receipt-compatibility:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_postgres == 'true'
     name: Receipt ownership maintenance upgrade (Postgres 16)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -548,7 +553,7 @@ jobs:
 
   pg-reporting-feed:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_postgres == 'true'
     name: Frozen authorized feed and mounted isolation (Postgres 16)
     runs-on: ubuntu-latest
     # Crash processes and shared memory/SQL vectors have their own database
@@ -618,7 +623,7 @@ jobs:
 
   pg-reporting-feed-compatibility:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_postgres == 'true'
     name: Feed ownership maintenance upgrade (Postgres 16)
     runs-on: ubuntu-latest
     # Caller ownership is a breaking storage boundary. Old cursors and pending
@@ -689,7 +694,7 @@ jobs:
 
   pg-reporting-feed-installed:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_postgres == 'true'
     name: Installed frozen feed (Python 3.10 VCS and sdist)
     runs-on: ubuntu-latest
     timeout-minutes: 50
@@ -757,7 +762,7 @@ jobs:
 
   pg-reporting-production:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_postgres == 'true'
     name: Production reporting status, ownership and notification contracts
     runs-on: ubuntu-latest
     permissions:
@@ -832,7 +837,7 @@ jobs:
 
   pg-reporting-production-installed:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_postgres == 'true'
     name: Installed production reporting (${{ matrix.cell }}, Python 3.10)
     runs-on: ubuntu-latest
     permissions:
@@ -901,7 +906,7 @@ jobs:
 
   pg-reporting-production-compatibility:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_postgres == 'true'
     name: Installed production ownership maintenance upgrade
     runs-on: ubuntu-latest
     permissions:
@@ -1008,7 +1013,7 @@ jobs:
 
   downstream-imports:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_packaging == 'true'
     name: Downstream import smoke (representative consumer symbols)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -1274,7 +1279,7 @@ jobs:
 
   storyboard:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_storyboards == 'true'
     name: AdCP storyboard runner — examples/seller_agent.py (@adcp/sdk ${{ matrix.adcp-sdk-tag }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -1346,19 +1351,21 @@ jobs:
           import json, os
           needs = json.loads(os.environ["CI_NEEDS"])
           scope = needs.pop("changes")
-          run_tests = scope.get("outputs", {}).get("run_tests")
-          if scope["result"] != "success" or run_tests not in ("true", "false"):
+          expected = json.loads(scope.get("outputs", {}).get("expected_results", "{}"))
+          if scope["result"] != "success" or not isinstance(expected, dict) or not expected:
               raise SystemExit("CI scope could not be verified")
-          expected = "success" if run_tests == "true" else "skipped"
-          bad = {name: job["result"] for name, job in needs.items() if job["result"] != expected}
+          bad = {
+              name: job["result"] for name, job in needs.items()
+              if expected.get(name) not in ("success", "skipped") or job["result"] != expected[name]
+          }
           if not needs or bad:
               raise SystemExit("Required CI lanes did not complete as expected: " + json.dumps(bad))
-          print("All required lanes passed" if run_tests == "true" else "Documentation-only PR: SDK lanes skipped")
+          print("All required lanes completed according to the verified CI scope")
           PY
 
   reporting-installed-artifact-matrix:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_packaging == 'true'
     name: Reliable reporting installed artifacts — positive 2x2
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -1497,19 +1504,21 @@ jobs:
           import json, os
           needs = json.loads(os.environ["CI_NEEDS"])
           scope = needs.pop("changes")
-          run_tests = scope.get("outputs", {}).get("run_tests")
-          if scope["result"] != "success" or run_tests not in ("true", "false"):
+          expected = json.loads(scope.get("outputs", {}).get("expected_results", "{}"))
+          if scope["result"] != "success" or not isinstance(expected, dict) or not expected:
               raise SystemExit("CI scope could not be verified")
-          expected = "success" if run_tests == "true" else "skipped"
-          bad = {name: job["result"] for name, job in needs.items() if job["result"] != expected}
+          bad = {
+              name: job["result"] for name, job in needs.items()
+              if expected.get(name) not in ("success", "skipped") or job["result"] != expected[name]
+          }
           if not needs or bad:
               raise SystemExit("Required CI lanes did not complete as expected: " + json.dumps(bad))
-          print("All required lanes passed" if run_tests == "true" else "Documentation-only PR: SDK lanes skipped")
+          print("All required lanes completed according to the verified CI scope")
           PY
 
   v3-reference-seller-tests:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_storyboards == 'true'
     name: v3 reference seller — pytest (respx-mocked upstream)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -1549,7 +1558,7 @@ jobs:
 
   storyboard-v3-reference-seller:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_storyboards == 'true'
     name: "AdCP storyboard runner — v3 reference seller (translator)"
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -1823,7 +1832,7 @@ jobs:
 
   storyboard-multi-platform-seller:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_storyboards == 'true'
     name: "AdCP storyboard runner — examples/multi_platform_seller (PlatformRouter)"
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -1960,7 +1969,7 @@ jobs:
 
   storyboard-sales-proposal-mode:
     needs: changes
-    if: needs.changes.outputs.run_tests == 'true'
+    if: needs.changes.outputs.run_storyboards == 'true'
     name: "AdCP storyboard runner — sales-proposal-mode (proposal_finalize)"
     runs-on: ubuntu-latest
     timeout-minutes: 20

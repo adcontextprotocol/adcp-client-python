@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/ci/reporting_interop/run_installed_artifact_matrix.py"
@@ -171,10 +172,11 @@ def test_required_postgres_gate_depends_on_installed_artifact_matrix() -> None:
     gate = workflow[gate_start:gate_end]
 
     assert "reporting-installed-artifact-matrix" in gate
-    assert (
-        "REPORTING_INTEROP_RESULT: ${{ needs.reporting-installed-artifact-matrix.result }}" in gate
-    )
-    assert '[ "$REPORTING_INTEROP_RESULT" != "success" ]' in gate
+    definition = yaml.load(workflow, Loader=yaml.BaseLoader)["jobs"]["pg-conformance-required-gate"]
+    assert "reporting-installed-artifact-matrix" in definition["needs"]
+    assert definition["if"] == "${{ !cancelled() }}"
+    assert definition["steps"][0]["env"]["CI_NEEDS"] == "${{ toJSON(needs) }}"
+    assert "expected_results" in gate
     assert (
         "tests/test_reporting_storyboard_orchestration.py::"
         "test_database_owner_returns_node_postgres_uri_after_psycopg_validation" in workflow

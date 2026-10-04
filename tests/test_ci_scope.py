@@ -79,15 +79,17 @@ def test_scope_from_complete_git_diff(
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text("changed\n")
     event = commit(repository)
-    assert ci_scope.select_scope("pull_request", event, cwd=root) is expected
-    assert ci_scope.select_scope("push", event, cwd=root) is True
+    assert ci_scope.select_scope("pull_request", event, cwd=root).run_tests is expected
+    assert ci_scope.select_scope("push", event, cwd=root) == ci_scope.Scope.full()
 
 
 def test_rename_from_sdk_to_documentation_still_runs_tests(repository: tuple[Path, str]) -> None:
     root, _ = repository
     (root / "docs").mkdir()
     (root / "src/package.py").rename(root / "docs/removed-code.md")
-    assert ci_scope.select_scope("pull_request", commit(repository), cwd=root) is True
+    assert (
+        ci_scope.select_scope("pull_request", commit(repository), cwd=root) == ci_scope.Scope.full()
+    )
 
 
 def test_large_documentation_diff_cannot_hide_source_change(repository: tuple[Path, str]) -> None:
@@ -96,7 +98,9 @@ def test_large_documentation_diff_cannot_hide_source_change(repository: tuple[Pa
     for i in range(350):
         (root / f"docs/guide-{i}.md").write_text("documentation\n")
     (root / "src/package.py").write_text("VALUE = 2\n")
-    assert ci_scope.select_scope("pull_request", commit(repository), cwd=root) is True
+    assert (
+        ci_scope.select_scope("pull_request", commit(repository), cwd=root) == ci_scope.Scope.full()
+    )
 
 
 def test_missing_history_and_empty_diffs_require_full_matrix(repository: tuple[Path, str]) -> None:
@@ -108,7 +112,59 @@ def test_missing_history_and_empty_diffs_require_full_matrix(repository: tuple[P
         {"pull_request": {"base": {"sha": "--help"}, "head": {"sha": base}}},
         {"pull_request": {"base": {"sha": None}, "head": {"sha": base}}},
     ):
-        assert ci_scope.select_scope("pull_request", event, cwd=root) is True
+        assert ci_scope.select_scope("pull_request", event, cwd=root) == ci_scope.Scope.full()
+
+
+@pytest.mark.parametrize(
+    "paths,expected",
+    [
+        (["docs/guide.md"], ci_scope.Scope()),
+        (["src/adcp/adagents.py"], ci_scope.Scope(run_tests=True)),
+        (["tests/test_client.py"], ci_scope.Scope(run_tests=True)),
+        (["examples/seller_agent.py"], ci_scope.Scope(run_tests=True, run_storyboards=True)),
+        (["src/adcp/client.py"], ci_scope.Scope(True, False, False, True, True)),
+        (["src/adcp/compat/legacy/v2_5/client.py"], ci_scope.Scope(True, False, False, True, True)),
+        (["src/adcp/reporting/outbox/status.py"], ci_scope.Scope(True, False, True, True, True)),
+        (["src/adcp/server/serve.py"], ci_scope.Scope(True, False, True, True, True)),
+        (["src/adcp/signing/replay.py"], ci_scope.Scope(True, False, True, True, True)),
+        (["src/adcp/decisioning/platform.py"], ci_scope.Scope(True, False, True, True, True)),
+        (
+            ["tests/conformance/reporting/test_status.py"],
+            ci_scope.Scope(True, False, True, True, True),
+        ),
+        (
+            ["docs/guide.md", "src/adcp/adagents.py", "examples/seller_agent.py"],
+            ci_scope.Scope(run_tests=True, run_storyboards=True),
+        ),
+        (["src/adcp/client.py", "schemas/cache/3.2/request.json"], ci_scope.Scope.full()),
+        (["src/adcp/types/guards.py"], ci_scope.Scope.full()),
+        (["src/adcp/__init__.py"], ci_scope.Scope.full()),
+        (["src/adcp/utils/http.py"], ci_scope.Scope.full()),
+        (["pyproject.toml"], ci_scope.Scope.full()),
+        (["README.md"], ci_scope.Scope.full()),
+        (["MIGRATION_4.md"], ci_scope.Scope.full()),
+        ([".github/workflows/ci.yml"], ci_scope.Scope.full()),
+        (["tests/conftest.py"], ci_scope.Scope.full()),
+        (["tests/fixtures/example.json"], ci_scope.Scope.full()),
+        (["new-runtime/module.py"], ci_scope.Scope.full()),
+        ([], ci_scope.Scope.full()),
+    ],
+)
+def test_specialized_scope_is_explicit_and_unknown_inputs_require_every_lane(
+    repository: tuple[Path, str], paths: list[str], expected: ci_scope.Scope
+) -> None:
+    root, _ = repository
+    if not paths:
+        assert ci_scope.scope_for_paths(paths) == expected
+        return
+    for name in paths:
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("changed\n")
+    event = commit(repository)
+    assert ci_scope.select_scope("pull_request", event, cwd=root) == expected
+    for event_name in ("push", "workflow_dispatch", "release", "schedule", "merge_group"):
+        assert ci_scope.select_scope(event_name, event, cwd=root) == ci_scope.Scope.full()
 
 
 @pytest.mark.parametrize("path,expected", [("docs/guide.md", "false"), ("src/package.py", "true")])
@@ -164,7 +220,11 @@ def test_scope_cli_in_shallow_sparse_pr_merge_checkout(
         [sys.executable, "scripts/ci/ci_scope.py"], cwd=clone, env=env, capture_output=True
     )
     assert result.returncode == 0, result.stderr
-    assert output.read_text() == f"run_tests={expected}\n"
+    values = dict(line.split("=", 1) for line in output.read_text().splitlines())
+    assert values["run_tests"] == expected
+    assert values["full_matrix"] == expected
+    results = json.loads(values["expected_results"])
+    assert set(results.values()) == {"success" if expected == "true" else "skipped"}
 
 
 @pytest.mark.parametrize(
@@ -196,10 +256,42 @@ def test_actual_required_gate_cannot_hide_failures(
     workflow = yaml.load((root / ".github/workflows/ci.yml").read_text(), Loader=yaml.BaseLoader)
     job = workflow["jobs"][gate]
     needs = {name: {"result": lane_result} for name in job["needs"]}
-    needs["changes"] = {"result": scope_result, "outputs": {"run_tests": decision}}
+    expected = ci_scope.Scope.full() if decision == "true" else ci_scope.Scope()
+    needs["changes"] = {
+        "result": scope_result,
+        "outputs": {
+            "expected_results": json.dumps(expected.expected_results()) if decision else "{}"
+        },
+    }
     env = dict(os.environ, CI_NEEDS=json.dumps(needs))
     result = subprocess.run(["bash", "-c", job["steps"][0]["run"]], env=env, capture_output=True)
     assert (result.returncode == 0) is expected_success, result.stderr
+
+
+@pytest.mark.parametrize(
+    "corrupt", ["none", "failed-selected", "ran-unselected", "missing", "invalid"]
+)
+def test_postgres_gate_accepts_mixed_scopes_and_rejects_incorrect_results(corrupt: str) -> None:
+    root = Path(__file__).resolve().parent.parent
+    workflow = yaml.load((root / ".github/workflows/ci.yml").read_text(), Loader=yaml.BaseLoader)
+    job = workflow["jobs"]["pg-conformance-required-gate"]
+    selected = ci_scope.Scope(run_tests=True, run_packaging=True).expected_results()
+    needs = {name: {"result": selected[name]} for name in job["needs"] if name != "changes"}
+    if corrupt == "failed-selected":
+        needs["reporting-installed-artifact-matrix"]["result"] = "failure"
+    elif corrupt == "ran-unselected":
+        needs["pg-conformance"]["result"] = "success"
+    elif corrupt == "missing":
+        selected.pop("pg-conformance")
+    elif corrupt == "invalid":
+        selected["pg-conformance"] = "cancelled"
+    needs["changes"] = {"result": "success", "outputs": {"expected_results": json.dumps(selected)}}
+    result = subprocess.run(
+        ["bash", "-c", job["steps"][0]["run"]],
+        env=dict(os.environ, CI_NEEDS=json.dumps(needs)),
+        capture_output=True,
+    )
+    assert (result.returncode == 0) is (corrupt == "none"), result.stderr
 
 
 def test_every_sdk_lane_uses_verified_scope_and_policy_jobs_always_run() -> None:
@@ -211,7 +303,12 @@ def test_every_sdk_lane_uses_verified_scope_and_policy_jobs_always_run() -> None
             assert "needs" not in job
         elif not name.endswith("required-gate"):
             assert job["needs"] == "changes"
-            assert job["if"] == "needs.changes.outputs.run_tests == 'true'"
+            assert job["if"] == f"needs.changes.outputs.{ci_scope.JOB_GROUPS[name]} == 'true'"
+    assert set(ci_scope.JOB_GROUPS) == {
+        name
+        for name in workflow["jobs"]
+        if name not in policy_jobs and not name.endswith("required-gate")
+    }
 
 
 def test_scope_cli_falls_back_to_full_matrix_on_unreadable_metadata(
@@ -222,7 +319,9 @@ def test_scope_cli_falls_back_to_full_matrix_on_unreadable_metadata(
     monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
     monkeypatch.setenv("GITHUB_OUTPUT", str(output))
     ci_scope.main()
-    assert output.read_text() == "run_tests=true\n"
+    values = dict(line.split("=", 1) for line in output.read_text().splitlines())
+    assert values["full_matrix"] == "true"
+    assert json.loads(values["expected_results"]) == ci_scope.Scope.full().expected_results()
 
 
 @pytest.mark.parametrize("explicit_cache,exit_code", [(False, 0), (True, 0), (False, 7)])

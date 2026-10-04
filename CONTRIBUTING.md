@@ -78,17 +78,28 @@ src/adcp/
 - Aim for >80% code coverage
 - Use `pytest-asyncio` for async tests
 
-CI runs the full Python 3.10–3.13, PostgreSQL, packaging, and storyboard checks
-for code changes and pushes to main. PRs limited to Markdown in `docs/` or the
-allowlisted contributor/changelog files skip the SDK lanes while still running
-workflow security and contribution policies. README, license, migration guides,
-schemas, scripts, and CI configuration always require the full matrix; missing
-diff history also falls back to full CI.
+CI runs the full suite with coverage and type checks on Python 3.12 for code
+PRs. Ordinary PRs run a smaller runtime compatibility suite on Python 3.10,
+3.11, and 3.13, covering client behavior, public imports, versioned models,
+validation, authentication, and MCP lifespans. PostgreSQL, installed-package,
+and storyboard lanes run when their supported source/test paths change.
+
+Pushes to main and manual CI runs retain the full Python 3.10–3.13 and specialized
+matrices. Release publishing requires successful main CI at the exact release
+commit. Shared types, schemas, dependencies, build/CI configuration, fixture
+changes, unknown paths, and missing diff history also select full CI on PRs.
+PRs limited to Markdown in `docs/` or the allowlisted contributor/changelog files
+skip SDK lanes while still running workflow security and contribution policies.
+Required aggregate checks validate each lane's selected or skipped result.
 
 The reporting test harness reuses a fingerprint-verified wheel and sdist within
 each invocation's private temporary directory. Isolated installations and test
 assertions still run, and changed build inputs invalidate reuse. CI uses `uv`
 for dependency installation and reports the slowest native tests in its logs.
+The canonical runner uses two workers for unit tests, keeping each file on one
+worker. Conformance and integration tests run sequentially, appending their
+coverage into one report before enforcing the coverage threshold. Integration
+tests marked `integration` retain the normal pytest exclusion.
 
 ### Type Safety
 - All functions must have type hints
