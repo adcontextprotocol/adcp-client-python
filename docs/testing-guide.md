@@ -598,3 +598,25 @@ def test_semantic_alias_works_for_users():
 - [Full executable examples](./examples/testing_patterns.py)
 - [AdCP Protocol Specification](https://adcontextprotocol.org/)
 - [SDK API Reference](./api-reference.md)
+
+### Freezing time with deferred models
+
+Pydantic schemas retain real `datetime` types. Build them before freezegun
+replaces those types, and keep SDK modules on its ignore list. In
+`tests/conftest.py`, import your application models first, then configure:
+
+```python
+import freezegun
+from adcp.testing import build_all_models
+
+freezegun.configure(extend_ignore_list=["adcp"])
+build_all_models()
+```
+
+The helper resolves advertised lazy exports on `adcp`, `adcp.types`, and other
+imported SDK facades, recursively builds their imported model descendants
+(including adopter subclasses), and warms registered SDK adapters. Repeated
+calls reuse completed schemas. It imports no arbitrary application modules;
+if you introduce new models or SDK submodules later, import them and call the
+helper again before freezing. Call it while real datetime classes are active.
+Normal SDK imports and strict model construction keep their existing behavior.

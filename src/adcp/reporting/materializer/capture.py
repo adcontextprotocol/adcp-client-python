@@ -14,6 +14,7 @@ from typing import Any
 
 from pydantic import TypeAdapter, ValidationError
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.reporting.evidence import aware_utc, reporting_identifier
 from adcp.reporting.ledger._delivery_state import decode_record, payload, principal
 from adcp.reporting.ledger.delivery_models import (
@@ -28,7 +29,10 @@ from adcp.reporting.ledger.notification_models import (
 from adcp.reporting.ledger.status_projection import ReportingStatusSnapshot
 from adcp.reporting.outbox.memory import NotificationState
 
-_CORE = TypeAdapter(ReportingStatusSnapshot)
+
+@deferred_adapter
+def _core_adapter() -> TypeAdapter[ReportingStatusSnapshot]:
+    return TypeAdapter(ReportingStatusSnapshot)
 
 
 @dataclass(frozen=True)
@@ -79,7 +83,7 @@ class ReportingMaterializerBoundary:
             "account_sequence": self.account_sequence,
             "reporting_materialization_id": self.reporting_materialization_id,
             "as_of": self.as_of.isoformat(),
-            "core": _CORE.dump_python(self.core, mode="json"),
+            "core": _core_adapter().dump_python(self.core, mode="json"),
             "reconciliation": [payload(r) for r in self.reconciliation],
         }
 
@@ -94,7 +98,7 @@ def decode_materializer_boundary(value: dict[str, Any]) -> ReportingMaterializer
                 value["account_sequence"],
                 value["reporting_materialization_id"],
                 datetime.fromisoformat(value["as_of"]),
-                _CORE.validate_python(value["core"]),
+                _core_adapter().validate_python(value["core"]),
                 tuple(decode_record(r) for r in value["reconciliation"]),
             )
     except (ValueError, TypeError, KeyError, ValidationError):

@@ -27,7 +27,13 @@ if TYPE_CHECKING:
 
 from adcp._null_clear import preserve_explicit_nulls
 from adcp._version import resolve_adcp_version
-from adcp.accounts import AccountPolicy, AccountRegistry, AccountStorage
+from adcp.accounts import (
+    ACCOUNT_POLICIES,
+    AccountPolicy,
+    AccountRegistry,
+    AccountStorage,
+    has_natural_reference,
+)
 from adcp.canonical_formats import (
     CanonicalFormatLegacyResolutionError,
     CanonicalFormatLegacyResolver,
@@ -429,6 +435,27 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
+async def _account_bookkeeping(
+    client: ADCPClient, policy: AccountPolicy, work: Coroutine[Any, Any, None]
+) -> None:
+    """Run registry bookkeeping; under ``off`` it never fails a returned result.
+
+    8.0 had no registry, so a storage or key-derivation failure must not turn
+    a result 8.0 returned into an exception. Opt-in policies surface failures.
+    """
+    if policy != "off":
+        await work
+        return
+    try:
+        await work
+    except Exception:
+        logger.warning(
+            "Account registry bookkeeping failed for %s",
+            client.agent_config.id,
+            exc_info=True,
+        )
+
+
 def _task_options_method(
     method: Callable[P, Coroutine[Any, Any, R]],
 ) -> Callable[P, Coroutine[Any, Any, R]]:
@@ -439,9 +466,16 @@ def _task_options_method(
         call_kwargs = cast(dict[str, Any], kwargs)
         options = call_kwargs.pop("options", None)
         client = cast("ADCPClient", args[0])
-        account_policy = call_kwargs.pop("account_policy", None)
-        if account_policy is None:
-            account_policy = client.account_policy
+        call_account_policy = call_kwargs.pop("account_policy", None)
+        account_policy = (
+            call_account_policy if call_account_policy is not None else client.account_policy
+        )
+        # Only the implicit 8.x default warns; an explicit "off" is a choice.
+        implicit_account_policy = (
+            call_account_policy is None
+            and not client._account_policy_explicit
+            and account_policy == "off"
+        )
         if options is not None and not isinstance(options, TaskOptions):
             raise TypeError("options must be a TaskOptions instance")
         method_name = method.__name__
@@ -472,6 +506,12 @@ def _task_options_method(
                 else call_kwargs.get("request")
             )
             if isinstance(request, BaseModel):
+                if (
+                    implicit_account_policy
+                    and task_name != "list_accounts"
+                    and has_natural_reference(request)
+                ):
+                    client._warn_implicit_account_policy()
                 prepared = await client.accounts.prepare(task_name, request, account_policy)
                 if len(positional) > request_index:
                     positional[request_index] = prepared
@@ -480,7 +520,16 @@ def _task_options_method(
             result = await method(*cast(Any, positional), **cast(Any, call_kwargs))
             if isinstance(result, TaskResult):
                 if method_name not in {"execute_task", "execute_task_legacy"}:
-                    await client.accounts.observe(task_name, request, result)
+                    await _account_bookkeeping(
+                        client,
+                        account_policy,
+                        client.accounts.observe(
+                            task_name,
+                            request,
+                            result,
+                            fetch_capabilities=account_policy != "off",
+                        ),
+                    )
                 body_errors = getattr(result.data, "errors", None)
                 if isinstance(result.data, Mapping):
                     body_errors = result.data.get("errors")
@@ -497,10 +546,26 @@ def _task_options_method(
                         if code == "ACCOUNT_NOT_FOUND" and isinstance(request, BaseModel):
                             ref = getattr(request, "account", None)
                             if ref is not None:
-                                await client.accounts.forget(ref)
-                        raise classify_task_error(
-                            task_name, errors, agent_id=client.agent_config.id
-                        )
+                                await _account_bookkeeping(
+                                    client, account_policy, client.accounts.forget(ref)
+                                )
+                        if client.raise_account_errors:
+                            raise classify_task_error(
+                                task_name, errors, agent_id=client.agent_config.id
+                            )
+                        if not client._raise_account_errors_explicit:
+                            warnings.warn(
+                                "Account errors are returned as a failed TaskResult in "
+                                "adcp 8.x. The next major release raises "
+                                "AccountNotFoundError, AccountSetupRequiredError, or "
+                                "AccountPaymentRequiredError (ADCPTaskError subclasses). "
+                                "Pass ADCPClient(raise_account_errors=True) to adopt "
+                                "that now, or raise_account_errors=False to keep "
+                                "returning results.",
+                                DeprecationWarning,
+                                stacklevel=2,
+                            )
+                        break
             return result
 
         with client_task_span(
@@ -629,8 +694,9 @@ class ADCPClient:
         canonical_format_legacy_resolver: CanonicalFormatLegacyResolver | None = None,
         allow_unauthenticated_webhooks: bool = False,
         httpx_client_factory: MCPHttpxClientFactory | None = None,
-        account_policy: AccountPolicy = "auto",
+        account_policy: AccountPolicy | None = None,
         account_storage: AccountStorage | None = None,
+        raise_account_errors: bool | None = None,
     ):
         """
         Initialize ADCP client for a single agent.
@@ -653,11 +719,24 @@ class ADCPClient:
                 timestamps. Webhooks with timestamps older than this or more than
                 this far in the future are rejected. Defaults to 300 (5 minutes).
             capabilities_ttl: Time-to-live in seconds for cached capabilities (default: 1 hour)
-            account_policy: Default natural-key policy. ``auto`` omits unknown
-                keys on optional discovery; ``strict`` rejects them. Required
-                accounts must be provisioned through ``client.accounts.ensure``.
+            account_policy: Default natural-key policy. ``off`` (the 8.x
+                default) sends account references unchanged, as 8.0 did.
+                ``auto`` omits unknown keys on optional discovery and rejects
+                them elsewhere before transport; ``strict`` rejects them
+                everywhere. Preflight rejections raise typed account errors.
+                Leaving this unset emits a ``DeprecationWarning`` the first
+                time a natural-key reference is sent: the default becomes
+                ``auto`` in the next major release.
             account_storage: Async provisioning-record storage, private to the
                 authenticated buyer. Defaults to in-memory storage.
+            raise_account_errors: When True, seller-returned account errors
+                (``ACCOUNT_NOT_FOUND``, ``ACCOUNT_REQUIRED``,
+                ``ACCOUNT_SETUP_REQUIRED``, ``ACCOUNT_PAYMENT_REQUIRED``) raise
+                ``AccountNotFoundError`` / ``AccountSetupRequiredError`` /
+                ``AccountPaymentRequiredError`` (``ADCPTaskError`` subclasses).
+                The 8.x default returns the failed ``TaskResult`` as 8.0 did and
+                emits a ``DeprecationWarning`` when unset; the default becomes
+                True in the next major release.
             validate_features: When True, automatically check that the seller supports
                 required features before making task calls (e.g., sync_audiences requires
                 audience_targeting). Requires capabilities to have been fetched first.
@@ -792,9 +871,15 @@ class ADCPClient:
             raise TypeError("allow_unauthenticated_webhooks must be a bool")
 
         self.agent_config = agent_config
-        if account_policy not in {"auto", "strict"}:
-            raise ValueError("account_policy must be 'auto' or 'strict'")
-        self.account_policy = account_policy
+        if account_policy is not None and account_policy not in ACCOUNT_POLICIES:
+            raise ValueError("account_policy must be 'off', 'auto', or 'strict'")
+        if raise_account_errors is not None and type(raise_account_errors) is not bool:
+            raise TypeError("raise_account_errors must be a bool")
+        self._account_policy_explicit = account_policy is not None
+        self._account_policy_warned = False
+        self.account_policy: AccountPolicy = account_policy or "off"
+        self._raise_account_errors_explicit = raise_account_errors is not None
+        self.raise_account_errors = raise_account_errors is True
         self.accounts = AccountRegistry(self, account_storage)
         self.webhook_url_template = webhook_url_template
         self.webhook_secret = webhook_secret
@@ -1515,6 +1600,23 @@ class ADCPClient:
     def capabilities(self) -> GetAdcpCapabilitiesResponse | None:
         """Return cached capabilities, or None if not yet fetched."""
         return self._capabilities
+
+    def _warn_implicit_account_policy(self) -> None:
+        """Warn once per client that the implicit ``off`` default will change."""
+        if self._account_policy_warned:
+            return
+        self._account_policy_warned = True
+        warnings.warn(
+            "ADCPClient sends natural-key account references unchanged by default "
+            "in adcp 8.x (account_policy='off'). The next major release defaults "
+            "to account_policy='auto', which omits unprovisioned keys on public "
+            "discovery and rejects them elsewhere before transport. Pass "
+            "account_policy='auto' or 'strict' to adopt that now, or "
+            "account_policy='off' to keep the current behavior. See "
+            "docs/account-lifecycle.md.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
 
     @property
     def feature_resolver(self) -> FeatureResolver | None:

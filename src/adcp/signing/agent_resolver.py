@@ -791,6 +791,7 @@ async def verify_from_agent_url(
     from dataclasses import replace
 
     from adcp.signing.errors import (
+        REQUEST_SIGNATURE_AGENT_NOT_IN_BRAND_JSON,
         REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
         REQUEST_SIGNATURE_JWKS_UNTRUSTED,
         REQUEST_SIGNATURE_KEY_UNKNOWN,
@@ -834,9 +835,26 @@ async def verify_from_agent_url(
     # marker the verifier would treat a bare ``StaticJwksResolver`` as a
     # publisher-pin-equivalent and skip the check — defeating the
     # production helper's defense against the shared-tenancy spoof.
+    # The signer identity is always the URL the caller asked about, never a
+    # brand.json ``url`` field: a record listing a victim's URL must not let its
+    # keys verify as the victim. Selection is by this URL, so a disagreeing
+    # entry means the resolution is inconsistent and fails closed.
+    signer_agent_url = canonicalize_target_uri(resolution.agent_url)
+    entry_url = resolution.agent_entry.get("url")
+    try:
+        entry_matches = entry_url is None or (
+            isinstance(entry_url, str) and canonicalize_target_uri(entry_url) == signer_agent_url
+        )
+    except ValueError:
+        entry_matches = False
+    if not entry_matches:
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_AGENT_NOT_IN_BRAND_JSON,
+            step="resolve",
+            message="resolved brand.json entry does not match the requested agent URL",
+        )
     if replay_store is _REPLAY_STORE_UNSET:
-        resolved_agent_url = str(resolution.agent_entry.get("url") or resolution.agent_url)
-        replay_store = _default_replay_store_for_origin(_canonical_agent_origin(resolved_agent_url))
+        replay_store = _default_replay_store_for_origin(_canonical_agent_origin(signer_agent_url))
     options = VerifyOptions(
         now=now if now is not None else _time.time(),
         capability=capability if capability is not None else VerifierCapability(supported=True),
@@ -844,9 +862,7 @@ async def verify_from_agent_url(
         jwks_resolver=_BrandJsonStaticJwksResolver(resolution.jwks, jwks_uri=resolution.jwks_uri),
         revocation_checker=revocation_checker,
         revocation_list=revocation_list,
-        agent_url=canonicalize_target_uri(
-            str(resolution.agent_entry.get("url") or resolution.agent_url)
-        ),
+        agent_url=signer_agent_url,
         operator_brand_json=resolution.brand_json,
         expected_key_origins=resolution.key_origins or {},
         signing_purpose=signing_purpose,

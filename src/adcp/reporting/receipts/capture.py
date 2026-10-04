@@ -8,6 +8,7 @@ from typing import Any
 
 from pydantic import TypeAdapter, ValidationError
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.reporting.evidence import aware_utc
 from adcp.reporting.ledger._delivery_state import decode_record, payload, principal
 from adcp.reporting.ledger.delivery_models import (
@@ -19,7 +20,10 @@ from adcp.reporting.ledger.delivery_models import (
 from adcp.reporting.ledger.status_projection import ReportingStatusSnapshot
 from adcp.reporting.receipts.errors import ReportingReceiptError
 
-_CORE = TypeAdapter(ReportingStatusSnapshot)
+
+@deferred_adapter
+def _core_adapter() -> TypeAdapter[ReportingStatusSnapshot]:
+    return TypeAdapter(ReportingStatusSnapshot)
 
 
 @dataclass(frozen=True)
@@ -68,7 +72,7 @@ class ReportingReceiptBoundary:
             "account_sequence": self.account_sequence,
             "reporting_receipt_id": self.reporting_receipt_id,
             "as_of": self.as_of.isoformat(),
-            "core": _CORE.dump_python(self.core, mode="json"),
+            "core": _core_adapter().dump_python(self.core, mode="json"),
             "reconciliation": [payload(r) for r in self.reconciliation],
         }
 
@@ -83,7 +87,7 @@ def decode_receipt_boundary(value: dict[str, Any]) -> ReportingReceiptBoundary:
                 value["account_sequence"],
                 value["reporting_receipt_id"],
                 datetime.fromisoformat(value["as_of"]),
-                _CORE.validate_python(value["core"]),
+                _core_adapter().validate_python(value["core"]),
                 tuple(decode_record(r) for r in value["reconciliation"]),
             )
     except (ValueError, TypeError, KeyError, ValidationError):
