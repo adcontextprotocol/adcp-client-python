@@ -116,6 +116,50 @@ def _parse_bearer_header(header: str) -> str | None:
     return token.strip() or None
 
 
+@dataclass(frozen=True)
+class _RejectedCredential:
+    reason: Literal["ambiguous_header", "wrong_scheme"]
+
+
+def _resolve_bearer_headers(
+    headers: Sequence[tuple[bytes, bytes]],
+    aliases: Sequence[str],
+    alias_prefix_required: bool,
+) -> str | _RejectedCredential | None:
+    """Inspect every accepted carrier, including repeated HTTP headers.
+
+    Absence alone permits anonymous/fallback paths. Empty or malformed
+    accepted headers fail closed, even alongside a valid credential.
+    Identical decoded tokens are accepted; different tokens are ambiguous.
+    """
+    tokens: list[str] = []
+    alias_names = set(aliases)
+    for raw_name, raw_value in headers:
+        name = raw_name.decode("latin-1").lower()
+        if name != "authorization" and name not in alias_names:
+            continue
+        value = raw_value.decode("latin-1")
+        token = (
+            _parse_bearer_header(value)
+            if name == "authorization" or alias_prefix_required
+            else value.strip() or None
+        )
+        if token is None:
+            return _RejectedCredential("wrong_scheme")
+        tokens.append(token)
+    if not tokens:
+        return None
+    digest = hashlib.sha256(tokens[0].encode("utf-8")).digest()
+    if any(
+        not hmac.compare_digest(digest, hashlib.sha256(token.encode("utf-8")).digest())
+        for token in tokens[1:]
+    ):
+        return _RejectedCredential("ambiguous_header")
+    if len(tokens) > 1:
+        logger.debug("identical authentication credentials accepted")
+    return tokens[0]
+
+
 if TYPE_CHECKING:
     from starlette.requests import Request
 
@@ -341,9 +385,9 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         response body. Default is ``{"error": "unauthenticated"}``.
     :param legacy_header_aliases: Optional list of legacy header names
         to accept in addition to the spec-canonical ``Authorization:
-        Bearer``. Resolution order on every request: ``Authorization:
-        Bearer <token>`` first; if absent, each alias in order; first
-        non-empty wins. The aliases path is for adopters mid-migration
+        Bearer``. Every accepted carrier is checked. Different tokens
+        are rejected; identical decoded duplicates are accepted.
+        The aliases path is for adopters mid-migration
         from a custom header (e.g. ``x-adcp-auth``) — both work
         simultaneously so no flag-day cutover is needed. **The
         spec-canonical header is always accepted; aliases are
@@ -475,7 +519,15 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         tenant_token = None
         metadata_token = None
         try:
-            bearer = self._extract_bearer(request)
+            credential = _resolve_bearer_headers(
+                request.scope.get("headers", ()),
+                self._alias_header_names,
+                self._alias_prefix_required,
+            )
+            if isinstance(credential, _RejectedCredential):
+                logger.info("mcp auth rejected", extra={"reason": credential.reason})
+                return self._unauthenticated(signature_error)
+            bearer = credential
             if is_discovery and not bearer:
                 principal_token = current_principal.set(None)
                 tenant_token = current_tenant.set(None)
@@ -519,7 +571,7 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
                 # Validator failure must not leak stack info to the caller.
                 # Fail closed — a buggy validator is an auth failure, not a
                 # 500. Logged for operators.
-                logger.exception("token validator raised")
+                logger.error("mcp auth rejected", extra={"reason": "validator_error"})
                 return self._unauthenticated(signature_error)
 
             if principal is None:
@@ -553,38 +605,6 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
                 current_tenant.reset(tenant_token)
             if metadata_token is not None:
                 current_principal_metadata.reset(metadata_token)
-
-    def _extract_bearer(self, request: Request) -> str | None:
-        """Resolve the token from incoming headers.
-
-        Per RFC 6750 §2.1 the canonical carrier is ``Authorization:
-        Bearer <token>``; check that first. If absent, walk the
-        configured ``legacy_header_aliases`` in order — first non-empty
-        wins. Legacy aliases carry raw tokens (no scheme prefix) unless
-        ``legacy_aliases_bearer_prefix_required=True``. Both paths
-        coexist so adopters mid-migration can move clients from a
-        custom header to ``Authorization: Bearer`` without a flag day
-        (#720).
-        """
-        # 1. Spec-canonical first.
-        canonical = request.headers.get("authorization", "")
-        bearer = _parse_bearer_header(canonical)
-        if bearer:
-            return bearer
-
-        # 2. Legacy aliases — additive opt-in.
-        for alias in self._alias_header_names:
-            raw = request.headers.get(alias, "")
-            if not raw:
-                continue
-            if self._alias_prefix_required:
-                token = _parse_bearer_header(raw)
-            else:
-                token = raw.strip() or None
-            if token:
-                return token
-
-        return None
 
     def is_discovery_request(self, method: str | None, tool: str | None) -> bool:
         """True when the request should bypass auth.
@@ -981,7 +1001,8 @@ class BearerTokenAuth:
     header carrying a raw token (no scheme prefix) before the spec
     settled. Sellers with deployed clients that can't be updated opt
     in additively — ``Authorization: Bearer`` is still accepted, the
-    alias is consulted only when the canonical header is absent::
+    alias is accepted alongside the canonical header. Different tokens
+    are rejected; identical decoded duplicates are accepted::
 
         # Recommended new-shape (#720). Accepts both wire carriers.
         BearerTokenAuth(
@@ -1062,8 +1083,8 @@ class BearerTokenAuth:
     # NEW (#720) — additive legacy aliases. ``Authorization: Bearer``
     # is ALWAYS accepted regardless of these fields; this is purely
     # additive opt-in for adopters mid-migration from custom headers.
-    # Resolution order on each request: ``Authorization: Bearer``
-    # first; if absent, each alias in order, first non-empty wins.
+    # All accepted carriers must decode to the same token. Empty/malformed
+    # carriers and conflicting tokens fail closed on both transports.
     #
     # Pick cross-leg ``legacy_header_aliases`` when both MCP and A2A
     # adopters send the same custom header (most common case during
@@ -1471,13 +1492,6 @@ _A2A_DISCOVERY_PATHS: frozenset[str] = frozenset(
 )
 
 
-class _AmbiguousA2ACredential:
-    """Sentinel type for duplicate accepted authentication carriers."""
-
-
-_AMBIGUOUS_A2A_CREDENTIAL = _AmbiguousA2ACredential()
-
-
 class A2ABearerAuthMiddleware:
     """Pure-ASGI middleware that gates A2A JSON-RPC on a bearer token.
 
@@ -1552,25 +1566,10 @@ class A2ABearerAuthMiddleware:
         """
         return self._resolve_credential(scope) is not None
 
-    def _resolve_credential(
-        self, scope: Any
-    ) -> tuple[bytes, bool] | _AmbiguousA2ACredential | None:
-        """Resolve one accepted carrier and flag duplicate credentials."""
-
-        accepted: list[tuple[bytes, bool]] = []
-        aliases = set(self._alias_header_names)
-        for raw_name, raw_value in scope.get("headers", ()):
-            if not raw_value.strip():
-                continue
-            name = raw_name.decode("latin-1").lower()
-            if name == "authorization":
-                accepted.append((raw_value, True))
-            elif name in aliases:
-                accepted.append((raw_value, self._alias_prefix_required))
-
-        if len(accepted) > 1:
-            return _AMBIGUOUS_A2A_CREDENTIAL
-        return accepted[0] if accepted else None
+    def _resolve_credential(self, scope: Any) -> str | _RejectedCredential | None:
+        return _resolve_bearer_headers(
+            scope.get("headers", ()), self._alias_header_names, self._alias_prefix_required
+        )
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         # Lifespan + websocket pass through unchanged. Auth applies to
@@ -1725,33 +1724,18 @@ class A2ABearerAuthMiddleware:
         so SOC dashboards can detect scanning without bloating logs.
         """
         credential = self._resolve_credential(scope)
-        if isinstance(credential, _AmbiguousA2ACredential):
-            logger.info("a2a auth rejected", extra={"reason": "ambiguous_header"})
+        if isinstance(credential, _RejectedCredential):
+            logger.info("a2a auth rejected", extra={"reason": credential.reason})
             return None
         if credential is None:
             logger.info("a2a auth rejected", extra={"reason": "missing_header"})
             return None
-        raw_value, prefix_required = credential
-
-        try:
-            raw_header = raw_value.decode("latin-1")
-        except UnicodeDecodeError:
-            logger.info("a2a auth rejected", extra={"reason": "header_decode"})
-            return None
-
-        if prefix_required:
-            bearer = _parse_bearer_header(raw_header)
-        else:
-            stripped = raw_header.strip()
-            bearer = stripped or None
-        if not bearer:
-            logger.info("a2a auth rejected", extra={"reason": "wrong_scheme"})
-            return None
+        bearer = credential
 
         try:
             raw = self._config.validate_token(bearer)
         except Exception:
-            logger.exception("token validator raised on A2A request")
+            logger.error("a2a auth rejected", extra={"reason": "validator_error"})
             return None
 
         if inspect.isawaitable(raw):

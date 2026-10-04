@@ -44,6 +44,7 @@ Example::
 from __future__ import annotations
 
 import logging
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, runtime_checkable
@@ -74,16 +75,31 @@ FeedEntity = Literal["product", "signal"]
 CacheScopeLiteral = Literal["public", "account"]
 
 
-def _scope_str(scope: Any) -> CacheScopeLiteral:
+def _scope_str(
+    scope: Any, *, strict: bool = True, inherited: CacheScopeLiteral = "public"
+) -> CacheScopeLiteral:
     """Normalize a CacheScope enum or string to the wire literal.
 
-    Missing/unknown scopes cannot establish that prices are public. Reject
-    them before changing either the public feed or an account overlay.
+    Unknown scopes are always rejected. A missing scope cannot establish that
+    prices are public, so strict mirrors reject it before changing either the
+    public feed or an account overlay. Compatibility mode (the 8.x default)
+    treats a missing scope as ``inherited`` (the previous page's or cached
+    scope, else ``public``), as 8.0 did, with a deprecation warning.
     """
     value = scope.value if hasattr(scope, "value") else scope
-    if value not in ("public", "account"):
-        raise FeedMirrorError("Wholesale response requires an explicit valid cache_scope")
-    return cast(CacheScopeLiteral, value)
+    if value in ("public", "account"):
+        return cast(CacheScopeLiteral, value)
+    if value is None and not strict:
+        warnings.warn(
+            "Wholesale response omitted cache_scope; FeedMirror keeps the cached "
+            "scope (default 'public') in adcp 8.x. The next major release rejects responses "
+            "without an explicit cache_scope. Pass FeedMirror(strict_scope=True) "
+            "to adopt that now.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        return inherited
+    raise FeedMirrorError("Wholesale response requires an explicit valid cache_scope")
 
 
 # Callback invoked after a webhook event mutates the mirror. Receives the
@@ -135,7 +151,7 @@ class FeedState:
 
     wholesale_feed_version: str | None = None
     pricing_version: str | None = None
-    cache_scope: Literal["public", "account"] | None = None
+    cache_scope: Literal["public", "account"] = "public"
 
 
 @dataclass
@@ -187,8 +203,18 @@ class FeedMirror:
             responses retain complete, independent inventory snapshots.
             Prefer ``public.for_account(account)`` to construct overlays.
         account_id: Trusted seller ID for a natural-key account. Required
-            to accept account-scoped webhooks; explicit references bind it
-            automatically.
+            to accept account-scoped webhooks in strict mode; explicit
+            references bind it automatically.
+        strict_scope: Fail closed on scope ambiguity: reject wholesale
+            responses without ``cache_scope``, account-scoped responses or
+            webhooks on an unscoped mirror, and account webhooks on a mirror
+            without a trusted ``account_id`` binding. The 8.x default
+            (``None``/``False``) accepts these as 8.0 did and emits a
+            ``DeprecationWarning``; strict becomes the default in the next
+            major release. Shared public mirrors and their account overlays
+            (``for_account``) are always strict, since a misclassified
+            response there could publish one account's prices to every
+            overlay.
     """
 
     def __init__(
@@ -201,8 +227,12 @@ class FeedMirror:
         page_limit: int = _DEFAULT_PAGE_LIMIT,
         public_mirror: FeedMirror | None = None,
         account_id: str | None = None,
+        strict_scope: bool | None = None,
     ) -> None:
         self._client = client
+        self._strict_scope_requested = strict_scope is True
+        # Set once this unscoped mirror backs account overlays.
+        self._has_overlays = False
         self._account = account
         self._on_event = on_event
         self._state_store = state_store
@@ -254,13 +284,22 @@ class FeedMirror:
         """
         if self._account is not None:
             raise ValueError("for_account must be called on the public mirror")
+        if "account" in (self._product_state.cache_scope, self._signal_state.cache_scope):
+            raise ValueError("for_account requires a public mirror without account-scoped state")
+        self._has_overlays = True
         return FeedMirror(
             self._client,
             account=account,
             public_mirror=self,
             page_limit=self._page_limit,
             account_id=account_id,
+            strict_scope=True,
         )
+
+    @property
+    def strict_scope(self) -> bool:
+        """Whether this mirror fails closed on scope ambiguity."""
+        return self._strict_scope_requested or self._public_mirror is not None or self._has_overlays
 
     @property
     def product_state(self) -> FeedState:
@@ -329,7 +368,7 @@ class FeedMirror:
                         FeedState(
                             wholesale_feed_version=meta.wholesale_feed_version,
                             pricing_version=meta.pricing_version,
-                            cache_scope=meta.cache_scope,
+                            cache_scope=meta.cache_scope or "public",
                         ),
                     )
         if products_meta is not None:
@@ -363,13 +402,13 @@ class FeedMirror:
             task = await self._client.get_products(request)
             body = self._require_body(task, "get_products")
             if body.unchanged:
-                self._merge_metadata(meta, body)
+                self._merge_metadata(meta, body, state)
                 self._validate_unchanged(meta, state, first_page)
                 meta.unchanged = True
                 return meta
             for product in body.products or []:
                 meta.items[product.product_id] = product
-            self._merge_metadata(meta, body)
+            self._merge_metadata(meta, body, state)
             self._validate_scope(meta.cache_scope)
             cursor = self._next_cursor(body)
             first_page = False
@@ -389,13 +428,13 @@ class FeedMirror:
             task = await self._client.get_signals(request)
             body = self._require_body(task, "get_signals")
             if body.unchanged:
-                self._merge_metadata(meta, body)
+                self._merge_metadata(meta, body, state)
                 self._validate_unchanged(meta, state, first_page)
                 meta.unchanged = True
                 return meta
             for signal in body.signals or []:
                 meta.items[signal.signal_agent_segment_id] = signal
-            self._merge_metadata(meta, body)
+            self._merge_metadata(meta, body, state)
             self._validate_scope(meta.cache_scope)
             cursor = self._next_cursor(body)
             first_page = False
@@ -444,9 +483,12 @@ class FeedMirror:
             )
         return task.data
 
-    @staticmethod
-    def _merge_metadata(meta: _FeedMetadata, body: Any) -> None:
-        scope = _scope_str(body.cache_scope)
+    def _merge_metadata(self, meta: _FeedMetadata, body: Any, state: FeedState) -> None:
+        scope = _scope_str(
+            body.cache_scope,
+            strict=self.strict_scope,
+            inherited=meta.cache_scope or state.cache_scope,
+        )
         if meta.cache_scope is None and not body.unchanged:
             # A full response establishes new state. In particular, an
             # account-to-public transition must forget private price tokens.
@@ -462,13 +504,19 @@ class FeedMirror:
 
     def _validate_scope(self, scope: CacheScopeLiteral | None) -> None:
         if scope == "account" and self._account is None:
-            raise FeedMirrorError("Account-scoped prices require an account mirror")
+            if self.strict_scope:
+                raise FeedMirrorError("Account-scoped prices require an account mirror")
+            warnings.warn(
+                "An unscoped FeedMirror accepted account-scoped prices, as in adcp "
+                "8.0. The next major release rejects them; construct the mirror "
+                "with account=... (or pass strict_scope=True to reject now).",
+                DeprecationWarning,
+                stacklevel=3,
+            )
 
     def _validate_unchanged(self, meta: _FeedMetadata, state: FeedState, first_page: bool) -> None:
         self._validate_scope(meta.cache_scope)
-        if not first_page or (
-            state.cache_scope is not None and meta.cache_scope != state.cache_scope
-        ):
+        if not first_page or meta.cache_scope != state.cache_scope:
             raise FeedMirrorError("unchanged response does not match the cached feed scope")
 
     @staticmethod
@@ -489,7 +537,7 @@ class FeedMirror:
         state = self._product_state if entity == "product" else self._signal_state
         state.wholesale_feed_version = meta.wholesale_feed_version
         state.pricing_version = meta.pricing_version
-        state.cache_scope = meta.cache_scope
+        state.cache_scope = meta.cache_scope or "public"
         if not meta.unchanged and not (
             meta.cache_scope == "public" and self._public_mirror is not None
         ):
@@ -537,19 +585,32 @@ class FeedMirror:
                 not match the embedded event).
         """
         event = webhook.event
-        scope = _scope_str(webhook.cache_scope)
+        strict = self.strict_scope
+        scope = _scope_str(webhook.cache_scope, strict=strict)
         self._validate_scope(scope)
         applies_to = event.payload.applies_to
-        if _scope_str(applies_to.scope) != scope:
+        if _scope_str(applies_to.scope, strict=strict) != scope:
             raise FeedMirrorError("Webhook cache_scope does not match payload applies_to.scope")
         if scope == "account":
-            if self._account_id is None:
+            if self._account_id is not None:
+                if webhook.account_id != self._account_id:
+                    raise FeedMirrorError("Webhook account_id does not match the account mirror")
+                account_ids = getattr(applies_to, "account_ids", None)
+                if account_ids is not None and self._account_id not in account_ids:
+                    raise FeedMirrorError("Webhook payload does not apply to the account mirror")
+            elif strict:
                 raise FeedMirrorError("Account webhooks require a trusted account_id binding")
-            if webhook.account_id != self._account_id:
-                raise FeedMirrorError("Webhook account_id does not match the account mirror")
-            account_ids = getattr(applies_to, "account_ids", None)
-            if account_ids is not None and self._account_id not in account_ids:
-                raise FeedMirrorError("Webhook payload does not apply to the account mirror")
+            elif self._account is not None:
+                warnings.warn(
+                    "A natural-key FeedMirror accepted an account webhook without a "
+                    "trusted account_id binding, as in adcp 8.0. The next major release "
+                    "rejects it; pass FeedMirror(account_id=...) with the seller-assigned "
+                    "ID (or strict_scope=True to reject now).",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            # An unscoped compatibility mirror has no binding to check;
+            # _validate_scope already warned that it accepted account scope.
         if webhook.notification_type != event.event_type:
             raise FeedMirrorError("webhook notification_type does not match event.event_type")
         if str(webhook.notification_id) != str(event.event_id):
@@ -630,7 +691,7 @@ class FeedMirror:
         entity = self._event_entity(webhook.event)
         state = self._product_state if entity == "product" else self._signal_state
         state.wholesale_feed_version = webhook.wholesale_feed_version
-        state.cache_scope = _scope_str(webhook.cache_scope)
+        state.cache_scope = _scope_str(webhook.cache_scope, strict=self.strict_scope)
 
     def _dispatch(self, event: WholesaleFeedEvent) -> None:
         if self._on_event is None:

@@ -847,6 +847,7 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "validate_product",
         "validate_publisher_properties_item",
     ),
+    "adcp.notification_outbox_pg": ("PgNotificationOutbox",),
     "adcp.webhooks": (
         "LegacyHmacFallback",
         "MemoryBackend",
@@ -1174,6 +1175,7 @@ __all__ = [
     "MemoryBackend",
     "LegacyHmacFallback",
     "PreparedWebhook",
+    "PgNotificationOutbox",
     "McpWebhookPayload",
     # Account operations
     "AccountAuthorization",
@@ -1901,6 +1903,7 @@ if TYPE_CHECKING:
         reassess_media_buy_action,
         route_media_buy_action,
     )
+    from adcp.notification_outbox_pg import PgNotificationOutbox as PgNotificationOutbox
     from adcp.oauth import (
         InMemoryPendingOAuthFlowStore,
         OAuthAuthorizationError,

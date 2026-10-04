@@ -16,9 +16,10 @@ from __future__ import annotations
 import copy
 import importlib
 import re
-from functools import cache
+from functools import cache, reduce
+from operator import or_
 from types import GenericAlias
-from typing import Any, ClassVar, Literal, Union
+from typing import Any, ClassVar, Literal
 
 from jsonschema.validators import validator_for
 from pydantic import (
@@ -175,7 +176,7 @@ def _fallback_annotation(
         if len(annotations) == 1:
             return annotations[0]
         if annotations:
-            return Union.__getitem__(tuple(annotations))
+            return reduce(or_, annotations)
     all_of = schema.get("allOf")
     if isinstance(all_of, list):
         annotations = [
@@ -191,7 +192,7 @@ def _fallback_annotation(
         annotations = [
             _fallback_annotation({**schema, "type": item}, document, seen) for item in schema_type
         ]
-        return Union.__getitem__(tuple(dict.fromkeys(annotations)))
+        return reduce(or_, dict.fromkeys(annotations))
     if schema_type == "array":
         item_type = _fallback_annotation(schema.get("items", {}), document, seen)
         return GenericAlias(list, item_type)
@@ -483,7 +484,7 @@ def make_versioned_base(version: str, model_name: str) -> type[BaseModel]:
             _fallback_annotation(field_schema, schema),
         )
         if name not in guaranteed_fields:
-            annotation = Union.__getitem__((annotation, type(None)))
+            annotation = annotation | None
         description = field_schema.get("description") if isinstance(field_schema, dict) else None
         if isinstance(field_schema, dict) and "default" in field_schema:
             default = Field(

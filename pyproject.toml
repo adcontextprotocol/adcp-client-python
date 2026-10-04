@@ -125,7 +125,9 @@ dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.0.0",
+    "freezegun==1.5.5",  # isolated deferred-schema compatibility regressions
     "mypy==1.20.2",
+    "pyright==1.1.414",  # real imported-base adopter regressions
     "black>=23.0.0",
     "ruff>=0.1.0",
     # Pin to exact version: codegen's variant numbering (e.g. CreateMediaBuyResponse1 vs
@@ -190,7 +192,9 @@ namespaces = true
 adcp = [
     "py.typed",
     "types/*.pyi",
+    "types/versioned_bases/*.pyi",
     "ADCP_VERSION",
+    "notification_outbox.sql",
     "signing/pg/*.sql",
     "decisioning/pg/*.sql",
     "reporting/ledger/*.sql",
@@ -244,7 +248,7 @@ target-version = ["py310", "py311", "py312"]
 # files, rolls back). The regen script already runs black on the
 # consolidated _generated.py; individual generated_poc/ files don't
 # need formatting at commit time. Mirrors the ruff extend-exclude.
-extend-exclude = "/(tasks|_generated|registry)\\.py$|/types/generated_poc/|/types/v3[012]\\.pyi$|/reporting/_preview/_generated_models/"
+extend-exclude = "/(tasks|_generated|registry)\\.py$|/types/generated_poc/|/types/v3[012]\\.pyi$|/types/versioned_bases/_?v3[012]\\.(py|pyi)$|/reporting/_preview/_generated_models/"
 
 [tool.ruff]
 line-length = 100
@@ -260,6 +264,9 @@ extend-exclude = [
     "src/adcp/types/v30.pyi",
     "src/adcp/types/v31.pyi",
     "src/adcp/types/v32.pyi",
+    "src/adcp/types/versioned_bases/_v*.py",
+    "src/adcp/types/versioned_bases/v*.py",
+    "src/adcp/types/versioned_bases/v*.pyi",
     "examples/",
     "scripts/",
 ]
@@ -386,3 +393,7 @@ dev = [
     # ``SKIP=mypy``.
     "mypy==1.20.2",
 ]
+
+[[tool.mypy.overrides]]
+module = ["adcp.types.versioned_bases._v30", "adcp.types.versioned_bases._v31", "adcp.types.versioned_bases._v32"]
+ignore_errors = true

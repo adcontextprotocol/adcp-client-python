@@ -382,6 +382,26 @@ class TaskRegistry(Protocol):
         ...
 
 
+@runtime_checkable
+class ListableTaskRegistry(Protocol):
+    """Optional account-scoped reconciliation extension; TaskRegistry stays minimal.
+
+    Return a wire-shaped list_tasks page with query_summary, tasks and pagination.
+    Filters/sort/pagination use the canonical request's JSON shape. Implementations
+    must scope reads before materializing records and hide expired references.
+    Conversation history is not required because SDK registries do not store it.
+    """
+
+    async def list(
+        self,
+        *,
+        account_id: str,
+        filters: dict[str, Any] | None = None,
+        sort: dict[str, Any] | None = None,
+        pagination: dict[str, Any] | None = None,
+    ) -> dict[str, Any]: ...
+
+
 # ---------------------------------------------------------------------------
 # In-memory reference implementation — v6.0 ships this; v6.1 lands a
 # durable Postgres-backed counterpart that implements the same Protocol.
@@ -556,6 +576,26 @@ class InMemoryTaskRegistry:
                 # MUST preserve this behavior.
                 return None
             return record.to_dict()
+
+    async def list(
+        self,
+        *,
+        account_id: str,
+        filters: dict[str, Any] | None = None,
+        sort: dict[str, Any] | None = None,
+        pagination: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        from adcp.decisioning.task_queries import list_task_records
+
+        async with self._lock:
+            records = [
+                record.to_dict()
+                for record in self._records.values()
+                if record.account_id == account_id
+            ]
+        return list_task_records(
+            records, account_id=account_id, filters=filters, sort=sort, pagination=pagination
+        )
 
     async def discard(self, task_id: str) -> None:
         async with self._lock:

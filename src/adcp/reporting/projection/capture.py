@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 from pydantic import TypeAdapter, ValidationError
 from pydantic_core import TzInfo
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.reporting._timestamp import aware_timestamp
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.evidence import aware_utc
@@ -20,7 +21,12 @@ from adcp.reporting.ledger.notification_models import ReportingNotificationError
 from adcp.reporting.ledger.status_projection import ReportingStatusSnapshot
 from adcp.reporting.ledger.status_snapshot import snapshot_from_storage
 
-_CORE = TypeAdapter(ReportingStatusSnapshot)
+
+@deferred_adapter
+def _core_adapter() -> TypeAdapter[ReportingStatusSnapshot]:
+    return TypeAdapter(ReportingStatusSnapshot)
+
+
 _COLLECTIONS = (
     "configurations",
     "obligations",
@@ -84,7 +90,7 @@ def capture_memory_input(
     core: ReportingStatusSnapshot,
     changes: tuple[tuple[int, Any, ReportingDeliveryRecord], ...],
 ) -> ReportingProjectionInput:
-    raw = _CORE.dump_python(core, mode="json")
+    raw = _core_adapter().dump_python(core, mode="json")
     entries = [
         {"consumer_id": who.consumer_id, "sequence": seq, "record": payload(record)}
         for seq, who, record in changes
@@ -124,7 +130,7 @@ def decode_projection_input(value: Any) -> ReportingProjectionInput:
             if type(rows) is not list or type(count) is not int or count != len(rows):
                 raise ValueError
         core = (
-            _CORE.validate_python(value["core"])
+            _core_adapter().validate_python(value["core"])
             if value["core_format"] == "typed-v1"
             else snapshot_from_storage(value["core"])
         )
@@ -181,7 +187,7 @@ def with_projection_core(
     raw = json.loads(value.document)
     raw.update(
         core_format="typed-v1",
-        core=_CORE.dump_python(core, mode="json"),
+        core=_core_adapter().dump_python(core, mode="json"),
         as_of=core.as_of.isoformat(),
     )
     raw["counts"] = {

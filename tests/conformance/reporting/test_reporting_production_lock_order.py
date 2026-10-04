@@ -32,13 +32,17 @@ async def test_activation_and_producer_actual_trigger_lock_order(
     async with production_harness("postgres", tmp_path / "destination.sqlite") as h:
         support, store, item = h.production, h.store, h.item
         locked, release, executing = asyncio.Event(), asyncio.Event(), asyncio.Event()
+        activation_finished = asyncio.Event()
         pids = {}
         detected_deadlocks = []
+        producer_victims = []
+        retry_transactions = []
         original_step = support.projection._activation_step_on
         original_execute = psycopg.AsyncConnection.execute
         original_lease = store.lease_period_close.__func__
         tasks = []
         activation = None
+        producer = None
 
         async def activation_step(connection, account_id):
             # This phase already owns the real account lock and will acquire
@@ -54,12 +58,31 @@ async def test_activation_and_producer_actual_trigger_lock_order(
             if isinstance(query, str) and query.startswith(
                 "UPDATE reporting_configurations SET lease_worker_id"
             ):
+                if wrong_order and asyncio.current_task() is producer and "SKIP LOCKED" in query:
+                    # Select the producer as the real server-detected victim.
+                    # An activation victim leaves this predecessor's lease
+                    # pointing at a correctly unadmitted production generation.
+                    await original_execute(connection, "SET LOCAL deadlock_timeout='50ms'")
+                    if detected_deadlocks:
+                        # The predecessor stays installed throughout activation.
+                        # An immediate retry can create another real cycle in its
+                        # next transaction. Coordinate this single-cycle control
+                        # after rollback; do not change the live worker's retries.
+                        xid = await (
+                            await original_execute(
+                                connection, "SELECT pg_current_xact_id_if_assigned()"
+                            )
+                        ).fetchone()
+                        assert xid == (None,)
+                        retry_transactions.append(connection.info.backend_pid)
+                        await asyncio.wait_for(activation_finished.wait(), 5)
                 pids["producer"] = connection.info.backend_pid
                 executing.set()
             try:
                 return await original_execute(connection, query, *args, **kwargs)
             except psycopg.errors.DeadlockDetected:
                 detected_deadlocks.append(connection.info.backend_pid)
+                producer_victims.append(asyncio.current_task() is producer)
                 raise
 
         async def wait_for_actual_trigger_wait():
@@ -101,6 +124,7 @@ async def test_activation_and_producer_actual_trigger_lock_order(
                     MethodType(row_first_period_close, store),
                 )
             activation = asyncio.create_task(support.activate(account_id=item.config.account_id))
+            activation.add_done_callback(lambda _: activation_finished.set())
             tasks.append(activation)
             try:
                 await asyncio.wait_for(locked.wait(), 5)
@@ -135,11 +159,12 @@ async def test_activation_and_producer_actual_trigger_lock_order(
                 await asyncio.gather(*tasks, return_exceptions=True)
         assert store.lease_period_close.__func__ is original_lease
         deadlocks = [r for r in results if isinstance(r, psycopg.errors.DeadlockDetected)]
-        # A producer victim now retries only after its real transaction rolls
-        # back. Activation still propagates its cancellation to the caller.
-        # Count the actual server error, including an internally retried victim.
+        # The selected producer victim retries only after its real transaction
+        # rolls back. Count the actual server error, including the retried victim.
         assert len(detected_deadlocks) == int(wrong_order)
-        assert all(not isinstance(r, BaseException) or r in deadlocks for r in results)
+        assert producer_victims == ([True] if wrong_order else [])
+        assert all(not isinstance(r, BaseException) or r in deadlocks for r in results), results
+        assert len(retry_transactions) == int(wrong_order and not deadlocks)
 
         async with h.pool.connection() as c:
             rows = await (
@@ -197,6 +222,7 @@ async def test_activation_and_producer_actual_trigger_lock_order(
                     "actual_trigger": True,
                     "observed_trigger_wait": wrong_order,
                     "deadlocks": len(detected_deadlocks),
+                    "producer_retries_after_rollback": len(retry_transactions),
                     "backend_pids": pids,
                     "at": datetime.now(timezone.utc).isoformat(),
                     "rollback_or_commit_verified": True,

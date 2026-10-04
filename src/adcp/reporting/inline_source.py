@@ -75,6 +75,7 @@ from typing import Any, Literal, Protocol, TypeAlias, runtime_checkable
 
 from pydantic import TypeAdapter, ValidationError
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.reporting._settlement import settle_task
 from adcp.reporting._source_authorization import inline_publication
 from adcp.reporting.currency import (
@@ -130,7 +131,11 @@ __all__ = [
 # --------------------------------------------------------------------------
 
 
-_REASON = TypeAdapter(EvidenceReason)
+@deferred_adapter
+def _reason_adapter() -> TypeAdapter[EvidenceReason]:
+    return TypeAdapter(EvidenceReason)
+
+
 _AVAILABLE = frozenset({"present", "explicit_zero"})
 #: The statuses that withdraw a cell: the source gave no measurement for it.
 _WITHDRAWN = frozenset({"missing", "delayed", "unsupported"})
@@ -184,7 +189,7 @@ class MetricEvidence:
             if self.reason is None:
                 raise _CellEvidenceError(f"MetricEvidence {self.status} requires a stable reason")
             try:
-                _REASON.validate_python(self.reason, strict=True)
+                _reason_adapter().validate_python(self.reason, strict=True)
             except ValidationError as error:
                 raise _CellEvidenceError(
                     "MetricEvidence.reason must be a wire-valid stable reason"
