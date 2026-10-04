@@ -24,7 +24,15 @@ if TYPE_CHECKING:
 
     from adcp.client import ADCPClient
 
-AccountPolicy = Literal["auto", "strict"]
+AccountPolicy = Literal["off", "auto", "strict"]
+"""Natural-key account policy for client task calls.
+
+``off`` sends account references unchanged, as 8.0 did, and is the 8.x default.
+``auto`` and ``strict`` opt in to registry-aware preflight; ``auto`` becomes
+the default in the next major release.
+"""
+
+ACCOUNT_POLICIES: frozenset[str] = frozenset({"off", "auto", "strict"})
 
 _PUBLIC_DISCOVERY_TASKS = frozenset(
     {
@@ -125,6 +133,14 @@ def _sync_key(
     return next(iter(matches.values())) if len(matches) == 1 else None
 
 
+def has_natural_reference(request: Any) -> bool:
+    """Return True when ``request`` carries a buyer-declared natural account key."""
+    if "account" not in getattr(type(request), "model_fields", {}):
+        return False
+    ref = getattr(request, "account", None)
+    return ref is not None and not _payload(ref).get("account_id")
+
+
 class AccountRegistry:
     """Track provisioned keys for one seller. Exposed as ``client.accounts``."""
 
@@ -205,8 +221,20 @@ class AccountRegistry:
             assert record is not None
             return record
 
-    async def observe(self, operation: str, request: Any, result: Any) -> None:
-        """Update from successful sync/list results; never learn from a dry run."""
+    async def observe(
+        self,
+        operation: str,
+        request: Any,
+        result: Any,
+        *,
+        fetch_capabilities: bool = True,
+    ) -> None:
+        """Update from successful sync/list results; never learn from a dry run.
+
+        With ``fetch_capabilities=False`` only cached capabilities are used,
+        so observation never adds a network request; rows whose key depends
+        on uncached capabilities are skipped rather than guessed.
+        """
         if operation not in {"sync_accounts", "list_accounts"} or not result.success:
             return
         req = _payload(request)
@@ -219,6 +247,7 @@ class AccountRegistry:
                 caps = self._client.capabilities
                 if (
                     caps is None
+                    and fetch_capabilities
                     and row.get("timezone")
                     and row.get("brand")
                     and row.get("operator")
@@ -245,7 +274,13 @@ class AccountRegistry:
                     await self.forget(key)
                 continue
             if operation == "list_accounts" and "account_id" not in key:
-                caps = await self._client.fetch_capabilities()
+                caps = (
+                    await self._client.fetch_capabilities()
+                    if fetch_capabilities
+                    else self._client.capabilities
+                )
+                if caps is None:
+                    continue
                 timezone_caps = getattr(getattr(caps, "account", None), "timezone", None)
                 if getattr(timezone_caps, "account_selection", None) != "buyer_selected":
                     key.pop("timezone", None)
@@ -258,9 +293,14 @@ class AccountRegistry:
             )
 
     async def prepare(self, operation: str, request: BaseModel, policy: AccountPolicy) -> BaseModel:
-        """Apply account policy to a copy, preserving the caller's request."""
-        if policy not in {"auto", "strict"}:
-            raise ValueError("account_policy must be 'auto' or 'strict'")
+        """Apply account policy to a copy, preserving the caller's request.
+
+        ``off`` returns the request unchanged with no capability fetch.
+        """
+        if policy not in ACCOUNT_POLICIES:
+            raise ValueError("account_policy must be 'off', 'auto', or 'strict'")
+        if policy == "off":
+            return request
         if operation == "list_accounts" or "account" not in type(request).model_fields:
             return request
         ref = getattr(request, "account", None)
