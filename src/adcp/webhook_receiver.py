@@ -74,6 +74,8 @@ from pydantic import ValidationError
 from adcp.server.idempotency.webhook_dedup import WebhookDedupStore
 from adcp.signing.errors import (
     WEBHOOK_BODY_MALFORMED,
+    WEBHOOK_ERROR_CODES,
+    WEBHOOK_SIGNATURE_HEADER_MALFORMED,
     SignatureVerificationError,
     signature_challenge,
 )
@@ -281,6 +283,11 @@ class WebhookOutcome:
     in_progress: bool = False
     handled: bool = False
     idempotency_key: str | None = None
+    # Set on a ``signature_invalid`` rejection whose cause could clear on a
+    # later attempt (the receiver's own JWKS or brand.json fetch failed on
+    # DNS, network or a 5xx). The wire code is ``webhook_signature_key_unknown``
+    # either way; this keeps the distinction for local retry and alerting.
+    transient: bool = False
     _payload_hash: str | None = field(default=None, repr=False, compare=False)
     _claim_token: str | None = field(default=None, repr=False, compare=False)
     _dedup_scope: str | None = field(default=None, repr=False, compare=False)
@@ -694,6 +701,7 @@ class WebhookReceiver:
                         rejected=True,
                         rejection_reason="signature_invalid",
                         response_headers=_www_authenticate_header(exc.code),
+                        transient=exc.transient,
                     )
                 logger.warning(
                     "9421 webhook verify failed (%s); trying HMAC legacy because "
@@ -708,7 +716,7 @@ class WebhookReceiver:
             return None, WebhookOutcome(
                 rejected=True,
                 rejection_reason="signature_missing",
-                response_headers=_www_authenticate_header("webhook_signature_required"),
+                response_headers=_www_authenticate_header(WEBHOOK_SIGNATURE_HEADER_MALFORMED),
             )
 
         hmac_options = fallback.options_for(headers)
@@ -716,7 +724,7 @@ class WebhookReceiver:
             return None, WebhookOutcome(
                 rejected=True,
                 rejection_reason="signature_missing",
-                response_headers=_www_authenticate_header("webhook_signature_required"),
+                response_headers=_www_authenticate_header(WEBHOOK_SIGNATURE_HEADER_MALFORMED),
             )
         try:
             legacy_signer = verify_webhook_hmac(headers=headers, body=body, options=hmac_options)
@@ -766,32 +774,11 @@ def _content_type_is_json(headers: Mapping[str, str]) -> bool:
     return False
 
 
-# Known webhook_signature_* codes — used to validate WWW-Authenticate values.
+# The webhook profile's codes -- used to validate WWW-Authenticate values.
 # Anything else (e.g. a future code, or an attacker-influenced string) gets
 # replaced with WEBHOOK_SIGNATURE_INVALID so we never emit untrusted data in
-# a response header.
-_VALID_WWW_AUTHENTICATE_CODES = frozenset(
-    {
-        "webhook_signature_required",
-        "webhook_signature_invalid",
-        "webhook_signature_header_malformed",
-        "webhook_signature_params_incomplete",
-        "webhook_signature_tag_invalid",
-        "webhook_signature_alg_not_allowed",
-        "webhook_signature_window_invalid",
-        "webhook_signature_components_incomplete",
-        "webhook_signature_components_unexpected",
-        "webhook_signature_key_unknown",
-        "webhook_signature_key_purpose_invalid",
-        "webhook_signature_digest_mismatch",
-        "webhook_signature_replayed",
-        "webhook_signature_key_revoked",
-        "webhook_signature_revocation_stale",
-        "webhook_signature_jwks_unavailable",
-        "webhook_signature_jwks_untrusted",
-        "webhook_signature_rate_abuse",
-    }
-)
+# a response header, nor a code the profile does not define.
+_VALID_WWW_AUTHENTICATE_CODES = WEBHOOK_ERROR_CODES
 
 
 def _www_authenticate_header(code: str) -> dict[str, str]:

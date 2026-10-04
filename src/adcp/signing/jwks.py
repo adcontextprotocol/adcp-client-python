@@ -629,8 +629,15 @@ class CachingJwksResolver:
             jwks = self._fetcher(self._jwks_uri, allow_private=self._allow_private)
             cache = _index_jwks_keys(jwks, uri=self._jwks_uri)
         except SSRFValidationError as exc:
+            # The gate also raises, marked transient, when the host does not
+            # resolve: a DNS failure is the transient fetch failure, not a
+            # refused destination.
             error = SignatureVerificationError(
-                REQUEST_SIGNATURE_JWKS_UNTRUSTED,
+                (
+                    REQUEST_SIGNATURE_JWKS_UNAVAILABLE
+                    if exc.transient
+                    else REQUEST_SIGNATURE_JWKS_UNTRUSTED
+                ),
                 step=7,
                 message=f"JWKS URI failed SSRF check: {exc}",
             )
@@ -784,8 +791,15 @@ class AsyncCachingJwksResolver:
             jwks = await self._fetcher(self._jwks_uri, allow_private=self._allow_private)
             cache = _index_jwks_keys(jwks, uri=self._jwks_uri)
         except SSRFValidationError as exc:
+            # The gate also raises, marked transient, when the host does not
+            # resolve: a DNS failure is the transient fetch failure, not a
+            # refused destination.
             error = SignatureVerificationError(
-                REQUEST_SIGNATURE_JWKS_UNTRUSTED,
+                (
+                    REQUEST_SIGNATURE_JWKS_UNAVAILABLE
+                    if exc.transient
+                    else REQUEST_SIGNATURE_JWKS_UNTRUSTED
+                ),
                 step=7,
                 message=f"JWKS URI failed SSRF check: {exc}",
             )

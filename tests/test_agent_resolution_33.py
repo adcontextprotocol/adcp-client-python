@@ -360,21 +360,23 @@ def test_governance_selects_only_governed_brand() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("resolver_code", "signature_code", "logged"),
+    ("resolver_code", "signature_code", "logged", "transient"),
     [
         (
             "brand_json_resolution_failed",
             "request_signature_brand_json_ambiguous",
             "request_signature_brand_json_ambiguous",
+            False,
         ),
-        ("capabilities_unreachable", None, "request_signature_capabilities_unreachable"),
-        ("jwks_fetch_failed", None, "request_signature_jwks_unavailable"),
+        ("capabilities_unreachable", None, "request_signature_capabilities_unreachable", True),
+        ("jwks_fetch_failed", None, "request_signature_jwks_unavailable", True),
         (
             "jwks_fetch_failed",
             "request_signature_jwks_untrusted",
             "request_signature_jwks_untrusted",
+            False,
         ),
-        ("invalid_agent_url", None, "request_signature_jwks_untrusted"),
+        ("invalid_agent_url", None, "request_signature_jwks_untrusted", False),
     ],
     ids=["brand-ambiguous", "capabilities", "jwks-transient", "jwks-ssrf", "invalid-agent-url"],
 )
@@ -384,12 +386,14 @@ async def test_webhook_discovery_failure_uses_key_unknown_and_logs_cause(
     resolver_code: Any,
     signature_code: str | None,
     logged: str,
+    transient: bool,
 ) -> None:
     """Every discovery failure is ``webhook_signature_key_unknown`` on the wire.
 
     The webhook profile names one code for steps 1-3 of JWKS discovery -- even
     the terminal SSRF refusal the request profile reports as ``jwks_untrusted``
-    -- and buyers log the specific ``request_signature_*`` cause.
+    -- and buyers log the specific ``request_signature_*`` cause. ``transient``
+    keeps the retry classification of that cause in-process.
     """
 
     async def failed(*args: Any, **kwargs: Any) -> Any:
@@ -401,6 +405,8 @@ async def test_webhook_discovery_failure_uses_key_unknown_and_logs_cause(
             method="POST", url=URL, headers=signed_headers(), body=b"{}", agent_url=AGENT
         )
     assert exc.value.code == "webhook_signature_key_unknown"
+    assert exc.value.transient is transient
+    assert isinstance(exc.value.__cause__, AgentResolverError)
     assert logged in caplog.text
 
 

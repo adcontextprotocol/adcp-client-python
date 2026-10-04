@@ -20,9 +20,9 @@ from adcp.signing import (
     sign_request,
 )
 from adcp.signing.errors import (
+    WEBHOOK_SIGNATURE_HEADER_MALFORMED,
     WEBHOOK_SIGNATURE_KEY_PURPOSE_INVALID,
     WEBHOOK_SIGNATURE_REPLAYED,
-    WEBHOOK_SIGNATURE_REQUIRED,
     WEBHOOK_SIGNATURE_TAG_INVALID,
     SignatureVerificationError,
 )
@@ -212,7 +212,7 @@ def test_rejects_missing_signature_headers() -> None:
             body=body,
             options=_webhook_verify_options([WEBHOOK_ED25519]),
         )
-    assert exc_info.value.code == WEBHOOK_SIGNATURE_REQUIRED
+    assert exc_info.value.code == WEBHOOK_SIGNATURE_HEADER_MALFORMED
 
 
 def test_rejects_body_tampering() -> None:

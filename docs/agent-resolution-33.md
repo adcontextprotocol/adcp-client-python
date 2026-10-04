@@ -97,8 +97,10 @@ Sellers omitting `identity.brand_json_url` use the 3.x fallback: first their hos
 `/.well-known/brand.json`, then the registrable domain on a host 404. This path
 skips the advertised-record origin and key-origin checks. A malformed or
 unreachable advertised record never downgrades to the fallback. Webhook discovery
-failures return `webhook_signature_key_unknown` and log the specific
-`request_signature_*` cause. Fallback document resolution follows at most one
+failures, including a JWKS fetch that failed or was refused, return
+`webhook_signature_key_unknown` and log the specific `request_signature_*`
+cause, which also stays on `exc.__cause__`. `exc.transient` is `True` when the
+cause could clear on retry (DNS, network, or a 5xx). Fallback document resolution follows at most one
 `authoritative_location` or `house` indirection and rejects indirection chains.
 
 For a receiver that already resolves operator keys, `WebhookVerifyOptions`

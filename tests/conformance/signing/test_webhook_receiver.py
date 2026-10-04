@@ -851,3 +851,38 @@ async def test_receives_property_list_changed() -> None:
     outcome = await receiver.receive(method="POST", url=URL, headers=headers, body=body)
     assert outcome.rejected is False
     assert outcome.payload is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("request_code", "transient"),
+    [("request_signature_jwks_unavailable", True), ("request_signature_jwks_untrusted", False)],
+    ids=["unavailable", "untrusted"],
+)
+async def test_jwks_failure_is_key_unknown_on_the_wire_and_classified_in_process(
+    request_code: str, transient: bool
+) -> None:
+    """The webhook taxonomy has no ``jwks_*`` code; the outcome keeps the class."""
+    from adcp.signing.errors import SignatureVerificationError
+
+    def failing_resolver(keyid: str) -> dict[str, str] | None:
+        raise SignatureVerificationError(request_code, step=7)
+
+    receiver = WebhookReceiver(
+        config=WebhookReceiverConfig(
+            verify_options=WebhookVerifyOptions(jwks_resolver=failing_resolver),
+            dedup=WebhookDedupStore(MemoryBackend(), ttl_seconds=86400),
+            receiver_scope="test-receiver",
+            publisher_scope_for=lambda _signer: "test-publisher",
+        ),
+    )
+    body = b'{"idempotency_key":"whk_jwksaaaaaaaaaaaaaaaa","task_id":"t1"}'
+    outcome = await receiver.receive(method="POST", url=URL, headers=_sign_webhook(body), body=body)
+
+    assert outcome.rejected is True
+    assert outcome.rejection_reason == "signature_invalid"
+    assert outcome.http_status == 401
+    assert outcome.response_headers == {
+        "WWW-Authenticate": 'Signature error="webhook_signature_key_unknown"'
+    }
+    assert outcome.transient is transient

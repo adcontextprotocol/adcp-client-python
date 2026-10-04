@@ -185,8 +185,10 @@ async def test_unsigned_webhook_rejected_with_www_authenticate_over_http() -> No
 
     assert resp.status_code == 401
     assert resp.json() == {"error": "signature_missing"}
-    www_auth = resp.headers.get("www-authenticate", "")
-    assert 'Signature error="webhook_signature_required"' in www_auth
+    # The webhook profile defines no ``required`` code: an unsigned delivery is
+    # the degenerate case of "Signature or Signature-Input header malformed".
+    expected = 'Signature error="webhook_signature_header_malformed"'
+    assert resp.headers["www-authenticate"] == expected
 
 
 @pytest.mark.asyncio
