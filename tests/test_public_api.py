@@ -526,3 +526,34 @@ def test_public_api_surface_matches_snapshot():
             f"Duplicate names in {label}.__all__ changed: {duplicates}. "
             f"Regenerate the snapshot with `{regen_cmd}`."
         )
+
+
+def test_no_public_all_repeats_a_name() -> None:
+    """``__all__`` names each export once (#1380).
+
+    ``__all__`` is a list, so a consumer that iterates it rather than taking a
+    set counts a repeated name twice; two independent counts of the exported
+    ``RootModel`` population once disagreed by exactly one such repeat.
+    """
+    import importlib
+
+    import adcp.types.domains
+
+    modules = [
+        "adcp",
+        "adcp.types",
+        "adcp.types._eager",
+        "adcp.types._generated",
+        "adcp.types.aliases",
+        "adcp.types.legacy",
+        "adcp.types.capabilities",
+        "adcp.types.error_details",
+        *(f"adcp.types.domains.{domain}" for domain in adcp.types.domains.DOMAINS),
+    ]
+    repeated = {}
+    for module_path in modules:
+        module = importlib.import_module(module_path)
+        duplicates = sorted({n for n in module.__all__ if module.__all__.count(n) > 1})
+        if duplicates:
+            repeated[module_path] = duplicates
+    assert not repeated, repeated

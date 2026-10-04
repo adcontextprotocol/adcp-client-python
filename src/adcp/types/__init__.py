@@ -732,8 +732,6 @@ __all__ = [
     "WebhookMetadata",
     # Webhook types
     "McpWebhookPayload",
-    "WholesaleFeedEvent",
-    "WholesaleFeedWebhook",
     # Semantic aliases for discriminated unions
     "ActivateSignalErrorResponse",
     "ActivateSignalSuccessResponse",

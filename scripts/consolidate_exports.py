@@ -818,7 +818,12 @@ def generate_consolidated_exports() -> str:
 
 
 def _format_all_block(names: list[str]) -> list[str]:
-    """Render ``__all__`` for ``names``, wrapped at 100 columns."""
+    """Render ``__all__`` for ``names``, wrapped at 100 columns.
+
+    Each name once: ``__all__`` is a list, and a consumer that counts it rather
+    than setting it would count a repeated name twice (#1380).
+    """
+    names = list(dict.fromkeys(names))
     lines = ["", "# Explicit exports", "__all__ = ["]
     current = "    "
     for i, name in enumerate(names):
