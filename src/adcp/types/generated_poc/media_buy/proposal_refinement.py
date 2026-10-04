@@ -168,11 +168,11 @@ class ProposalRefinement2(AdCPBaseModel):
         ),
     ] = None
     remove_media_buy_frequency_cap: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description='Request a revised draft whose commercial terms omit the existing MediaBuy frequency cap. Omission inherits it. To replace it, provide criteria.media_buy_frequency_cap instead.'
         ),
-    ] = True
+    ] = None
 
 
 class ProposalRefinement3(AdCPBaseModel):
@@ -224,11 +224,11 @@ class ProposalRefinement3(AdCPBaseModel):
         ),
     ] = None
     remove_media_buy_frequency_cap: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description='Request a revised draft whose commercial terms omit the existing MediaBuy frequency cap. Omission inherits it. To replace it, provide criteria.media_buy_frequency_cap instead.'
         ),
-    ] = True
+    ] = None
 
 
 class ProposalRefinement4(AdCPBaseModel):
@@ -280,11 +280,11 @@ class ProposalRefinement4(AdCPBaseModel):
         ),
     ] = None
     remove_media_buy_frequency_cap: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description='Request a revised draft whose commercial terms omit the existing MediaBuy frequency cap. Omission inherits it. To replace it, provide criteria.media_buy_frequency_cap instead.'
         ),
-    ] = True
+    ] = None
 
 
 class ProposalRefinement5(AdCPBaseModel):
@@ -336,11 +336,11 @@ class ProposalRefinement5(AdCPBaseModel):
         ),
     ] = None
     remove_media_buy_frequency_cap: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description='Request a revised draft whose commercial terms omit the existing MediaBuy frequency cap. Omission inherits it. To replace it, provide criteria.media_buy_frequency_cap instead.'
         ),
-    ] = True
+    ] = None
 
 
 class ProposalRefinement6(AdCPBaseModel):
@@ -392,11 +392,11 @@ class ProposalRefinement6(AdCPBaseModel):
         ),
     ] = None
     remove_media_buy_frequency_cap: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description='Request a revised draft whose commercial terms omit the existing MediaBuy frequency cap. Omission inherits it. To replace it, provide criteria.media_buy_frequency_cap instead.'
         ),
-    ] = True
+    ] = None
 
 
 class ProposalRefinement7(AdCPBaseModel):
@@ -448,11 +448,11 @@ class ProposalRefinement7(AdCPBaseModel):
         ),
     ]
     remove_media_buy_frequency_cap: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description='Request a revised draft whose commercial terms omit the existing MediaBuy frequency cap. Omission inherits it. To replace it, provide criteria.media_buy_frequency_cap instead.'
         ),
-    ] = True
+    ] = None
 
 
 class ProposalRefinement8(AdCPBaseModel):
@@ -560,11 +560,11 @@ class ProposalRefinement9(AdCPBaseModel):
         ),
     ] = None
     remove_media_buy_frequency_cap: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description='Request a revised draft whose commercial terms omit the existing MediaBuy frequency cap. Omission inherits it. To replace it, provide criteria.media_buy_frequency_cap instead.'
         ),
-    ] = True
+    ] = None
 
 
 class ProposalRefinement(

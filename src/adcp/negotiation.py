@@ -20,6 +20,7 @@ import rfc8785
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic_core import to_jsonable_python
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.types import (
     RefineProposalsRequest,
     RefineProposalsResponse,
@@ -30,8 +31,15 @@ from adcp.types.core import TaskResult, TaskStatus
 WIRE_RESPONSE_METADATA_KEY = "adcp_negotiation_wire_response"
 """TaskResult metadata key containing the unnormalized refinement response."""
 
-_REFINE_REQUEST_ADAPTER: TypeAdapter[Any] = TypeAdapter(RefineProposalsRequest)
-_REFINE_RESPONSE_ADAPTER: TypeAdapter[Any] = TypeAdapter(RefineProposalsResponse)
+
+@deferred_adapter
+def _refine_request_adapter() -> TypeAdapter[RefineProposalsRequest]:
+    return TypeAdapter(RefineProposalsRequest)
+
+
+@deferred_adapter
+def _refine_response_adapter() -> TypeAdapter[RefineProposalsResponse]:
+    return TypeAdapter(RefineProposalsResponse)
 
 
 @dataclass(frozen=True, slots=True)
@@ -187,7 +195,7 @@ def verify_refinement_result(
     ):
         response_data, _, _ = _response_data(task_result)
         try:
-            _REFINE_RESPONSE_ADAPTER.validate_python(response_data)
+            _refine_response_adapter().validate_python(response_data)
         except ValidationError as exc:
             issues = tuple(
                 NegotiationVerificationIssue(
@@ -265,7 +273,7 @@ def preflight_refine_proposals(
     if request_data is None:
         raise TypeError("request must serialize to a JSON object")
     try:
-        _REFINE_REQUEST_ADAPTER.validate_python(request_data)
+        _refine_request_adapter().validate_python(request_data)
     except ValidationError as exc:
         return NegotiationVerificationResult(
             tuple(
@@ -608,7 +616,7 @@ def verify_refine_proposals_response(
 
     issues: list[NegotiationVerificationIssue] = []
     try:
-        _REFINE_RESPONSE_ADAPTER.validate_python(response_data)
+        _refine_response_adapter().validate_python(response_data)
     except ValidationError as exc:
         issues.extend(
             NegotiationVerificationIssue(

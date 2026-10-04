@@ -10,6 +10,7 @@ from typing import Annotated, Any, NoReturn, TypeVar
 
 from pydantic import Field, TypeAdapter, ValidationError
 
+from adcp._deferred_adapters import deferred_adapter
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import require_frozen_currency
 from adcp.reporting.evidence import aware_utc
@@ -39,9 +40,13 @@ from adcp.reporting.ledger.store import (
 )
 
 RecordT = TypeVar("RecordT", bound=ReportingDeliveryRecord)
-_ADAPTER: TypeAdapter[ReportingDeliveryRecord] = TypeAdapter(
-    Annotated[ReportingDeliveryRecord, Field(discriminator="kind")]
-)
+
+
+@deferred_adapter
+def _delivery_adapter() -> TypeAdapter[ReportingDeliveryRecord]:
+    return TypeAdapter(Annotated[ReportingDeliveryRecord, Field(discriminator="kind")])
+
+
 _RECEIPTS = (ReportingRevisionReceiptRecord, ReportingAdjustmentReceiptRecord)
 
 
@@ -68,7 +73,7 @@ def payload(record: ReportingDeliveryRecord) -> dict[str, Any]:
 def decode_record(value: object) -> ReportingDeliveryRecord:
     result: ReportingDeliveryRecord | None = None
     try:
-        result = _ADAPTER.validate_python(value)
+        result = _delivery_adapter().validate_python(value)
     except (ValidationError, ValueError, TypeError):
         # Classify after leaving the handler so validation details do not become
         # the public error's exception context.

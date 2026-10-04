@@ -56,9 +56,20 @@ KEY = {
 }
 
 
-def make_client(*, seller="https://seller.example/mcp", storage=None, **account_caps):
+def make_client(
+    *,
+    seller="https://seller.example/mcp",
+    storage=None,
+    account_policy="auto",
+    raise_account_errors=True,
+    **account_caps,
+):
+    """Build a client on the opt-in path (next-major defaults) unless overridden."""
     client = ADCPClient(
-        AgentConfig(id="seller", agent_uri=seller, protocol="mcp"), account_storage=storage
+        AgentConfig(id="seller", agent_uri=seller, protocol="mcp"),
+        account_storage=storage,
+        account_policy=account_policy,
+        raise_account_errors=raise_account_errors,
     )
     client._capabilities = GetAdcpCapabilitiesResponse.model_validate(
         {
@@ -588,3 +599,224 @@ async def test_task_aware_hook_is_optional_and_discovery_cannot_provision(execut
     assert store.contexts[0].is_provisioning is False
     await handler._resolve_account(KEY, ToolContext(), tool_name="create_media_buy")
     assert store.contexts[1].is_provisioning is True
+
+
+# ---------------------------------------------------------------------------
+# 8.x compatibility defaults: account_policy and raise_account_errors unset
+# ---------------------------------------------------------------------------
+
+
+def make_default_client(**account_caps):
+    return make_client(account_policy=None, raise_account_errors=None, **account_caps)
+
+
+@pytest.mark.asyncio
+async def test_default_policy_sends_natural_key_unchanged_and_warns_once():
+    client = make_default_client(required_for_products=True)
+    assert client.account_policy == "off"
+    client._capabilities = None
+    client.fetch_capabilities = AsyncMock(side_effect=AssertionError("no preflight fetch"))
+    request = GetProductsRequest(
+        buying_mode="wholesale", account=KEY, if_wholesale_feed_version="v1"
+    )
+    with pytest.warns(DeprecationWarning, match="account_policy='auto'"):
+        await client.get_products(request)
+    sent = client.adapter.get_products.call_args.args[0]
+    assert sent["account"]["operator"] == KEY["operator"]
+    assert sent["if_wholesale_feed_version"] == "v1"
+    import warnings as _warnings
+
+    with _warnings.catch_warnings():
+        _warnings.simplefilter("error")
+        await client.get_products(request)  # warned once per client
+
+
+@pytest.mark.asyncio
+async def test_default_policy_does_not_preflight_spend_or_required_accounts():
+    client = make_default_client(required_for_products=True)
+    client.adapter.create_media_buy = AsyncMock(
+        return_value=TaskResult(status=TaskStatus.COMPLETED, data={"media_buy_id": "mb"})
+    )
+    client.adapter._parse_response = lambda raw, _type: raw
+    request = CreateMediaBuyRequest.model_construct(
+        account=TypeAdapter(AccountReference).validate_python(KEY)
+    )
+    with pytest.warns(DeprecationWarning):
+        await client.create_media_buy(request)
+    client.adapter.create_media_buy.assert_awaited_once()
+    await client.get_products(GetProductsRequest(buying_mode="wholesale"))
+    client.adapter.get_products.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_explicit_off_and_explicit_ids_do_not_warn():
+    import warnings as _warnings
+
+    client = make_client(account_policy="off", raise_account_errors=None)
+    with _warnings.catch_warnings():
+        _warnings.simplefilter("error")
+        await client.get_products(GetProductsRequest(buying_mode="wholesale", account=KEY))
+        default = make_default_client()
+        await default.get_products(
+            GetProductsRequest(buying_mode="wholesale", account={"account_id": "acc"})
+        )
+    # A per-call policy overrides the client default on the opt-in path.
+    with pytest.raises(AccountNotFoundError):
+        await make_default_client().get_products(
+            GetProductsRequest(buying_mode="wholesale", account=KEY), account_policy="strict"
+        )
+
+
+@pytest.mark.asyncio
+async def test_default_account_errors_return_failed_result_with_deprecation():
+    client = make_default_client()
+    mock_sync(client)
+    await client.accounts.ensure(KEY, billing="agent")
+    failed = TaskResult(
+        status=TaskStatus.FAILED,
+        success=False,
+        adcp_error={"code": "ACCOUNT_NOT_FOUND", "message": "unknown"},
+    )
+    client.adapter.get_products.return_value = failed
+    with pytest.warns(DeprecationWarning, match="raise_account_errors=True"):
+        result = await client.get_products(
+            GetProductsRequest(buying_mode="wholesale", account=KEY), account_policy="off"
+        )
+    assert result.success is False
+    assert result.adcp_error["code"] == "ACCOUNT_NOT_FOUND"
+    assert await client.accounts.get(KEY) is None
+
+
+@pytest.mark.asyncio
+async def test_raise_account_errors_false_is_silent_and_true_keeps_old_except_clauses():
+    import warnings as _warnings
+
+    from adcp.exceptions import ADCPTaskError
+
+    def failed():
+        return TaskResult(
+            status=TaskStatus.FAILED,
+            success=False,
+            adcp_error={"code": "ACCOUNT_PAYMENT_REQUIRED", "message": "pay"},
+        )
+
+    request = GetProductsRequest(buying_mode="wholesale", account={"account_id": "acc"})
+    quiet = make_client(account_policy="off", raise_account_errors=False)
+    quiet.adapter.get_products.return_value = failed()
+    quiet.adapter._parse_response = lambda raw, _type: raw
+    with _warnings.catch_warnings():
+        _warnings.simplefilter("error")
+        assert (await quiet.get_products(request)).success is False
+    loud = make_client(account_policy="off", raise_account_errors=True)
+    loud.adapter.get_products.return_value = failed()
+    loud.adapter._parse_response = lambda raw, _type: raw
+    with pytest.raises(ADCPTaskError) as exc:
+        await loud.get_products(request)
+    assert isinstance(exc.value, AccountPaymentRequiredError)
+
+
+def test_account_option_validation():
+    config = AgentConfig(id="seller", agent_uri="https://seller.example/mcp", protocol="mcp")
+    with pytest.raises(ValueError, match="account_policy"):
+        ADCPClient(config, account_policy="lenient")
+    with pytest.raises(TypeError, match="raise_account_errors"):
+        ADCPClient(config, raise_account_errors="yes")
+
+
+@pytest.mark.asyncio
+async def test_default_policy_observes_sync_without_fetching_capabilities():
+    client = make_default_client()
+    mock_sync(client)
+    client._capabilities = None
+    client.fetch_capabilities = AsyncMock(side_effect=AssertionError("no observe fetch"))
+    request = SyncAccountsRequest.model_validate(
+        {
+            "idempotency_key": "00000000-0000-4000-8000-000000000009",
+            "accounts": [{**KEY, "billing": "agent"}],
+        }
+    )
+    result = await client.sync_accounts(request)
+    assert result.success
+    client.fetch_capabilities.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_default_policy_registry_failures_never_fail_the_call():
+    class BrokenStorage(InMemoryAccountStorage):
+        async def save(self, seller, key, record):
+            raise RuntimeError("storage down")
+
+    client = make_client(storage=BrokenStorage(), account_policy=None, raise_account_errors=None)
+    mock_sync(client)
+    request = SyncAccountsRequest.model_validate(
+        {
+            "idempotency_key": "00000000-0000-4000-8000-00000000000a",
+            "accounts": [{**KEY, "billing": "agent"}],
+        }
+    )
+    assert (await client.sync_accounts(request)).success
+
+
+@pytest.mark.asyncio
+async def test_auth_derived_store_keeps_serving_required_product_discovery(executor):
+    class AuthDerived:
+        resolution = "derived"
+
+        def resolve(self, ref, auth_info=None):
+            return Account(id="provisioned")
+
+    handler = make_handler(AuthDerived(), required=True, executor=executor)
+    assert (await handler.get_products(GetProductsRequest(buying_mode="wholesale"))).products == []
+
+
+@pytest.mark.asyncio
+async def test_explicit_accounts_can_keep_rejecting_absent_references(executor):
+    store = ExplicitAccounts(
+        loader=lambda _: pytest.fail("Must not load an absent account"),
+        allow_public_discovery=False,
+    )
+    with pytest.raises(AdcpError) as direct:
+        store.resolve(None)
+    assert direct.value.code == "ACCOUNT_NOT_FOUND"
+    handler = make_handler(store, executor=executor)
+    with pytest.raises(AdcpError) as error:
+        await handler.get_products(GetProductsRequest(buying_mode="wholesale"))
+    assert error.value.code == "ACCOUNT_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_default_policy_forget_failure_never_fails_the_call():
+    class BrokenStorage(InMemoryAccountStorage):
+        async def delete(self, seller, key):
+            raise RuntimeError("storage down")
+
+    client = make_client(storage=BrokenStorage(), account_policy=None, raise_account_errors=False)
+    client.adapter.get_products.return_value = TaskResult(
+        status=TaskStatus.FAILED,
+        success=False,
+        adcp_error={"code": "ACCOUNT_NOT_FOUND", "message": "unknown"},
+    )
+    client.adapter._parse_response = lambda raw, _type: raw
+    result = await client.get_products(
+        GetProductsRequest(buying_mode="wholesale", account={"account_id": "acc"})
+    )
+    assert result.success is False
+
+
+@pytest.mark.asyncio
+async def test_default_policy_does_not_warn_for_list_accounts():
+    import warnings as _warnings
+
+    from adcp.types import ListAccountsResponse
+
+    client = make_default_client()
+    client.adapter.list_accounts = AsyncMock(
+        return_value=TaskResult(
+            status=TaskStatus.COMPLETED,
+            data=validate_union(ListAccountsResponse, {"accounts": []}),
+        )
+    )
+    client.adapter._parse_response = lambda raw, _type: raw
+    with _warnings.catch_warnings():
+        _warnings.simplefilter("error")
+        await client.list_accounts(ListAccountsRequest(account=KEY))

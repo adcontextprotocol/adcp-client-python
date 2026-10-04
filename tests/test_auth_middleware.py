@@ -907,18 +907,8 @@ async def test_custom_header_with_bearer_prefix_still_required() -> None:
 
 
 @pytest.mark.asyncio
-async def test_authorization_wins_when_both_headers_present() -> None:
-    """Per #720, ``Authorization: Bearer`` is the spec-canonical
-    carrier and is always checked first. When both ``Authorization:
-    Bearer X`` and the legacy alias ``x-adcp-auth: Y`` are present,
-    ``X`` wins — the alias is the fallback path, not a competing
-    primary.
-
-    (This test replaces the pre-#720 exclusive-mode assertion that
-    pinned the silent-401 bug — adopters with ``header_name`` set
-    used to reject every spec-compliant client; now those clients
-    are accepted on the canonical header.)
-    """
+async def test_conflicting_authorization_and_alias_are_rejected() -> None:
+    """All accepted carriers must identify the same credential (#1305)."""
     received: list[str] = []
 
     def validator(token: str) -> Principal | None:
@@ -940,8 +930,8 @@ async def test_authorization_wins_when_both_headers_present() -> None:
                     "x-adcp-auth": "tok_y",
                 },
             )
-    assert resp.status_code == 200
-    assert received == ["tok_x"]  # Authorization: Bearer wins per #720
+    assert resp.status_code == 401
+    assert received == []
 
 
 @pytest.mark.asyncio
@@ -1023,9 +1013,7 @@ async def test_authorization_bearer_always_accepted_alongside_alias() -> None:
 
 @pytest.mark.asyncio
 async def test_alias_falls_through_when_authorization_missing() -> None:
-    """The alias path is the fallback — only consulted when
-    ``Authorization`` is absent or empty. Confirms the resolution
-    order is canonical-first."""
+    """An alias can supply the sole accepted credential."""
     received: list[str] = []
 
     def validator(token: str) -> Principal | None:
@@ -1048,11 +1036,8 @@ async def test_alias_falls_through_when_authorization_missing() -> None:
 
 
 @pytest.mark.asyncio
-async def test_empty_authorization_falls_through_to_alias() -> None:
-    """``Authorization: `` (empty value) shouldn't short-circuit the
-    chain — adopters mid-migration sometimes have a client that sets
-    the header to an empty string in error. The alias path must still
-    be consulted."""
+async def test_empty_authorization_rejects_even_with_valid_alias() -> None:
+    """A supplied empty credential must not become an auth fallback."""
     received: list[str] = []
 
     def validator(token: str) -> Principal | None:
@@ -1068,21 +1053,18 @@ async def test_empty_authorization_falls_through_to_alias() -> None:
                 "/",
                 json={"method": "tools/call", "params": {"name": "get_products"}},
                 headers={
-                    "Authorization": "",  # empty — shouldn't 401 by itself
+                    "Authorization": "",  # supplied but malformed
                     "x-adcp-auth": "fallback-token",
                 },
             )
 
-    assert resp.status_code == 200
-    assert received == ["fallback-token"]
+    assert resp.status_code == 401
+    assert received == []
 
 
 @pytest.mark.asyncio
-async def test_multiple_aliases_walked_in_order() -> None:
-    """When two aliases are configured and both are present on the
-    request, the first one in the list wins. Adopters with multiple
-    legacy carriers (different generations of clients) get
-    deterministic resolution."""
+async def test_conflicting_aliases_rejected() -> None:
+    """Multiple legacy aliases follow the same conflict policy."""
     received: list[str] = []
 
     def validator(token: str) -> Principal | None:
@@ -1103,8 +1085,8 @@ async def test_multiple_aliases_walked_in_order() -> None:
                 },
             )
 
-    assert resp.status_code == 200
-    assert received == ["first-alias"]  # first alias in the list wins
+    assert resp.status_code == 401
+    assert received == []
 
 
 @pytest.mark.asyncio
