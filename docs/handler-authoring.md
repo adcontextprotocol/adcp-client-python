@@ -295,6 +295,10 @@ narrows an enum will fire before your business logic runs. A
 
 ## Authentication
 
+For a server serving both bearer-token and trusted-proxy/mTLS tenants, use
+[`BearerTokenAuth(resolve_principal=...)`](principal-resolution.md) with
+unauthenticated access disabled. The same typed resolver runs on MCP and A2A.
+
 The SDK does not enforce authentication. There are two supported
 integration patterns:
 

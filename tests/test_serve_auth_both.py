@@ -943,23 +943,19 @@ async def test_options_preflight_bypasses_auth() -> None:
 
 
 # ===========================================================================
-# Async-validator rejection at boot, not at request time
+# Async-validator support at the ASGI auth boundary
 # ===========================================================================
 
 
-def test_async_validator_rejected_at_serve_boot_time() -> None:
-    """Async validators on A2A fail at config time so production
-    deployments don't ship with silently-failing auth that only
-    surfaces on first traffic. MCP middleware awaits async
-    validators transparently; A2A's middleware path is sync."""
+def test_async_validator_accepted_at_serve_boot_time() -> None:
+    """The async ASGI auth boundary supports async validation on both legs."""
     from adcp.server.serve import _wrap_a2a_with_auth
 
     async def async_validator(_token: str) -> Principal | None:
         return Principal(caller_identity="p1")
 
     cfg = BearerTokenAuth(validate_token=async_validator)
-    with pytest.raises(TypeError, match="async"):
-        _wrap_a2a_with_auth(MagicMock(), cfg)
+    assert isinstance(_wrap_a2a_with_auth(MagicMock(), cfg), A2ABearerAuthMiddleware)
 
 
 def test_sync_lambda_validator_passes_boot_check() -> None:

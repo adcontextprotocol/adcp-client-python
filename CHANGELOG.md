@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Features
+
+* **auth:** `BearerTokenAuth.resolve_principal` supports sync/async non-bearer
+  principal resolution on MCP and A2A using the same metadata-only `AuthRequest`.
+  Supplied credential headers always select bearer auth; invalid credentials
+  cannot obtain fallback identity. `PrincipalResolverError` provides safe typed
+  401/403 denial, resolved identities populate all existing channels, and async
+  bearer validators now work on A2A. See [migration and precedence](docs/principal-resolution.md).
+  Refs #1304.
+
+### Bug fixes
+
+* **auth:** MCP's `allow_unauthenticated` path preserves principal, tenant,
+  and metadata established by outer middleware in request state or ContextVars,
+  matching A2A. Explicit request state takes precedence, including anonymous
+  state. Caller identity headers remain untrusted. Refs #1304 (outer identity).
+
 ### Security fixes
 
 * **auth:** MCP and A2A reject conflicting accepted credentials (401),
