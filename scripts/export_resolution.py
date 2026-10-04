@@ -20,6 +20,7 @@ import typing
 
 __all__ = ["expand_key", "resolution_key", "snapshot_entry", "snapshot_modules"]
 
+
 #: Namespaces the snapshot covers: the two public surfaces an adopter imports
 #: from, the consolidated generated namespace behind them, and every generated
 #: domain module. Built on first use so this module imports nothing from
@@ -60,14 +61,18 @@ def resolution_key(obj: object) -> str:
     """
     if inspect.ismodule(obj):
         return f"module:{obj.__name__}"
+    # Parameterized aliases first: on Python 3.10 ``isinstance(list[int], type)``
+    # is ``True``, so ``inspect.isclass`` would key ``list[X]`` or
+    # ``Callable[..., X]`` by its origin alone and the snapshot would disagree
+    # between interpreter versions.
+    if isinstance(obj, types.UnionType) or typing.get_origin(obj) is not None:
+        args = typing.get_args(obj)
+        return "union[" + ",".join(sorted(resolution_key(arg) for arg in args)) + "]"
     if inspect.isclass(obj) or inspect.isfunction(obj):
         module = getattr(obj, "__module__", "?")
         if module.startswith(_GENERATED_PREFIX):
             module = module[len(_GENERATED_PREFIX) :]
         return f"{module}:{obj.__qualname__}"
-    if isinstance(obj, types.UnionType) or typing.get_origin(obj) is not None:
-        args = typing.get_args(obj)
-        return "union[" + ",".join(sorted(resolution_key(arg) for arg in args)) + "]"
     if isinstance(obj, (str, int, float, bool, type(None))):
         return f"value:{obj!r}"
     return f"instance:{type(obj).__module__}:{type(obj).__qualname__}"
