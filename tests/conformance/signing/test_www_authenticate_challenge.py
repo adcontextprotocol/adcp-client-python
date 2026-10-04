@@ -24,7 +24,7 @@ from adcp.server.auth import _www_authenticate
 from adcp.signing import signature_challenge, unauthorized_response_headers
 from adcp.signing.errors import (
     REQUEST_SIGNATURE_REQUIRED,
-    WEBHOOK_SIGNATURE_REQUIRED,
+    WEBHOOK_SIGNATURE_HEADER_MALFORMED,
     SignatureVerificationError,
 )
 from adcp.webhook_receiver import _www_authenticate_header
@@ -46,12 +46,15 @@ def test_challenge_value_is_the_spec_string() -> None:
                 "WWW-Authenticate"
             ],
         ),
-        ("webhook", _www_authenticate_header(WEBHOOK_SIGNATURE_REQUIRED)["WWW-Authenticate"]),
+        (
+            "webhook",
+            _www_authenticate_header(WEBHOOK_SIGNATURE_HEADER_MALFORMED)["WWW-Authenticate"],
+        ),
         ("bearer-fallback", _www_authenticate(REQUEST_SIGNATURE_REQUIRED)),
     ],
 )
 def test_every_emitter_sends_the_signature_challenge_alone(leg: str, challenge: str) -> None:
-    code = WEBHOOK_SIGNATURE_REQUIRED if leg == "webhook" else REQUEST_SIGNATURE_REQUIRED
+    code = WEBHOOK_SIGNATURE_HEADER_MALFORMED if leg == "webhook" else REQUEST_SIGNATURE_REQUIRED
     assert challenge == f'Signature error="{code}"'
 
 

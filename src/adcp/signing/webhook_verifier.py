@@ -44,7 +44,6 @@ from adcp.signing.errors import (
     WEBHOOK_SIGNATURE_HEADER_MALFORMED,
     WEBHOOK_SIGNATURE_INVALID,
     WEBHOOK_SIGNATURE_KEY_UNKNOWN,
-    WEBHOOK_SIGNATURE_REQUIRED,
     SignatureVerificationError,
 )
 
@@ -268,7 +267,8 @@ def _precheck_webhook_has_required_components(headers: Mapping[str, str]) -> Non
     sig_input_raw = _lookup(headers, "signature-input")
     if sig_input_raw is None:
         # Let the core verifier handle the presence/absence error — it raises
-        # REQUEST_SIGNATURE_REQUIRED which retags to WEBHOOK_SIGNATURE_REQUIRED.
+        # REQUEST_SIGNATURE_REQUIRED, which retags to
+        # WEBHOOK_SIGNATURE_HEADER_MALFORMED (the profile has no ``required``).
         return
     try:
         labels = parse_signature_input_header(sig_input_raw)
@@ -294,7 +294,10 @@ def _retag_to_webhook(exc: SignatureVerificationError) -> SignatureVerificationE
     code into the webhook family and keep its suffix; the key-discovery rows
     map to the coarser ``webhook_signature_key_unknown`` because the webhook
     profile declares nothing finer. A changed suffix is exactly that collapse,
-    so the precise request-family cause goes to the log rather than the wire.
+    so the precise request-family cause goes to the log rather than the wire,
+    and stays on the exception as ``__cause__``. ``transient`` carries over from
+    the request-family error, so a JWKS fetch that may succeed later stays
+    distinguishable in-process from a refused or malformed one.
     """
     webhook_code: str | None = REQUEST_TO_WEBHOOK_CODE.get(exc.code)
     if webhook_code is not None and webhook_code.removeprefix("webhook_") != exc.code.removeprefix(
@@ -318,6 +321,7 @@ def _retag_to_webhook(exc: SignatureVerificationError) -> SignatureVerificationE
         step=exc.step,
         message=str(exc),
         detail=exc.detail,
+        transient=exc.transient,
     )
 
 
@@ -403,7 +407,7 @@ async def verify_webhook_from_agent_url(
     _precheck_webhook_has_required_components(headers)
     signature_input = _lookup(headers, "signature-input")
     if signature_input is None:
-        raise SignatureVerificationError(WEBHOOK_SIGNATURE_REQUIRED, step=1)
+        raise SignatureVerificationError(WEBHOOK_SIGNATURE_HEADER_MALFORMED, step=1)
     try:
         labels = parse_signature_input_header(signature_input)
         parsed = labels.get(SIG_LABEL_DEFAULT)
@@ -423,9 +427,13 @@ async def verify_webhook_from_agent_url(
             protocol=protocol,
         )
     except AgentResolverError as exc:
-        logger.warning("webhook agent resolution failed: %s", request_signature_code(exc))
+        cause = request_signature_code(exc)
+        logger.warning("webhook agent resolution failed: %s", cause)
         raise SignatureVerificationError(
-            WEBHOOK_SIGNATURE_KEY_UNKNOWN, step=7, message="webhook key discovery failed"
+            WEBHOOK_SIGNATURE_KEY_UNKNOWN,
+            step=7,
+            message="webhook key discovery failed",
+            transient=SignatureVerificationError(cause).transient,
         ) from exc
 
     resolver = _BrandJsonStaticJwksResolver(resolution.jwks, jwks_uri=resolution.jwks_uri)
@@ -437,7 +445,10 @@ async def verify_webhook_from_agent_url(
             )
         except (ValueError, OSError, httpx.HTTPError, SSRFValidationError) as exc:
             raise SignatureVerificationError(
-                WEBHOOK_SIGNATURE_KEY_UNKNOWN, step=7, message="operator JWKS refresh failed"
+                WEBHOOK_SIGNATURE_KEY_UNKNOWN,
+                step=7,
+                message="operator JWKS refresh failed",
+                transient=_fetch_failure_is_transient(exc),
             ) from exc
         if refreshed is not None:
             resolver = _BrandJsonStaticJwksResolver(refreshed, jwks_uri=resolution.jwks_uri)
@@ -463,7 +474,10 @@ async def verify_webhook_from_agent_url(
                     raise ValueError("operator key does not match every publisher pin")
         except (ValueError, OSError, httpx.HTTPError, AdagentsValidationError) as exc:
             raise SignatureVerificationError(
-                WEBHOOK_SIGNATURE_KEY_UNKNOWN, step=7, message="publisher pin resolution failed"
+                WEBHOOK_SIGNATURE_KEY_UNKNOWN,
+                step=7,
+                message="publisher pin resolution failed",
+                transient=_fetch_failure_is_transient(exc),
             ) from exc
 
     options = WebhookVerifyOptions(
@@ -482,6 +496,23 @@ async def verify_webhook_from_agent_url(
     return verify_webhook_signature(
         method=method, url=url, headers=headers, body=body, options=options
     )
+
+
+def _fetch_failure_is_transient(exc: Exception) -> bool:
+    """Whether a key-discovery fetch failure could succeed on a later attempt.
+
+    Network and HTTP failures are transient, as is an SSRF gate failure the gate
+    itself marks transient (the host did not resolve), an adagents.json timeout,
+    and an adagents.json 429 or 5xx. A refused destination, a document that did
+    not parse, and a pin that does not match are not.
+    """
+    from adcp.exceptions import AdagentsHTTPError, AdagentsTimeoutError
+
+    if isinstance(exc, SSRFValidationError):
+        return exc.transient
+    if isinstance(exc, AdagentsHTTPError):
+        return exc.status_code == 429 or exc.status_code >= 500
+    return isinstance(exc, (OSError, httpx.HTTPError, AdagentsTimeoutError))
 
 
 # Re-export for callers who want to swap webhook-specific retry logic in.

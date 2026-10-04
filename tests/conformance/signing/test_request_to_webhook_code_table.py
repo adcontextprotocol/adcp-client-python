@@ -35,7 +35,7 @@ from adcp.signing.errors import (
 from adcp.signing.key_origins import check_key_origin_consistency
 from adcp.signing.webhook_verifier import _retag_to_webhook
 
-# The nine request-family codes the key-discovery chain raises. Written out
+# The request-family codes the key-discovery chain raises. Written out
 # rather than derived from the table: this list is the spec obligation under
 # test, and a list computed from the table would agree with the table no matter
 # what the table said.
@@ -57,6 +57,9 @@ KEY_DISCOVERY_REQUEST_CODES = (
     "request_signature_brand_json_ambiguous",
     "request_signature_key_origin_mismatch",
     "request_signature_key_origin_missing",
+    # The JWKS fetch is the chain's last hop; the taxonomy has no ``jwks_*`` row.
+    "request_signature_jwks_unavailable",
+    "request_signature_jwks_untrusted",
 )
 
 
@@ -70,7 +73,7 @@ def _code_constants(prefix: str) -> dict[str, str]:
 
 @pytest.mark.parametrize(("request_code", "webhook_code"), sorted(REQUEST_TO_WEBHOOK_CODE.items()))
 def test_every_table_row_is_reachable(request_code: str, webhook_code: str) -> None:
-    """The retag emits the row's value for the row's key, for all 29 rows."""
+    """The retag emits the row's value for the row's key, for every row."""
     retagged = _retag_to_webhook(SignatureVerificationError(request_code))
     assert retagged.code == webhook_code
 
