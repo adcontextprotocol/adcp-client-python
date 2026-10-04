@@ -88,6 +88,13 @@ Pushes to main and manual CI runs retain the full Python 3.10–3.13 and special
 matrices. Release publishing requires successful main CI at the exact release
 commit. Shared types, schemas, dependencies, build/CI configuration, fixture
 changes, unknown paths, and missing diff history also select full CI on PRs.
+Release Please bot PRs get a smaller scope only when their complete Git diff
+changes exactly the stable project version, matching release manifest, and
+changelog. These run compatibility tests on all four interpreters, static and
+generation checks, release configuration tests, and real wheel/sdist version
+checks. Any dependency, build setting, runtime, file-mode, or other change falls
+back to full CI. The merged release commit still requires full main CI before
+publication.
 PRs limited to Markdown in `docs/` or the allowlisted contributor/changelog files
 skip SDK lanes while still running workflow security and contribution policies.
 Required aggregate checks validate each lane's selected or skipped result.

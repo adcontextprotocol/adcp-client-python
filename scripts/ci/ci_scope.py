@@ -11,6 +11,13 @@ from pathlib import Path
 
 DOCUMENTATION_FILES = {"AGENTS.md", "CHANGELOG.md", "CLAUDE.md", "CONTRIBUTING.md", "LADON.md"}
 SHA = re.compile(r"[0-9a-f]{40}")
+STABLE_VERSION = r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
+PROJECT_VERSION = re.compile(r'(version\s*=\s*")(' + STABLE_VERSION + r')("\s*)')
+RELEASE_FILES = {"pyproject.toml", ".release-please-manifest.json", "CHANGELOG.md"}
+RELEASE_BRANCHES = {
+    "release-please--branches--main",
+    "release-please--branches--main--components--adcp",
+}
 
 # Keep required-check names stable; aggregate gates verify each selected lane.
 JOB_GROUPS = {
@@ -44,6 +51,7 @@ class Scope:
     run_postgres: bool = False
     run_packaging: bool = False
     run_storyboards: bool = False
+    release_metadata: bool = False
 
     @classmethod
     def full(cls) -> Scope:
@@ -123,6 +131,72 @@ def scope_for_paths(paths: list[str]) -> Scope:
     return selected
 
 
+def project_version(text: str) -> tuple[str, str] | None:
+    """Remove one stable [project] version while preserving every other byte."""
+    try:
+        import tomllib
+    except ModuleNotFoundError:
+        try:
+            import tomli as tomllib
+        except ModuleNotFoundError:
+            return None  # The CI scope host has stdlib TOML; older hosts fail closed.
+    try:
+        version = tomllib.loads(text).get("project", {}).get("version")
+    except (ValueError, AttributeError):
+        return None
+    section = ""
+    found: list[str] = []
+    normalized: list[str] = []
+    for line in text.splitlines(keepends=True):
+        heading = re.fullmatch(r"\[([^\]]+)\]\s*", line)
+        if heading:
+            section = heading[1]
+        match = PROJECT_VERSION.fullmatch(line) if section == "project" else None
+        if match:
+            found.append(match[2])
+            line = match[1] + "<release-version>" + match[3]
+        normalized.append(line)
+    if len(found) != 1 or found[0] != version:
+        return None
+    return found[0], "".join(normalized)
+
+
+def is_release_metadata(event: dict, paths: list[str], *, cwd: Path | None) -> bool:
+    """Require a same-repository bot PR whose complete diff is version-only."""
+    pr = event["pull_request"]
+    repository = "adcontextprotocol/adcp-client-python"
+    if (
+        set(paths) != RELEASE_FILES
+        or pr.get("base", {}).get("ref") != "main"
+        or pr.get("head", {}).get("ref") not in RELEASE_BRANCHES
+        or pr.get("base", {}).get("repo", {}).get("full_name") != repository
+        or pr.get("head", {}).get("repo", {}).get("full_name") != repository
+        or pr.get("user", {}).get("type") != "Bot"
+        or pr.get("user", {}).get("login") not in {"aao-ipr-bot[bot]", "github-actions[bot]"}
+    ):
+        return False
+
+    def git(*args: str) -> str:
+        return subprocess.check_output(["git", *args], cwd=cwd, timeout=30).decode("utf-8")
+
+    base, head = pr["base"]["sha"], pr["head"]["sha"]
+    for sha in (base, head):
+        entries = git("ls-tree", "-z", sha, "--", *sorted(RELEASE_FILES)).split("\0")
+        if len([entry for entry in entries if entry]) != len(RELEASE_FILES):
+            return False
+        if any(not entry.startswith("100644 blob ") for entry in entries if entry):
+            return False
+    before = project_version(git("show", f"{base}:pyproject.toml"))
+    after = project_version(git("show", f"{head}:pyproject.toml"))
+    if before is None or after is None or before[1] != after[1]:
+        return False
+    if tuple(map(int, after[0].split("."))) <= tuple(map(int, before[0].split("."))):
+        return False
+    return json.loads(git("show", f"{base}:.release-please-manifest.json")) == {
+        ".": before[0]
+    } and json.loads(git("show", f"{head}:.release-please-manifest.json")) == {".": after[0]}
+
+
 def select_scope(event_name: str, event: dict, *, cwd: Path | None = None) -> Scope:
     if event_name != "pull_request":
         return Scope.full()
@@ -141,8 +215,10 @@ def select_scope(event_name: str, event: dict, *, cwd: Path | None = None) -> Sc
             timeout=30,
         )
         paths = [os.fsdecode(path) for path in result.stdout.split(b"\0") if path]
+        if is_release_metadata(event, paths, cwd=cwd):
+            return Scope(run_tests=True, release_metadata=True)
         return scope_for_paths(paths)
-    except (KeyError, TypeError, OSError, subprocess.SubprocessError):
+    except (KeyError, TypeError, AttributeError, ValueError, OSError, subprocess.SubprocessError):
         return Scope.full()  # Missing history or metadata must never suppress tests.
 
 

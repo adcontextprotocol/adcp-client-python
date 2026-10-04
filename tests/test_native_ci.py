@@ -142,7 +142,9 @@ def test_workflow_keeps_canonical_coverage_full_main_matrix_and_named_pr_checks(
     assert job["strategy"]["matrix"]["python-version"] == ["3.10", "3.11", "3.12", "3.13"]
     steps = {step.get("name"): step for step in job["steps"]}
     canonical = steps["Run canonical suite with coverage"]
-    assert canonical["if"] == "matrix.python-version == '3.12'"
+    assert canonical["if"] == (
+        "matrix.python-version == '3.12' && needs.changes.outputs.release_metadata != 'true'"
+    )
     assert "--mode full --coverage" in canonical["run"]
     assert "--unit-workers 2" in canonical["run"]
     assert "--unit-workers 2" in steps["Run full native suite"]["run"]
