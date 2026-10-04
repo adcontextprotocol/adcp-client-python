@@ -207,7 +207,7 @@ def test_multi_label_signature_input_selects_sig1() -> None:
 def test_authority_that_empties_after_normalization_is_rejected(url: str) -> None:
     """A host must still be a host once the root dot comes off.
 
-    ``_malformed_authority_reason`` judges the raw netloc, where ``.`` and
+    ``malformed_authority_reason`` judges the raw netloc, where ``.`` and
     ``..`` are non-empty and pass as hosts. Stripping the root dot is what
     empties them, so the check has to run again afterwards. Without it
     ``https://./p`` canonicalized to ``https:///p`` -- the empty authority

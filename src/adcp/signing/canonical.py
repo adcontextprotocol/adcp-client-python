@@ -188,7 +188,7 @@ def _lookup(headers: Mapping[str, str], name_lower: str) -> str | None:
     return None
 
 
-def _malformed_authority_reason(authority: str) -> str | None:
+def malformed_authority_reason(authority: str) -> str | None:
     """Why *authority* is malformed per the profile's steps 2-3, or `None`.
 
     A reason rather than a bool, so every caller's rejection names the rule that
@@ -230,7 +230,7 @@ def _bracketed_host_reason(host: str) -> str | None:
 
 
 def _canon_authority(netloc: str, scheme: str) -> str:
-    reason = _malformed_authority_reason(netloc)
+    reason = malformed_authority_reason(netloc)
     if reason is not None:
         raise TargetUriMalformedError(netloc, reason)
     if "@" in netloc:
@@ -239,7 +239,7 @@ def _canon_authority(netloc: str, scheme: str) -> str:
     port: int | None = None
     if netloc.startswith("["):
         end = netloc.find("]")
-        if end < 0:  # pragma: no cover - _malformed_authority_reason rejects this first
+        if end < 0:  # pragma: no cover - malformed_authority_reason rejects this first
             raise TargetUriMalformedError(
                 netloc, "a bracketed IPv6 host missing its closing bracket"
             )
@@ -311,7 +311,7 @@ def _canon_host(host: str, netloc: str) -> str:
     if host.endswith("."):
         host = host[:-1]
     if not host or any(label == "" for label in host.split(".")):
-        # Re-checked AFTER the strip. `_malformed_authority_reason` runs on the
+        # Re-checked AFTER the strip. `malformed_authority_reason` runs on the
         # raw netloc, where `.` and `..` are non-empty and look like hosts; it
         # is only stripping the root dot that empties them. Without this,
         # `https://./p` canonicalized to `https:///p` -- the empty authority

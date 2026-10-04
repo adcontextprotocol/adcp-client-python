@@ -151,6 +151,136 @@ def test_non_ascii_host_header_is_rejected_even_when_the_url_is_clean() -> None:
     assert exc_info.value.step == 1
 
 
+def test_duplicate_label_on_the_signature_header_is_rejected_at_step_1() -> None:
+    """Checklist step 1 parses `Signature-Input` AND `Signature` per RFC 9421 §4.
+
+    `negative/021` grades the duplicate dictionary key on `Signature-Input`;
+    RFC 9421 §4.2 makes `Signature` a Dictionary by the same construction, and
+    it is the field carrying the credential bytes. A parser that retains the
+    last value reads a different signature than one that retains the first,
+    over a `Signature-Input` both agree on -- the parser-differential RFC 8941
+    §3.2 exists to close, on the one header where the disagreement is about the
+    credential itself.
+    """
+    headers = {
+        "Content-Type": "application/json",
+        "Signature-Input": _SIG_INPUT,
+        "Signature": f"sig1=:{'A' * 86}:, sig1=:{'B' * 86}:",
+    }
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        _verify(None, headers)
+    assert exc_info.value.code == REQUEST_SIGNATURE_HEADER_MALFORMED
+    assert exc_info.value.step == 1
+
+
+def test_content_digest_algorithms_differing_only_in_case_are_rejected_at_step_1() -> None:
+    """`SHA-256` and `sha-256` are one algorithm, and `negative/023` is the rule.
+
+    RFC 9530 §2 algorithm names are lowercase tokens and RFC 8941 §3.2's `key`
+    production admits lowercase only, so an uppercase spelling is never a
+    second key. Comparing the keys as written lets the same algorithm appear
+    twice and reopens the parser-differential `negative/023` rejects behind a
+    change of case.
+    """
+    digest = (
+        "SHA-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:, "
+        "sha-256=:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=:"
+    )
+    headers = {
+        "Content-Type": "application/json",
+        "Content-Digest": digest,
+        "Signature-Input": _SIG_INPUT,
+        "Signature": _SIG,
+    }
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        _verify(None, headers)
+    assert exc_info.value.code == REQUEST_SIGNATURE_HEADER_MALFORMED
+    assert exc_info.value.step == 1
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["::1", "[::1", "[fe80::1%25eth0]", ":443", "user@"],
+    ids=["bare-ipv6", "unclosed-bracket", "zone-id", "port-no-host", "userinfo-no-host"],
+)
+def test_malformed_authority_on_the_host_header_is_rejected_at_step_1(host: str) -> None:
+    """The URL canonicalization algorithm's steps 2-3 MUST-reject shapes.
+
+    Step 3 names the four malformed authority shapes and binds comparers to
+    reject them; step 2 rejects IPv6 zone identifiers. The signing profile
+    derives `@authority` from the as-received `Host` header and canonicalizes
+    it by the same algorithm, so the rule governs the header and not only the
+    URL -- and the header is the only place these shapes can arrive, since an
+    ASGI framework building `request.url` does not carry them over.
+
+    `malformed_authority_reason` is the rule's one definition and
+    canonicalization already applies it to the URL. Applying it here is what
+    makes the header side refuse the same shapes, at step 1, with step 1's code.
+    """
+    raw = [
+        (b"host", host.encode("latin-1")),
+        (b"content-type", b"application/json"),
+        (b"signature-input", _SIG_INPUT.encode()),
+        (b"signature", _SIG.encode()),
+    ]
+    collapsed = {
+        "Host": host,
+        "Content-Type": "application/json",
+        "Signature-Input": _SIG_INPUT,
+        "Signature": _SIG,
+    }
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        _verify(raw, collapsed)
+    assert exc_info.value.code == REQUEST_SIGNATURE_HEADER_MALFORMED
+    assert exc_info.value.step == 1
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["seller.example.com", "seller.example.com:8443", "[2001:db8::1]", "[2001:db8::1]:8443"],
+    ids=["host", "host-port", "ipv6", "ipv6-port"],
+)
+def test_well_formed_host_header_is_not_rejected(host: str) -> None:
+    """False-positive guard for the rule above.
+
+    A bracketed IPv6 literal and a non-default port are legal authorities that
+    `positive/011` and `positive/012` sign. A gate that refused them would
+    refuse traffic the profile requires accepting.
+    """
+    raw = [
+        (b"host", host.encode("latin-1")),
+        (b"content-type", b"application/json"),
+        (b"signature-input", _SIG_INPUT.encode()),
+        (b"signature", _SIG.encode()),
+    ]
+    collapsed = {
+        "Host": host,
+        "Content-Type": "application/json",
+        "Signature-Input": _SIG_INPUT,
+        "Signature": _SIG,
+    }
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        _verify(raw, collapsed)
+    assert exc_info.value.code != REQUEST_SIGNATURE_HEADER_MALFORMED
+
+
+def test_two_distinct_signature_labels_are_not_rejected() -> None:
+    """False-positive guard: `positive/004` ships `sig1` and `sig2`.
+
+    Only a REPEATED key is the defect. A gate that rejected every comma in the
+    `Signature` header would refuse the multi-label request the profile
+    requires accepting.
+    """
+    headers = {
+        "Content-Type": "application/json",
+        "Signature-Input": _SIG_INPUT,
+        "Signature": f"sig1=:{'A' * 86}:, sig2=:{'B' * 86}:",
+    }
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        _verify(None, headers)
+    assert exc_info.value.code != REQUEST_SIGNATURE_HEADER_MALFORMED
+
+
 def test_multi_algorithm_content_digest_is_not_rejected() -> None:
     """False-positive guard: distinct algorithms are legal, duplicates are not.
 

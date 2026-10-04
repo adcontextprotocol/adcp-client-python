@@ -127,6 +127,7 @@ from adcp.signing.canonical import (
     build_signature_base,
     canonicalize_authority,
     canonicalize_target_uri,
+    malformed_authority_reason,
     parse_signature_input_header,
 )
 from adcp.signing.capability_cache import (
@@ -303,6 +304,7 @@ from adcp.signing.verifier import (
     VerifiedSigner,
     VerifierCapability,
     VerifyOptions,
+    strict_header_precheck,
     verify_request_signature,
 )
 
@@ -471,6 +473,7 @@ __all__ = [
     "is_development_brand_domain",
     "install_signing_event_hook",
     "load_private_key_pem",
+    "malformed_authority_reason",
     "operation_needs_signing",
     "parse_signature_input_header",
     "pem_to_adcp_jwk",
@@ -488,6 +491,7 @@ __all__ = [
     "signing_profile_for_adcp_version",
     "sign_standard_webhook",
     "signing_operation",
+    "strict_header_precheck",
     "unauthorized_response_headers",
     "validate_jwks_uri",
     "validate_brand_domain",

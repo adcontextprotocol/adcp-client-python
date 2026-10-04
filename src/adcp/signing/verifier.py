@@ -869,5 +869,6 @@ __all__ = [
     "VerifiedSigner",
     "VerifierCapability",
     "VerifyOptions",
+    "strict_header_precheck",
     "verify_request_signature",
 ]

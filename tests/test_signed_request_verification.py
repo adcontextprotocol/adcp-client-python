@@ -418,6 +418,92 @@ async def test_mcp_tampered_body_rejected() -> None:
     _assert_rejected(response, "request_signature_digest_mismatch")
 
 
+# ---------------------------------------------------------------------------
+# Checklist step 1 at the transport edge, on both legs
+# ---------------------------------------------------------------------------
+
+#: ``(path, body, extra headers)`` per leg, for tests that assert the same
+#: rule on the MCP and A2A transports.
+_LEGS = {
+    "mcp": ("/mcp", _tools_call("get_products"), MCP_HEADERS),
+    "a2a": ("/", _a2a_send("get_products"), {}),
+}
+
+
+def _signed_for_leg(leg: str) -> tuple[str, bytes, dict[str, str]]:
+    path, body, extra = _LEGS[leg]
+    raw, headers = _signed(f"http://localhost{path}", body, headers=extra)
+    return path, raw, headers
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("leg", sorted(_LEGS))
+async def test_duplicate_signature_label_rejected_on_both_legs(leg: str) -> None:
+    """A repeated ``sig1`` on the ``Signature`` Dictionary is step-1 malformed.
+
+    Appending the same, valid entry again is the case that must not verify:
+    a last-wins parser and a first-wins parser agree here only by accident.
+    """
+    handler = _Recording()
+    app = _both_app(handler, _config())
+    path, raw, headers = _signed_for_leg(leg)
+    signature_key = next(k for k in headers if k.lower() == "signature")
+    headers[signature_key] = f"{headers[signature_key]}, {headers[signature_key]}"
+    response = await _post(app, path, raw, headers)
+    _assert_rejected(response, "request_signature_header_malformed")
+    assert handler.contexts == []
+
+
+def _app_without_host_policy(handler: ADCPHandler[Any]) -> Any:
+    from adcp.server.serve import _build_mcp_and_a2a_app
+
+    return _build_mcp_and_a2a_app(
+        handler,
+        name="test-agent",
+        port=0,
+        host="127.0.0.1",
+        instructions=None,
+        test_controller=None,
+        validation=None,
+        advertise_all=True,
+        stateless_http=True,
+        enable_dns_rebinding_protection=False,
+        request_signature_verification=_config(),
+    )
+
+
+_MALFORMED_HOSTS = ["::1", "[::1", "[fe80::1%25eth0]", ":443", "user@"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("host", _MALFORMED_HOSTS)
+@pytest.mark.parametrize("leg", sorted(_LEGS))
+async def test_malformed_host_rejected_at_step_1_on_both_legs(leg: str, host: str) -> None:
+    """With the Host policy disabled, the verifier is what refuses the shape.
+
+    ``request.url`` does not carry these authorities over from the header, so
+    only the step-1 precheck over the raw ``Host`` header sees them.
+    """
+    handler = _Recording()
+    app = _app_without_host_policy(handler)
+    path, raw, headers = _signed_for_leg(leg)
+    response = await _post(app, path, raw, {**headers, "host": host})
+    _assert_rejected(response, "request_signature_header_malformed")
+    assert handler.contexts == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("leg", sorted(_LEGS))
+async def test_malformed_host_refused_by_host_policy_before_verification(leg: str) -> None:
+    """With the default Host policy on, the request never reaches the verifier."""
+    handler = _Recording()
+    app = _both_app(handler, _config())
+    path, raw, headers = _signed_for_leg(leg)
+    response = await _post(app, path, raw, {**headers, "host": "[::1"})
+    assert response.status_code == 421, response.text
+    assert handler.contexts == []
+
+
 @pytest.mark.asyncio
 async def test_warn_for_failure_continues_without_identity() -> None:
     handler = _Recording()

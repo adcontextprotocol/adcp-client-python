@@ -38,6 +38,7 @@ from adcp.signing.canonical import (
     TargetUriMalformedError,
     _split_or_reject,
     host_has_raw_non_ascii,
+    malformed_authority_reason,
     split_structured_field,
 )
 
@@ -56,6 +57,20 @@ _SINGLE_LINE_SIGNED_HEADERS = frozenset(
 #: `Content-Type` is a singleton by RFC 9110 §8.3, so a comma means two values
 #: were folded together regardless of whether the signature covers it.
 _SINGLE_VALUE_HEADERS = frozenset({"content-type"})
+
+#: Headers whose value is an RFC 8941 Dictionary, mapped to the spelling a
+#: rejection names. A table rather than an if-chain per header: the rule is one
+#: rule, and a per-header branch is a per-header chance to omit one.
+#:
+#: `Signature` is here because checklist step 1 parses `Signature-Input` **and
+#: `Signature`** per RFC 9421 §4, and §4.2 makes `Signature` a Dictionary as
+#: §4.1 does `Signature-Input`. Omitting it left the field carrying the
+#: credential bytes as the one Dictionary whose duplicate key nothing refused.
+_DICTIONARY_HEADERS = {
+    "signature": "Signature",
+    "signature-input": "Signature-Input",
+    "content-digest": "Content-Digest",
+}
 
 
 def strict_header_precheck(
@@ -88,16 +103,13 @@ def strict_header_precheck(
                 f"{name!r} carries more than one value; it is a singleton field "
                 "and a comma-joined value means two were folded together"
             )
-        if name == "signature-input":
-            reason = _duplicate_dictionary_key_reason(value, "Signature-Input")
-            if reason is not None:
-                return reason
-        if name == "content-digest":
-            reason = _duplicate_dictionary_key_reason(value, "Content-Digest")
+        header_name = _DICTIONARY_HEADERS.get(name)
+        if header_name is not None:
+            reason = _duplicate_dictionary_key_reason(value, header_name)
             if reason is not None:
                 return reason
 
-    return _non_ascii_authority_reason(pairs=pairs, url=url)
+    return _authority_reason(pairs=pairs, url=url)
 
 
 def _header_pairs(
@@ -131,13 +143,21 @@ def _duplicate_dictionary_key_reason(value: str, header_name: str) -> str | None
     is the smuggling vector: a proxy appends a second entry with the same label
     and a weaker covered-component set, the parser keeps the last, and the
     signature verifies over fewer components than the producer signed.
+
+    Keys are compared case-folded. RFC 8941 §3.2's `key` production admits
+    lowercase only, so two keys differing only in case are never two distinct
+    keys -- one of them is a key spelled illegally. Folding is what makes the
+    rule hold for `Content-Digest`, whose RFC 9530 §2 algorithm names are
+    lowercase tokens: comparing `SHA-256` and `sha-256` as written lets the
+    same algorithm appear twice and the parser-differential this rejects stays
+    open behind a change of case.
     """
     keys: set[str] = set()
     for entry in split_structured_field(value, ","):
         entry = entry.strip()
         if not entry:
             continue
-        key = entry.split("=", 1)[0].strip()
+        key = entry.split("=", 1)[0].strip().lower()
         if not key:
             continue
         if key in keys:
@@ -150,26 +170,43 @@ def _duplicate_dictionary_key_reason(value: str, header_name: str) -> str | None
     return None
 
 
-def _non_ascii_authority_reason(*, pairs: Sequence[tuple[str, str]], url: str) -> str | None:
-    """A host carrying raw non-ASCII bytes MUST be rejected, never re-normalized.
+def _authority_reason(*, pairs: Sequence[tuple[str, str]], url: str) -> str | None:
+    """Why the authority this request carries is malformed at step 1, or `None`.
 
-    Checked against BOTH the `Host` header and the URL's authority, because
-    neither alone is sufficient: ASGI frameworks drop a non-ASCII Host when
-    building `request.url` (Starlette's `URL` falls back to `scope["server"]`
-    when the Host header fails its host regex), so the U-label survives only on
-    the header -- while the conformance vectors carry no Host header at all and
-    express the case through the URL.
+    Two rules, both of which the URL canonicalization algorithm states as a
+    comparer MUST:
 
-    Re-normalizing instead of rejecting would pick one of several legitimate
-    UTS-46 outcomes and risk disagreeing with whoever signed. Converting is the
-    producer's job.
+    * a host carrying raw non-ASCII bytes is refused, never re-normalized
+      (step 2). Re-normalizing would pick one of several legitimate UTS-46
+      outcomes and risk disagreeing with whoever signed; converting is the
+      producer's job.
+    * the authority shapes of steps 2-3 -- a bare IPv6 address outside
+      brackets, a bracketed host missing its closing bracket, an IPv6 zone
+      identifier, userinfo or a port with no host -- are refused as written.
+      `malformed_authority_reason` is the one definition of that rule and is
+      shared with canonicalization, which raises `request_target_uri_malformed`
+      at step 6 over the URL. Same rule, two codes, two steps.
+
+    The non-ASCII rule runs against BOTH the `Host` header and the URL's
+    authority, because neither alone is sufficient: ASGI frameworks drop a
+    non-ASCII Host when building `request.url` (Starlette's `URL` falls back to
+    `scope["server"]` when the Host header fails its host regex), so the U-label
+    survives only on the header -- while the conformance vectors carry no Host
+    header at all and express the case through the URL. The shape rules run
+    against the header for the same reason the non-ASCII rule does, and over the
+    URL they are canonicalization's rejection to make with its own code.
     """
     for name, value in pairs:
-        if name == "host" and host_has_raw_non_ascii(value):
+        if name != "host":
+            continue
+        if host_has_raw_non_ascii(value):
             return (
                 "the Host header carries raw non-ASCII bytes; the producer must send an "
                 "A-label, and a comparer that re-normalized could disagree with the signer"
             )
+        shape = malformed_authority_reason(value)
+        if shape is not None:
+            return f"the Host header carries a malformed authority: {shape}"
     try:
         netloc = _split_or_reject(url).netloc
     except TargetUriMalformedError:
