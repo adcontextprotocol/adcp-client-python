@@ -18,9 +18,13 @@ from urllib.parse import urlsplit
 from pydantic import ValidationError
 
 from adcp.canonical_formats.fixtures import load_v1_reference_catalog
-from adcp.canonical_formats.identity import canonicalize_agent_url
+from adcp.canonical_formats.identity import canonicalize_agent_url, coerce_format_id
 from adcp.types import Format, Product
-from adcp.types.legacy import LegacyFormatId, LegacyProduct
+from adcp.types.legacy import (
+    FormatReferenceStructuredObject,
+    LegacyFormatId,
+    LegacyProduct,
+)
 
 AAO_CANONICAL_AGENT_URL = "https://creative.adcontextprotocol.org/"
 _AAO_OWNER_ALIASES = {"https://adcontextprotocol.org/"}
@@ -32,14 +36,20 @@ except PackageNotFoundError:  # pragma: no cover - editable/source-only fallback
     SDK_ID = "adcp-client-python@unknown"
 
 
-def migrated_format_option_id(format_id: LegacyFormatId | Mapping[str, Any]) -> str:
-    """Return the normative stable option ID from the complete legacy tuple."""
+def migrated_format_option_id(
+    format_id: FormatReferenceStructuredObject | Mapping[str, Any],
+) -> str:
+    """Return the normative stable option ID from the complete legacy tuple.
 
-    ref = (
-        format_id
-        if isinstance(format_id, LegacyFormatId)
-        else LegacyFormatId.model_validate(format_id)
-    )
+    The ID hashes ``agent_url`` exactly as received. Pass the wire mapping when
+    parity with other SDKs matters: a reference taken off a validated model
+    carries a Pydantic-normalized URL (``https://host`` becomes
+    ``https://host/``), which yields a different, non-normative ID for the same
+    wire bytes. The URL is deliberately not canonicalized here, because that
+    would change IDs already derived from existing wire inputs.
+    """
+
+    ref = coerce_format_id(format_id)
     duration: int | float | None = ref.duration_ms
     if duration is not None and float(duration).is_integer():
         # JSON.stringify renders JavaScript's sole Number type without a
@@ -179,7 +189,8 @@ class CanonicalFormatLegacyResolutionContext:
 
 
 CanonicalFormatLegacyResolver = Callable[
-    [CanonicalFormatLegacyResolutionContext], Sequence[LegacyFormatId] | None
+    [CanonicalFormatLegacyResolutionContext],
+    Sequence[FormatReferenceStructuredObject] | None,
 ]
 
 
@@ -361,7 +372,7 @@ def _converted_format(
 
 
 def project_legacy_format_id(
-    format_id: LegacyFormatId | Mapping[str, Any],
+    format_id: FormatReferenceStructuredObject | Mapping[str, Any],
     *,
     product_id: str,
     field: str,
@@ -371,11 +382,7 @@ def project_legacy_format_id(
     """Project one legacy tuple using RC3 precedence and safety semantics."""
 
     try:
-        ref = (
-            format_id
-            if isinstance(format_id, LegacyFormatId)
-            else LegacyFormatId.model_validate(format_id)
-        )
+        ref = coerce_format_id(format_id)
     except ValidationError:
         return ProjectedFormat(
             diagnostic=ProjectionDiagnostic(
@@ -794,10 +801,7 @@ def resolve_legacy_format_refs(
         raise CanonicalFormatLegacyResolutionError(
             f"no durable legacy route for {field}; refusing to reverse-guess"
         )
-    return [
-        item if isinstance(item, LegacyFormatId) else LegacyFormatId.model_validate(item)
-        for item in resolved
-    ]
+    return [coerce_format_id(item) for item in resolved]
 
 
 def project_canonical_response_to_legacy(

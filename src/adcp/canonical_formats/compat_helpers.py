@@ -11,12 +11,15 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-from pydantic import ValidationError
-
-from adcp.canonical_formats.identity import canonicalize_agent_url
-from adcp.types.legacy import LegacyFormatId
+from adcp.canonical_formats.identity import canonicalize_agent_url, coerce_format_id
+from adcp.types.legacy import FormatReferenceStructuredObject, LegacyFormatId
 
 FormatId = LegacyFormatId
+
+FormatIdInput = str | FormatReferenceStructuredObject | Mapping[str, Any]
+"""Accepted format-id input: a bare legacy ID, any structured format
+reference (the schema class generated model fields carry, or the legacy
+subclass), or a mapping of the reference's fields."""
 
 CANONICAL_CREATIVE_AGENT_URL = "https://creative.adcontextprotocol.org"
 """Default ``agent_url`` for AdCP standard creative formats."""
@@ -27,45 +30,43 @@ _DISPLAY_SIZE_RE = re.compile(
 
 
 def _coerce_format_id(
-    value: str | FormatId | Mapping[str, Any],
+    value: FormatIdInput,
     *,
     default_agent_url: str,
+    param: str,
 ) -> FormatId:
-    """Coerce supported helper inputs to the public ``FormatId`` model."""
-    if isinstance(value, FormatId):
-        return value
+    """Coerce supported helper inputs to the public ``FormatId`` model.
+
+    ``param`` names the caller's parameter so a refusal says which argument
+    carried the unsupported value.
+    """
+    if isinstance(value, FormatReferenceStructuredObject):
+        return coerce_format_id(value)
     if isinstance(value, str):
-        return FormatId.model_validate({"agent_url": default_agent_url, "id": value})
+        return coerce_format_id({"agent_url": default_agent_url, "id": value})
     if isinstance(value, Mapping):
         body = dict(value)
         body.setdefault("agent_url", default_agent_url)
-        try:
-            return FormatId.model_validate(body)
-        except ValidationError:
-            # Re-raise with the public model's normal validation details.
-            raise
-    raise TypeError("format id must be a string, FormatId, or mapping with at least an 'id' field")
+        return coerce_format_id(body)
+    raise TypeError(
+        f"{param} must be a string, FormatId, or mapping with at least an 'id' field; "
+        f"got {type(value).__name__}"
+    )
 
 
-def upgrade_legacy_format_id(
-    value: str | FormatId | Mapping[str, Any],
+def _upgrade_legacy_format_id(
+    value: FormatIdInput,
     *,
-    default_agent_url: str = CANONICAL_CREATIVE_AGENT_URL,
+    default_agent_url: str,
+    param: str,
 ) -> FormatId:
-    """Return ``value`` as a canonical, parameterized ``FormatId`` when known.
-
-    The current canonical upgrade maps legacy display size IDs such as
-    ``display_300x250`` and ``display_300x250_image`` to
-    ``display_image`` with ``width=300`` and ``height=250``. Unknown IDs are
-    still returned as structured ``FormatId`` values so callers can compare
-    them consistently.
-    """
+    """Upgrade ``value``, reporting a refusal against the caller's parameter."""
     is_bare_legacy_id = isinstance(value, str)
-    fid = _coerce_format_id(value, default_agent_url=default_agent_url)
+    fid = _coerce_format_id(value, default_agent_url=default_agent_url, param=param)
     match = _DISPLAY_SIZE_RE.fullmatch(fid.id)
     if match is None:
         return fid
-    default_fid = _coerce_format_id("__default__", default_agent_url=default_agent_url)
+    default_fid = _coerce_format_id("__default__", default_agent_url=default_agent_url, param=param)
     if not is_bare_legacy_id and canonicalize_agent_url(fid.agent_url) != canonicalize_agent_url(
         default_fid.agent_url
     ):
@@ -82,9 +83,25 @@ def upgrade_legacy_format_id(
     )
 
 
+def upgrade_legacy_format_id(
+    value: FormatIdInput,
+    *,
+    default_agent_url: str = CANONICAL_CREATIVE_AGENT_URL,
+) -> FormatId:
+    """Return ``value`` as a canonical, parameterized ``FormatId`` when known.
+
+    The current canonical upgrade maps legacy display size IDs such as
+    ``display_300x250`` and ``display_300x250_image`` to
+    ``display_image`` with ``width=300`` and ``height=250``. Unknown IDs are
+    still returned as structured ``FormatId`` values so callers can compare
+    them consistently.
+    """
+    return _upgrade_legacy_format_id(value, default_agent_url=default_agent_url, param="value")
+
+
 def formats_are_equivalent(
-    a: str | FormatId | Mapping[str, Any],
-    b: str | FormatId | Mapping[str, Any],
+    a: FormatIdInput,
+    b: FormatIdInput,
     *,
     default_agent_url: str = CANONICAL_CREATIVE_AGENT_URL,
 ) -> bool:
@@ -96,8 +113,8 @@ def formats_are_equivalent(
     :func:`format_is_supported` for product/capability gating where a
     supported fixed size or duration requires the request to state that value.
     """
-    left = upgrade_legacy_format_id(a, default_agent_url=default_agent_url)
-    right = upgrade_legacy_format_id(b, default_agent_url=default_agent_url)
+    left = _upgrade_legacy_format_id(a, default_agent_url=default_agent_url, param="a")
+    right = _upgrade_legacy_format_id(b, default_agent_url=default_agent_url, param="b")
     if canonicalize_agent_url(left.agent_url) != canonicalize_agent_url(right.agent_url):
         return False
     if left.id != right.id:
@@ -112,8 +129,8 @@ def formats_are_equivalent(
 
 
 def format_is_supported(
-    requested: str | FormatId | Mapping[str, Any],
-    supported: str | FormatId | Mapping[str, Any],
+    requested: FormatIdInput,
+    supported: FormatIdInput,
     *,
     default_agent_url: str = CANONICAL_CREATIVE_AGENT_URL,
 ) -> bool:
@@ -125,8 +142,12 @@ def format_is_supported(
     format requires the request to provide and match every fixed parameter
     (``width``, ``height``, and ``duration_ms``).
     """
-    req = upgrade_legacy_format_id(requested, default_agent_url=default_agent_url)
-    sup = upgrade_legacy_format_id(supported, default_agent_url=default_agent_url)
+    req = _upgrade_legacy_format_id(
+        requested, default_agent_url=default_agent_url, param="requested"
+    )
+    sup = _upgrade_legacy_format_id(
+        supported, default_agent_url=default_agent_url, param="supported"
+    )
     if not formats_are_equivalent(req, sup, default_agent_url=default_agent_url):
         return False
 
