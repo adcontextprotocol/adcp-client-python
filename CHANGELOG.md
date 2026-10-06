@@ -14,6 +14,13 @@
   [migration guide](docs/canonical-format-kinds-migration.md).
   This closes [#1241](https://github.com/adcontextprotocol/adcp-client-python/issues/1241).
 
+## [8.1.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0...v8.1.0) (2026-10-06)
+
+
+### Features
+
+* backport provisioning-aware accounts and signing fixes to 8.x ([#1410](https://github.com/adcontextprotocol/adcp-client-python/issues/1410)) ([91df2b4](https://github.com/adcontextprotocol/adcp-client-python/commit/91df2b4dbeaa7146bd0716de47d46c7d46642e31))
+
 ## [8.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-rc.3...v8.0.0) (2026-10-01)
 
 
