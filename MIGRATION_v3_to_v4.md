@@ -36,6 +36,13 @@ imported from there instead of the domain path, and `Assets<N>` numbered classes
 that have a documented semantic alias (`Assets81 → VideoFormatAsset`, etc.) are
 renamed. `flag_removed` findings always require human attention.
 
+Since the `generated_poc` → `domains` rename landed (#1417), a dry run whose only
+findings are deprecated `generated_poc` import paths exits 0: those are mechanical
+`rename_import` entries under `applied`, no longer `flag_private` entries. A CI
+drift gate that relied on the exit code to catch them should read `--json` and
+fail on a non-empty `applied` list (or simply run `--apply` in CI and fail on a
+dirty tree).
+
 The CLI exits 0 when all remaining findings are mechanical (or none); exits 1 when
 `flag_removed` findings remain for human review — wire it into CI to gate merges
 until every flagged usage is addressed.

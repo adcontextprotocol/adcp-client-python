@@ -1227,7 +1227,6 @@ def test_import_path_rename_is_idempotent(tmp_path: Path) -> None:
 def test_renamed_deep_imports_resolve_to_the_same_objects(tmp_path: Path) -> None:
     """The rewrite is a rename, not a re-binding: every name the migrated file
     imports is the object the deprecated path served."""
-    import importlib
     import warnings
 
     with warnings.catch_warnings():
