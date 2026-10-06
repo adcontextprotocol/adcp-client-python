@@ -285,6 +285,12 @@ deleted and the generated models go back to agreeing with their schema.
   a `TYPE_CHECKING` block with `init=False`, so a type checker refuses the
   keyword the runtime refuses instead of offering a constructor argument that
   raises `ValidationError`. Read them and you get `None`.
+* The canonical models' overriding list fields — `GetProductsResponse.products`,
+  `CreateMediaBuyResponse1.packages`, `ListCreativesResponse.creatives`,
+  `Product.format_options` and the rest — are declared with their precise
+  element types (#1416). They read as `list[Product] | None` and so on under
+  mypy with or without `adcp.types.mypy_plugin`, and under pyright and
+  Pylance, where the earlier `SchemaVariant[...]` spelling was an error.
 * A format reference's `agent_url` is carried as the wire string, validated
   as a URL (#1384). `ref.agent_url` is a `str`, not an `AnyUrl`, so
   `migrated_…` option IDs derived from a model match those derived from the

@@ -21,6 +21,13 @@ Don't use ``SchemaVariant`` for subclass overrides — those already
 type-check via ``Sequence[T]`` covariance (PR #635) and the marker
 would obscure that the override is sub-typing, not substitution.
 
+The SDK's own models never use it either. ``adcp.types.canonical_creative``
+retypes generated ``list`` fields to their canonical element classes with
+the precise ``list[...]`` annotation and a per-line ``type: ignore``, which
+both mypy and pyright honour, so an adopter reads ``list[Product] | None``
+from ``GetProductsResponse.products`` under either checker, with or
+without this plugin (#1416).
+
 **Pyright / Pylance**: the bundled mypy plugin doesn't affect pyright.
 Adopters using Pylance in VSCode will still see the LSP override
 flagged on ``SchemaVariant[T]`` fields even though their mypy CI

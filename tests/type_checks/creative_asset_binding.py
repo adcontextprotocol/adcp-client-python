@@ -63,11 +63,13 @@ def check_served_manifest(response: GetCreativeDeliveryResponse) -> None:
     for creative in response.creatives:
         # ``variants`` narrows the generated ``list[CreativeVariant]`` to the
         # tolerant delivery row, which pydantic accepts and mypy's invariant
-        # list rule does not — so the field is declared ``SchemaVariant`` and
-        # reads as ``Any``. Name the element type to keep the assertion below
-        # grading something: the row is module-private because it is a readback
-        # shape no adopter constructs, which is why the type is spelled here
-        # rather than imported from ``adcp.types``.
+        # list rule does not — the library declares the precise list and
+        # suppresses the override on its side (#1416), so the field reads as
+        # ``list[_DeliveryCreativeVariant]`` here under mypy and pyright alike.
+        # The row is module-private because it is a readback shape no adopter
+        # constructs, which is why the type is spelled here rather than
+        # imported from ``adcp.types``.
+        assert_type(creative.variants, list[_DeliveryCreativeVariant])
         variants: Sequence[_DeliveryCreativeVariant] = creative.variants
         for variant in variants:
             if variant.manifest is not None:

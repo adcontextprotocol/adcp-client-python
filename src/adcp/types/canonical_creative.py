@@ -169,7 +169,6 @@ from adcp.types.media_buy_status_helpers import (
     MEDIA_BUY_LEGACY_STATUS_VALUES,
     unwrap_enum_value,
 )
-from adcp.types.variants import SchemaVariant
 
 
 def is_canonical_format_kind(
@@ -689,7 +688,7 @@ class Placement(_LegacyPlacement, CanonicalBoundaryModel):
     if TYPE_CHECKING:  # the removed field, hidden from the constructor too
         format_ids: _RemovedFormatIdSequence = Field(default=None, init=False)
 
-    format_options: SchemaVariant[list[Format] | None] = Field(default=None, min_length=1)
+    format_options: list[Format] | None = Field(default=None, min_length=1)  # type: ignore[assignment]
 
 
 class Product(_LegacyProduct, CanonicalBoundaryModel):
@@ -698,10 +697,10 @@ class Product(_LegacyProduct, CanonicalBoundaryModel):
     if TYPE_CHECKING:  # the removed field, hidden from the constructor too
         format_ids: _RemovedFormatIds = Field(default=None, init=False)
 
-    format_options: SchemaVariant[list[Format]] = Field(
+    format_options: list[Format] = Field(  # type: ignore[assignment]
         min_length=1, description="Canonical creative formats accepted by this product."
     )
-    placements: SchemaVariant[list[Placement] | None] = Field(default=None, min_length=1)
+    placements: list[Placement] | None = Field(default=None, min_length=1)  # type: ignore[assignment]
     pricing_options: list[CanonicalPricingOption] = Field(min_length=1)
 
 
@@ -842,7 +841,7 @@ class DeliveryCreative(_LegacyDeliveryCreative, CanonicalBoundaryModel):
     if TYPE_CHECKING:  # the removed field, hidden from the constructor too
         format_id: _RemovedFormatId = Field(default=None, init=False)
 
-    variants: SchemaVariant[list[_DeliveryCreativeVariant]] = _inherit(
+    variants: list[_DeliveryCreativeVariant] = _inherit(  # type: ignore[assignment]
         _LegacyDeliveryCreative, "variants"
     )
 
@@ -882,7 +881,7 @@ class PackageRequest(_LegacyPackageRequest, CanonicalBoundaryModel):
 class PackageUpdate(_LegacyPackageUpdate, CanonicalBoundaryModel):
     """Canonical package update; creatives are canonical assets."""
 
-    creatives: SchemaVariant[list[CreativeAsset] | None] = Field(default=None, min_length=1)
+    creatives: list[CreativeAsset] | None = Field(default=None, min_length=1)  # type: ignore[assignment]
 
 
 class Package(_LegacyPackage, CanonicalBoundaryModel):
@@ -914,7 +913,7 @@ class GetProductsRequest(_LegacyGetProductsRequest, CanonicalBoundaryModel):
 class GetProductsResponse(_LegacyGetProductsResponse, CanonicalBoundaryModel):
     """Canonical discovery response; products are canonical products."""
 
-    products: SchemaVariant[list[Product] | None] = None
+    products: list[Product] | None = None  # type: ignore[assignment]
 
 
 class CreateMediaBuyRequest(_LegacyCreateMediaBuyRequest, CanonicalBoundaryModel):
@@ -927,13 +926,15 @@ class UpdateMediaBuyRequest(_LegacyUpdateMediaBuyRequest, CanonicalBoundaryModel
     """Canonical update request; both package lists are canonical."""
 
     packages: list[PackageUpdate] | None = None
-    new_packages: SchemaVariant[list[PackageRequest] | None] = None
+    new_packages: list[PackageRequest] | None = Field(  # type: ignore[assignment]
+        default=None, min_length=1
+    )
 
 
 class CreateMediaBuyResponse1(_LegacyCreateMediaBuyResponse1, CanonicalBoundaryModel):
     """Canonical create response preserving the 3.x legacy-status normalizer."""
 
-    packages: SchemaVariant[list[Package]]
+    packages: list[Package]  # type: ignore[assignment]
 
     @model_validator(mode="before")
     @classmethod
@@ -997,7 +998,7 @@ UpdateMediaBuyResponse = UpdateMediaBuyResponse1 | UpdateMediaBuyResponse2 | Upd
 class SyncCreativesRequest(_LegacySyncCreativesRequest, CanonicalBoundaryModel):
     """Canonical creative sync request; creatives are canonical assets."""
 
-    creatives: SchemaVariant[list[CreativeAsset]] = Field(min_length=1)
+    creatives: list[CreativeAsset] = Field(min_length=1)  # type: ignore[assignment]
 
 
 class ListCreativesRequest(_LegacyListCreativesRequest, CanonicalBoundaryModel):
@@ -1020,7 +1021,7 @@ class ListCreativesRequest(_LegacyListCreativesRequest, CanonicalBoundaryModel):
 class ListCreativesResponse(_LegacyListCreativesResponse, CanonicalBoundaryModel):
     """Canonical creative listing; rows are canonical listed creatives."""
 
-    creatives: SchemaVariant[list[Creative]]
+    creatives: list[Creative]
 
 
 class MediaBuyPackage(_LegacyMediaBuyPackage, CanonicalBoundaryModel):

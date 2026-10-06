@@ -44,7 +44,7 @@ typecheck: ## Run type checker (mypy) on source code
 	$(MYPY) src/adcp/
 	@echo "✓ Type checking passed"
 
-typecheck-all: typecheck test-type-checks check-type-ignore-contract ## Run all type-check contracts
+typecheck-all: typecheck test-type-checks test-type-checks-pyright check-type-ignore-contract ## Run all type-check contracts
 	@echo "✓ All type-check contracts passed"
 
 test: ## Run test suite with coverage
@@ -58,6 +58,9 @@ test-fast: ## Run tests without coverage (faster)
 test-type-checks: ## Run adopter-pattern type-check suite (mypy --strict, zero type: ignore allowed)
 	$(MYPY) --strict tests/type_checks/
 	@echo "✓ Adopter type-checks passed"
+
+test-type-checks-pyright: ## Run the adopter-pattern type-check suite under pyright (see scripts/run_pyright_type_checks.py)
+	$(PYTHON) scripts/run_pyright_type_checks.py
 
 check-type-ignore-contract: ## Fail if adopter type-check fixtures use type: ignore suppressions
 	$(PYTHON) scripts/check_type_ignore_contract.py
