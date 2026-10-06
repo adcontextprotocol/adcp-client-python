@@ -226,7 +226,9 @@ deleted and the generated models go back to agreeing with their schema.
   +from adcp.types.domains.media_buy.package_request import PackageRequest
   ```
 
-  `adcp migrate v3-to-v4` rewrites those lines. The old path also still
+  `adcp migrate v3-to-v4 --apply` rewrites those lines, and `--auto-apply`
+  additionally imports a name from `adcp.types` when every name on the line is
+  bound there. The old path also still
   resolves through the whole 9.x line, emitting a `DeprecationWarning` that
   names the new one — #1360 measured 110 such imports in a single production
   seller, and 9.0 does not break all of them at once. **It is removed in
@@ -250,6 +252,9 @@ deleted and the generated models go back to agreeing with their schema.
   +from adcp.types.domains.brand_discovery import Brand, LocalizedName
   ```
 
+  The codemod resolves this split per imported name — a line that mixes the
+  two halves becomes two import statements — and flags a bare
+  `adcp.types.generated_poc.brand` module reference it cannot place.
   The deprecated name keeps serving both halves for the 9.x line, so an
   unmigrated `from adcp.types.generated_poc.brand import Brand` still works and
   still returns the canonical class. It is the one deprecated name that is a

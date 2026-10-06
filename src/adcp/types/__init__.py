@@ -21,10 +21,18 @@ For a narrower, curated surface, import a partial module instead:
     from adcp.types.buyer import GetProductsRequest
     from adcp.types.seller import Offering, PropertyList
 
-IMPORTANT: Never import directly from adcp.types.domains or
-adcp.types._generated. These are internal modules regenerated from
-upstream schemas. Only import from adcp.types (this module), one of the
-partial modules above, or adcp.
+When the flat namespace cannot bind a name — two schemas declare the same
+class name, or a numbered variant has no semantic alias — import it by its
+schema path under ``adcp.types.domains``, which mirrors the bundle's layout
+and is where codegen defines every class (see docs/type-surface.md):
+
+    from adcp.types.domains.creative.list_creatives_response import Creative
+
+Never import from adcp.types._generated, adcp.types._eager or any other
+underscore-prefixed module: those are internal and change without notice.
+The pre-9.0 ``adcp.types.generated_poc`` path still resolves with a
+``DeprecationWarning`` and is removed in v10; ``adcp migrate v3-to-v4
+--apply`` rewrites it to ``adcp.types.domains``.
 
 Type Coercion:
     Request types accept flexible input for developer ergonomics:

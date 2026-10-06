@@ -23,8 +23,9 @@ def main() -> int:
             "usage: python -m adcp.migrate <migration> <path> [options]\n"
             "\n"
             "Migrations:\n"
-            "  v3-to-v4    Rewrite <Type>Asset → <Type>Content and flag\n"
-            "              removed-type usages (BrandManifest, DeliverTo, etc).\n"
+            "  v3-to-v4    Rewrite <Type>Asset → <Type>Content, rename\n"
+            "              adcp.types.generated_poc imports to adcp.types.domains,\n"
+            "              and flag removed-type usages (BrandManifest, DeliverTo, etc).\n"
             "\n"
             "Run `python -m adcp.migrate <migration> --help` for per-migration options.\n",
             file=sys.stderr,

@@ -25,11 +25,16 @@ python -m adcp.migrate v3-to-v4 ./src --auto-apply
 python -m adcp.migrate v3-to-v4 ./src --json
 ```
 
-`--auto-apply` implies `--apply` and additionally rewrites the ~78% of findings
-that are mechanically safe: `from adcp.types.generated_poc.X import Symbol` lines
-where every symbol has a known public alias on `adcp.types`, and `Assets<N>` numbered
-classes that have a documented semantic alias (`Assets81 → VideoFormatAsset`, etc.).
-`flag_removed` findings always require human attention.
+`--apply` rewrites the nine `<Type>Asset` renames and every
+`adcp.types.generated_poc` import path to `adcp.types.domains`, where the
+generated tree lives from 9.0 under the same module stems (see
+[generated_poc brand split](#generated_poc-brand-split) for the one stem that
+did not move whole). `--auto-apply` implies `--apply` and additionally rewrites
+the findings that are mechanically safe: `from adcp.types.generated_poc.X import
+Symbol` lines where every symbol has a known public alias on `adcp.types` are
+imported from there instead of the domain path, and `Assets<N>` numbered classes
+that have a documented semantic alias (`Assets81 → VideoFormatAsset`, etc.) are
+renamed. `flag_removed` findings always require human attention.
 
 The CLI exits 0 when all remaining findings are mechanical (or none); exits 1 when
 `flag_removed` findings remain for human review — wire it into CI to gate merges
@@ -78,10 +83,10 @@ felt blast radius, work in this order:
    re-export to the rest of your codebase (e.g. a `_base.py` schema barrel).
    Fix those before anything else — most of your test-collection failures
    disappear.
-2. **`adcp.types.generated_poc` reach-ins.** The codemod's per-symbol mapping
-   tells you the public alias for each (`ContextObject` →
-   `adcp.types.ContextObject`, etc.). Mechanical lookup once you know the
-   pattern.
+2. **`adcp.types.generated_poc` reach-ins.** `--apply` renames the path to
+   `adcp.types.domains`, and the report's hint names the public alias where a
+   symbol has one (`ContextObject` → `adcp.types.ContextObject`, etc.) so
+   `--auto-apply` can import it from the flat surface instead.
 3. **Numbered `Assets<N>` imports.** Switch to the semantic alias from
    `adcp.types`. See [Numbered discriminated-union classes
    shifted](#numbered-discriminated-union-classes-shifted) below.
@@ -316,6 +321,19 @@ manifest = result.brand_manifest  # Either `brand` or `brand_manifest` worked
 result = await registry.lookup_brand("nike.com")
 manifest = result.brand  # Only `.brand`
 ```
+
+## generated_poc brand split
+
+`brand.json` shares its basename with the `brand/*.json` task schemas, so the
+pre-9.0 `adcp.types.generated_poc.brand` module *was* that discovery schema
+(`Brand`, `LocalizedName`, 138 more), while `adcp.types.domains.brand` is the
+aggregator over `domains/brand/<schema>.py`. The discovery classes are at
+`adcp.types.domains.brand_discovery`. `adcp migrate v3-to-v4 --apply` resolves
+each imported name to its half — a line that mixes the two becomes two import
+statements — and flags what it cannot place: a bare module reference such as
+`import adcp.types.generated_poc.brand as b` or a name neither half binds.
+Rewrite those by hand with the two module paths above. The deprecated name
+keeps serving both halves through 9.x; see `docs/types-9-migration.md`.
 
 ## Numbered discriminated-union classes shifted
 

@@ -11,11 +11,19 @@ Two kinds of findings:
 
 * **Applied**: direct name rewrites (``AudioAsset`` → ``AudioContent``
   etc). The 9 rename targets are distinctive enough that word-boundary
-  regex is safe; sellers should still review the diff.
-* **Flagged**: removed types, numbered ``Assets<N>`` imports,
-  ``adcp.types.generated_poc`` imports. These don't rewrite — the
-  seller has to choose the replacement (e.g. ``BrandManifest`` →
-  ``BrandReference(domain=...)`` depends on call-site context).
+  regex is safe; sellers should still review the diff. The
+  ``adcp.types.generated_poc`` → ``adcp.types.domains`` import-path
+  rename is applied the same way (#1417): the generated tree moved
+  there with its module stems unchanged, and the old path returns the
+  same objects, so the rewrite is mechanical. The one stem that split,
+  ``brand``, is resolved per imported name against the two halves it
+  became (``domains.brand_discovery`` for ``brand.json``'s classes,
+  ``domains.brand`` for the task-schema aggregator) and flagged when
+  it cannot be.
+* **Flagged**: removed types and numbered ``Assets<N>`` imports.
+  These don't rewrite — the seller has to choose the replacement
+  (e.g. ``BrandManifest`` → ``BrandReference(domain=...)`` depends on
+  call-site context).
 
 Invocation::
 
@@ -25,14 +33,16 @@ Invocation::
     python -m adcp.migrate v3-to-v4 ./src --json        # structured report
 
 The dry run is the default — you always see what would change before
-anything moves. ``--apply`` rewrites the 9 ``<Type>Asset`` renames in
-place.  ``--auto-apply`` implies ``--apply`` and additionally rewrites
-``flag_private`` findings whose target symbol is a known public alias in
-``adcp.types``, and ``flag_numbered`` findings with a documented semantic
-alias (``Assets81`` → ``VideoFormatAsset``, etc.).  ``flag_removed``
-findings always require human review and remain flagged even with
-``--auto-apply``.  Commit your tree before running either write mode so
-``git diff`` is your review view.
+anything moves. ``--apply`` rewrites the 9 ``<Type>Asset`` renames and
+the ``generated_poc`` → ``domains`` import paths in place.
+``--auto-apply`` implies ``--apply`` and additionally lifts a
+``generated_poc`` import to ``adcp.types`` when every name on the line is
+a known public alias there (the flat surface is the first choice; a
+domain path is for a name it cannot bind), and rewrites ``flag_numbered``
+findings with a documented semantic alias (``Assets81`` →
+``VideoFormatAsset``, etc.).  ``flag_removed`` findings always require
+human review and remain flagged even with ``--auto-apply``.  Commit your
+tree before running either write mode so ``git diff`` is your review view.
 
 .. important::
    The codemod matches identifiers textually (word-boundary regex, not
@@ -50,6 +60,7 @@ from __future__ import annotations
 
 import argparse
 import importlib
+import importlib.util
 import json
 import re
 import sys
@@ -126,12 +137,235 @@ REMOVED_ENUM_VALUES: dict[str, tuple[str, str]] = {
 }
 
 
+# The pre-9.0 generated tree's import path and where it moved (#1417). Every
+# module stem under the first is served by the same stem under the second, so
+# the rewrite is a prefix rename, with one exception: a root discovery schema
+# whose basename collided with a task-schema directory split into
+# ``<stem>_discovery`` (its own classes) and ``<stem>`` (the aggregator).
+# ``adcp.types._generated_poc_alias`` is the runtime half of the same contract.
+DEPRECATED_TYPES_ROOT = "adcp.types.generated_poc"
+CANONICAL_TYPES_ROOT = "adcp.types.domains"
+ROOT_DISCOVERY_SUFFIX = "_discovery"
+
+# Any ``adcp.types.generated_poc[.a.b]`` reference — an ``import`` statement,
+# a dotted attribute access, the module half of a multi-line ``from`` import.
+_GENERATED_POC_REF = re.compile(r"\badcp\.types\.generated_poc(?P<rest>(?:\.\w+)*)")
+
 # Private-module imports that shouldn't appear in downstream code.
 PRIVATE_IMPORT_PATHS: dict[str, str] = {
-    "adcp.types.generated_poc": (
-        "private module — import from adcp.types (stable public API) instead"
+    DEPRECATED_TYPES_ROOT: (
+        "deprecated path — the generated tree lives at adcp.types.domains under "
+        "the same module stems; --apply renames the prefix"
     ),
 }
+
+
+def _split_halves(stem: str) -> tuple[str, str] | None:
+    """``("adcp.types.domains.brand_discovery", "adcp.types.domains.brand")`` for a
+    split domain stem, ``None`` for a stem that moved whole.
+
+    Answered by what the installed SDK ships rather than a table here, so a
+    schema added to ``scripts/generate_types.py``'s ``ROOT_DISCOVERY_SCHEMAS``
+    tomorrow is resolved without touching this file. The ``_discovery`` suffix is
+    the generator's own, the same one ``adcp.types._generated_poc_alias`` serves
+    at runtime; ``tests/test_migrate_v3_to_v4.py`` pins the two spellings equal.
+    """
+    if not stem or "." in stem:
+        return None
+    canonical = f"{CANONICAL_TYPES_ROOT}.{stem}"
+    discovery = f"{canonical}{ROOT_DISCOVERY_SUFFIX}"
+    try:
+        if importlib.util.find_spec(discovery) is None:
+            return None
+    except (ImportError, AttributeError, ValueError):
+        return None
+    return discovery, canonical
+
+
+def _resolve_split_symbol(stem: str, symbol: str) -> str | None:
+    """The half of a split stem that binds ``symbol``; discovery half first.
+
+    Discovery first because that is the surface the pre-9.0 module had — a name
+    both halves bind (``Asset``, ``Fonts``) meant the discovery schema's class
+    to code written against ``generated_poc.brand``.
+    """
+    halves = _split_halves(stem)
+    if halves is None:
+        return None
+    for module_name in halves:
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            continue
+        if hasattr(module, symbol):
+            return module_name
+    return None
+
+
+def _split_hint(stem: str, symbols: list[str]) -> str:
+    halves = _split_halves(stem) or (
+        f"{CANONICAL_TYPES_ROOT}.{stem}_discovery",
+        f"{CANONICAL_TYPES_ROOT}.{stem}",
+    )
+    names = ", ".join(symbols) if symbols else "the names used"
+    return (
+        f"`{stem}` split in two in 9.0: {halves[0]} holds the classes the old module "
+        f"declared and {halves[1]} the ones its domain aggregates. Resolve {names} by "
+        f"hand (see docs/types-9-migration.md)."
+    )
+
+
+def _import_symbols(symbols_text: str) -> tuple[list[str], list[str]]:
+    """``("A", "B as C")`` → raw entries and the names they import."""
+    raws = [raw.strip() for raw in symbols_text.split(",") if raw.strip()]
+    return raws, [raw.split(" as ", 1)[0].strip() for raw in raws]
+
+
+def _plan_from_import(
+    line: str, match: re.Match[str]
+) -> tuple[dict[str, list[str]] | None, str | None]:
+    """Where a ``from adcp.types.generated_poc.<module> import ...`` line goes.
+
+    Returns ``(targets, None)`` — new module path → raw import entries, one key
+    for a whole-stem rename, two when a split stem's names resolve to different
+    halves — or ``(None, hint)`` when a split stem's names cannot be resolved,
+    or the line would have to be split and is not alone on its line.
+    """
+    module = match.group("module") or ""
+    raws, symbols = _import_symbols(match.group("symbols"))
+    if not module:
+        # ``from adcp.types.generated_poc import brand`` names subpackages; a
+        # split stem among them has no single new module.
+        split = [symbol for symbol in symbols if _split_halves(symbol) is not None]
+        if split:
+            return None, _split_hint(split[0], [])
+        return {CANONICAL_TYPES_ROOT: raws}, None
+    if _split_halves(module) is None:
+        return {f"{CANONICAL_TYPES_ROOT}.{module}": raws}, None
+    grouped: dict[str, list[str]] = {}
+    unresolved: list[str] = []
+    for raw, symbol in zip(raws, symbols, strict=True):
+        target = _resolve_split_symbol(module, symbol)
+        if target is None:
+            unresolved.append(symbol)
+        else:
+            grouped.setdefault(target, []).append(raw)
+    if unresolved or not grouped:
+        return None, _split_hint(module, unresolved)
+    if len(grouped) > 1 and line[: match.start()].strip():
+        # Two import statements are needed and the ``from`` shares its line
+        # with other code; a textual split would corrupt it.
+        return None, _split_hint(module, symbols)
+    return grouped, None
+
+
+def _is_split_reference(rest: str) -> bool:
+    """``.brand`` (exactly the split stem) is ambiguous; ``.brand.x`` is not."""
+    return rest.count(".") == 1 and _split_halves(rest[1:]) is not None
+
+
+def _lift_hint(module: str, symbols: list[str]) -> str | None:
+    """Name the ``adcp.types`` home of any symbol that has one, for the report."""
+    lifted = [
+        f"{symbol} → {replacement}"
+        for symbol in symbols
+        if (replacement := _generated_symbol_replacement(module, symbol)) is not None
+    ]
+    if not lifted:
+        return None
+    return "also bound on the flat surface (--auto-apply imports from there): " + ", ".join(lifted)
+
+
+def _prefix_rename_findings(path: Path, lineno: int, line: str) -> list[Finding]:
+    """The ``rename_import`` (or split ``flag_private``) findings for one line."""
+    findings: list[Finding] = []
+    column = line.index(DEPRECATED_TYPES_ROOT) + 1
+    from_match = _GENERATED_POC_FROM_IMPORT.search(line)
+    if from_match is not None:
+        module = from_match.group("module") or ""
+        _raws, symbols = _import_symbols(from_match.group("symbols"))
+        targets, hint = _plan_from_import(line, from_match)
+        before = f"{DEPRECATED_TYPES_ROOT}.{module}" if module else DEPRECATED_TYPES_ROOT
+        if targets is None:
+            findings.append(
+                Finding(
+                    kind="flag_private",
+                    path=str(path),
+                    line=lineno,
+                    column=column,
+                    before=before,
+                    hint=hint,
+                    migration_anchor="generated_poc-brand-split",
+                )
+            )
+            return findings
+        for target in targets:
+            findings.append(
+                Finding(
+                    kind="rename_import",
+                    path=str(path),
+                    line=lineno,
+                    column=column,
+                    before=before,
+                    after=target,
+                    hint=_lift_hint(module, symbols),
+                )
+            )
+        return findings
+    for match in _GENERATED_POC_REF.finditer(line):
+        rest = match.group("rest")
+        if _is_split_reference(rest):
+            findings.append(
+                Finding(
+                    kind="flag_private",
+                    path=str(path),
+                    line=lineno,
+                    column=match.start() + 1,
+                    before=match.group(0),
+                    hint=_split_hint(rest[1:], []),
+                    migration_anchor="generated_poc-brand-split",
+                )
+            )
+        else:
+            findings.append(
+                Finding(
+                    kind="rename_import",
+                    path=str(path),
+                    line=lineno,
+                    column=match.start() + 1,
+                    before=match.group(0),
+                    after=CANONICAL_TYPES_ROOT + rest,
+                )
+            )
+    return findings
+
+
+def _prefix_rename_line(text_line: str) -> str:
+    """Apply the import-path rename to one line; a flagged reference is left alone."""
+    from_match = _GENERATED_POC_FROM_IMPORT.search(text_line)
+    if from_match is not None:
+        targets, _hint = _plan_from_import(text_line, from_match)
+        if targets is None:
+            return text_line
+        head = text_line[: from_match.start()]
+        tail = text_line[from_match.end() :]
+        if len(targets) == 1:
+            (target,) = targets
+            symbols_text = from_match.group("symbols")
+            return f"{head}from {target} import {symbols_text}{tail}"
+        newline = "\r\n" if tail.endswith("\r\n") else "\n"
+        statements = [
+            f"{head}from {target} import {', '.join(raws)}" for target, raws in targets.items()
+        ]
+        return newline.join(statements) + tail
+    return _GENERATED_POC_REF.sub(
+        lambda match: (
+            match.group(0)
+            if _is_split_reference(match.group("rest"))
+            else CANONICAL_TYPES_ROOT + match.group("rest")
+        ),
+        text_line,
+    )
 
 
 # Per-symbol mapping for the most common ``generated_poc`` reach-ins
@@ -322,9 +556,9 @@ NUMBERED_ASSETS_RENAMES: dict[str, str] = {
 class Finding:
     """One migration finding — either an applied rename or a manual TODO."""
 
-    # Valid kind values: "rename" | "auto_applied" | "flag_removed" |
-    #   "flag_private" | "flag_numbered" | "flag_attribute" |
-    #   "flag_enum_value"
+    # Valid kind values: "rename" | "rename_import" | "auto_applied" |
+    #   "flag_removed" | "flag_private" | "flag_numbered" |
+    #   "flag_attribute" | "flag_enum_value"
     kind: str
     path: str
     line: int
@@ -346,7 +580,7 @@ class Report:
     rewritten_files: int = 0
 
     def add(self, finding: Finding) -> None:
-        if finding.kind == "rename":
+        if finding.kind in ("rename", "rename_import"):
             self.applied.append(finding)
         elif finding.kind == "auto_applied":
             self.auto_applied.append(finding)
@@ -458,6 +692,7 @@ def scan_file(
     updated = original
     rename_hits = False
     auto_apply_hits = False  # any numbered or private-import rewrites queued
+    rename_import_hits = False  # any generated_poc → domains path renames queued
 
     for lineno, line in enumerate(original.splitlines(), start=1):
         # Pre-pass: when this line is a single-line ``generated_poc``
@@ -548,125 +783,54 @@ def scan_file(
                     )
                 )
 
-        # adcp.types.generated_poc imports.
+        # adcp.types.generated_poc references (#1417).
         #
-        # When the line is a single-line
+        # Under ``--auto-apply``, a single-line
         #   ``from adcp.types.generated_poc.<path> import <symbols>``
-        # emit one per-symbol Finding.  For symbols in
-        # GENERATED_POC_SYMBOL_MAP the Finding carries the public alias;
-        # unknown symbols get the generic "private module" flag so they
-        # still surface (fixing the prior silent-drop on mixed lines).
+        # whose every symbol is a known public alias (or a mapped numbered
+        # asset) is lifted to ``adcp.types`` — one ``auto_applied`` Finding
+        # per symbol. Every other reference is a prefix rename to
+        # ``adcp.types.domains`` (``rename_import``, applied by ``--apply``),
+        # except a bare split stem (``generated_poc.brand``) whose names
+        # cannot be placed, which is flagged with the two halves named.
         #
-        # Under ``--auto-apply`` the per-symbol findings are promoted to
-        # ``auto_applied`` only when ALL symbols on the line are in the
-        # map — a mixed line cannot be safely rewritten without splitting
-        # the import statement, so it remains flagged.
-        #
-        # Numbered-Assets imports (e.g. ``import Assets81``) appear here
-        # too.  Those are handled by the numbered pass above and will be
-        # fixed by the post-scan import-path rewrite; suppress the extra
-        # generic flag so the report doesn't double-count them.
-        for private_path, hint in PRIVATE_IMPORT_PATHS.items():
-            if private_path not in line:
-                continue
-            col = line.index(private_path) + 1
+        # Numbered-Assets imports appear on these lines too; the numbered
+        # pass above owns their Findings.
+        if DEPRECATED_TYPES_ROOT in line:
             from_match = _GENERATED_POC_FROM_IMPORT.search(line)
-            if from_match:
+            lifted = False
+            if from_match is not None and auto_apply and not line_is_mixed_unsafe_import:
                 module = from_match.group("module") or ""
-                raw_symbols = [s.strip() for s in from_match.group("symbols").split(",")]
-                parsed: list[tuple[str, str | None]] = []
-                for raw in raw_symbols:
-                    raw = raw.strip()
-                    if not raw:
-                        continue
-                    symbol = raw.split(" as ")[0].strip()
-                    if not symbol:
-                        continue
-                    parsed.append((symbol, _generated_symbol_replacement(module, symbol)))
-
-                if not parsed:
+                _raws, symbols = _import_symbols(from_match.group("symbols"))
+                lifted = bool(symbols)
+                for symbol in symbols:
+                    replacement = _generated_symbol_replacement(module, symbol)
+                    if replacement is None:
+                        continue  # a mapped numbered asset; the numbered pass reported it
+                    sym_col = line.find(symbol, from_match.start(1)) + 1
                     findings.append(
                         Finding(
-                            kind="flag_private",
+                            kind="auto_applied",
                             path=str(path),
                             line=lineno,
-                            column=col,
-                            before=private_path,
-                            hint=hint,
+                            column=(
+                                sym_col if sym_col > 0 else line.index(DEPRECATED_TYPES_ROOT) + 1
+                            ),
+                            before=symbol,
+                            after=replacement,
+                            hint=(
+                                "deprecated path — import "
+                                f"{replacement.rsplit('.', 1)[-1]} from "
+                                "adcp.types (stable public API) instead"
+                            ),
                         )
                     )
-                    continue
-
-                all_known = all(
-                    repl is not None or (auto_apply and symbol in NUMBERED_ASSETS_RENAMES)
-                    for symbol, repl in parsed
-                )
-
-                for symbol, replacement in parsed:
-                    sym_col = line.find(symbol, from_match.start(1)) + 1
-                    if sym_col <= 0:
-                        sym_col = col
-                    if replacement is not None:
-                        kind = "auto_applied" if (auto_apply and all_known) else "flag_private"
-                        if kind == "auto_applied":
-                            auto_apply_hits = True
-                        findings.append(
-                            Finding(
-                                kind=kind,
-                                path=str(path),
-                                line=lineno,
-                                column=sym_col,
-                                before=symbol,
-                                after=replacement,
-                                hint=(
-                                    "private module — import "
-                                    f"{replacement.rsplit('.', 1)[-1]} from "
-                                    "adcp.types (stable public API) instead"
-                                ),
-                            )
-                        )
-                    else:
-                        # Unknown symbol.  Suppress the generic flag when
-                        # auto_apply is active and the symbol is a numbered
-                        # asset that will be renamed by the other pass —
-                        # the import-path fix covers it.
-                        if auto_apply and symbol in NUMBERED_ASSETS_RENAMES:
-                            continue
-                        proposed = _proposed_generated_symbol_replacement(module, symbol)
-                        if proposed is not None:
-                            findings.append(
-                                Finding(
-                                    kind="flag_private",
-                                    path=str(path),
-                                    line=lineno,
-                                    column=sym_col,
-                                    before=symbol,
-                                    hint=_unsafe_replacement_hint(module, symbol, proposed),
-                                )
-                            )
-                            continue
-                        findings.append(
-                            Finding(
-                                kind="flag_private",
-                                path=str(path),
-                                line=lineno,
-                                column=sym_col,
-                                before=private_path,
-                                hint=hint,
-                            )
-                        )
-            else:
-                # Multiline import, star import, or regex mismatch.
-                findings.append(
-                    Finding(
-                        kind="flag_private",
-                        path=str(path),
-                        line=lineno,
-                        column=col,
-                        before=private_path,
-                        hint=hint,
-                    )
-                )
+                    auto_apply_hits = True
+            if not lifted:
+                for finding in _prefix_rename_findings(path, lineno, line):
+                    findings.append(finding)
+                    if finding.kind == "rename_import":
+                        rename_import_hits = True
 
         # Removed attribute accesses (.brand_manifest etc.). Regex with
         # trailing word boundary prevents false-positives on
@@ -773,6 +937,16 @@ def scan_file(
         updated = "".join(new_lines)
         needs_write = True
 
+    if apply_changes and rename_import_hits and DEPRECATED_TYPES_ROOT in updated:
+        # After any lift to ``adcp.types`` above, every remaining
+        # ``generated_poc`` reference is a prefix rename (or a flagged split
+        # stem, which ``_prefix_rename_line`` leaves alone).
+        updated = "".join(
+            _prefix_rename_line(text_line) if DEPRECATED_TYPES_ROOT in text_line else text_line
+            for text_line in updated.splitlines(keepends=True)
+        )
+        needs_write = True
+
     if needs_write:
         return findings, updated
     return findings, None
@@ -804,11 +978,13 @@ def _format_text_report(report: Report, *, apply_changes: bool, auto_apply: bool
     lines.append(f"adcp migrate v3-to-v4 — scanned {report.scanned_files} files")
     lines.append("")
 
-    if report.applied:
-        lines.append(f"Asset renames {mode}: {len(report.applied)}")
+    asset_renames = [f for f in report.applied if f.kind == "rename"]
+    import_renames = [f for f in report.applied if f.kind == "rename_import"]
+    if asset_renames:
+        lines.append(f"Asset renames {mode}: {len(asset_renames)}")
         # Group by (before, after) for a compact summary.
         by_rename: dict[str, dict[str, list[Finding]]] = {}
-        for f in report.applied:
+        for f in asset_renames:
             by_rename.setdefault(f.before, {}).setdefault(f.after or "?", []).append(f)
         for before, after_map in sorted(by_rename.items()):
             for after, hits in sorted(after_map.items()):
@@ -821,6 +997,25 @@ def _format_text_report(report: Report, *, apply_changes: bool, auto_apply: bool
                     lines.append(f"    … and {len(hits) - 5} more")
     else:
         lines.append("No asset renames needed.")
+
+    if import_renames:
+        lines.append("")
+        lines.append(f"Import path renames {mode}: {len(import_renames)}")
+        by_path: dict[str, dict[str, list[Finding]]] = {}
+        for f in import_renames:
+            by_path.setdefault(f.before, {}).setdefault(f.after or "?", []).append(f)
+        for before, after_map in sorted(by_path.items()):
+            for after, hits in sorted(after_map.items()):
+                lines.append(
+                    f"  {before} → {after}  ({len(hits)} hit{'s' if len(hits) != 1 else ''})"
+                )
+                hint = hits[0].hint
+                if hint:
+                    lines.append(f"    → {hint}")
+                for f in hits[:5]:
+                    lines.append(f"    {f.path}:{f.line}:{f.column}")
+                if len(hits) > 5:
+                    lines.append(f"    … and {len(hits) - 5} more")
 
     if report.auto_applied:
         lines.append("")
@@ -875,11 +1070,11 @@ def _format_text_report(report: Report, *, apply_changes: bool, auto_apply: bool
         lines.append(f"Rewrote {report.rewritten_files} files in place.")
         lines.append("Review with `git diff` before committing.")
 
-    if not auto_apply and any(f.kind in ("flag_private", "flag_numbered") for f in report.flagged):
+    if not auto_apply and any(f.kind == "flag_numbered" for f in report.flagged):
         lines.append("")
         lines.append(
-            "Tip: rerun with --auto-apply to mechanically fix the "
-            "flag_private and flag_numbered findings above."
+            "Tip: rerun with --auto-apply to mechanically fix the flag_numbered "
+            "findings above and import from adcp.types where a name is bound there."
         )
 
     return "\n".join(lines)
@@ -903,8 +1098,9 @@ stay at the same version.
       "scanned_files": int,
       "rewritten_files": int,
       "applied": [
-        {"kind": "rename", "path": str, "line": int, "column": int,
-         "before": str, "after": str, "hint": null, "migration_anchor": null}
+        {"kind": "rename" | "rename_import", "path": str, "line": int,
+         "column": int, "before": str, "after": str, "hint": str | null,
+         "migration_anchor": null}
       ],
       "auto_applied": [
         {"kind": "auto_applied", "path": str, "line": int, "column": int,
@@ -918,7 +1114,10 @@ stay at the same version.
       ]
     }
 
-``auto_applied`` is an additive field (v1, no version bump needed).
+``auto_applied`` is an additive field (v1, no version bump needed), and so
+is the ``rename_import`` kind in ``applied`` (#1417): the
+``adcp.types.generated_poc`` → ``adcp.types.domains`` import-path rename,
+reported with the old module path in ``before`` and the new one in ``after``.
 Parsers that don't know about it receive an empty array in non-``--auto-apply``
 runs and can safely ignore it.  Entries in ``flagged`` always require
 human attention regardless of what ``auto_applied`` contains.
@@ -987,7 +1186,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="adcp.migrate v3-to-v4",
         description=(
-            "Rewrite adcp 3.x → 4.0 ``<Type>Asset`` → ``<Type>Content`` renames "
+            "Rewrite adcp 3.x → 4.0 ``<Type>Asset`` → ``<Type>Content`` renames, "
+            "rename adcp.types.generated_poc imports to adcp.types.domains, "
             "and flag usages of removed types. "
             "Exits 0 when all findings are mechanical (or none); "
             "exits 1 when flag_removed findings remain for human review; "
@@ -1003,10 +1203,10 @@ def main(argv: list[str] | None = None) -> int:
         "--apply",
         action="store_true",
         help=(
-            "Rewrite files in place. Default is dry-run (report only). "
-            "Commit your tree first so `git diff` is your review view. "
-            "See also --auto-apply to also mechanically fix flag_private "
-            "and flag_numbered findings."
+            "Rewrite files in place: the <Type>Asset renames and the "
+            "adcp.types.generated_poc → adcp.types.domains import paths. "
+            "Default is dry-run (report only). Commit your tree first so "
+            "`git diff` is your review view. See also --auto-apply."
         ),
     )
     parser.add_argument(
@@ -1015,8 +1215,9 @@ def main(argv: list[str] | None = None) -> int:
         dest="auto_apply",
         help=(
             "Rewrite files in place (implies --apply) and additionally "
-            "auto-apply safe import rewrites: flag_private findings "
-            "whose target symbol exists on adcp.types, and flag_numbered "
+            "auto-apply safe import rewrites: a generated_poc import "
+            "whose every symbol is bound on adcp.types is imported from "
+            "there instead of the domain path, and flag_numbered "
             "findings with a documented semantic alias (Assets81 → "
             "VideoFormatAsset, etc.). flag_removed findings always "
             "require human review and remain flagged; exit code 1 when "

@@ -11,9 +11,10 @@ rename::
     -from adcp.types.generated_poc.media_buy.package_request import PackageRequest
     +from adcp.types.domains.media_buy.package_request import PackageRequest
 
-``adcp migrate v3-to-v4`` rewrites those lines; ``adcp.types`` remains the
-first choice, and a domain path is for a name the flat namespace cannot bind,
-as ``docs/type-surface.md`` describes.
+``adcp migrate v3-to-v4 --apply`` rewrites those lines (and resolves the
+split stem below per imported name); ``adcp.types`` remains the first choice,
+and a domain path is for a name the flat namespace cannot bind, as
+``docs/type-surface.md`` describes.
 
 **A root discovery schema is the exception, and a prefix rename loses it.**
 ``scripts/generate_types.py``'s ``ROOT_DISCOVERY_SCHEMAS`` names every schema
@@ -258,14 +259,15 @@ class _AliasFinder:
                 advice = (
                     f"import {canonical} instead. The module stems are "
                     f"unchanged, so this is a prefix rename, and "
-                    f"`adcp migrate v3-to-v4` rewrites it."
+                    f"`adcp migrate v3-to-v4 --apply` rewrites it."
                 )
             else:
                 advice = (
                     f"import {discovery} for the classes this module declared "
                     f"and {canonical} for the ones its domain aggregates — this "
                     f"stem split in two, so it is the one case that is not a "
-                    f"prefix rename. See docs/types-9-migration.md."
+                    f"prefix rename; `adcp migrate v3-to-v4 --apply` resolves each "
+                    f"imported name to its half. See docs/types-9-migration.md."
                 )
             warnings.warn(
                 f"{fullname} is deprecated since adcp 9.0 and is removed in "
