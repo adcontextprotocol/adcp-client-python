@@ -6,6 +6,9 @@ normalizes the proposed `pyproject.toml` prerelease version to PEP 440 (a
 no-op for stable versions). Review and merge that PR once its required checks
 and reviews pass.
 
+Version-only bot release PRs, including betas, run interpreter compatibility
+checks and verify the metadata in their built wheel and sdist.
+
 SDK 9 is on the beta channel. The root package in
 `release-please-config.json` uses `versioning: prerelease`,
 `prerelease-type: beta`, and `prerelease: true`, so subsequent releases

@@ -12,7 +12,10 @@ from pathlib import Path
 DOCUMENTATION_FILES = {"AGENTS.md", "CHANGELOG.md", "CLAUDE.md", "CONTRIBUTING.md", "LADON.md"}
 SHA = re.compile(r"[0-9a-f]{40}")
 STABLE_VERSION = r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
-PROJECT_VERSION = re.compile(r'(version\s*=\s*")(' + STABLE_VERSION + r')("\s*)')
+PRERELEASE = re.compile(r"(" + STABLE_VERSION + r")(a|b|rc)(0|[1-9][0-9]*)")
+PROJECT_VERSION = re.compile(
+    r'(version\s*=\s*")(' + STABLE_VERSION + r'(?:(?:a|b|rc)(?:0|[1-9][0-9]*))?)("\s*)'
+)
 RELEASE_FILES = {"pyproject.toml", ".release-please-manifest.json", "CHANGELOG.md"}
 RELEASE_BRANCHES = {
     "release-please--branches--main",
@@ -132,7 +135,7 @@ def scope_for_paths(paths: list[str]) -> Scope:
 
 
 def project_version(text: str) -> tuple[str, str] | None:
-    """Remove one stable [project] version while preserving every other byte."""
+    """Remove one normalized [project] version while preserving every other byte."""
     try:
         import tomllib
     except ModuleNotFoundError:
@@ -159,6 +162,27 @@ def project_version(text: str) -> tuple[str, str] | None:
     if len(found) != 1 or found[0] != version:
         return None
     return found[0], "".join(normalized)
+
+
+def release_version(version: str) -> tuple[tuple[int, ...], str]:
+    """Compare supported PEP 440 versions and recover the SemVer manifest value.
+
+    This script runs alone in CI's sparse checkout, before installing any
+    dependencies. Accept exactly the stable and alpha/beta/rc spellings emitted
+    by the release normalizer; every other version requires full CI.
+    """
+    match = PRERELEASE.fullmatch(version)
+    if match:
+        release, label, number = match.groups()
+        labels = {"a": (0, "alpha"), "b": (1, "beta"), "rc": (2, "rc")}
+        rank, semver_label = labels[label]
+        return (
+            (*map(int, release.split(".")), rank, int(number)),
+            f"{release}-{semver_label}.{number}",
+        )
+    if not re.fullmatch(STABLE_VERSION, version):
+        raise ValueError("unsupported release version")
+    return (*map(int, version.split(".")), 3, 0), version
 
 
 def is_release_metadata(event: dict, paths: list[str], *, cwd: Path | None) -> bool:
@@ -190,11 +214,13 @@ def is_release_metadata(event: dict, paths: list[str], *, cwd: Path | None) -> b
     after = project_version(git("show", f"{head}:pyproject.toml"))
     if before is None or after is None or before[1] != after[1]:
         return False
-    if tuple(map(int, after[0].split("."))) <= tuple(map(int, before[0].split("."))):
+    before_order, before_manifest = release_version(before[0])
+    after_order, after_manifest = release_version(after[0])
+    if after_order <= before_order:
         return False
     return json.loads(git("show", f"{base}:.release-please-manifest.json")) == {
-        ".": before[0]
-    } and json.loads(git("show", f"{head}:.release-please-manifest.json")) == {".": after[0]}
+        ".": before_manifest
+    } and json.loads(git("show", f"{head}:.release-please-manifest.json")) == {".": after_manifest}
 
 
 def select_scope(event_name: str, event: dict, *, cwd: Path | None = None) -> Scope:
