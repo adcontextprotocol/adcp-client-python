@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import subprocess
+import sys
 import tarfile
 import zipfile
 from pathlib import Path
@@ -12,7 +13,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from scripts.ci import ci_scope
+from scripts.ci import check_release_artifacts, ci_scope
 from scripts.ci.check_release_artifacts import check_artifacts
 from tests.test_ci_scope import commit
 
@@ -276,6 +277,25 @@ def artifacts(directory: Path, version: str, *, name: str = "adcp") -> None:
         member = tarfile.TarInfo("adcp-9.0.0/PKG-INFO")
         member.size = len(data)
         archive.addfile(member, io.BytesIO(data))
+
+
+@pytest.mark.parametrize("manifest,version", [("9.0.0", "9.0.0"), ("9.0.0-beta.1", "9.0.0b1")])
+def test_artifact_cli_uses_the_python_package_version(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    manifest: str,
+    version: str,
+) -> None:
+    artifacts(tmp_path, version)
+    (tmp_path / ".release-please-manifest.json").write_text(json.dumps({".": manifest}))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["check_release_artifacts", str(tmp_path)])
+    # Metadata validation uses real wheel/sdist records. The external uv and
+    # installed-interpreter commands have separate end-to-end release coverage.
+    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: None)
+    check_release_artifacts.main()
+    assert f"all report {version}" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(

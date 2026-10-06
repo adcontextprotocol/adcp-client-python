@@ -13,6 +13,8 @@ from email import policy
 from email.parser import BytesParser
 from pathlib import Path
 
+from scripts.normalize_pyproject_prerelease import pep440_prerelease
+
 
 def check_metadata(data: bytes, version: str) -> None:
     metadata = BytesParser(policy=policy.default).parsebytes(data)
@@ -47,7 +49,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path)
     directory = parser.parse_args().directory
-    version = json.loads(Path(".release-please-manifest.json").read_text())["."]
+    version = pep440_prerelease(json.loads(Path(".release-please-manifest.json").read_text())["."])
     check_artifacts(directory, version)
     wheel = next(directory.glob("*.whl")).resolve()
     with tempfile.TemporaryDirectory(prefix="adcp-release-install-") as temporary:
