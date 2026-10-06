@@ -10,17 +10,37 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 
 from adcp.__main__ import (
     load_payload,
+    main,
     merge_headers,
     parse_header_args,
     resolve_agent_config,
 )
 from adcp.config import save_agent
+
+
+@pytest.mark.parametrize("protocol", [None, "a2a"])
+def test_resolve_cli_forwards_protocol(monkeypatch, capsys, protocol):
+    async def resolve(url, **kwargs):
+        assert url == "https://buyer.example.com/mcp"
+        assert kwargs["protocol"] == (protocol or "mcp")
+        return SimpleNamespace(model_dump_json=lambda **_: '{"resolved": true}')
+
+    monkeypatch.setattr("adcp.signing.agent_resolver.async_resolve_agent", resolve)
+    args = ["adcp", "--resolve", "https://buyer.example.com/mcp", "--agent-type", "sales", "--json"]
+    if protocol:
+        args += ["--protocol", protocol]
+    monkeypatch.setattr(sys, "argv", args)
+    with pytest.raises(SystemExit) as exc:
+        main()
+    assert exc.value.code == 0
+    assert json.loads(capsys.readouterr().out) == {"resolved": True}
 
 
 class TestCLIBasics:

@@ -1,4 +1,4 @@
-"""The signed AdCP 3.2.1 GA release is the live default; rc bundles remain offline.
+"""The signed AdCP 3.2.1 release is the live default and retains historical bundles.
 
 Release identity values below come from the signed 3.2.1 release and its
 ``schemas/releases/3.2.1.json`` pin. Until they are filled in, every test that
@@ -52,12 +52,15 @@ def test_current_pin_and_historical_roots():
     assert files("adcp").joinpath("ADCP_VERSION").read_text().strip() == VERSION
     assert resolve_adcp_version(None) == resolve_adcp_version(VERSION) == WIRE_VERSION
     assert resolve_adcp_version(WIRE_VERSION) == WIRE_VERSION
-    assert set(get_supported_adcp_versions()) == {"3.0", "3.1", WIRE_VERSION}
+    assert set(get_supported_adcp_versions()) == {"3.0", "3.1", WIRE_VERSION, "3.2-rc.7"}
     assert schema_loader._resolve_schema_root(WIRE_VERSION) is not None
     for previous in ("3.2.0-rc.3", "3.2.0-rc.6", "3.2.0-rc.7"):
         assert schema_loader._resolve_schema_root(previous) is not None
-        with pytest.raises(ConfigurationError):
-            resolve_adcp_version(previous)
+        if previous == "3.2.0-rc.7":
+            assert resolve_adcp_version(previous) == WIRE_VERSION
+        else:
+            with pytest.raises(ConfigurationError):
+                resolve_adcp_version(previous)
 
 
 def test_signed_release_and_package_bytes():

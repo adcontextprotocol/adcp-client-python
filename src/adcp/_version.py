@@ -29,6 +29,21 @@ import re
 # definition, so making them part of the pin is a category error.
 COMPATIBLE_ADCP_VERSIONS: tuple[str, ...] = ("3.0", "3.1", "3.2")
 
+# Explicit compatibility bridge for buyers shipped with adcp 8.0.0rc3.
+# rc.7 requests remain valid under the additive 3.2.1 contract. Other
+# prereleases retain their own schema contracts; never infer aliases by pattern.
+_ADCP_VERSION_ALIASES: dict[str, str] = {"3.2-rc.7": "3.2"}
+
+
+def resolve_adcp_version_alias(version: str) -> str:
+    """Resolve an exact wire alias to the release the SDK actually serves.
+
+    Full historical bundle identifiers remain exact: only release-precision
+    wire values are aliased. This preserves archival schema access.
+    """
+    return _ADCP_VERSION_ALIASES.get(version, version)
+
+
 # Major version this SDK is built for. Cross-major pins are rejected at
 # construction. To speak a different major, install the SDK major that
 # targets it.
@@ -169,13 +184,15 @@ def get_supported_adcp_versions() -> tuple[str, ...]:
     can speak. When the packaged spec is a prerelease for one of those
     lines, advertise the exact prerelease instead of the future stable alias
     so buyers can select the schema contract that actually ships with this
-    wheel.
+    wheel. Explicit compatibility aliases are advertised only when their
+    target release is supported.
     """
     packaged = normalize_to_release_precision(_read_packaged_version())
     packaged_base = packaged.split("-", 1)[0]
     versions = [v for v in COMPATIBLE_ADCP_VERSIONS if v != packaged_base or "-" not in packaged]
     if packaged not in versions:
         versions.append(packaged)
+    versions.extend(alias for alias, target in _ADCP_VERSION_ALIASES.items() if target in versions)
     return tuple(versions)
 
 
@@ -187,6 +204,7 @@ def resolve_adcp_version(pin: str | None) -> str:
       is advertised by this SDK.
     - Cross-major pin → raises :class:`ConfigurationError`.
     - Unparseable string → raises :class:`ConfigurationError`.
+    - The explicit ``3.2-rc.7`` compatibility alias resolves to ``3.2``.
 
     All resolved pins are normalized to release-precision before being
     returned, per the spec's wire-value rule
@@ -222,4 +240,4 @@ def resolve_adcp_version(pin: str | None) -> str:
             "values, or omit adcp_version to use the packaged default."
         )
 
-    return normalized
+    return resolve_adcp_version_alias(normalized)

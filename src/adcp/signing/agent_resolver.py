@@ -30,17 +30,16 @@ a per-hop ``trace``. Adopters who want ongoing rotation handling
 instantiate :class:`BrandJsonJwksResolver` directly with the resolved
 ``brand_json_url``; this resolver is one-shot.
 
-The 8 ``request_signature_*`` verifier-side error codes are NOT mapped
-here — those belong to the :func:`verify_from_agent_url` factory (still
-to ship). Resolver-side failures surface as :class:`AgentResolverError`
-with a stable ``code`` attribute.
+Discovery failures retain their specific request-signature cause for verifier
+error mapping and webhook diagnostics. Publisher pins belong to the webhook
+verifier, since agent resolution has no inventory context.
 """
 
 from __future__ import annotations
 
 import asyncio
-import json
 import time
+from collections import OrderedDict
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
@@ -49,19 +48,23 @@ from typing import Any, ClassVar, Literal
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
-from adcp.signing._bounded_http import ResponseTooLargeError, async_read_limited_bytes
 from adcp.signing._idna_canonicalize import canonicalize_host
 from adcp.signing.brand_jwks import (
     BrandAgentType,
     BrandJsonJwksResolver,
     BrandJsonResolverError,
+    _canonical_origin,
+    _canonicalize_url,
 )
+from adcp.signing.canonical import canonicalize_target_uri
+from adcp.signing.etld import host_from, registrable_domain, same_registrable_domain
 from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
 from adcp.signing.jwks import (
     SSRFValidationError,
     StaticJwksResolver,
     async_default_jwks_fetcher,
 )
+from adcp.signing.key_origins import check_key_origin_consistency
 from adcp.signing.replay import (
     InMemoryReplayStore,
     ReplayClaimResult,
@@ -104,10 +107,13 @@ class AgentResolverError(Exception):
     versions and intended for ``except`` clarity / structured logging.
     """
 
-    def __init__(self, code: AgentResolverErrorCode, message: str) -> None:
+    def __init__(
+        self, code: AgentResolverErrorCode, message: str, *, signature_code: str | None = None
+    ) -> None:
         super().__init__(message)
         self.code: AgentResolverErrorCode = code
         self.message = message
+        self.signature_code = signature_code
 
 
 # ---- Trace + AgentResolution ----
@@ -173,6 +179,8 @@ class AgentResolution(BaseModel):
         ),
     )
     trace: list[TraceEntry] = Field(default_factory=list)
+    brand_json: dict[str, Any] = Field(default_factory=dict, repr=False)
+    legacy_discovery: bool = False
 
 
 # ---- Capabilities fetch (the SSRF gap this module closes) ----
@@ -187,24 +195,28 @@ class _CapabilitiesPayload:
 async def _fetch_capabilities(
     agent_url: str,
     *,
+    protocol: Literal["mcp", "a2a"] = "mcp",
     allow_private: bool,
     max_body_bytes: int,
     max_redirects: int,
     timeout_seconds: float,
     client_factory: Callable[[str], AbstractAsyncContextManager[httpx.AsyncClient]] | None,
 ) -> _CapabilitiesPayload:
-    """SSRF-pinned ``GET <agent_url>`` returning the parsed
-    capabilities body and the final URL after redirects (if any are
-    allowed).
+    """Call ``get_adcp_capabilities`` over the agent's pinned protocol endpoint.
 
-    Mirrors the brand.json fetcher's posture: per-hop IP pin via
-    :func:`build_async_ip_pinned_transport`, body cap before parse,
-    no auto-redirect, ``trust_env=False`` so proxy env vars can't
-    rewrite the destination.
-
-    Capabilities-specific tightening: default ``max_redirects=0``
-    blocks cross-origin redirect-as-identity-pivot.
+    HTTP responses are bounded before protocol parsing. Redirects are disabled
+    by default; an explicit redirect allowance still cannot leave the origin.
     """
+    from adcp.signing._resolver_protocol import (
+        DiscoveryTransport,
+        fetch_protocol_capabilities,
+        protocol_validation_failed,
+    )
+
+    if protocol not in {"mcp", "a2a"}:
+        raise ValueError("protocol must be 'mcp' or 'a2a'")
+    if max_body_bytes <= 0 or max_redirects < 0 or timeout_seconds <= 0:
+        raise ValueError("capabilities limits must be positive and redirects non-negative")
     if client_factory is not None:
         client_cm = client_factory(agent_url)
     else:
@@ -225,96 +237,32 @@ async def _fetch_capabilities(
             trust_env=False,
         )
 
-    seen: set[str] = set()
-    url = agent_url
-    for hop in range(max_redirects + 1):
-        if url in seen:
-            raise AgentResolverError(
-                "capabilities_unreachable",
-                "capabilities fetch hit redirect loop",
-            )
-        seen.add(url)
-
+    async with client_cm as client:
+        discovery = DiscoveryTransport(client, agent_url, max_body_bytes, max_redirects)
         try:
-            async with client_cm as client:
-                try:
-                    request_cm = client.stream(
-                        "GET",
-                        url,
-                        headers={"accept": "application/json", "accept-encoding": "identity"},
-                    )
-                    async with request_cm as response:
-                        if 300 <= response.status_code < 400 and "location" in response.headers:
-                            if hop == max_redirects:
-                                raise AgentResolverError(
-                                    "capabilities_unreachable",
-                                    f"capabilities fetch hit redirect limit ({max_redirects})",
-                                )
-                            url = str(httpx.URL(url).join(response.headers["location"]))
-                            try:
-                                transport = build_async_ip_pinned_transport(
-                                    url, allow_private=allow_private
-                                )
-                            except SSRFValidationError as exc:
-                                raise AgentResolverError(
-                                    "capabilities_unreachable",
-                                    f"redirect target failed SSRF check: {exc}",
-                                ) from exc
-                            client_cm = httpx.AsyncClient(
-                                transport=transport,
-                                timeout=timeout_seconds,
-                                follow_redirects=False,
-                                trust_env=False,
-                            )
-                            continue
-
-                        if response.status_code != 200:
-                            raise AgentResolverError(
-                                "capabilities_unreachable",
-                                f"capabilities fetch returned HTTP {response.status_code}",
-                            )
-
-                        try:
-                            body_bytes = await async_read_limited_bytes(
-                                response, limit=max_body_bytes
-                            )
-                        except ResponseTooLargeError as exc:
-                            raise AgentResolverError(
-                                "capabilities_invalid", f"capabilities {exc}"
-                            ) from exc
-
-                        try:
-                            parsed = json.loads(body_bytes)
-                        except (ValueError, UnicodeDecodeError) as exc:
-                            raise AgentResolverError(
-                                "capabilities_invalid",
-                                "capabilities response is not valid JSON",
-                            ) from exc
-                except SSRFValidationError as exc:
-                    raise AgentResolverError(
-                        "capabilities_unreachable",
-                        f"agent_url failed SSRF check: {exc}",
-                    ) from exc
-                except (httpx.HTTPError, OSError) as exc:
-                    raise AgentResolverError(
-                        "capabilities_unreachable",
-                        f"capabilities fetch failed: {exc}",
-                    ) from exc
-
-                if not isinstance(parsed, dict):
-                    raise AgentResolverError(
-                        "capabilities_invalid",
-                        "capabilities response is not a JSON object",
-                    )
-
-                return _CapabilitiesPayload(body=parsed, final_url=url)
-        except AgentResolverError:
-            raise
-
-    # Unreachable: loop body either returns or raises on every iteration.
-    raise AgentResolverError(
-        "capabilities_unreachable", "capabilities fetch exhausted redirect chain"
-    )
+            body = await asyncio.wait_for(
+                fetch_protocol_capabilities(discovery, protocol, timeout_seconds),
+                timeout=timeout_seconds,
+            )
+        except Exception as exc:
+            # SDK task groups may wrap the original failure, or turn it into
+            # a failed task. Preserve discovery's stable error code either way.
+            if discovery.error is not None:
+                if discovery.error is exc:
+                    raise
+                raise discovery.error from exc
+            if isinstance(exc, AgentResolverError):
+                raise
+            code: AgentResolverErrorCode = (
+                "capabilities_invalid"
+                if protocol_validation_failed(exc)
+                else "capabilities_unreachable"
+            )
+            raise AgentResolverError(
+                code,
+                f"get_adcp_capabilities failed: {exc}",
+            ) from exc
+        return _CapabilitiesPayload(body=body, final_url=discovery.final_url)
 
 
 def _extract_brand_json_url(capabilities: dict[str, Any]) -> str:
@@ -330,6 +278,7 @@ def _extract_brand_json_url(capabilities: dict[str, Any]) -> str:
         raise AgentResolverError(
             "brand_json_url_missing",
             "capabilities response has no `identity` object",
+            signature_code="request_signature_brand_json_url_missing",
         )
     brand_json_url = identity.get("brand_json_url")
     if not isinstance(brand_json_url, str) or not brand_json_url:
@@ -337,7 +286,16 @@ def _extract_brand_json_url(capabilities: dict[str, Any]) -> str:
             "brand_json_url_missing",
             "capabilities `identity.brand_json_url` is missing or not a string "
             "(operator must publish 3690 to be discoverable from agent URL)",
+            signature_code="request_signature_brand_json_url_missing",
         )
+    try:
+        _canonicalize_url(brand_json_url, allow_private=False)
+    except (BrandJsonResolverError, ValueError) as exc:
+        raise AgentResolverError(
+            "brand_json_url_missing",
+            "capabilities `identity.brand_json_url` must be a valid HTTPS URL",
+            signature_code="request_signature_brand_json_url_missing",
+        ) from exc
     return brand_json_url
 
 
@@ -396,13 +354,16 @@ def _extract_key_origins(capabilities: dict[str, Any]) -> dict[str, str] | None:
 async def async_resolve_agent(
     agent_url: str,
     *,
-    agent_type: BrandAgentType,
+    agent_type: BrandAgentType | None = None,
     agent_id: str | None = None,
     brand_id: str | None = None,
     allow_private_destinations: bool = False,
     max_capabilities_bytes: int = DEFAULT_MAX_CAPABILITIES_BYTES,
     max_capabilities_redirects: int = DEFAULT_CAPABILITIES_MAX_REDIRECTS,
     capabilities_timeout_seconds: float = DEFAULT_CAPABILITIES_TIMEOUT_SECONDS,
+    protocol: Literal["mcp", "a2a"] = "mcp",
+    allow_legacy_fallback: bool = False,
+    signing_purpose: str | None = None,
     _capabilities_client_factory: (
         Callable[[str], AbstractAsyncContextManager[httpx.AsyncClient]] | None
     ) = None,
@@ -414,21 +375,26 @@ async def async_resolve_agent(
 
     Walks three hops with SSRF guards on each:
 
-    1. ``GET <agent_url>`` — capabilities fetch (this module).
+    1. Invoke ``get_adcp_capabilities`` via the selected transport.
     2. ``GET <identity.brand_json_url>`` — brand.json walk via
        :class:`BrandJsonJwksResolver`.
     3. ``GET <jwks_uri>`` — JWKS fetch via
        :func:`async_default_jwks_fetcher`.
 
-    The selector tuple ``(agent_type, agent_id, brand_id)`` matches the
-    brand.json ``agents[]`` entry. ``agent_type`` is required because
-    brand.json may list multiple agents (sales, governance, creative,
-    etc.) under the same operator and the resolver can't infer which
-    one ``agent_url`` corresponds to from the agent URL alone — that's
-    operator topology, not in the wire response.
+    Canonical ``agent_url`` is the selector. ``agent_type`` and ``agent_id``
+    can only narrow that match; portfolio operator records include house and
+    every inline brand. ``protocol`` selects MCP (default) or A2A invocation.
+    ``allow_legacy_fallback`` enables the 3.x webhook host/eTLD+1 discovery
+    path only when capabilities omit ``identity.brand_json_url``.
     """
     trace: list[TraceEntry] = []
     fetched_at = time.time()
+    try:
+        agent_url = canonicalize_target_uri(
+            _canonicalize_url(agent_url, allow_private=allow_private_destinations)
+        )
+    except (BrandJsonResolverError, ValueError) as exc:
+        raise AgentResolverError("invalid_agent_url", str(exc)) from exc
 
     # --- Hop 1: capabilities ---
     cap_start = time.monotonic()
@@ -440,6 +406,7 @@ async def async_resolve_agent(
             max_redirects=max_capabilities_redirects,
             timeout_seconds=capabilities_timeout_seconds,
             client_factory=_capabilities_client_factory,
+            protocol=protocol,
         )
         trace.append(
             TraceEntry(
@@ -462,17 +429,31 @@ async def async_resolve_agent(
         )
         raise
 
-    brand_json_url = _extract_brand_json_url(capabilities.body)
+    legacy_discovery = False
+    try:
+        brand_json_url = _extract_brand_json_url(capabilities.body)
+    except AgentResolverError:
+        identity = capabilities.body.get("identity", {})
+        if not allow_legacy_fallback or (
+            isinstance(identity, dict) and "brand_json_url" in identity
+        ):
+            raise
+        legacy_discovery = True
+        brand_json_url = f"{_canonical_origin(agent_url, 'agent URL')}/.well-known/brand.json"
     key_origins = _extract_key_origins(capabilities.body)
 
     # --- Hop 2: brand.json ---
     bj_start = time.monotonic()
     brand_kwargs: dict[str, Any] = {
+        "agent_url": agent_url,
         "agent_type": agent_type,
         "agent_id": agent_id,
         "brand_id": brand_id,
         "allow_private_destinations": allow_private_destinations,
     }
+    if legacy_discovery:
+        # The 3.x fallback permits one document-indirection variant, no chain.
+        brand_kwargs["max_redirects"] = 1
     # Only forward _client_factory when caller passed one — keeps the
     # test seam from squashing the patched-init default with None.
     if _brand_jwks_client_factory is not None:
@@ -481,23 +462,55 @@ async def async_resolve_agent(
     try:
         await resolver.force_refresh()
     except BrandJsonResolverError as exc:
-        trace.append(
-            TraceEntry(
-                hop="brand_json",
-                url=brand_json_url,
-                status="error",
-                latency_ms=(time.monotonic() - bj_start) * 1000.0,
-                error_code=exc.code,
-                error_message=str(exc),
+        # The 3.x host fallback tries eTLD+1 only when the host serves no record.
+        domain = registrable_domain(agent_url)
+        if (
+            legacy_discovery
+            and exc.code == "fetch_failed"
+            and exc.status_code == 404
+            and exc.url == brand_json_url
+            and domain
+            and domain != host_from(agent_url)
+        ):
+            brand_json_url = f"https://{domain}/.well-known/brand.json"
+            resolver = BrandJsonJwksResolver(brand_json_url, **brand_kwargs)
+            try:
+                await resolver.force_refresh()
+            except BrandJsonResolverError as fallback_exc:
+                raise _brand_resolution_error(fallback_exc) from fallback_exc
+        else:
+            raise _brand_resolution_error(exc) from exc
+
+    record = resolver.brand_json or {}
+    if not legacy_discovery and not same_registrable_domain(agent_url, brand_json_url):
+        domain = registrable_domain(agent_url)
+        delegated = _operator_origin_delegated(record, domain)
+        if not delegated:
+            raise AgentResolverError(
+                "brand_json_resolution_failed",
+                "agent and operator origins are not bound",
+                signature_code="request_signature_brand_origin_mismatch",
             )
-        )
-        raise AgentResolverError(
-            "brand_json_resolution_failed",
-            f"brand.json resolution failed: {exc.code}: {exc}",
-        ) from exc
 
     jwks_uri = resolver.jwks_uri
     resolved_agent_url = resolver.agent_url
+    if not legacy_discovery and jwks_uri is not None:
+        from adcp.signing.errors import SignatureVerificationError
+
+        try:
+            for purpose in key_origins or {}:
+                check_key_origin_consistency(
+                    jwks_uri=jwks_uri, key_origins=key_origins, purpose=purpose
+                )
+            if signing_purpose is not None:
+                check_key_origin_consistency(
+                    jwks_uri=jwks_uri, key_origins=key_origins, purpose=signing_purpose
+                )
+        except SignatureVerificationError as exc:
+            raise AgentResolverError(
+                "brand_json_resolution_failed", str(exc), signature_code=exc.code
+            ) from exc
+
     if jwks_uri is None or resolved_agent_url is None:
         # Defensive — force_refresh must populate the snapshot or raise.
         raise AgentResolverError(
@@ -551,24 +564,27 @@ async def async_resolve_agent(
     )
 
     return AgentResolution(
-        agent_url=agent_url,
+        agent_url=canonicalize_target_uri(agent_url),
         brand_json_url=brand_json_url,
-        agent_entry=_make_agent_entry(resolved_agent_url, jwks_uri, agent_type, agent_id),
+        agent_entry=resolver.agent_entry or {},
         jwks_uri=jwks_uri,
         jwks=jwks,
         fetched_at=fetched_at,
         key_origins=key_origins,
         trace=trace,
+        brand_json=record,
+        legacy_discovery=legacy_discovery,
     )
 
 
 def resolve_agent(
     agent_url: str,
     *,
-    agent_type: BrandAgentType,
+    agent_type: BrandAgentType | None = None,
     agent_id: str | None = None,
     brand_id: str | None = None,
     allow_private_destinations: bool = False,
+    protocol: Literal["mcp", "a2a"] = "mcp",
 ) -> AgentResolution:
     """Sync wrapper over :func:`async_resolve_agent` for CLI / scripts.
 
@@ -583,6 +599,7 @@ def resolve_agent(
             agent_id=agent_id,
             brand_id=brand_id,
             allow_private_destinations=allow_private_destinations,
+            protocol=protocol,
         )
     )
 
@@ -622,6 +639,37 @@ class _NamespacedReplayStore:
 
 
 _DEFAULT_REPLAY_STORE = InMemoryReplayStore()
+_JWKS_MISS_REFRESHES: OrderedDict[tuple[str, bool], tuple[float, asyncio.Task[dict[str, Any]]]] = (
+    OrderedDict()
+)
+
+
+async def _refresh_jwks_after_miss(uri: str, *, allow_private: bool) -> dict[str, Any] | None:
+    """One fresh refetch per kid miss, with a 30-second per-source cooldown.
+
+    Earlier responses, including pending refreshes, are never reused after a
+    newer discovery fetch missed a key: they may still publish a removed key.
+    """
+    key = (uri, allow_private)
+    previous = _JWKS_MISS_REFRESHES.get(key)
+    now = time.monotonic()
+    if previous is not None:
+        attempted_at, task = previous
+        if not task.done() or now - attempted_at < 30:
+            return None
+    task = asyncio.create_task(async_default_jwks_fetcher(uri, allow_private=allow_private))
+    task.add_done_callback(_consume_jwks_refresh_exception)
+    _JWKS_MISS_REFRESHES[key] = (now, task)
+    _JWKS_MISS_REFRESHES.move_to_end(key)
+    while len(_JWKS_MISS_REFRESHES) > 1024:
+        _JWKS_MISS_REFRESHES.popitem(last=False)
+    return await asyncio.shield(task)
+
+
+def _consume_jwks_refresh_exception(task: asyncio.Task[dict[str, Any]]) -> None:
+    """Retrieve failures even when the shielded caller was cancelled."""
+    if not task.cancelled():
+        task.exception()
 
 
 def _default_replay_store_for_origin(origin: str) -> ReplayStore:
@@ -675,7 +723,7 @@ async def verify_from_agent_url(
     request: Any,
     agent_url: str,
     *,
-    agent_type: BrandAgentType,
+    agent_type: BrandAgentType | None = None,
     operation: str,
     agent_id: str | None = None,
     brand_id: str | None = None,
@@ -687,9 +735,13 @@ async def verify_from_agent_url(
     allow_private_destinations: bool = False,
     signing_purpose: str = "request_signing",
     posture: str | None = None,
+    protocol: Literal["mcp", "a2a"] = "mcp",
 ) -> Any:
     """Single-call factory: resolve ``agent_url`` and verify the
     request signature against the resolved JWKS.
+
+    An unknown key triggers one fresh JWKS fetch, subject to the shared
+    30-second per-source cooldown. Other verification failures never refetch.
 
     Composes :func:`async_resolve_agent` (3-hop walk to the JWK set)
     with the existing :func:`verify_starlette_request` verifier. Use
@@ -736,10 +788,13 @@ async def verify_from_agent_url(
         verifier (passes through with the spec ``code`` already set).
     """
     import time as _time
+    from dataclasses import replace
 
     from adcp.signing.errors import (
+        REQUEST_SIGNATURE_AGENT_NOT_IN_BRAND_JSON,
         REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
         REQUEST_SIGNATURE_JWKS_UNTRUSTED,
+        REQUEST_SIGNATURE_KEY_UNKNOWN,
         SignatureVerificationError,
     )
     from adcp.signing.middleware import verify_starlette_request
@@ -752,6 +807,8 @@ async def verify_from_agent_url(
             agent_id=agent_id,
             brand_id=brand_id,
             allow_private_destinations=allow_private_destinations,
+            signing_purpose=signing_purpose,
+            protocol=protocol,
         )
     except AgentResolverError as exc:
         # invalid_agent_url is a trust-boundary rejection (URL wouldn't
@@ -760,7 +817,7 @@ async def verify_from_agent_url(
         # jwks_fetch_failed) is a discovery-time failure even when
         # underlying cause was SSRF — verifiers map those to
         # JWKS_UNAVAILABLE per the spec's "couldn't get keys" reading.
-        mapped = (
+        mapped = exc.signature_code or (
             REQUEST_SIGNATURE_JWKS_UNTRUSTED
             if exc.code == "invalid_agent_url"
             else REQUEST_SIGNATURE_JWKS_UNAVAILABLE
@@ -778,9 +835,26 @@ async def verify_from_agent_url(
     # marker the verifier would treat a bare ``StaticJwksResolver`` as a
     # publisher-pin-equivalent and skip the check — defeating the
     # production helper's defense against the shared-tenancy spoof.
+    # The signer identity is always the URL the caller asked about, never a
+    # brand.json ``url`` field: a record listing a victim's URL must not let its
+    # keys verify as the victim. Selection is by this URL, so a disagreeing
+    # entry means the resolution is inconsistent and fails closed.
+    signer_agent_url = canonicalize_target_uri(resolution.agent_url)
+    entry_url = resolution.agent_entry.get("url")
+    try:
+        entry_matches = entry_url is None or (
+            isinstance(entry_url, str) and canonicalize_target_uri(entry_url) == signer_agent_url
+        )
+    except ValueError:
+        entry_matches = False
+    if not entry_matches:
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_AGENT_NOT_IN_BRAND_JSON,
+            step="resolve",
+            message="resolved brand.json entry does not match the requested agent URL",
+        )
     if replay_store is _REPLAY_STORE_UNSET:
-        resolved_agent_url = str(resolution.agent_entry.get("url") or resolution.agent_url)
-        replay_store = _default_replay_store_for_origin(_canonical_agent_origin(resolved_agent_url))
+        replay_store = _default_replay_store_for_origin(_canonical_agent_origin(signer_agent_url))
     options = VerifyOptions(
         now=now if now is not None else _time.time(),
         capability=capability if capability is not None else VerifierCapability(supported=True),
@@ -788,36 +862,83 @@ async def verify_from_agent_url(
         jwks_resolver=_BrandJsonStaticJwksResolver(resolution.jwks, jwks_uri=resolution.jwks_uri),
         revocation_checker=revocation_checker,
         revocation_list=revocation_list,
-        agent_url=resolution.agent_entry.get("url"),
+        agent_url=signer_agent_url,
+        operator_brand_json=resolution.brand_json,
         expected_key_origins=resolution.key_origins or {},
         signing_purpose=signing_purpose,
         posture=posture,
         replay_store=replay_store,
     )
-    return await verify_starlette_request(request, options=options)
+
+    class _BodyOnceRequest:
+        def __init__(self, original: Any) -> None:
+            self._original = original
+            self._body: bytes | None = None
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self._original, name)
+
+        async def body(self) -> bytes:
+            if self._body is None:
+                self._body = await self._original.body()
+            return self._body
+
+    buffered_request = _BodyOnceRequest(request)
+    try:
+        return await verify_starlette_request(buffered_request, options=options)
+    except SignatureVerificationError as exc:
+        if exc.code != REQUEST_SIGNATURE_KEY_UNKNOWN or exc.step != 7:
+            raise
+        try:
+            refreshed = await _refresh_jwks_after_miss(
+                resolution.jwks_uri, allow_private=allow_private_destinations
+            )
+        except (SSRFValidationError, httpx.HTTPError, ValueError, OSError) as refresh_exc:
+            raise SignatureVerificationError(
+                REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
+                step=7,
+                message="operator JWKS refresh failed",
+            ) from refresh_exc
+        if refreshed is None:
+            raise
+    refreshed_options = replace(
+        options,
+        jwks_resolver=_BrandJsonStaticJwksResolver(refreshed, jwks_uri=resolution.jwks_uri),
+    )
+    return await verify_starlette_request(buffered_request, options=refreshed_options)
 
 
 # ---- helpers ----
 
 
-def _make_agent_entry(
-    agent_url: str,
-    jwks_uri: str,
-    agent_type: BrandAgentType,
-    agent_id: str | None,
-) -> dict[str, Any]:
-    """Synthesize the matched ``agents[]`` entry from the resolved
-    snapshot. The brand.json walk already discarded the surrounding
-    document; this is the projection consumers want.
-    """
-    entry: dict[str, Any] = {
-        "type": agent_type,
-        "url": agent_url,
-        "jwks_uri": jwks_uri,
+def _brand_resolution_error(exc: BrandJsonResolverError) -> AgentResolverError:
+    codes = {
+        "agent_not_found": "request_signature_agent_not_in_brand_json",
+        "agent_ambiguous": "request_signature_brand_json_ambiguous",
+        "invalid_body": "request_signature_brand_json_malformed",
+        "schema_invalid": "request_signature_brand_json_malformed",
+        "fetch_failed": "request_signature_brand_json_unreachable",
     }
-    if agent_id is not None:
-        entry["id"] = agent_id
-    return entry
+    return AgentResolverError(
+        "brand_json_resolution_failed", str(exc), signature_code=codes.get(exc.code)
+    )
+
+
+def _operator_origin_delegated(record: dict[str, Any], domain: str | None) -> bool:
+    if not isinstance(record.get("house"), dict) or domain is None:
+        return False
+    operators = record.get("authorized_operators")
+    if not isinstance(operators, list):
+        return False
+    for operator in operators:
+        if not isinstance(operator, dict) or not isinstance(operator.get("domain"), str):
+            continue
+        try:
+            if canonicalize_host(operator["domain"]) == domain:
+                return True
+        except (ValueError, UnicodeError):
+            continue
+    return False
 
 
 __all__ = [

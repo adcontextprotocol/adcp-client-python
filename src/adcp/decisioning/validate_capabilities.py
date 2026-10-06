@@ -29,6 +29,8 @@ from typing import TYPE_CHECKING, Any
 
 from adcp.decisioning.dispatch import validate_platform
 from adcp.decisioning.types import AdcpError
+from adcp.validation.envelope import SUPPORTED_WIRE_VERSIONS
+from adcp.validation.schema_loader import list_validator_keys
 from adcp.validation.schema_validator import validate_response
 
 if TYPE_CHECKING:
@@ -103,6 +105,32 @@ def _validate_response_dict(response: Any) -> None:
     response = dict(response)
     response.setdefault("status", "completed")
 
+    # A schema-valid version string need not be a version this wheel can
+    # serve. Check both routing and installed validators before advertising it.
+    adcp = response.get("adcp")
+    versions = adcp.get("supported_versions") if isinstance(adcp, dict) else None
+    if isinstance(versions, list) and all(isinstance(v, str) for v in versions):
+        unsupported = [v for v in versions if v not in SUPPORTED_WIRE_VERSIONS]
+        unavailable = []
+        for version in versions:
+            if version in unsupported:
+                continue
+            keys = list_validator_keys(version=version)
+            if not any(k.endswith("::request") for k in keys) or not any(
+                k.endswith("::sync") for k in keys
+            ):
+                unavailable.append(version)
+        if unsupported or unavailable:
+            raise _violation(
+                "adcp.supported_versions advertises releases this SDK cannot serve "
+                f"(unsupported={unsupported}, schema_unavailable={unavailable})",
+                details={
+                    "unsupported_versions": unsupported,
+                    "schema_unavailable_versions": unavailable,
+                    "supported_versions": list(SUPPORTED_WIRE_VERSIONS),
+                },
+            )
+
     # 1. Schema-driven validation against the bundled spec schema.
     outcome = validate_response("get_adcp_capabilities", response)
     if not outcome.valid:
@@ -173,6 +201,8 @@ def validate_capabilities_response_shape(handler: PlatformHandler) -> None:
        ``protocol/get-adcp-capabilities-response.json`` requires
        ``account.required: ["supported_billing"]`` with
        ``minItems: 1``).
+    4. Advertised ``adcp.supported_versions`` entries are accepted by the
+       dispatcher and have installed request and response validators.
 
     Synchronous entry point — drives the async handler via
     :func:`asyncio.run`, which means **this function cannot be called

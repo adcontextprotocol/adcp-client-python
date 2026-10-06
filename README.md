@@ -347,10 +347,18 @@ adcp.get_adcp_sdk_version()   # SDK package version, e.g. "8.0.0"
 adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.2.1"
 ```
 
+The SDK also accepts and advertises `"3.2-rc.7"` as an explicit compatibility
+alias for buyers shipped with `adcp==8.0.0rc3`. These requests use the stable
+3.2 validators and responses retain the `"3.2-rc.7"` alias so strict rc3
+clients can select their bundled response validator.
+Constructor pins to that alias resolve to `"3.2"`. Other prereleases are
+not automatically aliased.
+
 If you talk to an agent on a newer spec than this SDK validates, the response
 still parses — unknown fields are preserved on the model (but not surfaced as
-typed attributes) and schema validation is skipped for that version, so
-forward traffic degrades gracefully rather than failing.
+typed attributes). Strict schema validation fails closed for native tools when
+an explicit version has no bundled validator, with `VERSION_UNSUPPORTED` and
+the SDK's supported versions in the error details.
 
 ## Documentation
 
@@ -359,6 +367,7 @@ forward traffic degrades gracefully rather than failing.
 - **[Handler authoring](docs/handler-authoring.md)** - Building an AdCP-compliant agent on `adcp.server`
 - **[Production seller path](docs/production-seller.md)** - Choose the server abstraction and wire durable multi-tenant tasks and webhook delivery
 - **[Validation contract](docs/validation-contract.md)** - Canonical wire validation versus structural Pydantic models
+- **[Account lifecycle](docs/account-lifecycle.md)** - Provisioning registry, account policy, seller resolution, and shared public feed overlays
 - **[Reporting source adapters](docs/reporting-source-adapters.md)** - Per-metric availability evidence, coverage, and control totals for inline delivery fetches
 - **[Migrating from SDK 6 to 7](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v6_to_v7.md)** - Breaking API, security, concurrency, and webhook changes
 - **[Migrating from SDK 7 to 8](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v7_to_v8.md)** - Secure webhook defaults and telemetry changes
@@ -1615,6 +1624,11 @@ async def create_media_buy(request: Request):
 ```
 
 Flask has an equivalent synchronous helper `verify_flask_request`.
+
+To discover keys from an agent URL, use `async_resolve_agent` or
+`verify_from_agent_url`. Both call `get_adcp_capabilities` over MCP by default;
+pass `protocol="a2a"` for A2A agents. See
+[agent identity resolution](docs/agent-identity-resolution.md) for examples and limits.
 
 A signed body that is not strict JSON (duplicate object keys at any depth,
 invalid UTF-8, or not JSON) is rejected with `request_body_malformed` after

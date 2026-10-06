@@ -6,9 +6,8 @@ public names (``PreValidationHook``, ``PreValidationHookChain``,
 ``PreValidationHooks``, ``compose_pre_validation_hooks``) for backward
 compatibility, so adopters can keep importing them from either module.
 
-This module has no transport or framework dependencies — it depends only on the
-standard library — so it sits at the bottom of the server import layering and
-every other ``adcp.server`` module may import from it freely.
+Structured rejection types are loaded only on failure, after application
+imports settle, to keep this module at the bottom of the server import layering.
 """
 
 from __future__ import annotations
@@ -79,9 +78,10 @@ def _apply_pre_validation_hooks(
 ) -> dict[str, Any]:
     """Run an ordered hook chain, threading each hook's output into the next.
 
-    Each hook receives a shallow copy of the running params dict. A hook that
-    raises, or returns a non-dict, is wrapped in :class:`PreValidationHookError`
-    naming its chain index and callable.
+    Each hook receives a shallow copy of the running params dict. Deliberate
+    ``AdcpError`` / ``ADCPTaskError`` rejections propagate unchanged. Other
+    exceptions and non-dict returns become :class:`PreValidationHookError`
+    naming the chain index and callable.
     """
     next_params = params
     for index, hook in enumerate(hooks):
@@ -89,6 +89,11 @@ def _apply_pre_validation_hooks(
         try:
             next_params = hook(tool_name, dict(next_params))
         except Exception as exc:
+            from adcp.decisioning.types import AdcpError
+            from adcp.exceptions import ADCPTaskError
+
+            if isinstance(exc, (AdcpError, ADCPTaskError)):
+                raise
             raise PreValidationHookError(
                 index=index,
                 hook_name=hook_name,

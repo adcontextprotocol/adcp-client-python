@@ -22,6 +22,9 @@ from typing import Any
 
 REPOSITORY = "adcontextprotocol/adcp-client-python"
 SHA = re.compile(r"[0-9a-f]{40}")
+# PRs may target main or the SDK 8 maintenance line. Push-time history checks
+# still run only on main; release/8.x has no published-base history floor.
+PR_BASE_BRANCHES = frozenset({"main", "release/8.x"})
 
 
 class ReleaseRejectedError(RuntimeError):
@@ -162,7 +165,7 @@ def event_context() -> tuple[str, str, dict[str, Any]]:
         require(kind == "pull_request", "unsupported policy event")
         pr = event["pull_request"]
         require(pr["base"]["repo"]["full_name"] == REPOSITORY, "wrong PR repository")
-        require(pr["base"]["ref"] == "main", "PR must target main")
+        require(pr["base"]["ref"] in PR_BASE_BRANCHES, "PR must target main or release/8.x")
         require(
             os.environ["GITHUB_REF"] == f"refs/pull/{pr['number']}/merge",
             "policy must check the PR merge ref",
@@ -233,7 +236,7 @@ def author_agreement(pr: dict[str, Any], signers: dict[int, dict[str, Any]]) -> 
 
 
 def validate_pr(pr: dict[str, Any]) -> None:
-    require(pr["base"]["ref"] == "main", "contribution targets another branch")
+    require(pr["base"]["ref"] in PR_BASE_BRANCHES, "contribution targets another branch")
     require(pr["base"]["repo"]["full_name"] == REPOSITORY, "foreign contribution repository")
 
 

@@ -3006,8 +3006,9 @@ def create_tool_caller(
     spec-mandated defaults for pre-v3 buyers that omit required fields
     (e.g. ``buying_mode``, ``format_id`` shape coercion, ``asset_type``
     inference). The hook runs on every call; keep it fast.
-    Exceptions from the hook surface as ``INVALID_REQUEST`` — do not raise
-    for missing-but-defaultable fields, only for structurally unusable args.
+    Deliberate ``AdcpError`` / ``ADCPTaskError`` rejections preserve their
+    structured fields. Other hook exceptions surface as ``INVALID_REQUEST``
+    naming the failing hook.
 
     **Unknown-field policy (issue #858).** When
     ``validation=ValidationHookConfig(unknown_fields=...)`` is supplied,
@@ -3054,6 +3055,7 @@ def create_tool_caller(
     """
     from pydantic import ValidationError
 
+    from adcp._version import normalize_to_release_precision
     from adcp.canonical_formats import (
         CanonicalFormatLegacyResolutionError,
         CreativeDialect,
@@ -3242,6 +3244,13 @@ def create_tool_caller(
         )
         if wire_version is None:
             wire_version = default_unnegotiated_adcp_version
+
+        claimed_release = params.get("adcp_version")
+        bridged_response_version: str | None = None
+        if isinstance(claimed_release, str) and claimed_release:
+            normalized_claim = normalize_to_release_precision(claimed_release)
+            if normalized_claim != wire_version:
+                bridged_response_version = normalized_claim
 
         ctx.resolved_adcp_version = wire_version
 
@@ -3568,6 +3577,11 @@ def create_tool_caller(
         # from the raw dict the transport sent, not from the validated
         # model (which won't carry the wire ``context`` field).
         if isinstance(result, dict):
+            if bridged_response_version is not None:
+                # Old rc.7 clients have no stable validator. Retain the wire
+                # alias for their response lookup while routing and validating
+                # internally against the compatible stable contract.
+                result["adcp_version"] = bridged_response_version
             _normalize_response_envelope(
                 method_name,
                 result,

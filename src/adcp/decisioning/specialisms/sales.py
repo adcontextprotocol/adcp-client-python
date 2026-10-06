@@ -23,7 +23,11 @@ docstrings):
 
 * :meth:`get_media_buys`
 * :meth:`provide_performance_feedback`
-* :meth:`list_creative_formats_legacy`
+* :meth:`list_creative_formats_legacy` — recommended only when serving
+  pre-3.2 releases. AdCP 3.2 deprecates named-format discovery in favor of
+  ``get_products`` / ``Product.format_options[]``. A 3.2-only seller can omit
+  this method, including under strict platform validation, by declaring
+  ``adcp.supported_versions=["3.2"]``.
 * :meth:`list_creatives`
 
 Required only when claiming ``sales-catalog-driven``:
@@ -339,7 +343,11 @@ class SalesPlatform(Protocol, Generic[TMeta]):
     ) -> MaybeAsync[ListCreativeFormatsResponse]:
         """Catalog of accepted creative formats.
 
-        Required when claiming any ``sales-*`` specialism in v6.0 rc.1+.
+        Recommended for ``sales-*`` sellers that still serve pre-3.2
+        versions. Deprecated in AdCP 3.2: publish purchasable canonical
+        declarations through ``get_products`` / ``Product.format_options[]``.
+        Sellers advertising only 3.2 or later can omit this method even
+        with ``ADCP_DECISIONING_STRICT_VALIDATE_PLATFORM=1``.
         """
         ...
 

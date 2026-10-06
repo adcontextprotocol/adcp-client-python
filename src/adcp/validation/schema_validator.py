@@ -85,7 +85,8 @@ class SchemaValidationError(Exception):
         tool: AdCP tool name that was being validated.
         side: ``"request"`` or ``"response"``.
         issues: Every failure, each with a sanitized message.
-        code: Always ``"VALIDATION_ERROR"``.
+        code: ``"VERSION_UNSUPPORTED"`` when no explicit-version schema
+            exists; otherwise ``"VALIDATION_ERROR"``.
         details: Structured payload mirroring the wire error envelope's
             ``details`` shape — tool/side/issues, ready for programmatic
             inspection by callers that don't want to parse the exception
@@ -114,6 +115,11 @@ class SchemaValidationError(Exception):
             "side": side,
             "issues": [_issue_to_wire(i) for i in issues],
         }
+        if any(issue.keyword == "schema_unavailable" for issue in issues):
+            from adcp.validation.envelope import SUPPORTED_WIRE_VERSIONS
+
+            self.code = "VERSION_UNSUPPORTED"
+            self.details["supported_versions"] = list(SUPPORTED_WIRE_VERSIONS)
         if message is None:
             first = issues[0] if issues else None
             if first is not None:
@@ -161,7 +167,7 @@ def _missing_explicit_schema_outcome(
         valid=False,
         issues=[
             ValidationIssue(
-                pointer="/",
+                pointer="/adcp_version",
                 message=(
                     f"no bundled {direction} validator is available for the explicitly "
                     f"requested AdCP version {version!r}"

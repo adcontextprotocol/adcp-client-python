@@ -69,9 +69,11 @@ _RESOLVED_AGENT = AgentResolution(
 # ---- Happy path: resolver feeds verifier ----
 
 
+@pytest.mark.parametrize("protocol", ["mcp", "a2a"])
 @pytest.mark.asyncio
 async def test_factory_passes_resolved_jwks_to_verifier(
     monkeypatch: pytest.MonkeyPatch,
+    protocol: str,
 ) -> None:
     """When the resolver returns a JWK set, the verifier is constructed
     with a :class:`StaticJwksResolver` over those keys, the resolved
@@ -83,7 +85,16 @@ async def test_factory_passes_resolved_jwks_to_verifier(
     seen: dict[str, Any] = {}
 
     async def fake_resolve(*args, **kwargs):
-        return _RESOLVED_AGENT
+        seen["protocol"] = kwargs["protocol"]
+        return _RESOLVED_AGENT.model_copy(
+            update={
+                "agent_entry": {
+                    **_RESOLVED_AGENT.agent_entry,
+                    "url": "HTTPS://BUYER.example.com:443/mcp",
+                },
+                "brand_json": {"agents": [_RESOLVED_AGENT.agent_entry]},
+            }
+        )
 
     async def fake_verify_starlette(request, *, options):  # type: ignore[no-untyped-def]
         seen["options"] = options
@@ -99,10 +110,13 @@ async def test_factory_passes_resolved_jwks_to_verifier(
         "https://buyer.example.com/mcp",
         agent_type="sales",
         operation="get_products",
+        protocol=protocol,
     )
     assert result == "verified-signer-sentinel"
+    assert seen["protocol"] == protocol
     assert seen["options"].operation == "get_products"
     assert seen["options"].agent_url == "https://buyer.example.com/mcp"
+    assert seen["options"].operator_brand_json == {"agents": [_RESOLVED_AGENT.agent_entry]}
     # JWKS resolver constructed from the resolution's jwks set.
     assert seen["options"].jwks_resolver is not None
 

@@ -142,7 +142,12 @@ async def test_replay_store_does_not_exempt_a_binding_without_idempotency_key() 
 
 
 @pytest.mark.asyncio
-async def test_issue_governance_authorization_round_trip_uses_wire_payload() -> None:
+@pytest.mark.parametrize(
+    "expected_issuer", ["https://gov.example/governance", "HTTPS://GOV.example:443/governance"]
+)
+async def test_issue_governance_authorization_round_trip_uses_wire_payload(
+    expected_issuer: str,
+) -> None:
     test_key = dict(VECTORS["signed_jws"]["test_key"])
     test_key["d"] = test_key.pop("_private_d_for_test_only")
     token = issue_governance_authorization(
@@ -165,7 +170,7 @@ async def test_issue_governance_authorization_round_trip_uses_wire_payload() -> 
     public_jwk = {key: value for key, value in test_key.items() if key != "d"}
     result = await verify_governance_authorization(
         token=token,
-        expected_issuer="https://gov.example/governance",
+        expected_issuer=expected_issuer,
         expected_audience="https://seller.example/sales",
         authenticated_caller="https://buyer.example",
         expected_task="create_media_buy",
