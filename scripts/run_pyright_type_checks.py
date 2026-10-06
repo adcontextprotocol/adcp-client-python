@@ -9,10 +9,18 @@ and Pylance user saw errors. This runs pyright over the same fixtures.
 A fixture pyright cannot grade yet is listed in ``EXCLUDED`` with the reason;
 the list may only shrink. Pass ``--all`` to run the excluded fixtures too and
 see what is left to fix.
+
+A fixture that imports an optional dependency the running interpreter does not
+have (the ``[pg]`` extra's ``psycopg``, in CI's type-check lane) is skipped and
+named in the output. That is the same tolerance ``pyproject.toml`` gives mypy
+through ``ignore_missing_imports`` for those modules; pyright has no per-module
+equivalent, and an unresolved import is an error, not an ``Any``.
 """
 
 from __future__ import annotations
 
+import ast
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
@@ -69,6 +77,25 @@ def fixtures(*, include_excluded: bool) -> list[Path]:
     )
 
 
+def missing_imports(path: Path) -> list[str]:
+    """Top-level packages ``path`` imports that this interpreter cannot find."""
+    roots: set[str] = set()
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.Import):
+            roots.update(alias.name.partition(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+            roots.add(node.module.partition(".")[0])
+    missing: list[str] = []
+    for root in sorted(roots):
+        try:
+            found = importlib.util.find_spec(root) is not None
+        except (ImportError, ValueError):
+            found = False
+        if not found:
+            missing.append(root)
+    return missing
+
+
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     include_excluded = "--all" in args
@@ -80,7 +107,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {name}")
         return 1
 
-    selected = fixtures(include_excluded=include_excluded)
+    selected: list[Path] = []
+    for path in fixtures(include_excluded=include_excluded):
+        missing = missing_imports(path)
+        if missing:
+            print(
+                f"run_pyright_type_checks: skipping {path.name}: optional dependency "
+                f"not installed ({', '.join(missing)})"
+            )
+            continue
+        selected.append(path)
     command = [
         sys.executable,
         "-m",
