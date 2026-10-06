@@ -40,6 +40,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -252,12 +253,19 @@ def load_release_pin(version: str) -> dict | None:
     if not path.is_file():
         return None
     pin = json.loads(path.read_text(encoding="utf-8"))
+    release_workflow = (
+        "https://github.com/adcontextprotocol/adcp/.github/workflows/release.yml@refs/heads/"
+    )
+    identities = {release_workflow + "main"}
+    # Stable 3.2 patches are published by the reviewed maintenance workflow.
+    # Keep the exact identity in the audited pin; no wildcard or fallback.
+    if re.fullmatch(r"3\.2\.[0-9]+", version):
+        identities.add(release_workflow + "3.2.x")
     if (
         pin.get("version") != version
         or pin.get("bundle_url") != f"https://adcontextprotocol.org/protocol/{version}.tgz"
         or pin.get("certificate_oidc_issuer") != COSIGN_OIDC_ISSUER
-        or pin.get("certificate_identity")
-        != "https://github.com/adcontextprotocol/adcp/.github/workflows/release.yml@refs/heads/main"
+        or pin.get("certificate_identity") not in identities
     ):
         raise RuntimeError("invalid audited release pin identity")
     return pin
