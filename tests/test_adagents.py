@@ -2296,7 +2296,10 @@ class TestGetPropertiesByAgent:
         result = get_properties_by_agent(adagents_data, "https://agent1.example.com")
         elapsed = time.perf_counter() - start
 
-        assert elapsed < 5.0, f"resolution took {elapsed:.2f}s (>= 5.0s budget)"
+        # 60s >> measured O(N+M) runtime (~0.1s); >> CPU-scheduling jitter under
+        # xdist -n 2. The O(N×M) naive path (~46M comparisons) takes 100s+ and
+        # fails this budget by roughly 2 orders of magnitude.
+        assert elapsed < 60.0, f"resolution took {elapsed:.2f}s (>= 60.0s budget)"
         assert len(result) == 6843
         assert {p["publisher_domain"] for p in result} == set(child_domains)
 

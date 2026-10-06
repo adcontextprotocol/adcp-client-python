@@ -71,7 +71,13 @@ async def walk(routes: dict[str, Any], start: str = "publisher.com") -> tuple[li
         return route
 
     result = await _fetch_ads_txt_managerdomains(
-        start, 1, "test-agent", None, transport_factory=factory_for(handler, seen)
+        start,
+        # All transport is mocked; this only needs to outlast event-loop scheduling
+        # jitter under pytest-xdist. These tests check redirect policy, not timing.
+        999.0,
+        "test-agent",
+        None,
+        transport_factory=factory_for(handler, seen),
     )
     return result, seen
 
