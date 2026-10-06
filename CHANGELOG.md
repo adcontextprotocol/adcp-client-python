@@ -14,6 +14,31 @@
   [migration guide](docs/canonical-format-kinds-migration.md).
   This closes [#1241](https://github.com/adcontextprotocol/adcp-client-python/issues/1241).
 
+## [8.1.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0...v8.1.0) (2026-10-06)
+
+
+### Features
+
+* backport provisioning-aware accounts and signing fixes to 8.x ([#1410](https://github.com/adcontextprotocol/adcp-client-python/issues/1410)) ([91df2b4](https://github.com/adcontextprotocol/adcp-client-python/commit/91df2b4dbeaa7146bd0716de47d46c7d46642e31))
+  * **accounts:** provisioning-aware account discovery, an `AccountRegistry` with pluggable storage, typed account errors, and account-scoped feed mirrors ([#1288](https://github.com/adcontextprotocol/adcp-client-python/issues/1288)). New exports: `AccountPolicy`, `AccountRecord`, `AccountRegistry`, `AccountStorage`, `InMemoryAccountStorage`, `AccountNotFoundError`, `AccountPaymentRequiredError`, `AccountSetupRequiredError`.
+
+### Bug Fixes
+
+* **accounts:** keep every 8.0 default and make the stricter behavior opt-in ([#1348](https://github.com/adcontextprotocol/adcp-client-python/issues/1348)). By default `account_policy` is `"off"`, so natural references pass through unchanged. With `raise_account_errors` unset, account errors still return the failed `TaskResult` and emit a `DeprecationWarning`. `FeedMirror(strict_scope=None)` keeps 8.0 scope handling and warns. Opt in with `account_policy="auto"`/`"strict"`, `raise_account_errors=True`, and `strict_scope=True`. These become the defaults in the next major. See `docs/account-lifecycle.md`.
+* **signing:** make `agent_url` optional again on `BrandJsonJwksResolver` and `build_brand_json_resolvers` ([#1350](https://github.com/adcontextprotocol/adcp-client-python/issues/1350)). Omitting it emits a `DeprecationWarning` and falls back to 8.0 agent selection, which now fails closed when ambiguous and restores the `jwks_origin_mismatch` guard.
+* **signing:** security fix: `verify_from_agent_url` takes the signer identity and replay namespace from the caller's agent URL, not from the brand.json entry, so a brand.json can no longer make one agent verify as another ([#1350](https://github.com/adcontextprotocol/adcp-client-python/issues/1350), [#1312](https://github.com/adcontextprotocol/adcp-client-python/issues/1312)).
+* **signing:** align agent resolution and publisher pins with AdCP 3.3 ([#1312](https://github.com/adcontextprotocol/adcp-client-python/issues/1312)). Security tightenings enforced at request time:
+  * discovery binds the agent and operator origins (same registrable domain, or `authorized_operators`)
+  * every declared `identity.key_origins` purpose is checked
+  * `publisher_pin` resolvers are subject to the key-origin check
+  * agent URLs are compared in canonical form
+* **signing:** fetch resolver capabilities over the agent protocol ([#1284](https://github.com/adcontextprotocol/adcp-client-python/issues/1284))
+* **sdk:** restore buyer compatibility and error diagnostics ([#1285](https://github.com/adcontextprotocol/adcp-client-python/issues/1285))
+
+### Compatibility
+
+8.1.0 has no breaking API changes from 8.0.0. #1288 and #1312 were breaking on `main`. #1348 and #1350 restore every 8.0 default and signature they changed, so the backported changes add new opt-in surface without breaking existing callers. The only behavior changes for existing callers are the request-time signing security fixes listed above.
+
 ## [8.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-rc.3...v8.0.0) (2026-10-01)
 
 
