@@ -37,7 +37,18 @@ jobs:
 
       - name: Build docs
         run: |
-          pdoc --html --output-dir docs/api adcp
+          python - <<'PY'
+          import adcp
+          from pdoc import cli
+
+          # Parent-package exclusions are checked before pdoc imports submodules.
+          # Keep in sync with the tombstones restored by scripts/post_generate_fixes.py.
+          adcp.__pdoc__ = {
+              **getattr(adcp, "__pdoc__", {}),
+              "types.domains.enums.format_category": False,
+          }
+          cli.main(cli.parser.parse_args(["--html", "--output-dir", "docs/api", "adcp"]))
+          PY
 
       - name: Configure Pages
         uses: actions/configure-pages@v6
