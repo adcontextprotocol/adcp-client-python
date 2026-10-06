@@ -38,3 +38,17 @@ If publication fails, fix the cause and rerun `release-publish.yml` for the same
 release SHA and tag. PyPI will reject files it has already accepted; check its
 published file list before rerunning a partial upload. Do not create another
 release PR to retry publication.
+
+## SDK 8 maintenance line (`release/8.x`)
+
+On the `release/8.x` branch, `release-please.yml` and `release-publish.yml` are
+copies of main's workflows retargeted to that branch: Release Please runs on
+pushes to `release/8.x`, opens the release PR against `release/8.x`, and on
+merge queues `release-publish.yml --ref release/8.x`. Publication waits for
+successful push CI on `release/8.x` at the exact release commit, then the
+same `release-publish` environment approval and PyPI Trusted Publisher apply
+(the environment's deployment branches include `release/8.x`). Backports land
+on `release/8.x` by squash merge; use a `Release-As: 8.Y.Z` footer when the
+squashed commits would otherwise select another version, and remove any
+breaking-change section from the generated 8.x changelog before merging the
+release PR. main's release flow is unaffected.

@@ -1,5 +1,9 @@
 name: Release publish
 
+# SDK 8 maintenance-line copy of main's workflow: publishes 8.x releases from
+# release/8.x. release-please.yml on this branch dispatches it with
+# --ref release/8.x after creating the release.
+
 on:
   workflow_dispatch:
     inputs:
@@ -20,7 +24,7 @@ concurrency:
 
 jobs:
   build:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/release/8.x'
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     permissions:
@@ -33,7 +37,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
-      - name: Wait for successful main CI at the release commit
+      - name: Wait for successful release/8.x CI at the release commit
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_SHA: ${{ inputs.release_sha }}
@@ -44,13 +48,13 @@ jobs:
           git merge-base --is-ancestor "$RELEASE_SHA" HEAD
           for attempt in {1..130}; do
             if gh run list --workflow CI --event push --commit "$RELEASE_SHA" --json headSha,headBranch,status,conclusion --limit 20 |
-              jq -e --arg sha "$RELEASE_SHA" 'any(.[]; .headSha == $sha and .headBranch == "main" and .status == "completed" and .conclusion == "success")'; then
+              jq -e --arg sha "$RELEASE_SHA" 'any(.[]; .headSha == $sha and .headBranch == "release/8.x" and .status == "completed" and .conclusion == "success")'; then
               git checkout --detach "$RELEASE_SHA"
               exit 0
             fi
             sleep 30
           done
-          echo 'Main CI did not pass for the release commit' >&2
+          echo 'release/8.x CI did not pass for the release commit' >&2
           exit 1
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:

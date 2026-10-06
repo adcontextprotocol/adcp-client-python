@@ -1,20 +1,25 @@
 name: Release Please
 
+# SDK 8 maintenance-line copy of main's workflow. It runs from release/8.x
+# only, opens release PRs against release/8.x, and queues this branch's copy
+# of release-publish.yml. main's own release flow is unchanged.
+
 on:
   push:
-    branches: [main]
-  workflow_dispatch: # Run once after re-enabling the previously disabled workflow.
+    branches: [release/8.x]
+  workflow_dispatch: # Run once after creating or re-enabling the maintenance line.
 
 permissions:
   contents: read
-  actions: write # Queue the main-branch publication workflow for a created release.
+  actions: write # Queue the release/8.x publication workflow for a created release.
 
 concurrency:
-  group: release-please-main
+  group: release-please-release-8x
   cancel-in-progress: false
 
 jobs:
   release:
+    if: github.ref == 'refs/heads/release/8.x'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -36,19 +41,15 @@ jobs:
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         with:
           token: ${{ steps.app-token.outputs.token }}
-          target-branch: main
+          target-branch: release/8.x
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-      - name: Normalize the release PR's PEP 440 version
-        if: steps.release.outputs.prs_created == 'true'
-        run: python3 -m scripts.normalize_pyproject_prerelease --release-prs
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          PROPOSAL_PRS: ${{ steps.release.outputs.prs }}
+      # No PEP 440 normalization step: release/8.x ships stable SemVer only,
+      # and the normalizer accepts only main's release PR branches.
       - name: Queue publication for the created release
         if: steps.release.outputs.release_created == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_SHA: ${{ steps.release.outputs.sha }}
           RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
-        run: gh workflow run release-publish.yml --ref main -f release_sha="$RELEASE_SHA" -f tag_name="$RELEASE_TAG"
+        run: gh workflow run release-publish.yml --ref release/8.x -f release_sha="$RELEASE_SHA" -f tag_name="$RELEASE_TAG"

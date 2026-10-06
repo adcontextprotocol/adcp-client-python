@@ -2,10 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [main, python-adcp-sdk-setup]
+    # release/8.x is the SDK 8 maintenance line (8.1.x patches and minors).
+    branches: [main, python-adcp-sdk-setup, release/8.x]
   pull_request:
     branches:
       - main
+      - release/8.x
       - conductor/reporting-webhook-activity-1168b
       - conductor/reporting-status-notifications-1168c
       - conductor/1167b1-materializer-contracts
