@@ -1,4 +1,4 @@
-"""Release automation is the single source of truth for the stable SDK 8 line."""
+"""Release automation owns the SDK version and the SDK 9 beta channel."""
 
 from __future__ import annotations
 
@@ -23,14 +23,15 @@ def test_worktree_version_matches_normalized_release_manifest() -> None:
     assert project_section.group(1) == pep440_prerelease(manifest["."])
 
 
-def test_release_please_uses_stable_semver_versioning() -> None:
-    """SDK 8 is stable: no prerelease channel may be configured.
+def test_release_please_keeps_sdk_9_on_the_beta_channel() -> None:
+    """The breaking SDK 9 surface must remain beta until the reviewed GA exit.
 
-    The ``Release-As: 8.0.0`` footer on the adopting commit selects the first
-    stable version. Without these keys, later ``fix:``/``feat:`` commits bump
-    normal SemVer (8.0.1, 8.1.0) instead of starting another rc series.
+    The adopting commit's ``Release-As: 9.0.0-beta.1`` footer selects the
+    first beta. Subsequent fixes increment the beta, and GitHub releases
+    are marked as prereleases rather than presented as stable releases.
     """
     config = json.loads((ROOT / "release-please-config.json").read_text())
     package = config["packages"]["."]
-    for key in ("versioning", "prerelease-type", "prerelease"):
-        assert key not in package, key
+    assert package["versioning"] == "prerelease"
+    assert package["prerelease-type"] == "beta"
+    assert package["prerelease"] is True

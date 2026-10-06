@@ -13,6 +13,7 @@ import pytest
 from pydantic import BaseModel, TypeAdapter
 
 from adcp import ADCPClient, TaskOptions, TaskRecoveryMetadata, _idempotency
+from adcp._null_clear import nullable_request_paths
 from adcp.exceptions import ADCPTimeoutError
 from adcp.protocols.base import ProtocolAdapter
 from adcp.protocols.mcp import MCPAdapter
@@ -179,6 +180,11 @@ async def test_mutation_timeout_carries_secret_safe_recovery() -> None:
 async def test_new_mutations_timeout_with_recovery_metadata(task_name: str) -> None:
     client = _client()
     key = f"0123456789abcdef-{task_name}"
+    dispatched_event = asyncio.Event()
+    # This case exercises a timeout AFTER dispatch. Cold nullable-schema loading
+    # can itself exhaust the budget before dispatch, correctly leaving recovery
+    # unset; the pre-dispatch deadline case below covers that separate contract.
+    nullable_request_paths(task_name, client.get_adcp_version())
 
     async def dispatched(params: dict[str, Any]) -> TaskResult[Any]:
         mark_task_dispatched(
@@ -187,16 +193,18 @@ async def test_new_mutations_timeout_with_recovery_metadata(task_name: str) -> N
             mutating=_idempotency.is_mutating(task_name),
             idempotency_key=params["idempotency_key"],
         )
-        await asyncio.sleep(1)
+        dispatched_event.set()
+        await asyncio.Event().wait()
         return _completed()
 
     with patch.object(client.adapter, task_name, new=dispatched):
         with pytest.raises(ADCPTimeoutError) as caught:
             await getattr(client, task_name)(
                 _Request(idempotency_key=key),
-                options=TaskOptions(timeout=0.01),
+                options=TaskOptions(timeout=0.1),
             )
 
+    assert dispatched_event.is_set()
     assert caught.value.recovery is not None
     assert caught.value.recovery.task_name == task_name
     assert caught.value.recovery.idempotency_key == key
