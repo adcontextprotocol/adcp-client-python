@@ -131,9 +131,7 @@ def test_no_canonical_field_is_annotated_schema_variant() -> None:
     assert "SchemaVariant" not in source
 
 
-@pytest.mark.parametrize(
-    ("model", "field"), sorted(_list_overrides()), ids=lambda value: str(value)
-)
+@pytest.mark.parametrize(("model", "field"), sorted(_list_overrides()), ids=str)
 def test_override_keeps_the_generated_constraints(model: str, field: str) -> None:
     """Retyping the element must not silently drop ``min_length`` and friends."""
     canonical = getattr(canonical_creative, model)
