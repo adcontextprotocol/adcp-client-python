@@ -44,6 +44,7 @@ import pytest
 import adcp.types  # noqa: F401  — importing it is what installs the finder
 import adcp.types.domains as domains
 from adcp.types._generated_poc_alias import (
+    _NAME_OVERRIDES,
     CANONICAL_ROOT,
     DEPRECATED_ROOT,
     REMOVED_IN_MAJOR,
@@ -174,13 +175,12 @@ def test_every_spelling_an_adopter_may_have_written_resolves() -> None:
     """
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
+        from adcp.types import generated_poc as old_root
         from adcp.types.generated_poc import core as old_core
         from adcp.types.generated_poc.core import format_id as old_format_id
         from adcp.types.generated_poc.media_buy.package_request import (
             PackageRequest as OldPackageRequest,
         )
-
-        from adcp.types import generated_poc as old_root
 
     import adcp.types.domains as new_root
     from adcp.types.domains import core as new_core
@@ -192,6 +192,40 @@ def test_every_spelling_an_adopter_may_have_written_resolves() -> None:
     assert old_format_id is new_format_id
     assert OldPackageRequest is PackageRequest
     assert adcp.types.generated_poc.core.format_id is new_format_id
+
+
+def test_name_overrides_inject_split_names_into_the_deprecated_module() -> None:
+    """Per-name overrides surface names that moved to a sibling module at a split.
+
+    ``generated_poc.brand`` redirects to ``domains.brand`` (the package with
+    the brand tools), but ``Brand``, ``BrandDiscovery3`` and ``LocalizedName``
+    live in ``domains.brand_discovery`` — they came from the flat
+    ``generated_poc/brand_discovery.py`` file, not from the ``brand/`` package.
+    Without per-name overrides, ``from adcp.types.generated_poc.brand import Brand``
+    resolves the module successfully and then raises
+    ``ImportError: cannot import name 'Brand' from 'adcp.types.domains.brand'``.
+
+    This test covers every entry in ``_NAME_OVERRIDES`` so that a future split
+    that adds an entry is automatically graded. Regression for issue #1402.
+    """
+    for deprecated_module_name, name_map in _NAME_OVERRIDES.items():
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            deprecated_mod = importlib.import_module(deprecated_module_name)
+
+        for attr_name, canonical_source_name in name_map.items():
+            canonical_src = importlib.import_module(canonical_source_name)
+
+            assert hasattr(deprecated_mod, attr_name), (
+                f"{deprecated_module_name} is missing {attr_name!r} after tombstone "
+                f"injection — the per-name override for the brand/brand_discovery "
+                f"split is not working"
+            )
+            assert getattr(deprecated_mod, attr_name) is getattr(canonical_src, attr_name), (
+                f"{deprecated_module_name}.{attr_name} is not the same object as "
+                f"{canonical_source_name}.{attr_name} — the injected name is a copy, "
+                f"not the canonical class, so isinstance will fail"
+            )
 
 
 # ---------------------------------------------------------------------------

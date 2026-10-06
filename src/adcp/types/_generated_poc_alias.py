@@ -76,6 +76,31 @@ CANONICAL_ROOT = "adcp.types.domains"
 #: deprecation with no expiry is a permanent second surface.
 REMOVED_IN_MAJOR = 10
 
+#: Per-module name overrides for names that moved to a *different* canonical
+#: module when ``generated_poc`` was reorganised (e.g. a flat file split into
+#: a package + sibling module).
+#:
+#: Format: deprecated_full_name -> {attr_name -> canonical_source_module}
+#:
+#: Only names **absent** from the default canonical target are listed — a name
+#: already present in ``domains.<stem>`` is served by the normal redirect and
+#: never needs an entry here.
+_NAME_OVERRIDES: dict[str, dict[str, str]] = {
+    # ``generated_poc/brand_discovery.py`` was a flat sibling of the
+    # ``brand/`` package.  When the tree moved to ``domains/``, Brand,
+    # BrandDiscovery3, and LocalizedName stayed in ``domains/brand_discovery.py``
+    # rather than landing in ``domains/brand/__init__.py``.  Adopters whose
+    # code pre-dates that split wrote
+    #   ``from adcp.types.generated_poc.brand import Brand``
+    # and the simple prefix rename redirects them to ``domains.brand``, which
+    # does not carry those names.  This entry injects them so the import works.
+    "adcp.types.generated_poc.brand": {
+        "Brand": "adcp.types.domains.brand_discovery",
+        "BrandDiscovery3": "adcp.types.domains.brand_discovery",
+        "LocalizedName": "adcp.types.domains.brand_discovery",
+    },
+}
+
 
 def canonical_name(deprecated: str) -> str:
     """``adcp.types.generated_poc.core.x`` -> ``adcp.types.domains.core.x``."""
@@ -86,8 +111,15 @@ def canonical_name(deprecated: str) -> str:
 class _AliasLoader:
     """Hands back the canonical module object instead of loading anything."""
 
-    def __init__(self, canonical: str) -> None:
+    def __init__(
+        self,
+        canonical: str,
+        name_overrides: dict[str, str] | None = None,
+    ) -> None:
         self._canonical = canonical
+        # {attr_name -> canonical_source_module} for names that moved to a
+        # different module than the simple prefix rename would produce.
+        self._name_overrides = name_overrides
         self._canonical_spec: ModuleSpec | None = None
 
     def create_module(self, spec: ModuleSpec) -> ModuleType:
@@ -98,6 +130,21 @@ class _AliasLoader:
 
     def exec_module(self, module: ModuleType) -> None:
         module.__spec__ = self._canonical_spec
+        if self._name_overrides:
+            # Inject names that moved to a sibling canonical module when the
+            # deprecated module was split.  We only add names that are absent —
+            # canonical names always win — so the canonical module is never
+            # corrupted and the invariant (one object under both keys) holds.
+            for attr_name, source_module_name in self._name_overrides.items():
+                if hasattr(module, attr_name):
+                    continue
+                try:
+                    src = importlib.import_module(source_module_name)
+                    value = getattr(src, attr_name, None)
+                    if value is not None:
+                        setattr(module, attr_name, value)
+                except ImportError:
+                    pass
 
 
 class _AliasFinder:
@@ -151,7 +198,8 @@ class _AliasFinder:
         # both. typeshed's structural alternative, ``LoaderProtocol``, declares
         # only ``load_module`` — removed from ``Loader`` in 3.12 — so
         # implementing it would be the less honest of the two options.
-        return ModuleSpec(fullname, cast("Loader", _AliasLoader(canonical)))
+        overrides = _NAME_OVERRIDES.get(fullname)
+        return ModuleSpec(fullname, cast("Loader", _AliasLoader(canonical, overrides)))
 
 
 def install() -> None:
