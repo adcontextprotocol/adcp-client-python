@@ -381,6 +381,31 @@ def test_pr_policy_uses_live_numeric_author_and_exact_head(history: list[str]) -
         policies.ipr(api, "pull_request", "a" * 40, event)
 
 
+@pytest.mark.parametrize(("base", "accepted"), [("release/8.x", True), ("other", False)])
+def test_pr_policy_accepts_only_main_or_the_sdk8_maintenance_base(
+    history: list[str], base: str, accepted: bool
+) -> None:
+    api = PolicyAPI(history)
+    pr = api.data["pulls/1174"]
+    pr.update(merged=False, merged_at=None, state="open")
+    pr["base"]["ref"] = base
+    event = {"pull_request": copy.deepcopy(pr)}
+    if accepted:
+        assert policies.ipr(api, "pull_request", "a" * 40, event)["contributions"]
+    else:
+        with pytest.raises(ReleaseRejectedError):
+            policies.ipr(api, "pull_request", "a" * 40, event)
+
+
+def test_main_push_still_rejects_a_contribution_merged_into_release_8x(
+    history: list[str],
+) -> None:
+    api = PolicyAPI(history)
+    api.data["pulls/1173"]["base"]["ref"] = "release/8.x"
+    with pytest.raises(ReleaseRejectedError):
+        policies.ipr(api, "push", history[-1], {})
+
+
 @pytest.mark.parametrize(
     "case",
     [
