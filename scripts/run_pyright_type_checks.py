@@ -10,11 +10,12 @@ A fixture pyright cannot grade yet is listed in ``EXCLUDED`` with the reason;
 the list may only shrink. Pass ``--all`` to run the excluded fixtures too and
 see what is left to fix.
 
-A fixture that imports an optional dependency the running interpreter does not
-have (the ``[pg]`` extra's ``psycopg``, in CI's type-check lane) is skipped and
-named in the output. That is the same tolerance ``pyproject.toml`` gives mypy
-through ``ignore_missing_imports`` for those modules; pyright has no per-module
-equivalent, and an unresolved import is an error, not an ``Any``.
+Several fixtures import the ``[pg]`` extra's ``psycopg``. mypy tolerates those
+modules being absent through ``ignore_missing_imports``; pyright has no
+per-module equivalent, and an unresolved import is an error, not an ``Any``.
+So the gate requires the extra rather than skipping the fixture: a fixture
+whose top-level imports this interpreter cannot find fails the run up front,
+naming the module and the extra to install, and the CI step installs it.
 """
 
 from __future__ import annotations
@@ -78,7 +79,12 @@ def fixtures(*, include_excluded: bool) -> list[Path]:
 
 
 def missing_imports(path: Path) -> list[str]:
-    """Top-level packages ``path`` imports that this interpreter cannot find."""
+    """Top-level packages ``path`` imports that this interpreter cannot find.
+
+    Checked before pyright runs so a missing optional dependency is reported as
+    what it is — an incomplete environment — instead of as type errors in the
+    fixture, and so a fixture is never silently dropped from the gate.
+    """
     roots: set[str] = set()
     for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
         if isinstance(node, ast.Import):
@@ -107,16 +113,18 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {name}")
         return 1
 
-    selected: list[Path] = []
-    for path in fixtures(include_excluded=include_excluded):
-        missing = missing_imports(path)
-        if missing:
-            print(
-                f"run_pyright_type_checks: skipping {path.name}: optional dependency "
-                f"not installed ({', '.join(missing)})"
-            )
-            continue
-        selected.append(path)
+    selected = fixtures(include_excluded=include_excluded)
+    unavailable = {path.name: missing_imports(path) for path in selected}
+    unavailable = {name: roots for name, roots in unavailable.items() if roots}
+    if unavailable:
+        print(
+            "run_pyright_type_checks: these fixtures import modules this interpreter "
+            "cannot find; install the optional extras (e.g. `uv sync --all-extras` or "
+            "`pip install -e '.[dev,pg]'`) so pyright grades every fixture:"
+        )
+        for name, roots in sorted(unavailable.items()):
+            print(f"  {name}: {', '.join(roots)}")
+        return 1
     command = [
         sys.executable,
         "-m",

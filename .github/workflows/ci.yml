@@ -143,7 +143,11 @@ jobs:
 
       - name: Run adopter type-check suite under pyright
         if: matrix.python-version == '3.12'
-        run: python scripts/run_pyright_type_checks.py
+        # The fixtures that import psycopg need the pg extra, which this job's
+        # dev-only install does not bring; pyright has no ignore_missing_imports.
+        run: |
+          uv pip install --system -e ".[pg]"
+          python scripts/run_pyright_type_checks.py
 
       - name: Check versioned typing generation
         if: matrix.python-version == '3.12'
