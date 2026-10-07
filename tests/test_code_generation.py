@@ -69,6 +69,7 @@ def test_product_format_union_targeted_generation_is_reproducible(tmp_path, monk
     import shutil
     from pathlib import Path
 
+    import black
     import pytest
 
     from scripts import generate_types, post_generate_fixes
@@ -106,6 +107,20 @@ def test_product_format_union_targeted_generation_is_reproducible(tmp_path, monk
         visit(json.loads(source.read_text()))
 
     copy_ref_graph(Path("core/product_format_declaration.json"))
+    black_config = black.parse_pyproject_toml("pyproject.toml")
+    black_mode = black.Mode(
+        line_length=black_config["line_length"],
+        target_versions={
+            black.TargetVersion[version.upper()] for version in black_config["target_version"]
+        },
+    )
+
+    def normalized_source(source):
+        # Codegen's formatter defaults vary across supported Python environments.
+        # Compare all three sources with the same project formatter settings.
+        formatted = black.format_str(source, mode=black_mode)
+        return generate_types.normalize_timestamp(formatted)
+
     expected = Path("src/adcp/types/generated_poc/core/product_format_declaration.py").read_text()
     generated_sources = []
     for attempt in range(2):
@@ -118,9 +133,9 @@ def test_product_format_union_targeted_generation_is_reproducible(tmp_path, monk
         post_generate_fixes.rewrite_generated_enums_to_strenum()
         post_generate_fixes.strip_extra_blank_lines_at_eof()
         source = (output / "core/product_format_declaration.py").read_text()
-        generated_sources.append(generate_types.normalize_timestamp(source))
+        generated_sources.append(normalized_source(source))
     assert generated_sources[0] == generated_sources[1]
-    assert generated_sources[0] == generate_types.normalize_timestamp(expected)
+    assert generated_sources[0] == normalized_source(expected)
 
 
 def test_protocol_envelope_import_restored_for_response_arms():
