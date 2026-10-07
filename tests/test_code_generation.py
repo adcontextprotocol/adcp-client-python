@@ -110,6 +110,7 @@ def test_product_format_union_targeted_generation_is_reproducible(tmp_path, monk
     black_config = black.parse_pyproject_toml("pyproject.toml")
     black_mode = black.Mode(
         line_length=black_config["line_length"],
+        magic_trailing_comma=False,
         target_versions={
             black.TargetVersion[version.upper()] for version in black_config["target_version"]
         },
@@ -117,7 +118,7 @@ def test_product_format_union_targeted_generation_is_reproducible(tmp_path, monk
 
     def normalized_source(source):
         # Codegen's formatter defaults vary across supported Python environments.
-        # Compare all three sources with the same project formatter settings.
+        # Compare with the same project settings, ignoring prior comma layout.
         formatted = black.format_str(source, mode=black_mode)
         return generate_types.normalize_timestamp(formatted)
 
