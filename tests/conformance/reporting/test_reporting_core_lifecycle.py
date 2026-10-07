@@ -78,7 +78,10 @@ from adcp.reporting.ledger import (  # noqa: E402
     derive_period,
     revision_content_sha256,
 )
-from adcp.reporting.ledger.models import first_ordinal_after  # noqa: E402
+from adcp.reporting.ledger.models import (  # noqa: E402
+    first_ordinal_after,
+    iso_duration_to_timedelta,
+)
 from adcp.reporting.ledger.pg import PgReportingLedgerStore  # noqa: E402
 from adcp.reporting.source import reporting_source_capabilities_sha256_v1  # noqa: E402
 from adcp.types import (  # noqa: E402
@@ -469,6 +472,7 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
 
     # 7. A period the source never answers for. The obligation exists; no
     #    revision does. Absence is represented by absence, never by a zero.
+    calls_before_close = list(source.calls)
     turn = await _run_worker_at(ledger, source, now=third.end + timedelta(minutes=1))
     silent_obligation = await ledger.find_obligation(
         account_id=ACCOUNT,
@@ -485,7 +489,34 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
         )
         == ()
     )
+    # Closing the period does not make its source readable. Wait for the
+    # declared offering lag before classifying a silent source as a failure.
+    assert turn.obligations_committed == [silent_obligation.reporting_obligation_id]
+    assert turn.slices_failed == []
+    assert turn.revisions_committed == []
+    assert source.calls == calls_before_close
+    _, executor = _producer(ledger, source, now=third.end)
+    ready_at = third.end + iso_duration_to_timedelta(
+        executor.capabilities.offering("FIXTURE_PULSE_V1").expected_availability_lag
+    )
+    turn = await _run_worker_at(ledger, source, now=ready_at)
+    assert turn.obligations_committed == []
     assert turn.slices_failed == [silent_obligation.reporting_obligation_id]
+    assert source.calls.count(third.start) == 1
+    assert (
+        await ledger.list_revisions(
+            account_id=ACCOUNT, reporting_obligation_id=silent_obligation.reporting_obligation_id
+        )
+        == ()
+    )
+    # At this later turn the first period's next hourly observation is due
+    # too. Preserve that automatic revision as the next restatement's parent.
+    refreshed_first = await ledger.list_revisions(
+        account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
+    )
+    assert len(refreshed_first) == 3
+    automatic_at_ready = max(refreshed_first, key=lambda item: item.created_at)
+    assert automatic_at_ready.supersedes_reporting_revision_id == automatic.reporting_revision_id
 
     # The zero-row period and the silent period are distinguishable, which is
     # the entire operational point of the tier.
@@ -535,8 +566,8 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
     chain = await ledger.list_revisions(
         account_id=ACCOUNT, reporting_obligation_id=obligation.reporting_obligation_id
     )
-    assert len(chain) == 3
-    assert restated.supersedes_reporting_revision_id == automatic.reporting_revision_id
+    assert len(chain) == 4
+    assert restated.supersedes_reporting_revision_id == automatic_at_ready.reporting_revision_id
     # The superseded revision is still retained and still readable: a consumer
     # that already cited it must be able to fetch exactly what it cited.
     superseded = await ledger.read_revision_rows(
