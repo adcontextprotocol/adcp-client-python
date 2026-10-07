@@ -34,12 +34,11 @@ def test_rc7_wire_claim_resolves_to_stable(version: str) -> None:
 def test_alias_is_advertised_and_has_stable_validators() -> None:
     assert "3.2-rc.7" in get_supported_adcp_versions()
     assert "3.2-rc.7" in capabilities_response(["media_buy"])["adcp"]["supported_versions"]
-    assert get_validator("get_products", "request", version="3.2-rc.7") is get_validator(
-        "get_products", "request", version="3.2"
-    )
-    assert get_validator("get_products", "sync", version="3.2-rc.7") is get_validator(
-        "get_products", "sync", version="3.2"
-    )
+    for direction in ("request", "sync"):
+        aliased = get_validator("get_products", direction, version="3.2-rc.7")
+        stable = get_validator("get_products", direction, version="3.2")
+        assert aliased is not None and stable is not None
+        assert aliased.schema == stable.schema
     assert get_bundle_adcp_version(version="3.2-rc.7") == "3.2.1"
     assert get_bundle_adcp_version(version="3.2.0-rc.7") == "3.2.0-rc.7"
 

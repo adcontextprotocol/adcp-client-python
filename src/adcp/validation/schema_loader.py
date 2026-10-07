@@ -1,7 +1,7 @@
 """JSON Schema loader for AdCP tool request/response validation.
 
 Loads the bundled per-tool schemas shipped with the SDK plus the ``core/``
-schemas that async response variants ``$ref``, then compiles validators
+schemas that async response variants ``$ref``, then prepares validator specs
 lazily by ``(tool_name, direction, bundle_key)``.
 
 Schemas live under a per-version bundle key (see
@@ -9,7 +9,7 @@ Schemas live under a per-version bundle key (see
 versions can coexist. Callers pass an optional ``version`` to
 :func:`get_validator`; ``None`` defaults to the SDK's compile-time pin
 (``ADCP_VERSION``). Each bundle key gets its own ``_LoaderState`` — file
-index, compiled validators, core registry — so cross-version traffic
+index, validator specs, core registry — so cross-version traffic
 doesn't share compilation state.
 
 Discovery paths (first hit wins, per bundle key):
@@ -31,11 +31,12 @@ import re
 import threading
 import warnings
 from copy import deepcopy
+from dataclasses import dataclass
 from datetime import date
 from importlib.resources import as_file, files
 from pathlib import Path
 from typing import Any, Literal, cast
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 from pydantic import AnyUrl, TypeAdapter, ValidationError
 
@@ -52,12 +53,14 @@ def _uri_adapter() -> TypeAdapter[AnyUrl]:
     return TypeAdapter(AnyUrl)
 
 
-# Serialize first-time init and validator compilation. Concurrent callers
-# on a fresh process can otherwise both walk the schema tree or compile
-# the same validator twice. Result is the same either way, but the lock
+# Serialize first-time init and validator-spec preparation. Concurrent callers
+# on a fresh process can otherwise both walk the schema tree or prepare
+# the same spec twice. Result is the same either way, but the lock
 # keeps behaviour deterministic and avoids redundant filesystem walks.
 _init_lock = threading.Lock()
 _compile_lock = threading.Lock()
+_resolver_import_lock = threading.Lock()
+_ref_resolver_type: Any = None
 
 ResponseVariant = Literal["sync", "submitted", "working", "input-required"]
 Direction = Literal["request", "sync", "submitted", "working", "input-required"]
@@ -161,6 +164,28 @@ def _build_format_checker() -> Any:
     return checker
 
 
+@dataclass(frozen=True)
+class _ValidatorSpec:
+    """Cached schema inputs; each caller gets its own resolver scope stack."""
+
+    schema: dict[str, Any]
+    base_uri: str
+    store: dict[str, dict[str, Any]]
+    format_checker: Any
+    bundle_key: str | None = None
+
+    def make(self) -> Any:
+        from jsonschema import Draft7Validator
+
+        return Draft7Validator(
+            self.schema,
+            resolver=_ref_resolver_from_store(
+                self.base_uri, self.schema, self.store, bundle_key=self.bundle_key
+            ),
+            format_checker=self.format_checker,
+        )
+
+
 class _SchemaRoot:
     """Filesystem view of the schema tree, regardless of packaged vs dev."""
 
@@ -220,8 +245,8 @@ class _LoaderState:
         self.file_index: dict[tuple[str, Direction], Path] = {}
         self.source_index: dict[tuple[str, Direction], Path] = {}
         self.mcp_index: dict[tuple[str, Direction], Path] = {}
-        self.compiled: dict[tuple[str, Direction], Any] = {}
-        self.named_compiled: dict[str, Any] = {}
+        self.compiled: dict[tuple[str, Direction], _ValidatorSpec] = {}
+        self.named_compiled: dict[str, _ValidatorSpec] = {}
         self.portable: dict[tuple[str, Direction], dict[str, Any]] = {}
         # Serialized JSON keeps the immutable cached value private and makes
         # every returned tree independent, including any repeated branches.
@@ -441,12 +466,46 @@ def _load_schema_registry(state: _LoaderState) -> None:
 
 
 def _make_ref_resolver(state: _LoaderState, base_file: Path, schema: dict[str, Any]) -> Any:
+    """Build a task resolver with the version-scoped local schema registry."""
+    _load_schema_registry(state)
+    return _ref_resolver_from_store(
+        base_file.resolve().as_uri(), schema, state.registry, bundle_key=state.bundle_key
+    )
+
+
+def _get_ref_resolver_type() -> Any:
+    """Resolve the deprecated class once, without racing warning filters."""
+    global _ref_resolver_type
+    if _ref_resolver_type is not None:
+        return _ref_resolver_type
+    with _resolver_import_lock:
+        if _ref_resolver_type is None:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                try:
+                    from jsonschema import RefResolver
+                except ImportError as exc:  # pragma: no cover - guarded by dep install
+                    raise RuntimeError(
+                        "jsonschema is required for AdCP schema validation. "
+                        "Install with: pip install 'jsonschema>=4.20.0'"
+                    ) from exc
+            _ref_resolver_type = RefResolver
+    return _ref_resolver_type
+
+
+def _ref_resolver_from_store(
+    base_uri: str,
+    schema: dict[str, Any],
+    store: dict[str, dict[str, Any]],
+    *,
+    bundle_key: str | None = None,
+) -> Any:
     """Build a jsonschema ``RefResolver`` rooted at the file's directory.
 
     Async variant schemas use relative refs like ``../core/context.json``;
     giving the resolver a ``file://`` base URI lets those resolve against
-    disk. Also seeds the core ``$id``-keyed registry so bundled schemas
-    that reference a core type by canonical id still resolve.
+    disk. Uses the cached local schema store so bundled schemas that
+    reference a core type by canonical id still resolve.
 
     Sets ``referrer=schema`` (not ``{}``) so fragment-only refs like
     ``#/$defs/MediaChannel`` inside the bundled per-tool schema resolve
@@ -457,32 +516,38 @@ def _make_ref_resolver(state: _LoaderState, base_file: Path, schema: dict[str, A
     capabilities-style schema does).
 
     ``RefResolver`` is deprecated in jsonschema 4.18+ (to be replaced by
-    the ``referencing`` library). Suppress the warning locally so
+    the ``referencing`` library). Suppress the warning on first import so
     downstream projects running ``-W error::DeprecationWarning`` don't
-    crash on import; migration tracked as a follow-up.
+    crash on import. Cached lookups do not change process warning filters;
+    migration tracked as a follow-up.
     """
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        try:
-            from jsonschema import RefResolver
-        except ImportError as exc:  # pragma: no cover - guarded by dep install
-            raise RuntimeError(
-                "jsonschema is required for AdCP schema validation. "
-                "Install with: pip install 'jsonschema>=4.20.0'"
-            ) from exc
+    resolver_type = _get_ref_resolver_type()
 
-        _load_schema_registry(state)
-        base_uri = base_file.resolve().as_uri()
+    def missing_local_reference(uri: str) -> Any:
+        raise ValueError(f"schema reference is not in bundle {bundle_key}: {uri}")
 
-        def missing_local_reference(uri: str) -> Any:
-            raise ValueError(f"schema reference is not in bundle {state.bundle_key}: {uri}")
+    return resolver_type(
+        base_uri=base_uri,
+        referrer=schema,
+        store=dict(store),
+        handlers=(
+            {"http": missing_local_reference, "https": missing_local_reference}
+            if bundle_key is not None
+            else {}
+        ),
+    )
 
-        return RefResolver(
-            base_uri=base_uri,
-            referrer=schema,
-            store=dict(state.registry),
-            handlers={"http": missing_local_reference, "https": missing_local_reference},
-        )
+
+def _has_external_refs(value: Any) -> bool:
+    """Whether a schema needs documents beyond its own fragment references."""
+    if isinstance(value, dict):
+        reference = value.get("$ref")
+        if isinstance(reference, str) and not reference.startswith("#"):
+            return True
+        return any(_has_external_refs(child) for child in value.values())
+    if isinstance(value, list):
+        return any(_has_external_refs(child) for child in value)
+    return False
 
 
 def _bundle_relative_path(state: _LoaderState, path: str) -> Path:
@@ -633,7 +698,11 @@ def get_validator(
     *,
     version: str | None = None,
 ) -> Any | None:
-    """Return a compiled validator for ``(tool_name, direction, version)``.
+    """Return a fresh validator for ``(tool_name, direction, version)``.
+
+    Schema loading and reference discovery are cached. Each lookup creates
+    an independent resolver so callers can validate concurrently. Obtain a
+    validator per caller rather than sharing one instance between threads.
 
     Returns ``None`` when no schema ships for this pair — callers should
     skip validation (e.g., custom tools outside the AdCP catalog, or
@@ -652,7 +721,7 @@ def get_validator(
     key = (tool_name, direction)
     cached = state.compiled.get(key)
     if cached is not None:
-        return cached
+        return cached.make()
     file = state.file_index.get(key)
     if file is None:
         return None
@@ -666,7 +735,6 @@ def get_validator(
     schema = _effective_task_schema(schema, tool_name, direction, bundle_key=state.bundle_key)
 
     try:
-        from jsonschema import Draft7Validator
         from jsonschema.exceptions import SchemaError
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
@@ -675,22 +743,41 @@ def get_validator(
         ) from exc
 
     with _compile_lock:
-        # Re-check: another thread may have compiled the validator for
+        # Re-check: another thread may have prepared the validator spec for
         # this key while we were loading the schema off disk.
         cached = state.compiled.get(key)
         if cached is not None:
-            return cached
+            return cached.make()
         try:
-            resolver = _make_ref_resolver(state, file, schema)
-            validator = Draft7Validator(
-                schema,
-                resolver=resolver,
+            _load_schema_registry(state)
+            base_uri = file.resolve().as_uri()
+            # Flattened bundles have no nested $id scopes after normalization.
+            # Their fragment refs only need the root document. Avoid copying
+            # the entire modular registry into every fresh resolver.
+            if (
+                file.is_relative_to(state.root.bundled)
+                and isinstance(schema, dict)
+                and not _has_external_refs(schema)
+            ):
+                store = {base_uri: schema}
+                schema_id = schema.get("$id")
+                if isinstance(schema_id, str):
+                    store[schema_id] = schema
+                    store[urljoin(base_uri, schema_id)] = schema
+            else:
+                store = dict(state.registry)
+            spec = _ValidatorSpec(
+                schema=schema,
+                base_uri=base_uri,
+                store=store,
                 format_checker=_build_format_checker(),
+                bundle_key=state.bundle_key,
             )
+            validator = spec.make()
         except SchemaError as exc:
             logger.warning("Invalid schema %s for %s: %s", file, key, exc)
             return None
-        state.compiled[key] = validator
+        state.compiled[key] = spec
         return validator
 
 
@@ -699,7 +786,11 @@ def get_named_validator(
     *,
     version: str | None = None,
 ) -> Any | None:
-    """Return an offline validator for a non-task schema in the bundle.
+    """Return a fresh offline validator for a non-task schema in the bundle.
+
+    Schema loading and reference discovery are cached. Each lookup creates
+    an independent resolver so callers can validate concurrently. Obtain a
+    validator per caller rather than sharing one instance between threads.
 
     Task validation normally goes through :func:`get_validator`.  Some SDK
     helpers also consume standalone protocol documents (for example a
@@ -721,7 +812,7 @@ def get_named_validator(
     cache_key = path.as_posix()
     cached = state.named_compiled.get(cache_key)
     if cached is not None:
-        return cached
+        return cached.make()
     file = state.root.root.joinpath(*path.parts)
     try:
         if not file.is_file() or not file.resolve().is_relative_to(state.root.root.resolve()):
@@ -733,7 +824,6 @@ def get_named_validator(
         return None
 
     try:
-        from jsonschema import Draft7Validator
         from jsonschema.exceptions import SchemaError
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
@@ -744,25 +834,18 @@ def get_named_validator(
     with _compile_lock:
         cached = state.named_compiled.get(cache_key)
         if cached is not None:
-            return cached
+            return cached.make()
         try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
-                from jsonschema import RefResolver
-
-                resolver = RefResolver(
-                    base_uri=file.resolve().as_uri(),
-                    referrer=schema,
-                    store=_reachable_schema_store(state, file, schema),
-                )
-            validator = Draft7Validator(
-                schema,
-                resolver=resolver,
+            spec = _ValidatorSpec(
+                schema=schema,
+                base_uri=file.resolve().as_uri(),
+                store=_reachable_schema_store(state, file, schema),
                 format_checker=_build_format_checker(),
             )
+            validator = spec.make()
         except (OSError, json.JSONDecodeError, SchemaError, ValueError):
             return None
-        state.named_compiled[cache_key] = validator
+        state.named_compiled[cache_key] = spec
         return validator
 
 

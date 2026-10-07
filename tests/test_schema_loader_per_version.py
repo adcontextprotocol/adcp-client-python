@@ -374,7 +374,8 @@ def test_default_version_unchanged_when_arg_omitted(
     # Pick a tool that ships in the SDK pin.
     explicit_default = get_validator("get_products", "request", version=None)
     omitted = get_validator("get_products", "request")
-    assert explicit_default is omitted
+    assert explicit_default is not None and omitted is not None
+    assert explicit_default.schema == omitted.schema
 
 
 def _write_exact_release_bundle(root: Path, declared: str, referenced: str) -> None:
