@@ -36,7 +36,7 @@ from datetime import date
 from importlib.resources import as_file, files
 from pathlib import Path
 from typing import Any, Literal, cast
-from urllib.parse import unquote, urljoin, urlparse
+from urllib.parse import unquote, urldefrag, urljoin, urlparse, urlsplit
 
 from pydantic import AnyUrl, TypeAdapter, ValidationError
 
@@ -550,6 +550,67 @@ def _has_external_refs(value: Any) -> bool:
     return False
 
 
+def _reachable_registry_store(
+    registry: dict[str, dict[str, Any]], base_uri: str, schema: dict[str, Any] | bool
+) -> dict[str, dict[str, Any]]:
+    """Keep every alias of documents reached through absolute references.
+
+    Relative references and nested IDs depend on resolution scopes, so leave
+    their registry intact. Unknown targets also retain the original store and
+    fail at validation through the existing offline resolver handlers.
+    """
+    if not isinstance(schema, dict):
+        return dict(registry)
+    # Match RefResolver's normalized alias pass, document-ID pass, and final
+    # referrer override. Filtering below preserves that same insertion order.
+    lookup = {urlsplit(uri).geturl(): document for uri, document in registry.items()}
+    for document in registry.values():
+        identifier = document.get("$id")
+        if isinstance(identifier, str):
+            lookup[urlsplit(identifier).geturl()] = document
+    lookup[urlsplit(base_uri).geturl()] = schema
+
+    selected: set[int] = set()
+    pending = [schema]
+    while pending:
+        document = pending.pop()
+        if id(document) in selected:
+            continue
+        selected.add(id(document))
+        identifier = document.get("$id")
+        if isinstance(identifier, str):
+            parsed_id = urlsplit(identifier)
+            if not parsed_id.scheme or not parsed_id.netloc or parsed_id.fragment:
+                return dict(registry)
+            # Retain an ID's winning document even if this document was
+            # reached through another alias, including on fragment-only refs.
+            target = lookup.get(parsed_id.geturl())
+            if target is not None:
+                pending.append(target)
+
+        values: list[Any] = [document]
+        while values:
+            value = values.pop()
+            if isinstance(value, dict):
+                if value is not document and "$id" in value:
+                    return dict(registry)
+                reference = value.get("$ref")
+                if isinstance(reference, str) and reference and not reference.startswith("#"):
+                    parsed = urlsplit(reference)
+                    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                        return dict(registry)
+                    uri, _ = urldefrag(reference.rstrip("/"))
+                    target = lookup.get(urlsplit(uri).geturl())
+                    if target is None:
+                        return dict(registry)
+                    pending.append(target)
+                values.extend(value.values())
+            elif isinstance(value, list):
+                values.extend(value)
+
+    return {uri: document for uri, document in registry.items() if id(document) in selected}
+
+
 def _bundle_relative_path(state: _LoaderState, path: str) -> Path:
     """Map a canonical ``/schemas/{version}/...`` path into this bundle."""
     for path_version in state.path_versions:
@@ -751,6 +812,7 @@ def get_validator(
         try:
             _load_schema_registry(state)
             base_uri = file.resolve().as_uri()
+            schema_id = schema.get("$id") if isinstance(schema, dict) else None
             # Flattened bundles have no nested $id scopes after normalization.
             # Their fragment refs only need the root document. Avoid copying
             # the entire modular registry into every fresh resolver.
@@ -758,14 +820,14 @@ def get_validator(
                 file.is_relative_to(state.root.bundled)
                 and isinstance(schema, dict)
                 and not _has_external_refs(schema)
+                and not (isinstance(schema_id, str) and urlsplit(schema_id).fragment)
             ):
                 store = {base_uri: schema}
-                schema_id = schema.get("$id")
                 if isinstance(schema_id, str):
                     store[schema_id] = schema
                     store[urljoin(base_uri, schema_id)] = schema
             else:
-                store = dict(state.registry)
+                store = _reachable_registry_store(state.registry, base_uri, schema)
             spec = _ValidatorSpec(
                 schema=schema,
                 base_uri=base_uri,

@@ -14,7 +14,7 @@ import pytest
 from adcp.validation import schema_loader
 
 
-@pytest.fixture(params=["named", "task"])
+@pytest.fixture(params=["named", "task", "modular_task"])
 def validator_case(request: pytest.FixtureRequest) -> tuple[Any, dict[str, Any]]:
     if request.param == "named":
         return (
@@ -27,6 +27,11 @@ def validator_case(request: pytest.FixtureRequest) -> tuple[Any, dict[str, Any]]
                 "geo_postal_areas": {"US": ["zip"]},
                 "frequency_cap": True,
             },
+        )
+    if request.param == "modular_task":
+        return (
+            lambda: schema_loader.get_validator("get_products", "submitted", version="3.2"),
+            {"status": "submitted", "task_id": "task_1", "context": {"campaign": "sports"}},
         )
     return (
         lambda: schema_loader.get_validator("get_products", "request", version="3.2"),
