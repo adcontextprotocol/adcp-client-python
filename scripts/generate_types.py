@@ -13,9 +13,13 @@ import re
 import shutil
 import subprocess
 import sys
+from copy import deepcopy
 from pathlib import Path
 
-import diff_generated_types
+if __package__:
+    from . import diff_generated_types
+else:
+    import diff_generated_types
 
 # Paths
 REPO_ROOT = Path(__file__).parent.parent
@@ -220,6 +224,41 @@ def flatten_validation_oneof(schema: dict) -> dict:
     return schema
 
 
+def preserve_product_format_declaration_union(schema: dict, schema_path: Path) -> dict:
+    """Expose all declaration branches to the 7.x generator.
+
+    Codegen 0.56 ignores ``oneOf`` when the declaration also declares root
+    object properties and conditional ``allOf`` rules. In the temporary
+    generator input only, give each tagged branch its shared properties and
+    required fields and retain a pure discriminated union at the root. The
+    original bundled schema continues to enforce its conditional rules.
+    """
+    if schema_path != Path("core/product-format-declaration.json"):
+        return schema
+    branches = schema.get("oneOf")
+    if not isinstance(branches, list) or not branches:
+        return schema
+    discriminator = schema.get("discriminator", {}).get("propertyName")
+    if discriminator != "format_kind" or not all(
+        isinstance(branch, dict)
+        and isinstance(branch.get("properties", {}).get(discriminator), dict)
+        and "const" in branch["properties"][discriminator]
+        for branch in branches
+    ):
+        raise ValueError("Product format declarations must have tagged format_kind branches")
+
+    normalized = deepcopy(schema)
+    shared = normalized.pop("properties", {})
+    required = normalized.pop("required", [])
+    normalized.pop("type", None)
+    normalized.pop("allOf", None)
+    for branch in normalized["oneOf"]:
+        branch["type"] = "object"
+        branch["properties"] = {**deepcopy(shared), **branch.get("properties", {})}
+        branch["required"] = list(dict.fromkeys([*required, *branch.get("required", [])]))
+    return normalized
+
+
 def flatten_schemas():
     """
     Copy schemas to temp directory, preserving directory structure.
@@ -276,6 +315,7 @@ def flatten_schemas():
         # Rewrite $ref paths: convert absolute paths to relative, hyphens to underscores
         schema = rewrite_refs(schema, rel_path)
         schema = stabilize_inlined_core_refs(schema, rel_path)
+        schema = preserve_product_format_declaration_union(schema, rel_path)
 
         # Flatten validation-only anyOf/oneOf into single-class schemas
         schema = flatten_validation_oneof(schema)

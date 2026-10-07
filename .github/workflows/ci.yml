@@ -6,10 +6,10 @@ on:
   pull_request:
     branches: [main, release/7.x]
 
-# Default @adcp/sdk runner alias for storyboard jobs. Tracks the current
-# stable @adcp/sdk release via the ``latest`` npm dist-tag.
+# Keep the maintenance branch's runner on AdCP 3.1. The latest npm release
+# targets AdCP 3.2, which the Python 7.x line does not support.
 env:
-  ADCP_SDK_VERSION: "latest"
+  ADCP_SDK_VERSION: "13.1.3"
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -394,12 +394,12 @@ jobs:
     # Blocking gate: examples/seller_agent.py is the Python-owned
     # reference target for bidirectional storyboard interop. The matrix
     # runs two legs: the sticky ``adcp-3.0`` tag is a fixed, reproducible
-    # backwards-compat floor (the AdCP 3.0 runner line), while ``latest``
-    # tracks the current stable @adcp/sdk release (the AdCP 3.1 line).
+    # backwards-compat floor (the AdCP 3.0 runner line), while 13.1.3
+    # pins the supported AdCP 3.1 runner line.
     strategy:
       fail-fast: false
       matrix:
-        adcp-sdk-tag: ["adcp-3.0", "latest"]
+        adcp-sdk-tag: ["adcp-3.0", "13.1.3"]
 
     steps:
       - uses: actions/checkout@v6
@@ -416,8 +416,7 @@ jobs:
 
       # Cache the npm tarball + extracted package directory so the
       # storyboard runner install isn't a cold network fetch every run.
-      # The cache key is salted by the npm dist-tag; npm still resolves
-      # the current concrete package for that tag on install.
+      # The cache key includes the pinned version or protocol dist-tag.
       - name: Cache ~/.npm
         uses: actions/cache@v5
         with:
