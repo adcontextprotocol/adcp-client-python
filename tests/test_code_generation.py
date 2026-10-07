@@ -10,6 +10,119 @@ This test suite validates that the code generation pipeline works correctly:
 from __future__ import annotations
 
 
+def test_product_format_union_normalization_preserves_source_and_shared_fields():
+    from copy import deepcopy
+    from pathlib import Path
+
+    from scripts.generate_types import preserve_product_format_declaration_union
+
+    schema = {
+        "type": "object",
+        "properties": {"display_name": {"type": "string"}},
+        "required": ["format_kind", "params"],
+        "discriminator": {"propertyName": "format_kind"},
+        "allOf": [{"not": {"required": ["credential"]}}],
+        "oneOf": [
+            {
+                "properties": {
+                    "format_kind": {"const": "image"},
+                    "params": {"$ref": "image.json"},
+                },
+                "required": ["params"],
+            },
+        ],
+    }
+    original = deepcopy(schema)
+    normalized = preserve_product_format_declaration_union(
+        schema, Path("core/product-format-declaration.json")
+    )
+
+    assert schema == original
+    assert "properties" not in normalized and "allOf" not in normalized
+    assert normalized["discriminator"] == original["discriminator"]
+    branch = normalized["oneOf"][0]
+    assert branch["properties"] == {**original["properties"], **original["oneOf"][0]["properties"]}
+    assert branch["required"] == ["format_kind", "params"]
+    assert preserve_product_format_declaration_union(schema, Path("core/other.json")) is schema
+
+
+def test_product_format_union_rejects_untagged_branches():
+    from pathlib import Path
+
+    import pytest
+
+    from scripts.generate_types import preserve_product_format_declaration_union
+
+    with pytest.raises(ValueError, match="tagged format_kind"):
+        preserve_product_format_declaration_union(
+            {"discriminator": {"propertyName": "format_kind"}, "oneOf": [{"properties": {}}]},
+            Path("core/product-format-declaration.json"),
+        )
+
+
+def test_product_format_union_targeted_generation_is_reproducible(tmp_path, monkeypatch):
+    """Regenerate the checked-in module from its complete source ref graph."""
+    import contextlib
+    import importlib.metadata
+    import io
+    import json
+    import shutil
+    from pathlib import Path
+
+    import pytest
+
+    from scripts import generate_types, post_generate_fixes
+
+    if importlib.metadata.version("datamodel-code-generator") != "0.56.1":
+        pytest.skip("This maintenance branch requires its pinned codegen 0.56.1")
+    prepared = tmp_path / "prepared"
+    monkeypatch.setattr(generate_types, "TEMP_DIR", prepared)
+    with contextlib.redirect_stdout(io.StringIO()):
+        generate_types.flatten_schemas()
+    inputs = tmp_path / "inputs"
+    seen = set()
+
+    def copy_ref_graph(relative):
+        if relative in seen:
+            return
+        seen.add(relative)
+        source = (prepared / relative).resolve()
+        target = inputs / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+
+        def visit(node):
+            if isinstance(node, dict):
+                ref = node.get("$ref")
+                if isinstance(ref, str) and not ref.startswith("#"):
+                    dependency = (source.parent / ref.split("#")[0]).resolve()
+                    copy_ref_graph(dependency.relative_to(prepared.resolve()))
+                for value in node.values():
+                    visit(value)
+            elif isinstance(node, list):
+                for value in node:
+                    visit(value)
+
+        visit(json.loads(source.read_text()))
+
+    copy_ref_graph(Path("core/product_format_declaration.json"))
+    expected = Path("src/adcp/types/generated_poc/core/product_format_declaration.py").read_text()
+    generated_sources = []
+    for attempt in range(2):
+        output = tmp_path / f"output-{attempt}"
+        result = generate_types._run_datamodel_codegen(inputs, output)
+        assert result.returncode == 0, result.stderr
+        monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", output)
+        post_generate_fixes.add_rootmodel_getattr_proxy()
+        post_generate_fixes.inject_literal_discriminator_defaults()
+        post_generate_fixes.rewrite_generated_enums_to_strenum()
+        post_generate_fixes.strip_extra_blank_lines_at_eof()
+        source = (output / "core/product_format_declaration.py").read_text()
+        generated_sources.append(generate_types.normalize_timestamp(source))
+    assert generated_sources[0] == generated_sources[1]
+    assert generated_sources[0] == generate_types.normalize_timestamp(expected)
+
+
 def test_protocol_envelope_import_restored_for_response_arms():
     """Response arms that inherit ProtocolEnvelope must keep the import."""
     from scripts.post_generate_fixes import _sync_protocol_envelope_import
