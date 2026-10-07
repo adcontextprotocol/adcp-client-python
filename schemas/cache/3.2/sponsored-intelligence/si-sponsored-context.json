@@ -10,7 +10,7 @@
       "description": "Economic accountability fact: the brand that funded or sponsored this context, with optional account/operator context. This identifies who paid for the sponsored context; it is distinct from the host's later receipt and use commitment.",
       "properties": {
         "brand": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
           "description": "Brand economically accountable for the sponsored context."
         },
         "account": {
@@ -45,7 +45,7 @@
       "additionalProperties": true
     },
     "context_use": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/sponsored-intelligence/si-context-use.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/sponsored-intelligence/si-context-use.json",
       "description": "Declared host-side use mode for this sponsored context."
     },
     "disclosure_obligation": {
@@ -153,7 +153,7 @@
       "additionalProperties": true
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

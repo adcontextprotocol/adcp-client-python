@@ -41,10 +41,10 @@
       "x-entity": "media_buy_change_term"
     },
     "action": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/canonical-media-buy-action.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/canonical-media-buy-action.json"
     },
     "service_mode": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/canonical-media-buy-action-mode.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/canonical-media-buy-action-mode.json"
     },
     "allowed_statuses": {
       "type": "array",
@@ -62,7 +62,7 @@
       "description": "Non-terminal MediaBuy statuses in which this negotiated right may be exercised. When absent, the right applies in every non-terminal status where the canonical action itself is meaningful. This field describes contractual lifecycle scope; available_actions[] remains authoritative for the current instant."
     },
     "processing_sla": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/sla-window.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/sla-window.json",
       "description": "Binding elapsed-time acknowledgement and completion commitment. Sellers account for weekends and non-working periods when declaring the maximum."
     },
     "conditions": {
@@ -76,7 +76,7 @@
       "description": "Opaque stable condition identifiers defined by terms_ref or bilateral commercial documentation. Implementations compare identifiers; they MUST NOT execute or interpret them as instructions."
     },
     "constraints": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/change-term-constraints.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/change-term-constraints.json",
       "description": "Portable bounds that buyer and seller SDKs can preflight. Omission means no machine-readable bound was promised; opaque conditions remain unevaluated."
     },
     "terms_ref": {
@@ -92,7 +92,7 @@
       "description": "Display-only summary; it cannot grant authority, add an action, or override typed fields."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

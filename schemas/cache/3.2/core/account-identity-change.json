@@ -13,7 +13,7 @@
           "description": "The seller is reviewing the requested transition."
         },
         "requested_operator_identity": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/operator-identity.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/operator-identity.json",
           "description": "Complete desired operator identity submitted by the buyer."
         },
         "requested_at": {
@@ -38,7 +38,7 @@
           "description": "The seller rejected the transition and retained the current canonical identity."
         },
         "requested_operator_identity": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/operator-identity.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/operator-identity.json",
           "description": "Complete desired operator identity submitted by the buyer."
         },
         "requested_at": {

@@ -59,7 +59,7 @@
       "description": "ISO 8601 timestamp when the seller observed the destruction. Distinct from `fired_at`."
     },
     "reason_code": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-event-reason-code.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-event-reason-code.json",
       "description": "Categorical reason for the purge. Typical values: `retention_expired`, `legal_erasure`, `takedown_request`. Receivers MUST treat unknown reason codes as forward-compatible additions."
     },
     "reason_detail": {
@@ -76,7 +76,7 @@
       "description": "Who initiated the purge. `seller` \u2014 explicit decision (legal team, content policy, takedown handler). `system` \u2014 automated retention sweep, storage policy enforcement. `buyer` never appears on this event \u2014 buyer-initiated destruction (if and when supported) is acknowledged on the `sync_creatives` response path."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -12,11 +12,11 @@
   "type": "object",
   "properties": {
     "action": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-available-action-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-available-action-id.json",
       "description": "The action identifier."
     },
     "mode": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/media-buy-action-mode.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/media-buy-action-mode.json",
       "description": "The single mode that applies right now on this buy for this action. Singular because the buy has a concrete state, exactly one mode applies. Buyer SDKs branch on this to decide whether to expect a synchronous response, conditional handling, or an asynchronous approval callback."
     },
     "task": {
@@ -29,20 +29,20 @@
       "description": "Compact-lifecycle task for this resolved action: operational control, commercial refinement, or creative lifecycle mutation."
     },
     "sla": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/sla-window.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/sla-window.json",
       "description": "Optional SLA commitment for this action on this buy. Absence means no commitment, not zero commitment."
     },
     "change_term_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-change-term-id.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-change-term-id.json"
     },
     "terms_ref": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-legacy-terms-ref.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-legacy-terms-ref.json"
     },
     "applicable_package_ids": {
       "type": "array",
       "description": "For a package-scoped action, the exact packages currently eligible. Omission means every relevant package. Root actions omit this field.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/applicable-package-id.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/applicable-package-id.json"
       },
       "minItems": 1,
       "uniqueItems": true

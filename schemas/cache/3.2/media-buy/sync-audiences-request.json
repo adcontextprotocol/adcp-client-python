@@ -6,7 +6,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     }
   ],
   "x-mutates-state": true,
@@ -19,7 +19,7 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Account to manage audiences for."
     },
     "audiences": {
@@ -64,7 +64,7 @@
             "type": "array",
             "description": "Members to add to this audience. Hashed before sending \u2014 normalize emails to lowercase+trim, phones to E.164.",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/audience-member.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/audience-member.json"
             },
             "minItems": 1
           },
@@ -72,12 +72,12 @@
             "type": "array",
             "description": "Members to remove from this audience. If the same identifier appears in both add and remove in a single request, remove takes precedence.",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/audience-member.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/audience-member.json"
             },
             "minItems": 1
           },
           "source": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/audience-source.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/audience-source.json",
             "description": "External source reference: the seller ingests membership from a shared dataset or vendor-distributed segment instead of inline member deltas. Mutually exclusive with add/remove \u2014 an audience is either buyer-pushed or externally sourced, and transport is fixed at creation: a cross-transport upsert (member deltas against a sourced audience, or source against a pushed one) is rejected with CONFLICT (error.field: audience_id); convert by delete-and-recreate. Only send source kinds whose activation pattern the seller declared via audience_activation (undeclared kinds are rejected with UNSUPPORTED_FEATURE). Experimental \u2014 see the media_buy.audience_activation feature."
           },
           "delete": {
@@ -85,7 +85,7 @@
             "description": "When true, delete this audience from the account entirely. All other fields on this audience object are ignored. Use this to delete a specific audience without affecting others."
           },
           "consent_basis": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/consent-basis.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/consent-basis.json",
             "description": "GDPR lawful basis for processing this audience list. Informational \u2014 not validated by the protocol, but required by some sellers operating in regulated markets (e.g. EU). When omitted, the buyer asserts they have a lawful basis appropriate to their jurisdiction."
           }
         },
@@ -119,10 +119,10 @@
       "description": "When true, buyer-managed audiences on the account not included in this sync will be removed. Does not affect seller-managed audiences. Do not combine with an omitted audiences array or all buyer-managed audiences will be deleted."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

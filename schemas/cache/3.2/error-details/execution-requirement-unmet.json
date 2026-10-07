@@ -31,7 +31,7 @@
             "description": "`not_bound`: the package does not reference a resource of this kind. `not_found`: the referenced resource is not available to the account (for example an `event_source_id` that was never registered through `sync_event_sources`); register or sync it, then retry. `ineligible`: the referenced resource exists but does not satisfy the requirement (for example an event type or catalog type the requirement does not list)."
           },
           "requirement": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-execution-requirement.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-execution-requirement.json",
             "description": "The product's declared requirement, echoed so the buyer can fix the request without another `get_products` call."
           }
         },

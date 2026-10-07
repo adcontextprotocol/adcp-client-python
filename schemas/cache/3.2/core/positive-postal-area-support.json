@@ -4,7 +4,7 @@
   "description": "Non-vacuous postal capability used for hard targeting requirements and product overlay support. At least one native system array or true-valued deprecated alias is required. The general seller-capabilities postal schema remains permissive for backward compatibility, but an empty or false-only map cannot satisfy a hard discovery requirement.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/postal-area-support.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/postal-area-support.json"
     },
     {
       "type": "object",

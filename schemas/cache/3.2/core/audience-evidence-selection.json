@@ -32,7 +32,7 @@
       "description": "How this evidence affected the seller's decision. This is not targeting execution."
     },
     "evidence": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/audience-evidence.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/audience-evidence.json",
       "description": "Optional inline immutable snapshot. Its identity, version, and digest MUST equal the surrounding fields."
     },
     "attestation_evaluations": {
@@ -42,12 +42,12 @@
         "type": "object",
         "properties": {
           "reference": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attestation-reference.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attestation-reference.json"
           },
           "evaluation": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attestation-evaluation.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attestation-evaluation.json"
               },
               {
                 "properties": {
@@ -93,7 +93,7 @@
       "maxItems": 10
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -20,7 +20,7 @@
   },
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
       "if": {
@@ -139,7 +139,7 @@
   "x-mutates-state": false,
   "properties": {
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-account-ref.json",
       "description": "Account whose caller-owned reporting status is queried."
     },
     "view": {
@@ -148,7 +148,7 @@
     "media_buy_ids": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-coverage.json#/definitions/ReportingMediaBuyId"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-coverage.json#/definitions/ReportingMediaBuyId"
       },
       "minItems": 1,
       "maxItems": 100,
@@ -172,7 +172,7 @@
     "feed_purposes": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
       },
       "minItems": 1,
       "uniqueItems": true,
@@ -200,7 +200,7 @@
     "health": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reporting-health.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reporting-health.json"
       },
       "minItems": 1,
       "uniqueItems": true,
@@ -209,7 +209,7 @@
     "finality": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reporting-finality.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reporting-finality.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -229,14 +229,14 @@
       "description": "Periods-view incremental-repair checkpoint previously returned as changes_checkpoint after fully consuming a response. Returns newly committed obligations, revisions, adjustments, materializations, consumer status statements, revision receipts, and adjustment receipts plus the current projection of each affected obligation. Omit for a full ledger read."
     },
     "pagination": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-request.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-request.json",
       "description": "Periods or revision-view pagination. Cursors are bound to the authenticated caller, account, filters, and ledger snapshot."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

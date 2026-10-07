@@ -21,7 +21,7 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-resolution-capability.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-resolution-capability.json"
       },
       "description": "Creative-route processing capabilities for exact macro dialect identities, semantics, operations, actors, contexts, and encodings. These capabilities describe build, validation, or preview processing and do not grant seller production authority.",
       "x-adcp-validation": {
@@ -44,7 +44,7 @@
     "applies_to_channels": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/channels.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/channels.json"
       },
       "uniqueItems": true
     },
@@ -57,7 +57,7 @@
       ]
     },
     "locale_policy": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-locale-policy.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-locale-policy.json"
     },
     "canonical_formats_only": {
       "type": "boolean",
@@ -74,14 +74,14 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
       }
     },
     "format_schema": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/platform-extension-ref.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/platform-extension-ref.json"
     },
     "format_kind": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-kind.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-kind.json"
     },
     "params": {
       "type": "object",

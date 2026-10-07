@@ -72,7 +72,7 @@
     "changed_indicator_types": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/indicator-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/indicator-type.json"
       },
       "minItems": 1,
       "uniqueItems": true,
@@ -84,7 +84,7 @@
       "description": "When the seller observed the semantic snapshot change."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

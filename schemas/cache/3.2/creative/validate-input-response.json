@@ -10,7 +10,7 @@
     "results": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/creative/validate-input-result.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/creative/validate-input-result.json"
       },
       "description": "Per-target validation results."
     }
@@ -18,10 +18,10 @@
   "additionalProperties": true,
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ]
 }

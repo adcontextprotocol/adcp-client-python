@@ -6,10 +6,10 @@
   "type": "object",
   "properties": {
     "object_ref": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-file-object-ref.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-file-object-ref.json"
     },
     "native_version_ref": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-native-version-ref.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-native-version-ref.json"
     },
     "size_bytes": {
       "type": "integer",

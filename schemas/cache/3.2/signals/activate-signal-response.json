@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "oneOf": [
@@ -21,7 +21,7 @@
           "type": "array",
           "description": "Array of deployment results for each deployment target",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/deployment.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/deployment.json"
           }
         },
         "sandbox": {
@@ -29,10 +29,10 @@
           "description": "When true, this response contains simulated data from sandbox mode."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -54,15 +54,15 @@
           "type": "array",
           "description": "Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [

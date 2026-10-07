@@ -18,7 +18,7 @@
       "description": "Optional language claim for this markdown. In a materialized creative localization variant, localized-creative-asset.json requires this value to use /schemas/core/locale-tag.json and conformance requires exact equality with the enclosing variant locale. General non-localized assets retain the legacy unconstrained string for compatibility."
     },
     "markdown_flavor": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/markdown-flavor.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/markdown-flavor.json",
       "default": "commonmark",
       "description": "Markdown flavor used. CommonMark for strict compatibility, GFM for tables/task lists/strikethrough."
     },

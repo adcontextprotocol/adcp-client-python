@@ -78,7 +78,7 @@
           "type": "array",
           "description": "Specific property IDs from the publisher's adagents.json",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-id.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-id.json"
           },
           "minItems": 1
         }
@@ -118,7 +118,7 @@
           "type": "array",
           "description": "Property tags resolved against each addressed publisher's adagents.json, OR against the parent file's top-level `properties[]` when those properties carry a `publisher_domain` matching the selector. Selector covers all properties carrying any of these tags.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-tag.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-tag.json"
           },
           "minItems": 1
         }

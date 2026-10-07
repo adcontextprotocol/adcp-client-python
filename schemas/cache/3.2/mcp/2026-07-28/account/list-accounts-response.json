@@ -159,7 +159,7 @@
           "description": "Transport-managed conversation identifier. On A2A, this maps to the native Message/Task `contextId` used to associate messages with a conversation; it is not carried inside the AdCP DataPart. On MCP, a request-body `context_id`, where admitted by the selected request schema, is a compatibility-only field: servers MUST ignore it, callers MUST NOT rely on it for continuity, and it MUST NOT select session state, identity, account, authorization, task continuation, or idempotency scope. MCP continuity, if provided, comes from the transport session. Distinct from `context` (per-request opaque echo, see below) and from `task_id` (AdCP operation tracking)."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1context.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1context.json",
           "description": "Per-request opaque caller-supplied correlation object echoed unchanged in the response. Used for buyer-side tracking (UI session IDs, trace IDs, custom metadata) that the agent MUST preserve byte-for-byte without parsing. Distinct from `context_id` (transport-managed A2A conversation correlation or MCP compatibility metadata) \u2014 `context` is caller-owned echo and never selects transport state. Both MAY appear on the same response.\n\n**Relationship to per-task body-level `context` declarations.** Many task request/response schemas (147 as of 3.1) already declare a body-level `context` field that `$ref`s `/schemas/core/context.json` at the body root. Under the flat-on-the-wire MCP serialization (see `notes` below), envelope-level `context` and body-level `context` occupy the same key on the response root \u2014 they are NOT separate fields, they MUST share the same value, and they MUST both `$ref` `core/context.json`. The envelope declaration is **authoritative** for the schema definition; per-task body declarations are mirrors retained for tooling reasons (SDK codegen completeness, per-task validation against the response schema in isolation). Future versions MAY drop body-level `context` declarations from per-task schemas; conformance does not require either declaration to be present, only that the wire value `$ref`s `core/context.json`."
         },
         "task_id": {
@@ -168,7 +168,7 @@
           "x-entity": "task"
         },
         "status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1task-status.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1task-status.json",
           "description": "Current AdCP task state or structured outcome. Indicates whether the task completed, is in progress, was submitted for async processing, failed, requires user input, or returned a typed business rejection. REQUIRED on every task response envelope. Synchronous tasks (including read-only metadata calls like `get_adcp_capabilities`) normally emit `status: \"completed\"`; a task-specific rejection arm emits `status: \"rejected\"` without turning the transport into a failure. Async tasks emit `submitted`, `working`, `input-required`, etc. per their lifecycle. Agents MUST NOT emit the legacy task_status or response_status fields alongside this field \u2014 the status field is the single authoritative AdCP response state."
         },
         "message": {
@@ -186,11 +186,11 @@
           "default": false
         },
         "adcp_error": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1error.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1error.json",
           "description": "Transport-envelope error signal for fatal task failures. Per the two-layer model in `error-handling.mdx#envelope-vs-payload-errors-the-two-layer-model`, a fatal task failure SHOULD populate both this envelope-level field AND the payload's `errors[]` array \u2014 the envelope carries a typed, extractable error so MCP/A2A clients can dispatch without re-parsing the payload, while the payload's structured `errors[]` remains the canonical normative shape. Non-fatal warnings populate ONLY `payload.errors[]` with `severity: warning` \u2014 the envelope MUST NOT carry `adcp_error` for non-failures."
         },
         "push_notification_config": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1push-notification-config.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1push-notification-config.json",
           "description": "AdCP application-layer webhook configuration for async task updates over MCP, A2A, or REST. Echoed from the request to confirm webhook settings. It is distinct from transport-native progress or A2A TaskPushNotificationConfig delivery and can outlive the originating transport session."
         },
         "governance_context": {
@@ -558,7 +558,7 @@
               "type": "array",
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -595,13 +595,13 @@
       "description": "List-accounts response item: the full Account object plus optional caller-specific authorization metadata. Named separately so SDKs can generate a stable response item type instead of inventing local wrappers for `Account` plus inline `authorization`.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1account.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1account.json"
         },
         {
           "type": "object",
           "properties": {
             "authorization": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1account-authorization.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1account-authorization.json",
               "description": "Optional. The caller's scope grant against this account. Vendor agents of any type (media-buy, signals, governance, creative, brand) that support scope introspection SHOULD populate this so callers can preempt SCOPE_INSUFFICIENT / FIELD_NOT_PERMITTED errors rather than discovering scope by trial and error. Media-buy sales agents claiming the `attestation_verifier` standard scope MUST populate it. Absence means the vendor agent does not advertise introspectable scope for this account \u2014 callers MUST NOT infer access from absence, and fall back to error-driven discovery via the RBAC error codes."
             }
           }
@@ -631,11 +631,11 @@
           "description": "Optional intermediary who receives invoices on behalf of the advertiser (e.g., agency)"
         },
         "status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1account-status.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1account-status.json",
           "description": "Account lifecycle status. See the Accounts Protocol overview for the operations matrix showing which tasks are permitted in each state."
         },
         "brand": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1brand-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1brand-ref.json",
           "description": "Brand reference identifying the advertiser"
         },
         "operator": {
@@ -645,7 +645,7 @@
           "x-entity": "operator"
         },
         "operator_unit": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1operator-unit.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1operator-unit.json",
           "description": "Operator-owned business unit, agency seat, or platform account associated with this advertiser account. The id round-trips from the natural key; name is mutable display metadata. This is distinct from account_id, which belongs to the seller/storefront namespace."
         },
         "revision": {
@@ -654,7 +654,7 @@
           "description": "Monotonically increasing optimistic-concurrency token for this account. Incremented on every persisted settings change, identity-change request, and identity-change disposition; reads, dry runs, validation failures, and exact idempotency replays do not increment it. Pass the latest observed value in a sync_accounts settings-update entry to prevent lost updates."
         },
         "identity_change": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1account-identity-change.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1account-identity-change.json",
           "description": "Pending or rejected operator-identity transition. While present, the top-level operator and operator_unit remain the current canonical identity. Re-read list_accounts until the request is applied (canonical fields change and this object disappears) or rejected."
         },
         "currency": {
@@ -668,11 +668,11 @@
           "description": "Immutable operational timezone for this account, expressed as UTC or an IANA timezone identifier. AdCP 3.2 sellers return it on every account. It is the default calendar-day boundary for account-scoped behavior unless a feature explicitly declares another timezone basis. For buyer-selected account_fixed provisioning it participates in the natural account key."
         },
         "billing": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1billing-party.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1billing-party.json",
           "description": "Who is invoiced on this account. See billing_entity for the invoiced party's business details."
         },
         "billing_entity": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1business-entity.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1business-entity.json",
           "description": "Current canonical business entity for the party responsible for payment. Contains the legal name, tax IDs, and address needed for formal B2B invoicing. Corresponds to whoever billing points to (operator, agent, or advertiser). When this account appears in a response, bank details MUST be omitted and the request-only destination_billing_entity MUST NOT be exposed."
         },
         "destination_billing_entity": {
@@ -684,7 +684,7 @@
           "description": "Identifier for the rate card applied to this account"
         },
         "payment_terms": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1payment-terms.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1payment-terms.json",
           "description": "Payment terms agreed for this account. Binding for all invoices when the account is active."
         },
         "credit_limit": {
@@ -730,7 +730,7 @@
           "additionalProperties": true
         },
         "account_scope": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1account-scope.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1account-scope.json"
         },
         "governance_agents": {
           "type": "array",
@@ -758,7 +758,7 @@
           "description": "Cloud storage bucket where the seller delivers offline reporting files for this account. Seller provisions a dedicated bucket or a per-account prefix within a shared bucket, and grants the buyer read access out-of-band. Access MUST be scoped at the IAM layer so each account can only read its own prefix \u2014 bucket-wide grants are non-compliant even with per-account prefixes. Seller MUST revoke access when the account's status transitions to inactive, suspended, or closed. See security considerations for offline delivery in docs/media-buy/media-buys/optimization-reporting. Only present when the seller supports offline delivery (reporting_delivery_methods includes 'offline' in capabilities).",
           "properties": {
             "protocol": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1cloud-storage-protocol.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1cloud-storage-protocol.json",
               "description": "Cloud storage protocol"
             },
             "bucket": {
@@ -841,7 +841,7 @@
           "type": "array",
           "description": "Account-level webhook subscriptions for creative lifecycle/assignment changes, indicators.changed, account status, durable account-change wake-ups, wholesale feed changes, and reporting.delivery_ready. Buyers manage entries via sync_accounts and verify persisted state on list_accounts. account.change_recorded wakes receivers to drain list_account_changes; reporting.delivery_ready is repaired through get_reporting_status; indicator and assignment payloads are invalidations repaired completely through get_media_buys; list_creatives may provide a bounded reverse projection. Distinct from per-resource push_notification_config. Entries are keyed by account-scoped subscriber_id; credentials are write-only.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1notification-config.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1notification-config.json"
           },
           "maxItems": 16
         },
@@ -850,7 +850,7 @@
           "x-status": "experimental",
           "description": "Resolved durable reporting delivery configurations owned by the authenticated caller for this account. list_accounts MUST expose only the calling principal's set. State and seller-issued destination_ref are returned; credentials and bearer profiles MUST NOT appear. Any setup URL is a secret-free authenticated entry point, not a bearer credential.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-config-state.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-config-state.json"
           },
           "maxItems": 16
         },
@@ -858,12 +858,12 @@
           "type": "array",
           "description": "Recent webhook delivery attempts scoped to this account when the caller requested webhook activity on list_accounts and the seller surfaces the log. Includes account-anchored notifications such as account.status_changed and MAY include other account-level fires relevant to this account. Three-state presence follows the shared webhook_activity[] contract: omitted means unsupported or not requested, [] means supported but no retained fires, non-empty lists recent attempts most-recent-first.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1webhook-activity-record.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1webhook-activity-record.json"
           },
           "maxItems": 200
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -1035,7 +1035,7 @@
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
         },
         "brand_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1brand-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1brand-id.json",
           "description": "Brand identifier within the house portfolio. Optional for single-brand domains."
         },
         "countries": {
@@ -1094,7 +1094,7 @@
           "description": "Inline override for brand-kit fields normally resolved from `/.well-known/brand.json` on `domain` (logo, colors, voice, tagline). Use when brand.json is missing, stale, or inappropriate for this specific call \u2014 e.g., a campaign-scoped tagline, a co-branded creative, a freshly-rebranded color palette the brand.json hasn't shipped yet. Same inline-override pattern as `industries` and `data_subject_contestation` above: brand.json is canonical, the override is per-call. Adopters needing to override fields outside this subset (`voice_attributes`, `prohibited_terms`, etc.) MUST publish a different brand.json and reference it via a different `domain` \u2014 the inline override is intentionally narrow to a small high-traffic subset.\n\n**Merge semantics (normative).** The merge is **field-level**, not whole-object replacement. Each field within `brand_kit_override` (`logo`, `colors`, `voice`, `tagline`) is evaluated independently \u2014 when a field is present on the override the override value applies; when a field is absent the brand.json value applies (or is absent if brand.json doesn't carry one either). For composite fields (`colors.primary`, `colors.secondary`, `colors.accent`), the merge is one level deeper: each color slot is evaluated independently \u2014 a producer can override `colors.primary` while still inheriting `colors.secondary` from brand.json. SDKs MUST NOT treat a present `brand_kit_override.colors` as wiping the brand.json `colors` block entirely; only the per-slot fields present in the override take precedence. Without this rule, a partial-override semantics would diverge across SDKs and produce inconsistent rendering for the same payload.",
           "properties": {
             "logo": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1assets~1image-asset.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1assets~1image-asset.json",
               "description": "Override logo asset."
             },
             "colors": {
@@ -1230,7 +1230,7 @@
           "x-accessibility": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1provenance.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1provenance.json",
           "description": "Provenance metadata for this asset, overrides manifest-level provenance"
         }
       },
@@ -1248,7 +1248,7 @@
       "type": "object",
       "properties": {
         "digital_source_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1digital-source-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1digital-source-type.json",
           "description": "IPTC-aligned classification of AI involvement in producing this content"
         },
         "synthetic_depiction": {
@@ -1358,7 +1358,7 @@
             "type": "object",
             "properties": {
               "method": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1embedded-provenance-method.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1embedded-provenance-method.json",
                 "description": "How provenance data is carried within the content"
               },
               "standard": {
@@ -1409,7 +1409,7 @@
             "type": "object",
             "properties": {
               "media_type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1watermark-media-type.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1watermark-media-type.json",
                 "description": "Media category of the watermarked content"
               },
               "provider": {
@@ -1437,7 +1437,7 @@
                 "additionalProperties": false
               },
               "c2pa_action": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1c2pa-watermark-action.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1c2pa-watermark-action.json",
                 "description": "C2PA action classification for this watermark"
               },
               "embedded_at": {
@@ -1488,7 +1488,7 @@
                     "minProperties": 1,
                     "properties": {
                       "persistence": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1disclosure-persistence.json",
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1disclosure-persistence.json",
                         "description": "How long the disclosure must persist during content playback or display"
                       },
                       "min_duration_ms": {
@@ -1500,13 +1500,13 @@
                         "type": "array",
                         "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                         "items": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1disclosure-position.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1disclosure-position.json"
                         },
                         "minItems": 1,
                         "uniqueItems": true
                       },
                       "ext": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1ext.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1ext.json"
                       }
                     }
                   }
@@ -1568,7 +1568,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1ext.json"
         }
       }
     },
@@ -1727,7 +1727,7 @@
               "description": "The seller is reviewing the requested transition."
             },
             "requested_operator_identity": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1operator-identity.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1operator-identity.json",
               "description": "Complete desired operator identity submitted by the buyer."
             },
             "requested_at": {
@@ -1752,7 +1752,7 @@
               "description": "The seller rejected the transition and retained the current canonical identity."
             },
             "requested_operator_identity": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1operator-identity.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1operator-identity.json",
               "description": "Complete desired operator identity submitted by the buyer."
             },
             "requested_at": {
@@ -1788,7 +1788,7 @@
           "x-entity": "operator"
         },
         "operator_unit": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1operator-unit.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1operator-unit.json",
           "description": "Optional operator-owned business unit, agency seat, or platform account. Its id participates in account identity; name is mutable display metadata. Omission from a complete desired replacement means the account should have no operator unit."
         }
       },
@@ -1954,7 +1954,7 @@
           "additionalProperties": false
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -2128,7 +2128,7 @@
             "schemes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -2150,7 +2150,7 @@
           "description": "When false, the seller persists the configuration but suppresses fires. Use to pause a noisy subscriber without losing the registration. Sellers MUST NOT skip persisting the entry when `active: false` \u2014 the buyer's next `sync_accounts` MUST observe the same array, otherwise the buyer cannot distinguish pause from drop. Paused configs may skip only the outbound proof challenge while inactive; sellers MUST still enforce URL parsing, HTTPS, hostname normalization, and reserved-range rejection at write time. Reactivation requires full SSRF validation with connect pinning plus proof-of-control for any tuple without current valid proof."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -2264,10 +2264,10 @@
       "type": "object",
       "properties": {
         "configuration": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-config.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-config.json"
         },
         "state": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-config-state.json/$defs/ReportingDeliveryConfigLifecycleState"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-config-state.json/$defs/ReportingDeliveryConfigLifecycleState"
         },
         "destination_ref": {
           "type": "string",
@@ -2299,7 +2299,7 @@
           "description": "End of historical access to a producer-hosted share/resource for a still-authorized principal after voluntary deactivation. Inapplicable to data already written into a buyer-owned destination."
         },
         "current_coverage": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json",
           "description": "Current effective product/package coverage for the selected offering and resolved account. This setup-time view may change as media buys or provider capabilities change; each period obligation later freezes its own authoritative coverage."
         },
         "setup": {
@@ -2340,7 +2340,7 @@
         "issues": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-status-issue.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-status-issue.json"
           },
           "minItems": 1
         }
@@ -2493,7 +2493,7 @@
           "description": "Whether new reporting obligations should use this configuration. Inactive configurations remain visible for historical resolution."
         },
         "feed_purpose": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-offering.json/$defs/ReportingFeedPurpose"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-offering.json/$defs/ReportingFeedPurpose"
         },
         "report_definition_id": {
           "type": "string",
@@ -2521,7 +2521,7 @@
             "media_buy_ids": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -2540,11 +2540,11 @@
           "description": "Whether every package in the resolved media-buy scope must support the exact selected offering. full fails closed when any package is unsupported or unknown. allow_partial permits publication only for the explicitly covered package denominator; every revision and status response still exposes partial coverage and MUST NOT present covered-subset totals as whole-buy totals."
         },
         "required_finality": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1reporting-finality.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1reporting-finality.json",
           "description": "Finality the durable path must ultimately provide. Snapshot delivery may still precede an official requirement."
         },
         "reconciliation_mode": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-reconciliation-mode.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-reconciliation-mode.json",
           "description": "Whether producer-side delivery evidence is sufficient or the selected consumer must submit an authenticated matching receipt. A seller-authoritative billing feed MUST use consumer_receipt."
         },
         "authoritative_party": {
@@ -2557,10 +2557,10 @@
           "description": "Reserved: which party's count of this feed is authoritative. seller (the default, and the only value any 3.2 seller accepts) means the seller produces every revision and the consumer may only attest to what it consumed. consumer is reserved for the buyer-deposited billing revision task scoped to a later minor; until that task exists sellers MUST reject it with UNSUPPORTED_FEATURE. Reserving the field now keeps a future buyer-basis billing feed additive instead of breaking the billing-feed constraints. See https://github.com/adcontextprotocol/adcp/issues/7440."
         },
         "schedule": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-schedule.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-schedule.json"
         },
         "method": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-method.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-method.json"
         },
         "revocation_effective_at": {
           "type": "string",
@@ -2664,7 +2664,7 @@
           "x-entity": "reporting_offering"
         },
         "feed_purpose": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-offering.json/$defs/ReportingFeedPurpose"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-offering.json/$defs/ReportingFeedPurpose"
         },
         "report_definition_id": {
           "type": "string",
@@ -2730,7 +2730,7 @@
             "primary_keys": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-canonicalization-contract.json/$defs/ReportingPrimaryKey"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-canonicalization-contract.json/$defs/ReportingPrimaryKey"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -2774,20 +2774,20 @@
           "additionalProperties": false
         },
         "schedule": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-schedule-offering.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-schedule-offering.json",
           "description": "Period and availability SLA this offering can honor. For example, PT1H with snapshot finality explicitly advertises hourly provisional snapshots; a separate P1D official offering advertises daily finalized reporting."
         },
         "supported_finality": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1reporting-finality.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1reporting-finality.json"
           },
           "minItems": 1,
           "uniqueItems": true,
           "description": "Finality classes available under this exact report definition, schedule, and delivery method. snapshot is an explicit provisional capability, not inferred from poll frequency. Use separate atomic offerings when snapshot and official schedules or methods differ."
         },
         "reconciliation_mode": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-reconciliation-mode.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-reconciliation-mode.json",
           "description": "Receipt contract included in this atomic offering. Billing offerings MUST require consumer_receipt."
         },
         "method": {
@@ -2795,7 +2795,7 @@
           "description": "Managed delivery method for this offering. Omit for a Core (API-delivered) offering: rows flow through existing get_media_buy_delivery and reporting_webhook transports and no destination is involved. Present only when the seller advertises managed_delivery.",
           "properties": {
             "pattern": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-offering.json/$defs/ReportingDeliveryPattern"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-offering.json/$defs/ReportingDeliveryPattern"
             },
             "transport": {
               "type": "string",
@@ -2804,7 +2804,7 @@
               "pattern": "^[a-z][a-z0-9_.-]*$"
             },
             "orchestration": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
             },
             "destination_modes": {
               "type": "array",
@@ -2870,7 +2870,7 @@
                   "maxLength": 512
                 },
                 "cloud": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-dataset-share-destination.json/$defs/ReportingCloud"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-dataset-share-destination.json/$defs/ReportingCloud"
                 },
                 "region": {
                   "type": "string",
@@ -2895,7 +2895,7 @@
             "reader_compatibility": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-resource.json/$defs/ReportingReaderCompatibilityItem"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-resource.json/$defs/ReportingReaderCompatibilityItem"
               },
               "uniqueItems": true
             }
@@ -3072,7 +3072,7 @@
         "primary_keys": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-canonicalization-contract.json/$defs/ReportingPrimaryKey"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-canonicalization-contract.json/$defs/ReportingPrimaryKey"
           },
           "minItems": 1,
           "uniqueItems": true,
@@ -3243,7 +3243,7 @@
           "pattern": "^P(?=.*[1-9])(?=\\d|T)(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?=\\d)(?:\\d+H)?(?:\\d+M)?(?:\\d+S)?)?$"
         },
         "alignment": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-schedule.json/$defs/ReportingScheduleAlignment"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-schedule.json/$defs/ReportingScheduleAlignment"
         },
         "period_anchor_policy": {
           "type": "string",
@@ -3437,7 +3437,7 @@
           "description": "Strictly positive ISO 8601 duration of each reporting period, such as PT15M, P1D, or P1M."
         },
         "alignment": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-schedule.json/$defs/ReportingScheduleAlignment"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-schedule.json/$defs/ReportingScheduleAlignment"
         },
         "period_anchor": {
           "type": "string",
@@ -3586,10 +3586,10 @@
               "description": "Storage transport such as s3, gcs, azure_blob, or sftp."
             },
             "orchestration": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
             },
             "destination": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-write-destination.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-write-destination.json"
             },
             "format": {
               "type": "string",
@@ -3629,10 +3629,10 @@
               "description": "Sharing transport such as delta_sharing, snowflake_secure_sharing, or bigquery_authorized_view."
             },
             "orchestration": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
             },
             "destination": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-dataset-share-destination.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-dataset-share-destination.json"
             }
           },
           "required": [
@@ -3660,10 +3660,10 @@
               "description": "Warehouse or transfer transport such as bigquery, snowflake, databricks_sql, or gam_bigquery_transfer."
             },
             "orchestration": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
             },
             "destination": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-write-destination.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-write-destination.json"
             }
           },
           "required": [
@@ -3828,7 +3828,7 @@
                   "maxLength": 512
                 },
                 "cloud": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-dataset-share-destination.json/$defs/ReportingCloud"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-dataset-share-destination.json/$defs/ReportingCloud"
                 },
                 "region": {
                   "type": "string",
@@ -3906,7 +3906,7 @@
           "description": "Non-secret provider-native object, relation, or share identifier. MUST NOT contain an activation URL, signed URL, bearer token, password, private key, or embedded credential."
         },
         "native_version_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-native-version-ref.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-native-version-ref.json"
         },
         "manifest_version": {
           "type": "string",
@@ -3935,7 +3935,7 @@
           "type": "array",
           "description": "Reader features or format constraints required to consume this resource. Readiness verification MUST use a representative supported reader.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-resource.json/$defs/ReportingReaderCompatibilityItem"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-resource.json/$defs/ReportingReaderCompatibilityItem"
           },
           "uniqueItems": true
         }
@@ -4028,7 +4028,7 @@
         "media_buy_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
           },
           "uniqueItems": true,
           "description": "Exact media-buy denominator, including unsupported and unknown buys. An empty array is an explicitly evaluated zero-buy scope."
@@ -4036,35 +4036,35 @@
         "fully_covered_media_buy_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
           },
           "uniqueItems": true
         },
         "partially_covered_media_buy_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
           },
           "uniqueItems": true
         },
         "unsupported_media_buy_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
           },
           "uniqueItems": true
         },
         "unknown_media_buy_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
           },
           "uniqueItems": true
         },
         "package_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
           },
           "uniqueItems": true,
           "description": "Exact package denominator for the evaluated media buys."
@@ -4072,21 +4072,21 @@
         "covered_package_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
           },
           "uniqueItems": true
         },
         "unsupported_package_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
           },
           "uniqueItems": true
         },
         "unknown_package_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
           },
           "uniqueItems": true
         },
@@ -4107,12 +4107,12 @@
                 ]
               },
               "media_buy_id": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
               },
               "package_ids": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
                 },
                 "minItems": 1,
                 "uniqueItems": true
@@ -4196,7 +4196,7 @@
           ]
         },
         "severity": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-status-issue.json/$defs/ReportingStatusSeverity"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-status-issue.json/$defs/ReportingStatusSeverity"
         },
         "opened_at": {
           "type": "string",
@@ -4273,12 +4273,12 @@
           "minimum": 1
         },
         "feed_purpose": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-offering.json/$defs/ReportingFeedPurpose"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-delivery-offering.json/$defs/ReportingFeedPurpose"
         },
         "media_buy_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -4286,7 +4286,7 @@
         "package_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -4383,7 +4383,7 @@
           "description": "ISO 8601 timestamp when the seller observed the response (or terminal timeout / connection error \u2014 for `timeout` and `connection_error` outcomes, `completed_at` is set to the moment the seller declared the attempt terminal). Explicitly `null` when the attempt is still in flight or queued for retry (status `pending`); MUST be set as `null` rather than omitted so callers can distinguish 'still in flight' from 'field missing'."
         },
         "notification_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1notification-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:enums~1notification-type.json",
           "description": "Notification type carried by this fire, verbatim from the webhook payload. Includes delivery-report types (`scheduled`, `final`, `delayed`, `adjusted`, `window_update`), health notifications (`impairment`), and account-anchored indicator or creative-assignment invalidations from the shared registry. All share the same persistent-channel webhook contract and the same buyer-side debug need."
         },
         "sequence_number": {
@@ -4443,7 +4443,7 @@
           "maxLength": 500
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1ext.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/account/list-accounts-response.json#/$defs/external:core~1ext.json",
           "description": "Resource-specific extension slot. Adopters MAY surface a resource-specific cross-reference (e.g., `creative_id` on a creative-lifecycle record, `media_buy_id` on a record nested inside an account-level read) under `ext` rather than adding top-level fields \u2014 the canonical record shape stays uniform across resources and the `ext` envelope absorbs per-resource needs. Top-level extensions are not permitted (`additionalProperties: false`)."
         }
       },

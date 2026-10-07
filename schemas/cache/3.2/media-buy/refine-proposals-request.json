@@ -13,10 +13,10 @@
   },
   "properties": {
     "adcp_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_version"
     },
     "adcp_major_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_major_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_major_version"
     },
     "context_id": {
       "type": "string",
@@ -26,7 +26,7 @@
     "context": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         }
       ],
       "x-adcp-schema-uri": "/schemas/core/context.json"
@@ -39,7 +39,7 @@
     "push_notification_config": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json"
         }
       ],
       "x-adcp-schema-uri": "/schemas/core/push-notification-config.json"
@@ -55,7 +55,7 @@
       "type": "array",
       "description": "Proposal operations to apply, with at most 25 entries per request. revise creates a draft successor from a draft, committed, or accepted source. finalize MUST target a draft, reserves inventory, and creates a committed successor whose expires_at is the hold deadline. A batch containing finalize MUST contain only finalize entries and is atomic. proposal_id values MUST be unique; results preserve request order.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/proposal-refinement.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/proposal-refinement.json"
       },
       "minItems": 1,
       "maxItems": 25,

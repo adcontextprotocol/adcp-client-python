@@ -5,7 +5,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-targeting-expression.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-targeting-expression.json"
     }
   ],
   "properties": {
@@ -20,7 +20,7 @@
       "x-entity": "signal_activation_id"
     },
     "activation_key": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/activation-key.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/activation-key.json",
       "description": "Destination-specific activation key returned by get_signals or activate_signal. Usually omitted for seller-offered signals selected directly through the same seller; include only when the selected signal was separately activated and the seller requires the activation key to correlate the package selection."
     }
   },

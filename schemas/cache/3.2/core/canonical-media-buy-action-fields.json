@@ -16,22 +16,22 @@
       "type": "string"
     },
     "mode": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/canonical-media-buy-action-mode.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/canonical-media-buy-action-mode.json"
     },
     "sla": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/sla-window.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/sla-window.json"
     },
     "change_term_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-change-term-id.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-change-term-id.json"
     },
     "terms_ref": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-legacy-terms-ref.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-legacy-terms-ref.json"
     },
     "applicable_package_ids": {
       "type": "array",
       "description": "Exact eligible packages for a package-scoped action; omission means all relevant packages.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/applicable-package-id.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/applicable-package-id.json"
       },
       "minItems": 1,
       "uniqueItems": true

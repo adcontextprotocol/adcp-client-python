@@ -9,7 +9,7 @@
       "description": "Which vendor's value for the billing metric governs invoicing. The billing metric is determined by the pricing_model on the selected pricing_option (e.g., impressions for CPM, completed views for CPCV, commissionable_value for revenue_share).",
       "properties": {
         "vendor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
           "description": "Vendor whose measurement of the billing metric is authoritative for invoicing (e.g., { domain: 'campaignmanager.google.com' } for buyer's DCM, { domain: 'admanager.google.com' } for seller's GAM)."
         },
         "max_variance_percent": {
@@ -51,7 +51,7 @@
           "type": "array",
           "description": "Remedy types the seller supports. Ordered by seller preference (first = preferred). Seller proposes from this list when a breach occurs; buyer accepts or disputes.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/makegood-remedy.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/makegood-remedy.json"
           },
           "minItems": 1,
           "uniqueItems": true

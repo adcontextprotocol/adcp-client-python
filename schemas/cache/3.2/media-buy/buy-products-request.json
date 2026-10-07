@@ -16,10 +16,10 @@
   },
   "properties": {
     "adcp_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_version"
     },
     "adcp_major_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_major_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_major_version"
     },
     "idempotency_key": {
       "type": "string",
@@ -37,17 +37,17 @@
     "account": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-account-ref.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-account-ref.json"
         }
       ],
       "description": "Execution account. A natural-key account is the single brand source and MUST NOT be combined with top-level brand."
     },
     "brand": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json",
       "description": "Brand source required when account is ID-only. Omit when account already contains brand and operator."
     },
     "advertiser_industry": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/advertiser-industry.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/advertiser-industry.json",
       "description": "Industry classification for this campaign. Sellers may infer it from the resolved brand manifest when omitted."
     },
     "feed_version": {
@@ -63,7 +63,7 @@
     "purchases": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase-input.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase-input.json"
       },
       "minItems": 1
     },
@@ -91,7 +91,7 @@
       "description": "Optional hard aggregate daily spend ceiling in total_budget.currency or the media buy's derived currency. It bounds the shared daily spend pool without allocating or reserving amounts for purchases."
     },
     "frequency_cap": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-frequency-cap.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-frequency-cap.json",
       "description": "Optional max-impression cap using one counter across purchases. Buyers send it only when aggregate_frequency_capping is advertised. Every selected product must declare compatible media_buy_support; otherwise the purchase is rejected atomically with UNSUPPORTED_FEATURE before any mutation, never clamped."
     },
     "budget_cap_timezone": {
@@ -100,21 +100,21 @@
       "description": "Optional IANA timezone override shared by every aggregate and purchase daily cap. Requires buyer_timezone_override support; otherwise rejected with UNSUPPORTED_FEATURE. When omitted, budget_capping.timezone_basis selects Account.timezone or fixed_timezone."
     },
     "budget_allocation": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-budget-allocation.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-budget-allocation.json"
     },
     "start_time": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/start-timing.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/start-timing.json"
     },
     "end_time": {
       "type": "string",
       "format": "date-time"
     },
     "pacing": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pacing.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pacing.json",
       "description": "Aggregate media-buy pacing. In seller-optimized allocation, a seller declaring media_buy.features.seller_optimized_budget MUST accept omission and `even`; it MAY reject `asap` or `front_loaded` with UNSUPPORTED_FEATURE (error.field `pacing`) before any provider mutation and MUST NOT silently coerce them to `even`. Fixed-allocation semantics are unchanged."
     },
     "bidding": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/bidding-policy.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/bidding-policy.json"
     },
     "paused": {
       "type": "boolean",
@@ -130,7 +130,7 @@
       "maxLength": 100
     },
     "invoice_recipient": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/business-entity.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/business-entity.json",
       "description": "Authorized per-buy billing entity override."
     },
     "governance_context": {
@@ -139,16 +139,16 @@
       "maxLength": 4096
     },
     "push_notification_config": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json"
     },
     "reporting_webhook": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-webhook.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-webhook.json",
       "description": "Optional reporting delivery configuration established atomically with the MediaBuy. This is execution metadata and is not part of the immutable product pricing terms."
     },
     "opportunity": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/opportunity-context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/opportunity-context.json"
         },
         {
           "properties": {
@@ -178,10 +178,10 @@
       "description": "Optional planning-cycle closure for a direct product purchase. Success infers closed with accepted_with_seller when status is omitted; an explicit status MUST carry that same closure."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

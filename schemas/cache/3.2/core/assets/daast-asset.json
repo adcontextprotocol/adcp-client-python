@@ -10,7 +10,7 @@
       "description": "Discriminator identifying this as a DAAST asset. See /schemas/creative/asset-types for the registry."
     },
     "daast_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/daast-version.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/daast-version.json",
       "description": "DAAST specification version"
     },
     "duration_ms": {
@@ -21,7 +21,7 @@
     "tracking_events": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/daast-tracking-event.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/daast-tracking-event.json"
       },
       "description": "Tracking events supported by this DAAST tag"
     },
@@ -36,13 +36,13 @@
       "x-accessibility": true
     },
     "provenance": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
     },
     "macro_declarations": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-declaration.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-declaration.json"
       },
       "minItems": 1,
       "description": "One declaration per occurrence in a field carried by this asset. URL-delivered assets declare only locator-URL occurrences; receivers do not infer declarations for tokens discovered later in a fetched document."
@@ -60,7 +60,7 @@
           "description": "Discriminator indicating DAAST is delivered via URL endpoint"
         },
         "url": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-bearing-url.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-bearing-url.json",
           "description": "URL endpoint returning DAAST XML. Macro delimiters remain byte-preserved and are processed only under attached occurrence declarations."
         },
         "macro_declarations": {

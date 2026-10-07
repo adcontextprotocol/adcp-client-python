@@ -11,7 +11,7 @@
       "description": "Binary signal expression. In grouped package targeting, value is always true; use a parent group with operator 'none' for exclusion.",
       "properties": {
         "signal_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json",
           "description": "Named signal being targeted."
         },
         "value_type": {
@@ -37,7 +37,7 @@
       "description": "Categorical signal expression - target users with one of the listed values.",
       "properties": {
         "signal_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json",
           "description": "Named signal being targeted."
         },
         "value_type": {
@@ -66,7 +66,7 @@
       "description": "Numeric signal expression - target users within a value range. At least one of min_value or max_value is required. If both min_value and max_value are provided, min_value MUST be <= max_value.",
       "properties": {
         "signal_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json",
           "description": "Named signal being targeted."
         },
         "value_type": {

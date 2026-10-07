@@ -6,12 +6,12 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     }
   ],
   "properties": {
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Optional exact account filter. Use `account_id` to retrieve one known seller/storefront account, or the complete natural key (`brand` + `operator` + optional `operator_unit`, fixed `currency`, buyer-selected account `timezone`, and `sandbox`) for buyer-declared accounts. When present, the seller returns only matching accounts visible to the authenticated caller."
     },
     "status": {
@@ -27,7 +27,7 @@
       "description": "Filter accounts by status. Omit to return accounts in all statuses."
     },
     "pagination": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-request.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-request.json"
     },
     "sandbox": {
       "type": "boolean",
@@ -46,10 +46,10 @@
       "default": 50
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [],

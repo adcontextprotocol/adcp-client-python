@@ -16,7 +16,7 @@
       "type": "array",
       "description": "Echoed copy of the seller's `supported_billing` capability for the caller's convenience \u2014 saves a `get_adcp_capabilities` round-trip when `scope` is `\"capability\"`. Sellers MAY omit this field; callers MUST treat absence as \"call `get_adcp_capabilities`\" rather than \"any value is permitted.\"",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/billing-party.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/billing-party.json"
       },
       "minItems": 1
     }

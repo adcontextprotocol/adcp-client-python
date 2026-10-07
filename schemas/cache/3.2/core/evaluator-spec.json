@@ -9,7 +9,7 @@
       "type": "array",
       "description": "Optional hard GATE over creative-feature values \u2014 the predicates a leaf MUST satisfy for the producing agent to recommend/return it. Reuses the feature-requirement shape (min_value/max_value for quantitative features like creative_quality_score, allowed_values for binary/categorical) \u2014 the same predicate vocabulary that gates property/audience filters, which its own schema names as an intended creative-gate reuse. A leaf that fails any predicate is DROPPED from the agent's best_of_n survivors before ranking \u2014 this is internal pruning of which leaves the agent recommends, not an AdCP-layer block of an already-produced billable leaf (what is produced/billed is governed by max_variants/max_creatives/max_spend). Distinct from `rank_by`: the gate is a pass/fail predicate (drop on fail), `rank_by` is an ordering over survivors. Each predicate's `if_not_covered` (exclude|include, default exclude) is the fail-open knob when the source cannot measure that feature. A pass/warn/fail verdict is expressed as a categorical string feature value gated via `allowed_values` (e.g. [\"pass\"] or [\"pass\",\"warn\"]) \u2014 the buyer's predicate decides whether warn passes; the verdict is derived, never stored on creative-feature-result. Omit to leave evaluation advisory (no leaf is dropped).",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/feature-requirement.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/feature-requirement.json"
       },
       "minItems": 1
     },
@@ -78,7 +78,7 @@
       "additionalProperties": true
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "oneOf": [
@@ -96,14 +96,14 @@
             "pass": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/content-standards/artifact.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/content-standards/artifact.json"
               },
               "description": "Artifacts exemplifying variants the buyer considers good \u2014 the high end (\u22481) of the calibrated prediction feature."
             },
             "fail": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/content-standards/artifact.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/content-standards/artifact.json"
               },
               "description": "Artifacts exemplifying variants the buyer considers bad \u2014 the low end (\u22480) of the calibrated prediction feature."
             }

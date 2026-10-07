@@ -25,7 +25,7 @@
       "minLength": 1
     },
     "dialect": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/macro-dialect.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/macro-dialect.json"
     },
     "dialect_namespace": {
       "type": "string",
@@ -40,19 +40,19 @@
       "minLength": 1
     },
     "mapping_status": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/macro-mapping-status.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/macro-mapping-status.json"
     },
     "universal_semantic": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/universal-macro.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/universal-macro.json"
     },
     "operation": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/macro-processing-operation.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/macro-processing-operation.json"
     },
     "performed_by": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/macro-resolver.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/macro-resolver.json"
     },
     "requested_encoding": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-encoding.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-encoding.json"
     },
     "required": {
       "type": "boolean"
@@ -76,12 +76,12 @@
       ]
     },
     "reason": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/macro-resolution-reason.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/macro-resolution-reason.json"
     },
     "matched_encodings": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-encoding.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-encoding.json"
       },
       "description": "Exact advertised profiles considered for this match, when relevant."
     },
@@ -246,7 +246,7 @@
         ],
         "properties": {
           "dialect_semantic": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/universal-macro.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/universal-macro.json"
           },
           "mapping_status": {
             "const": "verified_universal"

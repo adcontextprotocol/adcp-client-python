@@ -45,7 +45,7 @@
         "type": "object",
         "properties": {
           "issuer": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attestation-issuer.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attestation-issuer.json"
           },
           "claim_types": {
             "type": "array",
@@ -115,7 +115,7 @@
             "minItems": 1
           },
           "ext": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
           }
         },
         "required": [
@@ -155,7 +155,7 @@
             "uniqueItems": true
           },
           "ext": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
           }
         },
         "required": [
@@ -172,7 +172,7 @@
       "description": "Maximum UTF-8 byte size accepted for one embedded credential. Evaluators MUST enforce this limit before parsing the credential. The protocol ceiling is 1 MiB."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

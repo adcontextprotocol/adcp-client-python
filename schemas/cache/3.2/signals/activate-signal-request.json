@@ -5,7 +5,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     }
   ],
   "x-mutates-state": true,
@@ -38,7 +38,7 @@
       "type": "array",
       "description": "Target destination(s) for activation. If the authenticated caller matches one of these destinations, activation keys will be included in the response.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/destination.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/destination.json"
       },
       "minItems": 1
     },
@@ -55,7 +55,7 @@
       "pattern": "^[\\x20-\\x7E]+$"
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Account for this activation. Associates with a commercial relationship established via sync_accounts."
     },
     "idempotency_key": {
@@ -66,10 +66,10 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

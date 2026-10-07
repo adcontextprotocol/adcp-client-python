@@ -6,10 +6,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     },
     {
       "if": {
@@ -177,7 +177,7 @@
   ],
   "properties": {
     "view": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/get-reporting-status-request.json#/definitions/ReportingStatusView"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/get-reporting-status-request.json#/definitions/ReportingStatusView"
     },
     "ledger_snapshot_id": {
       "type": "string",
@@ -221,7 +221,7 @@
         "media_buy_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-coverage.json#/definitions/ReportingMediaBuyId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-coverage.json#/definitions/ReportingMediaBuyId"
           },
           "uniqueItems": true
         },
@@ -246,7 +246,7 @@
                 "minimum": 1
               },
               "feed_purpose": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
               }
             },
             "required": [
@@ -261,14 +261,14 @@
         "feed_purposes": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
           },
           "uniqueItems": true
         },
         "finality": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reporting-finality.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reporting-finality.json"
           },
           "uniqueItems": true
         },
@@ -318,10 +318,10 @@
       "additionalProperties": false
     },
     "health": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reporting-health.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reporting-health.json"
     },
     "coverage": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-coverage.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-coverage.json",
       "description": "Aggregated effective coverage for the exact selected scope. This remains independent of reporting health and finality so a fresh covered subset cannot look like complete campaign reporting."
     },
     "data_through": {
@@ -383,73 +383,73 @@
     "issues": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-status-issue.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-status-issue.json"
       }
     },
     "periods": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-obligation.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-obligation.json"
       }
     },
     "revisions": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-revision.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-revision.json"
       },
       "description": "Revision ledger records on this page. Pagination is over the flat union of obligations, revisions, adjustments, materializations, consumer status statements, revision receipts, and adjustment receipts, avoiding unbounded nested history."
     },
     "adjustments": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-adjustment.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-adjustment.json"
       },
       "description": "Immutable post-official accounting corrections on this page. They preserve the original invoice-to-revision binding and are included in flat ledger pagination."
     },
     "consumer_statuses": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-consumer-status.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-consumer-status.json"
       },
       "description": "Authenticated caller's append-only reporting status history on this page. Current leaves are identified by obligation current_consumer_status_id or, for a missing seller obligation, by the supersession chain over configuration generation, report definition, and period. No other consumer's status is disclosed."
     },
     "adjustment_receipts": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-adjustment-receipt.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-adjustment-receipt.json"
       },
       "description": "Authenticated Reconciled Billing outcomes for adjustments on this page."
     },
     "pagination": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-response.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-response.json"
     },
     "revision": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-revision.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-revision.json"
     },
     "materializations": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-materialization.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-materialization.json"
       }
     },
     "receipts": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-receipt.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-receipt.json"
       },
       "description": "Authenticated caller's durable reconciliation receipts. Receipts from another consumer principal are never disclosed."
     },
     "errors": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       }
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "oneOf": [
@@ -739,7 +739,7 @@
               "type": "string"
             },
             "context": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
             },
             "message": {
               "const": "Reporting status resource is unavailable."
@@ -826,7 +826,7 @@
               "type": "string"
             },
             "context": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
             },
             "message": {
               "type": "string"
@@ -839,12 +839,12 @@
               "type": "boolean"
             },
             "adcp_error": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
             },
             "errors": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
               },
               "minItems": 1
             }

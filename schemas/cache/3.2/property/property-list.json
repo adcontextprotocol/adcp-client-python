@@ -18,22 +18,22 @@
       "description": "Description of the list's purpose"
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Account that owns this list. Returned as account_id form (seller-assigned identifier)."
     },
     "base_properties": {
       "type": "array",
       "description": "Array of property sources to evaluate. Each entry is a discriminated union: publisher_tags (publisher_domain + tags), publisher_ids (publisher_domain + property_ids), or identifiers (direct identifiers). If omitted, queries the agent's entire property database.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/property/base-property-source.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/property/base-property-source.json"
       }
     },
     "filters": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/property/property-list-filters.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/property/property-list-filters.json",
       "description": "Dynamic filters applied when resolving the list"
     },
     "brand": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
       "description": "Brand reference used to automatically apply appropriate rules. Resolved to full brand identity at execution time."
     },
     "webhook_url": {
@@ -65,7 +65,7 @@
       "type": "array",
       "description": "Pricing options for this property list. Present when the requesting account has a billing relationship with the list provider. The buyer passes the selected pricing_option_id in report_usage.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-pricing-option.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-pricing-option.json"
       },
       "minItems": 1
     }

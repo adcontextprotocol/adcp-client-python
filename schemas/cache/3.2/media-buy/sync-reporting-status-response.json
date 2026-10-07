@@ -6,10 +6,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "properties": {
@@ -33,7 +33,7 @@
               "consumer_status": {
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-consumer-status.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-consumer-status.json"
                   },
                   {
                     "required": [
@@ -60,7 +60,7 @@
               "consumer_status": {
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-consumer-status.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-consumer-status.json"
                   },
                   {
                     "required": [
@@ -94,7 +94,7 @@
               "errors": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
                 },
                 "minItems": 1,
                 "maxItems": 16
@@ -113,10 +113,10 @@
       "maxItems": 100
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

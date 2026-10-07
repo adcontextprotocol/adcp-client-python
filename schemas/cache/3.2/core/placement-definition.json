@@ -45,7 +45,7 @@
           "$ref": "#/definitions/PublisherDoohScreenResolution"
         },
         "motion": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/dooh-motion-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/dooh-motion-type.json",
           "description": "Physical motion capability of a visual DOOH screen, not an accepted-format declaration. Omit for audio-only placements."
         }
       },
@@ -87,7 +87,7 @@
       "type": "array",
       "description": "Property IDs in this adagents.json where this placement can appear.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-id.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-id.json"
       },
       "minItems": 1
     },
@@ -95,7 +95,7 @@
       "type": "array",
       "description": "Property tags in this adagents.json where this placement can appear. Useful for network-wide positions such as 'pre_roll' or 'homepage_native_feed'.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-tag.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-tag.json"
       },
       "minItems": 1
     },
@@ -111,17 +111,17 @@
       "type": "array",
       "description": "Advertising channels where this placement can run. Products that reference the placement may narrow this set but should not broaden it.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/channels.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/channels.json"
       },
       "uniqueItems": true,
       "minItems": 1
     },
     "presentation_ref": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/presentation-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/presentation-ref.json",
       "description": "Optional publisher-specific declarative frame for representing this placement's real chrome offline. It composes around the selected creative rendering unless the publisher-delegated preview_provider route explicitly covers placement presentation. It MUST NOT be promoted to or copied onto a shared format entry."
     },
     "preview_provider": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/preview-provider.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/preview-provider.json",
       "description": "Optional publisher delegation to a callable AdCP preview provider for specific format options on this placement. This publisher-origin route is the only mechanism that grants preview authority inside the placement's scope; an agent's own rendering_origin description does not."
     },
     "format_options": {
@@ -142,14 +142,14 @@
                 "description": "Matches a `format_option_id` in the file's top-level `formats[]`."
               },
               "locale_policy": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-locale-policy.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-locale-policy.json",
                 "description": "Optional placement-local locale policy. When the resolved top-level format declares a policy, every placement range must be contained by one of its ranges; otherwise this introduces a narrowing of the unconstrained format. The resolved effective route remains canonical-only."
               }
             },
             "additionalProperties": true
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-format-declaration.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-format-declaration.json",
             "title": "Inline declaration",
             "description": "Inline 3.1+ canonical format-option declaration. Use when the placement narrows a format in a way that's not worth a top-level catalog entry."
           }
@@ -167,7 +167,7 @@
       "type": "array",
       "description": "Declared video placement types for this publisher placement, using IAB Tech Lab/OpenRTB 2.6 video.plcmt definitions with AdCP-native names. Most concrete placements SHOULD declare a single value; aggregate placements MAY declare multiple values. Product-level placement declarations may narrow this set but SHOULD NOT broaden it. This is seller-declared discovery metadata, not independent verification of inventory quality or delivery context.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/video-placement-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/video-placement-type.json"
       },
       "uniqueItems": true,
       "minItems": 1
@@ -176,7 +176,7 @@
       "type": "array",
       "description": "Declared audio distribution types for this publisher placement, using IAB Tech Lab/OpenRTB 2.6 audio.feed definitions with AdCP-native names. Most concrete placements SHOULD declare a single value; aggregate placements MAY declare multiple values. Product-level placement declarations may narrow this set but SHOULD NOT broaden it. This is seller-declared discovery metadata, not independent verification of inventory quality or delivery context.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audio-distribution-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audio-distribution-type.json"
       },
       "uniqueItems": true,
       "minItems": 1
@@ -185,7 +185,7 @@
       "type": "array",
       "description": "Declared sponsored-placement types for this publisher placement, distinguishing where the catalog-driven retail-media placement renders on the retailer surface. Most concrete placements SHOULD declare a single value; aggregate placements MAY declare multiple values. Product-level placement declarations may narrow this set but SHOULD NOT broaden it. This is seller-declared discovery metadata, not independent verification of inventory quality or delivery context.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sponsored-placement-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sponsored-placement-type.json"
       },
       "uniqueItems": true,
       "minItems": 1
@@ -194,7 +194,7 @@
       "type": "array",
       "description": "Declared social-placement surfaces for this publisher placement, distinguishing the in-app surface where the social placement renders. Most concrete placements SHOULD declare a single value; aggregate placements MAY declare multiple values. Product-level placement declarations may narrow this set but SHOULD NOT broaden it. This is seller-declared discovery metadata, not independent verification of inventory quality or delivery context.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/social-placement-surface.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/social-placement-surface.json"
       },
       "uniqueItems": true,
       "minItems": 1
@@ -206,7 +206,7 @@
         "type": "object",
         "properties": {
           "type": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/identifier-types.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/identifier-types.json"
           },
           "value": {
             "type": "string",
@@ -226,7 +226,7 @@
       "$ref": "#/definitions/PublisherDoohPlacementAttributes"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

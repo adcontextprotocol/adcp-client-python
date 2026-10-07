@@ -31,7 +31,7 @@
       "x-entity": "reporting_definition"
     },
     "feed_purpose": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
     },
     "reporting_profile": {
       "type": "string",
@@ -46,7 +46,7 @@
     "media_buy_ids": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-coverage.json#/definitions/ReportingMediaBuyId"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-coverage.json#/definitions/ReportingMediaBuyId"
       },
       "uniqueItems": true,
       "description": "Exact frozen media-buy denominator resolved for this period, including buys with zero rows. An empty array is the definitive zero-buy set; omission is never used to mean all, empty, or unknown."
@@ -57,7 +57,7 @@
       "description": "Instant at which the configured scope was resolved and frozen for this obligation. For all_media_buys, include every caller-authorized account media buy whose effective flight overlaps the half-open period and was known by this cutoff. Later-created or backdated buys do not rewrite this obligation."
     },
     "coverage": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-coverage.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-coverage.json",
       "description": "Immutable effective coverage of the exact selected offering at this period boundary. Delivery health is evaluated separately over the covered denominator."
     },
     "period": {
@@ -88,7 +88,7 @@
       "format": "date-time"
     },
     "schedule": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-schedule.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-schedule.json",
       "description": "Resolved immutable schedule generation that created this obligation."
     },
     "destination_ref": {
@@ -99,10 +99,10 @@
       "description": "Immutable caller-owned destination generation selected by this account-authorized obligation. The account/configuration join\u2014not possession of this reusable reference\u2014authorizes disclosure. Present when and only when the obligation\u2019s configuration selects a managed-delivery offering; Core (API-delivered) obligations omit every destination and materialization field."
     },
     "required_finality": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reporting-finality.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reporting-finality.json"
     },
     "reconciliation_mode": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-reconciliation-mode.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-reconciliation-mode.json"
     },
     "reconciliation_status": {
       "type": "string",
@@ -115,7 +115,7 @@
       "description": "Consumer agreement state for the current required revision. A later superseding revision returns a receipt-required obligation to pending until that revision is accepted."
     },
     "health": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reporting-health.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reporting-health.json"
     },
     "production_status": {
       "type": "string",
@@ -188,7 +188,7 @@
     "issues": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-status-issue.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-status-issue.json"
       }
     },
     "resource_retained_until": {

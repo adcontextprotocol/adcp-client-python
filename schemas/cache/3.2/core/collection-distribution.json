@@ -12,7 +12,7 @@
       "type": "array",
       "description": "Publisher-scoped property IDs from publisher_domain's adagents.json that carry this collection. For owner-sold channel inventory, these identify the host apps without requiring the host to publish channel-owner placement definitions.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-id.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-id.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -24,7 +24,7 @@
         "type": "object",
         "properties": {
           "type": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/distribution-identifier-type.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/distribution-identifier-type.json",
             "description": "Type of distribution identifier"
           },
           "value": {

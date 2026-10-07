@@ -37,7 +37,7 @@
           "$ref": "#/definitions/ReportingOrchestration"
         },
         "destination": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-write-destination.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-write-destination.json"
         },
         "format": {
           "type": "string",
@@ -80,7 +80,7 @@
           "$ref": "#/definitions/ReportingOrchestration"
         },
         "destination": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-dataset-share-destination.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-dataset-share-destination.json"
         }
       },
       "required": [
@@ -111,7 +111,7 @@
           "$ref": "#/definitions/ReportingOrchestration"
         },
         "destination": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-write-destination.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-write-destination.json"
         }
       },
       "required": [

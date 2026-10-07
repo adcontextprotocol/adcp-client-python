@@ -6,7 +6,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
       "if": {
@@ -169,7 +169,7 @@
       "description": "Preview mode. 'single' previews one creative manifest. 'batch' previews multiple creatives in one call. 'variant' replays a post-flight variant by ID."
     },
     "creative_manifest": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-manifest.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-manifest.json",
       "description": "Complete creative manifest with all required assets for the format. In single mode, provide exactly one of creative_manifest or creative_id. Also accepted per item in batch mode."
     },
     "target_capability_id": {
@@ -178,7 +178,7 @@
       "description": "Canonical preview-operation selector. Identifies one get_adcp_capabilities creative.supported_formats[].capability_id entry whose operations contains preview. In single mode it selects the renderer for this request; in batch mode it is the default for items that omit their own target_capability_id. When omitted, the agent MAY resolve the renderer only if exactly one advertised preview capability satisfies the manifest's canonical declaration; zero matches or multiple matches MUST be rejected with FORMAT_NOT_SUPPORTED rather than choosing nondeterministically. Mutually exclusive with deprecated format_id."
     },
     "format_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json",
       "description": "**DEPRECATED in 3.2.** Legacy named-format preview route. New requests select an advertised preview renderer with target_capability_id and carry portable format identity in creative_manifest.format_kind plus optional creative_manifest.format_option_ref.",
       "deprecated": true
     },
@@ -216,11 +216,11 @@
       "description": "Specific template ID for custom format rendering. Used in single mode."
     },
     "quality": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-quality.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-quality.json",
       "description": "Render quality. 'draft' produces fast, lower-fidelity renderings. 'production' produces full-quality renderings. In batch mode, sets the default for all requests (individual items can override)."
     },
     "output_format": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/preview-output-format.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/preview-output-format.json",
       "default": "url",
       "description": "Output format. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML). In batch mode, sets the default for all requests (individual items can override). Default: 'url'."
     },
@@ -241,12 +241,12 @@
             "description": "Canonical preview-operation selector for this batch item. Overrides the batch-level target_capability_id and MUST identify an advertised capability whose operations contains preview. If neither item nor batch supplies one, renderer inference is permitted only for a unique compatible preview capability."
           },
           "format_id": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json",
             "description": "**DEPRECATED in 3.2.** Legacy named-format preview route. Use target_capability_id plus the canonical identity in creative_manifest.",
             "deprecated": true
           },
           "creative_manifest": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-manifest.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-manifest.json",
             "description": "Complete creative manifest with all required assets."
           },
           "creative_id": {
@@ -288,11 +288,11 @@
             "description": "Specific template ID for custom format rendering"
           },
           "quality": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-quality.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-quality.json",
             "description": "Render quality for this preview. Overrides batch-level default."
           },
           "output_format": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/preview-output-format.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/preview-output-format.json",
             "default": "url",
             "description": "Output format for this preview. Overrides batch-level default."
           },
@@ -351,14 +351,14 @@
       "description": "Opt in to an asynchronous preview response. When true, the creative agent MAY return status 'submitted' with a task_id only when rendering has been handed to a queue or external renderer and will continue after the request connection is released. Active processing on an open connection uses working progress instead. The buyer polls get_task_status for completion. When false or absent, the agent MUST return a synchronous preview response or a terminal protocol error; it MUST NOT return the submitted shape. This field applies to preview_creative only; build_creative already defines its own async lifecycle."
     },
     "push_notification_config": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json",
       "description": "Optional webhook configuration for terminal completion/failure notifications when allow_async is true and preview_creative returns a submitted task envelope. Submitted tasks remain pollable through get_task_status whether or not this field is present. If the agent accepts this configuration and returns submitted, it MUST deliver at least the terminal notification; if it cannot honor the webhook, it MUST return a structured error. Presence of this field alone MUST NOT cause asynchronous execution."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -11,7 +11,7 @@
     "honored": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/tracker-execution-selector.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/tracker-execution-selector.json"
       },
       "uniqueItems": true,
       "description": "Exact tracker/event selectors the seller accepts and initiates once per manifest instance for each logical event occurrence. selector_id and structural selector identity are each unique within this array."

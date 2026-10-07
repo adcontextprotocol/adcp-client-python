@@ -23,7 +23,7 @@
               "description": "Maximum number of country values accepted in this targeting field on one package."
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
             }
           },
           "required": [
@@ -44,7 +44,7 @@
             "systems": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/metro-system.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/metro-system.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -59,7 +59,7 @@
               "description": "Optional maximum number of independently targeted packages the seller will create from this configured product."
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
             }
           },
           "required": [
@@ -81,7 +81,7 @@
           "additionalProperties": {
             "type": "array",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-place-type.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-place-type.json"
             },
             "minItems": 1,
             "uniqueItems": true
@@ -104,7 +104,7 @@
           "uniqueItems": true
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -128,7 +128,7 @@
         "systems": {
           "type": "object",
           "propertyNames": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-place-system.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-place-system.json"
           },
           "additionalProperties": {
             "$ref": "#/definitions/placeCatalogSupport"
@@ -145,7 +145,7 @@
           "description": "Optional maximum number of independently place-targeted packages the seller will create from this configured product."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -164,13 +164,13 @@
             "supported_match_types": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/match-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/match-type.json"
               },
               "minItems": 1,
               "uniqueItems": true
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
             }
           },
           "required": [
@@ -192,13 +192,13 @@
             "families": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/browser-family.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/browser-family.json"
               },
               "minItems": 1,
               "uniqueItems": true
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
             }
           },
           "required": [
@@ -222,7 +222,7 @@
             "timezone_modes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/daypart-timezone-mode.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/daypart-timezone-mode.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -237,7 +237,7 @@
                 {
                   "type": "array",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/iana-timezone.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/iana-timezone.json"
                   },
                   "minItems": 1,
                   "uniqueItems": true
@@ -245,7 +245,7 @@
               ]
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
             }
           },
           "required": [
@@ -297,7 +297,7 @@
           "$ref": "#/definitions/supported"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-region-support.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-region-support.json"
         }
       ]
     },
@@ -307,7 +307,7 @@
           "$ref": "#/definitions/supported"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-region-support.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-region-support.json"
         }
       ]
     },
@@ -329,7 +329,7 @@
           "$ref": "#/definitions/supported"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/positive-postal-area-support.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/positive-postal-area-support.json"
         }
       ]
     },
@@ -339,7 +339,7 @@
           "$ref": "#/definitions/supported"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/positive-postal-area-support.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/positive-postal-area-support.json"
         }
       ]
     },
@@ -363,7 +363,7 @@
             "transport_modes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/transport-mode.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/transport-mode.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -374,7 +374,7 @@
               "description": "Maximum number of proximity entries accepted on one package."
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
             }
           },
           "anyOf": [
@@ -427,7 +427,7 @@
               "$ref": "#/definitions/supported"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
             }
           },
           "required": [
@@ -443,7 +443,7 @@
     "frequency_cap_support": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/frequency-cap-constraints.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/frequency-cap-constraints.json"
         }
       ],
       "description": "Independently positive constrained package-cap support. Mutually exclusive with legacy frequency_cap: a product declares one form or the other."
@@ -477,7 +477,7 @@
               "minimum": 1
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
             }
           },
           "minProperties": 1,
@@ -519,7 +519,7 @@
       "$ref": "#/definitions/keywordSupport"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "minProperties": 1,

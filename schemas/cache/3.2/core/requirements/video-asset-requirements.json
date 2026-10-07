@@ -96,15 +96,15 @@
       "description": "Whether the video must include an audio track"
     },
     "frame_rate_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/frame-rate-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/frame-rate-type.json",
       "description": "Required frame rate type. Broadcast and SSAI require constant frame rate for seamless splicing."
     },
     "scan_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/scan-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/scan-type.json",
       "description": "Required scan type. Modern delivery requires progressive scan."
     },
     "gop_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/gop-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/gop-type.json",
       "description": "Required GOP structure. SSAI and broadcast require closed GOPs for clean splice points."
     },
     "min_gop_interval_seconds": {
@@ -118,7 +118,7 @@
       "description": "Maximum keyframe interval in seconds. SSAI typically requires 1-2 second intervals."
     },
     "moov_atom_position": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/moov-atom-position.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/moov-atom-position.json",
       "description": "Required moov atom position in MP4 container. 'start' enables progressive download without buffering the entire file."
     },
     "audio_codecs": {
@@ -149,7 +149,7 @@
     "audio_channels": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audio-channel-layout.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audio-channel-layout.json"
       },
       "description": "Accepted audio channel configurations"
     },

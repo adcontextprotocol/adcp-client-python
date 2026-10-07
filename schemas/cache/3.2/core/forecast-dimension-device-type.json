@@ -10,7 +10,7 @@
       "description": "Dimension family discriminator."
     },
     "device_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/device-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/device-type.json",
       "description": "Device form factor for this forecast row."
     }
   },

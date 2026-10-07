@@ -24,7 +24,7 @@
       "x-entity": "creative"
     },
     "measurement_period": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/datetime-range.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/datetime-range.json",
       "description": "Period whose performance is summarized by this assertion."
     },
     "performance_index": {
@@ -33,32 +33,32 @@
       "description": "Normalized decision signal where 1.0 equals the named baseline, values below 1.0 underperform it, and values above 1.0 outperform it. Compact-contract producers (baseline present) MUST use observed divided by baseline for higher-is-better ratio metrics and baseline divided by observed for lower-is-better ratio metrics such as cost per acquisition."
     },
     "baseline": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/performance-baseline.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/performance-baseline.json",
       "x-status": "experimental",
       "description": "Expectation represented by performance_index = 1.0. Compact-contract producers MUST populate this field; it remains optional in the schema so existing 3.x request payloads remain valid."
     },
     "metric": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/performance-feedback-metric.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/performance-feedback-metric.json",
       "x-status": "experimental",
       "description": "Metric this assertion describes. Omit only for holistic feedback that is not attributable to one metric."
     },
     "metric_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/metric-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/metric-type.json",
       "deprecated": true,
       "description": "Deprecated legacy metric classification retained for existing request payloads. New implementations SHOULD use metric; when both are present consumers MUST use metric for dispatch."
     },
     "producer": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
       "x-status": "experimental",
       "description": "Brand that produced the analysis. The receiving orchestrator gateway verifies this reference against authenticated caller identity and preserves it during seller fan-out."
     },
     "vendor": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
       "deprecated": true,
       "description": "Deprecated alias for producer retained for previously documented request payloads. When both are present consumers use producer."
     },
     "feedback_source": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/feedback-source.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/feedback-source.json",
       "description": "Legacy categorical source hint retained for existing request payloads."
     },
     "methodology": {

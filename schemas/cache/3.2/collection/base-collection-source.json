@@ -23,7 +23,7 @@
             "type": "object",
             "properties": {
               "type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/distribution-identifier-type.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/distribution-identifier-type.json",
                 "description": "Type of distribution identifier"
               },
               "value": {
@@ -111,7 +111,7 @@
           "minItems": 1
         },
         "genre_taxonomy": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/genre-taxonomy.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/genre-taxonomy.json",
           "description": "Taxonomy for the genre values. Required so sellers can interpret genre strings unambiguously. Use 'custom' for free-form values negotiated out of band."
         }
       },

@@ -4,7 +4,7 @@
   "description": "Multi-card swipeable carousel. The buyer ships a `cards` slot whose value is an **array** of [card-asset](/schemas/core/assets/card-asset.json) objects (a single key with an array value \u2014 NOT one key per card, NOT dotted/bracketed paths). Each card-asset carries: `asset_type: \"card\"`, `media` (an image or video asset), optional `headline` (text), optional `landing_page_url` (url asset). Per-card structure is the same across all cards; mixed orientations not allowed within a single carousel. Tracking model: per-card impression and engagement pixels + carousel-level engagement (swipe, view-time). Allowed asset types for a card's `media` field: `image` and `video` (Meta-style mixed-media); platforms can narrow to image-only or video-only via `allowed_card_media_asset_types`.\n\nThe manifest's `assets.cards` value is an array of card-asset objects. Example: `\"cards\": [{\"asset_type\": \"card\", \"media\": {\"asset_type\": \"image\", \"url\": \"...\"}, \"headline\": \"Buy now\", \"landing_page_url\": {\"asset_type\": \"url\", \"url_type\": \"clickthrough\", \"url\": \"...\"}}, ...]`. Each card-asset validates against the card schema; per-card platform extensions attach via the card's `platform_extensions` field, never via inline non-canonical keys.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/_base.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/_base.json"
     }
   ],
   "properties": {

@@ -5,7 +5,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     }
   ],
   "x-mutates-state": true,
@@ -29,7 +29,7 @@
         "channels_any": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/channels.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/channels.json"
           },
           "minItems": 1,
           "description": "Advertising channels. Standards apply to ANY of the listed channels (OR logic)."
@@ -60,7 +60,7 @@
       "type": "array",
       "description": "Updated bespoke policies for this content-standards configuration, using the same shape as registry entries. Replaces the existing policies array; use stable policy_ids to track policies across versions. Combines with registry_policy_ids. Bespoke policy_ids MUST be flat (no colons/slashes).",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/governance/policy-entry.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/governance/policy-entry.json"
       },
       "minItems": 1
     },
@@ -97,7 +97,7 @@
                 ]
               },
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/content-standards/artifact.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/content-standards/artifact.json",
                 "description": "Full artifact with pre-extracted content (text, images, video, audio)"
               }
             ]
@@ -133,7 +133,7 @@
                 ]
               },
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/content-standards/artifact.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/content-standards/artifact.json",
                 "description": "Full artifact with pre-extracted content (text, images, video, audio)"
               }
             ]
@@ -143,10 +143,10 @@
       }
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     },
     "idempotency_key": {
       "type": "string",

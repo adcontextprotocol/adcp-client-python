@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "properties": {
@@ -69,20 +69,20 @@
             "x-entity": "media_buy"
           },
           "format_id": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json",
             "description": "**DEPRECATED in 3.2.** Legacy named format of this creative. New responses use `format_kind` and optional `format_option_ref`.",
             "deprecated": true
           },
           "format_kind": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-kind.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-kind.json",
             "description": "Canonical format kind delivered for this creative."
           },
           "format_option_ref": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-option-ref.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-option-ref.json",
             "description": "Portable reference to the product or publisher format option used for delivery, when disambiguation is required."
           },
           "totals": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json",
             "description": "Aggregate delivery metrics across all variants of this creative"
           },
           "variant_count": {
@@ -94,7 +94,7 @@
             "type": "array",
             "description": "Variant-level delivery breakdown. Each agent-unique variant_id identifies one immutable served execution and each row includes metrics from exactly one source revision and, for localized delivery, exactly one locale variant. A distinct revision, locale, or rendered manifest receives a distinct variant_id; metrics MUST NOT cross those boundaries. For standard creatives, contains one row per source revision and locale represented in the reporting period. For asset group optimization, one per combination, source revision, and locale. For generative creative, one per generated execution, source revision, and locale. Empty when a creative has no variants yet.",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-variant.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-variant.json"
             },
             "x-adcp-validation": {
               "verifier_constraints": {
@@ -166,14 +166,14 @@
       "type": "array",
       "description": "Task-specific errors and warnings",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       }
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

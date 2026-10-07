@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "x-status": "experimental",
@@ -22,20 +22,20 @@
           "x-entity": "rights_grant"
         },
         "terms": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/brand/rights-terms.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/brand/rights-terms.json",
           "description": "Updated contractual terms (same shape as acquire_rights acquired response)"
         },
         "generation_credentials": {
           "type": "array",
           "description": "Re-issued credentials reflecting updated terms (new expiration dates, adjusted caps)",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/generation-credential.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/generation-credential.json"
           }
         },
         "rights_constraint": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/rights-constraint.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/rights-constraint.json"
             },
             {
               "required": [
@@ -61,10 +61,10 @@
           "description": "When changes take effect (null if pending approval from rights holder)"
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -86,15 +86,15 @@
         "errors": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [

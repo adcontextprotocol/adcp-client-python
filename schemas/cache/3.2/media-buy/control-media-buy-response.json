@@ -25,7 +25,7 @@
           "minimum": 1
         },
         "media_buy_status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/media-buy-status.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/media-buy-status.json"
         },
         "implementation_date": {
           "type": [
@@ -46,7 +46,7 @@
         "available_actions": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-media-buy-action.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-media-buy-action.json"
           },
           "uniqueItems": true
         },
@@ -56,7 +56,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/warning.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/warning.json"
               },
               {
                 "properties": {
@@ -70,10 +70,10 @@
           "minItems": 1
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         },
         "replayed": {
           "type": "boolean",
@@ -103,15 +103,15 @@
         "errors": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         },
         "replayed": {
           "type": "boolean",
@@ -149,14 +149,14 @@
         "errors": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
           }
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         },
         "replayed": {
           "type": "boolean",

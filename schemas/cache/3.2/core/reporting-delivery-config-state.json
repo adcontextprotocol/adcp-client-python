@@ -20,7 +20,7 @@
   },
   "properties": {
     "configuration": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-delivery-config.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-delivery-config.json"
     },
     "state": {
       "$ref": "#/definitions/ReportingDeliveryConfigLifecycleState"
@@ -55,7 +55,7 @@
       "description": "End of historical access to a producer-hosted share/resource for a still-authorized principal after voluntary deactivation. Inapplicable to data already written into a buyer-owned destination."
     },
     "current_coverage": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-coverage.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-coverage.json",
       "description": "Current effective product/package coverage for the selected offering and resolved account. This setup-time view may change as media buys or provider capabilities change; each period obligation later freezes its own authoritative coverage."
     },
     "setup": {
@@ -96,7 +96,7 @@
     "issues": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-status-issue.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-status-issue.json"
       },
       "minItems": 1
     }

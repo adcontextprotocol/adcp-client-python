@@ -14,7 +14,7 @@
       "pattern": "^[a-z0-9_]+$"
     },
     "logo_slot": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/logo-slot.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/logo-slot.json"
     },
     "logo_id": {
       "type": "string",
@@ -174,7 +174,7 @@
     "default_language": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/locale-tag.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/locale-tag.json"
         }
       ],
       "default": "en",
@@ -532,7 +532,7 @@
           "description": "Unique identifier"
         },
         "asset_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/asset-content-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/asset-content-type.json",
           "description": "Type of asset content"
         },
         "url": {
@@ -590,10 +590,10 @@
     },
     "property": {
       "type": "object",
-      "description": "A digital property associated with a brand. Defaults to owned; use 'relationship' to declare direct, delegated, or ad_network properties. For delegated and network paths, these values match the delegation_type field in adagents.json, creating a bilateral verification chain: the operator declares the relationship here, the publisher confirms by setting the same delegation_type on the agent's authorization in their adagents.json. 'owned' is an inline ownership declaration with no adagents.json counterpart.",
+      "description": "A digital property associated with a brand. Defaults to owned; use 'relationship' to declare direct, delegated, or ad_network properties. For direct, delegated, and network paths, these values match the delegation_type field in adagents.json, creating a bilateral verification chain: the operator declares the relationship here, the publisher confirms by setting the same delegation_type on the agent's authorization in their adagents.json. 'owned' is an inline ownership declaration with no adagents.json counterpart.",
       "properties": {
         "type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/property-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/property-type.json",
           "description": "Property type"
         },
         "identifier": {
@@ -652,7 +652,7 @@
           "description": "URL to product catalog feed"
         },
         "feed_format": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/feed-format.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/feed-format.json",
           "description": "Format of the product feed"
         },
         "categories": {
@@ -994,7 +994,7 @@
                 "description": "Human-readable collection name"
               },
               "role": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/talent-role.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/talent-role.json",
                 "description": "This person's role on the collection"
               },
               "seller_agent_url": {
@@ -1072,7 +1072,7 @@
       "description": "A verified-identity relying party an entity or brand operates. Used for attestation provenance in TMP Identity Match (the buyer checks a forwarded attestation's relying_party_id against the owner's published list). Issuer-agnostic; World ID is the first issuer.",
       "properties": {
         "issuer": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
           "description": "Identity issuer / attestation authority, referenced as a vendor BrandRef (e.g. {\"domain\": \"world.org\"}) \u2014 the same vendor-reference shape AdCP uses for measurement and signals vendors. The issuer's canonical domain is the anchor; it need not host a brand.json, but if it does, that is where its verifier metadata (scheme versions, verify endpoint, JWKs) lives. Issuer-agnostic: World ID, ISO 18013-5 mDL, and W3C-VC issuers all reference by domain. The relying party is namespaced by the issuer \u2014 identity is the tuple (issuer.domain, issuer.brand_id, relying_party_id), mirroring (vendor.domain, vendor.brand_id, metric_id)."
         },
         "scheme": {
@@ -1140,7 +1140,7 @@
           "type": "array",
           "description": "Rights uses available for licensing through this agent",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/right-use.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/right-use.json"
           },
           "minItems": 1
         },
@@ -1148,7 +1148,7 @@
           "type": "array",
           "description": "Types of rights available",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/right-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/right-type.json"
           },
           "minItems": 1
         },
@@ -1173,7 +1173,7 @@
       "description": "An agent declared by a brand or house. Each entry identifies one agent endpoint and its functional role in the advertising ecosystem.",
       "properties": {
         "type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/brand-agent-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/brand-agent-type.json",
           "description": "Functional role of this agent"
         },
         "url": {
@@ -1203,7 +1203,7 @@
           "type": "array",
           "description": "For rights agents: rights uses available for licensing",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/right-use.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/right-use.json"
           },
           "minItems": 1
         },
@@ -1211,7 +1211,7 @@
           "type": "array",
           "description": "For rights agents: types of rights available",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/right-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/right-type.json"
           },
           "minItems": 1
         },
@@ -2762,16 +2762,16 @@
   ],
   "examples": [
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/brand.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/brand.json",
       "authoritative_location": "https://adcontextprotocol.org/brand/abc123/brand.json"
     },
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/brand.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/brand.json",
       "house": "nikeinc.com",
       "note": "Redirect to house domain for full brand portfolio"
     },
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/brand.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/brand.json",
       "version": "1.0",
       "agents": [
         {
@@ -2782,7 +2782,7 @@
       ]
     },
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/brand.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/brand.json",
       "version": "1.0",
       "house": {
         "domain": "pg.com",
@@ -3083,7 +3083,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/brand.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/brand.json",
       "version": "1.0",
       "house": {
         "domain": "nikeinc.com",
@@ -3189,10 +3189,13 @@
               "identifier": "jumpman23.com"
             }
           ],
-          "brand_agent": {
-            "url": "https://dam.nike.com/mcp",
-            "id": "nike_dam"
-          }
+          "agents": [
+            {
+              "type": "brand",
+              "url": "https://dam.nike.com/mcp",
+              "id": "nike_dam"
+            }
+          ]
         },
         {
           "id": "converse",
@@ -3264,7 +3267,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/brand.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/brand.json",
       "version": "1.0",
       "house": {
         "domain": "mediavine.com",
@@ -3315,7 +3318,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/brand.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/brand.json",
       "version": "1.0",
       "house": {
         "domain": "nikeinc.com",
@@ -3352,7 +3355,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/brand.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/brand.json",
       "version": "1.0",
       "house": {
         "domain": "wpp.com",
@@ -3377,7 +3380,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/brand.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/brand.json",
       "version": "1.0",
       "id": "converse",
       "names": [
@@ -3397,7 +3400,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/brand.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/brand.json",
       "version": "1.0",
       "id": "patagonia",
       "names": [

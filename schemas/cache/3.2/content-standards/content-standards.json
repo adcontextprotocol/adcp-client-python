@@ -23,7 +23,7 @@
     "channels_any": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/channels.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/channels.json"
       },
       "minItems": 1,
       "description": "Advertising channels. Standards apply to ANY of the listed channels (OR logic)."
@@ -40,7 +40,7 @@
       "type": "array",
       "description": "Bespoke policies for this content-standards configuration, using the same shape as registry entries. Each policy is addressable by policy_id; governance findings reference the policy_id that triggered them.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/governance/policy-entry.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/governance/policy-entry.json"
       },
       "minItems": 1
     },
@@ -51,14 +51,14 @@
         "pass": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/content-standards/artifact.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/content-standards/artifact.json"
           },
           "description": "Artifacts that pass the content standards"
         },
         "fail": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/content-standards/artifact.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/content-standards/artifact.json"
           },
           "description": "Artifacts that fail the content standards"
         }
@@ -68,12 +68,12 @@
       "type": "array",
       "description": "Pricing options for this content standards service. The buyer passes the selected pricing_option_id in report_usage for billing verification.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-pricing-option.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-pricing-option.json"
       },
       "minItems": 1
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "x-status": "experimental",
@@ -82,7 +82,7 @@
                   "description": "How this policy was included. 'explicit': referenced in the brand compliance configuration. 'auto_applied': matched automatically by jurisdiction or policy category."
                 },
                 "enforcement": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/policy-enforcement.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/policy-enforcement.json",
                   "description": "Enforcement level for this policy."
                 },
                 "reason": {
@@ -113,10 +113,10 @@
       "default": false
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

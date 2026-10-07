@@ -14,28 +14,28 @@
   },
   "properties": {
     "product_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/product_id"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/product_id"
     },
     "pricing_option_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/pricing_option_id"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/pricing_option_id"
     },
     "pricing": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/pricing"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/pricing"
     },
     "format_option_refs": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/format_option_refs"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/format_option_refs"
     },
     "catalog_ids": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/catalog_ids"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/catalog_ids"
     },
     "budget": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/budget"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/budget"
     },
     "daily_budget_cap": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/daily_budget_cap"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/daily_budget_cap"
     },
     "min_spend_target": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/min_spend_target"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/min_spend_target"
     },
     "impressions": {
       "title": "Product Purchase Impressions",
@@ -43,48 +43,48 @@
       "minimum": 0
     },
     "start_time": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/start_time"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/start_time"
     },
     "end_time": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/end_time"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/end_time"
     },
     "pacing": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/pacing"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/pacing"
     },
     "bidding": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/bidding"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/bidding"
     },
     "targeting_overlay": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/targeting-input.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/targeting-input.json",
       "description": "Per-dimension targeting input. Omission inherits the selected product's configured/default dimension, a non-null value replaces it, and null explicitly suppresses it. A clear cannot remove inherent product scope."
     },
     "optimization_goals": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/optimization_goals"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/optimization_goals"
     },
     "audience_evidence_requirements": {
       "title": "Product Purchase Audience Evidence Requirements",
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-audience-evidence-requirements.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-audience-evidence-requirements.json",
       "description": "Buyer evidence-admissibility policy carried into the accepted purchase snapshot."
     },
     "audience_evidence_pins": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/audience_evidence_pins"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/audience_evidence_pins"
     },
     "agency_estimate_number": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/agency_estimate_number"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/agency_estimate_number"
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/context"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/context"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/ext"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/ext"
     },
     "measurement_terms": {
       "title": "Product Purchase Measurement Terms",
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-measurement-terms.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-measurement-terms.json",
       "description": "Published or negotiated billing-measurement and makegood terms for this purchase. Direct buyers may omit this to inherit the product default; accepted proposal snapshots preserve the resolved terms."
     },
     "performance_standards": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json#/properties/performance_standards"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json#/properties/performance_standards"
     }
   },
   "required": [

@@ -1354,7 +1354,7 @@
         },
         "required_for_products": {
           "type": "boolean",
-          "description": "Whether an account reference is required for get_products. When true, the buyer must establish an account before browsing products. When false (default), the buyer can browse products without an account \u2014 useful for price comparison and discovery before committing to a seller.",
+          "description": "Whether an account reference is required for get_products. When true, the buyer must establish an account before browsing products. When false (default), the buyer can browse products without an account \u2014 useful for price comparison and discovery before committing to a seller. Before an account is provisioned, the buyer omits account rather than sending a natural key that does not resolve yet. See /docs/accounts/overview#account-references-before-provisioning.",
           "default": false
         },
         "account_financials": {
@@ -3518,7 +3518,7 @@
         },
         "required_for": {
           "type": "array",
-          "description": "AdCP protocol operation names (e.g., 'create_media_buy') for which this agent rejects an unsigned request with request_signature_required unless an independently valid configured fallback authenticator succeeds. Not MCP tool names, A2A skill names, or any transport-specific rename \u2014 verifiers MUST NOT accept operation names that are not defined by the AdCP protocol spec. JSON-RPC protocol method names like `tasks/cancel` belong in `protocol_methods_required_for`, not here. Empty in 3.0 by default; sellers populate selectively during per-counterparty pilots. In 4.0 this list MUST include all spend-committing operations the agent supports (create_media_buy, acquire_*, etc.). Every operation listed MUST also appear in `supported_for`; see `x-adcp-validation`.",
+          "description": "AdCP protocol operation names (e.g., 'create_media_buy') for which this agent rejects an unsigned request with request_signature_required unless an independently valid configured fallback authenticator succeeds. A transport-specific rename of an operation is not a valid entry (MCP tools and the AdCP A2A profile use the operation name verbatim, so those names coincide with it) \u2014 verifiers MUST NOT accept operation names that are not defined by the AdCP protocol spec. Over MCP the verifier matches the tools/call params.name; over A2A it matches the skill of the sole DataPart of the message (SendMessage, SendStreamingMessage, message/send, message/stream, and the HTTP+JSON and gRPC equivalents). The A2A profile uses the AdCP operation name verbatim as skill, so that is the same name space. A request that does not resolve to exactly one operation is rejected with request_body_malformed; see docs/building/by-layer/L1/security.mdx#operation-resolution-over-a2a. JSON-RPC protocol method names like `tasks/cancel` belong in `protocol_methods_required_for`, not here. Empty in 3.0 by default; sellers populate selectively during per-counterparty pilots. In 4.0 this list MUST include all spend-committing operations the agent supports (create_media_buy, acquire_*, etc.). Every operation listed MUST also appear in `supported_for`; see `x-adcp-validation`.",
           "items": {
             "type": "string",
             "pattern": "^[a-z][a-z0-9_]*$"
@@ -3526,7 +3526,7 @@
           "default": [],
           "x-adcp-validation": {
             "subset_of": "request_signing.supported_for",
-            "spec": "docs/building/implementation/security.mdx#signed-requests-transport-layer"
+            "spec": "docs/building/by-layer/L1/security.mdx#signed-requests-transport-layer"
           }
         },
         "warn_for": {
@@ -3540,7 +3540,7 @@
           "x-adcp-validation": {
             "disjoint_with": "request_signing.required_for",
             "subset_of": "request_signing.supported_for",
-            "spec": "docs/building/implementation/security.mdx#signed-requests-transport-layer"
+            "spec": "docs/building/by-layer/L1/security.mdx#signed-requests-transport-layer"
           }
         },
         "supported_for": {
@@ -3735,7 +3735,7 @@
               "key_origins_consistency": "mandatory_when_signing"
             },
             "distinct_from": "sponsored_intelligence.brand_url",
-            "spec": "docs/building/implementation/security.mdx#discovering-an-agents-signing-keys-via-brand_json_url"
+            "spec": "docs/building/by-layer/L1/security.mdx#discovering-an-agents-signing-keys-via-brand_json_url"
           }
         },
         "per_principal_key_isolation": {
@@ -3745,7 +3745,7 @@
         },
         "key_origins": {
           "type": "object",
-          "description": "Map of signing-key surface/purpose \u2192 publishing origin, so counterparties can verify origin separation (e.g., governance keys served from a separate origin than transport/webhook keys) at onboarding. Absent means the operator has not declared a separation scheme; receivers SHOULD assume shared-origin. Every entry listed MUST have a corresponding signing posture declared elsewhere \u2014 `request_signing` requires non-empty `request_signing.supported_for`/`required_for`/`protocol_methods_supported_for`/`protocol_methods_required_for`; `webhook_signing` requires `webhook_signing.supported === true` and names the webhook delivery surface, not a required live `adcp_use: \"webhook-signing\"` key purpose \u2014 otherwise the consistency check at signature-verification time has nothing to anchor against. See `x-adcp-validation` and docs/building/implementation/security.mdx \u00a7Origin separation.",
+          "description": "Map of signing-key surface/purpose \u2192 publishing origin, so counterparties can verify origin separation (e.g., governance keys served from a separate origin than transport/webhook keys) at onboarding. Absent means the operator has not declared a separation scheme; receivers SHOULD assume shared-origin. Every entry listed MUST have a corresponding signing posture declared elsewhere \u2014 `request_signing` requires non-empty `request_signing.supported_for`/`required_for`/`protocol_methods_supported_for`/`protocol_methods_required_for`; `webhook_signing` requires `webhook_signing.supported === true` and names the webhook delivery surface, not a required live `adcp_use: \"webhook-signing\"` key purpose \u2014 otherwise the consistency check at signature-verification time has nothing to anchor against. See `x-adcp-validation` and docs/building/by-layer/L1/security.mdx \u00a7Origin separation.",
           "properties": {
             "governance_signing": {
               "type": "string",
@@ -3778,7 +3778,7 @@
                 "tmp_signing": "trusted_match.surfaces non-empty (TMP participation)"
               }
             },
-            "spec": "docs/building/implementation/security.mdx#origin-separation"
+            "spec": "docs/building/by-layer/L1/security.mdx#agent-key-publication"
           }
         },
         "compromise_notification": {
@@ -4139,7 +4139,7 @@
           "description": "Transport-managed conversation identifier. On A2A, this maps to the native Message/Task `contextId` used to associate messages with a conversation; it is not carried inside the AdCP DataPart. On MCP, a request-body `context_id`, where admitted by the selected request schema, is a compatibility-only field: servers MUST ignore it, callers MUST NOT rely on it for continuity, and it MUST NOT select session state, identity, account, authorization, task continuation, or idempotency scope. MCP continuity, if provided, comes from the transport session. Distinct from `context` (per-request opaque echo, see below) and from `task_id` (AdCP operation tracking)."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1context.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1context.json",
           "description": "Per-request opaque caller-supplied correlation object echoed unchanged in the response. Used for buyer-side tracking (UI session IDs, trace IDs, custom metadata) that the agent MUST preserve byte-for-byte without parsing. Distinct from `context_id` (transport-managed A2A conversation correlation or MCP compatibility metadata) \u2014 `context` is caller-owned echo and never selects transport state. Both MAY appear on the same response.\n\n**Relationship to per-task body-level `context` declarations.** Many task request/response schemas (147 as of 3.1) already declare a body-level `context` field that `$ref`s `/schemas/core/context.json` at the body root. Under the flat-on-the-wire MCP serialization (see `notes` below), envelope-level `context` and body-level `context` occupy the same key on the response root \u2014 they are NOT separate fields, they MUST share the same value, and they MUST both `$ref` `core/context.json`. The envelope declaration is **authoritative** for the schema definition; per-task body declarations are mirrors retained for tooling reasons (SDK codegen completeness, per-task validation against the response schema in isolation). Future versions MAY drop body-level `context` declarations from per-task schemas; conformance does not require either declaration to be present, only that the wire value `$ref`s `core/context.json`."
         },
         "task_id": {
@@ -4148,7 +4148,7 @@
           "x-entity": "task"
         },
         "status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1task-status.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1task-status.json",
           "description": "Current AdCP task state or structured outcome. Indicates whether the task completed, is in progress, was submitted for async processing, failed, requires user input, or returned a typed business rejection. REQUIRED on every task response envelope. Synchronous tasks (including read-only metadata calls like `get_adcp_capabilities`) normally emit `status: \"completed\"`; a task-specific rejection arm emits `status: \"rejected\"` without turning the transport into a failure. Async tasks emit `submitted`, `working`, `input-required`, etc. per their lifecycle. Agents MUST NOT emit the legacy task_status or response_status fields alongside this field \u2014 the status field is the single authoritative AdCP response state."
         },
         "message": {
@@ -4166,11 +4166,11 @@
           "default": false
         },
         "adcp_error": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1error.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1error.json",
           "description": "Transport-envelope error signal for fatal task failures. Per the two-layer model in `error-handling.mdx#envelope-vs-payload-errors-the-two-layer-model`, a fatal task failure SHOULD populate both this envelope-level field AND the payload's `errors[]` array \u2014 the envelope carries a typed, extractable error so MCP/A2A clients can dispatch without re-parsing the payload, while the payload's structured `errors[]` remains the canonical normative shape. Non-fatal warnings populate ONLY `payload.errors[]` with `severity: warning` \u2014 the envelope MUST NOT carry `adcp_error` for non-failures."
         },
         "push_notification_config": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1push-notification-config.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1push-notification-config.json",
           "description": "AdCP application-layer webhook configuration for async task updates over MCP, A2A, or REST. Echoed from the request to confirm webhook settings. It is distinct from transport-native progress or A2A TaskPushNotificationConfig delivery and can outlive the originating transport session."
         },
         "governance_context": {
@@ -4538,7 +4538,7 @@
               "type": "array",
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -4786,7 +4786,7 @@
             "type": "object",
             "properties": {
               "issuer": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1attestation-issuer.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1attestation-issuer.json"
               },
               "claim_types": {
                 "type": "array",
@@ -4856,7 +4856,7 @@
                 "minItems": 1
               },
               "ext": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
               }
             },
             "required": [
@@ -4896,7 +4896,7 @@
                 "uniqueItems": true
               },
               "ext": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
               }
             },
             "required": [
@@ -4913,7 +4913,7 @@
           "description": "Maximum UTF-8 byte size accepted for one embedded credential. Evaluators MUST enforce this limit before parsing the credential. The protocol ceiling is 1 MiB."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -4992,10 +4992,10 @@
               "description": "The issuer is identified by an AdCP BrandRef."
             },
             "brand": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1brand-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1brand-ref.json"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -5020,7 +5020,7 @@
               "description": "Canonical HTTPS endpoint of the issuing agent. Evaluators compare it using AdCP URL canonicalization rules."
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -5045,7 +5045,7 @@
               "description": "Canonical HTTPS origin with no path, query, fragment, or userinfo. This identifies the issuer; it does not authorize a fetch."
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -5084,7 +5084,7 @@
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
         },
         "brand_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1brand-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1brand-id.json",
           "description": "Brand identifier within the house portfolio. Optional for single-brand domains."
         },
         "countries": {
@@ -5143,7 +5143,7 @@
           "description": "Inline override for brand-kit fields normally resolved from `/.well-known/brand.json` on `domain` (logo, colors, voice, tagline). Use when brand.json is missing, stale, or inappropriate for this specific call \u2014 e.g., a campaign-scoped tagline, a co-branded creative, a freshly-rebranded color palette the brand.json hasn't shipped yet. Same inline-override pattern as `industries` and `data_subject_contestation` above: brand.json is canonical, the override is per-call. Adopters needing to override fields outside this subset (`voice_attributes`, `prohibited_terms`, etc.) MUST publish a different brand.json and reference it via a different `domain` \u2014 the inline override is intentionally narrow to a small high-traffic subset.\n\n**Merge semantics (normative).** The merge is **field-level**, not whole-object replacement. Each field within `brand_kit_override` (`logo`, `colors`, `voice`, `tagline`) is evaluated independently \u2014 when a field is present on the override the override value applies; when a field is absent the brand.json value applies (or is absent if brand.json doesn't carry one either). For composite fields (`colors.primary`, `colors.secondary`, `colors.accent`), the merge is one level deeper: each color slot is evaluated independently \u2014 a producer can override `colors.primary` while still inheriting `colors.secondary` from brand.json. SDKs MUST NOT treat a present `brand_kit_override.colors` as wiping the brand.json `colors` block entirely; only the per-slot fields present in the override take precedence. Without this rule, a partial-override semantics would diverge across SDKs and produce inconsistent rendering for the same payload.",
           "properties": {
             "logo": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1assets~1image-asset.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1assets~1image-asset.json",
               "description": "Override logo asset."
             },
             "colors": {
@@ -5279,7 +5279,7 @@
           "x-accessibility": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1provenance.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1provenance.json",
           "description": "Provenance metadata for this asset, overrides manifest-level provenance"
         }
       },
@@ -5297,7 +5297,7 @@
       "type": "object",
       "properties": {
         "digital_source_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1digital-source-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1digital-source-type.json",
           "description": "IPTC-aligned classification of AI involvement in producing this content"
         },
         "synthetic_depiction": {
@@ -5407,7 +5407,7 @@
             "type": "object",
             "properties": {
               "method": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1embedded-provenance-method.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1embedded-provenance-method.json",
                 "description": "How provenance data is carried within the content"
               },
               "standard": {
@@ -5458,7 +5458,7 @@
             "type": "object",
             "properties": {
               "media_type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1watermark-media-type.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1watermark-media-type.json",
                 "description": "Media category of the watermarked content"
               },
               "provider": {
@@ -5486,7 +5486,7 @@
                 "additionalProperties": false
               },
               "c2pa_action": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1c2pa-watermark-action.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1c2pa-watermark-action.json",
                 "description": "C2PA action classification for this watermark"
               },
               "embedded_at": {
@@ -5537,7 +5537,7 @@
                     "minProperties": 1,
                     "properties": {
                       "persistence": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1disclosure-persistence.json",
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1disclosure-persistence.json",
                         "description": "How long the disclosure must persist during content playback or display"
                       },
                       "min_duration_ms": {
@@ -5549,13 +5549,13 @@
                         "type": "array",
                         "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                         "items": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1disclosure-position.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1disclosure-position.json"
                         },
                         "minItems": 1,
                         "uniqueItems": true
                       },
                       "ext": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
                       }
                     }
                   }
@@ -5617,7 +5617,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
         }
       }
     },
@@ -5993,7 +5993,7 @@
         "offerings": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-delivery-offering.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-delivery-offering.json"
           },
           "minItems": 1,
           "description": "Atomic supported feed/profile/schedule/finality/method combinations. offering_id values MUST be unique."
@@ -6037,7 +6037,7 @@
         "reliability_statistics": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-reliability-statistics.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-reliability-statistics.json"
           },
           "description": "Optional evidence-scoped observed performance for advertised offerings. offering_id values MUST be unique and name offerings in this capability block.",
           "uniqueItems": true
@@ -6266,7 +6266,7 @@
           "x-entity": "reporting_offering"
         },
         "feed_purpose": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-delivery-offering.json/$defs/ReportingFeedPurpose"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-delivery-offering.json/$defs/ReportingFeedPurpose"
         },
         "report_definition_id": {
           "type": "string",
@@ -6332,7 +6332,7 @@
             "primary_keys": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-canonicalization-contract.json/$defs/ReportingPrimaryKey"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-canonicalization-contract.json/$defs/ReportingPrimaryKey"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -6376,20 +6376,20 @@
           "additionalProperties": false
         },
         "schedule": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-schedule-offering.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-schedule-offering.json",
           "description": "Period and availability SLA this offering can honor. For example, PT1H with snapshot finality explicitly advertises hourly provisional snapshots; a separate P1D official offering advertises daily finalized reporting."
         },
         "supported_finality": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1reporting-finality.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1reporting-finality.json"
           },
           "minItems": 1,
           "uniqueItems": true,
           "description": "Finality classes available under this exact report definition, schedule, and delivery method. snapshot is an explicit provisional capability, not inferred from poll frequency. Use separate atomic offerings when snapshot and official schedules or methods differ."
         },
         "reconciliation_mode": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-reconciliation-mode.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-reconciliation-mode.json",
           "description": "Receipt contract included in this atomic offering. Billing offerings MUST require consumer_receipt."
         },
         "method": {
@@ -6397,7 +6397,7 @@
           "description": "Managed delivery method for this offering. Omit for a Core (API-delivered) offering: rows flow through existing get_media_buy_delivery and reporting_webhook transports and no destination is involved. Present only when the seller advertises managed_delivery.",
           "properties": {
             "pattern": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-delivery-offering.json/$defs/ReportingDeliveryPattern"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-delivery-offering.json/$defs/ReportingDeliveryPattern"
             },
             "transport": {
               "type": "string",
@@ -6406,7 +6406,7 @@
               "pattern": "^[a-z][a-z0-9_.-]*$"
             },
             "orchestration": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
             },
             "destination_modes": {
               "type": "array",
@@ -6472,7 +6472,7 @@
                   "maxLength": 512
                 },
                 "cloud": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-dataset-share-destination.json/$defs/ReportingCloud"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-dataset-share-destination.json/$defs/ReportingCloud"
                 },
                 "region": {
                   "type": "string",
@@ -6497,7 +6497,7 @@
             "reader_compatibility": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-resource.json/$defs/ReportingReaderCompatibilityItem"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-resource.json/$defs/ReportingReaderCompatibilityItem"
               },
               "uniqueItems": true
             }
@@ -6674,7 +6674,7 @@
         "primary_keys": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-canonicalization-contract.json/$defs/ReportingPrimaryKey"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-canonicalization-contract.json/$defs/ReportingPrimaryKey"
           },
           "minItems": 1,
           "uniqueItems": true,
@@ -6845,7 +6845,7 @@
           "pattern": "^P(?=.*[1-9])(?=\\d|T)(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?=\\d)(?:\\d+H)?(?:\\d+M)?(?:\\d+S)?)?$"
         },
         "alignment": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-schedule.json/$defs/ReportingScheduleAlignment"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-schedule.json/$defs/ReportingScheduleAlignment"
         },
         "period_anchor_policy": {
           "type": "string",
@@ -7039,7 +7039,7 @@
           "description": "Strictly positive ISO 8601 duration of each reporting period, such as PT15M, P1D, or P1M."
         },
         "alignment": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-schedule.json/$defs/ReportingScheduleAlignment"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-schedule.json/$defs/ReportingScheduleAlignment"
         },
         "period_anchor": {
           "type": "string",
@@ -7188,10 +7188,10 @@
               "description": "Storage transport such as s3, gcs, azure_blob, or sftp."
             },
             "orchestration": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
             },
             "destination": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-write-destination.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-write-destination.json"
             },
             "format": {
               "type": "string",
@@ -7231,10 +7231,10 @@
               "description": "Sharing transport such as delta_sharing, snowflake_secure_sharing, or bigquery_authorized_view."
             },
             "orchestration": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
             },
             "destination": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-dataset-share-destination.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-dataset-share-destination.json"
             }
           },
           "required": [
@@ -7262,10 +7262,10 @@
               "description": "Warehouse or transfer transport such as bigquery, snowflake, databricks_sql, or gam_bigquery_transfer."
             },
             "orchestration": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-delivery-method.json/$defs/ReportingOrchestration"
             },
             "destination": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-write-destination.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-write-destination.json"
             }
           },
           "required": [
@@ -7430,7 +7430,7 @@
                   "maxLength": 512
                 },
                 "cloud": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-dataset-share-destination.json/$defs/ReportingCloud"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-dataset-share-destination.json/$defs/ReportingCloud"
                 },
                 "region": {
                   "type": "string",
@@ -7508,7 +7508,7 @@
           "description": "Non-secret provider-native object, relation, or share identifier. MUST NOT contain an activation URL, signed URL, bearer token, password, private key, or embedded credential."
         },
         "native_version_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-native-version-ref.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-native-version-ref.json"
         },
         "manifest_version": {
           "type": "string",
@@ -7537,7 +7537,7 @@
           "type": "array",
           "description": "Reader features or format constraints required to consume this resource. Readiness verification MUST use a representative supported reader.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-resource.json/$defs/ReportingReaderCompatibilityItem"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-resource.json/$defs/ReportingReaderCompatibilityItem"
           },
           "uniqueItems": true
         }
@@ -7622,7 +7622,7 @@
           "x-entity": "reporting_offering"
         },
         "measurement_period": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-reliability-statistics.json/$defs/ReportingReliabilityMeasurementPeriod"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-reliability-statistics.json/$defs/ReportingReliabilityMeasurementPeriod"
         },
         "obligations_due": {
           "type": "integer",
@@ -7645,11 +7645,11 @@
           "description": "Distinct official revisions receiving at least one adjustment. Divide by official_revisions_published for the adjustment rate."
         },
         "publication_latency_seconds": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-reliability-statistics.json/$defs/LatencyPercentiles",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-reliability-statistics.json/$defs/LatencyPercentiles",
           "description": "Observed seconds from period.end to publication of the required revision."
         },
         "adjustment_latency_seconds": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-reliability-statistics.json/$defs/LatencyPercentiles",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1reporting-reliability-statistics.json/$defs/LatencyPercentiles",
           "description": "Observed seconds from official finalized_at to the first adjustment, required when official_revisions_adjusted is nonzero."
         },
         "adjustment_magnitude": {
@@ -7901,7 +7901,7 @@
         "bidding_policy": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1bidding-policy-capability.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1bidding-policy-capability.json"
             }
           ],
           "description": "Structured support for canonical bidding by authored scope, allocation context, mode, strength, and strength-qualified multi-field combination. Presence does not imply support for both scopes, both allocation modes, or every policy shape. Sellers MUST preserve every advertised semantic exactly and reject unadvertised policies rather than translating them."
@@ -7918,11 +7918,11 @@
       "type": "object",
       "properties": {
         "media_buy": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1bidding-policy-capability.json/$defs/scope_capability",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1bidding-policy-capability.json/$defs/scope_capability",
           "description": "Policies accepted at media-buy scope and inherited by packages that omit a package override."
         },
         "package": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1bidding-policy-capability.json/$defs/scope_capability",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1bidding-policy-capability.json/$defs/scope_capability",
           "description": "Policies accepted as package-authored policies, including explicit automatic overrides."
         }
       },
@@ -7934,11 +7934,11 @@
           "description": "Support at one authored scope, partitioned by the media buy's resulting allocation mode. Omitted contexts are unsupported; claims in one context make no claim about the other.",
           "properties": {
             "fixed": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1bidding-policy-capability.json/$defs/policy_profile",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1bidding-policy-capability.json/$defs/policy_profile",
               "description": "Policies supported when budget allocation is fixed or omitted."
             },
             "seller_optimized": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1bidding-policy-capability.json/$defs/policy_profile",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1bidding-policy-capability.json/$defs/policy_profile",
               "description": "Policies supported when budget_allocation.mode is seller_optimized."
             }
           },
@@ -7996,10 +7996,10 @@
               "items": {
                 "oneOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1bidding-policy-capability.json/$defs/max_bid_with_cost_per"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1bidding-policy-capability.json/$defs/max_bid_with_cost_per"
                   },
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1bidding-policy-capability.json/$defs/max_bid_with_roas"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1bidding-policy-capability.json/$defs/max_bid_with_roas"
                   }
                 ]
               },
@@ -8186,7 +8186,7 @@
       "type": "object",
       "properties": {
         "dialect": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1macro-dialect.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1macro-dialect.json"
         },
         "dialect_namespace": {
           "type": "string",
@@ -8208,7 +8208,7 @@
           ]
         },
         "universal_semantic": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1universal-macro.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1universal-macro.json"
         },
         "operation": {
           "type": "string",
@@ -8218,7 +8218,7 @@
           ]
         },
         "performed_by": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1macro-resolver.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1macro-resolver.json"
         },
         "supported_contexts": {
           "type": "array",
@@ -8227,7 +8227,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1macro-value-context.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1macro-value-context.json"
               },
               {
                 "not": {
@@ -8242,12 +8242,12 @@
           "minItems": 1,
           "uniqueItems": true,
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1macro-encoding.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1macro-encoding.json"
           },
           "description": "Exact supported encoding profiles, not a maximum depth. Required for value resolution."
         },
         "translation_target": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1macro-translation-target.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1macro-translation-target.json"
         }
       },
       "required": [
@@ -8367,7 +8367,7 @@
             ],
             "properties": {
               "dialect_semantic": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1universal-macro.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1universal-macro.json"
               },
               "mapping_status": {
                 "const": "verified_universal"
@@ -8811,7 +8811,7 @@
           "minLength": 1
         },
         "dialect": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1macro-dialect.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1macro-dialect.json"
         },
         "dialect_namespace": {
           "type": "string",
@@ -8826,20 +8826,20 @@
           "minLength": 1
         },
         "mapping_status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1macro-mapping-status.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1macro-mapping-status.json"
         },
         "universal_semantic": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1universal-macro.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1universal-macro.json"
         },
         "next_operation": {
           "type": "string",
           "const": "resolve_value"
         },
         "performed_by": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1macro-resolver.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1macro-resolver.json"
         },
         "encoding": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1macro-encoding.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1macro-encoding.json"
         }
       },
       "required": [
@@ -8982,7 +8982,7 @@
             ],
             "properties": {
               "dialect_semantic": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1universal-macro.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1universal-macro.json"
               },
               "mapping_status": {
                 "const": "verified_universal"
@@ -9125,7 +9125,7 @@
           "description": "Optional maximum number of independently region-targeted packages created from this configured product."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -9295,7 +9295,7 @@
             "pattern": "^[A-Z]{2}$"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1legacy-postal-system.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1legacy-postal-system.json"
           }
         ]
       },
@@ -9369,7 +9369,7 @@
           "additionalProperties": {
             "type": "array",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1geo-place-type.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1geo-place-type.json"
             },
             "minItems": 1,
             "uniqueItems": true
@@ -9377,7 +9377,7 @@
           "minProperties": 1
         },
         "catalog": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1geo-place-catalog-capability.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1geo-place-catalog-capability.json"
         }
       },
       "required": [
@@ -9455,7 +9455,7 @@
           "description": "Exact catalog versions accepted for new targeting or target-changing updates. Must include current_version. Removing a version does not mutate or silently invalidate targets already pinned to it."
         },
         "resolver": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1geo-place-resolver.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1geo-place-resolver.json"
         }
       },
       "required": [
@@ -9664,7 +9664,7 @@
               "const": "file_transfer"
             },
             "transport": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1cloud-storage-protocol.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1cloud-storage-protocol.json",
               "description": "Storage protocol for the exchange."
             },
             "directions": {
@@ -9681,7 +9681,7 @@
               "uniqueItems": true
             },
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1brand-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1brand-ref.json",
               "description": "Platform providing the storage primitive (e.g., the cloud provider's domain)."
             }
           },
@@ -9702,7 +9702,7 @@
               "const": "dataset_query"
             },
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1brand-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1brand-ref.json",
               "description": "Data-sharing platform the seller can consume from."
             },
             "consumer_identities": {
@@ -9762,7 +9762,7 @@
               "const": "clean_room"
             },
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1brand-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1brand-ref.json",
               "description": "Clean-room product's operating domain."
             }
           },
@@ -9782,7 +9782,7 @@
               "const": "platform_distribution"
             },
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1brand-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1brand-ref.json",
               "description": "Distribution platform's operating domain."
             },
             "destination_ref": {
@@ -10008,7 +10008,7 @@
       "description": "Complete seller-wide executable domain for aggregate MediaBuy frequency caps. Unlike product detail, this root capability cannot inherit omitted values: it declares the supported max-impression mode, entity units, impression limits, and exact window intervals. Product constraints may only narrow this domain.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1frequency-cap-constraints.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1frequency-cap-constraints.json"
         },
         {
           "type": "object",
@@ -10016,7 +10016,7 @@
             "supported_control_modes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1media-buy-frequency-cap-control-mode.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1media-buy-frequency-cap-control-mode.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -10046,7 +10046,7 @@
           "type": "array",
           "description": "Logical cap fields that can change after creation. An empty array means create-only. For example, [max_impressions] permits changing the count while keeping per and window fixed. Omission means update support is undeclared and the legacy broad meaning applies.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1frequency-cap-mutable-field.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1frequency-cap-mutable-field.json"
           },
           "uniqueItems": true
         },
@@ -10054,7 +10054,7 @@
           "type": "array",
           "description": "FrequencyCap shapes accepted by the product. max_impressions_and_suppress means both controls may appear together and are enforced with AND semantics.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1frequency-cap-control-mode.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1frequency-cap-control-mode.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -10063,20 +10063,20 @@
           "type": "array",
           "description": "Entity granularities accepted by max_impressions caps.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1reach-unit.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1reach-unit.json"
           },
           "minItems": 1,
           "uniqueItems": true
         },
         "max_impressions_constraints": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1frequency-cap-impression-constraints.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1frequency-cap-impression-constraints.json",
           "description": "Exact supported max_impressions presets or range."
         },
         "window_constraints": {
           "type": "array",
           "description": "Exact supported max_impressions.window intervals, one entry per duration unit.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1frequency-cap-interval-constraints.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1frequency-cap-interval-constraints.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -10085,13 +10085,13 @@
           "type": "array",
           "description": "Exact supported suppress cooldown intervals, one entry per duration unit.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1frequency-cap-interval-constraints.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1frequency-cap-interval-constraints.json"
           },
           "minItems": 1,
           "uniqueItems": true
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
         }
       },
       "anyOf": [
@@ -10176,7 +10176,7 @@
           "uniqueItems": true
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
         }
       },
       "oneOf": [
@@ -10223,7 +10223,7 @@
       "type": "object",
       "properties": {
         "unit": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1frequency-cap-duration-unit.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1frequency-cap-duration-unit.json"
         },
         "minimum_interval": {
           "type": "integer",
@@ -10243,7 +10243,7 @@
           "uniqueItems": true
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -10639,7 +10639,7 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1macro-resolution-capability.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1macro-resolution-capability.json"
           },
           "description": "Creative-route processing capabilities for exact macro dialect identities, semantics, operations, actors, contexts, and encodings. These capabilities describe build, validation, or preview processing and do not grant seller production authority.",
           "x-adcp-validation": {
@@ -10662,7 +10662,7 @@
         "applies_to_channels": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1channels.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:enums~1channels.json"
           },
           "uniqueItems": true
         },
@@ -10675,7 +10675,7 @@
           ]
         },
         "locale_policy": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1creative-locale-policy.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1creative-locale-policy.json"
         },
         "canonical_formats_only": {
           "type": "boolean",
@@ -10692,14 +10692,14 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1format-id.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1format-id.json"
           }
         },
         "format_schema": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1platform-extension-ref.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1platform-extension-ref.json"
         },
         "format_kind": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1canonical-format-kind.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1canonical-format-kind.json"
         },
         "params": {
           "type": "object",
@@ -10867,7 +10867,7 @@
           "type": "array",
           "description": "Concrete canonical BCP 47 language ranges accepted by this format option. RFC 4647 Basic Filtering is directional: seller range fr accepts variant fr-CA, but seller range fr-CA does not accept variant fr or fr-FR. Use zxx explicitly for language-neutral creative; und means unknown and is not a wildcard.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1locale-tag.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/get-adcp-capabilities-response.json#/$defs/external:core~1locale-tag.json"
           },
           "minItems": 1,
           "maxItems": 50,

@@ -18,7 +18,7 @@
     "reference": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attestation-reference.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attestation-reference.json"
         },
         {
           "type": "object",
@@ -31,7 +31,7 @@
                   "const": "brand"
                 },
                 "brand": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json"
                 }
               },
               "required": [
@@ -70,7 +70,7 @@
     "evaluation": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attestation-evaluation.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attestation-evaluation.json"
         },
         {
           "type": "object",
@@ -115,7 +115,7 @@
       ]
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

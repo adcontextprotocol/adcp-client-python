@@ -21,7 +21,7 @@
     "accepted_methodologies": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audience-evidence-methodology.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audience-evidence-methodology.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -29,7 +29,7 @@
     "excluded_methodologies": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audience-evidence-methodology.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audience-evidence-methodology.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -50,21 +50,21 @@
     "accepted_providers": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json"
       },
       "minItems": 1
     },
     "excluded_providers": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json"
       },
       "minItems": 1
     },
     "accepted_subject_types": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audience-subject-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audience-subject-type.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -72,7 +72,7 @@
     "accepted_resolution_methods": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audience-resolution-method.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audience-resolution-method.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -85,7 +85,7 @@
     "maximum_age": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
         },
         {
           "properties": {
@@ -124,10 +124,10 @@
                 "const": "brand"
               },
               "brand": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json"
               },
               "ext": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
               }
             },
             "required": [
@@ -149,7 +149,7 @@
                 "pattern": "^https://[^/?#@]+(?:/[^?#]*)?(?:\\?[^#]*)?$"
               },
               "ext": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
               }
             },
             "required": [
@@ -171,7 +171,7 @@
                 "pattern": "^https://[^/?#@]+$"
               },
               "ext": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
               }
             },
             "required": [
@@ -195,7 +195,7 @@
       "uniqueItems": true
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

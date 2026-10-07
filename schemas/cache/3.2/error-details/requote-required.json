@@ -23,11 +23,11 @@
       ]
     },
     "change_term_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-change-term-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-change-term-id.json",
       "description": "Accepted proposal change term whose typed constraint the request exceeded."
     },
     "decline_reason": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/seller-policy-decline-reason.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/seller-policy-decline-reason.json",
       "description": "Coarse seller-policy dimension that declined the requested shape. Sellers SHOULD populate this when they have a structured reason and disclosure does not expose private thresholds or enforcement controls. When present, it MUST be consistent with the enclosing error.recovery classification."
     }
   },

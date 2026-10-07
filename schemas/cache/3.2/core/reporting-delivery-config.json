@@ -32,7 +32,7 @@
       "description": "Whether new reporting obligations should use this configuration. Inactive configurations remain visible for historical resolution."
     },
     "feed_purpose": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
     },
     "report_definition_id": {
       "type": "string",
@@ -60,7 +60,7 @@
         "media_buy_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-coverage.json#/definitions/ReportingMediaBuyId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-coverage.json#/definitions/ReportingMediaBuyId"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -79,11 +79,11 @@
       "description": "Whether every package in the resolved media-buy scope must support the exact selected offering. full fails closed when any package is unsupported or unknown. allow_partial permits publication only for the explicitly covered package denominator; every revision and status response still exposes partial coverage and MUST NOT present covered-subset totals as whole-buy totals."
     },
     "required_finality": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reporting-finality.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reporting-finality.json",
       "description": "Finality the durable path must ultimately provide. Snapshot delivery may still precede an official requirement."
     },
     "reconciliation_mode": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-reconciliation-mode.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-reconciliation-mode.json",
       "description": "Whether producer-side delivery evidence is sufficient or the selected consumer must submit an authenticated matching receipt. A seller-authoritative billing feed MUST use consumer_receipt."
     },
     "authoritative_party": {
@@ -96,10 +96,10 @@
       "description": "Reserved: which party's count of this feed is authoritative. seller (the default, and the only value any 3.2 seller accepts) means the seller produces every revision and the consumer may only attest to what it consumed. consumer is reserved for the buyer-deposited billing revision task scoped to a later minor; until that task exists sellers MUST reject it with UNSUPPORTED_FEATURE. Reserving the field now keeps a future buyer-basis billing feed additive instead of breaking the billing-feed constraints. See https://github.com/adcontextprotocol/adcp/issues/7440."
     },
     "schedule": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-schedule.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-schedule.json"
     },
     "method": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-delivery-method.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-delivery-method.json"
     },
     "revocation_effective_at": {
       "type": "string",

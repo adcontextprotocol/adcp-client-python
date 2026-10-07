@@ -10,14 +10,14 @@
   "type": "object",
   "properties": {
     "action": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-available-action-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-available-action-id.json",
       "description": "The action identifier. Accepts every legacy valid_actions value plus structured-only actions such as update_media_buy_frequency_cap."
     },
     "modes": {
       "type": "array",
       "description": "Modes available for this action on this product. A product may declare multiple modes (for example `self_serve` within tolerances, escalating to `requires_approval` outside) \u2014 the buy-side `available_actions[<action>].mode` resolves to the singular mode in effect at mutation time. SDKs that see multiple modes MUST NOT assume which one will fire; they must read the resolved `mode` on the buy.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/media-buy-action-mode.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/media-buy-action-mode.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -26,17 +26,17 @@
       "type": "array",
       "description": "Media buy statuses in which this action is permitted. When absent, the action is permitted in all non-terminal statuses (`pending_creatives`, `pending_start`, `active`, `paused`).",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/media-buy-status.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/media-buy-status.json"
       },
       "minItems": 1,
       "uniqueItems": true
     },
     "sla": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/sla-window.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/sla-window.json",
       "description": "Optional SLA commitment for this action on this product. Absence means no commitment."
     },
     "constraints": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/change-term-constraints.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/change-term-constraints.json",
       "description": "Optional advisory machine-readable bounds buyers can use during product selection. The proposal must restate any binding bounds in commercial_terms.change_terms[].constraints."
     },
     "terms_ref": {

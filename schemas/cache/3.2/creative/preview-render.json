@@ -70,7 +70,7 @@
           }
         },
         "renderer": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/preview-renderer-metadata.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/preview-renderer-metadata.json",
           "description": "Optional renderer implementation and safety metadata for audit and reproducibility. Authority is still resolved from capability discovery and placement delegation."
         }
       },
@@ -145,7 +145,7 @@
           }
         },
         "renderer": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/preview-renderer-metadata.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/preview-renderer-metadata.json",
           "description": "Optional renderer implementation and safety metadata for audit and reproducibility. Authority is still resolved from capability discovery and placement delegation."
         }
       },
@@ -225,7 +225,7 @@
           }
         },
         "renderer": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/preview-renderer-metadata.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/preview-renderer-metadata.json",
           "description": "Optional renderer implementation and safety metadata for audit and reproducibility. Authority is still resolved from capability discovery and placement delegation."
         }
       },

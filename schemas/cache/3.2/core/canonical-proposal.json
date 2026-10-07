@@ -43,7 +43,7 @@
       "minimum": 1
     },
     "proposal_status": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/proposal-status.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/proposal-status.json",
       "description": "draft is indicative and unreserved; committed has firm terms with inventory reserved until expires_at; accepted is the historical snapshot attached to a MediaBuy."
     },
     "accepted_at": {
@@ -69,7 +69,7 @@
       "maxLength": 2000
     },
     "commercial_terms": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/commercial-terms.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/commercial-terms.json"
     },
     "terms_digest": {
       "type": "string",
@@ -77,7 +77,7 @@
       "description": "Base64url SHA-256 digest of the RFC 8785 JCS serialization of commercial_terms, prefixed with sha256:."
     },
     "insertion_order": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/insertion-order.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/insertion-order.json"
     },
     "total_budget_guidance": {
       "type": "object",
@@ -125,7 +125,7 @@
     "forecast": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-delivery-forecast.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-delivery-forecast.json"
         }
       ],
       "description": "Aggregate forecasted delivery for the proposal. For outcome_target requests, points carry the goal's metric or event key in metrics; with cost_per, that is the goal volume planned under the commercial_terms.bidding policy, and currency equals cost_per.currency."

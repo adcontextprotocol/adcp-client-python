@@ -40,7 +40,7 @@ def test_alias_is_advertised_and_has_stable_validators() -> None:
     assert get_validator("get_products", "sync", version="3.2-rc.7") is get_validator(
         "get_products", "sync", version="3.2"
     )
-    assert get_bundle_adcp_version(version="3.2-rc.7") == "3.2.1"
+    assert get_bundle_adcp_version(version="3.2-rc.7") == "3.2.3"
     assert get_bundle_adcp_version(version="3.2.0-rc.7") == "3.2.0-rc.7"
 
 

@@ -10,7 +10,7 @@
       "x-entity": "installment"
     },
     "collection_ref": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/collection-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/collection-ref.json",
       "description": "Canonical parent collection identity. Products spanning multiple collections or publisher namespaces MUST use this field."
     },
     "collection_id": {
@@ -37,7 +37,7 @@
       "description": "When the installment airs or publishes (ISO 8601)"
     },
     "status": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/installment-status.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/installment-status.json",
       "description": "Lifecycle status of the installment"
     },
     "duration_seconds": {
@@ -55,7 +55,7 @@
       "description": "When this installment data expires and should be re-queried. Agents should re-query before committing budget to products with tentative installments."
     },
     "content_rating": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/content-rating.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/content-rating.json",
       "description": "Installment-specific content rating. Overrides the collection's baseline content_rating when present."
     },
     "topics": {
@@ -66,22 +66,22 @@
       }
     },
     "special": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/special.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/special.json",
       "description": "Installment-specific event context. When present, this installment is anchored to a real-world event. Overrides the collection-level special when present."
     },
     "guest_talent": {
       "type": "array",
       "description": "Installment-specific guests and talent. Additive to the collection's recurring talent.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/talent.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/talent.json"
       }
     },
     "ad_inventory": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ad-inventory-config.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ad-inventory-config.json",
       "description": "Break-based ad inventory for this installment. For non-break formats (host reads, integrations), use product placements."
     },
     "deadlines": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/installment-deadlines.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/installment-deadlines.json",
       "description": "Booking, cancellation, and material submission deadlines for this installment. Present when the installment has time-sensitive inventory that requires advance commitment or material delivery."
     },
     "derivative_of": {
@@ -94,7 +94,7 @@
           "x-entity": "installment"
         },
         "type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/derivative-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/derivative-type.json",
           "description": "What kind of derivative content this is"
         }
       },
@@ -105,7 +105,7 @@
       "additionalProperties": false
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

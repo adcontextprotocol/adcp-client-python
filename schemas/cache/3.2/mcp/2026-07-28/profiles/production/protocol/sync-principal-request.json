@@ -149,7 +149,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:enums~1notification-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:enums~1notification-type.json"
               },
               {
                 "not": {
@@ -182,7 +182,7 @@
             "schemes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -202,7 +202,7 @@
           "default": true
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -319,7 +319,7 @@
               "type": "boolean"
             },
             "provider": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
             },
             "transport": {
               "type": "string",
@@ -349,7 +349,7 @@
               "uniqueItems": true
             },
             "accepted_verification_profiles": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
             }
           },
           "required": [
@@ -387,7 +387,7 @@
               "type": "boolean"
             },
             "provider": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
             },
             "transport": {
               "type": "string",
@@ -402,7 +402,7 @@
               "pattern": "^[!$&-;=@-~]+$"
             },
             "accepted_verification_profiles": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
             }
           },
           "required": [
@@ -439,7 +439,7 @@
               "type": "boolean"
             },
             "provider": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
             },
             "transport": {
               "type": "string",
@@ -454,10 +454,10 @@
               "pattern": "^[a-z][a-z0-9_.-]*$"
             },
             "recipient": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1delivery-recipient.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1delivery-recipient.json"
             },
             "accepted_verification_profiles": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
             }
           },
           "required": [
@@ -520,7 +520,7 @@
           "maxLength": 512
         },
         "cloud": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:enums~1delivery-recipient-cloud.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:enums~1delivery-recipient-cloud.json"
         },
         "region": {
           "type": "string",
@@ -579,7 +579,7 @@
         "experimental_features": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1experimental-feature-id.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/protocol/sync-principal-request.json#/$defs/external:core~1experimental-feature-id.json"
           },
           "minItems": 1,
           "maxItems": 32,

@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     },
     {
       "if": {
@@ -52,7 +52,7 @@
         ]
       },
       "then": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/get-products-rejected.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/get-products-rejected.json"
       }
     }
   ],
@@ -61,11 +61,11 @@
       "type": "array",
       "description": "Array of matching products",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product.json"
       }
     },
     "targeting_resolution": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/get-products-targeting-resolution.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/get-products-targeting-resolution.json",
       "description": "Request-level confirmation of structured hard targeting inferred from the brief. Sellers MUST include this when their structured interpretation of hard prose materially affects product eligibility, pricing, or forecasting; otherwise inclusion is a best practice. Omitted when no hard targeting was inferred from the brief."
     },
     "extensions": {
@@ -104,14 +104,14 @@
       "type": "array",
       "description": "Optional legacy proposed media plans. When the request carries media_buy_frequency_cap, every returned proposal echoes the bound value as proposal.frequency_cap. Buyers may refine or execute a committed proposal by ID.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/proposal.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/proposal.json"
       }
     },
     "errors": {
       "type": "array",
       "description": "Task-specific errors and warnings (e.g., product filtering issues)",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       }
     },
     "reason": {
@@ -266,7 +266,7 @@
           "estimated_wait": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
               }
             ],
             "description": "How much additional time is expected to resolve this scope. Allows the buyer to decide whether to make a new attempt with a larger time_budget; its presence is not an automatic-retry instruction."
@@ -363,7 +363,7 @@
       ]
     },
     "pagination": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-response.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-response.json",
       "description": "Cursor metadata for paginated get_products responses. In brief/refine mode, continuation pages bound returned products[] for the seller's curated or refined answer; proposals may accompany a page as plan metadata but are not independently counted by this pagination envelope, and pagination does not convert the response into an exhaustive feed contract. In wholesale mode, continuation pages walk the wholesale product feed."
     },
     "wholesale_feed_version": {
@@ -402,10 +402,10 @@
       "description": "When true, this response contains simulated data from sandbox mode."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "if": {
@@ -442,7 +442,7 @@
       ]
     },
     "then": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/get-products-rejected.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/get-products-rejected.json"
     },
     "else": {
       "if": {

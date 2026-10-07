@@ -9,7 +9,7 @@
       "description": "Vendor-defined metrics this product can steer delivery toward. Each entry pairs a vendor identity (BrandRef anchored on the vendor's `brand.json` `agents[type='measurement']`) with a `metric_id` from that vendor's published `measurement.metrics[]` catalog, plus the target kinds the seller supports for the pair. Semantic uniqueness key is `(vendor.domain, vendor.brand_id, metric_id)`; sellers MUST de-duplicate before publication. JSON Schema `uniqueItems` blocks exact-object duplicates; semantic deduplication on the BrandRef-domain key is a seller obligation.",
       "uniqueItems": true,
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-optimization-supported-metric.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-optimization-supported-metric.json"
       }
     }
   },

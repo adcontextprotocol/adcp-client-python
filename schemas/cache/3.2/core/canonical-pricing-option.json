@@ -37,19 +37,19 @@
       "minimum": 0
     },
     "price_guidance": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/pricing-options/price-guidance.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/pricing-options/price-guidance.json"
     },
     "min_spend_per_package": {
       "type": "number",
       "minimum": 0
     },
     "price_breakdown": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/pricing-options/price-breakdown.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/pricing-options/price-breakdown.json"
     },
     "eligible_adjustments": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/adjustment-kind.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/adjustment-kind.json"
       },
       "uniqueItems": true
     },
@@ -58,7 +58,7 @@
       "additionalProperties": true
     },
     "event_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/event-type.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/event-type.json"
     },
     "custom_event_name": {
       "type": "string",

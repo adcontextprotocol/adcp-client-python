@@ -5,15 +5,15 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "properties": {
     "list": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/collection/collection-list.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/collection/collection-list.json",
       "description": "The collection list metadata (always returned)"
     },
     "collections": {
@@ -46,7 +46,7 @@
               "type": "object",
               "properties": {
                 "type": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/distribution-identifier-type.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/distribution-identifier-type.json",
                   "description": "Type of distribution identifier"
                 },
                 "value": {
@@ -72,7 +72,7 @@
             }
           },
           "content_rating": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/content-rating.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/content-rating.json",
             "description": "Baseline content rating for this collection"
           },
           "genre": {
@@ -83,11 +83,11 @@
             }
           },
           "genre_taxonomy": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/genre-taxonomy.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/genre-taxonomy.json",
             "description": "Taxonomy system for genre values"
           },
           "kind": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/collection-kind.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/collection-kind.json"
           }
         },
         "required": [
@@ -97,7 +97,7 @@
       }
     },
     "pagination": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-response.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-response.json"
     },
     "resolved_at": {
       "type": "string",
@@ -118,7 +118,7 @@
           "type": "object",
           "properties": {
             "type": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/distribution-identifier-type.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/distribution-identifier-type.json",
               "description": "Type of distribution identifier"
             },
             "value": {
@@ -145,10 +145,10 @@
       }
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

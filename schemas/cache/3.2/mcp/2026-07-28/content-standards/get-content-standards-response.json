@@ -88,7 +88,7 @@
           "description": "Transport-managed conversation identifier. On A2A, this maps to the native Message/Task `contextId` used to associate messages with a conversation; it is not carried inside the AdCP DataPart. On MCP, a request-body `context_id`, where admitted by the selected request schema, is a compatibility-only field: servers MUST ignore it, callers MUST NOT rely on it for continuity, and it MUST NOT select session state, identity, account, authorization, task continuation, or idempotency scope. MCP continuity, if provided, comes from the transport session. Distinct from `context` (per-request opaque echo, see below) and from `task_id` (AdCP operation tracking)."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1context.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1context.json",
           "description": "Per-request opaque caller-supplied correlation object echoed unchanged in the response. Used for buyer-side tracking (UI session IDs, trace IDs, custom metadata) that the agent MUST preserve byte-for-byte without parsing. Distinct from `context_id` (transport-managed A2A conversation correlation or MCP compatibility metadata) \u2014 `context` is caller-owned echo and never selects transport state. Both MAY appear on the same response.\n\n**Relationship to per-task body-level `context` declarations.** Many task request/response schemas (147 as of 3.1) already declare a body-level `context` field that `$ref`s `/schemas/core/context.json` at the body root. Under the flat-on-the-wire MCP serialization (see `notes` below), envelope-level `context` and body-level `context` occupy the same key on the response root \u2014 they are NOT separate fields, they MUST share the same value, and they MUST both `$ref` `core/context.json`. The envelope declaration is **authoritative** for the schema definition; per-task body declarations are mirrors retained for tooling reasons (SDK codegen completeness, per-task validation against the response schema in isolation). Future versions MAY drop body-level `context` declarations from per-task schemas; conformance does not require either declaration to be present, only that the wire value `$ref`s `core/context.json`."
         },
         "task_id": {
@@ -97,7 +97,7 @@
           "x-entity": "task"
         },
         "status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1task-status.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1task-status.json",
           "description": "Current AdCP task state or structured outcome. Indicates whether the task completed, is in progress, was submitted for async processing, failed, requires user input, or returned a typed business rejection. REQUIRED on every task response envelope. Synchronous tasks (including read-only metadata calls like `get_adcp_capabilities`) normally emit `status: \"completed\"`; a task-specific rejection arm emits `status: \"rejected\"` without turning the transport into a failure. Async tasks emit `submitted`, `working`, `input-required`, etc. per their lifecycle. Agents MUST NOT emit the legacy task_status or response_status fields alongside this field \u2014 the status field is the single authoritative AdCP response state."
         },
         "message": {
@@ -115,11 +115,11 @@
           "default": false
         },
         "adcp_error": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1error.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1error.json",
           "description": "Transport-envelope error signal for fatal task failures. Per the two-layer model in `error-handling.mdx#envelope-vs-payload-errors-the-two-layer-model`, a fatal task failure SHOULD populate both this envelope-level field AND the payload's `errors[]` array \u2014 the envelope carries a typed, extractable error so MCP/A2A clients can dispatch without re-parsing the payload, while the payload's structured `errors[]` remains the canonical normative shape. Non-fatal warnings populate ONLY `payload.errors[]` with `severity: warning` \u2014 the envelope MUST NOT carry `adcp_error` for non-failures."
         },
         "push_notification_config": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1push-notification-config.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1push-notification-config.json",
           "description": "AdCP application-layer webhook configuration for async task updates over MCP, A2A, or REST. Echoed from the request to confirm webhook settings. It is distinct from transport-native progress or A2A TaskPushNotificationConfig delivery and can outlive the originating transport session."
         },
         "governance_context": {
@@ -487,7 +487,7 @@
               "type": "array",
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -543,7 +543,7 @@
         "channels_any": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1channels.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1channels.json"
           },
           "minItems": 1,
           "description": "Advertising channels. Standards apply to ANY of the listed channels (OR logic)."
@@ -560,7 +560,7 @@
           "type": "array",
           "description": "Bespoke policies for this content-standards configuration, using the same shape as registry entries. Each policy is addressable by policy_id; governance findings reference the policy_id that triggered them.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:governance~1policy-entry.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:governance~1policy-entry.json"
           },
           "minItems": 1
         },
@@ -571,14 +571,14 @@
             "pass": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:content-standards~1artifact.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:content-standards~1artifact.json"
               },
               "description": "Artifacts that pass the content standards"
             },
             "fail": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:content-standards~1artifact.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:content-standards~1artifact.json"
               },
               "description": "Artifacts that fail the content standards"
             }
@@ -588,12 +588,12 @@
           "type": "array",
           "description": "Pricing options for this content standards service. The buyer passes the selected pricing_option_id in report_usage for billing verification.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1vendor-pricing-option.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1vendor-pricing-option.json"
           },
           "minItems": 1
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -682,11 +682,11 @@
           "description": "Brief summary of what this policy covers."
         },
         "category": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1policy-category.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1policy-category.json",
           "description": "The nature of the obligation: regulation (legal requirement) or standard (best practice). Optional for inline bespoke policies \u2014 defaults to \"standard\"."
         },
         "enforcement": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1policy-enforcement.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1policy-enforcement.json",
           "description": "How governance agents treat violations. Regulations are typically \"must\"; standards are typically \"should\"."
         },
         "requires_human_review": {
@@ -722,14 +722,14 @@
         "channels": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1channels.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1channels.json"
           },
           "description": "Advertising channels this policy applies to. If omitted or null, the policy applies to all channels."
         },
         "governance_domains": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1governance-domain.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1governance-domain.json"
           },
           "description": "Governance sub-domains this policy applies to. Determines which types of governance agents can declare registry:{policy_id} features. For example, a policy with domains [\"creative\", \"property\"] can be declared as a feature by both creative and property governance agents."
         },
@@ -772,7 +772,7 @@
           "additionalProperties": false
         },
         "acceptance_profile": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:media-buy~1acceptance-policy-profile.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:media-buy~1acceptance-policy-profile.json",
           "description": "Optional reusable, machine-readable acceptance profile derived from this registry policy. Registry publishers MUST bind policy_refs to exact versions. Sellers adopt a profile explicitly; registry publication alone does not make it authoritative for a seller."
         },
         "policy": {
@@ -791,14 +791,14 @@
             "pass": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:governance~1policy-entry.json/$defs/exemplar"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:governance~1policy-entry.json/$defs/exemplar"
               },
               "description": "Scenarios that comply with this policy."
             },
             "fail": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:governance~1policy-entry.json/$defs/exemplar"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:governance~1policy-entry.json/$defs/exemplar"
               },
               "description": "Scenarios that violate this policy."
             }
@@ -806,7 +806,7 @@
           "additionalProperties": false
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -1034,12 +1034,12 @@
         "rules": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:media-buy~1acceptance-policy-rule.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:media-buy~1acceptance-policy-rule.json"
           },
           "minItems": 1
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -1183,7 +1183,7 @@
         "requirements": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:media-buy~1acceptance-policy-requirement.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:media-buy~1acceptance-policy-requirement.json"
           },
           "minItems": 1
         },
@@ -1213,7 +1213,7 @@
           "format": "date-time"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -1466,7 +1466,7 @@
             "restricted_attributes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1restricted-attribute.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1restricted-attribute.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -1599,7 +1599,7 @@
               "minLength": 1
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -1664,12 +1664,12 @@
           "description": "Identifies a specific variant of this artifact. Use for A/B tests, translations, or temporal versions. Examples: 'en', 'es-MX', 'v2', 'headline_test_b'. The combination of artifact_id + variant_id must be unique."
         },
         "format_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1format-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1format-id.json",
           "deprecated": true,
           "description": "**DEPRECATED in 3.2.** Legacy named-format reference. Use `format_kind` for canonical artifact media classification."
         },
         "format_kind": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1canonical-format-kind.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1canonical-format-kind.json",
           "description": "Optional canonical media/creative kind associated with this artifact."
         },
         "url": {
@@ -1744,7 +1744,7 @@
                     "description": "Heading level (1-6), only for role=heading"
                   },
                   "provenance": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1provenance.json",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1provenance.json",
                     "description": "Provenance for this text block, overrides artifact-level provenance"
                   }
                 },
@@ -1767,7 +1767,7 @@
                     "description": "Image URL"
                   },
                   "access": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:content-standards~1artifact.json/$defs/asset_access",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:content-standards~1artifact.json/$defs/asset_access",
                     "description": "Authentication for secured URLs"
                   },
                   "alt_text": {
@@ -1787,7 +1787,7 @@
                     "description": "Image height in pixels"
                   },
                   "provenance": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1provenance.json",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1provenance.json",
                     "description": "Provenance for this image, overrides artifact-level provenance"
                   }
                 },
@@ -1810,7 +1810,7 @@
                     "description": "Video URL"
                   },
                   "access": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:content-standards~1artifact.json/$defs/asset_access",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:content-standards~1artifact.json/$defs/asset_access",
                     "description": "Authentication for secured URLs"
                   },
                   "duration_ms": {
@@ -1849,7 +1849,7 @@
                     "description": "Video thumbnail URL"
                   },
                   "provenance": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1provenance.json",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1provenance.json",
                     "description": "Provenance for this video, overrides artifact-level provenance"
                   }
                 },
@@ -1872,7 +1872,7 @@
                     "description": "Audio URL"
                   },
                   "access": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:content-standards~1artifact.json/$defs/asset_access",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:content-standards~1artifact.json/$defs/asset_access",
                     "description": "Authentication for secured URLs"
                   },
                   "duration_ms": {
@@ -1904,7 +1904,7 @@
                     "description": "How the transcript was generated"
                   },
                   "provenance": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1provenance.json",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1provenance.json",
                     "description": "Provenance for this audio, overrides artifact-level provenance"
                   }
                 },
@@ -1954,7 +1954,7 @@
           "additionalProperties": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1provenance.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1provenance.json",
           "description": "Provenance metadata for this artifact. Serves as the default provenance for all assets within this artifact \u2014 individual assets can override with their own provenance."
         },
         "identifiers": {
@@ -2148,7 +2148,7 @@
       "type": "object",
       "properties": {
         "digital_source_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1digital-source-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1digital-source-type.json",
           "description": "IPTC-aligned classification of AI involvement in producing this content"
         },
         "synthetic_depiction": {
@@ -2258,7 +2258,7 @@
             "type": "object",
             "properties": {
               "method": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1embedded-provenance-method.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1embedded-provenance-method.json",
                 "description": "How provenance data is carried within the content"
               },
               "standard": {
@@ -2309,7 +2309,7 @@
             "type": "object",
             "properties": {
               "media_type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1watermark-media-type.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1watermark-media-type.json",
                 "description": "Media category of the watermarked content"
               },
               "provider": {
@@ -2337,7 +2337,7 @@
                 "additionalProperties": false
               },
               "c2pa_action": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1c2pa-watermark-action.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1c2pa-watermark-action.json",
                 "description": "C2PA action classification for this watermark"
               },
               "embedded_at": {
@@ -2388,7 +2388,7 @@
                     "minProperties": 1,
                     "properties": {
                       "persistence": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1disclosure-persistence.json",
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1disclosure-persistence.json",
                         "description": "How long the disclosure must persist during content playback or display"
                       },
                       "min_duration_ms": {
@@ -2400,13 +2400,13 @@
                         "type": "array",
                         "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                         "items": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1disclosure-position.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:enums~1disclosure-position.json"
                         },
                         "minItems": 1,
                         "uniqueItems": true
                       },
                       "ext": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
                       }
                     }
                   }
@@ -2468,7 +2468,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
         }
       }
     },
@@ -2589,7 +2589,7 @@
               "deprecated": true,
               "description": "**DEPRECATED in 3.2.** Legacy named-format pricing scope. Use applies_to_output_capability_ids.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1format-id.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1format-id.json"
               },
               "minItems": 1
             },
@@ -2609,7 +2609,7 @@
           ]
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1signal-pricing.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1signal-pricing.json"
         }
       ]
     },
@@ -2641,7 +2641,7 @@
               "pattern": "^[A-Z]{3}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -2677,7 +2677,7 @@
               "pattern": "^[A-Z]{3}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -2717,7 +2717,7 @@
               "pattern": "^[A-Z]{3}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -2752,7 +2752,7 @@
               "pattern": "^[A-Z]{3}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -2796,7 +2796,7 @@
               "pattern": "^[A-Z]{3}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/content-standards/get-content-standards-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [

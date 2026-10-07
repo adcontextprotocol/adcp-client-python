@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "x-status": "experimental",
@@ -50,7 +50,7 @@
       "type": "array",
       "description": "Offers from this provider, one per activated package. An empty array means no packages matched. For simple activation, each offer has just package_id. For richer responses, offers include brand, price, summary, and creative manifest.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/trusted-match/offer.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/trusted-match/offer.json"
       }
     },
     "cache_ttl": {

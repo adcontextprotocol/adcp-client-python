@@ -31,7 +31,7 @@
       "description": "Package pacing inside seller-optimized buys; implies seller_optimized_budget."
     },
     "bidding_policy": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/bidding-policy-capability.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/bidding-policy-capability.json"
     }
   },
   "additionalProperties": {

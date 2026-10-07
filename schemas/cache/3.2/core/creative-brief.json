@@ -61,7 +61,7 @@
       "type": "array",
       "description": "Visual and strategic reference materials such as mood boards, product shots, example creatives, and strategy documents",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reference-asset.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reference-asset.json"
       }
     },
     "compliance": {
@@ -79,7 +79,7 @@
                 "description": "The disclosure text that must appear in the creative"
               },
               "position": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/disclosure-position.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/disclosure-position.json",
                 "description": "Where the disclosure should appear within the creative. prominent: clearly visible in the main creative area; footer: at the bottom of visual creatives; audio: spoken in audio/video creatives; subtitle: displayed in the subtitle or closed-caption track; overlay: superimposed on video content; end_card: displayed on video end card; pre_roll: spoken or displayed before main content; companion: in companion ad unit alongside primary creative"
               },
               "jurisdictions": {
@@ -105,7 +105,7 @@
                 "description": "Language of the disclosure text as a BCP 47 language tag (e.g., 'en', 'fr-CA', 'es'). When omitted, the disclosure is assumed to match the creative's language."
               },
               "persistence": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/disclosure-persistence.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/disclosure-persistence.json",
                 "description": "How long the disclosure must persist during content playback or display. When omitted, the creative agent should use the most restrictive persistence mode supported by the target format."
               }
             },

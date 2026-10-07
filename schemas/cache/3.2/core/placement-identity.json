@@ -38,7 +38,7 @@
           "const": "seller_inline"
         },
         "seller_agent": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/seller-agent-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/seller-agent-ref.json",
           "description": "Sales agent that defines and maintains the inline placement namespace."
         },
         "placement_id": {

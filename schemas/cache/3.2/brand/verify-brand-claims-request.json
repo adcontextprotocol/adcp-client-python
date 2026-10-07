@@ -5,7 +5,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     }
   ],
   "properties": {
@@ -123,7 +123,7 @@
                   "description": "Shape matches brand.json properties[] entry.",
                   "properties": {
                     "type": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/property-type.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/property-type.json"
                     },
                     "identifier": {
                       "type": "string"

@@ -8,7 +8,7 @@
       "type": "object",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/postal-country-system.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/postal-country-system.json"
         }
       ],
       "properties": {
@@ -18,7 +18,7 @@
           "description": "ISO 3166-1 alpha-2 country code for the postal values."
         },
         "system": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/postal-system.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/postal-system.json",
           "description": "Country-local postal code system (e.g., 'zip', 'outward', 'plz', 'postal_code')."
         },
         "values": {
@@ -43,7 +43,7 @@
       "type": "object",
       "properties": {
         "system": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/legacy-postal-system.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/legacy-postal-system.json",
           "deprecated": true,
           "description": "Deprecated country-fused postal code system (e.g., 'us_zip', 'gb_outward'). Prefer country + postal-system."
         },

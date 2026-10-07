@@ -18,7 +18,7 @@
       "type": "array",
       "description": "Stages for creative material submission. Items MUST be in chronological order by due_at (earliest first). Typical pattern: 'draft' for raw materials the seller will process, 'final' for production-ready assets. Print example: draft artwork then press-ready PDF. Influencer example: talking points then approved script.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/material-deadline.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/material-deadline.json"
       },
       "minItems": 1
     }

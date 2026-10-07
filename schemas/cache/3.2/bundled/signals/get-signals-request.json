@@ -69,14 +69,14 @@
     },
     "account": {
       "title": "Account Reference",
-      "description": "Account for this request. When provided, the signals agent returns per-account pricing options if configured. In 'wholesale' mode, this is the rate-card scope: when omitted in wholesale mode, agents return their default rate-card pricing or omit pricing_options entirely.",
+      "description": "Account for this request. When provided, the signals agent returns per-account pricing options if configured. In 'wholesale' mode, this is the rate-card scope: when omitted in wholesale mode, agents return their default rate-card pricing or omit pricing_options entirely. A reference that does not resolve returns ACCOUNT_NOT_FOUND rather than default pricing, unless the seller provisions lazily. See /docs/accounts/overview#account-references-before-provisioning.",
       "type": "object",
       "oneOf": [
         {
           "properties": {
             "account_id": {
               "type": "string",
-              "description": "Seller-assigned account identifier. For upstream-managed account namespaces, this value comes from list_accounts; for seller-defined namespaces without a list_accounts surface, it is supplied out-of-band. Buyer-declared account sellers MAY echo account_id from sync_accounts as an internal handle, but they MUST continue accepting the account's current natural-key AccountRef on subsequent calls. A former key tombstoned by identity reconciliation returns ACCOUNT_MOVED to authorized callers.",
+              "description": "Seller-assigned account identifier. For upstream-managed account namespaces, this value comes from list_accounts; for seller-defined namespaces without a list_accounts surface, it is supplied out-of-band. Buyer-declared account sellers MAY echo account_id from sync_accounts as an internal handle, but they MUST continue accepting the account's current natural-key AccountRef on subsequent calls. Buyers of buyer-declared accounts send the natural key; a seller MAY also accept its echoed account_id, and buyers MUST NOT assume it does. A former key tombstoned by identity reconciliation returns ACCOUNT_MOVED to authorized callers.",
               "x-entity": "account"
             }
           },
@@ -1389,7 +1389,7 @@
   },
   "additionalProperties": true,
   "_bundled": {
-    "generatedAt": "2026-10-01T01:51:55.155Z",
+    "generatedAt": "2026-10-07T17:05:07.764Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

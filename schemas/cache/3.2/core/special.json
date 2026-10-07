@@ -9,7 +9,7 @@
       "description": "Name of the event (e.g., 'Olympics 2028', 'Super Bowl LXI')"
     },
     "category": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/special-category.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/special-category.json",
       "description": "Category of the event"
     },
     "starts": {

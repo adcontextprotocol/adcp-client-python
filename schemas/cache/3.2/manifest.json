@@ -1,7 +1,7 @@
 {
-  "$schema": "/schemas/3.2.1/manifest.schema.json",
-  "adcp_version": "3.2.1",
-  "generated_at": "2026-10-01T01:52:17.954Z",
+  "$schema": "/schemas/3.2.3/manifest.schema.json",
+  "adcp_version": "3.2.3",
+  "generated_at": "2026-10-07T17:05:39.739Z",
   "tools": {
     "accept_proposal": {
       "protocol": "media-buy",
@@ -128,7 +128,10 @@
       "idempotency_requirement": "none",
       "request_schema": "compliance/comply-test-controller-request.json",
       "response_schema": "compliance/comply-test-controller-response.json",
-      "async_response_schemas": []
+      "async_response_schemas": [],
+      "specialisms": [
+        "sales_guaranteed"
+      ]
     },
     "control_media_buy": {
       "protocol": "media-buy",
@@ -545,7 +548,8 @@
       "response_schema": "protocol/get-task-status-response.json",
       "async_response_schemas": [],
       "specialisms": [
-        "buyer_activation"
+        "buyer_activation",
+        "sales_guaranteed"
       ]
     },
     "list_account_changes": {
@@ -1302,8 +1306,8 @@
     },
     "ACCOUNT_NOT_FOUND": {
       "recovery": "terminal",
-      "description": "The account reference could not be resolved.",
-      "suggestion": "verify account via list_accounts or contact seller"
+      "description": "The account reference could not be resolved: an account_id that does not exist, a buyer-declared natural key the seller has not provisioned, or an account outside the caller's authorized set. Sellers return it on tasks where account is optional too, rather than ignoring the reference, unless the seller lazily provisions it.",
+      "suggestion": "for a natural key, provision through sync_accounts or omit account for public discovery; for an account_id, verify via list_accounts or contact seller"
     },
     "ACCOUNT_MOVED": {
       "recovery": "correctable",
@@ -2121,16 +2125,20 @@
       "protocol": "media-buy",
       "title": "Guaranteed media buy with human IO approval",
       "entry_point_tools": [
+        "comply_test_controller",
         "create_media_buy",
-        "get_products"
+        "get_products",
+        "get_task_status"
       ],
       "exercised_tools": [
         "buy_products",
+        "comply_test_controller",
         "create_media_buy",
         "get_adcp_capabilities",
         "get_media_buy_delivery",
         "get_media_buys",
         "get_products",
+        "get_task_status",
         "list_products",
         "sync_accounts",
         "sync_creatives",

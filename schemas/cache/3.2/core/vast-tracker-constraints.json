@@ -52,7 +52,7 @@
     "vast_versions": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/vast-version.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/vast-version.json"
       },
       "minItems": 1,
       "uniqueItems": true

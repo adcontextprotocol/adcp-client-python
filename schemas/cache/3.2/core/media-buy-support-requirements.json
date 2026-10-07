@@ -10,7 +10,7 @@
       "description": "Require product participation in one shared MediaBuy frequency-cap counter."
     },
     "frequency_cap_constraints": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-frequency-cap-requirement.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-frequency-cap-requirement.json"
     }
   },
   "dependencies": {

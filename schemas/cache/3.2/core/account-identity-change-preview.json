@@ -94,7 +94,7 @@
           "const": "would_apply"
         },
         "requested_operator_identity": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/operator-identity.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/operator-identity.json"
         },
         "impacts": {
           "$ref": "#/definitions/nonblocking_impacts"
@@ -116,7 +116,7 @@
           "const": "would_require_approval"
         },
         "requested_operator_identity": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/operator-identity.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/operator-identity.json"
         },
         "impacts": {
           "$ref": "#/definitions/nonblocking_impacts"
@@ -138,7 +138,7 @@
           "const": "blocked"
         },
         "requested_operator_identity": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/operator-identity.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/operator-identity.json"
         },
         "impacts": {
           "$ref": "#/definitions/blocked_impacts"

@@ -12,7 +12,7 @@
     "vast_event": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/vast-tracking-event.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/vast-tracking-event.json"
         },
         {
           "not": {
@@ -33,7 +33,7 @@
       "description": "The VAST tracking event this URL fires on. Maps 1:1 to the VAST `Tracking event=\"...\"` attribute inside `TrackingEvents`. MUST NOT be `impression` (belongs in the VAST `Impression` element \u2014 model as a `url` asset with `url_type: \"tracker_pixel\"`), `clickTracking` / `customClick` (belong in `VideoClicks`), `error` (VAST `Error` element), or any of `viewable` / `notViewable` / `viewUndetermined` / `measurableImpression` / `viewableImpression` (children of the VAST `ViewableImpression` element, not `TrackingEvents`)."
     },
     "url": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-bearing-url.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-bearing-url.json",
       "description": "Tracker URL fired for the VAST event. Attached declarations identify each macro occurrence, registry revision, processing actor, and exact encoding profile."
     },
     "macro_declarations": {
@@ -41,7 +41,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-declaration.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-declaration.json"
           },
           {
             "properties": {
@@ -75,7 +75,7 @@
       "description": "Which VAST creative element this tracker scopes to \u2014 `linear` for `<Linear>/<TrackingEvents>`, `non_linear` for `<NonLinearAds>/<TrackingEvents>`, `companion` for `<CompanionAds>/<Companion>/<TrackingEvents>`. Defaults to `linear`. Existing 3.x assets remain structurally permissive; a tracker execution contract applies the standards-valid event/target matrix when matching a creative to a product."
     },
     "provenance": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance."
     }
   },

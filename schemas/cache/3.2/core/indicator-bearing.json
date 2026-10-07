@@ -8,7 +8,7 @@
       "type": "array",
       "description": "Current seller assertions for the indicator types and publisher/placement coverage named by the sibling evaluation fields. Omitted means unknown or not evaluated. A present empty array means evaluated with no current assertion for indicator_types_evaluated in the evaluated scope.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/indicator.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/indicator.json"
       },
       "uniqueItems": true
     },
@@ -16,7 +16,7 @@
       "type": "array",
       "description": "Indicator types covered by this snapshot. Required whenever indicators is present. Types omitted from this list remain unknown even when indicators is empty. Every returned indicator.type MUST appear in this list.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/indicator-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/indicator-type.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -30,7 +30,7 @@
       "type": "array",
       "description": "Optional publisher or placement coverage for this evaluation. Omit when the named indicator types were evaluated across the whole enclosing resource or relationship. Unlisted scopes remain unknown. When present, every returned indicator MUST include scope and every scope entry MUST be contained by this coverage.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/indicator-scope.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/indicator-scope.json"
       },
       "minItems": 1,
       "uniqueItems": true

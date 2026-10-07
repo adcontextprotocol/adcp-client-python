@@ -6,7 +6,7 @@
   "type": "object",
   "properties": {
     "sponsored_context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/sponsored-intelligence/si-sponsored-context.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/sponsored-intelligence/si-sponsored-context.json",
       "description": "The sponsored-context declaration the host received and is accepting or rejecting."
     },
     "host_receipt": {
@@ -22,7 +22,7 @@
           ]
         },
         "accepted_context_use": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/sponsored-intelligence/si-context-use.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/sponsored-intelligence/si-context-use.json",
           "description": "Use mode the host accepted. When host_receipt.status is accepted, this MUST match the declaration's context_use; a host that cannot honor the declared use mode rejects the sponsored context instead of down-scoping it."
         },
         "received_at": {
@@ -120,7 +120,7 @@
       ]
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

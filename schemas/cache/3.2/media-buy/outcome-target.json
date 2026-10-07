@@ -19,7 +19,7 @@
               "const": "metric"
             },
             "metric": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/forecastable-metric.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/forecastable-metric.json",
               "description": "Delivery metric to plan for, in the same vocabulary forecast points report."
             }
           },
@@ -38,7 +38,7 @@
               "const": "event"
             },
             "event_type": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/event-type.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/event-type.json",
               "description": "Conversion event to plan for, in the same vocabulary forecast points report."
             },
             "custom_event_name": {
@@ -76,7 +76,7 @@
       "description": "Desired total volume of the goal's metric or event across the planned flight. Alone, the seller solves for budget and answers with total_budget_guidance and a forecast. With cost_per, the seller plans toward the volume at the cost: under a cap it SHOULD keep the buyer's amount and forecast the lower volume it can deliver, unless no volume can be planned at that amount; under a target the ask is plannable when the seller can forecast the volume around it."
     },
     "cost_per": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/outcome-target-cost-per.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/outcome-target-cost-per.json"
     }
   },
   "required": [

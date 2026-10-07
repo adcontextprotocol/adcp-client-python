@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "oneOf": [
@@ -27,7 +27,7 @@
           "description": "Echoes the request's claim_type for caller-side routing."
         },
         "verification_status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/brand/verification-status.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/brand/verification-status.json",
           "description": "Verification status. Not every status applies to every claim_type \u2014 see the task page for the applicable subset. Renamed from `status` in 3.1 to free the top-level `status` key for the envelope task-status (TaskStatus) under MCP flat-on-the-wire serialization (#4878)."
         },
         "details": {
@@ -41,14 +41,14 @@
           "description": "Public \u2014 free-text context the brand chooses to surface. For disputed/transferring, typically carries the rationale or transition details."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "signed_response": {
           "$ref": "#/definitions/signed_response",
           "description": "Payload-envelope JWS attesting the canonical success response for verify_brand_claim. The signed payload response MUST match the unsigned task-body fields on this response, excluding signed_response and protocol/version envelope fields."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -74,15 +74,15 @@
         "errors": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -110,7 +110,7 @@
     "signed_response": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/response-payload-jws-envelope.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/response-payload-jws-envelope.json"
         },
         {
           "type": "object",
@@ -149,7 +149,7 @@
           ]
         },
         "verification_status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/brand/verification-status.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/brand/verification-status.json"
         },
         "details": {
           "type": "object",
@@ -160,10 +160,10 @@
           "maxLength": 500
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [

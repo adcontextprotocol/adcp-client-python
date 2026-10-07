@@ -53,10 +53,10 @@
       "description": "Frame rate as string to preserve precision (e.g., '23.976', '29.97', '30')"
     },
     "frame_rate_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/frame-rate-type.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/frame-rate-type.json"
     },
     "scan_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/scan-type.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/scan-type.json"
     },
     "color_space": {
       "type": "string",
@@ -103,10 +103,10 @@
       "description": "GOP/keyframe interval in seconds"
     },
     "gop_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/gop-type.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/gop-type.json"
     },
     "moov_atom_position": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/moov-atom-position.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/moov-atom-position.json"
     },
     "has_audio": {
       "type": "boolean",
@@ -121,7 +121,7 @@
       "description": "Audio sampling rate in Hz (e.g., 44100, 48000)"
     },
     "audio_channels": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audio-channel-layout.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audio-channel-layout.json",
       "description": "Audio channel configuration"
     },
     "audio_bit_depth": {
@@ -165,7 +165,7 @@
       "x-accessibility": true
     },
     "provenance": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
     }
   },

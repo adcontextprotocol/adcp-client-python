@@ -60,7 +60,7 @@
     "control_total_deltas": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-control-total.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-control-total.json"
       },
       "minItems": 1,
       "uniqueItems": true,

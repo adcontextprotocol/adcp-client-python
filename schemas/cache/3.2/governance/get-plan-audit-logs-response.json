@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "x-status": "experimental",
@@ -302,7 +302,7 @@
                   "description": "The AdCP tool (present for check entries)."
                 },
                 "verdict": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/governance-decision.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/governance-decision.json",
                   "description": "Governance verdict (present for check entries). Renamed from `status` in 3.1 alongside check-governance-response for vocabulary consistency."
                 },
                 "check_type": {
@@ -314,7 +314,7 @@
                   "description": "Whether the check was an intent check (orchestrator) or execution check (seller). Inferred from the fields present on the original check request. Present for check entries."
                 },
                 "mode": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/governance-mode.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/governance-mode.json",
                   "description": "Governance mode active at the moment this specific check was evaluated. Governance agents SHOULD populate this field on check entries, recording the mode from their runtime configuration at the moment check_governance was processed \u2014 not derived from a plan field. This is a per-check value: if the operator changes mode between checks for the same governed action, each entry records the mode active for that entry. A future `governed_actions[].mode` field would describe the action's current mode, which may differ from the most recent entry's `mode` if the plan has since been re-synced. Absent for outcome entries and for pre-3.1 governance agents that do not surface mode on audit responses."
                 },
                 "explanation": {
@@ -354,7 +354,7 @@
                         "x-entity": "governance_plan"
                       },
                       "severity": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/escalation-severity.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/escalation-severity.json"
                       },
                       "explanation": {
                         "type": "string"
@@ -469,11 +469,11 @@
                   "additionalProperties": false
                 },
                 "outcome": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/outcome-type.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/outcome-type.json",
                   "description": "Outcome type (present for outcome entries)."
                 },
                 "error": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/governance/reported-outcome-error.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/governance/reported-outcome-error.json",
                   "description": "Buyer-attributed error retained from a failed report_plan_outcome call. This is a copy or classification supplied by the reporter, not authenticated seller evidence."
                 },
                 "outcome_id": {
@@ -631,10 +631,10 @@
                     "type": "object",
                     "properties": {
                       "reference": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attestation-reference.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attestation-reference.json"
                       },
                       "evaluation": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attestation-evaluation.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attestation-evaluation.json"
                       }
                     },
                     "required": [
@@ -652,7 +652,7 @@
                   "description": "Binding digest copied from the check response and signed governance_context. Auditors recompute it from this entry's ordered runtime_attestations[].evaluation values plus findings carrying attestation_reference_digest after verifying each paired reference digest."
                 },
                 "purchase_type": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/purchase-type.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/purchase-type.json",
                   "description": "Purchase type for this entry."
                 },
                 "outcome_status": {
@@ -767,7 +767,7 @@
                   "description": "Governance context correlating this action's lifecycle."
                 },
                 "purchase_type": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/purchase-type.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/purchase-type.json",
                   "description": "Type of financial commitment."
                 },
                 "status": {
@@ -885,10 +885,10 @@
       }
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

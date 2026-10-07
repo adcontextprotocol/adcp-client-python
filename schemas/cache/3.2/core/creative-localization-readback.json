@@ -61,7 +61,7 @@
         "type": "object",
         "properties": {
           "language_range": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/locale-tag.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/locale-tag.json"
           },
           "locale_variant_id": {
             "type": "string",
@@ -100,7 +100,7 @@
                 "x-entity": "creative_locale_variant"
               },
               "locale": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/locale-tag.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/locale-tag.json"
               },
               "role": {
                 "type": "string",
@@ -149,7 +149,7 @@
                 "x-entity": "creative_locale_variant"
               },
               "locale": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/locale-tag.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/locale-tag.json"
               },
               "role": {
                 "type": "string",
@@ -209,12 +209,12 @@
         "^[a-z0-9_]+$": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/localized-creative-asset.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/localized-creative-asset.json"
             },
             {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/localized-creative-asset.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/localized-creative-asset.json"
               },
               "minItems": 1
             }

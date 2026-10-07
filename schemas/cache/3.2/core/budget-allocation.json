@@ -35,7 +35,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/optimization-goal.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/optimization-goal.json"
               },
               {
                 "not": {

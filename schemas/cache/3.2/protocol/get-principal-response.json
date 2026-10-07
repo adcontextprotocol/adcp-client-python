@@ -6,10 +6,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "properties": {
@@ -30,7 +30,7 @@
               "description": "Seller-issued opaque identifier for this authenticated principal record. It is response-only, not a credential, not caller identity, and not advertiser-account authority."
             },
             "principal_kind": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/principal-kind.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/principal-kind.json",
               "description": "Seller-resolved party kind of the authenticated principal: a buyer-agent workload, or an operator-side identity such as a person at the operator. Resolved solely from the seller's authorization system, never from request content, so per-party policy such as billing gates can rely on it."
             },
             "configuration_version": {
@@ -40,7 +40,7 @@
               "description": "Opaque version of the persisted configuration. Compare only for equality and pass it as expected_configuration_version on a later guarded sync_principal replacement."
             },
             "configuration": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/principal-state.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/principal-state.json"
             }
           },
           "required": [
@@ -67,7 +67,7 @@
               "description": "Seller-issued opaque identifier for the existing durable principal record. The read returns the same identifier after credential renewal or rotation when the new credential maps to this principal. It is not a credential and does not grant authority over an advertiser account."
             },
             "principal_kind": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/principal-kind.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/principal-kind.json",
               "description": "Seller-resolved party kind of the authenticated principal. This is resolved from authenticated transport and authorization state, never request content."
             }
           },
@@ -103,7 +103,7 @@
             "errors": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
               },
               "minItems": 1,
               "maxItems": 16
@@ -118,10 +118,10 @@
       ]
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

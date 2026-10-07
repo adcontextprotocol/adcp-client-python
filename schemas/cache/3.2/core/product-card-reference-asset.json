@@ -23,16 +23,16 @@
     "asset": {
       "oneOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/image-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/image-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/video-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/video-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/markdown-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/markdown-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/url-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/url-asset.json"
         }
       ],
       "description": "The asset payload, discriminated on asset_type (image, video, markdown, url)."

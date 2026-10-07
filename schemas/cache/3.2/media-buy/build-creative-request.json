@@ -6,7 +6,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
       "$comment": "target_format_id and target_format_ids are mutually exclusive (single vs multi).",
@@ -404,19 +404,19 @@
       "description": "Natural language instructions for the transformation or generation. For pure generation, this is the creative brief. For transformation, this provides guidance on how to adapt the creative. For refinement, this describes the desired changes."
     },
     "creative_manifest": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-manifest.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-manifest.json",
       "description": "Creative manifest to transform or generate from. On the canonical 3.2 path it carries `format_kind`, optional `format_option_ref`, and the required input assets. For transformation (for example resizing or reformatting), this is the complete creative to adapt. When creative_id is provided, the agent resolves the creative from its library and this field is ignored."
     },
     "creative_representation_set": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-representation-set.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-representation-set.json",
       "description": "Complete creative revision containing equivalent trafficking representations, of which exactly one is selected for this seller-bound output. This mode is accepted only by the destination sales agent and requires representation_destination plus representation_selection_strategy. The target capability selects the seller's build route; representation_destination supplies the binding inventory contract. The resolver verifies revision_content_digest against the complete set, retains every representation unchanged, selects exactly one compatible representation, and returns a manifest carrying representation_selection. If macro_values is present, selection happens first and binding affects only the derived output; the retained representation set and its revision binding never change. When none is compatible, the request fails with CREATIVE_REPRESENTATION_UNRESOLVED and one representation_rejections entry per candidate."
     },
     "representation_destination": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/representation-destination.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/representation-destination.json",
       "description": "Seller-owned product and effective format context for representation resolution. Required only with creative_representation_set and meaningful only when this endpoint is the destination sales agent."
     },
     "representation_selection_strategy": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/representation-selection-strategy.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/representation-selection-strategy.json",
       "description": "Deterministic strategy to apply after compatibility filtering. Required with creative_representation_set and MUST be advertised by creative.representation_resolution.strategies."
     },
     "creative_id": {
@@ -439,14 +439,14 @@
       "x-entity": "package"
     },
     "target_format_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json",
       "deprecated": true,
       "description": "**DEPRECATED in 3.2.** Legacy named-format selector. Use `target_capability_id` with a value advertised in `get_adcp_capabilities.creative.supported_formats[].capability_id`."
     },
     "target_format_ids": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
       },
       "minItems": 1,
       "maxItems": 50,
@@ -526,7 +526,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-targeting.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-targeting.json"
           },
           {
             "properties": {
@@ -594,24 +594,24 @@
       "description": "Advisory hint for how the buyer intends to use the variants. `keep_one` (best-of-N) and `keep_some` signal the agent to set `recommended`/`rank` on returned variants. Advisory only \u2014 it does not change what is returned or billed; every produced variant is returned and charged. Keeping is a client act of trafficking the chosen build_variant_id(s)."
     },
     "selection_strategy": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-selection-strategy.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-selection-strategy.json",
       "x-status": "experimental",
       "description": "Governs HOW the agent samples when max_creatives < items_total (folds #5262). audience_relevance draws its ranking input from the SAME signal_ref pointers in signal_conditions / package targeting \u2014 NOT a parallel signals[] array. proximity takes a location input (geo shape TBD \u2014 WG open). inventory_priority is seller-side catalog metadata (margin/overstock/promo; no buyer input). random is the status-quo default. Per-creative selection ordering surfaces on the existing rank / recommended fields of creatives[].variants[], not a new selection_rank. Advisory; absent => agent default (random)."
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Account reference for pricing and billing. When present, the creative agent applies account-specific pricing from the rate card, records the build against the account for billing, and can enforce account-level quotas or entitlements. Required by creative agents that charge for their services."
     },
     "brand": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
       "description": "Brand reference for creative generation. Resolved to full brand identity (colors, logos, tone) at execution time."
     },
     "quality": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-quality.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-quality.json",
       "description": "Quality tier for generation. 'draft' produces fast, lower-fidelity output for iteration and review. 'production' produces full-quality output for final delivery. If omitted, the creative agent uses its own default. For non-generative transforms (e.g., format resizing), creative agents MAY ignore this field."
     },
     "evaluator": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/evaluator-spec.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/evaluator-spec.json",
       "x-status": "experimental",
       "description": "Optional advisory evaluator (buyer-attached pointer, #5280) declaring how produced variants should be evaluated and ranked \u2014 the rank-side of the get_creative_features feature oracle. Experimental (x-status: experimental): the whole evaluator surface is new and unfrozen, and requires creative.supports_evaluator, which sellers MUST pair with `creative.evaluator` in experimental_features. Drives the producing agent's gate-then-rank pipeline over its best_of_n exploration: per leaf, evaluate (the chosen form) \u2192 optionally GATE (`evaluator.feature_requirement[]`, drop fails \u2014 internal pruning of which leaves the agent recommends, never an AdCP-layer block of an already-produced billable leaf) \u2192 RANK survivors (`evaluator.rank_by`, an explicit {feature_id, direction} ordering). Feature discovery uses get_adcp_capabilities governance.creative_features for rank_by, feature_requirement, and eval.features[]; evaluator_id is a pre-provisioned/account-arranged preset, not an ID discovered from that catalog. Populates a per-leaf `eval` block of creative-feature values (creative-feature-result[]) when supports_evaluator. When the evaluator names an external agent (`evaluator.feature_agent.agent_url` or the agent-form `agent_url`), that agent MUST appear in the seller's `creative_policy.accepted_verifiers[]` (the same allowlist #5280 established for provenance verify_agent); an off-list agent is rejected with `EVALUATOR_AGENT_NOT_ACCEPTED`. The outbound evaluator call authenticates on the transport (request signing/JWKS, mTLS, or a pre-provisioned static credential); credentials and caller-supplied trust material MUST NOT appear in evaluator, context, ext, or creative payload fields, and credential- or trust-material keys should be rejected with `CREDENTIAL_IN_ARGS`. With no `feature_requirement`, evaluation is advisory only and does not change what is produced or billed; an unreachable/unknown on-list agent degrades to seller-default ranking (advisory errors[] note), not a failure. Requires creative.supports_evaluator; otherwise ignored."
     },
@@ -654,11 +654,11 @@
       "minItems": 1
     },
     "preview_quality": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-quality.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-quality.json",
       "description": "Render quality for inline preview when include_preview is true. 'draft' produces fast, lower-fidelity renderings. 'production' produces full-quality renderings. Independent of the build quality parameter \u2014 you can build at draft quality and preview at production quality, or vice versa. If omitted, the creative agent uses its own default. Ignored when include_preview is false or omitted."
     },
     "preview_output_format": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/preview-output-format.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/preview-output-format.json",
       "default": "url",
       "description": "Output format for preview renders when include_preview is true. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML). Ignored when include_preview is false or omitted."
     },
@@ -677,14 +677,14 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "push_notification_config": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json",
       "description": "Optional webhook configuration for async terminal completion/failure notifications on build_creative. Meaningful only when the request enters the async lifecycle and returns a Submitted envelope. Submitted envelopes with `task_id` remain pollable through `get_task_status` (legacy `tasks/get`) whether or not this field is present. If a request includes this field and the agent returns a Submitted envelope, the agent MUST deliver at least the terminal completion/failure notification to the configured URL; intermediate progress notifications are MAY. If the agent cannot honor the webhook channel, it MUST reject the request with a structured error instead of silently accepting. This field does not change response timing semantics: agents MUST NOT route a request through the async/Submitted arm or emit async delivery solely because `push_notification_config` is present; requests that can be completed inline still return the synchronous success shape."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

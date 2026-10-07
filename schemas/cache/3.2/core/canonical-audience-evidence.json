@@ -23,7 +23,7 @@
       "pattern": "^sha256:[a-f0-9]{64}$"
     },
     "audience": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/audience-characteristic.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/audience-characteristic.json"
     },
     "relationship": {
       "type": "string",
@@ -81,19 +81,19 @@
       ]
     },
     "methodology": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audience-evidence-methodology.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audience-evidence-methodology.json"
     },
     "subject_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audience-subject-type.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audience-subject-type.json"
     },
     "resolution_method": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audience-resolution-method.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audience-resolution-method.json"
     },
     "provider": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json"
     },
     "measurement_window": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/date-range.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/date-range.json"
     },
     "sample_size": {
       "type": "integer",
@@ -124,7 +124,7 @@
       "description": "Portable-attestation reference digests available through the evidence provider; credential bodies are not inlined into product discovery."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

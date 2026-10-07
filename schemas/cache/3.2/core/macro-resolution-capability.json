@@ -12,7 +12,7 @@
   "type": "object",
   "properties": {
     "dialect": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/macro-dialect.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/macro-dialect.json"
     },
     "dialect_namespace": {
       "type": "string",
@@ -34,7 +34,7 @@
       ]
     },
     "universal_semantic": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/universal-macro.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/universal-macro.json"
     },
     "operation": {
       "type": "string",
@@ -44,7 +44,7 @@
       ]
     },
     "performed_by": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/macro-resolver.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/macro-resolver.json"
     },
     "supported_contexts": {
       "type": "array",
@@ -53,7 +53,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/macro-value-context.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/macro-value-context.json"
           },
           {
             "not": {
@@ -68,12 +68,12 @@
       "minItems": 1,
       "uniqueItems": true,
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-encoding.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-encoding.json"
       },
       "description": "Exact supported encoding profiles, not a maximum depth. Required for value resolution."
     },
     "translation_target": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-translation-target.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-translation-target.json"
     }
   },
   "required": [
@@ -193,7 +193,7 @@
         ],
         "properties": {
           "dialect_semantic": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/universal-macro.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/universal-macro.json"
           },
           "mapping_status": {
             "const": "verified_universal"

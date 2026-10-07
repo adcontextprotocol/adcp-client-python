@@ -10,7 +10,7 @@
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
     },
     "brand_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-id.json",
       "description": "Brand within a house-of-brands manifest. Omit for a single-brand domain."
     },
     "countries": {

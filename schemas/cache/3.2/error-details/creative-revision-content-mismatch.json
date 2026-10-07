@@ -10,7 +10,7 @@
       "x-entity": "creative"
     },
     "revision_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-revision-id.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-revision-id.json"
     }
   },
   "required": [

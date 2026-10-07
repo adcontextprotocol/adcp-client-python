@@ -104,7 +104,7 @@
       "type": "array",
       "description": "Normalized notification types requested by the subscriber at the time of the challenge. Part of the endpoint proof scope; changing event_types[] requires a fresh challenge before the new set can become active.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/notification-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/notification-type.json"
       },
       "minItems": 1,
       "uniqueItems": true

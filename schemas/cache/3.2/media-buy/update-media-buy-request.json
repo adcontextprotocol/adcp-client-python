@@ -12,7 +12,7 @@
   ],
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
       "if": {
@@ -180,7 +180,7 @@
       "pattern": "^[\\x20-\\x7E]+$"
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Account that owns this media buy. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts. Required for governance checks and account resolution."
     },
     "media_buy_id": {
@@ -215,7 +215,7 @@
       "maxLength": 500
     },
     "start_time": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/start-timing.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/start-timing.json"
     },
     "end_time": {
       "type": "string",
@@ -253,7 +253,7 @@
       "description": "Replace the hard MediaBuy-level frequency cap; null removes it. Changes apply immediately without resetting the shared counter, so prior qualifying exposures in the resulting window continue to count. Every active package must support the resulting cap or the request is rejected atomically with UNSUPPORTED_FEATURE before any change; sellers MUST NOT clamp it. The check applies to the state the request would produce, so null combined with new_packages adds those packages uncapped.",
       "anyOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-frequency-cap.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-frequency-cap.json"
         },
         {
           "type": "null"
@@ -271,20 +271,20 @@
     "budget_allocation": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/budget-allocation.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/budget-allocation.json"
         }
       ],
       "description": "Updated allocation configuration. Switching between fixed and seller-optimized modes is allowed only when update_budget_allocation is advertised in available_actions and the resulting package constraints are valid. A resulting seller_optimized allocation requires advertised media_buy.features.seller_optimized_budget, and any package budget caps, min_spend_target values, or package pacing it retains require their own advertised sub-capability; otherwise the update is rejected with UNSUPPORTED_FEATURE before any over-subscription validation."
     },
     "pacing": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pacing.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pacing.json",
       "description": "Updated aggregate media-buy pacing. Package pacing remains subordinate to this aggregate strategy. When the resulting buy is seller-optimized, a seller declaring media_buy.features.seller_optimized_budget MUST accept `even`; it MAY reject `asap` or `front_loaded` with UNSUPPORTED_FEATURE (error.field `pacing`) before any provider mutation, including a switch to seller-optimized allocation that would retain such pacing, and MUST NOT silently coerce them to `even`. Fixed-allocation semantics are unchanged."
     },
     "bidding": {
       "description": "Replace the complete media-buy-authored bidding default. An object replaces the prior block; `{automatic:true}` records an explicit automatic policy. null clears it; packages with explicit package.bidding remain explicit, while packages without overrides fall back to provider automatic delivery. Goal binding follows the resulting budget allocation: seller-optimized outcome controls bind to allocation goals, while fixed inherited cost_per requires compatible package result units. Monetary fields use the media-buy currency and all affected pricing options MUST match it. The seller MUST validate all resulting policies atomically before mutation.",
       "anyOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/bidding-policy.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/bidding-policy.json"
         },
         {
           "type": "null"
@@ -295,28 +295,28 @@
       "type": "array",
       "description": "Package-specific updates for existing packages",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/package-update.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/package-update.json"
       },
       "minItems": 1
     },
     "invoice_recipient": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/business-entity.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/business-entity.json",
       "description": "Update who receives the invoice for this buy. When provided, the seller invoices this entity instead of the account's default billing_entity. The seller MUST validate the invoice recipient is authorized for this account. When governance_agents are configured, the seller MUST include invoice_recipient in the check_governance request."
     },
     "new_packages": {
       "type": "array",
       "description": "New packages to add to this media buy. Uses the same schema as create_media_buy packages. When budget_allocation is omitted or fixed, every new package MUST carry budget and MUST NOT carry min_spend_target. To add a package without a hard cap to an existing seller-optimized buy, include its resulting seller_optimized budget_allocation block in the update so the allocation context is schema-visible. Repeating an unchanged allocation block does not itself switch modes. Sellers that support mid-flight package additions advertise `add_packages` in both `valid_actions[]` (deprecated) and as an entry in `available_actions[]` (authoritative). Sellers that do not support this MUST reject with ACTION_NOT_ALLOWED (preferred) or UNSUPPORTED_FEATURE (legacy). If the buy has a root frequency_cap, every added product must support that exact aggregate cap; otherwise the seller rejects atomically with UNSUPPORTED_FEATURE, leaving the whole update unapplied and preserving the buy and its counter history.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/package-request.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/package-request.json"
       },
       "minItems": 1
     },
     "reporting_webhook": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-webhook.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-webhook.json",
       "description": "Optional webhook configuration for automated reporting delivery. Updates the reporting configuration for this media buy."
     },
     "push_notification_config": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json",
       "description": "Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time. This is separate from reporting_webhook which configures ongoing campaign reporting."
     },
     "idempotency_key": {
@@ -327,10 +327,10 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

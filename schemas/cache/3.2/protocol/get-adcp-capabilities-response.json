@@ -25,10 +25,10 @@
   },
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     },
     {
       "if": {
@@ -838,7 +838,7 @@
                     "description": "Dataset-share access families the seller can provision. Only meaningful for dataset_share."
                   },
                   "verification_profiles": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-verification-profile-set.json",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-verification-profile-set.json",
                     "description": "Verification profiles the seller can produce for this pattern. A destination whose accepted_verification_profiles does not intersect this set is out of offering."
                   }
                 },
@@ -861,7 +861,7 @@
               "items": {
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/notification-type.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/notification-type.json"
                   },
                   {
                     "not": {
@@ -1300,7 +1300,7 @@
               "uniqueItems": true
             },
             "accepted_governance_agents": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/governance/accepted-governance-agents.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/governance/accepted-governance-agents.json",
               "description": "Seller-wide advisory default for governance agents this enforcing service accepts as binding counterparties. A candidate satisfying any matcher is accepted by this declaration. The per-account sync_governance response is authoritative and may apply stricter account-specific criteria. Omission means accept any, preserving legacy behavior."
             }
           },
@@ -1311,7 +1311,7 @@
           "additionalProperties": false
         },
         "attestations": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attestation-capabilities.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attestation-capabilities.json",
           "description": "Portable-attestation trust and delivery capabilities for this evaluator. Present only when the agent accepts AttestationReference inputs on one or more domain task surfaces. This block is an allowlist: presenters cannot expand accepted issuers, resolver endpoints, verifier agents, claim types, or proof formats by supplying values in a request."
         }
       },
@@ -1355,7 +1355,7 @@
           "type": "array",
           "description": "Billing models this seller supports. operator: seller invoices the operator (agency or brand buying direct). agent: agent consolidates billing. advertiser: seller invoices the advertiser directly, even when a different operator places orders on their behalf. When the buyer calls sync_accounts, it must pass one of these values. A lazy-provisioning seller may omit sync_accounts only when billing can be resolved unambiguously from this capability or the authenticated agent's onboarding defaults.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/billing-party.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/billing-party.json"
           },
           "minItems": 1
         },
@@ -1363,18 +1363,18 @@
           "type": "array",
           "description": "Required for sellers implementing AdCP 3.2 advertiser-account provisioning, but optional in this shared 3.x response schema so existing 3.0 and 3.1 capability responses remain valid. Declares whether advertiser accounts are bound to one immutable currency (`fixed`), select currency independently per proposal or media buy (`per_media_buy`), or support both models. When only `fixed` is advertised, buyer-declared provisioning entries MUST include `currency`. When only `per_media_buy` is advertised, they MUST omit it. When both are advertised, presence of `currency` selects a fixed-currency account and omission selects per-media-buy currency. Buyers MUST treat absence as an older seller whose currency mode is not discoverable, not as support for either mode.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/account-currency-mode.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/account-currency-mode.json"
           },
           "minItems": 1,
           "uniqueItems": true
         },
         "timezone": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-timezone-capability.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-timezone-capability.json",
           "description": "Required for sellers implementing AdCP 3.2 advertiser-account provisioning, but optional in the shared 3.x response schema for compatibility. Declares whether the account timezone is seller-wide or fixed per account and whether a buyer must select it during sync_accounts provisioning. Account timezone is the default for account-scoped calendar semantics; feature-specific capability fields explicitly declare exceptions."
         },
         "required_for_products": {
           "type": "boolean",
-          "description": "Whether an account reference is required for get_products. When true, the buyer must establish an account before browsing products. When false (default), the buyer can browse products without an account \u2014 useful for price comparison and discovery before committing to a seller.",
+          "description": "Whether an account reference is required for get_products. When true, the buyer must establish an account before browsing products. When false (default), the buyer can browse products without an account \u2014 useful for price comparison and discovery before committing to a seller. Before an account is provisioned, the buyer omits account rather than sending a natural key that does not resolve yet. See /docs/accounts/overview#account-references-before-provisioning.",
           "default": false
         },
         "account_financials": {
@@ -1671,7 +1671,7 @@
           "type": "array",
           "description": "Pricing models this seller supports across its product portfolio. Buyers can use this for pre-flight filtering before querying individual products. Individual products may support a subset of these models.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pricing-model.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pricing-model.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -1801,13 +1801,13 @@
           "type": "array",
           "description": "Cloud storage protocols this seller supports for offline file delivery. Only meaningful when reporting_delivery_methods includes 'offline'. Buyers express a protocol preference in sync_accounts; the seller provisions the account's reporting_bucket using a supported protocol.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/cloud-storage-protocol.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/cloud-storage-protocol.json"
           },
           "minItems": 1,
           "uniqueItems": true
         },
         "reporting_delivery": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-delivery-capabilities.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-delivery-capabilities.json",
           "x-status": "experimental",
           "description": "AdCP 3.2 Reliable Reporting capability. The affirmative machine answer to \u2018Do you support Reliable Reporting?\u2019 requires this block with supported: true and reliable_reporting_version: 1.0 plus media_buy.reporting_delivery in experimental_features. Core exposes seller get_reporting_status; during the published migration window, consumer_status_task separately advertises opt-in buyer-to-seller sync_reporting_status and becomes required Core only in the next eligible minor. managed_delivery and reconciled_billing identify optional tiers. This generalizes, but does not remove, the legacy reporting_delivery_methods/offline_delivery_protocols surface; those legacy fields and declarations from other protocols do not imply Reliable Reporting support."
         },
@@ -1856,7 +1856,7 @@
           "type": "array",
           "description": "Indicator types this seller can expose on get_media_buys media-buy/package/creative-assignment snapshots. Each type's meaning is defined by the negotiated AdCP release; indicator types do not carry independent sub-versions. This is availability, not complete upstream coverage. Poll-only sellers may declare this field without relationship_notifications. If relationship_notifications includes indicators.changed, this field is required so receivers know which durable indicator types can be repaired.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/indicator-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/indicator-type.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -1928,7 +1928,7 @@
         "features": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-features.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-features.json"
             },
             {
               "if": {
@@ -2033,7 +2033,7 @@
                   "type": "array",
                   "description": "Surface types this seller supports via TMP.",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/property-type.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/property-type.json"
                   }
                 }
               }
@@ -2055,7 +2055,7 @@
                   "type": "array",
                   "description": "Seller-wide VAST execution ceiling. Each product format option declares its binding accepted subset in `params.vast_versions`.",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/vast-version.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/vast-version.json"
                   },
                   "minItems": 1,
                   "uniqueItems": true
@@ -2064,7 +2064,7 @@
                   "type": "array",
                   "minItems": 1,
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-resolution-capability.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-resolution-capability.json"
                   },
                   "description": "Seller-wide ceiling for exact macro processing tuples (dialect identity/revision, semantic mapping, operation, actor, context, and encoding). It never proves a product execution path supports the same tuple and does not claim tracker firing; inspect the selected format option and, when standardized, product tracker capabilities.",
                   "x-adcp-validation": {
@@ -2116,7 +2116,7 @@
                       "type": "boolean"
                     },
                     {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-region-support.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-region-support.json"
                     }
                   ]
                 },
@@ -2127,7 +2127,7 @@
                       "type": "boolean"
                     },
                     {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-region-support.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-region-support.json"
                     }
                   ]
                 },
@@ -2152,16 +2152,16 @@
                 },
                 "geo_postal_areas": {
                   "description": "Postal area targeting. Prefer the native country-keyed map where each ISO 3166-1 alpha-2 country lists supported country-local postal systems. Deprecated legacy country-fused postal-system boolean aliases may be emitted alongside native country keys during migration.",
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/postal-area-support.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/postal-area-support.json"
                 },
                 "geo_places": {
                   "type": "object",
                   "description": "Place targeting support keyed by collision-safe identifier system. Each system declares exact country-to-place-type combinations, accepted catalog versions, and a machine-readable resolver. Sellers MUST reject unsupported systems, country/type pairs, versions, and identifiers rather than silently dropping them.",
                   "propertyNames": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-place-system.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-place-system.json"
                   },
                   "additionalProperties": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-place-support.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-place-support.json"
                   },
                   "minProperties": 1
                 },
@@ -2177,7 +2177,7 @@
                       "type": "array",
                       "description": "Age verification methods this seller supports",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/age-verification-method.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/age-verification-method.json"
                       }
                     }
                   }
@@ -2213,7 +2213,7 @@
                           "type": "array",
                           "description": "Exact canonical BCP 47 language ranges accepted in targeting.language. Omission means the seller makes no exhaustive language-list declaration.",
                           "items": {
-                            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/locale-tag.json"
+                            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/locale-tag.json"
                           }
                         }
                       }
@@ -2228,7 +2228,7 @@
                       "type": "array",
                       "description": "Match types this seller supports for keyword targets. Sellers must reject goals with unsupported match types.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/match-type.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/match-type.json"
                       },
                       "minItems": 1
                     }
@@ -2245,7 +2245,7 @@
                       "type": "array",
                       "description": "Match types this seller supports for negative keywords. Sellers must reject goals with unsupported match types.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/match-type.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/match-type.json"
                       },
                       "minItems": 1
                     }
@@ -2294,7 +2294,7 @@
                       "type": "array",
                       "description": "Transport modes supported for travel_time isochrones. Only relevant when travel_time is true.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/transport-mode.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/transport-mode.json"
                       },
                       "minItems": 1
                     }
@@ -2388,7 +2388,7 @@
               "type": "array",
               "description": "Universal ID types accepted for audience matching (MAIDs, RampID, UID2, etc.). MAID support varies significantly by platform \u2014 check this field before sending uids with type: maid.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/uid-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/uid-type.json"
               },
               "minItems": 1
             },
@@ -2402,7 +2402,7 @@
               "x-status": "experimental",
               "description": "Union of audience_activation.methods across the seller's products. Fast-fail discovery: a buyer reads this once and skips the catalog walk when nothing overlaps its pipeline. Per-product declarations are the source of truth; sellers MUST keep this consistent with the catalog. Operational coordinates are account-scoped: the union MAY omit consumer_identities and destination_ref until bilateral account setup establishes them, and MUST NOT expose another account's coordinates. Absence of this field with media_buy.audience_activation listed in experimental_features means walk the catalog; only a present, non-overlapping union is a fast-fail signal. Experimental (x-status: experimental): sellers implementing audience activation declarations MUST list media_buy.audience_activation in experimental_features. Per docs/reference/experimental-status, this surface MAY change between 3.x releases with notice.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/audience-activation-method.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/audience-activation-method.json"
               },
               "minItems": 1
             },
@@ -2487,7 +2487,7 @@
               "type": "array",
               "description": "Event types this seller can track and attribute. If omitted, all standard event types are supported.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/event-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/event-type.json"
               },
               "minItems": 1
             },
@@ -2509,7 +2509,7 @@
               "type": "array",
               "description": "Universal ID types accepted for user matching",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/uid-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/uid-type.json"
               },
               "minItems": 1
             },
@@ -2529,7 +2529,7 @@
               "type": "array",
               "description": "Action sources this seller accepts events from",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/action-source.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/action-source.json"
               },
               "minItems": 1
             },
@@ -2540,14 +2540,14 @@
                 "type": "object",
                 "properties": {
                   "event_type": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/event-type.json",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/event-type.json",
                     "description": "Event type this window applies to, or omit for default window"
                   },
                   "post_click": {
                     "type": "array",
                     "description": "Available post-click attribution windows (e.g. [{\"interval\": 7, \"unit\": \"days\"}])",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
                     },
                     "minItems": 1
                   },
@@ -2555,7 +2555,7 @@
                     "type": "array",
                     "description": "Available post-view attribution windows (e.g. [{\"interval\": 1, \"unit\": \"days\"}])",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
                     },
                     "minItems": 1
                   }
@@ -2577,7 +2577,7 @@
               "type": "array",
               "description": "Entity granularities the seller can enforce caps against. Values from the reach-unit enum. Omit to indicate all reach-unit values are supported.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reach-unit.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reach-unit.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -2595,7 +2595,7 @@
           "additionalProperties": true
         },
         "aggregate_frequency_capping": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-frequency-cap-capability.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-frequency-cap-capability.json",
           "description": "Seller-wide support for a maximum-impression cap whose single counter is shared across every package in a MediaBuy. Presence is required before a buyer sends a root frequency_cap. Products additionally declare media_buy_support.frequency_cap and any narrower constraints."
         },
         "budget_capping": {
@@ -2698,7 +2698,7 @@
               "type": "array",
               "description": "Channels for which the seller can provide content artifacts. Helps buyers understand which parts of a mixed-channel buy will have content standards coverage.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/channels.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/channels.json"
               },
               "minItems": 1
             },
@@ -2725,7 +2725,7 @@
               "type": "array",
               "description": "Complete list of AdCP media channels for which this sales agent accepts and can meaningfully answer product-discovery briefs. When present, this is an exhaustive brief-routing allowlist: buyers MAY skip the agent when a brief's requested channels do not intersect it. Omission means channel scope is unknown and MUST NOT be interpreted as support for every channel. This is a routing pre-filter, not a promise of current product availability.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/channels.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/channels.json"
               }
             },
             "primary_countries": {
@@ -3071,7 +3071,7 @@
           ]
         },
         "capabilities": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/sponsored-intelligence/si-capabilities.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/sponsored-intelligence/si-capabilities.json",
           "description": "Modalities, components, and commerce capabilities"
         },
         "brand_url": {
@@ -3100,7 +3100,7 @@
           "description": "Types of rights available through this agent",
           "x-status": "experimental",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/right-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/right-type.json"
           }
         },
         "available_uses": {
@@ -3108,7 +3108,7 @@
           "description": "Rights uses available across this agent's roster",
           "x-status": "experimental",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/right-use.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/right-use.json"
           }
         },
         "generation_providers": {
@@ -3169,7 +3169,7 @@
               "minItems": 1,
               "uniqueItems": true,
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/representation-selection-strategy.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/representation-selection-strategy.json"
               },
               "description": "Deterministic selection strategies the seller implements after compatibility filtering. `representation_order` selects the first compatible source entry. `highest_compatible_vast` selects the highest exact VAST version from the already-intersected candidate set, with equal-version ties resolved by source array order."
             }
@@ -3269,7 +3269,7 @@
               "x-status": "experimental",
               "description": "Which selection_strategy values this agent supports when sampling max_creatives < items_total. Sibling to variant_dimensions. Part of the experimental signal-fanout surface (feature id `creative.signal_fanout`).",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-selection-strategy.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-selection-strategy.json"
               },
               "uniqueItems": true
             }
@@ -3289,7 +3289,7 @@
               },
               "format": {
                 "description": "Format declaration on which this agent can perform the listed operations. Creative-agent capability self-description has no seller production authority, so tracker_execution_contract and tracker_execution_contract_digest are forbidden.",
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-operation-format-declaration.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-operation-format-declaration.json"
               },
               "operations": {
                 "type": "array",
@@ -3538,7 +3538,7 @@
         },
         "required_for": {
           "type": "array",
-          "description": "AdCP protocol operation names (e.g., 'create_media_buy') for which this agent rejects an unsigned request with request_signature_required unless an independently valid configured fallback authenticator succeeds. Not MCP tool names, A2A skill names, or any transport-specific rename \u2014 verifiers MUST NOT accept operation names that are not defined by the AdCP protocol spec. JSON-RPC protocol method names like `tasks/cancel` belong in `protocol_methods_required_for`, not here. Empty in 3.0 by default; sellers populate selectively during per-counterparty pilots. In 4.0 this list MUST include all spend-committing operations the agent supports (create_media_buy, acquire_*, etc.). Every operation listed MUST also appear in `supported_for`; see `x-adcp-validation`.",
+          "description": "AdCP protocol operation names (e.g., 'create_media_buy') for which this agent rejects an unsigned request with request_signature_required unless an independently valid configured fallback authenticator succeeds. A transport-specific rename of an operation is not a valid entry (MCP tools and the AdCP A2A profile use the operation name verbatim, so those names coincide with it) \u2014 verifiers MUST NOT accept operation names that are not defined by the AdCP protocol spec. Over MCP the verifier matches the tools/call params.name; over A2A it matches the skill of the sole DataPart of the message (SendMessage, SendStreamingMessage, message/send, message/stream, and the HTTP+JSON and gRPC equivalents). The A2A profile uses the AdCP operation name verbatim as skill, so that is the same name space. A request that does not resolve to exactly one operation is rejected with request_body_malformed; see docs/building/by-layer/L1/security.mdx#operation-resolution-over-a2a. JSON-RPC protocol method names like `tasks/cancel` belong in `protocol_methods_required_for`, not here. Empty in 3.0 by default; sellers populate selectively during per-counterparty pilots. In 4.0 this list MUST include all spend-committing operations the agent supports (create_media_buy, acquire_*, etc.). Every operation listed MUST also appear in `supported_for`; see `x-adcp-validation`.",
           "items": {
             "type": "string",
             "pattern": "^[a-z][a-z0-9_]*$"
@@ -3546,7 +3546,7 @@
           "default": [],
           "x-adcp-validation": {
             "subset_of": "request_signing.supported_for",
-            "spec": "docs/building/implementation/security.mdx#signed-requests-transport-layer"
+            "spec": "docs/building/by-layer/L1/security.mdx#signed-requests-transport-layer"
           }
         },
         "warn_for": {
@@ -3560,7 +3560,7 @@
           "x-adcp-validation": {
             "disjoint_with": "request_signing.required_for",
             "subset_of": "request_signing.supported_for",
-            "spec": "docs/building/implementation/security.mdx#signed-requests-transport-layer"
+            "spec": "docs/building/by-layer/L1/security.mdx#signed-requests-transport-layer"
           }
         },
         "supported_for": {
@@ -3755,7 +3755,7 @@
               "key_origins_consistency": "mandatory_when_signing"
             },
             "distinct_from": "sponsored_intelligence.brand_url",
-            "spec": "docs/building/implementation/security.mdx#discovering-an-agents-signing-keys-via-brand_json_url"
+            "spec": "docs/building/by-layer/L1/security.mdx#discovering-an-agents-signing-keys-via-brand_json_url"
           }
         },
         "per_principal_key_isolation": {
@@ -3765,7 +3765,7 @@
         },
         "key_origins": {
           "type": "object",
-          "description": "Map of signing-key surface/purpose \u2192 publishing origin, so counterparties can verify origin separation (e.g., governance keys served from a separate origin than transport/webhook keys) at onboarding. Absent means the operator has not declared a separation scheme; receivers SHOULD assume shared-origin. Every entry listed MUST have a corresponding signing posture declared elsewhere \u2014 `request_signing` requires non-empty `request_signing.supported_for`/`required_for`/`protocol_methods_supported_for`/`protocol_methods_required_for`; `webhook_signing` requires `webhook_signing.supported === true` and names the webhook delivery surface, not a required live `adcp_use: \"webhook-signing\"` key purpose \u2014 otherwise the consistency check at signature-verification time has nothing to anchor against. See `x-adcp-validation` and docs/building/implementation/security.mdx \u00a7Origin separation.",
+          "description": "Map of signing-key surface/purpose \u2192 publishing origin, so counterparties can verify origin separation (e.g., governance keys served from a separate origin than transport/webhook keys) at onboarding. Absent means the operator has not declared a separation scheme; receivers SHOULD assume shared-origin. Every entry listed MUST have a corresponding signing posture declared elsewhere \u2014 `request_signing` requires non-empty `request_signing.supported_for`/`required_for`/`protocol_methods_supported_for`/`protocol_methods_required_for`; `webhook_signing` requires `webhook_signing.supported === true` and names the webhook delivery surface, not a required live `adcp_use: \"webhook-signing\"` key purpose \u2014 otherwise the consistency check at signature-verification time has nothing to anchor against. See `x-adcp-validation` and docs/building/by-layer/L1/security.mdx \u00a7Origin separation.",
           "properties": {
             "governance_signing": {
               "type": "string",
@@ -3798,7 +3798,7 @@
                 "tmp_signing": "trusted_match.surfaces non-empty (TMP participation)"
               }
             },
-            "spec": "docs/building/implementation/security.mdx#origin-separation"
+            "spec": "docs/building/by-layer/L1/security.mdx#agent-key-publication"
           }
         },
         "compromise_notification": {
@@ -3860,7 +3860,7 @@
             "type": "object",
             "properties": {
               "metric_id": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-id.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-id.json",
                 "description": "Identifier for the metric within the vendor's vocabulary. Combined with the agent's BrandRef, forms the canonical tuple `(vendor.domain, vendor.brand_id, metric_id)`. Each metric_id MUST be unique within a single agent's catalog."
               },
               "standard_reference": {
@@ -3940,7 +3940,7 @@
                 ]
               },
               "ext": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
               }
             },
             "required": [
@@ -3978,7 +3978,7 @@
       "type": "array",
       "description": "Optional \u2014 specialized compliance claims this agent supports. Values MUST be kebab-case enum IDs (e.g., 'creative-generative', 'sales-non-guaranteed'). An agent that implements a specialism's tools but omits its ID from this array will receive 'No applicable tracks found' from the compliance runner \u2014 tracks for that specialism are not evaluated even if every tool works. Omitting the field means the agent declares no specialism claims (it still passes the universal + domain-baseline storyboards implied by supported_protocols). Each specialism maps to a storyboard bundle at /compliance/{version}/specialisms/{id}/ that the AAO compliance runner executes to verify the claim. Each specialism rolls up to one of the protocols in supported_protocols \u2014 the runner rejects a specialism claim whose parent protocol is missing. Only list specialisms your agent actually implements \u2014 the AAO Verified badge enumerates which specialisms were demonstrably passed.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/specialism.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/specialism.json"
       },
       "uniqueItems": true
     },
@@ -3996,7 +3996,7 @@
       "type": "array",
       "description": "Experimental AdCP surfaces this agent implements. A surface is experimental when its schema carries x-status: experimental and the working group has not yet frozen it. Sellers that implement any experimental surface MUST list its feature id here. Buyers inspect this array before relying on experimental surfaces \u2014 a seller that does not list a surface is asserting it does not implement it. Experimental surfaces MAY break between any two 3.x releases with at least 6 weeks notice; the full contract is in docs/reference/experimental-status.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/experimental-feature-id.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/experimental-feature-id.json"
       },
       "uniqueItems": true
     },
@@ -4030,14 +4030,14 @@
       "type": "array",
       "description": "Task-specific errors and warnings",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       }
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     },
     "wholesale_feed_webhooks": {
       "type": "object",

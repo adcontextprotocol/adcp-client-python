@@ -16,7 +16,7 @@
       "type": "array",
       "description": "Signal targeting entries evaluated by this group. Each entry uses the package signal targeting shape, including signal_ref, value expression, and optional pricing, execution-handle, or activation fields.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/package-signal-targeting.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/package-signal-targeting.json"
       },
       "minItems": 1
     }

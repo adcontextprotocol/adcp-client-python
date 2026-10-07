@@ -7,7 +7,7 @@
     "post_click": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
         }
       ],
       "description": "Post-click attribution window. Conversions occurring within this duration after a click are attributed to the ad."
@@ -15,13 +15,13 @@
     "post_view": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
         }
       ],
       "description": "Post-view attribution window. Conversions occurring within this duration after an ad impression (without click) are attributed to the ad."
     },
     "model": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/attribution-model.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/attribution-model.json",
       "description": "Attribution model used to assign credit when multiple touchpoints exist. SHOULD be populated when committing to a specific model; when absent, the seller's default applies."
     }
   },

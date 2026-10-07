@@ -11,12 +11,12 @@
       "description": "Seller-known catalog identifier returned by sync_catalogs."
     },
     "type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/catalog.json#/properties/type"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/catalog.json#/properties/type"
     },
     "ids": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/catalog.json#/properties/ids"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/catalog.json#/properties/ids"
         }
       ],
       "uniqueItems": true
@@ -24,7 +24,7 @@
     "gtins": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/catalog.json#/properties/gtins"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/catalog.json#/properties/gtins"
         }
       ],
       "uniqueItems": true
@@ -32,18 +32,18 @@
     "tags": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/catalog.json#/properties/tags"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/catalog.json#/properties/tags"
         }
       ],
       "uniqueItems": true
     },
     "category": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/catalog.json#/properties/category"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/catalog.json#/properties/category"
     },
     "query": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/catalog.json#/properties/query"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/catalog.json#/properties/query"
         }
       ],
       "minLength": 1

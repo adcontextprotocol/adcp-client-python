@@ -17,11 +17,11 @@
   "type": "object",
   "properties": {
     "request": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/get-geo-place-resolution-request.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/get-geo-place-resolution-request.json",
       "description": "Exact normalized request represented by this page. Pagination responses repeat the original query fields and may carry the page cursor."
     },
     "system": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-place-system.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-place-system.json"
     },
     "system_version": {
       "type": "string",
@@ -30,7 +30,7 @@
     "matches": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-place-catalog-entry.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-place-catalog-entry.json"
       }
     },
     "next_cursor": {

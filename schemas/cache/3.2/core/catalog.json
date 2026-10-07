@@ -14,7 +14,7 @@
       "description": "Human-readable name for this catalog (e.g., 'Summer Products 2025', 'Amsterdam Store Locations')."
     },
     "type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/catalog-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/catalog-type.json",
       "description": "Catalog type. Structural types: 'offering' (AdCP Offering objects), 'product' (ecommerce entries), 'inventory' (stock per location), 'store' (physical locations), 'promotion' (deals and pricing). Vertical types: 'hotel', 'flight', 'job', 'vehicle', 'real_estate', 'education', 'destination', 'app' \u2014 each with an industry-specific item schema."
     },
     "url": {
@@ -23,11 +23,11 @@
       "description": "URL to an external catalog feed. The platform fetches and resolves items from this URL. For offering-type catalogs, the feed contains an array of Offering objects. For other types, the feed format is determined by feed_format. When omitted with type 'product', the platform uses its synced copy of the brand's product catalog."
     },
     "feed_format": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/feed-format.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/feed-format.json",
       "description": "Format of the external feed at url. Required when url points to a non-AdCP feed (e.g., Google Merchant Center XML, Meta Product Catalog). Omit for offering-type catalogs where the feed is native AdCP JSON."
     },
     "update_frequency": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/update-frequency.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/update-frequency.json",
       "description": "How often the platform should re-fetch the feed from url. Only applicable when url is provided. Platforms may use this as a hint for polling schedules."
     },
     "items": {
@@ -75,20 +75,20 @@
       "type": "array",
       "description": "Event types that represent conversions for items in this catalog. Declares what events the platform should attribute to catalog items \u2014 e.g., a job catalog converts via submit_application, a product catalog via purchase. The event's content_ids field carries the item IDs that connect back to catalog items. Use content_id_type to declare what identifier type content_ids values represent.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/event-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/event-type.json"
       },
       "minItems": 1,
       "uniqueItems": true
     },
     "content_id_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/content-id-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/content-id-type.json",
       "description": "Identifier type that the event's content_ids field should be matched against for items in this catalog. For example, 'gtin' means content_ids values are Global Trade Item Numbers, 'sku' means retailer SKUs. Omit when using a custom identifier scheme not listed in the enum."
     },
     "feed_field_mappings": {
       "type": "array",
       "description": "Declarative normalization rules for external feeds. Maps non-standard feed field names, date formats, price encodings, and image URLs to the AdCP catalog item schema. Applied during sync_catalogs ingestion. Supports field renames, named transforms (date, divide, boolean, split), static literal injection, and assignment of image URLs to typed asset pools.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/catalog-field-mapping.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/catalog-field-mapping.json"
       },
       "minItems": 1
     }

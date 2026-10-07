@@ -5,7 +5,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     }
   ],
   "x-status": "experimental",
@@ -30,7 +30,7 @@
             "x-entity": "governance_plan"
           },
           "brand": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
             "description": "Brand or organization being governed. For campaign plans, the governance agent resolves the brand's compliance configuration. For portfolio plans, this is the holding company or parent organization."
           },
           "objectives": {
@@ -76,7 +76,7 @@
                 "type": "object",
                 "description": "Optional budget partition across purchase types. Keys are purchase-type enum values (media_buy, rights_license, signal_activation, creative_services). When present, the governance agent validates spend against both the total and the per-type allocation. When absent, all spend counts against the single total regardless of purchase type.",
                 "propertyNames": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/purchase-type.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/purchase-type.json"
                 },
                 "additionalProperties": {
                   "type": "object",
@@ -137,14 +137,14 @@
               "required": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/channels.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/channels.json"
                 },
                 "description": "Channels that must be included in the media mix."
               },
               "allowed": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/channels.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/channels.json"
                 },
                 "description": "Channels the orchestrator may use."
               },
@@ -221,14 +221,14 @@
             "minItems": 1
           },
           "audience": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/governance/audience-constraints.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/governance/audience-constraints.json",
             "description": "Audience targeting constraints. Defines who the campaign should reach (include) and must not reach (exclude). The governance agent evaluates seller targeting against these constraints."
           },
           "restricted_attributes": {
             "type": "array",
             "description": "Personal data categories that must not be used for targeting in this campaign. Applies horizontally across all audience criteria. Used for EU DSA Article 26 compliance (prohibits targeting on GDPR Article 9 special categories) and similar regulations. The governance agent flags any audience targeting that references these attributes.",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/restricted-attribute.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/restricted-attribute.json"
             },
             "minItems": 1
           },
@@ -253,7 +253,7 @@
           "custom_policies": {
             "type": "array",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/governance/policy-entry.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/governance/policy-entry.json"
             },
             "description": "Bespoke policies specific to this campaign, using the same shape as registry entries. Each policy has a policy_id, enforcement (must|should), and natural-language policy text. Governance findings reference policy_id to identify which policy triggered. For quick authoring, omit version/name/category \u2014 servers default them."
           },
@@ -280,7 +280,7 @@
                   "description": "URL of the delegated agent."
                 },
                 "authority": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/delegation-authority.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/delegation-authority.json",
                   "description": "Authority level granted to this agent."
                 },
                 "budget_limit": {
@@ -360,7 +360,7 @@
               "shared_exclusions": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/governance/policy-entry.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/governance/policy-entry.json"
                 },
                 "description": "Bespoke exclusion policies applied across all member plans, using the same shape as registry entries. Authored typically as enforcement: must policies with exclusion language in the policy text (e.g., 'No advertising on properties owned by competitor holding companies')."
               }
@@ -371,7 +371,7 @@
             "additionalProperties": false
           },
           "ext": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
           }
         },
         "required": [
@@ -442,10 +442,10 @@
       }
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

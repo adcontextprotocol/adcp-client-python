@@ -10,7 +10,7 @@
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
     },
     "property_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-id.json",
       "description": "Property ID from the publisher's adagents.json property catalog."
     }
   },

@@ -98,7 +98,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/creative/protocol/sync-agent-notification-configs-request.json#/$defs/external:enums~1notification-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/creative/protocol/sync-agent-notification-configs-request.json#/$defs/external:enums~1notification-type.json"
               },
               {
                 "not": {
@@ -131,7 +131,7 @@
             "schemes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/creative/protocol/sync-agent-notification-configs-request.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/creative/protocol/sync-agent-notification-configs-request.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -151,7 +151,7 @@
           "default": true
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/creative/protocol/sync-agent-notification-configs-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/creative/protocol/sync-agent-notification-configs-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [

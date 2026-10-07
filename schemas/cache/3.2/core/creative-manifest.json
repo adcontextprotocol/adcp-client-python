@@ -5,20 +5,20 @@
   "type": "object",
   "properties": {
     "format_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json",
       "deprecated": true,
       "description": "**DEPRECATED in 3.2.** Legacy named-format path retained for 3.x compatibility. New manifests use canonical `format_kind` and, when product routing requires it, `format_option_ref`. Mutually exclusive with format_kind."
     },
     "format_kind": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-kind.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-kind.json",
       "description": "Canonical 3.2 path. The canonical format name this manifest targets (e.g., `image`, `video_hosted`, `audio_vast`, `seller_rendered_stateful_display`, `coordinated_placements`). Selects the contract against which the seller validates the manifest's assets. Mutually exclusive with deprecated `format_id`."
     },
     "format_option_ref": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-option-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-option-ref.json",
       "description": "3.1+ format-option path, optional. Structured format option reference matching one of the target product's `format_options[]` declarations. Publisher-catalog-backed options match by `{ scope: \"publisher\", publisher_domain, format_option_id }`; product-local options match by `{ scope: \"product\", format_option_id }`. Required when the target product carries multiple `format_options` entries sharing the same `format_kind`; optional when `format_kind` alone routes the manifest to a single declaration. Product-scoped refs require an enclosing target product/package context."
     },
     "representation_selection": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/representation-selection.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/representation-selection.json",
       "description": "Present when this seller-bound manifest was selected from a CreativeRepresentationSet. Preserves creative, complete revision digest, and selected representation lineage through sync and reporting."
     },
     "assets": {
@@ -28,12 +28,12 @@
         "^[a-z0-9_]+$": {
           "oneOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/asset-union.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/asset-union.json"
             },
             {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/asset-union.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/asset-union.json"
               },
               "minItems": 1
             }
@@ -47,36 +47,36 @@
       "description": "Component-addressed asset maps for `coordinated_placements`. Each key MUST match one `params.components[].component_id`; its value supplies that component's canonical slots. Shared assets remain in top-level `assets` and are injected only into components named by `shared_slots[].consumed_by`. This namespace allows two components to use the same canonical slot name, such as `image_main`, without collision. It MUST be absent for non-`coordinated_placements` manifests.",
       "patternProperties": {
         "^[a-z][a-z0-9_]*$": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-assets.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-assets.json"
         }
       },
       "additionalProperties": false
     },
     "brand": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
       "description": "Brand identity reference (BrandRef \u2014 `domain` plus optional `brand_id` for house-of-brands; plus optional inline `brand_kit_override` for per-creative tweaks where brand.json is missing/stale). When present, the seller pulls master brand identity (logo, palette, fonts, voice, and visual guidelines) from the brand's brand.json automatically; supported fields present in `brand_kit_override` take precedence, and all other master identity fields continue to come from brand.json. Catalogs supply product or item payload. Catalog item asset groups \u2014 including an item-level `logo` for a property or franchise \u2014 are item identity selected through format field bindings; they do not override brand.json's master logo or other brand identity fields. v2 formats no longer redeclare brand_logo / brand_colors / brand_voice as explicit slots \u2014 brand identity is implicit context."
     },
     "rights": {
       "type": "array",
       "description": "Rights constraints attached to this creative. Buyer-carried fields are informational until a serving party evaluates an issuer-bound attestation reference under its own policy. Only a verified, unexpired, unrevoked, digest-matched evaluation can support serving authorization; verification_url is never authority.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/rights-constraint.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/rights-constraint.json"
       }
     },
     "industry_identifiers": {
       "type": "array",
       "description": "Industry-standard or market-specific identifiers for this specific manifest (e.g., Ad-ID, ISCI, Clearcast clock number, IDcrea). When present, overrides creative-level identifiers. Use when different format versions of the same source creative have distinct traffic identifiers (e.g., the :15 and :30 cuts, or separate TV and radio versions). Add a PR to extend creative-identifier-type when another shared identifier scheme needs first-class support.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/industry-identifier.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/industry-identifier.json"
       },
       "uniqueItems": true
     },
     "provenance": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
       "description": "Provenance metadata for this creative manifest. Serves as the default provenance for all assets in this manifest. An asset with its own provenance replaces this object entirely (no field-level merging)."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

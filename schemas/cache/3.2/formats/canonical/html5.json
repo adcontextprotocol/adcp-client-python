@@ -4,7 +4,7 @@
   "description": "Interactive HTML5 banner delivered as a zip archive. Slot: `html5_bundle` (zip asset). Tracking model: MRAID + IAB Open Measurement (OM-SDK) + click-tag macro substitution + backup image fallback. Receivers unpack the zip, validate internal structure, and serve from CDN. Distinct from `image` (static, non-interactive) and `display_tag` (third-party served). The zip's entry point is typically `index.html`; click handling uses `clickTag` (or `clickTAG`) macro substitution.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/_base.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/_base.json"
     },
     {
       "title": "Size-mode mutex",

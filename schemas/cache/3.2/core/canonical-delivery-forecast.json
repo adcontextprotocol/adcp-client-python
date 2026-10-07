@@ -7,22 +7,22 @@
     "points": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-forecast-point.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-forecast-point.json"
       },
       "minItems": 1
     },
     "forecast_range_unit": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/forecast-range-unit.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/forecast-range-unit.json"
     },
     "method": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/forecast-method.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/forecast-method.json"
     },
     "currency": {
       "type": "string",
       "pattern": "^[A-Z]{3}$"
     },
     "demographic_system": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/demographic-system.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/demographic-system.json"
     },
     "demographic": {
       "type": "string"
@@ -33,7 +33,7 @@
       "pattern": "^[a-z0-9_]+$"
     },
     "reach_unit": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reach-unit.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reach-unit.json"
     },
     "generated_at": {
       "type": "string",
@@ -44,7 +44,7 @@
       "format": "date-time"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

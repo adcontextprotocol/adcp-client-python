@@ -11,7 +11,7 @@
       "x-entity": "operator"
     },
     "operator_unit": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/operator-unit.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/operator-unit.json",
       "description": "Optional operator-owned business unit, agency seat, or platform account. Its id participates in account identity; name is mutable display metadata. Omission from a complete desired replacement means the account should have no operator unit."
     }
   },

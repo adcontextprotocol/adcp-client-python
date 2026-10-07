@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "system": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/metro-system.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/metro-system.json",
       "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')"
     },
     "values": {

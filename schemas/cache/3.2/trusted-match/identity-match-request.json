@@ -52,7 +52,7 @@
             "description": "Opaque token from an identity provider (ID5, LiveRamp, UID2) or publisher-generated. Buyer may map to internal identity graph but cannot reverse to PII."
           },
           "uid_type": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/uid-type.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/uid-type.json",
             "description": "Type of the user identifier. Tells the buyer which identity graph to resolve against, avoiding trial-and-error matching."
           },
           "attestation": {
@@ -60,7 +60,7 @@
             "description": "Optional verifiable proof ABOUT this identity (e.g. World ID proof-of-personhood and/or age). The receiver MUST verify it (see conformance) and MUST treat an absent-or-unverifiable attestation as 'no attestation' \u2014 never as an asserted-true claim. Issuer-agnostic: World ID is the first scheme; mDL / VC-style issuers use the same shape. Receivers MUST bound attestation size to prevent DoS.",
             "properties": {
               "issuer": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
                 "description": "Attestation authority / identity issuer, referenced as a vendor BrandRef (e.g. {\"domain\": \"world.org\"}) \u2014 the same vendor-reference shape AdCP uses for measurement and signals vendors. The issuer's canonical domain is the anchor; brand.json hosting is optional. `scheme` selects the verifier version within the issuer."
               },
               "scheme": {
@@ -80,7 +80,7 @@
                 "type": "array",
                 "description": "Claims this attestation establishes. Closed, issuer-agnostic set.",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/attestation-claim.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/attestation-claim.json"
                 },
                 "minItems": 1,
                 "uniqueItems": true,

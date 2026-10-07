@@ -9,15 +9,15 @@
   ],
   "properties": {
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Optional account scope for seller-specific product validation. Required by sellers that route product declarations by buyer account."
     },
     "brand": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
       "description": "Optional brand scope when account is omitted or the seller keys sandbox validation by brand identity."
     },
     "manifest": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-manifest.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-manifest.json",
       "description": "Creative manifest to validate."
     },
     "targets": {

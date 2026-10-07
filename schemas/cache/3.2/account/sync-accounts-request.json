@@ -6,7 +6,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     }
   ],
   "x-mutates-state": true,
@@ -26,7 +26,7 @@
         "description": "An advertiser account entry \u2014 either provisions/upserts a new account (natural key) or updates an existing one (AccountRef key).",
         "properties": {
           "account": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
             "description": "Settings-update key. When present, this entry targets an existing account by `account_id` (seller-owned account namespace) or natural key (buyer-declared account settings-update against a previously-provisioned account). Mutually exclusive with the flat `brand` + `operator` + `billing` provisioning trio. When `account` is present, the seller MUST NOT create a new account \u2014 entries that would otherwise trigger provisioning are rejected with `UNSUPPORTED_PROVISIONING`."
           },
           "revision": {
@@ -35,15 +35,15 @@
             "description": "Expected current account revision for optimistic concurrency in settings-update mode. Required whenever operator_identity is present; optional for existing non-identity settings updates. The seller MUST compare it atomically with the write, reject a mismatch with CONFLICT, and leave the account unchanged. Obtain it from list_accounts or the most recent sync_accounts result. Reads, dry runs, validation failures, and exact idempotency replays do not increment revision; every persisted settings or identity-change state transition does. MUST be absent in provisioning mode."
           },
           "operator_identity": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/operator-identity.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/operator-identity.json",
             "description": "Complete desired operator identity for settings-update mode. Omit this field to leave operator identity unchanged. When present, omission of operator_unit within the object removes the existing unit. Changing only operator_unit.name updates display metadata; changing operator_unit.id or adding/removing a unit rekeys the same account within the current operator. Changing operator requests an inter-entity handoff and MUST enter pending_approval until the seller verifies the current account authority, verified brand authorization, destination-operator acceptance, and any operator-scoped billing and grant transition. The seller MUST preserve account_id and account-scoped historical resources, MUST reject collisions without merging, and MUST apply no identity change if continuity cannot be preserved. MUST be accompanied by revision and MUST be absent in provisioning mode."
           },
           "destination_billing_entity": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/business-entity.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/business-entity.json",
             "description": "Complete staged billing identity for the requested destination operator during an operator-domain handoff on an account whose billing party is operator. This value is write-only while approval is pending and MUST NOT replace or be echoed as the account's canonical billing_entity until the handoff applies atomically. Required by the protocol when an operator-billed account changes operator; otherwise MUST be absent. Requires operator_identity and revision and MUST be absent in provisioning mode."
           },
           "brand": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
             "description": "Brand reference identifying the advertiser. Required for **provisioning mode**; MUST be absent in settings-update mode. Only the BrandKey projection \u2014 `domain`, `brand_id`, and the canonicalized `countries[]` set \u2014 participates in account identity. Mutable or per-call BrandRef fields such as `industries`, `data_subject_contestation`, and `brand_kit_override` MUST NOT affect lookup, idempotency, or account creation. New 3.2 producers SHOULD send only the BrandKey fields; the broader BrandRef remains accepted on this existing 3.x task for compatibility."
           },
           "operator": {
@@ -52,7 +52,7 @@
             "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
           },
           "operator_unit": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/operator-unit.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/operator-unit.json",
             "description": "Optional operator-owned business unit, agency seat, or platform account for provisioning mode. operator_unit.id participates in the natural key; name is mapping/display metadata. MUST be absent in settings-update mode."
           },
           "currency": {
@@ -66,15 +66,15 @@
             "description": "Immutable operational timezone selected for an account_fixed advertiser object. Required in provisioning mode when get_adcp_capabilities.account.timezone declares account_selection: buyer_selected, and the value MUST be one of supported_timezones. Omit for seller_fixed or seller_assigned modes. When supplied, it participates in the natural key. MUST be absent in settings-update mode."
           },
           "billing": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/billing-party.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/billing-party.json",
             "description": "Who the seller invoices for this buyer\u2013storefront account relationship. Required for **provisioning mode**; MUST be absent in settings-update mode (the invoiced party is fixed at provisioning time and cannot be changed via settings-update). This field does not select a payment rail, clearing intermediary, or per-media-buy settlement route."
           },
           "billing_entity": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/business-entity.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/business-entity.json",
             "description": "Business entity details for the party responsible for payment. The agent provides this so the seller has the legal name, tax IDs, address, and bank details needed for formal B2B invoicing. Permitted in both modes \u2014 sellers MAY accept refinements in settings-update mode (e.g., updated bank details)."
           },
           "payment_terms": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/payment-terms.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/payment-terms.json",
             "description": "Payment terms for this account. The seller must either accept these terms or reject the account \u2014 terms are never silently remapped. When omitted, the seller applies its default terms. Permitted in both modes."
           },
           "sandbox": {
@@ -82,7 +82,7 @@
             "description": "When true, provision this as a sandbox account with no real platform calls or billing. Only applicable to buyer-declared accounts (require_operator_auth: false) in provisioning mode. For account-id namespaces, sandbox accounts are pre-existing test accounts discovered via list_accounts or supplied out-of-band."
           },
           "preferred_reporting_protocol": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/cloud-storage-protocol.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/cloud-storage-protocol.json",
             "description": "Buyer's preferred cloud storage protocol for offline reporting delivery. The seller provisions the account's reporting_bucket using this protocol if supported. When omitted, the seller chooses from its supported offline_delivery_protocols. Only meaningful when the seller's reporting_delivery_methods includes 'offline'."
           },
           "reporting_delivery_configs": {
@@ -90,7 +90,7 @@
             "x-status": "experimental",
             "description": "Caller-owned desired state for durable reporting delivery on this account. Declarative replacement is scoped to (authenticated caller, resolved account): omission leaves that caller's set unchanged; [] deactivates that caller's set and starts grant revocation; another caller's entries MUST NOT be read, replaced, or deleted. Entries are keyed by immutable (delivery_config_id, delivery_config_version); duplicate tuples MUST reject the entire account entry, and reusing a tuple with changed content MUST be rejected. Each generation binds the exact report_definition_id advertised by its offering. destination.mode provision asks the seller to verify caller disclosure authority and destination/recipient control from non-secret provider coordinates; destination.mode existing reuses a caller-scoped immutable destination-generation reference, including one registered through sync_agent_configuration. The account configuration independently authorizes disclosure for this feed and scope, so possession of a reusable reference is never account authority. Unknown, unauthorized, and cross-caller refs MUST be indistinguishable. Credentials never transit AdCP, including nested extension fields. Permitted in both provisioning and settings-update modes. Sellers accepting this field MUST advertise media_buy.reporting_delivery in experimental_features and echo resolved secret-free state on sync_accounts and list_accounts.",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-delivery-config.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-delivery-config.json"
             },
             "maxItems": 16,
             "x-adcp-validation": {
@@ -105,7 +105,7 @@
             "items": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/notification-config.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/notification-config.json"
                 },
                 {
                   "if": {
@@ -244,14 +244,14 @@
       "description": "When true, preview what would change without applying. Returns what would be created/updated/deactivated."
     },
     "push_notification_config": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json",
       "description": "Webhook for async notifications when account status changes (e.g., pending_approval transitions to active)."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

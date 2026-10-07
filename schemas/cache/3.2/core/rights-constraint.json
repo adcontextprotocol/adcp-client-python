@@ -28,7 +28,7 @@
       ]
     },
     "rights_holder": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
       "description": "Canonical BrandRef for the rights holder that issued the grant through an authorized rights agent. Required whenever attestation_refs is present. Evaluators first match this exact BrandRef against local issuer policy, then resolve the authoritative brand.json and bind the credential verification key to exactly one matching agents[] entry with type rights. Sibling-brand agents are never authority. Legacy unattested constraints may omit this field but remain machine-unverified."
     },
     "valid_from": {
@@ -45,7 +45,7 @@
       "type": "array",
       "description": "Rights uses covered by this constraint",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/right-use.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/right-use.json"
       },
       "minItems": 1
     },
@@ -71,7 +71,7 @@
       "description": "Maximum total impressions allowed for the full validity period (valid_from to valid_until). This is the absolute cap across all creatives using this rights grant, not a per-creative or per-period limit."
     },
     "right_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/right-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/right-type.json",
       "description": "Type of rights (talent, music, etc.). Helps identify constraints when a creative combines multiple rights types."
     },
     "approval_status": {
@@ -159,7 +159,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attestation-reference.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attestation-reference.json"
           },
           {
             "type": "object",
@@ -172,7 +172,7 @@
                     "const": "brand"
                   },
                   "brand": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json"
                   }
                 },
                 "required": [
@@ -213,7 +213,7 @@
       "uniqueItems": true
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

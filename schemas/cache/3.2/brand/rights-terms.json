@@ -17,12 +17,12 @@
       "pattern": "^[A-Z]{3}$"
     },
     "period": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/rights-billing-period.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/rights-billing-period.json"
     },
     "uses": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/right-use.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/right-use.json"
       }
     },
     "impression_cap": {

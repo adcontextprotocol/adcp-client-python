@@ -757,14 +757,14 @@
           "type": "string"
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1context.json"
         },
         "task_id": {
           "type": "string",
           "x-entity": "task"
         },
         "status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1task-status.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1task-status.json"
         },
         "message": {
           "type": "string"
@@ -778,10 +778,10 @@
           "default": false
         },
         "adcp_error": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1error.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1error.json"
         },
         "push_notification_config": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1push-notification-config.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1push-notification-config.json"
         },
         "governance_context": {
           "type": "string",
@@ -995,7 +995,7 @@
             "schemes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -1028,17 +1028,17 @@
       "type": "object",
       "properties": {
         "format_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1format-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1format-id.json",
           "deprecated": true
         },
         "format_kind": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1canonical-format-kind.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1canonical-format-kind.json"
         },
         "format_option_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1format-option-ref.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1format-option-ref.json"
         },
         "representation_selection": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1representation-selection.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1representation-selection.json"
         },
         "assets": {
           "type": "object",
@@ -1046,12 +1046,12 @@
             "^[a-z0-9_]+$": {
               "oneOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1asset-union.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1asset-union.json"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1asset-union.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1asset-union.json"
                   },
                   "minItems": 1
                 }
@@ -1064,32 +1064,32 @@
           "type": "object",
           "patternProperties": {
             "^[a-z][a-z0-9_]*$": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1creative-assets.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1creative-assets.json"
             }
           },
           "additionalProperties": false
         },
         "brand": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1brand-ref.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1brand-ref.json"
         },
         "rights": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1rights-constraint.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1rights-constraint.json"
           }
         },
         "industry_identifiers": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1industry-identifier.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1industry-identifier.json"
           },
           "uniqueItems": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -1378,7 +1378,7 @@
           "x-entity": "creative"
         },
         "revision_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1creative-revision-id.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1creative-revision-id.json"
         },
         "revision_content_digest": {
           "type": "string",
@@ -1390,17 +1390,17 @@
           "x-entity": "creative_representation"
         },
         "strategy": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1representation-selection-strategy.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1representation-selection-strategy.json"
         },
         "selected_output_digest": {
           "type": "string",
           "pattern": "^sha256:[a-f0-9]{64}$"
         },
         "execution_vast_version": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1vast-version.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1vast-version.json"
         },
         "execution_daast_version": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1daast-version.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1daast-version.json"
         },
         "resolved_by": {
           "type": "string",
@@ -1457,67 +1457,67 @@
       "type": "object",
       "oneOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1image-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1image-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1video-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1video-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1audio-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1audio-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1vast-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1vast-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1display-tag-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1display-tag-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1text-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1text-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1url-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1url-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1html-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1html-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1javascript-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1javascript-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1zip-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1zip-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1webhook-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1webhook-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1css-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1css-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1daast-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1daast-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1markdown-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1markdown-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1brief-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1brief-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1catalog-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1catalog-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1published-post-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1published-post-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1card-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1card-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1pixel-tracker-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1pixel-tracker-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1vast-tracker-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1vast-tracker-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1daast-tracker-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1daast-tracker-asset.json"
         }
       ],
       "discriminator": {
@@ -1575,7 +1575,7 @@
           "x-accessibility": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -1590,7 +1590,7 @@
       "type": "object",
       "properties": {
         "digital_source_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1digital-source-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1digital-source-type.json"
         },
         "synthetic_depiction": {
           "type": "boolean"
@@ -1671,7 +1671,7 @@
             "type": "object",
             "properties": {
               "method": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1embedded-provenance-method.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1embedded-provenance-method.json"
               },
               "standard": {
                 "type": "string"
@@ -1714,7 +1714,7 @@
             "type": "object",
             "properties": {
               "media_type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1watermark-media-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1watermark-media-type.json"
               },
               "provider": {
                 "type": "string"
@@ -1737,7 +1737,7 @@
                 "additionalProperties": false
               },
               "c2pa_action": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1c2pa-watermark-action.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1c2pa-watermark-action.json"
               },
               "embedded_at": {
                 "type": "string",
@@ -1778,7 +1778,7 @@
                     "minProperties": 1,
                     "properties": {
                       "persistence": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1disclosure-persistence.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1disclosure-persistence.json"
                       },
                       "min_duration_ms": {
                         "type": "integer",
@@ -1787,13 +1787,13 @@
                       "positions": {
                         "type": "array",
                         "items": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1disclosure-position.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1disclosure-position.json"
                         },
                         "minItems": 1,
                         "uniqueItems": true
                       },
                       "ext": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
                       }
                     }
                   }
@@ -1849,7 +1849,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
         }
       }
     },
@@ -1956,10 +1956,10 @@
           "type": "string"
         },
         "frame_rate_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1frame-rate-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1frame-rate-type.json"
         },
         "scan_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1scan-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1scan-type.json"
         },
         "color_space": {
           "type": "string",
@@ -2001,10 +2001,10 @@
           "type": "number"
         },
         "gop_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1gop-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1gop-type.json"
         },
         "moov_atom_position": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1moov-atom-position.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1moov-atom-position.json"
         },
         "has_audio": {
           "type": "boolean"
@@ -2016,7 +2016,7 @@
           "type": "integer"
         },
         "audio_channels": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1audio-channel-layout.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1audio-channel-layout.json"
         },
         "audio_bit_depth": {
           "type": "integer",
@@ -2052,7 +2052,7 @@
           "x-accessibility": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -2129,7 +2129,7 @@
           "type": "integer"
         },
         "channels": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1audio-channel-layout.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1audio-channel-layout.json"
         },
         "bit_depth": {
           "type": "integer",
@@ -2155,7 +2155,7 @@
           "x-accessibility": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -2172,12 +2172,12 @@
           "const": "vast"
         },
         "vast_version": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1vast-version.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1vast-version.json"
         },
         "macro_declarations": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
           },
           "minItems": 1
         },
@@ -2191,7 +2191,7 @@
         "tracking_events": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1vast-tracking-event.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1vast-tracking-event.json"
           }
         },
         "captions_url": {
@@ -2205,7 +2205,7 @@
           "x-accessibility": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -2219,7 +2219,7 @@
               "const": "url"
             },
             "url": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
             },
             "macro_declarations": {
               "items": {
@@ -2299,7 +2299,7 @@
           "minLength": 1
         },
         "dialect": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-dialect.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-dialect.json"
         },
         "dialect_namespace": {
           "type": "string",
@@ -2314,19 +2314,19 @@
           "minLength": 1
         },
         "mapping_status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-mapping-status.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-mapping-status.json"
         },
         "universal_semantic": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1universal-macro.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1universal-macro.json"
         },
         "operation": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-processing-operation.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-processing-operation.json"
         },
         "performed_by": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-resolver.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-resolver.json"
         },
         "translation_target": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-translation-target.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-translation-target.json"
         },
         "location": {
           "type": "object",
@@ -2346,7 +2346,7 @@
               "minimum": 0
             },
             "context": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-value-context.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-value-context.json"
             }
           },
           "required": [
@@ -2357,7 +2357,7 @@
           "additionalProperties": false
         },
         "encoding": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-encoding.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-encoding.json"
         },
         "required": {
           "type": "boolean"
@@ -2480,7 +2480,7 @@
             ],
             "properties": {
               "dialect_semantic": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1universal-macro.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1universal-macro.json"
               },
               "mapping_status": {
                 "const": "verified_universal"
@@ -3000,7 +3000,7 @@
           "minLength": 1
         },
         "dialect": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-dialect.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-dialect.json"
         },
         "dialect_namespace": {
           "type": "string",
@@ -3015,20 +3015,20 @@
           "minLength": 1
         },
         "mapping_status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-mapping-status.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-mapping-status.json"
         },
         "universal_semantic": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1universal-macro.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1universal-macro.json"
         },
         "next_operation": {
           "type": "string",
           "const": "resolve_value"
         },
         "performed_by": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-resolver.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1macro-resolver.json"
         },
         "encoding": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-encoding.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-encoding.json"
         }
       },
       "required": [
@@ -3171,7 +3171,7 @@
             ],
             "properties": {
               "dialect_semantic": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1universal-macro.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1universal-macro.json"
               },
               "mapping_status": {
                 "const": "verified_universal"
@@ -3389,12 +3389,12 @@
         "macro_declarations": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
           },
           "minItems": 1
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -3416,7 +3416,7 @@
               "items": {
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
                   },
                   {
                     "properties": {
@@ -3434,14 +3434,14 @@
               "minItems": 1
             },
             "provenance": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
             },
             "delivery_type": {
               "type": "string",
               "const": "tag_url"
             },
             "url": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
             }
           },
           "required": [
@@ -3481,7 +3481,7 @@
               "items": {
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
                   },
                   {
                     "properties": {
@@ -3499,7 +3499,7 @@
               "minItems": 1
             },
             "provenance": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
             },
             "delivery_type": {
               "type": "string",
@@ -3557,7 +3557,7 @@
               "items": {
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
                   },
                   {
                     "properties": {
@@ -3578,17 +3578,17 @@
               "minItems": 1
             },
             "provenance": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
             },
             "delivery_type": {
               "type": "string",
               "const": "paired_redirect"
             },
             "ad_request_url": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
             },
             "clickthrough_url": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
             }
           },
           "required": [
@@ -3629,7 +3629,7 @@
           "type": "string"
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -3646,17 +3646,17 @@
           "const": "url"
         },
         "url": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
         },
         "url_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1url-asset-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1url-asset-type.json"
         },
         "macro_declarations": {
           "type": "array",
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
               },
               {
                 "properties": {
@@ -3680,7 +3680,7 @@
           "type": "string"
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -3730,7 +3730,7 @@
           }
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -3750,7 +3750,7 @@
           "type": "string"
         },
         "module_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1javascript-module-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1javascript-module-type.json"
         },
         "accessibility": {
           "type": "object",
@@ -3771,7 +3771,7 @@
           }
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -3839,7 +3839,7 @@
           }
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -3860,7 +3860,7 @@
           "format": "uri"
         },
         "method": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1http-method.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1http-method.json",
           "default": "POST"
         },
         "timeout_ms": {
@@ -3874,7 +3874,7 @@
           "items": {
             "anyOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1universal-macro.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1universal-macro.json"
               },
               {
                 "type": "string"
@@ -3887,7 +3887,7 @@
           "items": {
             "anyOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1universal-macro.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1universal-macro.json"
               },
               {
                 "type": "string"
@@ -3896,13 +3896,13 @@
           }
         },
         "response_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1webhook-response-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1webhook-response-type.json"
         },
         "security": {
           "type": "object",
           "properties": {
             "method": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1webhook-security-method.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1webhook-security-method.json"
             },
             "hmac_header": {
               "type": "string"
@@ -3916,7 +3916,7 @@
           ]
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -3965,7 +3965,7 @@
           "type": "string"
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -3982,7 +3982,7 @@
           "const": "daast"
         },
         "daast_version": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1daast-version.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1daast-version.json"
         },
         "duration_ms": {
           "type": "integer",
@@ -3991,7 +3991,7 @@
         "tracking_events": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1daast-tracking-event.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1daast-tracking-event.json"
           }
         },
         "companion_ads": {
@@ -4003,12 +4003,12 @@
           "x-accessibility": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         },
         "macro_declarations": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
           },
           "minItems": 1
         }
@@ -4024,7 +4024,7 @@
               "const": "url"
             },
             "url": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
             },
             "macro_declarations": {
               "items": {
@@ -4121,7 +4121,7 @@
           "type": "string"
         },
         "markdown_flavor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1markdown-flavor.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1markdown-flavor.json",
           "default": "commonmark"
         },
         "allow_raw_html": {
@@ -4155,7 +4155,7 @@
       ],
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1creative-brief.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1creative-brief.json"
         }
       ]
     },
@@ -4208,7 +4208,7 @@
         "reference_assets": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1reference-asset.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1reference-asset.json"
           }
         },
         "compliance": {
@@ -4223,7 +4223,7 @@
                     "type": "string"
                   },
                   "position": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1disclosure-position.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1disclosure-position.json"
                   },
                   "jurisdictions": {
                     "type": "array",
@@ -4244,7 +4244,7 @@
                     "type": "string"
                   },
                   "persistence": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1disclosure-persistence.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1disclosure-persistence.json"
                   }
                 },
                 "required": [
@@ -4312,7 +4312,7 @@
       ],
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1catalog.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1catalog.json"
         }
       ]
     },
@@ -4327,17 +4327,17 @@
           "type": "string"
         },
         "type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1catalog-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1catalog-type.json"
         },
         "url": {
           "type": "string",
           "format": "uri"
         },
         "feed_format": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1feed-format.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1feed-format.json"
         },
         "update_frequency": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1update-frequency.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1update-frequency.json"
         },
         "items": {
           "type": "array",
@@ -4377,18 +4377,18 @@
         "conversion_events": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1event-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1event-type.json"
           },
           "minItems": 1,
           "uniqueItems": true
         },
         "content_id_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1content-id-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1content-id-type.json"
         },
         "feed_field_mappings": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1catalog-field-mapping.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1catalog-field-mapping.json"
           },
           "minItems": 1
         }
@@ -4529,7 +4529,7 @@
         },
         "default": {},
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
         }
       },
       "allOf": [
@@ -4626,7 +4626,7 @@
           "additionalProperties": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -4660,10 +4660,10 @@
         "media": {
           "oneOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1image-asset.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1image-asset.json"
             },
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1video-asset.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1video-asset.json"
             }
           ],
           "discriminator": {
@@ -4680,16 +4680,16 @@
           "type": "string"
         },
         "landing_page_url": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1url-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1url-asset.json"
         },
         "platform_extensions": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1platform-extension-ref.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1platform-extension-ref.json"
           }
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "additionalProperties": true
@@ -4721,7 +4721,7 @@
           "const": "pixel_tracker"
         },
         "event": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1pixel-tracking-event.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1pixel-tracking-event.json"
         },
         "method": {
           "type": "string",
@@ -4732,14 +4732,14 @@
           "default": "img"
         },
         "url": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
         },
         "macro_declarations": {
           "type": "array",
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
               },
               {
                 "properties": {
@@ -4760,7 +4760,7 @@
           "type": "string"
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -4818,7 +4818,7 @@
         "vast_event": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1vast-tracking-event.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1vast-tracking-event.json"
             },
             {
               "not": {
@@ -4838,14 +4838,14 @@
           ]
         },
         "url": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
         },
         "macro_declarations": {
           "type": "array",
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
               },
               {
                 "properties": {
@@ -4876,7 +4876,7 @@
           "default": "linear"
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -4915,7 +4915,7 @@
         "daast_event": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1daast-tracking-event.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1daast-tracking-event.json"
             },
             {
               "not": {
@@ -4935,14 +4935,14 @@
           ]
         },
         "url": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-bearing-url.json"
         },
         "macro_declarations": {
           "type": "array",
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1macro-declaration.json"
               },
               {
                 "properties": {
@@ -4972,7 +4972,7 @@
           "default": "linear"
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -5007,12 +5007,12 @@
         "^[a-z0-9_]+$": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1asset-union.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1asset-union.json"
             },
             {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1asset-union.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1asset-union.json"
               },
               "minItems": 1
             }
@@ -5029,7 +5029,7 @@
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
         },
         "brand_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1brand-id.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1brand-id.json"
         },
         "countries": {
           "type": "array",
@@ -5083,7 +5083,7 @@
           "type": "object",
           "properties": {
             "logo": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1image-asset.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1assets~1image-asset.json"
             },
             "colors": {
               "type": "object",
@@ -5146,7 +5146,7 @@
           ]
         },
         "rights_holder": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1brand-ref.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1brand-ref.json"
         },
         "valid_from": {
           "type": "string",
@@ -5159,7 +5159,7 @@
         "uses": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1right-use.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1right-use.json"
           },
           "minItems": 1
         },
@@ -5182,7 +5182,7 @@
           "minimum": 1
         },
         "right_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1right-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1right-type.json"
         },
         "approval_status": {
           "type": "string",
@@ -5261,7 +5261,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1attestation-reference.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1attestation-reference.json"
               },
               {
                 "type": "object",
@@ -5274,7 +5274,7 @@
                         "const": "brand"
                       },
                       "brand": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1brand-ref.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1brand-ref.json"
                       }
                     },
                     "required": [
@@ -5315,7 +5315,7 @@
           "uniqueItems": true
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -5403,14 +5403,14 @@
       "type": "object",
       "properties": {
         "issuer": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1attestation-issuer.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1attestation-issuer.json"
         },
         "claim_type": {
           "type": "string",
           "format": "uri"
         },
         "subject": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1attestation-subject.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1attestation-subject.json"
         },
         "locator": {
           "discriminator": {
@@ -5430,7 +5430,7 @@
                   "pattern": "^https://[^/?#@]+(?:/[^?#]*)?(?:\\?[^#]*)?$"
                 },
                 "ext": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
                 }
               },
               "required": [
@@ -5459,7 +5459,7 @@
                   "pattern": "^[A-Za-z0-9._:-]+$"
                 },
                 "ext": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
                 }
               },
               "required": [
@@ -5486,7 +5486,7 @@
               "minLength": 1
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -5534,7 +5534,7 @@
           "additionalProperties": false
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -5584,10 +5584,10 @@
               "const": "brand"
             },
             "brand": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1brand-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1brand-ref.json"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -5609,7 +5609,7 @@
               "pattern": "^https://[^/?#@]+(?:/[^?#]*)?(?:\\?[^#]*)?$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -5631,7 +5631,7 @@
               "pattern": "^https://[^/?#@]+$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -5655,10 +5655,10 @@
               "const": "brand"
             },
             "brand": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1brand-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1brand-ref.json"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -5680,7 +5680,7 @@
               "pattern": "^https://[^/?#@]+(?:/[^?#]*)?(?:\\?[^#]*)?$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -5714,7 +5714,7 @@
               "pattern": "^sha256:[a-f0-9]{64}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -5731,7 +5731,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1creative-identifier-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:enums~1creative-identifier-type.json"
         },
         "value": {
           "type": "string",
@@ -5811,7 +5811,7 @@
               }
             },
             "renderer": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1preview-renderer-metadata.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1preview-renderer-metadata.json"
             }
           },
           "required": [
@@ -5874,7 +5874,7 @@
               }
             },
             "renderer": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1preview-renderer-metadata.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1preview-renderer-metadata.json"
             }
           },
           "required": [
@@ -5941,7 +5941,7 @@
               }
             },
             "renderer": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1preview-renderer-metadata.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1preview-renderer-metadata.json"
             }
           },
           "required": [
@@ -6021,10 +6021,10 @@
           "type": "object",
           "properties": {
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1signal-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1signal-ref.json"
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1signal-id.json",
               "deprecated": true
             },
             "value_type": {
@@ -6057,10 +6057,10 @@
           "type": "object",
           "properties": {
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1signal-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1signal-ref.json"
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1signal-id.json",
               "deprecated": true
             },
             "value_type": {
@@ -6097,10 +6097,10 @@
           "type": "object",
           "properties": {
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1signal-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1signal-ref.json"
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1signal-id.json",
               "deprecated": true
             },
             "value_type": {
@@ -6383,7 +6383,7 @@
           "type": "string"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/media-buy/build-creative-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [

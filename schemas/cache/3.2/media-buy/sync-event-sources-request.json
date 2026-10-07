@@ -6,7 +6,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     }
   ],
   "x-mutates-state": true,
@@ -19,7 +19,7 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Account to configure event sources for."
     },
     "event_sources": {
@@ -42,7 +42,7 @@
             "type": "array",
             "description": "Event types this source handles (e.g. purchase, lead). If omitted, accepts all event types.",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/event-type.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/event-type.json"
             },
             "minItems": 1
           },
@@ -57,7 +57,7 @@
             "uniqueItems": true
           },
           "action_source": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/action-source.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/action-source.json",
             "description": "Flat action-source category for this event source, such as website, app, in_store, system_generated, or other. Producers SHOULD also populate `surface` when the flat value is too coarse, and SHOULD keep this field aligned with `surface.category` when the category is also an ActionSource value."
           },
           "allowed_domains": {
@@ -69,7 +69,7 @@
             "minItems": 1
           },
           "surface": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/event-surface.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/event-surface.json",
             "description": "Optional structured surface this source represents, such as an owned channel, profile, feed, podcast, newsletter list, website, app, or store. Complements the flat `action_source` returned by sellers and avoids putting optimization-relevant surface meaning only in `ext`."
           }
         },
@@ -85,10 +85,10 @@
       "description": "When true, event sources not included in this sync will be removed"
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

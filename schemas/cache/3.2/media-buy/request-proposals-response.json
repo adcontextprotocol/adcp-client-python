@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "adcp_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_version"
     },
     "outcome": {
       "type": "string",
@@ -33,7 +33,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-proposal.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-proposal.json"
           },
           {
             "properties": {
@@ -61,7 +61,7 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-product.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-product.json"
       }
     },
     "incomplete": {
@@ -86,7 +86,7 @@
             "minLength": 1
           },
           "estimated_wait": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
           }
         },
         "required": [
@@ -254,7 +254,7 @@
       ]
     },
     "targeting_resolution": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/get-products-targeting-resolution.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/get-products-targeting-resolution.json",
       "description": "Response-level confirmation of structured targeting interpreted from explicit hard requirements in the brief. Sellers MUST emit this when that interpretation materially affects eligibility, pricing, or forecasting; otherwise it remains a best practice. Product-specific changes to explicit criteria.targeting_overlay values remain on Product.targeting_resolution."
     },
     "status": {
@@ -276,14 +276,14 @@
     "errors": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       }
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     },
     "replayed": {
       "type": "boolean",
@@ -474,7 +474,7 @@
       }
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/compact-task-submitted.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/compact-task-submitted.json"
     }
   ],
   "not": {

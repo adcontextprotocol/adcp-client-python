@@ -7,7 +7,7 @@
     "suppress": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
         }
       ],
       "description": "Cooldown period between consecutive exposures to the same entity. Prevents back-to-back ad delivery (e.g. {\"interval\": 60, \"unit\": \"minutes\"} for a 1-hour cooldown). Preferred over suppress_minutes."
@@ -26,7 +26,7 @@
     "per": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reach-unit.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reach-unit.json"
         }
       ],
       "description": "Entity granularity for impression counting. Required when max_impressions is set."
@@ -34,7 +34,7 @@
     "window": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
         }
       ],
       "description": "Time window for the max_impressions cap (e.g. {\"interval\": 7, \"unit\": \"days\"} or {\"interval\": 1, \"unit\": \"campaign\"} for the full flight). Required when max_impressions is set."

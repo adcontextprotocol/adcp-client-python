@@ -8,7 +8,7 @@
       "type": "array",
       "description": "Metrics available at spot grain. A declared metric may be absent from a provisional measurement window and appear when a later window supersedes it. A metric omitted from this declaration is not promised at spot grain even when it is available at package grain.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/available-metric.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/available-metric.json"
       },
       "uniqueItems": true
     }

@@ -33,7 +33,7 @@
       "description": "ISO 8601 timestamp when the seller observed the response (or terminal timeout / connection error \u2014 for `timeout` and `connection_error` outcomes, `completed_at` is set to the moment the seller declared the attempt terminal). Explicitly `null` when the attempt is still in flight or queued for retry (status `pending`); MUST be set as `null` rather than omitted so callers can distinguish 'still in flight' from 'field missing'."
     },
     "notification_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/notification-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/notification-type.json",
       "description": "Notification type carried by this fire, verbatim from the webhook payload. Includes delivery-report types (`scheduled`, `final`, `delayed`, `adjusted`, `window_update`), health notifications (`impairment`), and account-anchored indicator or creative-assignment invalidations from the shared registry. All share the same persistent-channel webhook contract and the same buyer-side debug need."
     },
     "sequence_number": {
@@ -93,7 +93,7 @@
       "maxLength": 500
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json",
       "description": "Resource-specific extension slot. Adopters MAY surface a resource-specific cross-reference (e.g., `creative_id` on a creative-lifecycle record, `media_buy_id` on a record nested inside an account-level read) under `ext` rather than adding top-level fields \u2014 the canonical record shape stays uniform across resources and the `ext` envelope absorbs per-resource needs. Top-level extensions are not permitted (`additionalProperties: false`)."
     }
   },

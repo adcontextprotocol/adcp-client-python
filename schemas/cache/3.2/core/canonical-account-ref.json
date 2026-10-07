@@ -20,7 +20,7 @@
     {
       "properties": {
         "brand": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json"
         },
         "operator": {
           "type": "string",
@@ -28,7 +28,7 @@
           "x-entity": "operator"
         },
         "operator_unit": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/operator-unit.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/operator-unit.json",
           "description": "Optional operator-owned business unit, agency seat, or platform account. Only id participates in identity; name is mutable display metadata."
         },
         "currency": {

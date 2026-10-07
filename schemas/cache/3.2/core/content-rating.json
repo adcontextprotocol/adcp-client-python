@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "system": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/content-rating-system.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/content-rating-system.json",
       "description": "Rating system used"
     },
     "rating": {

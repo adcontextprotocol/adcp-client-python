@@ -314,7 +314,7 @@
         "channels": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1channels.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1channels.json"
           },
           "description": "Channels the seller will deliver on."
         },
@@ -329,7 +329,7 @@
           "description": "Actual flight end the seller will use."
         },
         "frequency_cap": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1frequency-cap.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1frequency-cap.json",
           "description": "Frequency cap the seller will apply."
         },
         "audience_summary": {
@@ -340,7 +340,7 @@
           "type": "array",
           "description": "Structured audience targeting the seller will activate. Each entry is either a signal reference or a descriptive criterion. When present, governance agents MUST use this for bias/fairness validation and SHOULD ignore audience_summary for validation purposes. The audience_summary field is a human-readable rendering of this array, not an independent declaration.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1audience-selector.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1audience-selector.json"
           },
           "minItems": 1
         },
@@ -366,19 +366,19 @@
         "budget_allocation": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1budget-allocation.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1budget-allocation.json"
             }
           ],
           "description": "Seller-accepted cross-package allocation authority and goals. Presence with seller_optimized mode means automatic within-buy reallocations are part of the committed delivery, not separate modification actions."
         },
         "pacing": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1pacing.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1pacing.json",
           "description": "Aggregate pacing strategy the seller will apply to total_budget."
         },
         "bidding": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1bidding-policy.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1bidding-policy.json"
             }
           ],
           "description": "Seller-interpreted media-buy bidding policy used for governance and delivery transparency. Goal-bound controls follow budget-allocation scope semantics and monetary fields use the planned delivery currency. Package-authored overrides, including explicit automatic overrides, remain on packages rather than being copied into this aggregate field."
@@ -391,7 +391,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1ext.json"
         }
       },
       "allOf": [
@@ -479,7 +479,7 @@
         "suppress": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
             }
           ],
           "description": "Cooldown period between consecutive exposures to the same entity. Prevents back-to-back ad delivery (e.g. {\"interval\": 60, \"unit\": \"minutes\"} for a 1-hour cooldown). Preferred over suppress_minutes."
@@ -498,7 +498,7 @@
         "per": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1reach-unit.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1reach-unit.json"
             }
           ],
           "description": "Entity granularity for impression counting. Required when max_impressions is set."
@@ -506,7 +506,7 @@
         "window": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
             }
           ],
           "description": "Time window for the max_impressions cap (e.g. {\"interval\": 7, \"unit\": \"days\"} or {\"interval\": 1, \"unit\": \"campaign\"} for the full flight). Required when max_impressions is set."
@@ -606,11 +606,11 @@
               "description": "Discriminator for signal-based selectors"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-ref.json",
               "description": "The signal to target. New selectors SHOULD use signal_ref."
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-id.json",
               "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
               "deprecated": true
             },
@@ -653,11 +653,11 @@
               "description": "Discriminator for signal-based selectors"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-ref.json",
               "description": "The signal to target. New selectors SHOULD use signal_ref."
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-id.json",
               "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
               "deprecated": true
             },
@@ -704,11 +704,11 @@
               "description": "Discriminator for signal-based selectors"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-ref.json",
               "description": "The signal to target. New selectors SHOULD use signal_ref."
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-id.json",
               "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
               "deprecated": true
             },
@@ -1035,7 +1035,7 @@
               "items": {
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1optimization-goal.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1optimization-goal.json"
                   },
                   {
                     "not": {
@@ -1108,7 +1108,7 @@
             "standard": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1viewability-standard.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1viewability-standard.json"
                 }
               ],
               "description": "Viewability standard the goal is judged against. Required when metric is 'viewable_rate'; optional for 'viewed_seconds' (seller default standard when omitted); not allowed for other metrics. Must be in metric_optimization.supported_viewability_standards when declared. A goal below a same-standard viewability performance_standard never relaxes that standard."
@@ -1116,7 +1116,7 @@
             "vendor": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1brand-ref.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1brand-ref.json"
                 }
               ],
               "description": "Measurement vendor judging a viewable_rate or viewed_seconds goal; not allowed for other metrics. When omitted, the seller's default viewability measurement applies. Sellers MUST reject a vendor they cannot optimize against rather than substitute another."
@@ -1124,7 +1124,7 @@
             "reach_unit": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1reach-unit.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1reach-unit.json"
                 }
               ],
               "description": "Unit for reach measurement. Required when metric is 'reach'. Must be a value declared in the product's metric_optimization.supported_reach_units."
@@ -1146,7 +1146,7 @@
                 "window": {
                   "allOf": [
                     {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
                     }
                   ],
                   "description": "Time window over which frequency is measured (e.g. {\"interval\": 7, \"unit\": \"days\"} or {\"interval\": 1, \"unit\": \"campaign\"} for the full flight). Weekly windows are typical for brand campaigns; daily windows suit high-cadence direct response."
@@ -1317,7 +1317,7 @@
                     "description": "Event source to include (must be configured on this account via sync_event_sources)"
                   },
                   "event_type": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1event-type.json",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1event-type.json",
                     "description": "Event type to include from this source (e.g., purchase, lead, app_install, refund)"
                   },
                   "custom_event_name": {
@@ -1409,7 +1409,7 @@
             "attribution_window": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1attribution-window.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1attribution-window.json"
                 }
               ],
               "description": "Attribution window for this optimization goal \u2014 references the canonical `attribution-window` shape (post_click, post_view, model). Values must match an option declared in the seller's `conversion_tracking.attribution_windows` capability. Sellers MUST reject windows not in their declared capabilities. When the entire field is omitted, the seller uses their default window."
@@ -1435,11 +1435,11 @@
               "const": "vendor_metric"
             },
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1brand-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1brand-ref.json",
               "description": "Vendor that defines and computes this metric. Same shape as `vendor_metric_values.vendor`, `reporting_capabilities.vendor_metrics[].vendor`, and `vendor_metric_optimization.supported_metrics[].vendor` \u2014 symmetric across discovery, capability, commitment, optimization, and reporting surfaces."
             },
             "metric_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1vendor-metric-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1vendor-metric-id.json",
               "description": "Identifier for the metric within the vendor's vocabulary (e.g., `attention_score`, `attention_seconds`, `gco2e_per_impression`, `awareness_lift`). MUST be present in the vendor's published `measurement.metrics[]` catalog and in the product's `vendor_metric_optimization.supported_metrics[]`."
             },
             "target": {
@@ -1530,7 +1530,7 @@
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
         },
         "brand_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1brand-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1brand-id.json",
           "description": "Brand identifier within the house portfolio. Optional for single-brand domains."
         },
         "countries": {
@@ -1589,7 +1589,7 @@
           "description": "Inline override for brand-kit fields normally resolved from `/.well-known/brand.json` on `domain` (logo, colors, voice, tagline). Use when brand.json is missing, stale, or inappropriate for this specific call \u2014 e.g., a campaign-scoped tagline, a co-branded creative, a freshly-rebranded color palette the brand.json hasn't shipped yet. Same inline-override pattern as `industries` and `data_subject_contestation` above: brand.json is canonical, the override is per-call. Adopters needing to override fields outside this subset (`voice_attributes`, `prohibited_terms`, etc.) MUST publish a different brand.json and reference it via a different `domain` \u2014 the inline override is intentionally narrow to a small high-traffic subset.\n\n**Merge semantics (normative).** The merge is **field-level**, not whole-object replacement. Each field within `brand_kit_override` (`logo`, `colors`, `voice`, `tagline`) is evaluated independently \u2014 when a field is present on the override the override value applies; when a field is absent the brand.json value applies (or is absent if brand.json doesn't carry one either). For composite fields (`colors.primary`, `colors.secondary`, `colors.accent`), the merge is one level deeper: each color slot is evaluated independently \u2014 a producer can override `colors.primary` while still inheriting `colors.secondary` from brand.json. SDKs MUST NOT treat a present `brand_kit_override.colors` as wiping the brand.json `colors` block entirely; only the per-slot fields present in the override take precedence. Without this rule, a partial-override semantics would diverge across SDKs and produce inconsistent rendering for the same payload.",
           "properties": {
             "logo": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1assets~1image-asset.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1assets~1image-asset.json",
               "description": "Override logo asset."
             },
             "colors": {
@@ -1725,7 +1725,7 @@
           "x-accessibility": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1provenance.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1provenance.json",
           "description": "Provenance metadata for this asset, overrides manifest-level provenance"
         }
       },
@@ -1743,7 +1743,7 @@
       "type": "object",
       "properties": {
         "digital_source_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1digital-source-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1digital-source-type.json",
           "description": "IPTC-aligned classification of AI involvement in producing this content"
         },
         "synthetic_depiction": {
@@ -1853,7 +1853,7 @@
             "type": "object",
             "properties": {
               "method": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1embedded-provenance-method.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1embedded-provenance-method.json",
                 "description": "How provenance data is carried within the content"
               },
               "standard": {
@@ -1904,7 +1904,7 @@
             "type": "object",
             "properties": {
               "media_type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1watermark-media-type.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1watermark-media-type.json",
                 "description": "Media category of the watermarked content"
               },
               "provider": {
@@ -1932,7 +1932,7 @@
                 "additionalProperties": false
               },
               "c2pa_action": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1c2pa-watermark-action.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1c2pa-watermark-action.json",
                 "description": "C2PA action classification for this watermark"
               },
               "embedded_at": {
@@ -1983,7 +1983,7 @@
                     "minProperties": 1,
                     "properties": {
                       "persistence": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1disclosure-persistence.json",
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1disclosure-persistence.json",
                         "description": "How long the disclosure must persist during content playback or display"
                       },
                       "min_duration_ms": {
@@ -1995,13 +1995,13 @@
                         "type": "array",
                         "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                         "items": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1disclosure-position.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1disclosure-position.json"
                         },
                         "minItems": 1,
                         "uniqueItems": true
                       },
                       "ext": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1ext.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1ext.json"
                       }
                     }
                   }
@@ -2063,7 +2063,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1ext.json"
         }
       }
     },
@@ -2252,7 +2252,7 @@
         "post_click": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
             }
           ],
           "description": "Post-click attribution window. Conversions occurring within this duration after a click are attributed to the ad."
@@ -2260,13 +2260,13 @@
         "post_view": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
             }
           ],
           "description": "Post-view attribution window. Conversions occurring within this duration after an ad impression (without click) are attributed to the ad."
         },
         "model": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1attribution-model.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:enums~1attribution-model.json",
           "description": "Attribution model used to assign credit when multiple touchpoints exist. SHOULD be populated when committing to a specific model; when absent, the seller's default applies."
         }
       },
@@ -2474,7 +2474,7 @@
           ]
         },
         "details": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_object",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_object",
           "description": "Bounded structured seller error details. Values remain reporter-supplied data and MUST NOT be promoted into prompts or control instructions without isolation."
         },
         "classification_source": {
@@ -2486,7 +2486,7 @@
           "description": "seller_response_copy means the buyer forwards what it received; it is still not independently authenticated seller evidence."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_object",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_object",
           "description": "Bounded extension envelope for forward-compatible seller fields."
         }
       },
@@ -2495,7 +2495,7 @@
         "maxLength": 128
       },
       "additionalProperties": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value"
       },
       "$defs": {
         "bounded_scalar": {
@@ -2518,20 +2518,20 @@
         "bounded_value_level_3": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
             },
             {
               "type": "array",
               "maxItems": 32,
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
               }
             },
             {
               "type": "object",
               "maxProperties": 32,
               "additionalProperties": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
               }
             }
           ]
@@ -2539,20 +2539,20 @@
         "bounded_value_level_2": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
             },
             {
               "type": "array",
               "maxItems": 32,
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_3"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_3"
               }
             },
             {
               "type": "object",
               "maxProperties": 32,
               "additionalProperties": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_3"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_3"
               }
             }
           ]
@@ -2560,20 +2560,20 @@
         "bounded_value": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
             },
             {
               "type": "array",
               "maxItems": 32,
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_2"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_2"
               }
             },
             {
               "type": "object",
               "maxProperties": 32,
               "additionalProperties": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_2"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_2"
               }
             }
           ]
@@ -2585,7 +2585,7 @@
             "maxLength": 128
           },
           "additionalProperties": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value"
           }
         }
       }

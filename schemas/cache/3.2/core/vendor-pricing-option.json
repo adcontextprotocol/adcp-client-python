@@ -16,7 +16,7 @@
           "deprecated": true,
           "description": "**DEPRECATED in 3.2.** Legacy named-format pricing scope. Use applies_to_output_capability_ids.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
           },
           "minItems": 1
         },
@@ -36,7 +36,7 @@
       ]
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-pricing.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-pricing.json"
     }
   ]
 }

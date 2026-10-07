@@ -9,7 +9,7 @@
       "description": "Identifies the creative role this group fills. Values are defined by each canonical format declaration's offering_asset_constraints \u2014 not protocol constants. Discover creative-agent declarations via get_adcp_capabilities creative.supported_formats[] and sales-product declarations via Product.format_options[] (e.g., 'headlines', 'images', or 'videos')."
     },
     "asset_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/asset-content-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/asset-content-type.json",
       "description": "The content type of all items in this group."
     },
     "items": {
@@ -18,43 +18,43 @@
       "items": {
         "oneOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/text-asset.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/text-asset.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/image-asset.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/image-asset.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/video-asset.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/video-asset.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/audio-asset.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/audio-asset.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/url-asset.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/url-asset.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/html-asset.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/html-asset.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/markdown-asset.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/markdown-asset.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/vast-asset.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/vast-asset.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/daast-asset.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/daast-asset.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/css-asset.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/css-asset.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/javascript-asset.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/javascript-asset.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/zip-asset.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/zip-asset.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/webhook-asset.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/webhook-asset.json"
           }
         ],
         "discriminator": {
@@ -64,7 +64,7 @@
       "minItems": 1
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

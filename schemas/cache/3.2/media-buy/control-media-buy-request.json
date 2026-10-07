@@ -27,10 +27,10 @@
   },
   "properties": {
     "adcp_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_version"
     },
     "adcp_major_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_major_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_major_version"
     },
     "idempotency_key": {
       "type": "string",
@@ -39,7 +39,7 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-account-ref.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-account-ref.json"
     },
     "media_buy_id": {
       "type": "string",
@@ -101,7 +101,7 @@
       "description": "Replace the shared MediaBuy frequency cap; null removes it. The change applies immediately without resetting counters: qualifying prior exposures still count in the resulting active window. Sellers MUST reject the complete mutation with UNSUPPORTED_FEATURE, before any change, if the cap is outside declared constraints or any active package cannot participate in the resulting shared counter, and MUST NOT clamp it. Requires update_media_buy_frequency_cap in available_actions.",
       "anyOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-frequency-cap.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-frequency-cap.json"
         },
         {
           "type": "null"
@@ -117,16 +117,16 @@
       "description": "Replace the shared IANA cap-day timezone override; null restores the default selected by budget_capping.timezone_basis (Account.timezone or fixed_timezone). A timezone change begins at the next boundary under the previously effective timezone."
     },
     "budget_allocation": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-budget-allocation.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-budget-allocation.json"
     },
     "pacing": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pacing.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pacing.json",
       "description": "Replace aggregate media-buy pacing. In seller-optimized allocation, a seller declaring media_buy.features.seller_optimized_budget MUST accept omission and `even`; it MAY reject `asap` or `front_loaded` with UNSUPPORTED_FEATURE (error.field `pacing`) before any provider mutation and MUST NOT silently coerce them to `even`. Fixed-allocation semantics are unchanged."
     },
     "bidding": {
       "anyOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/bidding-policy.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/bidding-policy.json"
         },
         {
           "type": "null"
@@ -145,12 +145,12 @@
         }
       },
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/package-control.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/package-control.json"
       },
       "minItems": 1
     },
     "reporting_webhook": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-webhook.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-webhook.json"
     },
     "governance_context": {
       "type": "string",
@@ -158,13 +158,13 @@
       "maxLength": 4096
     },
     "push_notification_config": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json"
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

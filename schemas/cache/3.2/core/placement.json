@@ -45,7 +45,7 @@
           "$ref": "#/definitions/ProductDoohScreenResolution"
         },
         "motion": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/dooh-motion-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/dooh-motion-type.json",
           "description": "Physical motion capability of a visual DOOH screen, not an accepted-format declaration. Omit for audio-only placements."
         }
       },
@@ -95,7 +95,7 @@
       "description": "For publisher_ref, the domain whose adagents.json declares the placement and part of canonical identity. For seller_inline, optional inventory-publisher attribution only; it does not grant the seller authority to mint IDs in that publisher's catalog namespace."
     },
     "seller_agent": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/seller-agent-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/seller-agent-ref.json",
       "description": "Sales agent that defines a seller_inline placement. Together with placement_id this is its self-contained identity. New 3.2 sellers SHOULD populate it; legacy product-context inline placements may omit it. Not used for publisher_ref."
     },
     "name": {
@@ -127,7 +127,7 @@
       "deprecated": true,
       "description": "Deprecated in AdCP 3.2; removed in AdCP 4.0. Legacy named-format placement narrowing. Can include concrete, template, or parameterized format IDs. When present on a product placement, this field narrows the product-level `format_ids` contract and MUST NOT introduce formats the product does not accept. Use canonical `format_options`.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
       },
       "minItems": 1
     },
@@ -135,7 +135,7 @@
       "type": "array",
       "description": "Canonical seller-side narrowing for this product placement. When present, these declarations are intersected with the product-level format_options and MUST NOT introduce a format outside that product upper bound. For kind publisher_ref, buyers MUST also resolve {publisher_domain, placement_id} in the publisher's adagents.json and intersect the publisher catalog constraint: use the public placement's format_options when present (resolving bare format_option_id references against same-file top-level formats[]), otherwise use applicable top-level formats[] scoped to that placement's properties. Omitting this inline field removes only the seller-inline layer; it does not bypass a publisher placement or property-scoped narrowing. The placement inherits the full product-level set only when no applicable publisher catalog narrowing exists. Unresolved publisher placement or format-option references fail closed. Locale policy participates in the same intersection: when the product policy is absent, a placement may introduce any concrete policy as a narrowing of the unconstrained option; when both are present, every placement accepted_language_range must be contained by a product range under RFC 4647 Basic Filtering (`fr-CA` narrows `fr`; `fr` does not narrow `fr-CA`). Buyers compute effective locale eligibility independently for each placement. Any effective locale-constrained route is canonical-only and has no projecting product or placement format_id.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-format-declaration.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-format-declaration.json"
       },
       "minItems": 1
     },
@@ -143,7 +143,7 @@
       "type": "array",
       "description": "Declared video placement types for this product placement, using IAB Tech Lab/OpenRTB 2.6 video.plcmt definitions with AdCP-native names. Most concrete placements SHOULD declare a single value; aggregate placements MAY declare multiple values. This is seller-declared discovery metadata, not independent verification of inventory quality or delivery context.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/video-placement-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/video-placement-type.json"
       },
       "uniqueItems": true,
       "minItems": 1
@@ -152,7 +152,7 @@
       "type": "array",
       "description": "Declared audio distribution types for this product placement, using IAB Tech Lab/OpenRTB 2.6 audio.feed definitions with AdCP-native names. Most concrete placements SHOULD declare a single value; aggregate placements MAY declare multiple values. This is seller-declared discovery metadata, not independent verification of inventory quality or delivery context.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audio-distribution-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audio-distribution-type.json"
       },
       "uniqueItems": true,
       "minItems": 1
@@ -161,7 +161,7 @@
       "type": "array",
       "description": "Declared sponsored-placement types for this product placement, distinguishing where the catalog-driven retail-media placement renders on the retailer surface. Most concrete placements SHOULD declare a single value; aggregate placements MAY declare multiple values. This is seller-declared discovery metadata, not independent verification of inventory quality or delivery context.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sponsored-placement-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sponsored-placement-type.json"
       },
       "uniqueItems": true,
       "minItems": 1
@@ -170,7 +170,7 @@
       "type": "array",
       "description": "Declared social-placement surfaces for this product placement, distinguishing the in-app surface where the social placement renders. Most concrete placements SHOULD declare a single value; aggregate placements MAY declare multiple values. This is seller-declared discovery metadata, not independent verification of inventory quality or delivery context.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/social-placement-surface.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/social-placement-surface.json"
       },
       "uniqueItems": true,
       "minItems": 1
@@ -182,7 +182,7 @@
         "type": "object",
         "properties": {
           "type": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/identifier-types.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/identifier-types.json"
           },
           "value": {
             "type": "string",

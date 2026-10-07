@@ -10,7 +10,7 @@
       "description": "Dimension family discriminator."
     },
     "geo_level": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/geo-level.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/geo-level.json",
       "description": "Geographic level for this forecast point."
     },
     "system": {
@@ -121,7 +121,7 @@
       "then": {
         "properties": {
           "system": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/metro-system.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/metro-system.json"
           }
         },
         "required": [
@@ -148,12 +148,12 @@
       "then": {
         "anyOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/postal-country-system.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/postal-country-system.json"
           },
           {
             "properties": {
               "system": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/legacy-postal-system.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/legacy-postal-system.json"
               }
             },
             "required": [

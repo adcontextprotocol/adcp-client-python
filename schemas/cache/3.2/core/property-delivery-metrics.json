@@ -9,7 +9,7 @@
   },
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
     },
     {
       "type": "object",
@@ -20,11 +20,11 @@
           "description": "Publisher or platform authority that namespaces the operational identifier, including when the surface is not registered in adagents.json."
         },
         "identifier": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/identifier.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/identifier.json",
           "description": "Primary operational identifier of the property that delivered. Required even when catalog enrichment is unavailable."
         },
         "property_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-ref.json",
           "description": "Canonical publisher-scoped catalog identity when the delivered property resolves to adagents.json. Its publisher_domain MUST equal the row's publisher_domain."
         },
         "property_name": {

@@ -4,7 +4,7 @@
   "description": "One equivalent trafficking representation retained within a CreativeRepresentationSet before seller binding. `representation_id` is stable within its parent revision and identifies a representation, not rotation, A/B content, build output, locale, or a seller's served execution variant.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-manifest.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-manifest.json"
     },
     {
       "required": [

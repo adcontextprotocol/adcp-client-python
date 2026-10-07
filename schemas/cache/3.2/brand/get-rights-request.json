@@ -5,7 +5,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     }
   ],
   "x-status": "experimental",
@@ -19,12 +19,12 @@
       "type": "array",
       "description": "Rights uses being requested. The agent returns options covering these uses, potentially bundled into composite pricing.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/right-use.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/right-use.json"
       },
       "minItems": 1
     },
     "buyer_brand": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
       "description": "The buyer's brand. The agent fetches the buyer's brand.json for compatibility filtering (e.g., dietary conflicts, competitor exclusions)."
     },
     "countries": {
@@ -41,7 +41,7 @@
       "x-entity": "rights_holder_brand"
     },
     "right_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/right-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/right-type.json",
       "description": "Filter by type of rights (talent, music, stock_media, etc.)"
     },
     "include_excluded": {
@@ -50,14 +50,14 @@
       "default": false
     },
     "pagination": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-request.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-request.json",
       "description": "Pagination parameters for large result sets"
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

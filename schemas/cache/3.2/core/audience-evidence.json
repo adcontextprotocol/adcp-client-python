@@ -27,7 +27,7 @@
       "description": "SHA-256 of the RFC 8785 (JCS) canonical evidence core with content_digest and attestation_refs omitted. Attestation references are excluded so independently issued credentials can be attached without changing the immutable evidence snapshot and without creating a recursive digest. This digest is required even when snapshot_id is present so buyers can detect identifier reuse or catalog drift."
     },
     "audience": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/audience-characteristic.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/audience-characteristic.json"
     },
     "relationship": {
       "type": "string",
@@ -90,21 +90,21 @@
       "description": "Nature of the evidence. Independent verification is represented separately by attestation_refs and never inferred from this value."
     },
     "methodology": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audience-evidence-methodology.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audience-evidence-methodology.json"
     },
     "subject_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audience-subject-type.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audience-subject-type.json"
     },
     "resolution_method": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audience-resolution-method.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audience-resolution-method.json",
       "description": "Optional subject-resolution method used by the study or estimate. This describes population methodology, not a promise that the product can execute that resolution at serving time."
     },
     "provider": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
       "description": "Brand responsible for producing the evidence."
     },
     "measurement_window": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/date-range.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/date-range.json"
     },
     "sample_size": {
       "type": "integer",
@@ -134,14 +134,14 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attestation-reference.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attestation-reference.json"
           },
           {
             "properties": {
               "subject": {
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attestation-subject.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attestation-subject.json"
                   },
                   {
                     "properties": {
@@ -175,7 +175,7 @@
       "maxItems": 10
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -158,12 +158,12 @@
     "rules": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/acceptance-policy-rule.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/acceptance-policy-rule.json"
       },
       "minItems": 1
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

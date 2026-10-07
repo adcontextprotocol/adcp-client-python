@@ -76,7 +76,7 @@
           "description": "Transport-managed conversation identifier. On A2A, this maps to the native Message/Task `contextId` used to associate messages with a conversation; it is not carried inside the AdCP DataPart. On MCP, a request-body `context_id`, where admitted by the selected request schema, is a compatibility-only field: servers MUST ignore it, callers MUST NOT rely on it for continuity, and it MUST NOT select session state, identity, account, authorization, task continuation, or idempotency scope. MCP continuity, if provided, comes from the transport session. Distinct from `context` (per-request opaque echo, see below) and from `task_id` (AdCP operation tracking)."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1context.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1context.json",
           "description": "Per-request opaque caller-supplied correlation object echoed unchanged in the response. Used for buyer-side tracking (UI session IDs, trace IDs, custom metadata) that the agent MUST preserve byte-for-byte without parsing. Distinct from `context_id` (transport-managed A2A conversation correlation or MCP compatibility metadata) \u2014 `context` is caller-owned echo and never selects transport state. Both MAY appear on the same response.\n\n**Relationship to per-task body-level `context` declarations.** Many task request/response schemas (147 as of 3.1) already declare a body-level `context` field that `$ref`s `/schemas/core/context.json` at the body root. Under the flat-on-the-wire MCP serialization (see `notes` below), envelope-level `context` and body-level `context` occupy the same key on the response root \u2014 they are NOT separate fields, they MUST share the same value, and they MUST both `$ref` `core/context.json`. The envelope declaration is **authoritative** for the schema definition; per-task body declarations are mirrors retained for tooling reasons (SDK codegen completeness, per-task validation against the response schema in isolation). Future versions MAY drop body-level `context` declarations from per-task schemas; conformance does not require either declaration to be present, only that the wire value `$ref`s `core/context.json`."
         },
         "task_id": {
@@ -85,7 +85,7 @@
           "x-entity": "task"
         },
         "status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1task-status.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1task-status.json",
           "description": "Current AdCP task state or structured outcome. Indicates whether the task completed, is in progress, was submitted for async processing, failed, requires user input, or returned a typed business rejection. REQUIRED on every task response envelope. Synchronous tasks (including read-only metadata calls like `get_adcp_capabilities`) normally emit `status: \"completed\"`; a task-specific rejection arm emits `status: \"rejected\"` without turning the transport into a failure. Async tasks emit `submitted`, `working`, `input-required`, etc. per their lifecycle. Agents MUST NOT emit the legacy task_status or response_status fields alongside this field \u2014 the status field is the single authoritative AdCP response state."
         },
         "message": {
@@ -103,11 +103,11 @@
           "default": false
         },
         "adcp_error": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1error.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1error.json",
           "description": "Transport-envelope error signal for fatal task failures. Per the two-layer model in `error-handling.mdx#envelope-vs-payload-errors-the-two-layer-model`, a fatal task failure SHOULD populate both this envelope-level field AND the payload's `errors[]` array \u2014 the envelope carries a typed, extractable error so MCP/A2A clients can dispatch without re-parsing the payload, while the payload's structured `errors[]` remains the canonical normative shape. Non-fatal warnings populate ONLY `payload.errors[]` with `severity: warning` \u2014 the envelope MUST NOT carry `adcp_error` for non-failures."
         },
         "push_notification_config": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1push-notification-config.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1push-notification-config.json",
           "description": "AdCP application-layer webhook configuration for async task updates over MCP, A2A, or REST. Echoed from the request to confirm webhook settings. It is distinct from transport-native progress or A2A TaskPushNotificationConfig delivery and can outlive the originating transport session."
         },
         "governance_context": {
@@ -475,7 +475,7 @@
               "type": "array",
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -579,7 +579,7 @@
           "deprecated": true,
           "description": "**DEPRECATED in 3.2.** Legacy named formats this transformer accepts as input. Use input_formats with canonical declarations.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1format-id.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1format-id.json"
           }
         },
         "output_format_ids": {
@@ -587,7 +587,7 @@
           "deprecated": true,
           "description": "**DEPRECATED in 3.2.** Legacy named formats this transformer can produce. Use output_capability_ids.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1format-id.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1format-id.json"
           },
           "minItems": 1
         },
@@ -597,7 +597,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1product-format-declaration.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1product-format-declaration.json"
               },
               {
                 "not": {
@@ -633,14 +633,14 @@
           "type": "array",
           "description": "Configuration knobs this transformer exposes. The buyer supplies values in build_creative `config`, keyed by each param's `field`. Enumerable param values (e.g. account-specific voices) are returned only when requested via list_transformers `expand_params`.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1transformer-param.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1transformer-param.json"
           }
         },
         "pricing_options": {
           "type": "array",
           "description": "Per-account rate-card options for using this transformer. Present when the list_transformers request set include_pricing=true with an account. The applied option is echoed back per-leaf on the build_creative response and reconciled via report_usage.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vendor-pricing-option.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vendor-pricing-option.json"
           },
           "minItems": 1
         },
@@ -847,14 +847,14 @@
           "description": "Namespace for `format_option_id` when this declaration references or narrows a publisher-declared format option from that publisher's adagents.json top-level `formats[]`. Product-local options omit this field and are selected by `format_option_id` within the target product."
         },
         "tracker_execution_contract": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1tracker-execution-contract.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1tracker-execution-contract.json",
           "description": "Seller- or publisher-authored commitment describing which first-class manifest trackers the selected format option accepts and initiates in production. The seller-returned Product declaration is binding; publisher and placement declarations are upstream inputs that the seller resolves into that effective contract. Presence requires a stable format_option_id. Creative-agent capability projections, transformer inputs, and deprecated canonical_parameters MUST reject this seller-authority field rather than copying it."
         },
         "macro_resolution_capabilities": {
           "type": "array",
           "minItems": 1,
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1macro-resolution-capability.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1macro-resolution-capability.json"
           },
           "description": "Binding format-option processing capabilities for exact macro dialect identities, semantics, operations, actors, contexts, and encodings. Absence means undeclared, not supported on the opt-in declared-token path. Seller-wide capabilities are only a ceiling. This field does not claim that a buyer tracker asset is honored or fired.",
           "x-adcp-validation": {
@@ -880,7 +880,7 @@
         "applies_to_channels": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1channels.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1channels.json"
           },
           "uniqueItems": true,
           "description": "Optional subset of the parent product's `channels` to which this declaration applies. When omitted, the declaration applies to ALL channels declared on the product. Lets a multi-channel product (e.g., `channels: ['display', 'video']`) carry distinct format_options per channel \u2014 `format_options: [{format_kind: 'image', applies_to_channels: ['display']}, {format_kind: 'video_hosted', applies_to_channels: ['video']}]`. Buyers ship channel-appropriate manifests per `applies_to_channels`."
@@ -895,7 +895,7 @@
           "description": "Optional soft routing hint *within* a product's accepted set of formats \u2014 NOT an enforcement axis. `preferred` \u2014 seller actively recommends this format (often because of measurement, viewability, or render-quality differences); `accepted` \u2014 supported on equal footing with other format_options (default when omitted); `discouraged` \u2014 supported but suboptimal (e.g., legacy 3p-tag where the seller would prefer html5 for OM-SDK coverage). Buyer agents picking between format_options SHOULD respect seller preferences when their own constraints don't override.\n\n**Not an enforcement axis (normative).** `seller_preference` does NOT carry the meaning of 'this format won't work / required-only'. That case is structural: `format_options[]` IS the closed set of accepted formats; anything outside the list is rejected at `create_media_buy` regardless of preference. A seller that accepts only one format lists exactly that one entry \u2014 the structural fact does the enforcement work, no enum value needed. There is intentionally no `required` value; preference is bounded to *ranking within the already-accepted set*, not gating into it."
         },
         "locale_policy": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1creative-locale-policy.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1creative-locale-policy.json",
           "description": "Optional seller-enforced creative-locale constraint for this format option. This is product/placement eligibility, not a new format kind or synthetic locale-specific format ID. Because legacy format_ids cannot preserve this constraint, declarations carrying locale_policy MUST set canonical_formats_only to true and MUST NOT carry v1_format_ref."
         },
         "canonical_formats_only": {
@@ -916,12 +916,12 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1format-id.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1format-id.json"
           },
           "description": "Authoritative v2 \u2192 v1 link, expressed as an array of one or more v1 `format_id` ({agent_url, id}) values. Each entry asserts that this canonical-formats declaration IS the same underlying format as the referenced v1 named format. Always an array (single-ref is `[{...}]`) so the multi-size case below has a clean wire shape \u2014 adopters surveyed in the SDK implementor review pushed for this over the lossy single-ref form.\n\nThe v2 declaration's `params` MUST narrow (be compatible with) each referenced v1 format's `requirements` \u2014 see the 'Narrows \u2014 formal definition' section in canonical-formats.mdx. SDKs comparing dual-emitted shapes (`Product.format_ids[]` \u2287 entries from `v1_format_ref` AND `Product.format_options[]` carrying this declaration) treat the link as the authoritative pairing and run the narrowing check between this declaration and EACH referenced v1 format file's `requirements`.\n\n**Multi-size fan-out (normative).** When the declaration carries `params.sizes: [{w,h}, ...]` (multi-size flexible slot), sellers SHOULD carry one `v1_format_ref[]` entry per size, each pointing at the per-size v1 named format in the AAO catalog. Example: a multi-size image declaration with `sizes: [300x250, 728x90, 970x250]` SHOULD carry `v1_format_ref: [{aao, display_300x250_image}, {aao, display_728x90_image}, {aao, display_970x250_image}]`. v1-only buyers then see the product on all three sizes via the `format_ids[]` dual-emission. When `v1_format_ref[]` count < `sizes[]` count, SDKs MUST emit `FORMAT_DECLARATION_V1_LOSSY_MULTI_SIZE` on the response `errors[]` (advisory, alongside the partial-coverage v1 emit \u2014 NOT in place of it). SDKs MAY (non-normative) fan out automatically by catalog lookup when `v1_format_ref[]` has length 1 and `sizes[]` has length N \u2014 opt-in, requires catalog access; sellers asserting refs is the source of truth.\n\nMutually exclusive with `canonical_formats_only: true` \u2014 a declaration can EITHER assert no v1 projection (`canonical_formats_only: true`) OR link to v1 named formats (`v1_format_ref[]`), never both. When neither is present, SDKs fall back to the resolution order in `v1-canonical-mapping.json` (seller's explicit `canonical` field on the v1 file \u2192 registry glob \u2192 structural match \u2192 fail-closed).\n\nThis is the v2-side authoritative replacement for the v1-side `canonical_parameters` field on `format.json` (which is deprecated for 3.1, removed at 4.0). Sellers SHOULD prefer authoring v2 declarations with `v1_format_ref[]` over mirroring the v2 shape onto v1 files via `canonical_parameters`; the directional link (v2 declaration \u2192 v1 identifiers) is the same fact without the parallel-shape drift surface.\n\n**AAO-hosted convention (normative).** For IAB-standard formats (image dimensions, VAST/DAAST tags, standard third-party tags, HTML5 banner bundles), sellers SHOULD point each `v1_format_ref[].agent_url` at the AAO-hosted canonical agent URL `https://creative.adcontextprotocol.org` and use the registry-published id (e.g., `display_300x250_image`, `video_vast_30s`, `audio_standard_30s`, `display_300x250_html`, `display_js`). This converges the v1-wire namespace: every seller's IAB MREC points at the same `{agent_url, id}` pair, so v1-only buyers' allowlists work uniformly. Without this convention, every publisher's 300x250 ships with a different `v1_format_ref` (theirs vs nytimes.example vs cnn.example vs \u2026) and the v1 wire fragments into per-publisher namespaces \u2014 exactly what canonical-formats was designed to eliminate.\n\nFor platform-specific formats (Meta Reels, TikTok Spark, Snap Spotlight, etc.), each `v1_format_ref[].agent_url` SHOULD point at the platform's own agent_url when the platform has adopted AdCP and publishes its own `adagents.json` with `formats[]`. When the platform has NOT adopted AdCP, sellers SHOULD point at the AAO community-registry mirror \u2014 `https://creative.adcontextprotocol.org/translated/<platform>` + `id: <platform-format-name>` (e.g., `https://creative.adcontextprotocol.org/translated/meta` + `id: meta_reels`). This keeps the v1 namespace converged across all sellers selling that platform's inventory until the platform owns its own adagents.json.\n\n**Platform-adoption cutover (normative).** When a platform adopts AdCP and publishes its own adagents.json, sellers MUST update `v1_format_ref[].agent_url` to the platform's adopted agent_url in the same minor release as the AAO mirror entry's `superseded_by` field goes live (see `static/schemas/source/adagents.json#superseded_by`). The AAO mirror entry SHOULD continue serving for \u22651 minor release after `superseded_by` is set, returning an advisory 'superseded' marker so v1 buyer allowlists keyed on the mirror URL get an explicit signal rather than a silent break. **Identity-confusion note**: the mirror URL is *format-shape namespace*, NOT seller identity. Inventory authorization always flows from `authorized_agents[]` + publisher signing keys; a buyer matching `v1_format_ref[].agent_url` against an allowlist is matching format-shape provenance, not seller identity.\n\n**Mirror domain migration (3.1).** Earlier drafts used `https://mirror.adcontextprotocol.org/translated/<platform>`. As of this release, the convention is `https://creative.adcontextprotocol.org/translated/<platform>` \u2014 sibling content under the AAO catalog domain we already host. Adopters who hardcoded the earlier mirror URL MUST migrate to the new path; the canonical-formats.mdx migration section documents the move. No transitional redirect is currently published (the earlier subdomain was never provisioned).\n\nFor seller-bespoke formats (a publisher's `acme_homepage_takeover` that doesn't fit IAB conventions), each `v1_format_ref[].agent_url` is the seller's own agent_url and the id is seller-namespaced. These won't appear in `v1-canonical-mapping.json`'s registry; they're seller-asserted only."
         },
         "format_schema": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1platform-extension-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1platform-extension-ref.json",
           "description": "REQUIRED when `format_kind: \"custom\"`; otherwise MUST be absent. URI+digest reference to a fetchable schema describing this custom shape's actual `params` and `slots`. Same hosting model as `platform_extensions`: open-ecosystem publishers host the artifact at the canonical URI on their subdomain; closed-platform / walled-garden shapes resolve through the AAO mirror at `https://creative.adcontextprotocol.org/translated/...`. Buyer agents fetch by `uri@digest` (immutable per digest, aggressive caching, `Cache-Control: public, max-age=31536000, immutable`), validate `params` and `slots` against the fetched schema, and reason about manifests structurally \u2014 same mechanic as platform_extensions but at the format-structure level. Without `format_schema`, custom shapes would be opaque to buyer agents and the protocol would regress to per-seller integration code; that's why the schema is required, not optional.\n\n**Fetch contract (normative)** \u2014 `format_schema` is load-bearing for validation (unlike `platform_extensions`, which is informational on the *consumption* side). The *transport* rules below apply identically to BOTH fields \u2014 any SDK fetching a `platform-extension-ref.json` URI MUST apply this contract regardless of whether the field name is `format_schema` or `platform_extensions`. A shared SDK fetch path that drops to the weakest bar undermines `format_schema`'s hardening. The consumption distinction (load-bearing vs informational) is about *what the body means*; the transport distinction is `https`-and-allowlisted regardless.\n\n- **Transport**: `https` only. Buyers MUST reject `http://`, `file://`, `data:`, and any non-`https` scheme. The URI MUST resolve to a JSON document that is itself a valid JSON Schema (Draft 07 or 2020-12; producers MUST declare `$schema`).\n- **SSRF protection**: buyers MUST resolve the URI hostname and reject if any resolved address is in RFC 1918 private space (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), loopback (`127.0.0.0/8`, `::1`), link-local (`169.254.0.0/16`, `fe80::/10`), CGNAT (`100.64.0.0/10`), or any RFC 6761 special-use name (`.local`, `.localhost`, `.internal`, `.test`, `.example`, `.invalid`). Cloud metadata endpoints (`169.254.169.254`, `metadata.google.internal`, `kubernetes.default.svc`) are explicitly forbidden \u2014 these are credential-leak primitives. Buyers MUST pin the connection to the resolved IP (or re-resolve and re-validate the allowlist per request) to defeat DNS rebinding.\n- **HTTP redirects**: MUST be disabled. If a follow is implemented at all, the redirect target MUST pass the same scheme + SSRF + allowlist checks; otherwise the fetch hard-fails. Open redirects on same-origin paths are otherwise a free SSRF primitive.\n- **Response size cap**: response body MUST be capped at 1 MiB. Enforce during streaming, not after full buffering. Over-cap hard-fails identically to digest mismatch.\n- **Timeout**: SDKs SHOULD apply a fetch timeout \u22645 seconds. Timeout SHOULD be treated identically to an HTTP 5xx response (transient \u2014 retry policy at the SDK's discretion; on persistent failure surface as unresolved and skip the declaration for this session).\n- **Digest verification**: SHA-256 of the response body MUST equal `digest`. **Digest mismatch is a hard fail** \u2014 the buyer MUST treat the format declaration as unresolvable and MUST NOT validate manifests against the mismatched body. A divergent digest is either a malicious substitution or producer error; either way, falling back to the un-verified body breaks the trust model. Digest format: `sha256:` prefix + 64 lowercase hex characters. Cache key is `uri@digest`; digest mismatch MUST NOT be cached as a negative result keyed on `uri` alone (defeats CDN-flap recovery), and MUST be distinguishable in telemetry from network 5xx / 404 (sustained mismatch is a substitution-attack signal, not a flap).\n- **Sandboxing of `$ref`**: fetched schemas MAY use `$ref`. Buyers MUST resolve `$ref` only to URIs that are (a) same-origin as the parent `format_schema.uri` after RFC 3986 \u00a76 normalization (lowercase scheme + host, strip default port, normalize path dot-segments, no userinfo component), OR (b) hosted under the AAO catalog domain (`https://creative.adcontextprotocol.org/...`), OR (c) intra-document JSON Pointer refs (`#/...`) bounded to the parent document's parsed tree. Cross-origin `$ref` to arbitrary URIs MUST be rejected. `$ref: file://...` MUST be rejected unconditionally. Transitive `$ref` chains MUST be bounded at depth \u22648 AND `$ref` count \u2264256 across the resolved tree (depth 8 with breadth 100 per level is 10^16 nodes \u2014 depth alone is not enough). Publishers SHOULD inline rather than $ref where possible.\n- **Schema-compile bounds (DoS protection)**: validators MUST bound CPU/memory on fetched schemas. Recommended: compiled-schema keyword count \u226410 000, `pattern` regexes evaluated with a non-backtracking engine (re2) OR under a per-pattern timeout, per-manifest validation budget \u2264250 ms (exceeded budget \u2192 treat manifest as invalid, surface telemetry signal). Without these, a 'valid' schema with catastrophic regex backtracking or exponential `allOf`/`anyOf` expansion pins a CPU forever.\n- **Cache**: buyers cache fetched schemas by `uri@digest` and treat them as immutable (the same hosting contract as `platform_extensions`). On `404`, network partition, or persistent fetch failure, buyers SHOULD degrade gracefully (treat the declaration as unresolved, skip it for the current `get_products` response, surface via `errors[]` with the relevant code) rather than failing the entire session.\n- **Schema-not-valid handling**: if the fetched body parses as JSON but is not a valid JSON Schema, the buyer MUST treat the declaration as unresolvable (same as digest mismatch) and surface via `errors[]`. Validators MUST NOT attempt partial validation against an invalid schema.\n- **AAO catalog trust**: `https://creative.adcontextprotocol.org/*` is a single trust anchor in the same-origin allowlist; compromise of the catalog domain or its CA compromises every buyer agent. Catalog-served bodies MUST be digest-pinned identically to origin fetches (the digest is on the *parent* `format_schema.uri@digest`, not on the catalog response). Future hardening (signed bodies, transparency log) is tracked separately."
         }
       },
@@ -1066,7 +1066,7 @@
               "const": "image"
             },
             "params": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1image.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1image.json"
             }
           },
           "required": [
@@ -1082,7 +1082,7 @@
               "const": "html5"
             },
             "params": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1html5.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1html5.json"
             }
           },
           "required": [
@@ -1098,7 +1098,7 @@
               "const": "display_tag"
             },
             "params": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1display_tag.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1display_tag.json"
             }
           },
           "required": [
@@ -1114,7 +1114,7 @@
               "const": "image_carousel"
             },
             "params": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1image_carousel.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1image_carousel.json"
             }
           },
           "required": [
@@ -1130,7 +1130,7 @@
               "const": "video_hosted"
             },
             "params": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1video_hosted.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1video_hosted.json"
             }
           },
           "required": [
@@ -1146,7 +1146,7 @@
               "const": "video_vast"
             },
             "params": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1video_vast.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1video_vast.json"
             }
           },
           "required": [
@@ -1162,7 +1162,7 @@
               "const": "audio_hosted"
             },
             "params": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1audio_hosted.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1audio_hosted.json"
             }
           },
           "required": [
@@ -1178,7 +1178,7 @@
               "const": "audio_vast"
             },
             "params": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1audio_vast.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1audio_vast.json"
             }
           },
           "required": [
@@ -1194,7 +1194,7 @@
               "const": "audio_daast"
             },
             "params": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1audio_daast.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1audio_daast.json"
             }
           },
           "required": [
@@ -1210,7 +1210,7 @@
               "const": "sponsored_placement"
             },
             "params": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1sponsored_placement.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1sponsored_placement.json"
             }
           },
           "required": [
@@ -1226,7 +1226,7 @@
               "const": "native_in_feed"
             },
             "params": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1native_in_feed.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1native_in_feed.json"
             }
           },
           "required": [
@@ -1242,7 +1242,7 @@
               "const": "responsive_creative"
             },
             "params": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1responsive_creative.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1responsive_creative.json"
             }
           },
           "required": [
@@ -1258,7 +1258,7 @@
               "const": "agent_placement"
             },
             "params": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1agent_placement.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1agent_placement.json"
             }
           },
           "required": [
@@ -1274,7 +1274,7 @@
               "const": "seller_rendered_stateful_display"
             },
             "params": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1seller_rendered_stateful_display.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1seller_rendered_stateful_display.json"
             }
           },
           "required": [
@@ -1290,7 +1290,7 @@
               "const": "coordinated_placements"
             },
             "params": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1coordinated_placements.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1coordinated_placements.json"
             }
           },
           "required": [
@@ -1491,7 +1491,7 @@
         "honored": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1tracker-execution-selector.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1tracker-execution-selector.json"
           },
           "uniqueItems": true,
           "description": "Exact tracker/event selectors the seller accepts and initiates once per manifest instance for each logical event occurrence. selector_id and structural selector identity are each unique within this array."
@@ -1530,7 +1530,7 @@
               "const": "pixel_tracker"
             },
             "event": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1pixel-tracking-event.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1pixel-tracking-event.json"
             },
             "method": {
               "type": "string",
@@ -1543,12 +1543,12 @@
               "description": "Required only when event is custom."
             },
             "execution_actor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1tracker-execution-actor.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1tracker-execution-actor.json"
             },
             "firing_paths": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1tracker-firing-path.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1tracker-firing-path.json"
               },
               "minItems": 1,
               "uniqueItems": true,
@@ -1605,24 +1605,24 @@
               "const": "vast_tracker"
             },
             "vast_versions": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_versions"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_versions"
             },
             "vast_event": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_event"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_event"
             },
             "target": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_target"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_target"
             },
             "offset": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_offset"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_offset"
             },
             "execution_actor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1tracker-execution-actor.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1tracker-execution-actor.json"
             },
             "firing_paths": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1tracker-firing-path.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1tracker-firing-path.json"
               },
               "minItems": 1,
               "uniqueItems": true,
@@ -1640,7 +1640,7 @@
           ],
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json"
             }
           ],
           "additionalProperties": false
@@ -1659,24 +1659,24 @@
               "const": "daast_tracker"
             },
             "daast_versions": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_versions"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_versions"
             },
             "daast_event": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_event"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_event"
             },
             "target": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_target"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_target"
             },
             "offset": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_offset"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_offset"
             },
             "execution_actor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1tracker-execution-actor.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1tracker-execution-actor.json"
             },
             "firing_paths": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1tracker-firing-path.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1tracker-firing-path.json"
               },
               "minItems": 1,
               "uniqueItems": true,
@@ -1694,7 +1694,7 @@
           ],
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json"
             }
           ],
           "additionalProperties": false
@@ -1742,16 +1742,16 @@
       "type": "object",
       "properties": {
         "vast_event": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_event"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_event"
         },
         "target": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_target"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_target"
         },
         "offset": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_offset"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_offset"
         },
         "vast_versions": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_versions"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-tracker-constraints.json/$defs/vast_versions"
         }
       },
       "allOf": [
@@ -2113,7 +2113,7 @@
         "vast_versions": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1vast-version.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1vast-version.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -2140,16 +2140,16 @@
       "type": "object",
       "properties": {
         "daast_event": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_event"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_event"
         },
         "target": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_target"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_target"
         },
         "offset": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_offset"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_offset"
         },
         "daast_versions": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_versions"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_versions"
         }
       },
       "allOf": [
@@ -2276,7 +2276,7 @@
         "daast_versions": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1daast-version.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1daast-version.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -2305,7 +2305,7 @@
       "type": "object",
       "properties": {
         "dialect": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1macro-dialect.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1macro-dialect.json"
         },
         "dialect_namespace": {
           "type": "string",
@@ -2327,7 +2327,7 @@
           ]
         },
         "universal_semantic": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1universal-macro.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1universal-macro.json"
         },
         "operation": {
           "type": "string",
@@ -2337,7 +2337,7 @@
           ]
         },
         "performed_by": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1macro-resolver.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1macro-resolver.json"
         },
         "supported_contexts": {
           "type": "array",
@@ -2346,7 +2346,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1macro-value-context.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1macro-value-context.json"
               },
               {
                 "not": {
@@ -2361,12 +2361,12 @@
           "minItems": 1,
           "uniqueItems": true,
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1macro-encoding.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1macro-encoding.json"
           },
           "description": "Exact supported encoding profiles, not a maximum depth. Required for value resolution."
         },
         "translation_target": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1macro-translation-target.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1macro-translation-target.json"
         }
       },
       "required": [
@@ -2486,7 +2486,7 @@
             ],
             "properties": {
               "dialect_semantic": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1universal-macro.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1universal-macro.json"
               },
               "mapping_status": {
                 "const": "verified_universal"
@@ -2930,7 +2930,7 @@
           "minLength": 1
         },
         "dialect": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1macro-dialect.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1macro-dialect.json"
         },
         "dialect_namespace": {
           "type": "string",
@@ -2945,20 +2945,20 @@
           "minLength": 1
         },
         "mapping_status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1macro-mapping-status.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1macro-mapping-status.json"
         },
         "universal_semantic": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1universal-macro.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1universal-macro.json"
         },
         "next_operation": {
           "type": "string",
           "const": "resolve_value"
         },
         "performed_by": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1macro-resolver.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1macro-resolver.json"
         },
         "encoding": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1macro-encoding.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1macro-encoding.json"
         }
       },
       "required": [
@@ -3101,7 +3101,7 @@
             ],
             "properties": {
               "dialect_semantic": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1universal-macro.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1universal-macro.json"
               },
               "mapping_status": {
                 "const": "verified_universal"
@@ -3245,7 +3245,7 @@
           "type": "array",
           "description": "Concrete canonical BCP 47 language ranges accepted by this format option. RFC 4647 Basic Filtering is directional: seller range fr accepts variant fr-CA, but seller range fr-CA does not accept variant fr or fr-FR. Use zxx explicitly for language-neutral creative; und means unknown and is not a wildcard.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1locale-tag.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1locale-tag.json"
           },
           "minItems": 1,
           "maxItems": 50,
@@ -3315,7 +3315,7 @@
       "description": "Static image creative format. Slots: `image_main` (image asset, file or hosted URL), optional `headline` (text), `body_text` (text), `cta` (text/enum), `landing_page_url` (url). Tracking model: impression pixel + click URL via universal_macros, with optional viewability pixel. Distinct from `html5` (interactive bundles) and `display_tag` (third-party served). AR/dimensions narrow to specific sizes via product parameters \u2014 covers IAB display sizes (300x250, 728x90, 970x250, etc.) without a separate iab_size enum.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
         },
         {
           "title": "Size-mode mutex",
@@ -3679,18 +3679,18 @@
           "description": "Whether the product accepts buyer-uploaded assets. When `rejected`, the buyer cannot ship pre-rendered bytes directly \u2014 they must use build_creative (or sync_creatives with brief inputs or reference assets) so the seller produces or resolves the asset. Combined with `asset_source`, lets a product declare 'I produce assets from briefs and refuse buyer uploads' (asset_source=`seller_pre_rendered_from_brief`, buyer_asset_acceptance=`rejected`) or 'I accept existing post references, not uploaded bytes' (asset_source=`publisher_owned_reference`, buyer_asset_acceptance=`rejected`)."
         },
         "ctv_ad_experience": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1ctv-ad-experience.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1ctv-ad-experience.json",
           "description": "CTV experience this option serves. On `image` only `pause` and `screensaver` are valid \u2014 the image-plus-copy contract the major pause-ad sellers ingest (seller composites the frame; typical canvas 1920\u00d71080 or a transparent-region overlay). Other experiences route per the matrix in docs/creative/ctv-experiences.mdx."
         },
         "motion_level": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1motion-level.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1motion-level.json",
           "description": "Accepted motion class (AdCOM attrs 21-22; `full_motion` is invalid on a static image canonical)."
         },
         "activation_methods": {
           "type": "array",
           "uniqueItems": true,
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1activation-method.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1activation-method.json"
           },
           "description": "Viewer activation mechanisms this option offers (e.g. `qr_code` on a pause frame). Activations are engagement events, not impressions."
         }
@@ -3751,7 +3751,7 @@
           "type": "array",
           "description": "Platform-specific extensions narrowing the canonical (pixel ID shapes, conversion event taxonomies, platform-specific CTAs/destinations). Each extension is a URI+digest reference resolved against the bundled `extensions` map in get_products responses or fetched directly.\n\n**Collision precedence (normative).** When two or more `platform_extensions[]` entries on the same declaration extend the same target (e.g., both extend `tracking`) with overlapping field names, **array order is authoritative \u2014 later entries override earlier ones on a per-field basis** (last-in-array-wins). SDKs MUST surface the overlap via the `errors[]` array on the `get_products` response with a structured code (`FORMAT_DECLARATION_DIVERGENT` is appropriate when the overlap appears across dual-emitted shapes; a producer-self-emitted overlap on a single declaration SHOULD use the same code with `error.details: { collision_kind: \"platform_extension_field\", target, overlapping_fields, winning_extension_uri }`). Producers SHOULD avoid the collision by emitting one extension per target or by partitioning fields across extensions; the deterministic precedence is for last-resort consistency across SDK implementations, not a sanctioned merging strategy.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1platform-extension-ref.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1platform-extension-ref.json"
           }
         },
         "synthesis_nondeterministic": {
@@ -3849,7 +3849,7 @@
               "logo_slots": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1logo-slot.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1logo-slot.json"
                 },
                 "uniqueItems": true,
                 "description": "When `asset_group_id` is `logo`, renderer-facing brand.json logo slots acceptable for this format slot. Producers selecting from brand.json SHOULD prefer `logos[]` entries whose `slots[]` intersects this list, then apply `visual_guidelines.logo_usage_rules[]`."
@@ -3857,7 +3857,7 @@
               "required_logo_slots": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1logo-slot.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1logo-slot.json"
                 },
                 "uniqueItems": true,
                 "description": "Subset of `logo_slots` for which this format expects explicit logo coverage. A manifest or brand-derived logo pool SHOULD include at least one usable logo for each required slot; if coverage is missing, builders SHOULD surface a validation warning or approval mapping instead of guessing from prose."
@@ -4053,7 +4053,7 @@
         "required_connections": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1downstream-connection-requirement.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1downstream-connection-requirement.json"
           },
           "description": "Downstream platform connections or grants required to use this format declaration. These are in addition to the single AdCP caller credential. Use this when a platform product requires multiple downstream grants, such as an advertiser account connection plus a publisher identity or post authorization for published-post references."
         },
@@ -4333,7 +4333,7 @@
       "description": "Interactive HTML5 banner delivered as a zip archive. Slot: `html5_bundle` (zip asset). Tracking model: MRAID + IAB Open Measurement (OM-SDK) + click-tag macro substitution + backup image fallback. Receivers unpack the zip, validate internal structure, and serve from CDN. Distinct from `image` (static, non-interactive) and `display_tag` (third-party served). The zip's entry point is typically `index.html`; click handling uses `clickTag` (or `clickTAG`) macro substitution.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
         },
         {
           "title": "Size-mode mutex",
@@ -4647,7 +4647,7 @@
       "description": "Third-party-served display creative delivered as one of three explicit representations: a single ad-request URL, byte-preserved inline markup, or an atomic paired redirect (`ad_request_url` plus `clickthrough_url`). The backward-compatible default slot remains `tag_url` (`url_type: ad_request`). Format options accepting inline or paired delivery override `slots` with a `display_tag` asset and declare `supported_delivery_types`. Tracking is opaque to the seller except for declared macro resolution. Distinct from `image` and seller-hosted `html5` zip bundles.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
         },
         {
           "title": "Size-mode mutex",
@@ -4948,7 +4948,7 @@
       "description": "Multi-card swipeable carousel. The buyer ships a `cards` slot whose value is an **array** of [card-asset](/schemas/core/assets/card-asset.json) objects (a single key with an array value \u2014 NOT one key per card, NOT dotted/bracketed paths). Each card-asset carries: `asset_type: \"card\"`, `media` (an image or video asset), optional `headline` (text), optional `landing_page_url` (url asset). Per-card structure is the same across all cards; mixed orientations not allowed within a single carousel. Tracking model: per-card impression and engagement pixels + carousel-level engagement (swipe, view-time). Allowed asset types for a card's `media` field: `image` and `video` (Meta-style mixed-media); platforms can narrow to image-only or video-only via `allowed_card_media_asset_types`.\n\nThe manifest's `assets.cards` value is an array of card-asset objects. Example: `\"cards\": [{\"asset_type\": \"card\", \"media\": {\"asset_type\": \"image\", \"url\": \"...\"}, \"headline\": \"Buy now\", \"landing_page_url\": {\"asset_type\": \"url\", \"url_type\": \"clickthrough\", \"url\": \"...\"}}, ...]`. Each card-asset validates against the card schema; per-card platform extensions attach via the card's `platform_extensions` field, never via inline non-canonical keys.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
         }
       ],
       "properties": {
@@ -5053,7 +5053,7 @@
       "description": "Direct video file (mp4/webm/mov) hosted by the buyer. Slot: `video_main` (video asset, file or hosted URL), optional `headline`, `brand_name`, `cta`, `companion_banner`, `landing_page_url`. Tracking model: IAB Open Measurement SDK + external impression/click/quartile pixels via universal_macros. Orientation is a parameter (vertical 9:16 / horizontal 16:9 / square 1:1); slot shape includes optional `brand_name` (typical for vertical short-form) and optional `companion_banner` (typical for horizontal instream). Distinct from `video_vast` (VAST tag, inherent VAST event tracking) \u2014 receivers fire impression and click pixels at delivery time.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
         },
         {
           "if": {
@@ -5290,7 +5290,7 @@
           "description": "Whether the product accepts buyer-uploaded video. When `rejected`, the buyer cannot ship a video asset directly \u2014 they must use build_creative, sync_creatives with brief inputs, or sync_creatives with an accepted reference asset so the seller produces or resolves the video."
         },
         "ctv_ad_experience": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1ctv-ad-experience.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1ctv-ad-experience.json",
           "description": "CTV experience this option serves. On `video_hosted` only `screensaver` is valid (ambient looping video the platform plays on idle). Other experiences route per the matrix in docs/creative/ctv-experiences.mdx; linear CTV video declares no experience."
         }
       },
@@ -5336,19 +5336,19 @@
         "vast_versions": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1vast-version.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1vast-version.json"
           },
           "minItems": 1,
           "uniqueItems": true,
           "description": "VAST versions accepted by this product format option. The asset still declares exactly one `vast_version`; compatibility requires membership in this set and the seller-wide execution set."
         },
         "vast_version": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1vast-version.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1vast-version.json",
           "deprecated": true,
           "description": "Deprecated one-element alias for `vast_versions`. Producers use either the singular legacy alias or the plural 3.2 field, never both."
         },
         "media_file_requirements": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-media-file-requirements.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-media-file-requirements.json",
           "description": "Technical acceptance constraints for alternative VAST MediaFile renditions. Each applicable resolved InLine linear creative needs at least one MediaFile satisfying all declared constraints."
         },
         "vpaid_enabled": {
@@ -5411,18 +5411,18 @@
           "description": "Required VAST creative class: `linear` (in-stream Linear), `nonlinear` (NonLinearAds overlay-class), or `either`. Supersedes `linear_required`; when both are present `creative_type` wins, and validators treat `linear_required: true` with no `creative_type` as `linear`."
         },
         "ctv_ad_experience": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1ctv-ad-experience.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1ctv-ad-experience.json",
           "description": "CTV experience this option is eligible to serve. On video_vast only `pause`, `screensaver`, `overlay`, `squeezeback`, and `in_scene` are valid (`menu` routes to native_in_feed or sponsored_placement), and `creative_type` MUST be `nonlinear`. Because VAST places `<InteractiveCreativeFile>` only under Linear `<MediaFiles>`, `simid_supported` MUST NOT be true on any of these NonLinear profiles. Per-experience floors: `overlay` and `squeezeback` require a 10s minimum duration; `in_scene` requires a 3s minimum brand-exposure duration and forbids interactivity (`vpaid_enabled` MUST NOT be true); `pause` has no duration floor and ends on viewer or device action."
         },
         "motion_level": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1motion-level.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1motion-level.json",
           "description": "Accepted motion class for the rendered creative (AdCOM attrs 21-23)."
         },
         "activation_methods": {
           "type": "array",
           "uniqueItems": true,
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1activation-method.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1activation-method.json"
           },
           "description": "Viewer activation mechanisms this option offers. Activations are engagement events, not impressions."
         },
@@ -5446,7 +5446,7 @@
       },
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
         },
         {
           "if": {
@@ -5520,7 +5520,7 @@
         "delivery_methods": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1vast-media-delivery-method.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1vast-media-delivery-method.json"
           },
           "minItems": 1,
           "uniqueItems": true,
@@ -5616,7 +5616,7 @@
       "description": "Direct audio creative \u2014 buyer ships an `audio` asset (mp3/aac/wav) for asset-driven products, or ships a `script` / `creative_brief` text asset for products where the seller produces audio internally (podcast host-reads, TTS synthesis). Optional companion slots: `companion_image`, `brand_name`, `landing_page_url`. Tracking model: standard impression + completion + companion-image-click pixels via universal_macros. Distinct from `audio_daast` (DAAST tag, inherent DAAST event tracking). For host-reads and synthesized audio, the format declares `asset_source: 'publisher_host_recorded'` or `'agent_synthesized'` plus `buyer_asset_acceptance: 'rejected'`; the format's `slots` declaration enumerates which assets the buyer ships (e.g., `script` text asset for host-reads). The seller decides how to consume each asset (render verbatim vs produce audio from text) \u2014 there is no separate manifest 'inputs' map; everything the buyer ships goes in `assets`.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
         }
       ],
       "properties": {
@@ -5788,19 +5788,19 @@
         "vast_versions": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1vast-version.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1vast-version.json"
           },
           "minItems": 1,
           "uniqueItems": true,
           "description": "VAST audio versions accepted by this product format option. Standardized audio support begins at VAST 4.1; listing 2.0, 3.0, or 4.0 explicitly declares seller-supported legacy audio interoperability rather than standards-conformant VAST audio. The asset declares exactly one vast_version; compatibility requires membership in this set and the seller-wide execution set."
         },
         "vast_version": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1vast-version.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1vast-version.json",
           "deprecated": true,
           "description": "Deprecated one-element alias for vast_versions. Producers use either the singular legacy alias or the plural 3.2 field, never both. VAST 4.1+ is the standards-conformant audio profile; older values declare legacy audio interoperability."
         },
         "media_file_requirements": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-media-file-requirements.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1vast-media-file-requirements.json",
           "description": "Technical acceptance constraints for alternative audio MediaFile renditions in each resolved InLine linear creative. Declared MIME types must be audio/*; visual-dimension constraints are invalid because VAST represents audio MediaFiles with width and height 0."
         },
         "duration_ms_range": {
@@ -5838,7 +5838,7 @@
       },
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
         }
       ],
       "x-adcp-validation": {
@@ -5918,7 +5918,7 @@
       "description": "DAAST-tag-delivered audio creative (audio analog of VAST). Slot: `daast_tag` (daast asset, URL or inline XML). Tracking model: DAAST events inherent to the spec \u2014 `impression`, `firstQuartile`, `midpoint`, `thirdQuartile`, `complete`, `start`, `pause`, `resume`, `mute`, `unmute`, `clickTracking`, `error`. Distinct from `audio_hosted` (direct file with external tracking).",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
         }
       ],
       "properties": {
@@ -5938,12 +5938,12 @@
           "description": "Default slots for audio_daast canonical. Buyer ships a DAAST tag (URL or inline XML, 1.0 or 1.1) plus an optional clickthrough URL. Tracking events are inherent to DAAST and don't require explicit slots."
         },
         "daast_version": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1daast-version.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1daast-version.json",
           "deprecated": true,
           "description": "Deprecated one-element alias for `daast_versions`. Producers use either the singular legacy alias or the plural 3.2 field, never both."
         },
         "daast_versions": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_versions",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1daast-tracker-constraints.json/$defs/daast_versions",
           "description": "Accepted DAAST versions for this format option. A tracker execution selector's daast_versions must be a nonempty subset of this set."
         },
         "duration_ms_range": {
@@ -5988,7 +5988,7 @@
       "description": "Catalog-driven retail-media format. Slot: `source_catalog` (catalog asset \u2014 product/SKU/ASIN/GTIN catalog reference, REQUIRED), optional `hero_asset`, optional `landing_page_url`. Buyer supplies the catalog reference; surface composes per-item or multi-item rendering using its native placement template. **Composition is deterministic** \u2014 buyer can predict per-slot rendering from the catalog item structure. Tracking model: per-item impression + click + conversion (catalog-keyed via offering_id/sku/gtin macros). Covers Amazon Sponsored Products, Criteo Sponsored Products, CitrusAd Sponsored Products, Walmart Connect Sponsored Products, Pinterest Collection (catalog-driven mode).\n\n**Scope (normative \u2014 buyer-agent routing).** This canonical is the home for catalog-driven retail-media placements ONLY. The defining feature is the `source_catalog` slot \u2014 products under this canonical compose their creative *per catalog item* using the buyer-supplied catalog feed. Without a catalog feed there is nothing to render against. Buyer agents reading `format_kind: sponsored_placement` MUST attach a catalog reference; sellers MUST require `source_catalog` in the manifest.\n\n**Not this canonical (route elsewhere):**\n- IAB in-feed native ads, content-recommendation widgets (Taboola, Outbrain, Yahoo Native, AdMob Native, in-feed sponsored cards) \u2014 use `native_in_feed` (asset-bundle composition; no catalog).\n- Algorithmic surface that picks from a buyer-supplied asset pool (Google PMax, Meta Advantage+) \u2014 use `responsive_creative`.\n- Single-image or single-video creative \u2014 use `image` or `video_hosted`.\n\nThe earlier broader framing ('any sponsored placement') was too loose for buyer-agent routing \u2014 a buyer reading `sponsored_placement` couldn't disambiguate a catalog-driven Amazon SP from an in-feed Taboola widget. As of 3.1, the canonical is narrowed to catalog-keyed retail-media; native moves to `native_in_feed`. Distinct from `responsive_creative` (algorithmic combinator from buyer pool) and `agent_placement` (text/audio AI-surface composition).",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
         },
         {
           "if": {
@@ -6040,7 +6040,7 @@
         "supported_catalog_types": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1catalog-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1catalog-type.json"
           },
           "description": "Catalog types this product accepts."
         },
@@ -6107,7 +6107,7 @@
           "description": "How each per-item creative is produced. Covers the same production-source axis as `asset_source` on `image` / `video_hosted` / `audio_hosted` but with a 4-value subset \u2014 drops `publisher_host_recorded` because it's audio-specific and doesn't apply to retail-media catalog placements. SDK codegen MAY share a base enum and narrow per-canonical, or emit two distinct enums; either way the wire values overlap exactly for the 4 retained values. `buyer_uploaded` (default, current Amazon/Criteo/CitrusAd pattern): the buyer's catalog already contains rendered assets per item; the seller composes the placement using those assets. (\"Uploaded\" reads slightly off for catalog-keyed items where the buyer didn't actively upload bytes \u2014 the catalog ingestion already supplied them \u2014 but the semantic is the same: rendered bytes are buyer-supplied, not seller-produced.) `seller_pre_rendered_from_brief`: the buyer ships a brief plus the catalog reference; the seller renders one creative per catalog item from the brief at sync_creatives time. `seller_human_designed`: seller's design team produces per-item renders manually. `agent_synthesized`: AI synthesis pipeline produces per-item renders; pair with `synthesis_nondeterministic: true` for Veo/Sora-class generative video applied per item. Captures the multi-output generative pattern (1 brief \u00d7 N catalog items \u2192 N rendered creatives) under the existing canonical without requiring a separate canonical. Distinct from `fanout_mode`, which describes how items map to delivery slots after rendering."
         },
         "ctv_ad_experience": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1ctv-ad-experience.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1ctv-ad-experience.json",
           "description": "CTV experience this option serves. On `sponsored_placement`: `menu` (sponsored app/content tiles and rows whose assets derive from a catalog listing \u2014 Fire-TV-tile pattern), `squeezeback`, and `in_scene` (seller-composited brand integrations produced from the catalog/brief rather than a buyer wire creative). Asset-bundle menu heroes route to `native_in_feed`."
         }
       },
@@ -6144,7 +6144,7 @@
       "description": "IAB-shaped native creative for in-feed and content-recommendation surfaces. Default slots cover the primary IAB OpenRTB Native 1.2 asset types \u2014 `title` (Title Asset), `body_text` (Data Asset type 2), `main_image` (Image Asset main), `icon` (Image Asset icon), `cta` (Data Asset type 12), `advertiser_name` (Data Asset type 1), `sponsored_label` (Title-adjacent), `landing_page_url` (Link Asset), `display_url` (Data Asset type 11 \u2014 visible URL/domain, distinct from clickthrough), `rating` (Data Asset type 3 \u2014 app/product rating), `price` (Data Asset type 6 \u2014 product price), plus renderer-fired `impression_tracker` / `viewability_tracker` / `click_tracker` (`pixel_tracker`). Products MAY use `slots_override` to add other IAB Native data asset types (likes \u2014 type 4, downloads \u2014 type 5, saleprice \u2014 type 7, phone_number \u2014 type 8, address \u2014 type 9, desc2 \u2014 type 10, etc.) or to remove slots the surface doesn't render. The publisher's renderer assembles these into its own look-and-feel \u2014 feed card, content-recommendation slot, in-stream native unit. Buyer ships a single asset bundle; the surface chooses presentation.\n\n**Scope (normative \u2014 buyer-agent routing).** This canonical is the home for:\n- IAB OpenRTB Native 1.2 in-feed native ads (publisher feeds, app feeds)\n- Content-recommendation widgets (Taboola, Outbrain, Yahoo Recommendations)\n- AdMob Native / Yahoo Native publisher slots\n- In-feed sponsored placements without catalog dependency\n\n**Not this canonical:**\n- Catalog-driven retail-media (Amazon SP, Criteo SP, CitrusAd SP) \u2014 use `sponsored_placement` (requires `source_catalog`).\n- Algorithmic surface that picks from a buyer-supplied asset pool (Google PMax, Meta Advantage+) \u2014 use `responsive_creative`.\n- Multi-card carousel \u2014 use `image_carousel`.\n- Video-first native units where the asset is a hosted video file \u2014 use `video_hosted` with `applies_to_channels: [\"native\"]`. (Distinct from the CTV menu profile: a menu hero remains this canonical because the platform assembles the full asset bundle and the video rides the Native 1.2 `vasttag` video asset, playing on focus rather than being the unit itself.)\n\nDistinct from `sponsored_placement` along the catalog axis: native_in_feed is asset-bundle composition; sponsored_placement is catalog-row composition. A buyer agent reading `format_kind: native_in_feed` knows to assemble title + image + body + CTA; reading `format_kind: sponsored_placement` knows to attach a catalog feed.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
         },
         {
           "if": {
@@ -6289,7 +6289,7 @@
           "description": "Default slot shape for native_in_feed. Mirrors IAB OpenRTB Native 1.2 asset types, including the Native video asset: `video` carries a VAST document (the Native 1.2 `vasttag` field) for video-bearing native units such as CTV menu heroes with focus-triggered playback. Products MAY override (`slots_override` on the projection ref) to narrow per-slot limits (`max_chars` on title/body) or remove unused slots (a content-recommendation slot that doesn't display an icon)."
         },
         "ctv_ad_experience": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1ctv-ad-experience.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1ctv-ad-experience.json",
           "description": "CTV experience this option serves. On native_in_feed `menu` and `overlay` are valid. `menu`: smart-TV home/menu surfaces where the platform assembles buyer assets (background/main image, logo/icon, copy, optional focus-triggered video); `menu_placement` selects the tile vs headline-banner variant, and catalog-derived sponsored tiles route to `sponsored_placement` instead. `overlay`: seller-composited in-stream overlays supplied as an asset bundle (video, logo, imagery, copy, activation copy) \u2014 the contract overlay sellers that do not ingest VAST tags use; VAST-ingesting sellers publish a `video_vast` sibling option instead. The wire name stays `native_in_feed` for 3.x even though neither surface is literally in-feed."
         },
         "menu_placement": {
@@ -6310,14 +6310,14 @@
           "description": "What happens when the viewer's remote focus lands on the unit. `autoplay_*` requires a `video` asset; playback method maps to AdCOM playbackmethod on OpenRTB bridges. Valid only with `ctv_ad_experience: \"menu\"`."
         },
         "motion_level": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1motion-level.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1motion-level.json",
           "description": "Accepted motion class for the rendered unit (AdCOM attrs 21-23)."
         },
         "activation_methods": {
           "type": "array",
           "uniqueItems": true,
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1activation-method.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:enums~1activation-method.json"
           },
           "description": "Viewer activation mechanisms this option offers (QR, deep link, send-to-device). Activations are engagement events, not impressions."
         },
@@ -6437,7 +6437,7 @@
       "description": "Buyer supplies a pool of typed assets (multiple headlines, descriptions, images, videos, logos); the surface algorithmically composes combinations per placement. **Composition is algorithmic** \u2014 surface picks combinations and reports per-asset performance breakdowns. Covers Google Responsive Display Ads (RDA), Responsive Search Ads (RSA), Performance Max (PMax), Demand Gen, and Meta Advantage+ creative. Industry term: \"Responsive\" (Google) / \"Advantage+ creative\" (Meta) / \"Dynamic Creative\" (older Meta term). Distinct from `sponsored_placement` (catalog-driven, deterministic) and `agent_placement` (AI-surface composition). The structured `slots` field below enumerates expected canonical asset_group_id slots; per-slot count/length narrowing lives in flat parameters (`headlines_min`, `headline_max_chars`, etc.).",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
         }
       ],
       "properties": {
@@ -6639,7 +6639,7 @@
       "description": "**3.2-track canonical.** The structural shape (algorithmic composition + brand-context input + optional offering/landing_page) is captured here so adopters can declare against it in 3.1 catalogs, but the **mention-level tracking contract is intentionally underspecified for 3.1**: no normative macro vocabulary, no postback shape, no cross-surface dedup model. Adopters claiming `agent_placement` in 3.1 ship private tracking integrations and SHOULD leave `experimental: true` on the product declaration that references this canonical; buyer agents MUST treat agent_placement attribution as adapter-defined until the 3.2 tracking-macro spec lands. The canonical promotes to a normatively-buyer-callable surface in 3.2 (or later) once the tracking contract is specified.\n\nSponsored placement integrated into an AI-surface's response to a user. Buyer supplies a `BrandRef` (resolving brand.json for context), an optional `offering_ref` to focus the mention on a specific offering, and an optional `landing_page_url` the surface MAY attach as a citation. The surface (LLM, voice assistant, sponsored-search ranker) composes a natural-language mention, sponsored card, or audio snippet within its response to a user query. **Composition is algorithmic** \u2014 the agent chooses phrasing and presentation. Output asset_type varies by surface: `text` for chat UIs and sponsored search snippets; `audio` (synthesized) for voice assistants; `card` for structured AI-surface result cards. Tracking model: mention-level impression + attribution events; per-mention id keys back to brand and offering \u2014 but see the 3.2-track note above; the wire shape of these events is not yet specified. Distinct from `si_chat` (which is the user-converses-with-brand's-agent pattern \u2014 brand owns the conversational surface) and from `sponsored_placement` (retail-media catalog-driven). Parallels `sponsored_placement` structurally: both are surface-composed placements; agent_placement is for AI/agentic surfaces, sponsored_placement is for retail media.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
         }
       ],
       "properties": {
@@ -6712,7 +6712,7 @@
       "description": "Seller-rendered display unit whose declaration is an executable template contract: buyer-known visual states, explicit transitions, breakpoint canvases, and per-state slot bindings. The seller owns the runtime; `supply_mode` declares which end the buyer feeds. For machine-rendered `components` and `rendered_canvases` supply, sellers MUST support `preview_creative` returning every state \u00d7 breakpoint from a candidate manifest. `layered_source` instead follows the asynchronous seller-production preview path after the declared production window. `composition_model: deterministic` describes serving the finished states, not instant derivation from layered source. Buyer-executable HTML/MRAID is `html5`, a buyer-delivered tag is `display_tag`, arbitrary games/hotspots/scripts remain `custom`, and per-impression algorithmic assembly is `responsive_creative`.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
         }
       ],
       "properties": {
@@ -7550,7 +7550,7 @@
           "type": "array",
           "description": "Rectangular areas constraining buyer artwork. Omitted state/breakpoint selectors apply the constraint to every canvas. For fluid or range-sized breakpoints, use percent-unit regions.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1canvas-constraint.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1canvas-constraint.json"
           }
         },
         "duration_ms_range": {
@@ -7776,7 +7776,7 @@
       "description": "One creative manifest atomically supplies assets for multiple declared product placements. Each component binds to a public `Product.placements[]` entry and either declares an inline non-custom canonical format or references a sibling format option on the same product. Components cannot nest coordinated placements. The manifest supplies component slots under `component_assets.<component_id>`; `shared_slots` assets are supplied once at top level. Inventory exclusivity remains `Product.exclusivity`, not a creative-format parameter. Ordinary products whose placements accept independently assigned creatives do not need this canonical.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1_base.json"
         }
       ],
       "properties": {
@@ -7818,7 +7818,7 @@
                 "description": "Stable coordination-local component identifier. Values MUST be unique within `components[]`."
               },
               "placement_ref": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1placement-ref.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1placement-ref.json",
                 "description": "Public product placement this component supplies. MUST resolve against the containing product's `placements[]`."
               },
               "required": {
@@ -7840,12 +7840,12 @@
               "canvas_constraints": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1canvas-constraint.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1canvas-constraint.json"
                 },
                 "description": "Artwork constraints applied to this component, including safe areas and seller-reserved regions."
               },
               "format_option_ref": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1format-option-ref.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1format-option-ref.json",
                 "description": "Reference to a sibling `format_options[]` entry on the same product. It MUST NOT resolve to `custom` or `coordinated_placements`."
               },
               "format_kind": {
@@ -7898,7 +7898,7 @@
                         "const": "image"
                       },
                       "params": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1image.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1image.json"
                       }
                     },
                     "required": [
@@ -7912,7 +7912,7 @@
                         "const": "html5"
                       },
                       "params": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1html5.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1html5.json"
                       }
                     },
                     "required": [
@@ -7926,7 +7926,7 @@
                         "const": "display_tag"
                       },
                       "params": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1display_tag.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1display_tag.json"
                       }
                     },
                     "required": [
@@ -7940,7 +7940,7 @@
                         "const": "image_carousel"
                       },
                       "params": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1image_carousel.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1image_carousel.json"
                       }
                     },
                     "required": [
@@ -7954,7 +7954,7 @@
                         "const": "video_hosted"
                       },
                       "params": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1video_hosted.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1video_hosted.json"
                       }
                     },
                     "required": [
@@ -7968,7 +7968,7 @@
                         "const": "video_vast"
                       },
                       "params": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1video_vast.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1video_vast.json"
                       }
                     },
                     "required": [
@@ -7982,7 +7982,7 @@
                         "const": "audio_hosted"
                       },
                       "params": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1audio_hosted.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1audio_hosted.json"
                       }
                     },
                     "required": [
@@ -7996,7 +7996,7 @@
                         "const": "audio_daast"
                       },
                       "params": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1audio_daast.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1audio_daast.json"
                       }
                     },
                     "required": [
@@ -8010,7 +8010,7 @@
                         "const": "sponsored_placement"
                       },
                       "params": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1sponsored_placement.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1sponsored_placement.json"
                       }
                     },
                     "required": [
@@ -8024,7 +8024,7 @@
                         "const": "native_in_feed"
                       },
                       "params": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1native_in_feed.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1native_in_feed.json"
                       }
                     },
                     "required": [
@@ -8038,7 +8038,7 @@
                         "const": "responsive_creative"
                       },
                       "params": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1responsive_creative.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1responsive_creative.json"
                       }
                     },
                     "required": [
@@ -8052,7 +8052,7 @@
                         "const": "agent_placement"
                       },
                       "params": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1agent_placement.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1agent_placement.json"
                       }
                     },
                     "required": [
@@ -8066,7 +8066,7 @@
                         "const": "seller_rendered_stateful_display"
                       },
                       "params": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1seller_rendered_stateful_display.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:formats~1canonical~1seller_rendered_stateful_display.json"
                       }
                     },
                     "required": [
@@ -8503,7 +8503,7 @@
               "deprecated": true,
               "description": "**DEPRECATED in 3.2.** Legacy named-format pricing scope. Use applies_to_output_capability_ids.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1format-id.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1format-id.json"
               },
               "minItems": 1
             },
@@ -8523,7 +8523,7 @@
           ]
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1signal-pricing.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1signal-pricing.json"
         }
       ]
     },
@@ -8555,7 +8555,7 @@
               "pattern": "^[A-Z]{3}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -8591,7 +8591,7 @@
               "pattern": "^[A-Z]{3}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -8631,7 +8631,7 @@
               "pattern": "^[A-Z]{3}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -8666,7 +8666,7 @@
               "pattern": "^[A-Z]{3}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -8710,7 +8710,7 @@
               "pattern": "^[A-Z]{3}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/list-transformers-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [

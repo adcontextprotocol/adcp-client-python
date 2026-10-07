@@ -8,7 +8,7 @@
   ],
   "properties": {
     "kind": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-kind.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-kind.json",
       "description": "The v2 canonical-format-kind this v1 format projects to (`image`, `html5`, `display_tag`, `image_carousel`, `video_hosted`, `video_vast`, `audio_hosted`, `audio_vast`, `audio_daast`, `sponsored_placement`, `native_in_feed`, `responsive_creative`, `agent_placement`, `seller_rendered_stateful_display`, `coordinated_placements`, or `custom`)."
     },
     "asset_source": {
@@ -28,7 +28,7 @@
       "minItems": 1,
       "description": "When the v1 named format's slot shape differs from the canonical's default slots, this carries the override that the projected v2 declaration's `params.slots[]` should use. REPLACES (does not merge with) the canonical's default slots \u2014 projection-time semantics. The slot vocabulary follows `asset-group-vocabulary.json`. Asset IDs in the v1 format's `assets[*]` MUST resolve (directly or via the vocabulary's aliases) to the `asset_group_id` values declared here.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-projection-slot-override.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-projection-slot-override.json"
       }
     }
   },

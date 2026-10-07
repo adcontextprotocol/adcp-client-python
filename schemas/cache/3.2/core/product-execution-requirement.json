@@ -19,13 +19,13 @@
           "type": "array",
           "description": "Event types that satisfy the requirement (any-of): the satisfying `event_sources[]` entry MUST use one of these `event_type` values. Omit when any event type satisfies it.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/event-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/event-type.json"
           },
           "minItems": 1,
           "uniqueItems": true
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -46,13 +46,13 @@
           "type": "array",
           "description": "Catalog types that satisfy the requirement (any-of). One catalog of any listed type satisfies it.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/catalog-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/catalog-type.json"
           },
           "minItems": 1,
           "uniqueItems": true
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -74,7 +74,7 @@
           "description": "The required connection. Account-independent: `status` is omitted or `unknown`; `resource_ref`, `connection_id`, and `expires_at` MUST be omitted; `required_for`, when present, includes `create_media_buy`.",
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/downstream-connection-requirement.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/downstream-connection-requirement.json"
             },
             {
               "properties": {
@@ -110,7 +110,7 @@
           ]
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [

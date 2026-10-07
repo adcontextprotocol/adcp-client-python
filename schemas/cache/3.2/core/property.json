@@ -5,11 +5,11 @@
   "type": "object",
   "properties": {
     "property_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-id.json",
       "description": "Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects."
     },
     "property_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/property-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/property-type.json",
       "description": "Type of advertising property"
     },
     "name": {
@@ -23,7 +23,7 @@
         "type": "object",
         "properties": {
           "type": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/identifier-types.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/identifier-types.json",
             "description": "Type of identifier for this property"
           },
           "value": {
@@ -43,7 +43,7 @@
       "type": "array",
       "description": "Tags for categorization and grouping (e.g., network membership, content categories)",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-tag.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-tag.json"
       },
       "uniqueItems": true
     },
@@ -51,7 +51,7 @@
       "type": "array",
       "description": "Advertising channels this property supports (e.g., ['display', 'olv', 'social']). Publishers declare which channels their inventory aligns with. Properties may support multiple channels. See the Media Channel Taxonomy for definitions.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/channels.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/channels.json"
       },
       "uniqueItems": true
     },

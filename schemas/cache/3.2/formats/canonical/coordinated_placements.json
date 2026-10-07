@@ -4,7 +4,7 @@
   "description": "One creative manifest atomically supplies assets for multiple declared product placements. Each component binds to a public `Product.placements[]` entry and either declares an inline non-custom canonical format or references a sibling format option on the same product. Components cannot nest coordinated placements. The manifest supplies component slots under `component_assets.<component_id>`; `shared_slots` assets are supplied once at top level. Inventory exclusivity remains `Product.exclusivity`, not a creative-format parameter. Ordinary products whose placements accept independently assigned creatives do not need this canonical.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/_base.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/_base.json"
     }
   ],
   "properties": {
@@ -46,7 +46,7 @@
             "description": "Stable coordination-local component identifier. Values MUST be unique within `components[]`."
           },
           "placement_ref": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/placement-ref.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/placement-ref.json",
             "description": "Public product placement this component supplies. MUST resolve against the containing product's `placements[]`."
           },
           "required": {
@@ -68,12 +68,12 @@
           "canvas_constraints": {
             "type": "array",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canvas-constraint.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canvas-constraint.json"
             },
             "description": "Artwork constraints applied to this component, including safe areas and seller-reserved regions."
           },
           "format_option_ref": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-option-ref.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-option-ref.json",
             "description": "Reference to a sibling `format_options[]` entry on the same product. It MUST NOT resolve to `custom` or `coordinated_placements`."
           },
           "format_kind": {
@@ -126,7 +126,7 @@
                     "const": "image"
                   },
                   "params": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/image.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/image.json"
                   }
                 },
                 "required": [
@@ -140,7 +140,7 @@
                     "const": "html5"
                   },
                   "params": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/html5.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/html5.json"
                   }
                 },
                 "required": [
@@ -154,7 +154,7 @@
                     "const": "display_tag"
                   },
                   "params": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/display_tag.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/display_tag.json"
                   }
                 },
                 "required": [
@@ -168,7 +168,7 @@
                     "const": "image_carousel"
                   },
                   "params": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/image_carousel.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/image_carousel.json"
                   }
                 },
                 "required": [
@@ -182,7 +182,7 @@
                     "const": "video_hosted"
                   },
                   "params": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/video_hosted.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/video_hosted.json"
                   }
                 },
                 "required": [
@@ -196,7 +196,7 @@
                     "const": "video_vast"
                   },
                   "params": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/video_vast.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/video_vast.json"
                   }
                 },
                 "required": [
@@ -210,7 +210,7 @@
                     "const": "audio_hosted"
                   },
                   "params": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/audio_hosted.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/audio_hosted.json"
                   }
                 },
                 "required": [
@@ -224,7 +224,7 @@
                     "const": "audio_daast"
                   },
                   "params": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/audio_daast.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/audio_daast.json"
                   }
                 },
                 "required": [
@@ -238,7 +238,7 @@
                     "const": "sponsored_placement"
                   },
                   "params": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/sponsored_placement.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/sponsored_placement.json"
                   }
                 },
                 "required": [
@@ -252,7 +252,7 @@
                     "const": "native_in_feed"
                   },
                   "params": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/native_in_feed.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/native_in_feed.json"
                   }
                 },
                 "required": [
@@ -266,7 +266,7 @@
                     "const": "responsive_creative"
                   },
                   "params": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/responsive_creative.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/responsive_creative.json"
                   }
                 },
                 "required": [
@@ -280,7 +280,7 @@
                     "const": "agent_placement"
                   },
                   "params": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/agent_placement.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/agent_placement.json"
                   }
                 },
                 "required": [
@@ -294,7 +294,7 @@
                     "const": "seller_rendered_stateful_display"
                   },
                   "params": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/seller_rendered_stateful_display.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/seller_rendered_stateful_display.json"
                   }
                 },
                 "required": [

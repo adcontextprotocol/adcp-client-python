@@ -8,7 +8,7 @@
       "type": "object",
       "properties": {
         "vendor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json"
         },
         "max_variance_percent": {
           "type": "number",
@@ -35,7 +35,7 @@
         "available_remedies": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/makegood-remedy.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/makegood-remedy.json"
           },
           "minItems": 1,
           "uniqueItems": true

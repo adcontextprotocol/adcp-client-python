@@ -17,12 +17,12 @@
       "description": "Identifies a specific variant of this artifact. Use for A/B tests, translations, or temporal versions. Examples: 'en', 'es-MX', 'v2', 'headline_test_b'. The combination of artifact_id + variant_id must be unique."
     },
     "format_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json",
       "deprecated": true,
       "description": "**DEPRECATED in 3.2.** Legacy named-format reference. Use `format_kind` for canonical artifact media classification."
     },
     "format_kind": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-kind.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-kind.json",
       "description": "Optional canonical media/creative kind associated with this artifact."
     },
     "url": {
@@ -97,7 +97,7 @@
                 "description": "Heading level (1-6), only for role=heading"
               },
               "provenance": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
                 "description": "Provenance for this text block, overrides artifact-level provenance"
               }
             },
@@ -140,7 +140,7 @@
                 "description": "Image height in pixels"
               },
               "provenance": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
                 "description": "Provenance for this image, overrides artifact-level provenance"
               }
             },
@@ -202,7 +202,7 @@
                 "description": "Video thumbnail URL"
               },
               "provenance": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
                 "description": "Provenance for this video, overrides artifact-level provenance"
               }
             },
@@ -257,7 +257,7 @@
                 "description": "How the transcript was generated"
               },
               "provenance": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
                 "description": "Provenance for this audio, overrides artifact-level provenance"
               }
             },
@@ -307,7 +307,7 @@
       "additionalProperties": true
     },
     "provenance": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
       "description": "Provenance metadata for this artifact. Serves as the default provenance for all assets within this artifact \u2014 individual assets can override with their own provenance."
     },
     "identifiers": {

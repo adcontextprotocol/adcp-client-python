@@ -4,7 +4,7 @@
   "description": "Third-party-served display creative delivered as one of three explicit representations: a single ad-request URL, byte-preserved inline markup, or an atomic paired redirect (`ad_request_url` plus `clickthrough_url`). The backward-compatible default slot remains `tag_url` (`url_type: ad_request`). Format options accepting inline or paired delivery override `slots` with a `display_tag` asset and declare `supported_delivery_types`. Tracking is opaque to the seller except for declared macro resolution. Distinct from `image` and seller-hosted `html5` zip bundles.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/_base.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/_base.json"
     },
     {
       "title": "Size-mode mutex",

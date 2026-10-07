@@ -71,7 +71,7 @@
       "deprecated": true,
       "description": "**DEPRECATED in 3.2.** Legacy named formats this transformer accepts as input. Use input_formats with canonical declarations.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
       }
     },
     "output_format_ids": {
@@ -79,7 +79,7 @@
       "deprecated": true,
       "description": "**DEPRECATED in 3.2.** Legacy named formats this transformer can produce. Use output_capability_ids.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
       },
       "minItems": 1
     },
@@ -89,7 +89,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-format-declaration.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-format-declaration.json"
           },
           {
             "not": {
@@ -125,14 +125,14 @@
       "type": "array",
       "description": "Configuration knobs this transformer exposes. The buyer supplies values in build_creative `config`, keyed by each param's `field`. Enumerable param values (e.g. account-specific voices) are returned only when requested via list_transformers `expand_params`.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/transformer-param.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/transformer-param.json"
       }
     },
     "pricing_options": {
       "type": "array",
       "description": "Per-account rate-card options for using this transformer. Present when the list_transformers request set include_pricing=true with an account. The applied option is echoed back per-leaf on the build_creative response and reconciled via report_usage.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-pricing-option.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-pricing-option.json"
       },
       "minItems": 1
     },

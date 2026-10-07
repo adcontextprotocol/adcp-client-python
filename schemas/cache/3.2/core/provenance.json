@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "digital_source_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/digital-source-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/digital-source-type.json",
       "description": "IPTC-aligned classification of AI involvement in producing this content"
     },
     "synthetic_depiction": {
@@ -115,7 +115,7 @@
         "type": "object",
         "properties": {
           "method": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/embedded-provenance-method.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/embedded-provenance-method.json",
             "description": "How provenance data is carried within the content"
           },
           "standard": {
@@ -166,7 +166,7 @@
         "type": "object",
         "properties": {
           "media_type": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/watermark-media-type.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/watermark-media-type.json",
             "description": "Media category of the watermarked content"
           },
           "provider": {
@@ -194,7 +194,7 @@
             "additionalProperties": false
           },
           "c2pa_action": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/c2pa-watermark-action.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/c2pa-watermark-action.json",
             "description": "C2PA action classification for this watermark"
           },
           "embedded_at": {
@@ -245,7 +245,7 @@
                 "minProperties": 1,
                 "properties": {
                   "persistence": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/disclosure-persistence.json",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/disclosure-persistence.json",
                     "description": "How long the disclosure must persist during content playback or display"
                   },
                   "min_duration_ms": {
@@ -257,13 +257,13 @@
                     "type": "array",
                     "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/disclosure-position.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/disclosure-position.json"
                     },
                     "minItems": 1,
                     "uniqueItems": true
                   },
                   "ext": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
                   }
                 }
               }
@@ -325,7 +325,7 @@
       }
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   }
 }

@@ -3258,7 +3258,7 @@
         },
         "required_for_products": {
           "type": "boolean",
-          "description": "Whether an account reference is required for get_products. When true, the buyer must establish an account before browsing products. When false (default), the buyer can browse products without an account \u2014 useful for price comparison and discovery before committing to a seller.",
+          "description": "Whether an account reference is required for get_products. When true, the buyer must establish an account before browsing products. When false (default), the buyer can browse products without an account \u2014 useful for price comparison and discovery before committing to a seller. Before an account is provisioned, the buyer omits account rather than sending a natural key that does not resolve yet. See /docs/accounts/overview#account-references-before-provisioning.",
           "default": false
         },
         "account_financials": {
@@ -11772,7 +11772,7 @@
         },
         "required_for": {
           "type": "array",
-          "description": "AdCP protocol operation names (e.g., 'create_media_buy') for which this agent rejects an unsigned request with request_signature_required unless an independently valid configured fallback authenticator succeeds. Not MCP tool names, A2A skill names, or any transport-specific rename \u2014 verifiers MUST NOT accept operation names that are not defined by the AdCP protocol spec. JSON-RPC protocol method names like `tasks/cancel` belong in `protocol_methods_required_for`, not here. Empty in 3.0 by default; sellers populate selectively during per-counterparty pilots. In 4.0 this list MUST include all spend-committing operations the agent supports (create_media_buy, acquire_*, etc.). Every operation listed MUST also appear in `supported_for`; see `x-adcp-validation`.",
+          "description": "AdCP protocol operation names (e.g., 'create_media_buy') for which this agent rejects an unsigned request with request_signature_required unless an independently valid configured fallback authenticator succeeds. A transport-specific rename of an operation is not a valid entry (MCP tools and the AdCP A2A profile use the operation name verbatim, so those names coincide with it) \u2014 verifiers MUST NOT accept operation names that are not defined by the AdCP protocol spec. Over MCP the verifier matches the tools/call params.name; over A2A it matches the skill of the sole DataPart of the message (SendMessage, SendStreamingMessage, message/send, message/stream, and the HTTP+JSON and gRPC equivalents). The A2A profile uses the AdCP operation name verbatim as skill, so that is the same name space. A request that does not resolve to exactly one operation is rejected with request_body_malformed; see docs/building/by-layer/L1/security.mdx#operation-resolution-over-a2a. JSON-RPC protocol method names like `tasks/cancel` belong in `protocol_methods_required_for`, not here. Empty in 3.0 by default; sellers populate selectively during per-counterparty pilots. In 4.0 this list MUST include all spend-committing operations the agent supports (create_media_buy, acquire_*, etc.). Every operation listed MUST also appear in `supported_for`; see `x-adcp-validation`.",
           "items": {
             "type": "string",
             "pattern": "^[a-z][a-z0-9_]*$"
@@ -11780,7 +11780,7 @@
           "default": [],
           "x-adcp-validation": {
             "subset_of": "request_signing.supported_for",
-            "spec": "docs/building/implementation/security.mdx#signed-requests-transport-layer"
+            "spec": "docs/building/by-layer/L1/security.mdx#signed-requests-transport-layer"
           }
         },
         "warn_for": {
@@ -11794,7 +11794,7 @@
           "x-adcp-validation": {
             "disjoint_with": "request_signing.required_for",
             "subset_of": "request_signing.supported_for",
-            "spec": "docs/building/implementation/security.mdx#signed-requests-transport-layer"
+            "spec": "docs/building/by-layer/L1/security.mdx#signed-requests-transport-layer"
           }
         },
         "supported_for": {
@@ -11989,7 +11989,7 @@
               "key_origins_consistency": "mandatory_when_signing"
             },
             "distinct_from": "sponsored_intelligence.brand_url",
-            "spec": "docs/building/implementation/security.mdx#discovering-an-agents-signing-keys-via-brand_json_url"
+            "spec": "docs/building/by-layer/L1/security.mdx#discovering-an-agents-signing-keys-via-brand_json_url"
           }
         },
         "per_principal_key_isolation": {
@@ -11999,7 +11999,7 @@
         },
         "key_origins": {
           "type": "object",
-          "description": "Map of signing-key surface/purpose \u2192 publishing origin, so counterparties can verify origin separation (e.g., governance keys served from a separate origin than transport/webhook keys) at onboarding. Absent means the operator has not declared a separation scheme; receivers SHOULD assume shared-origin. Every entry listed MUST have a corresponding signing posture declared elsewhere \u2014 `request_signing` requires non-empty `request_signing.supported_for`/`required_for`/`protocol_methods_supported_for`/`protocol_methods_required_for`; `webhook_signing` requires `webhook_signing.supported === true` and names the webhook delivery surface, not a required live `adcp_use: \"webhook-signing\"` key purpose \u2014 otherwise the consistency check at signature-verification time has nothing to anchor against. See `x-adcp-validation` and docs/building/implementation/security.mdx \u00a7Origin separation.",
+          "description": "Map of signing-key surface/purpose \u2192 publishing origin, so counterparties can verify origin separation (e.g., governance keys served from a separate origin than transport/webhook keys) at onboarding. Absent means the operator has not declared a separation scheme; receivers SHOULD assume shared-origin. Every entry listed MUST have a corresponding signing posture declared elsewhere \u2014 `request_signing` requires non-empty `request_signing.supported_for`/`required_for`/`protocol_methods_supported_for`/`protocol_methods_required_for`; `webhook_signing` requires `webhook_signing.supported === true` and names the webhook delivery surface, not a required live `adcp_use: \"webhook-signing\"` key purpose \u2014 otherwise the consistency check at signature-verification time has nothing to anchor against. See `x-adcp-validation` and docs/building/by-layer/L1/security.mdx \u00a7Origin separation.",
           "properties": {
             "governance_signing": {
               "type": "string",
@@ -12032,7 +12032,7 @@
                 "tmp_signing": "trusted_match.surfaces non-empty (TMP participation)"
               }
             },
-            "spec": "docs/building/implementation/security.mdx#origin-separation"
+            "spec": "docs/building/by-layer/L1/security.mdx#agent-key-publication"
           }
         },
         "compromise_notification": {
@@ -13411,7 +13411,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-10-01T01:51:55.155Z",
+    "generatedAt": "2026-10-07T17:05:07.764Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

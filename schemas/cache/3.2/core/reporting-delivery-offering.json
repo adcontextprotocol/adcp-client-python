@@ -101,7 +101,7 @@
         "primary_keys": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-canonicalization-contract.json#/definitions/ReportingPrimaryKey"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-canonicalization-contract.json#/definitions/ReportingPrimaryKey"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -145,20 +145,20 @@
       "additionalProperties": false
     },
     "schedule": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-schedule-offering.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-schedule-offering.json",
       "description": "Period and availability SLA this offering can honor. For example, PT1H with snapshot finality explicitly advertises hourly provisional snapshots; a separate P1D official offering advertises daily finalized reporting."
     },
     "supported_finality": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reporting-finality.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reporting-finality.json"
       },
       "minItems": 1,
       "uniqueItems": true,
       "description": "Finality classes available under this exact report definition, schedule, and delivery method. snapshot is an explicit provisional capability, not inferred from poll frequency. Use separate atomic offerings when snapshot and official schedules or methods differ."
     },
     "reconciliation_mode": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-reconciliation-mode.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-reconciliation-mode.json",
       "description": "Receipt contract included in this atomic offering. Billing offerings MUST require consumer_receipt."
     },
     "method": {
@@ -175,7 +175,7 @@
           "pattern": "^[a-z][a-z0-9_.-]*$"
         },
         "orchestration": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-delivery-method.json#/definitions/ReportingOrchestration"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-delivery-method.json#/definitions/ReportingOrchestration"
         },
         "destination_modes": {
           "type": "array",
@@ -241,7 +241,7 @@
               "maxLength": 512
             },
             "cloud": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-dataset-share-destination.json#/definitions/ReportingCloud"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-dataset-share-destination.json#/definitions/ReportingCloud"
             },
             "region": {
               "type": "string",
@@ -266,7 +266,7 @@
         "reader_compatibility": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-resource.json#/definitions/ReportingReaderCompatibilityItem"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-resource.json#/definitions/ReportingReaderCompatibilityItem"
           },
           "uniqueItems": true
         }

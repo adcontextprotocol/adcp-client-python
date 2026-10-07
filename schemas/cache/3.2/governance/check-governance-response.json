@@ -5,7 +5,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
       "if": {
@@ -224,7 +224,7 @@
       "x-entity": "governance_check"
     },
     "verdict": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/governance-decision.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/governance-decision.json",
       "description": "Governance verdict: approved | denied | conditions. Renamed from `status` in 3.1 to free the top-level `status` key for the envelope task-status (TaskStatus) under MCP flat-on-the-wire serialization. The enum values are unchanged; only the property name moved."
     },
     "check_type": {
@@ -265,7 +265,7 @@
             "x-entity": "governance_plan"
           },
           "severity": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/escalation-severity.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/escalation-severity.json"
           },
           "explanation": {
             "type": "string",
@@ -438,7 +438,7 @@
       "description": "Policy IDs evaluated during this check. Includes registry policy IDs (resolved via the policy registry) and any inline `policy_id`s declared in the plan's `custom_policies`."
     },
     "mode": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/governance-mode.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/governance-mode.json",
       "description": "Governance enforcement mode active when this check was evaluated. Allows counterparties, regulators, and auditors to distinguish whether a finding blocked execution (enforce) or was logged silently (audit)."
     },
     "runtime_attestation_evaluations": {
@@ -447,7 +447,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attestation-evaluation.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attestation-evaluation.json"
           },
           {
             "type": "object",
@@ -488,10 +488,10 @@
       "pattern": "^[\\x20-\\x7E]+$"
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

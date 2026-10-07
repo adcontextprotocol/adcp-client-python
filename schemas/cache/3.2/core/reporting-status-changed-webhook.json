@@ -51,7 +51,7 @@
       "minimum": 1
     },
     "feed_purpose": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
     },
     "reporting_obligation_id": {
       "type": "string",
@@ -61,11 +61,11 @@
       "description": "Present when the transition is obligation-scoped; absent for configuration-level transitions."
     },
     "health": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reporting-health.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reporting-health.json",
       "description": "The health state after this transition."
     },
     "previous_health": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reporting-health.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reporting-health.json"
     },
     "issue_ids": {
       "type": "array",
@@ -80,7 +80,7 @@
       "description": "Stable identifiers of the open issues that caused or survived this transition, matching issues[].issue_id on get_reporting_status, so consumers can project AdCP reporting issues into durable work items. Empty or absent on recovery transitions."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

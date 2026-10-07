@@ -264,7 +264,7 @@
         "channels": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1channels.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1channels.json"
           }
         },
         "start_time": {
@@ -276,7 +276,7 @@
           "format": "date-time"
         },
         "frequency_cap": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1frequency-cap.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1frequency-cap.json"
         },
         "audience_summary": {
           "type": "string"
@@ -284,7 +284,7 @@
         "audience_targeting": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1audience-selector.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1audience-selector.json"
           },
           "minItems": 1
         },
@@ -306,17 +306,17 @@
         "budget_allocation": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1budget-allocation.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1budget-allocation.json"
             }
           ]
         },
         "pacing": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1pacing.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1pacing.json"
         },
         "bidding": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1bidding-policy.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1bidding-policy.json"
             }
           ]
         },
@@ -327,7 +327,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1ext.json"
         }
       },
       "allOf": [
@@ -389,7 +389,7 @@
         "suppress": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
             }
           ]
         },
@@ -405,14 +405,14 @@
         "per": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1reach-unit.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1reach-unit.json"
             }
           ]
         },
         "window": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
             }
           ]
         }
@@ -493,10 +493,10 @@
               "const": "signal"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-ref.json"
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-id.json",
               "deprecated": true
             },
             "value_type": {
@@ -534,10 +534,10 @@
               "const": "signal"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-ref.json"
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-id.json",
               "deprecated": true
             },
             "value_type": {
@@ -579,10 +579,10 @@
               "const": "signal"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-ref.json"
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1signal-id.json",
               "deprecated": true
             },
             "value_type": {
@@ -873,7 +873,7 @@
               "items": {
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1optimization-goal.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1optimization-goal.json"
                   },
                   {
                     "not": {
@@ -942,21 +942,21 @@
             "standard": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1viewability-standard.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1viewability-standard.json"
                 }
               ]
             },
             "vendor": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1brand-ref.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1brand-ref.json"
                 }
               ]
             },
             "reach_unit": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1reach-unit.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1reach-unit.json"
                 }
               ]
             },
@@ -974,7 +974,7 @@
                 "window": {
                   "allOf": [
                     {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
                     }
                   ]
                 }
@@ -1134,7 +1134,7 @@
                     "minLength": 1
                   },
                   "event_type": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1event-type.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1event-type.json"
                   },
                   "custom_event_name": {
                     "type": "string"
@@ -1216,7 +1216,7 @@
             "attribution_window": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1attribution-window.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1attribution-window.json"
                 }
               ]
             },
@@ -1239,10 +1239,10 @@
               "const": "vendor_metric"
             },
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1brand-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1brand-ref.json"
             },
             "metric_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1vendor-metric-id.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1vendor-metric-id.json"
             },
             "target": {
               "discriminator": {
@@ -1317,7 +1317,7 @@
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
         },
         "brand_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1brand-id.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1brand-id.json"
         },
         "countries": {
           "type": "array",
@@ -1371,7 +1371,7 @@
           "type": "object",
           "properties": {
             "logo": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1assets~1image-asset.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1assets~1image-asset.json"
             },
             "colors": {
               "type": "object",
@@ -1462,7 +1462,7 @@
           "x-accessibility": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1provenance.json"
         }
       },
       "required": [
@@ -1477,7 +1477,7 @@
       "type": "object",
       "properties": {
         "digital_source_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1digital-source-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1digital-source-type.json"
         },
         "synthetic_depiction": {
           "type": "boolean"
@@ -1558,7 +1558,7 @@
             "type": "object",
             "properties": {
               "method": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1embedded-provenance-method.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1embedded-provenance-method.json"
               },
               "standard": {
                 "type": "string"
@@ -1601,7 +1601,7 @@
             "type": "object",
             "properties": {
               "media_type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1watermark-media-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1watermark-media-type.json"
               },
               "provider": {
                 "type": "string"
@@ -1624,7 +1624,7 @@
                 "additionalProperties": false
               },
               "c2pa_action": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1c2pa-watermark-action.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1c2pa-watermark-action.json"
               },
               "embedded_at": {
                 "type": "string",
@@ -1665,7 +1665,7 @@
                     "minProperties": 1,
                     "properties": {
                       "persistence": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1disclosure-persistence.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1disclosure-persistence.json"
                       },
                       "min_duration_ms": {
                         "type": "integer",
@@ -1674,13 +1674,13 @@
                       "positions": {
                         "type": "array",
                         "items": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1disclosure-position.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1disclosure-position.json"
                         },
                         "minItems": 1,
                         "uniqueItems": true
                       },
                       "ext": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1ext.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1ext.json"
                       }
                     }
                   }
@@ -1736,7 +1736,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1ext.json"
         }
       }
     },
@@ -1844,19 +1844,19 @@
         "post_click": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
             }
           ]
         },
         "post_view": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:core~1duration.json"
             }
           ]
         },
         "model": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1attribution-model.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:enums~1attribution-model.json"
         }
       },
       "additionalProperties": true
@@ -2032,7 +2032,7 @@
           ]
         },
         "details": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_object"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_object"
         },
         "classification_source": {
           "type": "string",
@@ -2042,7 +2042,7 @@
           ]
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_object"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_object"
         }
       },
       "maxProperties": 16,
@@ -2050,7 +2050,7 @@
         "maxLength": 128
       },
       "additionalProperties": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value"
       },
       "$defs": {
         "bounded_scalar": {
@@ -2073,20 +2073,20 @@
         "bounded_value_level_3": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
             },
             {
               "type": "array",
               "maxItems": 32,
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
               }
             },
             {
               "type": "object",
               "maxProperties": 32,
               "additionalProperties": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
               }
             }
           ]
@@ -2094,20 +2094,20 @@
         "bounded_value_level_2": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
             },
             {
               "type": "array",
               "maxItems": 32,
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_3"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_3"
               }
             },
             {
               "type": "object",
               "maxProperties": 32,
               "additionalProperties": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_3"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_3"
               }
             }
           ]
@@ -2115,20 +2115,20 @@
         "bounded_value": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_scalar"
             },
             {
               "type": "array",
               "maxItems": 32,
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_2"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_2"
               }
             },
             {
               "type": "object",
               "maxProperties": 32,
               "additionalProperties": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_2"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value_level_2"
               }
             }
           ]
@@ -2140,7 +2140,7 @@
             "maxLength": 128
           },
           "additionalProperties": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/report-plan-outcome-request.json#/$defs/external:governance~1reported-outcome-error.json/$defs/bounded_value"
           }
         }
       }

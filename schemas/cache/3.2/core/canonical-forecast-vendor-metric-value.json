@@ -5,19 +5,19 @@
   "type": "object",
   "properties": {
     "vendor": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json"
     },
     "metric_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-id.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-id.json"
     },
     "value": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-range.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-range.json"
     },
     "unit": {
       "type": "string"
     },
     "measurable_impressions": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-range.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-range.json"
     },
     "breakdown": {
       "type": "object",

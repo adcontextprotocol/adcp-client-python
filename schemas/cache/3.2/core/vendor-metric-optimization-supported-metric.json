@@ -5,11 +5,11 @@
   "type": "object",
   "properties": {
     "vendor": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
       "description": "Vendor that defines and computes this metric. The vendor's `brand.json` is the discovery anchor for the measurement agent (entry with `type: 'measurement'` in the `agents[]` array); the metric's definition, methodology, and unit live at that agent's `get_adcp_capabilities.measurement.metrics[]` and are not duplicated inline here. Same shape as the `vendor` field on `reporting_capabilities.vendor_metrics` for symmetry across optimization and reporting capability declarations."
     },
     "metric_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-id.json",
       "description": "Identifier for the metric within the vendor's vocabulary (e.g., `attention_score`, `attention_seconds`, `gco2e_per_impression`, `awareness_lift`). MUST be present in the vendor's published `measurement.metrics[]` catalog."
     },
     "supported_targets": {

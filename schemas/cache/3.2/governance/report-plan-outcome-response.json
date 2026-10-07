@@ -5,7 +5,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     }
   ],
   "x-status": "experimental",
@@ -57,7 +57,7 @@
             "description": "Which validation category flagged the issue."
           },
           "severity": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/escalation-severity.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/escalation-severity.json",
             "description": "Finding severity."
           },
           "explanation": {
@@ -99,10 +99,10 @@
       "default": false
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

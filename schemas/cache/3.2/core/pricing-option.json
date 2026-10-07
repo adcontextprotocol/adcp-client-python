@@ -7,34 +7,34 @@
   },
   "oneOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/pricing-options/cpm-option.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/pricing-options/cpm-option.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/pricing-options/vcpm-option.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/pricing-options/vcpm-option.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/pricing-options/cpc-option.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/pricing-options/cpc-option.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/pricing-options/cpcv-option.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/pricing-options/cpcv-option.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/pricing-options/cpv-option.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/pricing-options/cpv-option.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/pricing-options/cpp-option.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/pricing-options/cpp-option.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/pricing-options/cpa-option.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/pricing-options/cpa-option.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/pricing-options/revenue-share-option.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/pricing-options/revenue-share-option.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/pricing-options/flat-rate-option.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/pricing-options/flat-rate-option.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/pricing-options/time-option.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/pricing-options/time-option.json"
     }
   ]
 }

@@ -35,7 +35,7 @@
         "standard": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/viewability-standard.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/viewability-standard.json"
             }
           ],
           "description": "Viewability standard the goal is judged against. Required when metric is 'viewable_rate'; optional for 'viewed_seconds' (seller default standard when omitted); not allowed for other metrics. Must be in metric_optimization.supported_viewability_standards when declared. A goal below a same-standard viewability performance_standard never relaxes that standard."
@@ -43,7 +43,7 @@
         "vendor": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json"
             }
           ],
           "description": "Measurement vendor judging a viewable_rate or viewed_seconds goal; not allowed for other metrics. When omitted, the seller's default viewability measurement applies. Sellers MUST reject a vendor they cannot optimize against rather than substitute another."
@@ -51,7 +51,7 @@
         "reach_unit": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reach-unit.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reach-unit.json"
             }
           ],
           "description": "Unit for reach measurement. Required when metric is 'reach'. Must be a value declared in the product's metric_optimization.supported_reach_units."
@@ -73,7 +73,7 @@
             "window": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
                 }
               ],
               "description": "Time window over which frequency is measured (e.g. {\"interval\": 7, \"unit\": \"days\"} or {\"interval\": 1, \"unit\": \"campaign\"} for the full flight). Weekly windows are typical for brand campaigns; daily windows suit high-cadence direct response."
@@ -244,7 +244,7 @@
                 "description": "Event source to include (must be configured on this account via sync_event_sources)"
               },
               "event_type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/event-type.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/event-type.json",
                 "description": "Event type to include from this source (e.g., purchase, lead, app_install, refund)"
               },
               "custom_event_name": {
@@ -336,7 +336,7 @@
         "attribution_window": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attribution-window.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attribution-window.json"
             }
           ],
           "description": "Attribution window for this optimization goal \u2014 references the canonical `attribution-window` shape (post_click, post_view, model). Values must match an option declared in the seller's `conversion_tracking.attribution_windows` capability. Sellers MUST reject windows not in their declared capabilities. When the entire field is omitted, the seller uses their default window."
@@ -362,11 +362,11 @@
           "const": "vendor_metric"
         },
         "vendor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
           "description": "Vendor that defines and computes this metric. Same shape as `vendor_metric_values.vendor`, `reporting_capabilities.vendor_metrics[].vendor`, and `vendor_metric_optimization.supported_metrics[].vendor` \u2014 symmetric across discovery, capability, commitment, optimization, and reporting surfaces."
         },
         "metric_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-id.json",
           "description": "Identifier for the metric within the vendor's vocabulary (e.g., `attention_score`, `attention_seconds`, `gco2e_per_impression`, `awareness_lift`). MUST be present in the vendor's published `measurement.metrics[]` catalog and in the product's `vendor_metric_optimization.supported_metrics[]`."
         },
         "target": {

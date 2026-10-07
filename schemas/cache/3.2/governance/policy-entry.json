@@ -32,11 +32,11 @@
       "description": "Brief summary of what this policy covers."
     },
     "category": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/policy-category.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/policy-category.json",
       "description": "The nature of the obligation: regulation (legal requirement) or standard (best practice). Optional for inline bespoke policies \u2014 defaults to \"standard\"."
     },
     "enforcement": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/policy-enforcement.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/policy-enforcement.json",
       "description": "How governance agents treat violations. Regulations are typically \"must\"; standards are typically \"should\"."
     },
     "requires_human_review": {
@@ -72,14 +72,14 @@
     "channels": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/channels.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/channels.json"
       },
       "description": "Advertising channels this policy applies to. If omitted or null, the policy applies to all channels."
     },
     "governance_domains": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/governance-domain.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/governance-domain.json"
       },
       "description": "Governance sub-domains this policy applies to. Determines which types of governance agents can declare registry:{policy_id} features. For example, a policy with domains [\"creative\", \"property\"] can be declared as a feature by both creative and property governance agents."
     },
@@ -122,7 +122,7 @@
       "additionalProperties": false
     },
     "acceptance_profile": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/acceptance-policy-profile.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/acceptance-policy-profile.json",
       "description": "Optional reusable, machine-readable acceptance profile derived from this registry policy. Registry publishers MUST bind policy_refs to exact versions. Sellers adopt a profile explicitly; registry publication alone does not make it authoritative for a seller."
     },
     "policy": {
@@ -156,7 +156,7 @@
       "additionalProperties": false
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -34,15 +34,15 @@
       "type": "array",
       "description": "If present, only these uses are revoked (partial revocation). If absent, all uses under the grant are revoked.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/right-use.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/right-use.json"
       },
       "minItems": 1
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

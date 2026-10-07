@@ -15,7 +15,7 @@
       "description": "Opaque token returned by products_available.purchase_continuation."
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Account identity that must match the account bound into the continuation token."
     },
     "selected_product_ids": {

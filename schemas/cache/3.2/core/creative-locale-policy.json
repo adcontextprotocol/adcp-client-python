@@ -22,7 +22,7 @@
       "type": "array",
       "description": "Concrete canonical BCP 47 language ranges accepted by this format option. RFC 4647 Basic Filtering is directional: seller range fr accepts variant fr-CA, but seller range fr-CA does not accept variant fr or fr-FR. Use zxx explicitly for language-neutral creative; und means unknown and is not a wildcard.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/locale-tag.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/locale-tag.json"
       },
       "minItems": 1,
       "maxItems": 50,

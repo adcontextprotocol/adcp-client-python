@@ -6,12 +6,12 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     }
   ],
   "properties": {
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Account scope for task reconciliation. Sellers MUST only return tasks created for the caller's authenticated account + principal pair. When omitted, the seller MAY use the credential-bound singleton account, but multi-account credentials SHOULD require an explicit account."
     },
     "filters": {
@@ -19,38 +19,38 @@
       "description": "Filter criteria for querying tasks",
       "properties": {
         "protocol": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/adcp-protocol.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/adcp-protocol.json",
           "description": "Filter by single AdCP protocol"
         },
         "protocols": {
           "type": "array",
           "description": "Filter by multiple AdCP protocols",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/adcp-protocol.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/adcp-protocol.json"
           },
           "minItems": 1
         },
         "status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/task-status.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/task-status.json",
           "description": "Filter by single task status"
         },
         "statuses": {
           "type": "array",
           "description": "Filter by multiple task statuses",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/task-status.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/task-status.json"
           },
           "minItems": 1
         },
         "task_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/task-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/task-type.json",
           "description": "Filter by single task type"
         },
         "task_types": {
           "type": "array",
           "description": "Filter by multiple task types",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/task-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/task-type.json"
           },
           "minItems": 1
         },
@@ -111,7 +111,7 @@
           "description": "Field to sort by"
         },
         "direction": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
           "default": "desc",
           "description": "Sort direction"
         }
@@ -119,7 +119,7 @@
       "additionalProperties": true
     },
     "pagination": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-request.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-request.json"
     },
     "include_history": {
       "type": "boolean",
@@ -127,10 +127,10 @@
       "description": "Include full conversation history for each task (may significantly increase response size)"
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "additionalProperties": true,

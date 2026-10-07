@@ -4,13 +4,13 @@
   "description": "Delivery metrics row for one geographic area within a package.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
     },
     {
       "type": "object",
       "properties": {
         "geo_level": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/geo-level.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/geo-level.json",
           "description": "Geographic level of this entry (country, region, metro, postal_area)"
         },
         "system": {
@@ -108,7 +108,7 @@
           "then": {
             "properties": {
               "system": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/metro-system.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/metro-system.json"
               }
             },
             "required": [
@@ -135,12 +135,12 @@
           "then": {
             "anyOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/postal-country-system.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/postal-country-system.json"
               },
               {
                 "properties": {
                   "system": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/legacy-postal-system.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/legacy-postal-system.json"
                   }
                 },
                 "required": [

@@ -1331,7 +1331,7 @@
           "description": "Transport-managed conversation identifier. On A2A, this maps to the native Message/Task `contextId` used to associate messages with a conversation; it is not carried inside the AdCP DataPart. On MCP, a request-body `context_id`, where admitted by the selected request schema, is a compatibility-only field: servers MUST ignore it, callers MUST NOT rely on it for continuity, and it MUST NOT select session state, identity, account, authorization, task continuation, or idempotency scope. MCP continuity, if provided, comes from the transport session. Distinct from `context` (per-request opaque echo, see below) and from `task_id` (AdCP operation tracking)."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1context.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1context.json",
           "description": "Per-request opaque caller-supplied correlation object echoed unchanged in the response. Used for buyer-side tracking (UI session IDs, trace IDs, custom metadata) that the agent MUST preserve byte-for-byte without parsing. Distinct from `context_id` (transport-managed A2A conversation correlation or MCP compatibility metadata) \u2014 `context` is caller-owned echo and never selects transport state. Both MAY appear on the same response.\n\n**Relationship to per-task body-level `context` declarations.** Many task request/response schemas (147 as of 3.1) already declare a body-level `context` field that `$ref`s `/schemas/core/context.json` at the body root. Under the flat-on-the-wire MCP serialization (see `notes` below), envelope-level `context` and body-level `context` occupy the same key on the response root \u2014 they are NOT separate fields, they MUST share the same value, and they MUST both `$ref` `core/context.json`. The envelope declaration is **authoritative** for the schema definition; per-task body declarations are mirrors retained for tooling reasons (SDK codegen completeness, per-task validation against the response schema in isolation). Future versions MAY drop body-level `context` declarations from per-task schemas; conformance does not require either declaration to be present, only that the wire value `$ref`s `core/context.json`."
         },
         "task_id": {
@@ -1340,7 +1340,7 @@
           "x-entity": "task"
         },
         "status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1task-status.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1task-status.json",
           "description": "Current AdCP task state or structured outcome. Indicates whether the task completed, is in progress, was submitted for async processing, failed, requires user input, or returned a typed business rejection. REQUIRED on every task response envelope. Synchronous tasks (including read-only metadata calls like `get_adcp_capabilities`) normally emit `status: \"completed\"`; a task-specific rejection arm emits `status: \"rejected\"` without turning the transport into a failure. Async tasks emit `submitted`, `working`, `input-required`, etc. per their lifecycle. Agents MUST NOT emit the legacy task_status or response_status fields alongside this field \u2014 the status field is the single authoritative AdCP response state."
         },
         "message": {
@@ -1358,11 +1358,11 @@
           "default": false
         },
         "adcp_error": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1error.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1error.json",
           "description": "Transport-envelope error signal for fatal task failures. Per the two-layer model in `error-handling.mdx#envelope-vs-payload-errors-the-two-layer-model`, a fatal task failure SHOULD populate both this envelope-level field AND the payload's `errors[]` array \u2014 the envelope carries a typed, extractable error so MCP/A2A clients can dispatch without re-parsing the payload, while the payload's structured `errors[]` remains the canonical normative shape. Non-fatal warnings populate ONLY `payload.errors[]` with `severity: warning` \u2014 the envelope MUST NOT carry `adcp_error` for non-failures."
         },
         "push_notification_config": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1push-notification-config.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1push-notification-config.json",
           "description": "AdCP application-layer webhook configuration for async task updates over MCP, A2A, or REST. Echoed from the request to confirm webhook settings. It is distinct from transport-native progress or A2A TaskPushNotificationConfig delivery and can outlive the originating transport session."
         },
         "governance_context": {
@@ -1730,7 +1730,7 @@
               "type": "array",
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -1910,13 +1910,13 @@
         "media_buy_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
           },
           "uniqueItems": true,
           "description": "Exact frozen media-buy denominator inherited from the obligation, including buys with zero rows. An empty array proves a zero-buy period rather than an unknown denominator."
         },
         "coverage": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json",
           "description": "Frozen product/package denominator represented by this logical content. The same coverage follows the revision to every destination."
         },
         "period": {
@@ -1944,7 +1944,7 @@
           "additionalProperties": false
         },
         "finality": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1reporting-finality.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1reporting-finality.json"
         },
         "finality_basis": {
           "type": "string",
@@ -2004,13 +2004,13 @@
         "control_totals": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-control-total.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-control-total.json"
           },
           "uniqueItems": true,
           "description": "Profile-defined totals computed from the canonical logical revision. Names MUST be unique."
         },
         "canonical_content_digest": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-canonical-content-digest.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-canonical-content-digest.json"
         },
         "created_at": {
           "type": "string",
@@ -2143,7 +2143,7 @@
         "media_buy_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
           },
           "uniqueItems": true,
           "description": "Exact media-buy denominator, including unsupported and unknown buys. An empty array is an explicitly evaluated zero-buy scope."
@@ -2151,35 +2151,35 @@
         "fully_covered_media_buy_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
           },
           "uniqueItems": true
         },
         "partially_covered_media_buy_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
           },
           "uniqueItems": true
         },
         "unsupported_media_buy_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
           },
           "uniqueItems": true
         },
         "unknown_media_buy_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
           },
           "uniqueItems": true
         },
         "package_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
           },
           "uniqueItems": true,
           "description": "Exact package denominator for the evaluated media buys."
@@ -2187,21 +2187,21 @@
         "covered_package_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
           },
           "uniqueItems": true
         },
         "unsupported_package_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
           },
           "uniqueItems": true
         },
         "unknown_package_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
           },
           "uniqueItems": true
         },
@@ -2222,12 +2222,12 @@
                 ]
               },
               "media_buy_id": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingMediaBuyId"
               },
               "package_ids": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1reporting-coverage.json/$defs/ReportingPackageId"
                 },
                 "minItems": 1,
                 "uniqueItems": true
@@ -2362,7 +2362,7 @@
         "post_click": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json"
             }
           ],
           "description": "Post-click attribution window. Conversions occurring within this duration after a click are attributed to the ad."
@@ -2370,13 +2370,13 @@
         "post_view": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json"
             }
           ],
           "description": "Post-view attribution window. Conversions occurring within this duration after an ad impression (without click) are attributed to the ad."
         },
         "model": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1attribution-model.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1attribution-model.json",
           "description": "Attribution model used to assign credit when multiple touchpoints exist. SHOULD be populated when committing to a specific model; when absent, the seller's default applies."
         }
       },
@@ -2475,7 +2475,7 @@
               "description": "Identifier for a scalar standard metric. Container tokens and structured distribution identities are committed and selected through their canonical carriers, not represented as numeric aggregate rows.",
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1available-metric.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1available-metric.json"
                 },
                 {
                   "not": {
@@ -2496,23 +2496,23 @@
               "description": "Qualifier keys disambiguating this row from sibling rows under the same `metric_id`. Symmetric with `committed_metrics.qualifier` today; expected to diverge in future minors as transparency disclosures buyers don't commit to ship delivery-only. Closed (`additionalProperties: false`) \u2014 new qualifier keys ship explicitly.",
               "properties": {
                 "viewability_standard": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1viewability-standard.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1viewability-standard.json",
                   "description": "Viewability standard under which this row was measured. MRC and GroupM define materially different thresholds; never sum across standards."
                 },
                 "completion_source": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1completion-source.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1completion-source.json",
                   "description": "Source of `completion_rate` attestation for this row \u2014 `seller_attested` from player/ad server, `vendor_attested` from a third-party measurement vendor. The two paths can yield different rates; never sum across sources."
                 },
                 "attribution_methodology": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1attribution-methodology.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1attribution-methodology.json",
                   "description": "Attribution methodology under which this outcome row was computed (`deterministic_purchase`, `probabilistic`, `panel_based`, `modeled`). Outcome metrics measured under different methodologies represent materially different numbers; never sum across methodologies."
                 },
                 "attribution_window": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json",
                   "description": "Attribution window for this outcome row. Object-valued duration (`{interval, unit}`), not a shorthand string. Outcome metrics measured over different windows represent the same metric over different time periods; the partition keeps them as separate rows so buyers don't accidentally aggregate."
                 },
                 "lift_dimension": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1lift-dimension.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1lift-dimension.json",
                   "description": "Brand-lift dimension this row represents (awareness, consideration, favorability, purchase intent, or ad recall). Required when `metric_id` is `brand_lift`. Each dimension is a separate surveyed outcome with its own sample size and confidence interval; never sum across dimensions."
                 }
               },
@@ -2640,11 +2640,11 @@
               "description": "Vendor-defined metric, identified by the tuple `(vendor, metric_id)`."
             },
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1brand-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1brand-ref.json",
               "description": "Vendor that defines and computes this metric. The vendor's `brand.json` `agents[type='measurement']` is the canonical anchor; metric definitions live on `get_adcp_capabilities.measurement.metrics[]`."
             },
             "metric_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1vendor-metric-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1vendor-metric-id.json",
               "description": "Identifier for the metric within the vendor's vocabulary."
             },
             "qualifier": {
@@ -2652,23 +2652,23 @@
               "description": "Optional qualifier keys disambiguating this vendor-metric row from sibling rows under the same (vendor, metric_id) \u2014 e.g., attribution_window on a vendor outcome metric. Same closed key set as the standard branch; new keys ship explicitly.",
               "properties": {
                 "viewability_standard": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1viewability-standard.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1viewability-standard.json",
                   "description": "Viewability standard under which this row was measured. MRC and GroupM define materially different thresholds; never sum across standards."
                 },
                 "completion_source": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1completion-source.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1completion-source.json",
                   "description": "Attestation source for a vendor completion-style metric \u2014 seller_attested from player/ad server, vendor_attested from an independent measurement path. Applicability is defined by the vendor metric; never sum across sources."
                 },
                 "attribution_methodology": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1attribution-methodology.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1attribution-methodology.json",
                   "description": "Attribution methodology under which this outcome row was computed (`deterministic_purchase`, `probabilistic`, `panel_based`, `modeled`). Outcome metrics measured under different methodologies represent materially different numbers; never sum across methodologies."
                 },
                 "attribution_window": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json",
                   "description": "Attribution window for this outcome row. Object-valued duration (`{interval, unit}`), not a shorthand string. Outcome metrics measured over different windows represent the same metric over different time periods; the partition keeps them as separate rows so buyers don't accidentally aggregate."
                 },
                 "lift_dimension": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1lift-dimension.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1lift-dimension.json",
                   "description": "Lift dimension this row represents (awareness, consideration, favorability, purchase intent, or ad recall) for vendor lift-style metrics. Applicability is defined by the vendor metric; each dimension is a separate surveyed outcome and rows under different dimensions must not be summed."
                 }
               },
@@ -2823,7 +2823,7 @@
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
         },
         "brand_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1brand-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1brand-id.json",
           "description": "Brand identifier within the house portfolio. Optional for single-brand domains."
         },
         "countries": {
@@ -2882,7 +2882,7 @@
           "description": "Inline override for brand-kit fields normally resolved from `/.well-known/brand.json` on `domain` (logo, colors, voice, tagline). Use when brand.json is missing, stale, or inappropriate for this specific call \u2014 e.g., a campaign-scoped tagline, a co-branded creative, a freshly-rebranded color palette the brand.json hasn't shipped yet. Same inline-override pattern as `industries` and `data_subject_contestation` above: brand.json is canonical, the override is per-call. Adopters needing to override fields outside this subset (`voice_attributes`, `prohibited_terms`, etc.) MUST publish a different brand.json and reference it via a different `domain` \u2014 the inline override is intentionally narrow to a small high-traffic subset.\n\n**Merge semantics (normative).** The merge is **field-level**, not whole-object replacement. Each field within `brand_kit_override` (`logo`, `colors`, `voice`, `tagline`) is evaluated independently \u2014 when a field is present on the override the override value applies; when a field is absent the brand.json value applies (or is absent if brand.json doesn't carry one either). For composite fields (`colors.primary`, `colors.secondary`, `colors.accent`), the merge is one level deeper: each color slot is evaluated independently \u2014 a producer can override `colors.primary` while still inheriting `colors.secondary` from brand.json. SDKs MUST NOT treat a present `brand_kit_override.colors` as wiping the brand.json `colors` block entirely; only the per-slot fields present in the override take precedence. Without this rule, a partial-override semantics would diverge across SDKs and produce inconsistent rendering for the same payload.",
           "properties": {
             "logo": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1assets~1image-asset.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1assets~1image-asset.json",
               "description": "Override logo asset."
             },
             "colors": {
@@ -3018,7 +3018,7 @@
           "x-accessibility": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1provenance.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1provenance.json",
           "description": "Provenance metadata for this asset, overrides manifest-level provenance"
         }
       },
@@ -3036,7 +3036,7 @@
       "type": "object",
       "properties": {
         "digital_source_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1digital-source-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1digital-source-type.json",
           "description": "IPTC-aligned classification of AI involvement in producing this content"
         },
         "synthetic_depiction": {
@@ -3146,7 +3146,7 @@
             "type": "object",
             "properties": {
               "method": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1embedded-provenance-method.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1embedded-provenance-method.json",
                 "description": "How provenance data is carried within the content"
               },
               "standard": {
@@ -3197,7 +3197,7 @@
             "type": "object",
             "properties": {
               "media_type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1watermark-media-type.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1watermark-media-type.json",
                 "description": "Media category of the watermarked content"
               },
               "provider": {
@@ -3225,7 +3225,7 @@
                 "additionalProperties": false
               },
               "c2pa_action": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1c2pa-watermark-action.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1c2pa-watermark-action.json",
                 "description": "C2PA action classification for this watermark"
               },
               "embedded_at": {
@@ -3276,7 +3276,7 @@
                     "minProperties": 1,
                     "properties": {
                       "persistence": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1disclosure-persistence.json",
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1disclosure-persistence.json",
                         "description": "How long the disclosure must persist during content playback or display"
                       },
                       "min_duration_ms": {
@@ -3288,13 +3288,13 @@
                         "type": "array",
                         "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                         "items": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1disclosure-position.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1disclosure-position.json"
                         },
                         "minItems": 1,
                         "uniqueItems": true
                       },
                       "ext": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1ext.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1ext.json"
                       }
                     }
                   }
@@ -3356,7 +3356,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1ext.json"
         }
       }
     },
@@ -3650,7 +3650,7 @@
             "type": "object",
             "properties": {
               "event_type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1event-type.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1event-type.json",
                 "description": "The event type"
               },
               "event_source_id": {
@@ -3688,7 +3688,7 @@
         "reach_unit": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1reach-unit.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1reach-unit.json"
             }
           ],
           "description": "Unit of measurement for the reach field. Aligns with the reach_unit declared on optimization goals and delivery forecasts. Required when reach is present to enable cross-platform comparison."
@@ -3709,7 +3709,7 @@
             "period": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json"
                 }
               ],
               "description": "Duration of the measurement window. REQUIRED when `kind` is `period` or `rolling` \u2014 declares the snapshot length (e.g., `{\"interval\": 1, \"unit\": \"days\"}` for a daily snapshot) or the trailing-window length (e.g., `{\"interval\": 7, \"unit\": \"days\"}` for trailing-7-day rolling reach). When `kind` is `cumulative`, this field is implicit (campaign-to-date) and SHOULD be omitted."
@@ -3788,7 +3788,7 @@
                 "description": "Continuous duration threshold in seconds an impression must meet to count as a view in this entry."
               },
               "basis": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1view-threshold-basis.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1view-threshold-basis.json",
                 "description": "Whether the threshold clock runs on playback time or in-view time. Required because play-time and in-view counts at the same threshold are materially different numbers."
               },
               "views": {
@@ -3797,7 +3797,7 @@
                 "description": "Count of views meeting this entry's threshold and basis."
               },
               "standard": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1viewability-standard.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1viewability-standard.json",
                 "description": "Viewability standard governing the in-view clock for this entry. RECOMMENDED when basis is 'in_view' (MRC and GroupM thresholds differ); not applicable to play_time entries."
               }
             },
@@ -4004,7 +4004,7 @@
                     "description": "Date the attested event happened. For posted events this is the posting date \u2014 display terms customarily run from the average posting date across units."
                   },
                   "evidence": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1placement-evidence.json",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1placement-evidence.json",
                     "description": "Evidence artifact for this event (completion photograph); capture time and location ride the artifact"
                   }
                 },
@@ -4040,7 +4040,7 @@
           },
           "properties": {
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1brand-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1brand-ref.json",
               "description": "Vendor that produced these viewability values. Optional but RECOMMENDED so the row is self-describing \u2014 buyer agents reading delivery in isolation can attribute the numbers without joining back to `package.committed_metrics` or `package.performance_standards`. The vendor's `brand.json` `agents[type='measurement']` is the discovery anchor; the metric definitions live on the agent's `get_adcp_capabilities.measurement.metrics[]` block. Same shape as `vendor_metric_value.vendor` for symmetry across vendor-attested surfaces."
             },
             "measurable_impressions": {
@@ -4134,7 +4134,7 @@
               }
             },
             "standard": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1viewability-standard.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1viewability-standard.json",
               "description": "Viewability measurement standard applied to these metrics. Governs the in-view threshold for `viewable_rate`, `viewed_seconds`, and both viewed-seconds distributions."
             }
           },
@@ -4244,7 +4244,7 @@
             "type": "object",
             "properties": {
               "action_source": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1action-source.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1action-source.json",
                 "description": "Where the conversion occurred"
               },
               "event_source_id": {
@@ -4273,7 +4273,7 @@
           "type": "array",
           "description": "Reported values for vendor-defined metrics that the product's `reporting_capabilities.vendor_metrics` declared. Each entry carries the vendor (BrandRef), the metric identifier within the vendor's vocabulary, the value, optional unit, and `measurable_impressions` as the coverage denominator \u2014 vendor measurement is rarely 100% of delivered impressions, since vendors only score impressions where their SDK fires or their panel matches. When a declared vendor metric is omitted from this array, buyers infer no measurement happened (no integration). One row per `(vendor.domain, vendor.brand_id, metric_id, qualifier)` per reporting period \u2014 the same vendor metric MAY appear in multiple rows only when each carries a distinct qualifier (e.g., 7-day and 30-day attribution windows); sellers MUST de-duplicate before emission and MUST NOT emit two rows with the same tuple; buyers MAY treat duplicate rows as a seller-side conformance bug. The structured `vendor_metric_values` array is the recommended path for vendor metrics; `additionalProperties: true` on this parent object is preserved so existing free-form vendor emissions remain conformant during migration.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1vendor-metric-value.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1vendor-metric-value.json"
           }
         }
       },
@@ -4435,11 +4435,11 @@
       "type": "object",
       "properties": {
         "vendor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1brand-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1brand-ref.json",
           "description": "Vendor that produced this value. Matches a `vendor_metrics[].vendor` declaration on the product."
         },
         "metric_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1vendor-metric-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1vendor-metric-id.json",
           "description": "Identifier for the metric within the vendor's vocabulary. Matches a `vendor_metrics[].metric_id` declaration on the product."
         },
         "value": {
@@ -4475,7 +4475,7 @@
           "minimum": 0
         },
         "vendor_relationship": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1vendor-relationship.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1vendor-relationship.json",
           "description": "Optional echo of the product's `reporting_capabilities.vendor_metrics[].vendor_relationship` for this `(vendor, metric_id)`, so the delivery row is self-describing without joining back to the product (same reasoning as `viewability.vendor`). When present it MUST equal the declared value; buyers MAY resolve from the product declaration when absent. Absence on the row is *undeclared*, never `third_party`. A relationship disposition, not a trust ranking. Deliberately not a `qualifier` key: the relationship is constant across every row for a (seller, vendor) pair and does not partition rows, so it stays out of the `(vendor, metric_id, qualifier)` reconciliation join."
         },
         "qualifier": {
@@ -4483,19 +4483,19 @@
           "description": "Optional qualifier disambiguating this row from sibling rows for the same (vendor, metric_id) \u2014 e.g., the same vendor outcome metric reported under 7-day and 30-day attribution windows. Same closed key set as `committed-metric`. When the matching `committed_metrics` entry carries a qualifier, this row MUST carry the identical qualifier so reconciliation joins on `(vendor, metric_id, qualifier)`.",
           "properties": {
             "viewability_standard": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1viewability-standard.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1viewability-standard.json"
             },
             "completion_source": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1completion-source.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1completion-source.json"
             },
             "attribution_methodology": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1attribution-methodology.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1attribution-methodology.json"
             },
             "attribution_window": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json"
             },
             "lift_dimension": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1lift-dimension.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1lift-dimension.json"
             }
           },
           "additionalProperties": false
@@ -4609,26 +4609,26 @@
               "const": "standard"
             },
             "metric_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1available-metric.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1available-metric.json"
             },
             "qualifier": {
               "type": "object",
               "description": "Mirrors the qualifier on `committed_metrics` so the missing entry preserves the contract distinction (e.g., flagging MRC viewability as missing when only GroupM was reported, vendor-attested completion as missing when only seller-attested was reported, or deterministic_purchase attribution as missing when only probabilistic was reported). MUST match the qualifier on the corresponding `committed_metrics` entry the missing flag refers to.",
               "properties": {
                 "viewability_standard": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1viewability-standard.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1viewability-standard.json"
                 },
                 "completion_source": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1completion-source.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1completion-source.json"
                 },
                 "attribution_methodology": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1attribution-methodology.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1attribution-methodology.json"
                 },
                 "attribution_window": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json"
                 },
                 "lift_dimension": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1lift-dimension.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1lift-dimension.json"
                 }
               },
               "additionalProperties": false
@@ -4647,29 +4647,29 @@
               "const": "vendor"
             },
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1brand-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1brand-ref.json"
             },
             "metric_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1vendor-metric-id.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1vendor-metric-id.json"
             },
             "qualifier": {
               "type": "object",
               "description": "Mirrors the qualifier on the corresponding vendor-scope `committed_metrics` entry. MUST match that entry so reconciliation joins on (vendor, metric_id, qualifier).",
               "properties": {
                 "viewability_standard": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1viewability-standard.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1viewability-standard.json"
                 },
                 "completion_source": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1completion-source.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1completion-source.json"
                 },
                 "attribution_methodology": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1attribution-methodology.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1attribution-methodology.json"
                 },
                 "attribution_window": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1duration.json"
                 },
                 "lift_dimension": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1lift-dimension.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1lift-dimension.json"
                 }
               },
               "additionalProperties": false
@@ -4689,7 +4689,7 @@
       "description": "A qualified standard delivery value reported at package grain. The qualifier is required and must be non-empty; unqualified spend remains on the package's flat spend field.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metric-aggregate.json/oneOf/0"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metric-aggregate.json/oneOf/0"
         },
         {
           "type": "object",
@@ -4719,7 +4719,7 @@
       "description": "Delivery metrics row for one catalog item within a package.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
         },
         {
           "type": "object",
@@ -4729,7 +4729,7 @@
               "description": "Catalog item identifier (e.g., SKU, GTIN, job_id, offering_id)"
             },
             "content_id_type": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1content-id-type.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1content-id-type.json",
               "description": "Identifier type for this content_id"
             }
           },
@@ -4818,7 +4818,7 @@
       "description": "Delivery metrics row for one creative within a package.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
         },
         {
           "type": "object",
@@ -4875,7 +4875,7 @@
       "description": "Delivery metrics row for one keyword and match-type pair within a package.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
         },
         {
           "type": "object",
@@ -4885,7 +4885,7 @@
               "description": "The targeted keyword"
             },
             "match_type": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1match-type.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1match-type.json"
             }
           },
           "required": [
@@ -4917,13 +4917,13 @@
       "description": "Delivery metrics row for one geographic area within a package.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
         },
         {
           "type": "object",
           "properties": {
             "geo_level": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1geo-level.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1geo-level.json",
               "description": "Geographic level of this entry (country, region, metro, postal_area)"
             },
             "system": {
@@ -5021,7 +5021,7 @@
               "then": {
                 "properties": {
                   "system": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1metro-system.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1metro-system.json"
                   }
                 },
                 "required": [
@@ -5048,12 +5048,12 @@
               "then": {
                 "anyOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1postal-country-system.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1postal-country-system.json"
                   },
                   {
                     "properties": {
                       "system": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1legacy-postal-system.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1legacy-postal-system.json"
                       }
                     },
                     "required": [
@@ -5106,7 +5106,7 @@
           "description": "ISO 3166-1 alpha-2 country code."
         },
         "system": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1postal-system.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1postal-system.json",
           "description": "Country-local postal code system."
         }
       },
@@ -5414,13 +5414,13 @@
       },
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
         },
         {
           "type": "object",
           "properties": {
             "placement_identity": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1placement-identity.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1placement-identity.json",
               "description": "Self-contained identity. publisher_ref resolves in adagents.json; seller_inline is scoped by seller_agent."
             },
             "placement_name": {
@@ -5485,7 +5485,7 @@
               "const": "seller_inline"
             },
             "seller_agent": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1seller-agent-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1seller-agent-ref.json",
               "description": "Sales agent that defines and maintains the inline placement namespace."
             },
             "placement_id": {
@@ -5542,7 +5542,7 @@
       },
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
         },
         {
           "type": "object",
@@ -5553,11 +5553,11 @@
               "description": "Publisher or platform authority that namespaces the operational identifier, including when the surface is not registered in adagents.json."
             },
             "identifier": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1identifier.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1identifier.json",
               "description": "Primary operational identifier of the property that delivered. Required even when catalog enrichment is unavailable."
             },
             "property_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1property-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1property-ref.json",
               "description": "Canonical publisher-scoped catalog identity when the delivered property resolves to adagents.json. Its publisher_domain MUST equal the row's publisher_domain."
             },
             "property_name": {
@@ -5580,7 +5580,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1identifier-types.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:enums~1identifier-types.json",
           "description": "Type of identifier"
         },
         "value": {
@@ -5664,7 +5664,7 @@
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
         },
         "property_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1property-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1property-id.json",
           "description": "Property ID from the publisher's adagents.json property catalog."
         }
       },
@@ -5692,13 +5692,13 @@
       "description": "Delivery metrics for one canonically identified collection.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
         },
         {
           "type": "object",
           "properties": {
             "collection_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1collection-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1collection-ref.json"
             },
             "collection_name": {
               "type": "string",
@@ -5741,13 +5741,13 @@
       "description": "Delivery metrics for one canonically identified installment.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
         },
         {
           "type": "object",
           "properties": {
             "installment_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1installment-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1installment-ref.json"
             },
             "installment_name": {
               "type": "string",
@@ -5773,7 +5773,7 @@
       "type": "object",
       "properties": {
         "collection_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1collection-ref.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1collection-ref.json"
         },
         "installment_id": {
           "type": "string",
@@ -5798,13 +5798,13 @@
       },
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
         },
         {
           "type": "object",
           "properties": {
             "collection_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1collection-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1collection-ref.json"
             },
             "collection_name": {
               "type": "string",
@@ -5816,11 +5816,11 @@
               "description": "Publisher or platform authority that namespaces the property identifier, including for an unregistered surface."
             },
             "identifier": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1identifier.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1identifier.json",
               "description": "Operational identity of the property that delivered."
             },
             "property_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1property-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1property-ref.json",
               "description": "Canonical publisher-scoped catalog identity when available. Its publisher_domain MUST equal the row's publisher_domain."
             },
             "property_name": {
@@ -5848,13 +5848,13 @@
       },
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
         },
         {
           "type": "object",
           "properties": {
             "installment_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1installment-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1installment-ref.json"
             },
             "installment_name": {
               "type": "string",
@@ -5871,11 +5871,11 @@
               "description": "Publisher or platform authority that namespaces the property identifier, including for an unregistered surface."
             },
             "identifier": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1identifier.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1identifier.json",
               "description": "Operational identity of the property that delivered the installment."
             },
             "property_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1property-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1property-ref.json",
               "description": "Canonical publisher-scoped catalog identity when available. Its publisher_domain MUST equal the row's publisher_domain."
             },
             "property_name": {
@@ -5904,7 +5904,7 @@
       },
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1delivery-metrics.json"
         },
         {
           "type": "object",
@@ -5915,7 +5915,7 @@
               "x-entity": "placement"
             },
             "placement_identity": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1placement-identity.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1placement-identity.json",
               "description": "Required self-contained placement identity. Unlike the legacy-compatible by_placement dimension, the new by_placement_property dimension has no pre-3.2 row shape and always names the placement authority."
             },
             "placement_name": {
@@ -5928,11 +5928,11 @@
               "description": "Publisher or platform authority that namespaces the property identifier. This may differ from a publisher-catalog placement's publisher_domain."
             },
             "identifier": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1identifier.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1identifier.json",
               "description": "Primary operational identifier of the property that delivered."
             },
             "property_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1property-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/get-media-buy-delivery-response.json#/$defs/external:core~1property-ref.json",
               "description": "Canonical publisher-scoped property catalog identity when available. Its publisher_domain MUST equal the row's publisher_domain."
             },
             "property_name": {

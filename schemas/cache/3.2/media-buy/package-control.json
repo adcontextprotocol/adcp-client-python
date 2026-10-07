@@ -38,13 +38,13 @@
       "minimum": 0
     },
     "pacing": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pacing.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pacing.json",
       "description": "Replace package pacing, subordinate to media-buy pacing. In a resulting seller-optimized buy, pacing that differs from the media-buy pacing requires advertised media_buy.features.seller_optimized_package_pacing; otherwise rejected with UNSUPPORTED_FEATURE."
     },
     "bidding": {
       "anyOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/bidding-policy.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/bidding-policy.json"
         },
         {
           "type": "null"
@@ -65,7 +65,7 @@
       "maxLength": 500
     },
     "targeting_overlay": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/targeting-input.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/targeting-input.json",
       "description": "Per-dimension targeting patch. Omission preserves the current dimension, a non-null value replaces it, and null clears it. The resulting effective targeting must remain within the accepted commercial envelope and is read back without null dimensions."
     },
     "catalog_ids": {
@@ -82,35 +82,35 @@
     "keyword_targets_add": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/keyword-target.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/keyword-target.json"
       },
       "minItems": 1
     },
     "keyword_targets_remove": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/keyword-target.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/keyword-target.json"
       },
       "minItems": 1
     },
     "negative_keywords_add": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/keyword-target.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/keyword-target.json"
       },
       "minItems": 1
     },
     "negative_keywords_remove": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/keyword-target.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/keyword-target.json"
       },
       "minItems": 1
     },
     "optimization_goals": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-optimization-goal.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-optimization-goal.json"
       },
       "minItems": 1
     }

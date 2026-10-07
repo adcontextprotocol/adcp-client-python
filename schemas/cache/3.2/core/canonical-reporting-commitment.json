@@ -14,10 +14,10 @@
           "const": "standard"
         },
         "metric_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/available-metric.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/available-metric.json"
         },
         "qualifier": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-metric-qualifier.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-metric-qualifier.json"
         },
         "effective_at": {
           "type": "string",
@@ -37,13 +37,13 @@
           "const": "vendor"
         },
         "vendor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json"
         },
         "metric_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-id.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-id.json"
         },
         "qualifier": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-metric-qualifier.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-metric-qualifier.json"
         },
         "effective_at": {
           "type": "string",

@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/identifier-types.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/identifier-types.json",
       "description": "Type of identifier"
     },
     "value": {

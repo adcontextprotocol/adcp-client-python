@@ -17,7 +17,7 @@
       ]
     },
     "property": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property.json",
       "description": "The property that caused the error"
     },
     "message": {

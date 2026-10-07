@@ -4,7 +4,7 @@
   "description": "Bounded submitted task envelope for request_proposals when consultative planning requires upstream queries or human review.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/compact-task-submitted.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/compact-task-submitted.json"
     }
   ]
 }

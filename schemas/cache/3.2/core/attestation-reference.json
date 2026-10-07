@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "issuer": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attestation-issuer.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attestation-issuer.json"
     },
     "claim_type": {
       "type": "string",
@@ -13,7 +13,7 @@
       "description": "Open, absolute URI identifying the claim vocabulary. The URI is an identifier and need not be dereferenceable. AdCP does not maintain an enum of approved claims."
     },
     "subject": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attestation-subject.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attestation-subject.json"
     },
     "locator": {
       "description": "Stable locator for resolving the credential. Credential URLs are permitted only when their canonical origin is allowlisted for the matched issuer. Issuer-scoped IDs name a resolver_id already published by the evaluator; the presentation cannot introduce a resolver URL.",
@@ -36,7 +36,7 @@
               "description": "HTTPS URI of the credential. Before any fetch, evaluators MUST match its canonical origin to credential_origins on the accepted issuer capability and then apply the attestation fetch contract."
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
             }
           },
           "required": [
@@ -68,7 +68,7 @@
               "description": "Identifier of a resolver already published in the matched accepted_issuers[].resolvers[] capability. A presenter cannot supply or override its URL."
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
             }
           },
           "required": [
@@ -98,7 +98,7 @@
           "minLength": 1
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -150,7 +150,7 @@
       "additionalProperties": false
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

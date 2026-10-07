@@ -67,7 +67,7 @@
       "type": "array",
       "description": "Catchment areas for this store. Each defines a reachable area using travel time (isochrone), simple radius, or pre-computed GeoJSON. Multiple catchments allow different modes \u2014 e.g., 15-minute drive AND 10-minute walk.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/catchment.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/catchment.json"
       },
       "minItems": 1
     },
@@ -108,7 +108,7 @@
       "minItems": 1
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -248,7 +248,7 @@
           "description": "Transport-managed conversation identifier. On A2A, this maps to the native Message/Task `contextId` used to associate messages with a conversation; it is not carried inside the AdCP DataPart. On MCP, a request-body `context_id`, where admitted by the selected request schema, is a compatibility-only field: servers MUST ignore it, callers MUST NOT rely on it for continuity, and it MUST NOT select session state, identity, account, authorization, task continuation, or idempotency scope. MCP continuity, if provided, comes from the transport session. Distinct from `context` (per-request opaque echo, see below) and from `task_id` (AdCP operation tracking)."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1context.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1context.json",
           "description": "Per-request opaque caller-supplied correlation object echoed unchanged in the response. Used for buyer-side tracking (UI session IDs, trace IDs, custom metadata) that the agent MUST preserve byte-for-byte without parsing. Distinct from `context_id` (transport-managed A2A conversation correlation or MCP compatibility metadata) \u2014 `context` is caller-owned echo and never selects transport state. Both MAY appear on the same response.\n\n**Relationship to per-task body-level `context` declarations.** Many task request/response schemas (147 as of 3.1) already declare a body-level `context` field that `$ref`s `/schemas/core/context.json` at the body root. Under the flat-on-the-wire MCP serialization (see `notes` below), envelope-level `context` and body-level `context` occupy the same key on the response root \u2014 they are NOT separate fields, they MUST share the same value, and they MUST both `$ref` `core/context.json`. The envelope declaration is **authoritative** for the schema definition; per-task body declarations are mirrors retained for tooling reasons (SDK codegen completeness, per-task validation against the response schema in isolation). Future versions MAY drop body-level `context` declarations from per-task schemas; conformance does not require either declaration to be present, only that the wire value `$ref`s `core/context.json`."
         },
         "task_id": {
@@ -257,7 +257,7 @@
           "x-entity": "task"
         },
         "status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:enums~1task-status.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:enums~1task-status.json",
           "description": "Current AdCP task state or structured outcome. Indicates whether the task completed, is in progress, was submitted for async processing, failed, requires user input, or returned a typed business rejection. REQUIRED on every task response envelope. Synchronous tasks (including read-only metadata calls like `get_adcp_capabilities`) normally emit `status: \"completed\"`; a task-specific rejection arm emits `status: \"rejected\"` without turning the transport into a failure. Async tasks emit `submitted`, `working`, `input-required`, etc. per their lifecycle. Agents MUST NOT emit the legacy task_status or response_status fields alongside this field \u2014 the status field is the single authoritative AdCP response state."
         },
         "message": {
@@ -275,11 +275,11 @@
           "default": false
         },
         "adcp_error": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1error.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1error.json",
           "description": "Transport-envelope error signal for fatal task failures. Per the two-layer model in `error-handling.mdx#envelope-vs-payload-errors-the-two-layer-model`, a fatal task failure SHOULD populate both this envelope-level field AND the payload's `errors[]` array \u2014 the envelope carries a typed, extractable error so MCP/A2A clients can dispatch without re-parsing the payload, while the payload's structured `errors[]` remains the canonical normative shape. Non-fatal warnings populate ONLY `payload.errors[]` with `severity: warning` \u2014 the envelope MUST NOT carry `adcp_error` for non-failures."
         },
         "push_notification_config": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1push-notification-config.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1push-notification-config.json",
           "description": "AdCP application-layer webhook configuration for async task updates over MCP, A2A, or REST. Echoed from the request to confirm webhook settings. It is distinct from transport-native progress or A2A TaskPushNotificationConfig delivery and can outlive the originating transport session."
         },
         "governance_context": {
@@ -647,7 +647,7 @@
               "type": "array",
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -698,7 +698,7 @@
         "notification_configs": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1agent-notification-config-state.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1agent-notification-config-state.json"
           },
           "maxItems": 16,
           "description": "Current agent-level webhook subscribers. authentication.credentials is always omitted because it is write-only."
@@ -706,13 +706,13 @@
         "reporting_destinations": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1agent-reporting-destination-state.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1agent-reporting-destination-state.json"
           },
           "maxItems": 64,
           "description": "Current reusable reporting destination bindings and setup states. destination_id and destination_ref values MUST each be unique within this caller-scoped array; superseded generations of a current destination appear in its prior_destination_refs."
         },
         "declarations": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1principal-declarations-state.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1principal-declarations-state.json",
           "description": "Declared consumption facts and the seller-computed accepted intersection. Present when and only when the seller supports the declarations section."
         },
         "retired_destinations": {
@@ -776,7 +776,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:enums~1notification-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:enums~1notification-type.json"
               },
               {
                 "not": {
@@ -810,7 +810,7 @@
             "schemes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -826,7 +826,7 @@
           "default": true
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -934,11 +934,11 @@
           "description": "Retained superseded generation references for this destination_id, newest first, still resolvable for existing authorized account bindings and retained reporting history. Enumerable only by the owning principal. Suspension and revocation of the destination apply to these generations too."
         },
         "state": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:enums~1reporting-destination-setup-state.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:enums~1reporting-destination-setup-state.json",
           "description": "Validation and setup state; see the enum for the per-pattern ready definition."
         },
         "configuration": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1agent-reporting-destination.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1agent-reporting-destination.json",
           "description": "Credential-free desired configuration currently associated with this destination reference."
         },
         "setup": {
@@ -974,7 +974,7 @@
         "issues": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1error.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1error.json"
           },
           "maxItems": 16,
           "description": "Structured validation or setup issues. Messages and details are untrusted display data and MUST NOT be executed as instructions."
@@ -1105,7 +1105,7 @@
               "description": "True permits use. False suspends the destination: the seller MUST stop initiating new deliveries to every generation of this destination_id within the advertised suspension interval, and new account-level delivery configurations MUST NOT select it. Suspension does not delete caller-owned data already delivered."
             },
             "provider": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1delivery-provider.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1delivery-provider.json"
             },
             "transport": {
               "type": "string",
@@ -1138,7 +1138,7 @@
               "description": "Physical formats accepted by this file-transfer destination."
             },
             "accepted_verification_profiles": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1reporting-verification-profile-set.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1reporting-verification-profile-set.json"
             }
           },
           "required": [
@@ -1181,7 +1181,7 @@
               "description": "True permits use. False suspends the destination: the seller MUST stop initiating new deliveries to every generation of this destination_id within the advertised suspension interval, and new account-level delivery configurations MUST NOT select it. Suspension does not delete caller-owned data already delivered."
             },
             "provider": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1delivery-provider.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1delivery-provider.json"
             },
             "transport": {
               "type": "string",
@@ -1198,7 +1198,7 @@
               "description": "Provider-native project/dataset, database/schema, or catalog/schema locator. Printable ASCII without whitespace, '?', '#', '%', '\"', '<', or '>'. Never a credential or signed URL; sellers additionally screen and normalize per the secret_rejection and normalization rules."
             },
             "accepted_verification_profiles": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1reporting-verification-profile-set.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1reporting-verification-profile-set.json"
             }
           },
           "required": [
@@ -1240,7 +1240,7 @@
               "description": "True permits use. False suspends the destination: the seller MUST stop publishing new revisions to every generation of this destination_id within the advertised suspension interval, and new account-level delivery configurations MUST NOT select it. Suspension does not delete caller-owned data already delivered or revoke provider-side grants by itself."
             },
             "provider": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1delivery-provider.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1delivery-provider.json"
             },
             "transport": {
               "type": "string",
@@ -1257,10 +1257,10 @@
               "description": "Dataset-share access family, such as databricks_to_databricks, open_sharing, or secure_data_sharing."
             },
             "recipient": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1delivery-recipient.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1delivery-recipient.json"
             },
             "accepted_verification_profiles": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1reporting-verification-profile-set.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1reporting-verification-profile-set.json"
             }
           },
           "required": [
@@ -1330,7 +1330,7 @@
           "maxLength": 512
         },
         "cloud": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:enums~1delivery-recipient-cloud.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:enums~1delivery-recipient-cloud.json"
         },
         "region": {
           "type": "string",
@@ -1369,11 +1369,11 @@
       "type": "object",
       "properties": {
         "declared": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1principal-declarations.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1principal-declarations.json",
           "description": "The caller's current declared set, echoed verbatim."
         },
         "accepted": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1principal-declarations.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1principal-declarations.json",
           "description": "The intersection of the declared set with the seller's objective support. Sellers select asynchronous payload versions, signing algorithms, and experimental behavior only from this set. A change to this set caused by seller-side evolution fires principal.changed with reason declarations_intersection_changed."
         },
         "selected_async_adcp_version": {
@@ -1456,7 +1456,7 @@
         "experimental_features": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1experimental-feature-id.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-response.json#/$defs/external:core~1experimental-feature-id.json"
           },
           "minItems": 1,
           "maxItems": 32,

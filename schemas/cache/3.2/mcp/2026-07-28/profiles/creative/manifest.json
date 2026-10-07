@@ -16,7 +16,7 @@
   },
   "profile": "creative",
   "profile_kind": "active-role-catalog",
-  "surface_version": "3.2.1",
+  "surface_version": "3.2.3",
   "compatibility_scope": "active-3.2-only",
   "filters": {
     "include_tools": [

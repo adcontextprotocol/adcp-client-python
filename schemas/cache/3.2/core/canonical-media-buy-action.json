@@ -16,7 +16,7 @@
     {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-media-buy-action-fields.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-media-buy-action-fields.json"
         }
       ],
       "required": [
@@ -55,7 +55,7 @@
     {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-media-buy-action-fields.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-media-buy-action-fields.json"
         }
       ],
       "required": [
@@ -89,7 +89,7 @@
     {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-media-buy-action-fields.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-media-buy-action-fields.json"
         }
       ],
       "required": [

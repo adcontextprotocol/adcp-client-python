@@ -25,7 +25,7 @@
       "description": "Optional ISO 3166-2 subdivision constraint."
     },
     "place_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-place-type.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-place-type.json"
     },
     "system_version": {
       "type": "string",
@@ -33,7 +33,7 @@
       "description": "Optional exact supported catalog version to search."
     },
     "locale": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/locale-tag.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/locale-tag.json",
       "description": "Optional BCP 47 language tag for returned labels."
     },
     "cursor": {

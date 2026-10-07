@@ -15,7 +15,7 @@
       "type": "array",
       "description": "Signal targeting groups to evaluate. Use operator 'any' for include groups and 'none' for exclusion groups.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/package-signal-targeting-group.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/package-signal-targeting-group.json"
       },
       "minItems": 1
     }

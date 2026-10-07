@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "current_account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-account-ref.json",
       "description": "Current canonical reference. Buyer-declared account sellers return the complete current natural key; account-id namespaces may return account_id."
     },
     "revision": {

@@ -10,10 +10,10 @@
       "description": "This product can participate in the seller's shared counter for a root MediaBuy.frequency_cap. A buy mixing this product with one that lacks this declaration, or whose resolved supported_per_units omits the root cap's per value, is rejected atomically."
     },
     "frequency_cap_constraints": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-frequency-cap-support.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-frequency-cap-support.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "dependencies": {

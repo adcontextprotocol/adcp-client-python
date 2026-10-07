@@ -8,13 +8,13 @@
   "x-mutates-state": true,
   "properties": {
     "adcp_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_version"
     },
     "adcp_major_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_major_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_major_version"
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-account-ref.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-account-ref.json"
     },
     "idempotency_key": {
       "type": "string",
@@ -28,7 +28,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-consumer-status.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-consumer-status.json"
           },
           {
             "not": {
@@ -44,10 +44,10 @@
       "description": "Immutable status updates. New state uses a new reporting_status_id and explicitly supersedes the current status for that expected period. A batch contains at most one update for each logical status chain. content_mismatch entries report a consumed revision that contradicts the accepted configuration generation; they are operational disagreements about contract facts, never measurement disputes."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

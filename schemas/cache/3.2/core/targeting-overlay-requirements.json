@@ -19,7 +19,7 @@
             "systems": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/metro-system.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/metro-system.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -43,7 +43,7 @@
             "supported_match_types": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/match-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/match-type.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -68,7 +68,7 @@
             "families": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/browser-family.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/browser-family.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -93,7 +93,7 @@
             "timezone_modes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/daypart-timezone-mode.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/daypart-timezone-mode.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -102,7 +102,7 @@
               "type": "array",
               "description": "Exact concrete IANA timezone identifiers that must remain selectable after discovery. Valid only when timezone_modes includes iana.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/iana-timezone.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/iana-timezone.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -147,7 +147,7 @@
           "$ref": "#/definitions/required"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-region-requirement.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-region-requirement.json",
           "x-adcp-schema-uri": "/schemas/core/geo-region-requirement.json"
         }
       ]
@@ -158,7 +158,7 @@
           "$ref": "#/definitions/required"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-region-requirement.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-region-requirement.json",
           "x-adcp-schema-uri": "/schemas/core/geo-region-requirement.json"
         }
       ]
@@ -170,11 +170,11 @@
       "$ref": "#/definitions/metroRequirement"
     },
     "geo_places": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-place-requirement.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-place-requirement.json",
       "x-adcp-schema-uri": "/schemas/core/geo-place-requirement.json"
     },
     "geo_places_exclude": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-place-requirement.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-place-requirement.json",
       "x-adcp-schema-uri": "/schemas/core/geo-place-requirement.json"
     },
     "geo_postal_areas": {
@@ -183,7 +183,7 @@
           "$ref": "#/definitions/required"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/positive-postal-area-support.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/positive-postal-area-support.json"
         }
       ]
     },
@@ -193,7 +193,7 @@
           "$ref": "#/definitions/required"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/positive-postal-area-support.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/positive-postal-area-support.json"
         }
       ]
     },
@@ -217,7 +217,7 @@
             "transport_modes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/transport-mode.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/transport-mode.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -284,7 +284,7 @@
       "$ref": "#/definitions/required"
     },
     "frequency_cap_support": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/frequency-cap-requirements.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/frequency-cap-requirements.json",
       "description": "Minimum structured package-cap support. Matches a broad legacy frequency_cap: true or a containing frequency_cap_support object. Mutually exclusive with a frequency_cap: true requirement, which would exclude every constrained product."
     },
     "property_list": {
@@ -336,7 +336,7 @@
       "$ref": "#/definitions/keywordRequirement"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "minProperties": 1,

@@ -33,19 +33,19 @@
     "vast_versions": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/vast-version.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/vast-version.json"
       },
       "minItems": 1,
       "uniqueItems": true,
       "description": "VAST versions accepted by this product format option. The asset still declares exactly one `vast_version`; compatibility requires membership in this set and the seller-wide execution set."
     },
     "vast_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/vast-version.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/vast-version.json",
       "deprecated": true,
       "description": "Deprecated one-element alias for `vast_versions`. Producers use either the singular legacy alias or the plural 3.2 field, never both."
     },
     "media_file_requirements": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vast-media-file-requirements.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vast-media-file-requirements.json",
       "description": "Technical acceptance constraints for alternative VAST MediaFile renditions. Each applicable resolved InLine linear creative needs at least one MediaFile satisfying all declared constraints."
     },
     "vpaid_enabled": {
@@ -108,18 +108,18 @@
       "description": "Required VAST creative class: `linear` (in-stream Linear), `nonlinear` (NonLinearAds overlay-class), or `either`. Supersedes `linear_required`; when both are present `creative_type` wins, and validators treat `linear_required: true` with no `creative_type` as `linear`."
     },
     "ctv_ad_experience": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/ctv-ad-experience.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/ctv-ad-experience.json",
       "description": "CTV experience this option is eligible to serve. On video_vast only `pause`, `screensaver`, `overlay`, `squeezeback`, and `in_scene` are valid (`menu` routes to native_in_feed or sponsored_placement), and `creative_type` MUST be `nonlinear`. Because VAST places `<InteractiveCreativeFile>` only under Linear `<MediaFiles>`, `simid_supported` MUST NOT be true on any of these NonLinear profiles. Per-experience floors: `overlay` and `squeezeback` require a 10s minimum duration; `in_scene` requires a 3s minimum brand-exposure duration and forbids interactivity (`vpaid_enabled` MUST NOT be true); `pause` has no duration floor and ends on viewer or device action."
     },
     "motion_level": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/motion-level.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/motion-level.json",
       "description": "Accepted motion class for the rendered creative (AdCOM attrs 21-23)."
     },
     "activation_methods": {
       "type": "array",
       "uniqueItems": true,
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/activation-method.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/activation-method.json"
       },
       "description": "Viewer activation mechanisms this option offers. Activations are engagement events, not impressions."
     },
@@ -143,7 +143,7 @@
   },
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/_base.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/_base.json"
     },
     {
       "if": {

@@ -15,7 +15,7 @@
       "x-entity": "audience"
     },
     "audience_source": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audience-source.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audience-source.json",
       "description": "Origin of the audience segment."
     },
     "audience_name": {

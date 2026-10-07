@@ -10,7 +10,7 @@
       "description": "The keyword to exclude"
     },
     "match_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/match-type.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/match-type.json"
     }
   },
   "required": [

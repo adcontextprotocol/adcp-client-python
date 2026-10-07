@@ -6,12 +6,12 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     }
   ],
   "properties": {
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Account to retrieve media buys for. When omitted, returns data across all accessible accounts."
     },
     "media_buy_ids": {
@@ -26,12 +26,12 @@
     "status_filter": {
       "oneOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/media-buy-status.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/media-buy-status.json"
         },
         {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/media-buy-status.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/media-buy-status.json"
           },
           "minItems": 1
         }
@@ -42,7 +42,7 @@
       "type": "array",
       "description": "Return media buys with at least one matching current indicator on the media buy, a package, or a package\u2013creative assignment. Values within this field use OR logic; this field composes with status_filter using AND logic. Buyers MUST NOT send this filter unless the seller advertises every requested type in get_adcp_capabilities.media_buy.supported_indicator_types. A seller MAY reject a request that violates this precondition with UNSUPPORTED_FEATURE rather than silently returning an unfiltered superset.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/indicator-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/indicator-type.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -72,14 +72,14 @@
       "default": 50
     },
     "pagination": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-request.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-request.json",
       "description": "Cursor-based pagination controls. Strongly recommended when querying broad scopes (for example, all active media buys in an account)."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "additionalProperties": true

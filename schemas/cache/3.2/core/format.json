@@ -29,7 +29,7 @@
           "type": "array",
           "description": "Publisher-controlled elements rendered on top of buyer content at this asset's position (e.g., video player controls, publisher logos). Creative agents should avoid placing critical content (CTAs, logos, key copy) within overlay bounds.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/overlay.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/overlay.json"
           }
         },
         "asset_group_id": {
@@ -68,7 +68,7 @@
           "type": "array",
           "description": "Publisher-controlled elements rendered on top of buyer content at this asset's position (e.g., carousel navigation arrows, slide indicators). Creative agents should avoid placing critical content within overlay bounds.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/overlay.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/overlay.json"
           }
         }
       },
@@ -81,7 +81,7 @@
   },
   "properties": {
     "format_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json",
       "description": "This format's own identifier \u2014 a structured object {agent_url, id}, not a string. See /schemas/core/format-id.json for the full shape."
     },
     "name": {
@@ -101,7 +101,7 @@
       "type": "array",
       "description": "List of parameters this format accepts in format_id. Template formats define which parameters (dimensions, duration, etc.) can be specified when instantiating the format. Empty or omitted means this is a concrete format with fixed parameters.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/format-id-parameter.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/format-id-parameter.json"
       },
       "uniqueItems": true
     },
@@ -154,7 +154,7 @@
                 "description": "Maximum height for responsive renders"
               },
               "unit": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/dimension-unit.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/dimension-unit.json",
                 "description": "Unit of measurement for width/height values. Defaults to 'px' when absent. Print formats use 'inches' or 'cm'."
               },
               "responsive": {
@@ -254,7 +254,7 @@
                     "const": "image"
                   },
                   "requirements": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/image-asset-requirements.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/image-asset-requirements.json"
                   }
                 },
                 "required": [
@@ -277,7 +277,7 @@
                     "const": "video"
                   },
                   "requirements": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/video-asset-requirements.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/video-asset-requirements.json"
                   }
                 },
                 "required": [
@@ -300,7 +300,7 @@
                     "const": "audio"
                   },
                   "requirements": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/audio-asset-requirements.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/audio-asset-requirements.json"
                   }
                 },
                 "required": [
@@ -323,7 +323,7 @@
                     "const": "text"
                   },
                   "requirements": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/text-asset-requirements.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/text-asset-requirements.json"
                   }
                 },
                 "required": [
@@ -346,7 +346,7 @@
                     "const": "markdown"
                   },
                   "requirements": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/markdown-asset-requirements.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/markdown-asset-requirements.json"
                   }
                 },
                 "required": [
@@ -369,7 +369,7 @@
                     "const": "html"
                   },
                   "requirements": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/html-asset-requirements.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/html-asset-requirements.json"
                   }
                 },
                 "required": [
@@ -392,7 +392,7 @@
                     "const": "css"
                   },
                   "requirements": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/css-asset-requirements.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/css-asset-requirements.json"
                   }
                 },
                 "required": [
@@ -415,7 +415,7 @@
                     "const": "javascript"
                   },
                   "requirements": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/javascript-asset-requirements.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/javascript-asset-requirements.json"
                   }
                 },
                 "required": [
@@ -458,7 +458,7 @@
                     "const": "vast"
                   },
                   "requirements": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/vast-asset-requirements.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/vast-asset-requirements.json"
                   }
                 },
                 "required": [
@@ -481,7 +481,7 @@
                     "const": "daast"
                   },
                   "requirements": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/daast-asset-requirements.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/daast-asset-requirements.json"
                   }
                 },
                 "required": [
@@ -504,7 +504,7 @@
                     "const": "url"
                   },
                   "requirements": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/url-asset-requirements.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/url-asset-requirements.json"
                   }
                 },
                 "required": [
@@ -527,7 +527,7 @@
                     "const": "webhook"
                   },
                   "requirements": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/webhook-asset-requirements.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/webhook-asset-requirements.json"
                   }
                 },
                 "required": [
@@ -570,7 +570,7 @@
                     "const": "catalog"
                   },
                   "requirements": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/catalog-requirements.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/catalog-requirements.json"
                   }
                 },
                 "required": [
@@ -757,7 +757,7 @@
                           "const": "image"
                         },
                         "requirements": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/image-asset-requirements.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/image-asset-requirements.json"
                         }
                       },
                       "required": [
@@ -777,7 +777,7 @@
                           "const": "video"
                         },
                         "requirements": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/video-asset-requirements.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/video-asset-requirements.json"
                         }
                       },
                       "required": [
@@ -797,7 +797,7 @@
                           "const": "audio"
                         },
                         "requirements": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/audio-asset-requirements.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/audio-asset-requirements.json"
                         }
                       },
                       "required": [
@@ -817,7 +817,7 @@
                           "const": "text"
                         },
                         "requirements": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/text-asset-requirements.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/text-asset-requirements.json"
                         }
                       },
                       "required": [
@@ -837,7 +837,7 @@
                           "const": "markdown"
                         },
                         "requirements": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/markdown-asset-requirements.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/markdown-asset-requirements.json"
                         }
                       },
                       "required": [
@@ -857,7 +857,7 @@
                           "const": "html"
                         },
                         "requirements": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/html-asset-requirements.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/html-asset-requirements.json"
                         }
                       },
                       "required": [
@@ -877,7 +877,7 @@
                           "const": "css"
                         },
                         "requirements": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/css-asset-requirements.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/css-asset-requirements.json"
                         }
                       },
                       "required": [
@@ -897,7 +897,7 @@
                           "const": "javascript"
                         },
                         "requirements": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/javascript-asset-requirements.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/javascript-asset-requirements.json"
                         }
                       },
                       "required": [
@@ -934,7 +934,7 @@
                           "const": "vast"
                         },
                         "requirements": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/vast-asset-requirements.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/vast-asset-requirements.json"
                         }
                       },
                       "required": [
@@ -954,7 +954,7 @@
                           "const": "daast"
                         },
                         "requirements": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/daast-asset-requirements.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/daast-asset-requirements.json"
                         }
                       },
                       "required": [
@@ -974,7 +974,7 @@
                           "const": "url"
                         },
                         "requirements": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/url-asset-requirements.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/url-asset-requirements.json"
                         }
                       },
                       "required": [
@@ -994,7 +994,7 @@
                           "const": "webhook"
                         },
                         "requirements": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/webhook-asset-requirements.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/webhook-asset-requirements.json"
                         }
                       },
                       "required": [
@@ -1031,7 +1031,7 @@
                           "const": "catalog"
                         },
                         "requirements": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/catalog-requirements.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/catalog-requirements.json"
                         }
                       },
                       "required": [
@@ -1167,7 +1167,7 @@
       "items": {
         "anyOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/universal-macro.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/universal-macro.json"
           },
           {
             "type": "string",
@@ -1181,7 +1181,7 @@
       "deprecated": true,
       "description": "**DEPRECATED in 3.1. Removed at 4.0.** Use `list_transformers` instead \u2014 a transformer declares its own `input_format_ids`/`output_format_ids`, so build capability is a property of the transformer (the unit you select and that carries pricing), not a relationship hung on a format. Discover build capability via `list_transformers` (optionally filtered by `input_format_ids`/`output_format_ids`).\n\nMigration: sellers that expressed transform capability by hanging `input_format_ids` on a format SHOULD declare a transformer via `list_transformers` instead. Buyers SHOULD discover build capability via `list_transformers` rather than filtering formats.\n\n*Legacy behavior, retained for 3.1\u20133.x backward compatibility:* array of format IDs this format accepts as input creative manifests; when present, indicates this format can take existing creatives in these formats as input. SDKs reading 3.1 catalogs MUST continue to honor this field when present; 4.0+ SDKs MAY reject it. New code SHOULD NOT emit this field.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
       }
     },
     "output_format_ids": {
@@ -1189,7 +1189,7 @@
       "deprecated": true,
       "description": "**DEPRECATED in 3.1. Removed at 4.0.** Use `list_transformers` instead \u2014 a transformer declares its own `output_format_ids`, so what a builder can produce is a property of the transformer, not a relationship hung on a format. Discover via `list_transformers`.\n\nMigration: sellers that expressed multi-output build capability (e.g. a multi-publisher template) by hanging `output_format_ids` on a format SHOULD declare a transformer via `list_transformers` instead.\n\n*Legacy behavior, retained for 3.1\u20133.x backward compatibility:* array of format IDs this format can produce as output; when present, indicates this format can build creatives in these output formats. SDKs reading 3.1 catalogs MUST continue to honor this field when present; 4.0+ SDKs MAY reject it. New code SHOULD NOT emit this field.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
       }
     },
     "format_card": {
@@ -1197,7 +1197,7 @@
       "description": "Optional standard visual card (300x400px) for displaying this format in user interfaces. Can be rendered via preview_creative or pre-generated.",
       "properties": {
         "format_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json",
           "description": "Creative format defining the card layout (typically format_card_standard)"
         },
         "manifest": {
@@ -1217,7 +1217,7 @@
       "description": "Accessibility posture of this format. Declares the WCAG conformance level that creatives produced by this format will meet.",
       "properties": {
         "wcag_level": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/wcag-level.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/wcag-level.json",
           "description": "WCAG conformance level that this format achieves. For format-rendered creatives, the format guarantees this level. For opaque creatives, the format requires assets that self-certify to this level."
         },
         "requires_accessible_assets": {
@@ -1233,7 +1233,7 @@
       "type": "array",
       "description": "Disclosure positions this format can render. Buyers use this to determine whether a format can satisfy their compliance requirements before submitting a creative. When omitted, the format makes no disclosure rendering guarantees \u2014 creative agents SHOULD treat this as incompatible with briefs that require specific disclosure positions. Values correspond to positions on creative-brief.json required_disclosures.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/disclosure-position.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/disclosure-position.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -1245,14 +1245,14 @@
         "type": "object",
         "properties": {
           "position": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/disclosure-position.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/disclosure-position.json",
             "description": "The disclosure position"
           },
           "persistence": {
             "type": "array",
             "description": "Persistence modes this position supports",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/disclosure-persistence.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/disclosure-persistence.json"
             },
             "minItems": 1,
             "uniqueItems": true
@@ -1271,7 +1271,7 @@
       "description": "Optional detailed card with carousel and full specifications. Provides rich format documentation similar to ad spec pages.",
       "properties": {
         "format_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json",
           "description": "Creative format defining the detailed card layout (typically format_card_detailed)"
         },
         "manifest": {
@@ -1290,7 +1290,7 @@
       "type": "array",
       "description": "Metrics this format can produce in delivery reporting. Buyers receive the intersection of format reported_metrics and product available_metrics. Under `enums/available-metric.json`, a container such as `viewability` subsumes numeric leaves such as `viewable_rate`; structured distributions match only their explicit `viewed_seconds_percentiles` or `viewed_seconds_histogram` identities. If omitted, the format defers entirely to product-level metric declarations.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/available-metric.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/available-metric.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -1300,12 +1300,12 @@
       "deprecated": true,
       "description": "**DEPRECATED in 3.1. Removed at 4.0.** Use `transformer.pricing_options` (via `list_transformers`) instead \u2014 pricing belongs on the transformer (the unit selected and billed), exactly as it belongs on a media-buy product. Once formats only describe output shape, format-level pricing is vestigial.\n\nMigration: transformation/generation agents that charged via `format.pricing_options` SHOULD move the same `vendor-pricing-option` entries onto the corresponding transformer. The applied option is echoed per-leaf on the build_creative response and reconciled via report_usage, unchanged.\n\n*Legacy behavior, retained for 3.1\u20133.x backward compatibility:* pricing options for this format, used by transformation/generation agents that charge per format adapted, per image generated, or per unit of work; present when the request included include_pricing=true and account. SDKs reading 3.1 catalogs MUST continue to honor this field when present; 4.0+ SDKs MAY reject it. New code SHOULD NOT emit this field.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-pricing-option.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-pricing-option.json"
       },
       "minItems": 1
     },
     "canonical": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-projection-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-projection-ref.json",
       "description": "Optional v2 canonical-projection annotation. Always an object \u2014 bare-string shorthand (`canonical: \"image\"`) is not supported; the minimal form is `canonical: { \"kind\": \"image\" }`. Carries `kind` (which canonical the v1 format projects to) plus optional `asset_source` and `slots_override` for cases where the v1 format's shape doesn't follow the canonical's defaults (e.g., generative entries whose input is `generation_prompt: text` instead of `image_main: image`).\n\nWhen set, SDKs use this annotation as the authoritative v1 \u2192 v2 mapping for this format, bypassing the [v1 canonical mapping registry](/schemas/registries/v1-canonical-mapping.json) lookup. Combined with the slot-level `asset_group_id` declarations on each `assets[i]` entry, a v1 format declaration with `canonical` set is fully self-describing for v1\u2194v2 translation.\n\nResolution order for SDK projection from v1 wire shape to v2 (per RFC #3305 amendment #3767):\n1. If this `canonical` field is set, use it (seller-declared, highest priority). Apply `asset_source` and `slots_override` from the projection ref when present; otherwise inherit the canonical's defaults.\n2. Else, look up `format_id` in the canonical mapping registry's `format_id_glob` entries.\n3. Else, attempt structural match against the registry's `structural` entries (asset types, slot shape, vast_versions, etc.).\n4. Else, fail closed: SDK MUST NOT emit `format_options` for products carrying this format. Surface `FORMAT_PROJECTION_FAILED` on the response `errors[]` suggesting the seller add an explicit `canonical` annotation or file a registry entry.\n\nWhen `canonical.kind` is `custom`, the seller MUST also declare `canonical_format_shape` and `canonical_format_schema` (parallel to ProductFormatDeclaration's `format_shape` and `format_schema`) so buyer SDKs can fetch the seller's custom format schema.\n\nSee `canonical-projection-ref.json` for full projection semantics and examples (default-slot case, generative case, brief-driven case)."
     },
     "canonical_parameters": {
@@ -1313,7 +1313,7 @@
       "description": "**DEPRECATED in 3.1. Removed at 4.0.** Use `v1_format_ref` on the v2 `ProductFormatDeclaration` instead \u2014 the seller authors a v2 declaration (in `Product.format_options` or `creative.supported_formats`) and links it back to this v1 format via `v1_format_ref: { agent_url, id }`. The directional link from v2 \u2192 v1 is the same fact as `canonical_parameters` without the parallel-shape drift surface (v1 file and `canonical_parameters` were two declarations of the same thing; hand-authored, drifting silently).\n\nMigration: every seller currently authoring `canonical_parameters` SHOULD migrate to authoring a v2 declaration on the corresponding product (or capability) with `v1_format_ref` pointing back at this v1 format. v1 files become pure v1 again \u2014 no v2-shape mirroring.\n\n*Legacy behavior, retained for 3.1\u20133.x backward compatibility:* When `canonical` is set, this field carries the full ProductFormatDeclaration that the SDK projects this v1 format into. The `format_kind` MUST equal the `canonical` field value (validators enforce). When set, this is the authoritative source for SDK v1\u2192v2 projection \u2014 the registry's structural-match parameter inference is bypassed. SDKs reading 3.1 catalogs MUST continue to honor `canonical_parameters` when present; 4.0+ SDKs MAY reject the field. New code SHOULD NOT emit this field. Seller execution authority is never projected through this deprecated field, so tracker_execution_contract and tracker_execution_contract_digest are forbidden.\n\n**Drift contract (still normative while supported).** Hand-authored `canonical_parameters` MUST satisfy the *narrows* relation against this v1 format's `requirements` and `assets[*]` shape (see canonical-formats.mdx 'Narrows \u2014 formal definition'). SDKs that read this v1 file SHOULD lint-time check the equivalence at build/load and emit `FORMAT_PROJECTION_FAILED` if the two disagree.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-format-declaration.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-format-declaration.json"
         },
         {
           "not": {

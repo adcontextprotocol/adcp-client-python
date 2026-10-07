@@ -37,7 +37,7 @@
       "description": "Sampling rate in Hz (e.g., 44100, 48000, 96000)"
     },
     "channels": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audio-channel-layout.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audio-channel-layout.json",
       "description": "Channel configuration"
     },
     "bit_depth": {
@@ -69,7 +69,7 @@
       "x-accessibility": true
     },
     "provenance": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
     }
   },

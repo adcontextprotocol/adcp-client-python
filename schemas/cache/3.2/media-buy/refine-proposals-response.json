@@ -22,12 +22,12 @@
       }
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/compact-task-submitted.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/compact-task-submitted.json"
     }
   ],
   "properties": {
     "adcp_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_version"
     },
     "results": {
       "type": "array",
@@ -54,18 +54,18 @@
             ]
           },
           "proposal": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-proposal.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-proposal.json"
           },
           "proposals": {
             "type": "array",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-proposal.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-proposal.json"
             },
             "minItems": 1,
             "description": "Draft successors produced for a revision. Without alternatives this contains one proposal. With alternatives.count, revised contains exactly that many proposals with unique terms_digest values; fewer or commercially duplicate proposals require partial."
           },
           "reason_code": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/proposal-refinement-reason.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/proposal-refinement-reason.json",
             "description": "Single most-significant code for this result. constraint_unsatisfiable takes precedence over every other code; an alternatives shortfall alongside an unsatisfied constraint remains visible through proposals.length."
           },
           "reason": {
@@ -85,7 +85,7 @@
           "unsatisfied_product_changes": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-change-map.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-change-map.json"
               }
             ],
             "description": "Requested product actions not satisfied by every returned draft. This is a subset of the request product_changes map and is valid only on partial or unable results."
@@ -99,7 +99,7 @@
             "minItems": 1
           },
           "targeting_resolution": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/get-products-targeting-resolution.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/get-products-targeting-resolution.json",
             "description": "Confirmation of structured targeting interpreted from this refinement's explicit hard prose instructions. Required when that interpretation materially affects the revised proposal's eligibility, pricing, or forecast; otherwise a best practice."
           }
         },
@@ -347,7 +347,7 @@
       "type": "array",
       "description": "Canonical products needed to evaluate the resulting terms. For revised or partial results whose effective criteria contain property or collection lists, each affected product MUST carry fresh list_applications receipts from the revision's product reevaluation. Finalization changes no terms and MAY repeat the receipts already bound to the source proposal rather than reevaluating them.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-product.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-product.json"
       }
     },
     "status": {
@@ -369,14 +369,14 @@
     "errors": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       }
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     },
     "replayed": {
       "type": "boolean",
