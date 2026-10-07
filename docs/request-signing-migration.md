@@ -4,6 +4,13 @@ Rolling out RFC 9421 request signing against an existing AdCP integration is a t
 
 This guide covers the operator-facing mechanics. Spec reference: [Signed Requests (Transport Layer)](https://adcontextprotocol.org/docs/building/implementation/security#signed-requests-transport-layer).
 
+> **Signing agent's operator:** For key discovery, the operator publishes the
+> `brand.json` listing the signing agent and its keys. Discover it from the
+> agent's `get_adcp_capabilities` response (`identity.brand_json_url`), or
+> configure it at onboarding. It never means the `operator` or `brand` in the
+> request's account. These are different roles even when their domains coincide.
+> Do not derive key discovery from request-body fields.
+
 The Python SDK ships parallel ergonomics to [adcp-go's MIGRATION guide](https://github.com/adcontextprotocol/adcp-go/blob/main/adcp/signing/MIGRATION.md) — same staged rollout, same key-rotation pattern, different language idioms.
 
 `ADCPClient` derives the signing wire profile from its trusted
@@ -65,6 +72,31 @@ request_signing = RequestSigning(
 )
 ```
 
+### Choose verification keys from the signing agent
+
+Start from the signing agent's URL in your trusted counterparty configuration.
+Use `await verify_from_agent_url(request, agent_url=buyer_agent_url,
+operation="create_media_buy", replay_store=replay_store)` to discover its
+operator record and verify a request, or `await async_resolve_agent(buyer_agent_url)`
+for discovery alone. These helpers read `identity.brand_json_url` from
+`get_adcp_capabilities` and enforce agent/operator origin binding and declared
+key origins. See the [agent discovery examples](agent-resolution-33.md#discover-from-the-agent-url).
+
+For onboarded counterparties using framework verification, configure
+`JwksUriSignerKeys({agent_url: jwks_uri})` or
+`StaticSignerKeys({agent_url: {"keys": [public_jwk]}})` with the signing agent's
+URL as the key and endpoints or public keys obtained at onboarding.
+When these mappings replace discovery under the 3.3 profile, establish or
+reconfirm the agent-to-operator mapping against the agent's
+`identity.brand_json_url` and reconfirm it within the brand.json cache lifetime.
+These resolvers do not perform that discovery or refresh automatically; see the
+[onboarding guidance](agent-resolution-33.md#verify-onboarded-counterparties).
+
+Direct `BrandJsonJwksResolver` construction is a lower-level option for a
+`brand.json` record you already trust. It does not perform capabilities-based
+origin binding. Never construct its URL from `account.operator` or
+`account.brand`; see [direct resolver construction](agent-resolution-33.md#lower-level-resolver-construction).
+
 ### Framework verification
 
 A seller built on `adcp.server.serve` / `adcp.decisioning.serve` does not need to hand-wire the verifier. Opt in, and the framework verifies every JSON-RPC POST on the MCP and A2A legs **before dispatch**, enforcing the `request_signing` block you advertise:
@@ -76,7 +108,7 @@ from adcp.signing import JwksUriSignerKeys, PgReplayStore
 serve(
     platform,  # platform.capabilities.request_signing is the enforced policy
     signer_keys=JwksUriSignerKeys({
-        "https://buyer.example.com": "https://buyer.example.com/.well-known/jwks.json",
+        "https://buying-agent.example.com/mcp": "https://buying-agent.example.com/.well-known/jwks.json",
     }),
     signature_replay_store=PgReplayStore(pool),  # shared across replicas
     buyer_agent_registry=registry,
@@ -131,7 +163,7 @@ Never flip an operation straight from unsigned to required. Stage it through thr
 
 Add the operation to `supported_for`. Counterparties **MAY** sign; your verifier **MUST** accept signed requests but does not yet reject unsigned ones.
 
-The Python middleware stays permissive — wire `replay_store` and `jwks_resolver`, but leave `required_for` empty:
+The Python middleware stays permissive — wire `replay_store` and `jwks_resolver`, but leave `required_for` empty. The lower-level example below uses a signing agent's JWKS endpoint obtained at onboarding:
 
 ```python
 from adcp.signing import (
@@ -142,7 +174,7 @@ from adcp.signing import (
     verify_starlette_request,
 )
 
-jwks_resolver = CachingJwksResolver(jwks_uri="https://buyer.example.com/.well-known/jwks.json")
+jwks_resolver = CachingJwksResolver(jwks_uri="https://buying-agent.example.com/.well-known/jwks.json")
 
 # Build the replay store ONCE and share it. `VerifyOptions` is per request
 # (`now` changes), and omitting `replay_store` gives each options instance
@@ -261,6 +293,7 @@ Ordering is different — the old kid must stop being trusted *before* anything 
 
 ## 4. Common pitfalls
 
+- **Resolving keys from the account's operator or brand.** `account.operator` names the entity operating the account, such as an agency or an advertiser operating directly; `account.brand` identifies the advertiser. Neither selects the signing agent's keys, even when the domains coincide. Building a `BrandJsonJwksResolver` URL from these fields can resolve an unrelated record and reject requests with `request_signature_jwks_untrusted`. Use agent discovery or key mappings obtained at onboarding instead.
 - **Body-modifying intermediaries break `content-digest` coverage.** CDNs, WAFs, and API gateways that recompress or re-serialize request bodies cause `request_signature_digest_mismatch`. Diagnose by comparing signer-side body bytes to verifier-side body bytes — they must be byte-identical. Either preserve bytes end-to-end or stay on `covers_content_digest="either"` for the affected operation.
 - **Forgetting to disable redirect-following on signed clients.** `@target-uri` is part of the signature base. If the server returns a 3xx redirect, the signature still binds to the original URL. Configure `httpx.AsyncClient(follow_redirects=False)` or implement a redirect handler that re-signs.
 - **Clock skew > 60s.** Verifiers reject with `request_signature_window_invalid` when `created` is more than `max_skew_seconds` in the future or `expires` is past. NTP-sync both sides; investigate container hosts that drift after suspend/resume.

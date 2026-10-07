@@ -5,6 +5,108 @@ at commit `175bcd3b023244aeb97dbdcce8fed674ebd61302`. The protocol change
 is still under review. Historical bundled 3.1/3.2 schemas retain their published
 verifier constraints; these helpers implement the new canonical matching rules.
 
+> **Signing agent's operator:** The operator here publishes the `brand.json`
+> listing the signing agent and its keys. Discover that record from the agent's
+> `get_adcp_capabilities` response (`identity.brand_json_url`), or configure it
+> at onboarding. It never means the `operator` or `brand` in the request's account.
+> These are different roles even when their domains coincide. Do not derive key
+> discovery from request-body fields.
+
+## Discover from the agent URL
+
+Start with the signing agent's URL from your trusted counterparty configuration.
+For request verification, use `verify_from_agent_url`; for key discovery alone,
+use `async_resolve_agent`:
+
+```python
+from adcp.signing import InMemoryReplayStore, async_resolve_agent, verify_from_agent_url
+
+# Single-process example: create once outside the request handler.
+# Across replicas, use a shared replay-store implementation instead.
+replay_store = InMemoryReplayStore()
+buyer_agent_url = "https://buying-agent.example.com/mcp"  # onboarded agent URL
+
+# In your request handler:
+verified = await verify_from_agent_url(
+    request,
+    agent_url=buyer_agent_url,
+    operation="create_media_buy",
+    replay_store=replay_store,
+)
+
+# Alternatively, discover keys without verifying a request:
+resolution = await async_resolve_agent(buyer_agent_url)
+```
+
+These helpers invoke `get_adcp_capabilities` via MCP by default, or A2A with
+`protocol="a2a"`. They use the advertised `identity.brand_json_url`, enforce
+origin binding, and check every declared key origin. Cross-domain origin binding
+accepts `authorized_operators` only on a House Portfolio; its account-level
+brand/country scopes do not restrict key discovery. Discovery does not reuse
+onboarding key mappings, so each call reconfirms the advertised operator record.
+
+[Discovery step 7](https://github.com/adcontextprotocol/adcp/blob/175bcd3b023244aeb97dbdcce8fed674ebd61302/docs/building/by-layer/L1/security.mdx#L1331)
+checks every advertised `identity.key_origins` purpose against the selected
+agent's JWKS source, including purposes other than the signature being verified.
+A different host for any purpose rejects discovery with
+`request_signature_key_origin_mismatch`, even when the active purpose matches.
+The SDK follows this explicit all-purpose rule. The draft's separate guidance
+on origin separation remains in tension with that rule pending clarification.
+
+`verify_from_agent_url` always takes the signer identity (`VerifiedSigner.agent_url`)
+and the replay namespace from the URL the caller passed. A brand.json entry's `url`
+never supplies them. Discovery selects the entry by that URL. A resolution whose
+entry names a different URL fails closed with
+`request_signature_agent_not_in_brand_json`. A record that lists a victim's URL
+with its own keys therefore cannot verify as the victim.
+
+## Verify onboarded counterparties
+
+For framework verification with `serve()`, configure `JwksUriSignerKeys` or
+`StaticSignerKeys` with mappings keyed by the signing agent's URL. The endpoint
+or public keys must come from trusted onboarding, rather than the account:
+
+```python
+from adcp.signing import JwksUriSignerKeys, StaticSignerKeys
+
+signer_keys = JwksUriSignerKeys({
+    "https://buying-agent.example.com/mcp": "https://buying-agent.example.com/.well-known/jwks.json",
+})
+
+# Alternative for public keys exchanged at onboarding:
+signer_keys = StaticSignerKeys({
+    "https://buying-agent.example.com/mcp": {"keys": [buyer_public_jwk]},
+})
+```
+
+These resolvers map a request's `keyid` to a configured agent and its key; they
+do not discover unknown signers. When onboarding mappings replace discovery,
+the [3.3 draft's shortcut rules](https://github.com/adcontextprotocol/adcp/blob/175bcd3b023244aeb97dbdcce8fed674ebd61302/docs/building/by-layer/L1/security.mdx#L1319)
+require callers to establish or reconfirm the agent-to-operator mapping against
+the agent's `identity.brand_json_url`, then reconfirm it within the brand.json
+cache lifetime. These mapping resolvers do not perform that discovery or refresh
+automatically. See the
+[framework verification guide](request-signing-migration.md#framework-verification)
+for wiring them into `serve()`.
+
+## Lower-level resolver construction
+
+Construct `BrandJsonJwksResolver` directly only when you already trust the
+applicable `brand.json` record, for example from onboarding or agent discovery.
+Direct construction does not perform the capabilities-based origin binding
+above. Pass `agent_url` to direct resolver construction and to the shared
+resolver builder:
+
+```python
+from adcp.signing import BrandJsonJwksResolver
+
+resolver = BrandJsonJwksResolver(
+    "https://signing-agent-operator.example.com/brand.json",  # trusted operator record
+    agent_url="https://signing-agent-operator.example.com/sales",
+    agent_type="sales",
+)
+```
+
 Agent URLs are the primary selector. Scheme/host case, default ports, dot
 segments, and percent-encoded unreserved characters normalize; trailing slashes
 and tenant paths remain significant. Optional type and id selectors only narrow
@@ -12,19 +114,6 @@ a URL match. Duplicate canonical matches within one collection fail, including
 duplicates with identical ids. House Portfolio operator discovery scans
 `house.agents[]` and all inline `brands[].agents[]`; repeated attestations across
 collections count once when their type and resolved JWKS source agree.
-
-Pass `agent_url` to direct resolver construction and to the shared resolver
-builder:
-
-```python
-from adcp.signing import BrandJsonJwksResolver
-
-resolver = BrandJsonJwksResolver(
-    "https://operator.example.com/brand.json",
-    agent_url="https://operator.example.com/sales",
-    agent_type="sales",
-)
-```
 
 Omitting `agent_url` is deprecated in 8.1. It emits a `DeprecationWarning`
 and is rejected in the next major release. Without it, `agent_type` is required
@@ -46,28 +135,8 @@ Direct resolvers use operator-style collection selection, including all sibling
 collections in a House Portfolio unless `brand_id` selects one inline brand.
 For a relying-party record, select the surface's applicable collection explicitly;
 use `resolve_governance_jwks` for governance rather than an unscoped direct resolver.
-For operator discovery, `async_resolve_agent` and `verify_from_agent_url` invoke
-`get_adcp_capabilities` via MCP by default, or A2A with `protocol="a2a"`. They use
-the advertised `identity.brand_json_url`, enforce origin binding, and check every
-declared key origin. Cross-domain origin binding accepts `authorized_operators`
-only on a House Portfolio; its account-level brand/country scopes do not restrict
-key discovery. Discovery does not reuse onboarding mappings, so each call
-reconfirms the advertised operator record.
 
-[Discovery step 7](https://github.com/adcontextprotocol/adcp/blob/175bcd3b023244aeb97dbdcce8fed674ebd61302/docs/building/by-layer/L1/security.mdx#L1331)
-checks every advertised `identity.key_origins` purpose against the selected
-agent's JWKS source, including purposes other than the signature being verified.
-A different host for any purpose rejects discovery with
-`request_signature_key_origin_mismatch`, even when the active purpose matches.
-The SDK follows this explicit all-purpose rule. The draft's separate guidance
-on origin separation remains in tension with that rule pending clarification.
-
-`verify_from_agent_url` always takes the signer identity (`VerifiedSigner.agent_url`)
-and the replay namespace from the URL the caller passed. A brand.json entry's `url`
-never supplies them. Discovery selects the entry by that URL. A resolution whose
-entry names a different URL fails closed with
-`request_signature_agent_not_in_brand_json`. A record that lists a victim's URL
-with its own keys therefore cannot verify as the victim.
+## Webhooks and governance
 
 For webhooks, use the asynchronous discovery helper:
 

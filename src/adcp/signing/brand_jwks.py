@@ -9,15 +9,20 @@ fetch — does NOT reinvent JWK caching.
 
 **Why this exists.** The seller's verifier never trusts an
 ``agent_url/.well-known/jwks.json`` directly — that would let any agent
-self-attest its own keys. Per ADCP, keys root through the brand: the
-brand's ``/.well-known/brand.json`` lists each authorized agent and
-its ``jwks_uri``, operator-attested. This resolver walks brand.json,
+self-attest its own keys. Per ADCP, keys root through the signing agent's
+operator: its ``brand.json`` lists each authorized agent and its
+``jwks_uri``, operator-attested. This role is distinct from the ``operator`` or
+``brand`` in the request's account, even when their domains coincide. Do not
+derive key discovery from request-body fields. This resolver walks brand.json,
 picks the right agent entry, and delegates JWK fetch to the inner
 JWKS resolver pinned to that ``jwks_uri``.
 
-For discovery from an agent URL, use ``async_resolve_agent``: it binds the
-operator record to capabilities and checks the operator origin. Direct
-construction is for a relying-party record the caller already trusts.
+For discovery from an agent URL, use ``verify_from_agent_url`` or
+``async_resolve_agent``: they discover the signing agent's operator record from
+``get_adcp_capabilities``' ``identity.brand_json_url`` and enforce origin binding.
+For onboarded counterparties, use ``JwksUriSignerKeys`` or ``StaticSignerKeys``
+keyed by agent URL. Direct construction is the lower-level option for an
+applicable record the caller already trusts, such as one configured at onboarding.
 
 Hand the resulting instance to ``verify_request_signature`` (or
 ``verify_starlette_request``) as the ``jwks`` dependency. The
@@ -366,6 +371,19 @@ class _BrandJsonFetcher:
 
 class BrandJsonJwksResolver:
     """JWKS resolver backed by a sender's ``brand.json``.
+
+    The operator is the signing agent's operator, whose ``brand.json`` lists
+    the agent and its keys. Discover it from the agent's
+    ``get_adcp_capabilities`` response (``identity.brand_json_url``), or
+    configure it at onboarding. It never means the ``operator`` or ``brand``
+    in the request's account. These are different roles even when their domains
+    coincide. Do not derive key discovery from request-body fields.
+
+    Prefer ``verify_from_agent_url`` / ``async_resolve_agent`` for discovery,
+    or ``JwksUriSignerKeys`` / ``StaticSignerKeys`` keyed by agent URL for
+    onboarded counterparties. Direct construction is a lower-level option
+    for an applicable record you already trust; it does not perform
+    capabilities-based origin binding.
 
     Implements :class:`adcp.signing.AsyncJwksResolver` (callable as
     ``await resolver(kid)``). Construct one per counterparty (or per
