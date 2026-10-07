@@ -69,23 +69,42 @@
   and any controlled proxy Host values that actually reach the SDK (for
   example, `allowed_hosts=["agent.example.com", "agent.internal:8000"]`).
   Setting a discovery or public URL does not grant trust to its hostname.
-  Browser requests also need a separate `allowed_origins` allowlist for
-  their origins; Host allowlisting does not authorize an Origin. Native
-  requests without Origin continue to work when their Host is allowed.
+  Browser protocol and operational requests need an appropriate
+  `allowed_origins` allowlist. Public GET/HEAD discovery accepts any Origin
+  and still checks Host; add CORS middleware separately when browsers need
+  to read the response. Native requests without Origin continue to work
+  when their Host is allowed.
   See [HTTP transport policy](docs/handler-authoring.md#http-host-and-origin-policy)
   for wildcard and port matching rules.
 
-* **types:** `CreativeAsset.format_kind`, `Creative.format_kind`, and
-  `CreativeManifest.format_kind` now reject values outside `CanonicalFormatKind`.
-  Valid strings still normalize to enum members. Inputs remain strict, while
-  buyer manifest readback preserves future kinds through private tolerant views
-  in delivery, preview, build (including nested variants and async results), and
-  trusted-match offers. Direct `Creative` and `CreativeAsset` response fields
-  remain strict. Update stored and incoming creative kinds using the
-  [migration guide](docs/canonical-format-kinds-migration.md).
-  This closes [#1241](https://github.com/adcontextprotocol/adcp-client-python/issues/1241).
+* **types:** Consumer creative and manifest `format_kind` fields remain open
+  strings and preserve unknown values. Use string equality and opt into
+  `CanonicalFormatKindStr` or `require_canonical_format_kind(vocabulary)` when
+  an application boundary needs a closed vocabulary. These helpers do not
+  change public consumer defaults. See
+  [format-kind migration](docs/canonical-format-kinds-migration.md).
 
 ## [9.0.0-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.0.0-beta.1...v9.0.0-beta.2) (2026-10-07)
+
+### Migration notes
+
+See [Migrating from SDK 8 to 9](MIGRATION_v8_to_v9.md) before upgrading.
+
+* `ProductFormatDeclaration` now names the 16-branch authoring union. Validate
+  it with `validate_union` or `TypeAdapter`; use `Format` for open consumer
+  parsing and projection helpers.
+* Source requests and manifests bind `identity.consumer_id` to the obligation
+  owner. Retained ownerless evidence keeps its canonical hashes. An active
+  owned generation cannot replay an ownerless or differently owned frozen
+  acquisition; reconcile that state and create a new generation.
+* First automatic reads spread after actual offering readiness within a window
+  of up to five minutes by default, bounded by delivery/recovery headroom,
+  period length and cadence. Set `read_jitter_window=timedelta(0)` on the
+  producer, Core service or `ReportingProductionOptions` to opt out.
+* Strict format-kind helpers are opt-in; consumer fields remain open strings.
+* `supported_versions` restricts each server's dispatch and advertisement.
+  Public GET/HEAD discovery accepts foreign Origins while retaining Host
+  checks; browser CORS remains separately configured.
 
 
 ### Features
