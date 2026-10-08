@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "identifier": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/identifier.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/identifier.json",
       "description": "The property identifier where impressions were delivered"
     },
     "impressions": {
@@ -23,7 +23,7 @@
       "description": "URL of the sales agent that sold this inventory. If provided, authorization is validated against the property's adagents.json."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

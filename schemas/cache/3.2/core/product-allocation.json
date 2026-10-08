@@ -27,7 +27,7 @@
       "maximum": 100
     },
     "pacing": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pacing.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pacing.json",
       "description": "Recommended subordinate package pacing. On proposal execution this becomes pacing on the derived package and MUST NOT cause delivery to exceed aggregate proposal/media-buy pacing. On a committed proposal it is a firm delivery term. On a seller-optimized proposal, sellers MUST NOT emit it unless they advertise media_buy.features.seller_optimized_package_pacing."
     },
     "pricing_option_id": {
@@ -64,16 +64,16 @@
       "type": "array",
       "description": "Recommended time windows for this allocation in spot-plan proposals. Each entry's timezone defaults to inventory_local when omitted, and entries MAY use different clocks.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/daypart-target.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/daypart-target.json"
       },
       "minItems": 1
     },
     "forecast": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-forecast.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-forecast.json",
       "description": "Forecasted delivery metrics for this allocation"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

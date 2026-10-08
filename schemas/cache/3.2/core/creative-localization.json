@@ -66,7 +66,7 @@
           "x-entity": "creative_locale_variant"
         },
         "locale": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/locale-tag.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/locale-tag.json"
         }
       },
       "required": [
@@ -89,7 +89,7 @@
             "x-entity": "creative_locale_variant"
           },
           "locale": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/locale-tag.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/locale-tag.json"
           },
           "assets": {
             "type": "object",
@@ -99,12 +99,12 @@
               "^[a-z0-9_]+$": {
                 "anyOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/localized-creative-asset.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/localized-creative-asset.json"
                   },
                   {
                     "type": "array",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/localized-creative-asset.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/localized-creative-asset.json"
                     },
                     "minItems": 1
                   }
@@ -137,7 +137,7 @@
         "type": "object",
         "properties": {
           "language_range": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/locale-tag.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/locale-tag.json",
             "description": "Canonical concrete BCP 47 range matched against progressively truncated requested ranges. Wildcards are not supported."
           },
           "locale_variant_id": {

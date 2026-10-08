@@ -8,7 +8,7 @@
   "x-idempotency-key-required": false,
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     }
   ],
   "properties": {
@@ -20,7 +20,7 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "creative_manifest": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-manifest.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-manifest.json",
       "description": "The canonical creative manifest to evaluate. In 3.2 it contains `format_kind`, optional `format_option_ref`, and typed assets. The deprecated named `format_id` branch remains available only for older 3.x peers."
     },
     "feature_ids": {
@@ -32,18 +32,18 @@
       "minItems": 1
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Account for billing this evaluation. Required when the governance agent charges per evaluation."
     },
     "push_notification_config": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json",
       "description": "Optional webhook configuration for async terminal completion/failure notifications. A submitted acknowledgement remains pollable through get_task_status whether or not this field is present. If the provider accepts this field and returns status: submitted, it MUST deliver at least the terminal completion or failure notification to the configured URL. If it cannot honor the webhook channel, it MUST reject the request instead of silently downgrading delivery."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

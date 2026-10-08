@@ -11,11 +11,11 @@
       "description": "Binary signal targeting - user either matches or doesn't",
       "properties": {
         "signal_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json",
           "description": "The signal to target. New targeting constraints SHOULD use signal_ref."
         },
         "signal_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-id.json",
           "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
           "deprecated": true
         },
@@ -52,11 +52,11 @@
       "description": "Categorical signal targeting - target users with specific values",
       "properties": {
         "signal_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json",
           "description": "The signal to target. New targeting constraints SHOULD use signal_ref."
         },
         "signal_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-id.json",
           "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
           "deprecated": true
         },
@@ -97,11 +97,11 @@
       "description": "Numeric signal targeting - target users within a value range. If min_value is provided, it must be <= max_value. Values should be within the signal's defined range (see signal definition).",
       "properties": {
         "signal_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json",
           "description": "The signal to target. New targeting constraints SHOULD use signal_ref."
         },
         "signal_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-id.json",
           "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
           "deprecated": true
         },

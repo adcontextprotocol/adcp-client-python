@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "status": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/assessment-status.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/assessment-status.json",
       "description": "Overall health status. Use this for cross-seller decisions \u2014 do not rely on detail.score for comparability. 'insufficient' covers the source-offline case (zero events received over the seller's evaluation window) \u2014 disambiguate via `events_received_24h: 0` and a stale `last_event_at`. Sellers MUST surface a corresponding impairment (reason_code: source_offline) on any active media buy whose conversion goals depend on an event source that has gone offline."
     },
     "detail": {
@@ -58,7 +58,7 @@
       "type": "array",
       "description": "Actionable issues detected with this event source. Sellers should limit to the top 3-5 most actionable items. Buyer agents should sort by severity rather than relying on array position.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/diagnostic-issue.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/diagnostic-issue.json"
       }
     }
   },

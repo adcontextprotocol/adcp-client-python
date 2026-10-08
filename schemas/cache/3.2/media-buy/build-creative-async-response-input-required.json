@@ -17,14 +17,14 @@
       "type": "array",
       "description": "Optional validation errors or warnings explaining why input is required.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       }
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "additionalProperties": true

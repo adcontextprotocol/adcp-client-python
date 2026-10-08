@@ -10,7 +10,7 @@
   },
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
     },
     {
       "type": "object",
@@ -21,7 +21,7 @@
           "x-entity": "placement"
         },
         "placement_identity": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/placement-identity.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/placement-identity.json",
           "description": "Required self-contained placement identity. Unlike the legacy-compatible by_placement dimension, the new by_placement_property dimension has no pre-3.2 row shape and always names the placement authority."
         },
         "placement_name": {
@@ -34,11 +34,11 @@
           "description": "Publisher or platform authority that namespaces the property identifier. This may differ from a publisher-catalog placement's publisher_domain."
         },
         "identifier": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/identifier.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/identifier.json",
           "description": "Primary operational identifier of the property that delivered."
         },
         "property_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-ref.json",
           "description": "Canonical publisher-scoped property catalog identity when available. Its publisher_domain MUST equal the row's publisher_domain."
         },
         "property_name": {

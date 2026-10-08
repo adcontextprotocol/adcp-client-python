@@ -15,7 +15,7 @@
           "const": "dataset"
         },
         "vendor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
           "description": "Data-sharing platform hosting the shared object."
         },
         "locator": {
@@ -47,7 +47,7 @@
           "const": "platform_segment"
         },
         "vendor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
           "description": "Distribution platform delivering the segment."
         },
         "segment_ref": {

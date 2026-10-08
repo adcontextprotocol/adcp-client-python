@@ -77,7 +77,7 @@
       "pattern": "^[A-Z]{3}$"
     },
     "attribution_window": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attribution-window.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attribution-window.json",
       "description": "Attribution methodology and lookback windows used for conversion metrics in this report."
     },
     "media_buy_deliveries": {
@@ -131,7 +131,7 @@
             "description": "Timestamp when this row became final. Present only when is_final is true."
           },
           "pricing_model": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pricing-model.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pricing-model.json"
           },
           "pacing_index": {
             "type": "number",
@@ -141,7 +141,7 @@
           "totals": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
               },
               {
                 "type": "object",
@@ -162,7 +162,7 @@
             "items": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
                 },
                 {
                   "type": "object",
@@ -177,7 +177,7 @@
                       "minimum": 0
                     },
                     "pricing_model": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pricing-model.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pricing-model.json"
                     },
                     "rate": {
                       "type": "number",
@@ -189,7 +189,7 @@
                       "pattern": "^[A-Z]{3}$"
                     },
                     "delivery_status": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/delivery-status.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/delivery-status.json",
                       "description": "System-reported operational state of this package. Reflects actual delivery state independent of buyer pause control. 'not_delivering' means zero impressions were recorded for the entire reporting_period while the package was in-flight. Sellers SHOULD only report 'not_delivering' once the package's data is_final for the period \u2014 a provisional (is_final: false) zero may still be measurement catching up, not genuine non-delivery."
                     },
                     "paused": {
@@ -214,7 +214,7 @@
                       "type": "array",
                       "description": "Qualified standard delivery values for this package. Each entry is the delivered counterpart to a standard-scope package.committed_metrics or by_package[].missing_metrics row, using the same atomic key (scope, metric_id, qualifier). Sellers report one row per full qualifier set at package grain; when a metric appears here, its flat scalar counterpart on the package MUST be omitted to avoid two sources of truth. Vendor-scope values continue to use vendor_metric_values. Buyers reconcile rows directly and perform any compatible cross-package aggregation themselves.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/package-delivery-metric-value.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/package-delivery-metric-value.json"
                       }
                     }
                   },
@@ -258,17 +258,17 @@
       "type": "array",
       "description": "Task-specific delivery errors or warnings.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       }
     },
     "sandbox": {
       "type": "boolean"
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

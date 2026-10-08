@@ -21,7 +21,7 @@
       "maxLength": 2000
     },
     "value_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/signal-value-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/signal-value-type.json",
       "description": "The data type of this signal's values"
     },
     "tags": {
@@ -44,12 +44,12 @@
       "type": "array",
       "description": "Restricted attribute categories this signal touches. Data providers SHOULD declare these so governance agents can structurally match signals against a plan's restricted_attributes without relying on semantic inference from the signal name or description.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/restricted-attribute.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/restricted-attribute.json"
       },
       "minItems": 1
     },
     "demographic_predicate": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/demographic-predicate.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/demographic-predicate.json",
       "description": "Authoritative machine-readable demographic meaning for this signal. Signal names and taxonomy labels alone never establish exact demographic equivalence. Signals carrying this field MUST also declare restricted_attributes including age."
     },
     "policy_categories": {
@@ -314,11 +314,11 @@
       "additionalProperties": false
     },
     "subject_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audience-subject-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audience-subject-type.json",
       "description": "What kind of subject this signal characterizes."
     },
     "resolution_method": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audience-resolution-method.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audience-resolution-method.json",
       "description": "How the subject is resolved at decision time."
     },
     "id_types": {
@@ -363,7 +363,7 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/consent-basis.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/consent-basis.json"
       },
       "description": "Declared GDPR Article 6 lawful basis or consent basis under which this signal's data is processed. For non-GDPR regimes, use countries, policy_categories, and disclosure fields to describe jurisdiction-specific obligations unless a future enum value applies."
     },
@@ -433,7 +433,7 @@
           "description": "EU AI Act risk classification self-declared by the provider. Prohibited-risk modeled signals must not be published as AdCP signal definitions."
         },
         "disclosure": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-modeling-disclosure.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-modeling-disclosure.json",
           "description": "Signal/modeling-specific disclosure requirements and jurisdictional notes. This is not creative provenance render guidance."
         }
       },

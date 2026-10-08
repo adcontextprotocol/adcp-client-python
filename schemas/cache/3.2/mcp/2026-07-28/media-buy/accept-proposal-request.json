@@ -226,7 +226,7 @@
         {
           "properties": {
             "brand": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/accept-proposal-request.json#/$defs/external:core~1brand-key.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/accept-proposal-request.json#/$defs/external:core~1brand-key.json"
             },
             "operator": {
               "type": "string",
@@ -234,7 +234,7 @@
               "x-entity": "operator"
             },
             "operator_unit": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/accept-proposal-request.json#/$defs/external:core~1operator-unit.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/accept-proposal-request.json#/$defs/external:core~1operator-unit.json",
               "description": "Optional operator-owned business unit, agency seat, or platform account. Only id participates in identity; name is mutable display metadata."
             },
             "currency": {
@@ -291,7 +291,7 @@
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
         },
         "brand_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/accept-proposal-request.json#/$defs/external:core~1brand-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/accept-proposal-request.json#/$defs/external:core~1brand-id.json",
           "description": "Brand within a house-of-brands manifest. Omit for a single-brand domain."
         },
         "countries": {
@@ -391,7 +391,7 @@
               "type": "array",
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/accept-proposal-request.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/accept-proposal-request.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -441,13 +441,13 @@
         "authentication": {
           "type": "object",
           "deprecated": true,
-          "description": "Legacy authentication configuration for webhook delivery (A2A-compatible). Opts the receiver into Bearer or HMAC-SHA256 signing. Both schemes are deprecated; the preferred signing profile for new integrations is RFC 9421, where the seller signs with a key published at its brand.json agents[] entry and the buyer verifies against the seller's JWKS \u2014 no shared secret crosses the wire (see docs/building/implementation/security.mdx#webhook-callbacks). This field is required in AdCP 3.x; the requirement is removed in AdCP 4.0 when the default RFC 9421 path becomes the only path.",
+          "description": "Legacy authentication configuration for webhook delivery (A2A-compatible). Opts the receiver into Bearer or HMAC-SHA256 signing. Both schemes are deprecated; the preferred signing profile for new integrations is RFC 9421, where the seller signs with a key published at its brand.json agents[] entry and the buyer verifies against the seller's JWKS \u2014 no shared secret crosses the wire (see docs/building/by-layer/L1/security.mdx#webhook-callbacks). This field is required in AdCP 3.x; the requirement is removed in AdCP 4.0 when the default RFC 9421 path becomes the only path.",
           "properties": {
             "schemes": {
               "type": "array",
               "description": "Array of authentication schemes. ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD use the RFC 9421 webhook signing profile instead.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/accept-proposal-request.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/accept-proposal-request.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -477,7 +477,7 @@
           "type": "array",
           "description": "Optional list of metrics to include in webhook notifications. If omitted, all available metrics are included; an empty array has the same meaning as omission (it does not narrow to impressions and spend only). impressions and spend are always included regardless of this list. Must be a subset of the product's available_metrics. Subset evaluation and leaf resolution follow `enums/available-metric.json`: a numeric leaf may be covered by its container, while each structured distribution must be explicitly available. Requesting any nested identity selects its canonical carrier inside the payload's nested object. Same narrowing semantics as get_media_buy_delivery's requested_metrics (which additionally requires at least one entry when present).",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/accept-proposal-request.json#/$defs/external:enums~1available-metric.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/accept-proposal-request.json#/$defs/external:enums~1available-metric.json"
           },
           "uniqueItems": true
         }
@@ -578,7 +578,7 @@
           "description": "How seriously the buyer is evaluating supply in this cycle."
         },
         "planning_horizon": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/accept-proposal-request.json#/$defs/external:core~1date-range.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/accept-proposal-request.json#/$defs/external:core~1date-range.json",
           "description": "Inclusive calendar range in which the buyer expects the campaign to run."
         },
         "response_deadline": {

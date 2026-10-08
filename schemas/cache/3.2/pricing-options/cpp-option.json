@@ -36,14 +36,14 @@
     },
     "price_guidance": {
       "description": "Optional pricing guidance for auction-based bidding",
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/pricing-options/price-guidance.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/pricing-options/price-guidance.json"
     },
     "parameters": {
       "type": "object",
       "description": "CPP-specific parameters for demographic targeting",
       "properties": {
         "demographic_system": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/demographic-system.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/demographic-system.json",
           "description": "Measurement system for the demographic field. Defaults to nielsen when omitted."
         },
         "demographic": {
@@ -68,13 +68,13 @@
     },
     "price_breakdown": {
       "description": "Breakdown of how fixed_price was derived from the list (rate card) price. Only meaningful when fixed_price is present.",
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/pricing-options/price-breakdown.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/pricing-options/price-breakdown.json"
     },
     "eligible_adjustments": {
       "type": "array",
       "description": "Adjustment kinds applicable to this pricing option. Tells buyer agents which adjustments are available before negotiation. When absent, no adjustments are pre-declared \u2014 the buyer should check price_breakdown if present.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/adjustment-kind.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/adjustment-kind.json"
       },
       "uniqueItems": true
     }

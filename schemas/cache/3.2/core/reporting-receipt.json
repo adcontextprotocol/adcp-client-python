@@ -49,7 +49,7 @@
       ]
     },
     "verification_profile": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-verification-profile.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-verification-profile.json"
     },
     "observed_row_count": {
       "type": "integer",
@@ -58,19 +58,19 @@
     "observed_control_totals": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-control-total.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-control-total.json"
       },
       "uniqueItems": true
     },
     "observed_canonical_content_digest": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-canonical-content-digest.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-canonical-content-digest.json"
     },
     "observed_manifest_sha256": {
       "type": "string",
       "pattern": "^[A-Fa-f0-9]{64}$"
     },
     "observed_native_version_ref": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-native-version-ref.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-native-version-ref.json"
     },
     "consumer_commit_ref": {
       "type": "string",

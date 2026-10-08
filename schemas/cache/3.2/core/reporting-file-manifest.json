@@ -68,12 +68,12 @@
       ]
     },
     "compression": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-file-compression.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-file-compression.json"
     },
     "files": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-file-entry.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-file-entry.json"
       },
       "minItems": 1
     },
@@ -88,7 +88,7 @@
     "control_totals": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-control-total.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-control-total.json"
       },
       "uniqueItems": true
     },

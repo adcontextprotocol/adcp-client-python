@@ -13,10 +13,10 @@
   },
   "properties": {
     "adcp_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_version"
     },
     "adcp_major_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_major_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_major_version"
     },
     "context_id": {
       "type": "string",
@@ -26,7 +26,7 @@
     "context": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         }
       ],
       "x-adcp-schema-uri": "/schemas/core/context.json"
@@ -39,7 +39,7 @@
     "push_notification_config": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json"
         }
       ],
       "x-adcp-schema-uri": "/schemas/core/push-notification-config.json"
@@ -54,13 +54,13 @@
     "account": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-account-ref.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-account-ref.json"
         }
       ],
       "description": "Alternative brand source for proposal terms. Provide either this natural-key account containing brand and operator or top-level brand, not both."
     },
     "brand": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json",
       "description": "Alternative brand source for proposal terms. Provide either top-level brand or a natural-key account containing brand and operator, not both."
     },
     "brief": {
@@ -69,12 +69,12 @@
       "description": "Campaign goal, strategy, and requirements that are not represented in structured criteria."
     },
     "criteria": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-discovery-criteria.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-discovery-criteria.json"
     },
     "opportunity": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/opportunity-context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/opportunity-context.json"
         },
         {
           "properties": {

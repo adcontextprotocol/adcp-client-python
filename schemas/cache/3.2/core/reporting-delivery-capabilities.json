@@ -65,7 +65,7 @@
     "offerings": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-delivery-offering.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-delivery-offering.json"
       },
       "minItems": 1,
       "description": "Atomic supported feed/profile/schedule/finality/method combinations. offering_id values MUST be unique."
@@ -109,7 +109,7 @@
     "reliability_statistics": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-reliability-statistics.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-reliability-statistics.json"
       },
       "description": "Optional evidence-scoped observed performance for advertised offerings. offering_id values MUST be unique and name offerings in this capability block.",
       "uniqueItems": true

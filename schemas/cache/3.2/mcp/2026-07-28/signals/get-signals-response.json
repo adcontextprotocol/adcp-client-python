@@ -307,7 +307,7 @@
           "description": "Transport-managed conversation identifier. On A2A, this maps to the native Message/Task `contextId` used to associate messages with a conversation; it is not carried inside the AdCP DataPart. On MCP, a request-body `context_id`, where admitted by the selected request schema, is a compatibility-only field: servers MUST ignore it, callers MUST NOT rely on it for continuity, and it MUST NOT select session state, identity, account, authorization, task continuation, or idempotency scope. MCP continuity, if provided, comes from the transport session. Distinct from `context` (per-request opaque echo, see below) and from `task_id` (AdCP operation tracking)."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1context.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1context.json",
           "description": "Per-request opaque caller-supplied correlation object echoed unchanged in the response. Used for buyer-side tracking (UI session IDs, trace IDs, custom metadata) that the agent MUST preserve byte-for-byte without parsing. Distinct from `context_id` (transport-managed A2A conversation correlation or MCP compatibility metadata) \u2014 `context` is caller-owned echo and never selects transport state. Both MAY appear on the same response.\n\n**Relationship to per-task body-level `context` declarations.** Many task request/response schemas (147 as of 3.1) already declare a body-level `context` field that `$ref`s `/schemas/core/context.json` at the body root. Under the flat-on-the-wire MCP serialization (see `notes` below), envelope-level `context` and body-level `context` occupy the same key on the response root \u2014 they are NOT separate fields, they MUST share the same value, and they MUST both `$ref` `core/context.json`. The envelope declaration is **authoritative** for the schema definition; per-task body declarations are mirrors retained for tooling reasons (SDK codegen completeness, per-task validation against the response schema in isolation). Future versions MAY drop body-level `context` declarations from per-task schemas; conformance does not require either declaration to be present, only that the wire value `$ref`s `core/context.json`."
         },
         "task_id": {
@@ -316,7 +316,7 @@
           "x-entity": "task"
         },
         "status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1task-status.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1task-status.json",
           "description": "Current AdCP task state or structured outcome. Indicates whether the task completed, is in progress, was submitted for async processing, failed, requires user input, or returned a typed business rejection. REQUIRED on every task response envelope. Synchronous tasks (including read-only metadata calls like `get_adcp_capabilities`) normally emit `status: \"completed\"`; a task-specific rejection arm emits `status: \"rejected\"` without turning the transport into a failure. Async tasks emit `submitted`, `working`, `input-required`, etc. per their lifecycle. Agents MUST NOT emit the legacy task_status or response_status fields alongside this field \u2014 the status field is the single authoritative AdCP response state."
         },
         "message": {
@@ -334,11 +334,11 @@
           "default": false
         },
         "adcp_error": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1error.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1error.json",
           "description": "Transport-envelope error signal for fatal task failures. Per the two-layer model in `error-handling.mdx#envelope-vs-payload-errors-the-two-layer-model`, a fatal task failure SHOULD populate both this envelope-level field AND the payload's `errors[]` array \u2014 the envelope carries a typed, extractable error so MCP/A2A clients can dispatch without re-parsing the payload, while the payload's structured `errors[]` remains the canonical normative shape. Non-fatal warnings populate ONLY `payload.errors[]` with `severity: warning` \u2014 the envelope MUST NOT carry `adcp_error` for non-failures."
         },
         "push_notification_config": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1push-notification-config.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1push-notification-config.json",
           "description": "AdCP application-layer webhook configuration for async task updates over MCP, A2A, or REST. Echoed from the request to confirm webhook settings. It is distinct from transport-native progress or A2A TaskPushNotificationConfig delivery and can outlive the originating transport session."
         },
         "governance_context": {
@@ -706,7 +706,7 @@
               "type": "array",
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -744,11 +744,11 @@
       "type": "object",
       "properties": {
         "signal_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1signal-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1signal-ref.json",
           "description": "Canonical signal reference. Use scope 'product' for a product-local signal defined by this listing; use scope 'data_provider' with data_provider_domain for a signal defined in a data provider's published adagents.json signals[]; use scope 'signal_source' with signal_source_url for a source-native signal."
         },
         "signal_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1signal-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1signal-id.json",
           "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older Signals Protocol clients.",
           "deprecated": true
         },
@@ -771,7 +771,7 @@
           "description": "When this listing record was last updated. This indicates freshness of the listing record, not an attestation that the underlying data or model was refreshed at that time."
         },
         "value_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1signal-value-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1signal-value-type.json",
           "description": "The data type of this signal's values. Required when signal_ref.scope is 'product'."
         },
         "categories": {
@@ -805,12 +805,12 @@
           "type": "array",
           "description": "Restricted attribute categories this listing touches. Required with demographic_predicate and must include age. For referenced provider/source signals, any projected values must match the authoritative definition.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1restricted-attribute.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1restricted-attribute.json"
           },
           "minItems": 1
         },
         "demographic_predicate": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1demographic-predicate.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1demographic-predicate.json",
           "description": "Machine-readable demographic meaning. For product-local signals this listing is authoritative; for data-provider and signal-source refs, any projected value MUST match the referenced authoritative definition. Signal names alone never establish demographic semantics."
         }
       },
@@ -1154,7 +1154,7 @@
       "type": "object",
       "properties": {
         "age": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1demographic-age-range.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1demographic-age-range.json"
         }
       },
       "required": [
@@ -1210,12 +1210,12 @@
           "type": "array",
           "description": "Restricted attribute categories this signal touches.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1restricted-attribute.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1restricted-attribute.json"
           },
           "minItems": 1
         },
         "demographic_predicate": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1demographic-predicate.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1demographic-predicate.json",
           "description": "Projected authoritative demographic meaning for the signal. When projected from another provider, this MUST match the provider's definition exactly. Signal names alone never establish demographic semantics."
         },
         "policy_categories": {
@@ -1445,7 +1445,7 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1consent-basis.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1consent-basis.json"
           },
           "description": "Data provider's declared GDPR Article 6 lawful basis or consent basis for the underlying signal definition, projected into this get_signals response row when requested. Sellers and federating agents that pass through another provider's signal MUST NOT substitute their own processing basis for the provider-declared basis."
         },
@@ -1512,7 +1512,7 @@
               ]
             },
             "disclosure": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1signal-modeling-disclosure.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1signal-modeling-disclosure.json"
             }
           },
           "required": [
@@ -1792,7 +1792,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-point.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-point.json"
               },
               {
                 "required": [
@@ -1829,7 +1829,7 @@
           "description": "How to interpret the points array. Signal coverage forecasts always use 'availability' because the points describe available inventory or population coverage, not spend curves or temporal pacing."
         },
         "method": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1forecast-method.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1forecast-method.json",
           "description": "Method used to produce this coverage forecast."
         },
         "scope": {
@@ -1875,7 +1875,7 @@
               "minItems": 1
             },
             "date_range": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1date-range.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1date-range.json",
               "description": "Historical or planned date window used to compute the denominator."
             }
           },
@@ -1912,7 +1912,7 @@
           "description": "When this coverage forecast expires."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -1982,11 +1982,11 @@
           "x-entity": "product"
         },
         "dimensions": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-point-dimensions.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-point-dimensions.json",
           "description": "Dimension constraints represented by this forecast point, such as country, region, placement, device type, platform, audience, signal value, time window, or intersections such as placement x country or product x signal. Each item declares one dimension family; when multiple items are present, the point represents their intersection. Sellers MUST NOT emit more than one item for each `kind` on a point; consumers MUST NOT treat repeated kinds as OR semantics. Use multiple points with dimensions to expose country/placement/signal availability within one product, proposal, or signal coverage forecast without creating separate products solely for each dimension. Dimensions describe the forecast row and are independent of pricing_options."
         },
         "availability_status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1availability-status.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1availability-status.json",
           "description": "Bookability of the inventory this row describes, as of the forecast's generated_at. Most meaningful on rows with a time dimension in an availability forecast (forecast_range_unit 'availability'). This is a snapshot, not a hold: valid_until bounds freshness, and proposal finalization or purchase remains the commitment boundary. When omitted, the row makes no bookability claim. 'unavailable' rows may carry empty metrics."
         },
         "metrics": {
@@ -1994,57 +1994,57 @@
           "description": "Forecasted metric values. Keys are forecastable-metric enum values for delivery/engagement or event-type enum values for outcomes. Values are ForecastRange objects (low/mid/high). Use { \"mid\": value } for point estimates. When budget is present, these are the expected metrics at that spend level. When budget is omitted, these represent total available inventory \u2014 use spend to express the estimated cost. Additional keys beyond the documented properties are allowed for event-type values (purchase, lead, app_install, etc.).",
           "properties": {
             "audience_size": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "reach": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "frequency": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "impressions": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "clicks": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "spend": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "views": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "completed_views": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "grps": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "engagements": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "follows": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "saves": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "profile_visits": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "measured_impressions": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "downloads": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "plays": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
             },
             "coverage_rate": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
                 },
                 {
                   "properties": {
@@ -2064,7 +2064,7 @@
             }
           },
           "additionalProperties": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
           }
         },
         "viewability": {
@@ -2072,21 +2072,21 @@
           "description": "Forecasted viewability metrics. Mirrors delivery-metrics.viewability, but numeric values are ForecastRange objects because forecast rows may provide low/mid/high bounds. Use this for pre-buy viewability expectations by forecast point without folding measurement metrics into pricing_options.",
           "properties": {
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1brand-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1brand-ref.json",
               "description": "Vendor expected to produce or verify these viewability values."
             },
             "measurable_impressions": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json",
               "description": "Forecasted impressions where viewability can be measured. Coverage denominator for viewable_rate and viewed_seconds."
             },
             "viewable_impressions": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json",
               "description": "Forecasted impressions expected to meet the viewability threshold defined by standard."
             },
             "viewable_rate": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json"
                 },
                 {
                   "properties": {
@@ -2105,11 +2105,11 @@
               "description": "Forecasted viewable impression rate (viewable_impressions / measurable_impressions). Range 0.0 to 1.0."
             },
             "viewed_seconds": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json",
               "description": "Forecasted average in-view duration per measurable impression, in seconds."
             },
             "standard": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1viewability-standard.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1viewability-standard.json",
               "description": "Viewability measurement standard applied to these forecasted values."
             }
           },
@@ -2152,7 +2152,7 @@
           "type": "array",
           "description": "Forecasted values for vendor-defined metrics that the product's reporting_capabilities.vendor_metrics declared. Mirrors delivery-metrics.vendor_metric_values, but value and measurable_impressions use ForecastRange. These forecasted measurement values are independent of pricing_options.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-vendor-metric-value.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-vendor-metric-value.json"
           }
         }
       },
@@ -2176,25 +2176,25 @@
       "items": {
         "oneOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-dimension-geo.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-dimension-geo.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-dimension-placement.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-dimension-placement.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-dimension-device-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-dimension-device-type.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-dimension-device-platform.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-dimension-device-platform.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-dimension-audience.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-dimension-audience.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-dimension-signal.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-dimension-signal.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-dimension-time.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-dimension-time.json"
           }
         ]
       }
@@ -2210,7 +2210,7 @@
           "description": "Dimension family discriminator."
         },
         "geo_level": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1geo-level.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1geo-level.json",
           "description": "Geographic level for this forecast point."
         },
         "system": {
@@ -2321,7 +2321,7 @@
           "then": {
             "properties": {
               "system": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1metro-system.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1metro-system.json"
               }
             },
             "required": [
@@ -2348,12 +2348,12 @@
           "then": {
             "anyOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1postal-country-system.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1postal-country-system.json"
               },
               {
                 "properties": {
                   "system": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1legacy-postal-system.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1legacy-postal-system.json"
                   }
                 },
                 "required": [
@@ -2405,7 +2405,7 @@
           "description": "ISO 3166-1 alpha-2 country code."
         },
         "system": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1postal-system.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1postal-system.json",
           "description": "Country-local postal code system."
         }
       },
@@ -2606,7 +2606,7 @@
           "description": "Dimension family discriminator."
         },
         "placement_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1placement-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1placement-ref.json",
           "description": "Structured placement reference for this forecast row. References an entry from the product's placements array."
         },
         "placement_name": {
@@ -2652,7 +2652,7 @@
           "description": "Dimension family discriminator."
         },
         "device_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1device-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1device-type.json",
           "description": "Device form factor for this forecast row."
         }
       },
@@ -2686,7 +2686,7 @@
           "description": "Dimension family discriminator."
         },
         "device_platform": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1device-platform.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1device-platform.json",
           "description": "Operating system or platform for this forecast row."
         }
       },
@@ -2731,7 +2731,7 @@
           "x-entity": "audience"
         },
         "audience_source": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1audience-source.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1audience-source.json",
           "description": "Origin of the audience segment."
         },
         "audience_name": {
@@ -2770,7 +2770,7 @@
           "description": "Dimension family discriminator."
         },
         "signal_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1signal-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1signal-ref.json",
           "description": "Canonical signal reference for this forecast row. Required when the row needs to disambiguate product-local, data-provider, or signal-source identity. Product-relative forecasts SHOULD use signal_ref."
         },
         "signal_id": {
@@ -2958,7 +2958,7 @@
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
         },
         "brand_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1brand-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1brand-id.json",
           "description": "Brand identifier within the house portfolio. Optional for single-brand domains."
         },
         "countries": {
@@ -3017,7 +3017,7 @@
           "description": "Inline override for brand-kit fields normally resolved from `/.well-known/brand.json` on `domain` (logo, colors, voice, tagline). Use when brand.json is missing, stale, or inappropriate for this specific call \u2014 e.g., a campaign-scoped tagline, a co-branded creative, a freshly-rebranded color palette the brand.json hasn't shipped yet. Same inline-override pattern as `industries` and `data_subject_contestation` above: brand.json is canonical, the override is per-call. Adopters needing to override fields outside this subset (`voice_attributes`, `prohibited_terms`, etc.) MUST publish a different brand.json and reference it via a different `domain` \u2014 the inline override is intentionally narrow to a small high-traffic subset.\n\n**Merge semantics (normative).** The merge is **field-level**, not whole-object replacement. Each field within `brand_kit_override` (`logo`, `colors`, `voice`, `tagline`) is evaluated independently \u2014 when a field is present on the override the override value applies; when a field is absent the brand.json value applies (or is absent if brand.json doesn't carry one either). For composite fields (`colors.primary`, `colors.secondary`, `colors.accent`), the merge is one level deeper: each color slot is evaluated independently \u2014 a producer can override `colors.primary` while still inheriting `colors.secondary` from brand.json. SDKs MUST NOT treat a present `brand_kit_override.colors` as wiping the brand.json `colors` block entirely; only the per-slot fields present in the override take precedence. Without this rule, a partial-override semantics would diverge across SDKs and produce inconsistent rendering for the same payload.",
           "properties": {
             "logo": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1assets~1image-asset.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1assets~1image-asset.json",
               "description": "Override logo asset."
             },
             "colors": {
@@ -3153,7 +3153,7 @@
           "x-accessibility": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1provenance.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1provenance.json",
           "description": "Provenance metadata for this asset, overrides manifest-level provenance"
         }
       },
@@ -3171,7 +3171,7 @@
       "type": "object",
       "properties": {
         "digital_source_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1digital-source-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1digital-source-type.json",
           "description": "IPTC-aligned classification of AI involvement in producing this content"
         },
         "synthetic_depiction": {
@@ -3281,7 +3281,7 @@
             "type": "object",
             "properties": {
               "method": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1embedded-provenance-method.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1embedded-provenance-method.json",
                 "description": "How provenance data is carried within the content"
               },
               "standard": {
@@ -3332,7 +3332,7 @@
             "type": "object",
             "properties": {
               "media_type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1watermark-media-type.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1watermark-media-type.json",
                 "description": "Media category of the watermarked content"
               },
               "provider": {
@@ -3360,7 +3360,7 @@
                 "additionalProperties": false
               },
               "c2pa_action": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1c2pa-watermark-action.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1c2pa-watermark-action.json",
                 "description": "C2PA action classification for this watermark"
               },
               "embedded_at": {
@@ -3411,7 +3411,7 @@
                     "minProperties": 1,
                     "properties": {
                       "persistence": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1disclosure-persistence.json",
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1disclosure-persistence.json",
                         "description": "How long the disclosure must persist during content playback or display"
                       },
                       "min_duration_ms": {
@@ -3423,13 +3423,13 @@
                         "type": "array",
                         "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                         "items": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1disclosure-position.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:enums~1disclosure-position.json"
                         },
                         "minItems": 1,
                         "uniqueItems": true
                       },
                       "ext": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
                       }
                     }
                   }
@@ -3491,7 +3491,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
         }
       }
     },
@@ -3620,15 +3620,15 @@
       "type": "object",
       "properties": {
         "vendor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1brand-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1brand-ref.json",
           "description": "Vendor that defines and forecasts this metric. Matches a reporting_capabilities.vendor_metrics declaration on the product."
         },
         "metric_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1vendor-metric-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1vendor-metric-id.json",
           "description": "Identifier for the metric within the vendor's vocabulary. Matches a vendor_metrics[].metric_id declaration on the product."
         },
         "value": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json",
           "description": "Forecasted vendor metric value. Unit semantics are vendor-defined; see unit and the vendor's measurement-agent metric definition."
         },
         "unit": {
@@ -3645,15 +3645,15 @@
           ]
         },
         "measurable_impressions": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json",
           "description": "Forecasted number of impressions the vendor expects to be able to measure. Coverage denominator for the vendor metric; buyers compute estimated coverage as measurable_impressions / impressions when both are present. For play-based channels (DOOH, cinema, place-based) forecast measurable_plays or measurable_play_seconds instead."
         },
         "measurable_plays": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json",
           "description": "Forecasted number of plays the vendor expects to be able to measure. Coverage denominator for channels where a play, not an impression, is the atomic observation unit; buyers compute estimated coverage as measurable_plays / plays when both are present."
         },
         "measurable_play_seconds": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1forecast-range.json",
           "description": "Forecasted play-seconds (creative playout seconds summed across endpoints \u2014 screens, speakers, players) the vendor expects to be able to measure. Coverage denominator when the vendor meters exposure duration rather than discrete plays."
         },
         "breakdown": {
@@ -3767,7 +3767,7 @@
               "description": "Whether signal is currently active on this deployment"
             },
             "activation_key": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1activation-key.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1activation-key.json",
               "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this deployment."
             },
             "estimated_activation_duration_minutes": {
@@ -3810,7 +3810,7 @@
               "description": "Whether signal is currently active on this deployment"
             },
             "activation_key": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1activation-key.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1activation-key.json",
               "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this deployment."
             },
             "estimated_activation_duration_minutes": {
@@ -3901,7 +3901,7 @@
               "deprecated": true,
               "description": "**DEPRECATED in 3.2.** Legacy named-format pricing scope. Use applies_to_output_capability_ids.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1format-id.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1format-id.json"
               },
               "minItems": 1
             },
@@ -3921,7 +3921,7 @@
           ]
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1signal-pricing.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1signal-pricing.json"
         }
       ]
     },
@@ -4009,7 +4009,7 @@
               "pattern": "^[A-Z]{3}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -4045,7 +4045,7 @@
               "pattern": "^[A-Z]{3}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -4085,7 +4085,7 @@
               "pattern": "^[A-Z]{3}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -4120,7 +4120,7 @@
               "pattern": "^[A-Z]{3}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -4164,7 +4164,7 @@
               "pattern": "^[A-Z]{3}$"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/signals/get-signals-response.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [

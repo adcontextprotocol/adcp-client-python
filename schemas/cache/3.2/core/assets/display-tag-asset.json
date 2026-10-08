@@ -12,13 +12,13 @@
     "macro_declarations": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-declaration.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-declaration.json"
       },
       "minItems": 1,
       "description": "Exact macro tokens present anywhere in this representation. Tokens remain byte-preserved until the resolver named by each declaration substitutes them."
     },
     "provenance": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
       "description": "Provenance metadata for this asset, overriding manifest-level provenance."
     }
   },
@@ -42,7 +42,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-declaration.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-declaration.json"
               },
               {
                 "properties": {
@@ -60,14 +60,14 @@
           "minItems": 1
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json"
         },
         "delivery_type": {
           "type": "string",
           "const": "tag_url"
         },
         "url": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-bearing-url.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-bearing-url.json",
           "description": "Ad-request URL invoked at impression time. It is equivalent to the backward-compatible `url` asset with `url_type: \"ad_request\"`."
         }
       },
@@ -109,7 +109,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-declaration.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-declaration.json"
               },
               {
                 "properties": {
@@ -127,7 +127,7 @@
           "minItems": 1
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json"
         },
         "delivery_type": {
           "type": "string",
@@ -188,7 +188,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-declaration.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-declaration.json"
               },
               {
                 "properties": {
@@ -209,18 +209,18 @@
           "minItems": 1
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json"
         },
         "delivery_type": {
           "type": "string",
           "const": "paired_redirect"
         },
         "ad_request_url": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-bearing-url.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-bearing-url.json",
           "description": "Image or ad-request URL entered into the destination ad server. This field deliberately accepts byte-preserved vendor tokens that are not RFC 6570 URI templates."
         },
         "clickthrough_url": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-bearing-url.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-bearing-url.json",
           "description": "Click-through URL paired with `ad_request_url`. This field deliberately accepts byte-preserved vendor tokens that are not RFC 6570 URI templates. The pair MUST NOT be split, mixed, or revised independently."
         }
       },

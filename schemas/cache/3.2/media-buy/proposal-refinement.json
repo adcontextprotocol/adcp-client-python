@@ -31,7 +31,7 @@
       "description": "Hard requirements for every revised proposal. Keys are echoed in unsatisfied_constraints on partial or unable results. A draft that fails any present constraint MUST NOT be returned as revised: the result is partial or unable with reason_code constraint_unsatisfiable \u2014 which takes precedence over every other reason code \u2014 and the failing keys in unsatisfied_constraints.",
       "properties": {
         "total_budget": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/proposal-budget-constraint.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/proposal-budget-constraint.json",
           "description": "Inclusive bounds checked against commercial_terms.total_budget. Satisfied only when commercial_terms.total_budget is present, its currency matches, and its amount falls within every supplied bound."
         },
         "cpm": {
@@ -99,7 +99,7 @@
       "additionalProperties": false
     },
     "product_changes": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-change-map.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-change-map.json",
       "description": "Product IDs mapped to membership actions checked against commercial_terms.purchases. include requires presence; omit requires absence. The verbs match legacy get_products refinement."
     },
     "alternatives": {
@@ -124,7 +124,7 @@
       "description": "What the buyer is asking for on this proposal, or the cancellation reason for action revise. The seller returns a new draft proposal snapshot; this text never directly mutates the source proposal or MediaBuy."
     },
     "criteria": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-discovery-criteria.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-discovery-criteria.json",
       "description": "Structured discovery changes for action revise. Each present field replaces that criterion from the source proposal; omitted fields inherit. Concrete targeting, future targeting support, and offer filters belong here rather than being repeated in ask."
     },
     "remove_media_buy_frequency_cap": {

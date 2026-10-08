@@ -16,7 +16,7 @@
       "type": "object",
       "description": "Metro area breakdown support. Keys are metro-system enum values; true means supported.",
       "propertyNames": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/metro-system.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/metro-system.json"
       },
       "additionalProperties": {
         "type": "boolean"
@@ -24,7 +24,7 @@
     },
     "postal_area": {
       "description": "Postal area breakdown support. Prefer the native country-keyed map where each ISO 3166-1 alpha-2 country lists supported country-local postal systems. Deprecated legacy country-fused postal-system boolean maps remain accepted for compatibility.",
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/postal-area-support.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/postal-area-support.json"
     }
   },
   "additionalProperties": false

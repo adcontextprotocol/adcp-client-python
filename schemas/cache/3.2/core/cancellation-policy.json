@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "notice_period": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json",
       "description": "Minimum notice period before cancellation takes effect (e.g., { interval: 30, unit: 'days' }). A guaranteed buy canceled without sufficient notice incurs the declared cancellation fee."
     },
     "cancellation_fee": {

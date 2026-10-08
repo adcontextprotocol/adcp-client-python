@@ -7,12 +7,12 @@
     "^[a-z0-9_]+$": {
       "anyOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/asset-union.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/asset-union.json"
         },
         {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/asset-union.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/asset-union.json"
           },
           "minItems": 1
         }

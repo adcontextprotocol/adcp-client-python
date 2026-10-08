@@ -4,7 +4,7 @@
   "description": "Bounded working progress payload for buy_products.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/compact-task-working.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/compact-task-working.json"
     }
   ]
 }

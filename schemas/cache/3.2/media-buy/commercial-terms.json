@@ -26,17 +26,17 @@
       "description": "Pricing-layer version against which published rates were accepted."
     },
     "brand": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json"
     },
     "advertiser_industry": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/advertiser-industry.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/advertiser-industry.json"
     },
     "purchases": {
       "type": "array",
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/product-purchase.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/product-purchase.json"
           },
           {
             "required": [
@@ -58,7 +58,7 @@
       }
     },
     "start_time": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/start-timing.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/start-timing.json"
     },
     "end_time": {
       "type": "string",
@@ -88,7 +88,7 @@
       "description": "Hard aggregate daily spend ceiling accepted as part of these terms. It bounds total spend without creating purchase allocations."
     },
     "frequency_cap": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-frequency-cap.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-frequency-cap.json",
       "description": "Hard MediaBuy-level cap accepted as part of these terms. One counter aggregates exposures across every purchase; purchase targeting caps remain independently binding."
     },
     "budget_cap_timezone": {
@@ -97,17 +97,17 @@
       "description": "Shared IANA calendar-day boundary for aggregate and purchase daily caps in these terms."
     },
     "budget_allocation": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-budget-allocation.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-budget-allocation.json"
     },
     "pacing": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pacing.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pacing.json"
     },
     "bidding": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/bidding-policy.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/bidding-policy.json",
       "description": "Media-buy bidding policy. A proposal answering criteria.outcome_target.cost_per states here the cost the seller can plan to, which the buyer adopts on acceptance: the requested strength, and an amount greater than or equal to the ask (the ask when the seller can forecast goal volume under it within the buyer's budget, otherwise the lowest such amount), denominated in the purchases' pricing currency, which equals cost_per.currency. It is an execution control, not an expected price; when the planned spend at that amount is below total_budget, forecast points carry metrics.spend. See outcome-target.json for goal binding."
     },
     "invoice_recipient": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/business-entity.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/business-entity.json"
     },
     "purchase_order_ref": {
       "type": "string",
@@ -130,7 +130,7 @@
           "metrics": {
             "type": "array",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-reporting-commitment.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-reporting-commitment.json"
             },
             "minItems": 1
           }
@@ -183,7 +183,7 @@
     "change_terms": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/change-term.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/change-term.json"
       },
       "minItems": 1,
       "description": "Binding buyer change rights included in the commercial envelope and therefore covered by terms_digest. Entries are uniquely keyed by action. When this field is present, an omitted action is not a negotiated change right. Omission of the entire field means legacy-unspecified rights, not a prohibition.",

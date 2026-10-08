@@ -31,7 +31,7 @@
           "type": "array",
           "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/auth-scheme.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/auth-scheme.json"
           },
           "minItems": 1,
           "maxItems": 1

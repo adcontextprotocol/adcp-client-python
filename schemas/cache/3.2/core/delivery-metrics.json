@@ -138,7 +138,7 @@
         "type": "object",
         "properties": {
           "event_type": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/event-type.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/event-type.json",
             "description": "The event type"
           },
           "event_source_id": {
@@ -176,7 +176,7 @@
     "reach_unit": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reach-unit.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reach-unit.json"
         }
       ],
       "description": "Unit of measurement for the reach field. Aligns with the reach_unit declared on optimization goals and delivery forecasts. Required when reach is present to enable cross-platform comparison."
@@ -197,7 +197,7 @@
         "period": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
             }
           ],
           "description": "Duration of the measurement window. REQUIRED when `kind` is `period` or `rolling` \u2014 declares the snapshot length (e.g., `{\"interval\": 1, \"unit\": \"days\"}` for a daily snapshot) or the trailing-window length (e.g., `{\"interval\": 7, \"unit\": \"days\"}` for trailing-7-day rolling reach). When `kind` is `cumulative`, this field is implicit (campaign-to-date) and SHOULD be omitted."
@@ -276,7 +276,7 @@
             "description": "Continuous duration threshold in seconds an impression must meet to count as a view in this entry."
           },
           "basis": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/view-threshold-basis.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/view-threshold-basis.json",
             "description": "Whether the threshold clock runs on playback time or in-view time. Required because play-time and in-view counts at the same threshold are materially different numbers."
           },
           "views": {
@@ -285,7 +285,7 @@
             "description": "Count of views meeting this entry's threshold and basis."
           },
           "standard": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/viewability-standard.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/viewability-standard.json",
             "description": "Viewability standard governing the in-view clock for this entry. RECOMMENDED when basis is 'in_view' (MRC and GroupM thresholds differ); not applicable to play_time entries."
           }
         },
@@ -492,7 +492,7 @@
                 "description": "Date the attested event happened. For posted events this is the posting date \u2014 display terms customarily run from the average posting date across units."
               },
               "evidence": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/placement-evidence.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/placement-evidence.json",
                 "description": "Evidence artifact for this event (completion photograph); capture time and location ride the artifact"
               }
             },
@@ -528,7 +528,7 @@
       },
       "properties": {
         "vendor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
           "description": "Vendor that produced these viewability values. Optional but RECOMMENDED so the row is self-describing \u2014 buyer agents reading delivery in isolation can attribute the numbers without joining back to `package.committed_metrics` or `package.performance_standards`. The vendor's `brand.json` `agents[type='measurement']` is the discovery anchor; the metric definitions live on the agent's `get_adcp_capabilities.measurement.metrics[]` block. Same shape as `vendor_metric_value.vendor` for symmetry across vendor-attested surfaces."
         },
         "measurable_impressions": {
@@ -622,7 +622,7 @@
           }
         },
         "standard": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/viewability-standard.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/viewability-standard.json",
           "description": "Viewability measurement standard applied to these metrics. Governs the in-view threshold for `viewable_rate`, `viewed_seconds`, and both viewed-seconds distributions."
         }
       },
@@ -732,7 +732,7 @@
         "type": "object",
         "properties": {
           "action_source": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/action-source.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/action-source.json",
             "description": "Where the conversion occurred"
           },
           "event_source_id": {
@@ -761,7 +761,7 @@
       "type": "array",
       "description": "Reported values for vendor-defined metrics that the product's `reporting_capabilities.vendor_metrics` declared. Each entry carries the vendor (BrandRef), the metric identifier within the vendor's vocabulary, the value, optional unit, and `measurable_impressions` as the coverage denominator \u2014 vendor measurement is rarely 100% of delivered impressions, since vendors only score impressions where their SDK fires or their panel matches. When a declared vendor metric is omitted from this array, buyers infer no measurement happened (no integration). One row per `(vendor.domain, vendor.brand_id, metric_id, qualifier)` per reporting period \u2014 the same vendor metric MAY appear in multiple rows only when each carries a distinct qualifier (e.g., 7-day and 30-day attribution windows); sellers MUST de-duplicate before emission and MUST NOT emit two rows with the same tuple; buyers MAY treat duplicate rows as a seller-side conformance bug. The structured `vendor_metric_values` array is the recommended path for vendor metrics; `additionalProperties: true` on this parent object is preserved so existing free-form vendor emissions remain conformant during migration.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-value.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-value.json"
       }
     }
   },

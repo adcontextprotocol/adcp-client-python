@@ -21,7 +21,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/collection-selector.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/collection-selector.json"
               },
               {
                 "required": [
@@ -34,7 +34,7 @@
           "uniqueItems": true
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -52,7 +52,7 @@
           "const": "default"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [

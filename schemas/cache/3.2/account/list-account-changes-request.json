@@ -19,7 +19,7 @@
       "maximum": 99
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Account whose change feed to read. The resolved account and returned cursor are bound to the authenticated principal."
     },
     "cursor": {
@@ -58,10 +58,10 @@
       "description": "Maximum changes to return. Sellers still scan through nonmatching records and advance the returned cursor."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

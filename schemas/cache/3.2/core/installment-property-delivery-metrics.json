@@ -9,13 +9,13 @@
   },
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
     },
     {
       "type": "object",
       "properties": {
         "installment_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/installment-ref.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/installment-ref.json"
         },
         "installment_name": {
           "type": "string",
@@ -32,11 +32,11 @@
           "description": "Publisher or platform authority that namespaces the property identifier, including for an unregistered surface."
         },
         "identifier": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/identifier.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/identifier.json",
           "description": "Operational identity of the property that delivered the installment."
         },
         "property_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-ref.json",
           "description": "Canonical publisher-scoped catalog identity when available. Its publisher_domain MUST equal the row's publisher_domain."
         },
         "property_name": {

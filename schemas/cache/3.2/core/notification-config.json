@@ -62,7 +62,7 @@
         "schemes": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/auth-scheme.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/auth-scheme.json"
           },
           "minItems": 1,
           "maxItems": 1
@@ -84,7 +84,7 @@
       "description": "When false, the seller persists the configuration but suppresses fires. Use to pause a noisy subscriber without losing the registration. Sellers MUST NOT skip persisting the entry when `active: false` \u2014 the buyer's next `sync_accounts` MUST observe the same array, otherwise the buyer cannot distinguish pause from drop. Paused configs may skip only the outbound proof challenge while inactive; sellers MUST still enforce URL parsing, HTTPS, hostname normalization, and reserved-range rejection at write time. Reactivation requires full SSRF validation with connect pinning plus proof-of-control for any tuple without current valid proof."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -5,11 +5,11 @@
   "type": "object",
   "properties": {
     "co_branding": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/co-branding-requirement.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/co-branding-requirement.json",
       "description": "Co-branding requirement"
     },
     "landing_page": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/landing-page-requirement.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/landing-page-requirement.json",
       "description": "Landing page requirements"
     },
     "templates_available": {

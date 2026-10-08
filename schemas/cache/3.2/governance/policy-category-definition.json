@@ -88,7 +88,7 @@
       "type": "array",
       "description": "Restricted attribute categories that regulations in this category prohibit for targeting. Governance agents enforce these when the category is active on a plan \u2014 if a plan declares policy_categories: ['fair_housing'], the governance agent restricts targeting on these attributes.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/restricted-attribute.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/restricted-attribute.json"
       }
     },
     "requires_human_review": {

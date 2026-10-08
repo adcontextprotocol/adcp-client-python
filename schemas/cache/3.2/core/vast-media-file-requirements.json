@@ -7,7 +7,7 @@
     "delivery_methods": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/vast-media-delivery-method.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/vast-media-delivery-method.json"
       },
       "minItems": 1,
       "uniqueItems": true,

@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-identifier-type.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-identifier-type.json"
     },
     "value": {
       "type": "string",

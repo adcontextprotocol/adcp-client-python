@@ -16,7 +16,7 @@
         "type": "object",
         "properties": {
           "kind": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/adjustment-kind.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/adjustment-kind.json"
           },
           "name": {
             "type": "string",

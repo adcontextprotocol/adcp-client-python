@@ -12,10 +12,10 @@
   },
   "properties": {
     "adcp_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_version"
     },
     "adcp_major_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_major_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_major_version"
     },
     "context_id": {
       "type": "string",
@@ -25,7 +25,7 @@
     "context": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         }
       ],
       "x-adcp-schema-uri": "/schemas/core/context.json"
@@ -38,7 +38,7 @@
     "push_notification_config": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json"
         }
       ],
       "x-adcp-schema-uri": "/schemas/core/push-notification-config.json"
@@ -54,14 +54,14 @@
       "type": "array",
       "description": "Proposal declines to apply. proposal_id is the semantic uniqueness key and values MUST be unique even when two entries otherwise differ; implementations enforce this rule because JSON Schema uniqueItems only compares whole objects. Results preserve request order.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/proposal-decline.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/proposal-decline.json"
       },
       "minItems": 1,
       "maxItems": 25,
       "uniqueItems": true
     },
     "opportunity": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/opportunity-context.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/opportunity-context.json",
       "description": "Optional planning-cycle update. Every named proposal MUST belong to this opportunity_id. Sellers apply the update only when every result is declined; if any result is unable, the opportunity remains unchanged. Use status closed when these declines end the broader opportunity."
     }
   },

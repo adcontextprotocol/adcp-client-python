@@ -5,19 +5,19 @@
   "anyOf": [
     {
       "title": "GetProductsCompletion",
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/get-products-response.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/get-products-response.json"
     },
     {
       "title": "GetSignalsCompletion",
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/signals/get-signals-response.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/signals/get-signals-response.json"
     },
     {
       "title": "CreateMediaBuyCompletion",
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/create-media-buy-response.json#/oneOf/0"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/create-media-buy-response.json#/oneOf/0"
     },
     {
       "title": "GetCreativeFeaturesCompletion",
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/compliance/get-creative-features-completion.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/compliance/get-creative-features-completion.json"
     }
   ]
 }

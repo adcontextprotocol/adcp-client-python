@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "oneOf": [
@@ -45,10 +45,10 @@
           }
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -95,10 +95,10 @@
           }
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -144,10 +144,10 @@
           "description": "URL to poll for updated approval status. GET this URL to receive a creative-approval-response. Poll at reasonable intervals (suggested: every 5 minutes, back off after 1 hour to every 30 minutes). Stop polling after estimated_response_time has elapsed and the approval_status is still pending_review."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -167,15 +167,15 @@
         "errors": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [

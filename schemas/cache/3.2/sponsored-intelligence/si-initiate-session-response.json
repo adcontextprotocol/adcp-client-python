@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "x-status": "experimental",
@@ -29,7 +29,7 @@
         "ui_elements": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/sponsored-intelligence/si-ui-element.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/sponsored-intelligence/si-ui-element.json"
           },
           "description": "Visual components to render"
         }
@@ -37,15 +37,15 @@
       "additionalProperties": true
     },
     "negotiated_capabilities": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/sponsored-intelligence/si-capabilities.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/sponsored-intelligence/si-capabilities.json",
       "description": "Intersection of brand and host capabilities for this session"
     },
     "sponsored_context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/sponsored-intelligence/si-sponsored-context.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/sponsored-intelligence/si-sponsored-context.json",
       "description": "Declaration for sponsored context carried by the initial brand-agent response. Hosts MUST either honor the declared context_use and disclosure_obligation or reject the context before presenting, comparing, or otherwise using it."
     },
     "session_status": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/si-session-status.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/si-session-status.json",
       "description": "Current session lifecycle state. Returned in initiation, message, and termination responses."
     },
     "session_ttl_seconds": {
@@ -56,15 +56,15 @@
     "errors": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       },
       "description": "Errors during session initiation"
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -152,7 +152,7 @@
         "pattern": "^[A-Z]{2}$"
       },
       {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/legacy-postal-system.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/legacy-postal-system.json"
       }
     ]
   },

@@ -5,7 +5,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     }
   ],
   "x-status": "experimental",
@@ -32,11 +32,11 @@
       "x-entity": "vendor_pricing_option"
     },
     "buyer": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
       "description": "The buyer's brand identity"
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Account context for this acquisition. Used by the brand agent to resolve any governance agent previously bound for this brand+operator pair via sync_governance. When both an inline governance_context token and a bound governance agent are present, the token is verified against that resolved relationship. An agent advertising adcp.governance_enforcement for acquire_rights MUST resolve an account and returns ACCOUNT_REQUIRED when neither the request nor an existing resource supplies one; it MUST NOT infer that a missing token means ungoverned. Legacy non-claiming agents may continue to treat omission of both fields as ungoverned during 3.x. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts."
     },
     "campaign": {
@@ -51,7 +51,7 @@
           "type": "array",
           "description": "Specific rights uses for this campaign",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/right-use.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/right-use.json"
           },
           "minItems": 1
         },
@@ -68,14 +68,14 @@
           "deprecated": true,
           "description": "Deprecated in AdCP 3.2; removed in AdCP 4.0. Legacy named formats that will be produced. Use `format_kinds` and optional `format_option_refs`.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
           }
         },
         "format_kinds": {
           "type": "array",
           "description": "Canonical creative format kinds that will be produced under the rights grant.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-kind.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-kind.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -84,7 +84,7 @@
           "type": "array",
           "description": "Exact canonical publisher or product format options covered by the planned rights use, when kind alone is insufficient.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-option-ref.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-option-ref.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -112,11 +112,11 @@
       "additionalProperties": true
     },
     "revocation_webhook": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json",
       "description": "Webhook for rights revocation notifications. If the rights holder needs to revoke rights (talent scandal, contract violation, etc.), they POST a revocation-notification to this URL. The buyer is responsible for stopping creative delivery upon receipt."
     },
     "push_notification_config": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json",
       "description": "Webhook for async status updates if the acquisition requires approval. The rights agent sends a webhook notification when the status transitions to acquired or rejected."
     },
     "idempotency_key": {
@@ -127,10 +127,10 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

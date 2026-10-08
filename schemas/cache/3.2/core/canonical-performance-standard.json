@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "metric": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/performance-standard-metric.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/performance-standard-metric.json"
     },
     "threshold": {
       "type": "number",
@@ -13,10 +13,10 @@
       "maximum": 1
     },
     "standard": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/viewability-standard.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/viewability-standard.json"
     },
     "vendor": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json"
     }
   },
   "required": [

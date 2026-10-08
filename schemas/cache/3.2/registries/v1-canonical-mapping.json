@@ -98,7 +98,7 @@
             ],
             "properties": {
               "canonical": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-kind.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-kind.json",
                 "description": "v2 canonical format the v1 pattern projects to."
               },
               "parameters": {

@@ -5,7 +5,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
       "anyOf": [
@@ -474,7 +474,7 @@
       "description": "Claimed URL of the agent making the request. The transport credential MUST resolve to an agent URL; the governance agent requires an exact match and uses only that resolved URL for authorization, audit, and signed context issuance. On intent checks the authenticated buyer must be the plan owner or hold an active delegation, while approved_sellers is evaluated against the target service that becomes the token audience. On execution checks the authenticated caller MUST equal that preserved audience. An unresolved body assertion never grants plan access or authorization."
     },
     "purchase_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/purchase-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/purchase-type.json",
       "description": "The type of financial commitment being checked. Determines which budget allocation (if any) to validate against. Defaults to 'media_buy' when omitted.",
       "default": "media_buy"
     },
@@ -532,7 +532,7 @@
       "additionalProperties": true
     },
     "proposal": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-proposal.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-proposal.json",
       "description": "Exact committed proposal being authorized for accept_proposal. The governance agent verifies proposal.terms_digest against commercial_terms and binds that digest into its decision state; the downstream payload carries the same digest without repeating the terms."
     },
     "governance_context": {
@@ -550,12 +550,12 @@
       "pattern": "^[A-Za-z0-9_.:-]+$"
     },
     "phase": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/governance-phase.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/governance-phase.json",
       "description": "The phase of an execution-shaped governed action. Ignored for intent-shaped tool+payload requests. 'purchase': initial commitment; 'modification': update to an existing commitment; 'delivery': periodic delivery reporting. Defaults to purchase if omitted. planned_delivery.media_buy_id is optional for purchase and required for modification/delivery.",
       "default": "purchase"
     },
     "planned_delivery": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/planned-delivery.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/planned-delivery.json",
       "description": "What the seller will actually deliver. Present on execution checks."
     },
     "delivery_metrics": {
@@ -718,7 +718,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attestation-reference.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attestation-reference.json"
           },
           {
             "type": "object",
@@ -748,14 +748,14 @@
       "maxItems": 10
     },
     "invoice_recipient": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/business-entity.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/business-entity.json",
       "description": "Invoice recipient from the purchase request. MUST be present when the tool payload includes invoice_recipient, so the governance agent can validate billing changes."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -26,7 +26,7 @@
       "description": "Exact catalog versions accepted for new targeting or target-changing updates. Must include current_version. Removing a version does not mutate or silently invalidate targets already pinned to it."
     },
     "resolver": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-place-resolver.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-place-resolver.json"
     }
   },
   "required": [

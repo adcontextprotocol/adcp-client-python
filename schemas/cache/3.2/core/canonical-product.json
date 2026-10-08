@@ -21,7 +21,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/publisher-property-selector.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/publisher-property-selector.json"
           },
           {
             "not": {
@@ -37,14 +37,14 @@
     "channels": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/channels.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/channels.json"
       },
       "uniqueItems": true
     },
     "video_placement_types": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/video-placement-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/video-placement-type.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -52,7 +52,7 @@
     "audio_distribution_types": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audio-distribution-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audio-distribution-type.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -60,7 +60,7 @@
     "sponsored_placement_types": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sponsored-placement-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sponsored-placement-type.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -68,7 +68,7 @@
     "social_placement_surfaces": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/social-placement-surface.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/social-placement-surface.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -76,14 +76,14 @@
     "format_options": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-option.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-option.json"
       },
       "minItems": 1
     },
     "placements": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-placement.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-placement.json"
       }
     },
     "collections": {
@@ -92,7 +92,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/collection-selector.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/collection-selector.json"
           },
           {
             "required": [
@@ -109,32 +109,32 @@
       "description": "Whether buyers can select a subset of this product's collections through targeting_overlay.collection_list or targeting_overlay.collection_selection. When false, the product is a fixed bundle (a collection_selection that exactly restates the complete bundle remains an inherent match)."
     },
     "delivery_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/delivery-type.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/delivery-type.json"
     },
     "exclusivity": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/exclusivity.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/exclusivity.json"
     },
     "pricing_options": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-pricing-option.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-pricing-option.json"
       },
       "minItems": 1
     },
     "forecast": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-delivery-forecast.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-delivery-forecast.json"
     },
     "reporting_capabilities": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-reporting-capabilities.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-reporting-capabilities.json"
     },
     "measurement_terms": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-measurement-terms.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-measurement-terms.json",
       "description": "Default billing measurement and makegood terms inherited by a direct purchase unless a negotiated proposal replaces them."
     },
     "performance_standards": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-performance-standard.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-performance-standard.json"
       },
       "minItems": 1,
       "description": "Default performance thresholds and measurement vendors inherited by a direct purchase."
@@ -142,7 +142,7 @@
     "catalog_types": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/catalog-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/catalog-type.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -151,21 +151,21 @@
       "type": "boolean"
     },
     "signal_targeting_rules": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-targeting-rules.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-targeting-rules.json"
     },
     "demographic_targeting": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/demographic-targeting-capability.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/demographic-targeting-capability.json"
     },
     "overlay_support": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/targeting-overlay-support.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/targeting-overlay-support.json",
       "description": "Binding product-scoped targeting dimensions the buyer may set independently on a package after discovery."
     },
     "media_buy_support": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-support.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-support.json",
       "description": "Binding product participation in shared MediaBuy-level controls."
     },
     "identity": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-identity.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-identity.json",
       "x-status": "experimental",
       "x-added-in": "3.2.0",
       "description": "Experimental product-scoped identity and reach-measurement facts. See Product.identity for the cross-object delivery and frequency-cap rules."
@@ -173,7 +173,7 @@
     "execution_requirements": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-execution-requirement.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-execution-requirement.json"
       },
       "minItems": 1,
       "x-status": "experimental",
@@ -183,14 +183,14 @@
     "audience_evidence": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-audience-evidence.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-audience-evidence.json"
       },
       "minItems": 1
     },
     "audience_evidence_selections": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-audience-evidence-selection.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-audience-evidence-selection.json"
       },
       "minItems": 1,
       "description": "Exact evidence snapshots that affected eligibility or ranking. Returned whenever evidence requirements affected the result, even if not requested explicitly."
@@ -233,7 +233,7 @@
       "type": "array",
       "description": "Product-scoped receipts for every effective property- or collection-list targeting reference. Sellers MUST return one receipt per application regardless of response field projection; exclusion applications receive a receipt even when summary.matched is zero, while zero matches for any inclusion application make the product ineligible and it is not returned. Each receipt uses the same pre-list product inventory baseline; pricing and forecast reflect inventory remaining after all effective lists are composed.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/inventory-list-application.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/inventory-list-application.json"
       },
       "minItems": 1
     },
@@ -241,7 +241,7 @@
       "type": "string"
     },
     "targeting_resolution": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-targeting-resolution.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-targeting-resolution.json",
       "description": "Discovery-time targeting resolution bound to this configured product. modifications sparsely disclose product-specific differences from criteria.targeting_overlay; absence means exact acceptance of the structured overlay. Request-level brief interpretation is returned once on the response-root targeting_resolution. Selecting product_id accepts the disclosed modifications; pricing and forecast MUST reflect them. Requires expires_at."
     },
     "expires_at": {
@@ -252,15 +252,15 @@
     "allowed_actions": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-product-action.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-product-action.json"
       },
       "uniqueItems": true
     },
     "acceptance_policy_profile_ids": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/acceptance-policy-profile-ids.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/acceptance-policy-profile-ids.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

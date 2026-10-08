@@ -100,7 +100,7 @@
           "maxLength": 256
         },
         "event_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:enums~1event-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:enums~1event-type.json",
           "description": "Standard event type"
         },
         "event_time": {
@@ -109,19 +109,19 @@
           "description": "ISO 8601 timestamp when the event occurred"
         },
         "user_match": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1user-match.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1user-match.json",
           "description": "User identifiers for attribution matching"
         },
         "custom_data": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1event-custom-data.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1event-custom-data.json",
           "description": "Event-specific data (value, currency, items, etc.)"
         },
         "action_source": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:enums~1action-source.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:enums~1action-source.json",
           "description": "Where the event originated"
         },
         "surface": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1event-surface.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1event-surface.json",
           "description": "Optional structured surface context for the event, such as an owned channel, profile, feed, podcast, newsletter list, website, app, or store. Complements `action_source`; use it when optimization-relevant meaning would otherwise live only in platform-specific `ext` metadata."
         },
         "event_source_url": {
@@ -134,7 +134,7 @@
           "description": "Name for custom events (used when event_type is 'custom')"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
         }
       },
       "allOf": [
@@ -157,7 +157,7 @@
               "custom_data": {
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1event-custom-data.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1event-custom-data.json"
                   },
                   {
                     "anyOf": [
@@ -269,7 +269,7 @@
             "type": "object",
             "properties": {
               "type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:enums~1uid-type.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:enums~1uid-type.json",
                 "description": "Universal ID type"
               },
               "value": {
@@ -312,7 +312,7 @@
           "description": "Client user agent string for probabilistic matching"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
         }
       },
       "anyOf": [
@@ -472,7 +472,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
         }
       },
       "additionalProperties": true
@@ -557,7 +557,7 @@
           "x-entity": "property"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [

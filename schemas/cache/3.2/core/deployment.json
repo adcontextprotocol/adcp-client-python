@@ -27,7 +27,7 @@
           "description": "Whether signal is currently active on this deployment"
         },
         "activation_key": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/activation-key.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/activation-key.json",
           "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this deployment."
         },
         "estimated_activation_duration_minutes": {
@@ -70,7 +70,7 @@
           "description": "Whether signal is currently active on this deployment"
         },
         "activation_key": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/activation-key.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/activation-key.json",
           "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this deployment."
         },
         "estimated_activation_duration_minutes": {

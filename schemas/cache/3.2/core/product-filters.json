@@ -5,10 +5,10 @@
   "type": "object",
   "properties": {
     "delivery_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/delivery-type.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/delivery-type.json"
     },
     "exclusivity": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/exclusivity.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/exclusivity.json",
       "description": "Filter by exclusivity level. Returns products matching the specified exclusivity (e.g., 'exclusive' returns only sole-sponsorship products)."
     },
     "is_fixed_price": {
@@ -19,7 +19,7 @@
       "type": "array",
       "description": "Filter by how the payable price is determined. fixed selects options with fixed_price, auction selects options established through bid_price, and contingent selects options calculated from a measured business outcome after delivery (currently revenue_share). Products match when at least one pricing option has a requested structure. Sellers MUST return only matching pricing_options entries. When combined with is_fixed_price, both filters apply and the returned entries must satisfy both.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pricing-structure.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pricing-structure.json"
       },
       "minItems": 1,
       "uniqueItems": true,
@@ -42,7 +42,7 @@
       "deprecated": true,
       "description": "Deprecated in AdCP 3.2; removed in AdCP 4.0. Filter by legacy named-format references. Use `format_kinds` or `format_option_refs`.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
       },
       "minItems": 1
     },
@@ -50,7 +50,7 @@
       "type": "array",
       "description": "Filter to products accepting any of these canonical format kinds.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-kind.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-kind.json"
       },
       "minItems": 1,
       "uniqueItems": true,
@@ -60,7 +60,7 @@
       "type": "array",
       "description": "Filter to products accepting any of these exact publisher- or product-scoped canonical format options.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-option-ref.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-option-ref.json"
       },
       "minItems": 1,
       "uniqueItems": true,
@@ -150,7 +150,7 @@
         "type": "object",
         "properties": {
           "system": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/metro-system.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/metro-system.json",
             "description": "Metro classification system"
           },
           "code": {
@@ -170,7 +170,7 @@
       "type": "array",
       "description": "Filter by advertising channels (e.g., ['display', 'ctv', 'dooh'])",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/channels.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/channels.json"
       },
       "minItems": 1
     },
@@ -178,7 +178,7 @@
       "type": "array",
       "description": "Filter product metadata by declared video placement types, using IAB Tech Lab/OpenRTB 2.6 video.plcmt definitions with AdCP-native names. A product matches when its declared array intersects the requested array. This is discovery classification only and does not promise delivery exclusively on a requested type; buyers needing exact placement inventory use targeting_overlay.placement_selection against targetable placements. This filter has set semantics for wholesale feed canonicalization.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/video-placement-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/video-placement-type.json"
       },
       "uniqueItems": true,
       "minItems": 1,
@@ -188,7 +188,7 @@
       "type": "array",
       "description": "Filter product metadata by declared audio distribution types, using IAB Tech Lab/OpenRTB 2.6 audio.feed definitions with AdCP-native names. A product matches when its declared array intersects the requested array. This is discovery classification only and does not promise delivery exclusively on a requested type. This filter has set semantics for wholesale feed canonicalization.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audio-distribution-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audio-distribution-type.json"
       },
       "uniqueItems": true,
       "minItems": 1,
@@ -198,7 +198,7 @@
       "type": "array",
       "description": "Filter retail-media product metadata by declared sponsored-placement types (sponsored search, sponsored display, or sponsored native). A product matches when its declared array intersects the requested array. This is discovery classification only and does not promise delivery exclusively on a requested type. This filter has set semantics for wholesale feed canonicalization.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sponsored-placement-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sponsored-placement-type.json"
       },
       "uniqueItems": true,
       "minItems": 1,
@@ -208,7 +208,7 @@
       "type": "array",
       "description": "Filter social-product metadata by declared placement surfaces (feed, stories, short_video, explore, or search). A product matches when its declared array intersects the requested array. This is discovery classification only and does not promise delivery exclusively on a requested surface; buyers needing an exact public placement use targeting_overlay.placement_selection. This filter has set semantics for wholesale feed canonicalization.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/social-placement-surface.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/social-placement-surface.json"
       },
       "uniqueItems": true,
       "minItems": 1,
@@ -259,7 +259,7 @@
           "type": "array",
           "description": "Filter to products supporting specific TMP response types (e.g., 'activation', 'creative', 'catalog_items'). Products must support at least one of the listed types.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/response-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/response-type.json"
           },
           "minItems": 1
         }
@@ -323,7 +323,7 @@
                 "const": "file_transfer"
               },
               "transport": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/cloud-storage-protocol.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/cloud-storage-protocol.json",
                 "description": "Require this storage protocol (file_transfer only)."
               },
               "directions": {
@@ -340,7 +340,7 @@
                 "uniqueItems": true
               },
               "vendor": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
                 "description": "Require the method's vendor to match this reference."
               }
             },
@@ -358,7 +358,7 @@
                 "const": "dataset_query"
               },
               "vendor": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
                 "description": "Require the method's vendor to match this reference."
               }
             },
@@ -376,7 +376,7 @@
                 "const": "clean_room"
               },
               "vendor": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
                 "description": "Require the method's vendor to match this reference."
               }
             },
@@ -394,7 +394,7 @@
                 "const": "platform_distribution"
               },
               "vendor": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
                 "description": "Require the method's vendor to match this reference."
               }
             },
@@ -409,7 +409,7 @@
       "uniqueItems": true
     },
     "required_features": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-features.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-features.json",
       "description": "Filter to products from sellers supporting specific protocol features. Only features set to true are used for filtering."
     },
     "required_geo_targeting": {
@@ -420,7 +420,7 @@
         "type": "object",
         "properties": {
           "level": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/geo-level.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/geo-level.json",
             "description": "Geographic targeting level (country, region, metro, postal_area)"
           },
           "country": {
@@ -491,7 +491,7 @@
                 {
                   "properties": {
                     "system": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/metro-system.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/metro-system.json"
                     }
                   },
                   "required": [
@@ -536,12 +536,12 @@
                   }
                 },
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/postal-country-system.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/postal-country-system.json"
                 },
                 {
                   "properties": {
                     "system": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/legacy-postal-system.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/legacy-postal-system.json"
                     }
                   },
                   "required": [
@@ -569,7 +569,7 @@
         "type": "object",
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-targeting.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-targeting.json"
           }
         ],
         "properties": {
@@ -591,7 +591,7 @@
       "description": "DEPRECATED legacy coverage filter. On compact discovery tasks use criteria.offer_filters.postal_areas. Return products whose inventory covers at least one requested area; this does not impose delivery targeting or require selectable targeting support. Retained get_products handlers MUST preserve the original coverage predicate.",
       "deprecated": true,
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/postal-area.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/postal-area.json"
       },
       "minItems": 1
     },
@@ -628,7 +628,7 @@
                 "description": "Travel time limit"
               },
               "unit": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/travel-time-unit.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/travel-time-unit.json"
               }
             },
             "required": [
@@ -638,7 +638,7 @@
             "additionalProperties": false
           },
           "transport_mode": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/transport-mode.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/transport-mode.json",
             "description": "Transportation mode for isochrone calculation. Required when travel_time is provided."
           },
           "radius": {
@@ -651,7 +651,7 @@
                 "description": "Radius distance"
               },
               "unit": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/distance-unit.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/distance-unit.json",
                 "description": "Distance unit"
               }
             },
@@ -757,7 +757,7 @@
       "type": "array",
       "description": "Filter to products that can meet the buyer's performance standard requirements. Each entry specifies a metric, minimum threshold, and optionally a required vendor and standard. Products that cannot meet these thresholds or do not support the specified vendors are excluded. Use this to tell the seller upfront: 'I need DoubleVerify for viewability at 70% MRC.'",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/performance-standard.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/performance-standard.json"
       },
       "minItems": 1
     },
@@ -765,7 +765,7 @@
       "type": "array",
       "description": "Filter to products whose `reporting_capabilities.available_metrics` is a superset of these metrics \u2014 i.e., products that commit to reporting all listed metrics in delivery responses. Use this for capability-level discovery (e.g., 'I need products that report `completed_views` for a CTV CPCV buy'); guarantee-level requirements with thresholds belong in `required_performance_standards` and `measurement_terms`. Sellers MUST silently exclude products that cannot meet this list (filter-not-fail; do not return an error). Under the container-subsumption rule in `enums/available-metric.json`, `viewability` satisfies numeric leaves such as `viewable_rate`; structured distributions require explicit `viewed_seconds_percentiles` or `viewed_seconds_histogram` declarations. The product's declared `available_metrics` becomes the binding reporting contract carried into the resulting media buy \u2014 the same metric vocabulary is used to compute `missing_metrics` on `get_media_buy_delivery`.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/available-metric.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/available-metric.json"
       },
       "minItems": 1,
       "uniqueItems": true,
@@ -791,11 +791,11 @@
         "type": "object",
         "properties": {
           "vendor": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
             "description": "Pin to a specific vendor. Optional \u2014 omit to match any vendor offering this `metric_id`."
           },
           "metric_id": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-id.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-id.json",
             "description": "Pin to an exact metric identifier within a vendor's vocabulary. Optional \u2014 omit to match any metric from the pinned vendor. Cross-vendor identifier matching only works after vendors converge on identifiers (typically post-standardization)."
           }
         },
@@ -857,7 +857,7 @@
             "description": "The keyword to target"
           },
           "match_type": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/match-type.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/match-type.json",
             "default": "broad"
           }
         },
@@ -869,11 +869,11 @@
       "minItems": 1
     },
     "audience_evidence_requirements": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/audience-evidence-requirements.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/audience-evidence-requirements.json",
       "description": "Buyer policy for evaluating Product.audience_evidence. In required mode, sellers MUST apply the evidence_presence and admissibility semantics and exclude non-matching products; they MUST NOT ignore an unsupported hard requirement. In preferred mode, sellers use matches for ranking and explain the evidence selected. Buyers SHOULD inspect media_buy.audience_evidence capabilities before sending this object."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json",
       "description": "Vendor-namespaced extension parameters for seller-specific filter criteria not covered by standard fields. Keys MUST be namespaced under a vendor or platform key (e.g., ext.gam, ext.platform_x). Sellers MUST treat all values as untrusted buyer input; do not interpolate into LLM prompts, SQL queries, or system commands without sanitization. Persistent use of an extension key across multiple buyers is a signal to propose standardization."
     }
   },

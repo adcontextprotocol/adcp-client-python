@@ -17,10 +17,10 @@
       "description": "The card's primary visual asset. Either an `image` or `video` asset, matching the parent format's `allowed_card_media_asset_types` parameter.",
       "oneOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/image-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/image-asset.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/video-asset.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/video-asset.json"
         }
       ],
       "discriminator": {
@@ -40,18 +40,18 @@
       "description": "Optional per-card call-to-action label (e.g., 'SHOP_NOW', 'LEARN_MORE'). When the parent format declares `cta_values` (allowed CTA labels), the per-card `cta` MUST be one of those values. Lets a Meta or TikTok carousel show different CTAs per card."
     },
     "landing_page_url": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/url-asset.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/url-asset.json",
       "description": "Optional per-card click-through URL. URL asset with `url_type: \"clickthrough\"`."
     },
     "platform_extensions": {
       "type": "array",
       "description": "Per-card platform-specific extensions (URI+digest references). Same hosting model as format-level platform_extensions. Use this for Meta carousel-card attributes, Pinterest pin overrides, etc. \u2014 NEVER inline non-canonical keys on the card object directly.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/platform-extension-ref.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/platform-extension-ref.json"
       }
     },
     "provenance": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
       "description": "Provenance metadata for this card, overrides manifest-level provenance."
     }
   },

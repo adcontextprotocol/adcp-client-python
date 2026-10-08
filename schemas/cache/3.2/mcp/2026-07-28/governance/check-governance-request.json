@@ -403,7 +403,7 @@
           "minimum": 1
         },
         "proposal_status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1proposal-status.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1proposal-status.json",
           "description": "draft is indicative and unreserved; committed has firm terms with inventory reserved until expires_at; accepted is the historical snapshot attached to a MediaBuy."
         },
         "accepted_at": {
@@ -429,7 +429,7 @@
           "maxLength": 2000
         },
         "commercial_terms": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:media-buy~1commercial-terms.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:media-buy~1commercial-terms.json"
         },
         "terms_digest": {
           "type": "string",
@@ -437,7 +437,7 @@
           "description": "Base64url SHA-256 digest of the RFC 8785 JCS serialization of commercial_terms, prefixed with sha256:."
         },
         "insertion_order": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1insertion-order.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1insertion-order.json"
         },
         "total_budget_guidance": {
           "type": "object",
@@ -485,7 +485,7 @@
         "forecast": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-delivery-forecast.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-delivery-forecast.json"
             }
           ],
           "description": "Aggregate forecasted delivery for the proposal. For outcome_target requests, points carry the goal's metric or event key in metrics; with cost_per, that is the goal volume planned under the commercial_terms.bidding policy, and currency equals cost_per.currency."
@@ -623,17 +623,17 @@
           "description": "Pricing-layer version against which published rates were accepted."
         },
         "brand": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
         },
         "advertiser_industry": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1advertiser-industry.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1advertiser-industry.json"
         },
         "purchases": {
           "type": "array",
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:media-buy~1product-purchase.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:media-buy~1product-purchase.json"
               },
               {
                 "required": [
@@ -655,7 +655,7 @@
           }
         },
         "start_time": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1start-timing.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1start-timing.json"
         },
         "end_time": {
           "type": "string",
@@ -685,7 +685,7 @@
           "description": "Hard aggregate daily spend ceiling accepted as part of these terms. It bounds total spend without creating purchase allocations."
         },
         "frequency_cap": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1media-buy-frequency-cap.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1media-buy-frequency-cap.json",
           "description": "Hard MediaBuy-level cap accepted as part of these terms. One counter aggregates exposures across every purchase; purchase targeting caps remain independently binding."
         },
         "budget_cap_timezone": {
@@ -694,17 +694,17 @@
           "description": "Shared IANA calendar-day boundary for aggregate and purchase daily caps in these terms."
         },
         "budget_allocation": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-budget-allocation.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-budget-allocation.json"
         },
         "pacing": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1pacing.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1pacing.json"
         },
         "bidding": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1bidding-policy.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1bidding-policy.json",
           "description": "Media-buy bidding policy. A proposal answering criteria.outcome_target.cost_per states here the cost the seller can plan to, which the buyer adopts on acceptance: the requested strength, and an amount greater than or equal to the ask (the ask when the seller can forecast goal volume under it within the buyer's budget, otherwise the lowest such amount), denominated in the purchases' pricing currency, which equals cost_per.currency. It is an execution control, not an expected price; when the planned spend at that amount is below total_budget, forecast points carry metrics.spend. See outcome-target.json for goal binding."
         },
         "invoice_recipient": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1business-entity.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1business-entity.json"
         },
         "purchase_order_ref": {
           "type": "string",
@@ -727,7 +727,7 @@
               "metrics": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-reporting-commitment.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-reporting-commitment.json"
                 },
                 "minItems": 1
               }
@@ -780,7 +780,7 @@
         "change_terms": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:media-buy~1change-term.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:media-buy~1change-term.json"
           },
           "minItems": 1,
           "description": "Binding buyer change rights included in the commercial envelope and therefore covered by terms_digest. Entries are uniquely keyed by action. When this field is present, an omitted action is not a negotiated change right. Omission of the entire field means legacy-unspecified rights, not a prohibition.",
@@ -808,7 +808,7 @@
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
         },
         "brand_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-id.json",
           "description": "Brand within a house-of-brands manifest. Omit for a single-brand domain."
         },
         "countries": {
@@ -1039,13 +1039,13 @@
           "x-entity": "product_pricing_option"
         },
         "pricing": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-pricing-option.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-pricing-option.json",
           "description": "Resolved selected pricing terms. Optional on buy_products input, where pricing_option_id plus the versioned feed identifies the offer; required inside accepted commercial_terms. Its pricing_option_id MUST match the sibling field."
         },
         "format_option_refs": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1format-option-ref.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1format-option-ref.json"
           },
           "minItems": 1,
           "description": "Canonical format options selected from the published product offer. Legacy named-format identifiers are not accepted."
@@ -1095,32 +1095,32 @@
           "description": "Resolved package flight end. On direct-purchase input, omission inherits the MediaBuy end; accepted proposal snapshots carry the resolved timestamp."
         },
         "pacing": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1pacing.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1pacing.json",
           "description": "Purchase pacing, subordinate to media-buy pacing. In seller-optimized allocation, pacing that differs from the media-buy pacing requires advertised media_buy.features.seller_optimized_package_pacing; otherwise rejected with UNSUPPORTED_FEATURE."
         },
         "bidding": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1bidding-policy.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1bidding-policy.json"
         },
         "targeting_overlay": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1targeting.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1targeting.json",
           "description": "Resolved effective buyer-selected targeting, including compatible wholesale signal selections, applied within the product's published targeting contract. Cleared dimensions are omitted; null is invalid in an accepted snapshot."
         },
         "optimization_goals": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-optimization-goal.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-optimization-goal.json"
           },
           "minItems": 1
         },
         "audience_evidence_requirements": {
           "title": "Product Purchase Audience Evidence Requirements",
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1product-audience-evidence-requirements.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1product-audience-evidence-requirements.json",
           "description": "Buyer evidence-admissibility policy carried into the accepted purchase snapshot."
         },
         "audience_evidence_pins": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1audience-evidence-pin.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1audience-evidence-pin.json"
           },
           "minItems": 1,
           "description": "Exact immutable audience-evidence snapshots selected for package construction."
@@ -1131,21 +1131,21 @@
           "description": "Package-level agency estimate or authorization reference."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1context.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1context.json",
           "description": "Opaque buyer package correlation preserved in the accepted snapshot and readback."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
         },
         "measurement_terms": {
           "title": "Product Purchase Measurement Terms",
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-measurement-terms.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-measurement-terms.json",
           "description": "Published or negotiated billing-measurement and makegood terms for this purchase. Direct buyers may omit this to inherit the product default; accepted proposal snapshots preserve the resolved terms."
         },
         "performance_standards": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-performance-standard.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-performance-standard.json"
           },
           "minItems": 1,
           "description": "Published or negotiated metric thresholds and measurement vendors. Direct buyers may omit this to inherit the product defaults; accepted proposal snapshots preserve every applicable standard."
@@ -1214,19 +1214,19 @@
           "minimum": 0
         },
         "price_guidance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:pricing-options~1price-guidance.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:pricing-options~1price-guidance.json"
         },
         "min_spend_per_package": {
           "type": "number",
           "minimum": 0
         },
         "price_breakdown": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:pricing-options~1price-breakdown.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:pricing-options~1price-breakdown.json"
         },
         "eligible_adjustments": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1adjustment-kind.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1adjustment-kind.json"
           },
           "uniqueItems": true
         },
@@ -1235,7 +1235,7 @@
           "additionalProperties": true
         },
         "event_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1event-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1event-type.json"
         },
         "custom_event_name": {
           "type": "string",
@@ -1395,7 +1395,7 @@
             "type": "object",
             "properties": {
               "kind": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1adjustment-kind.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1adjustment-kind.json"
               },
               "name": {
                 "type": "string",
@@ -1818,7 +1818,7 @@
           "type": "array",
           "description": "Restrict delivery to specific metro areas. Each entry specifies the classification system and target values. Seller must declare supported systems in get_adcp_capabilities.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1geo-metro.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1geo-metro.json"
           },
           "minItems": 1
         },
@@ -1829,7 +1829,7 @@
             "type": "object",
             "properties": {
               "system": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1metro-system.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1metro-system.json",
                 "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')"
               },
               "values": {
@@ -1853,7 +1853,7 @@
           "type": "array",
           "description": "Restrict delivery to specific postal areas. Prefer the native country + postal system form. The deprecated legacy country-fused postal-system tokens remain accepted for compatibility. Seller must declare supported systems in get_adcp_capabilities.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1postal-area.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1postal-area.json"
           },
           "minItems": 1
         },
@@ -1861,7 +1861,7 @@
           "type": "array",
           "description": "Exclude specific postal areas from delivery. Prefer the native country + postal system form. The deprecated legacy country-fused postal-system tokens remain accepted for compatibility. Seller must declare supported systems in get_adcp_capabilities.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1postal-area.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1postal-area.json"
           },
           "minItems": 1
         },
@@ -1869,7 +1869,7 @@
           "type": "array",
           "description": "Restrict delivery to catalog-backed named places. Values MUST be stable identifiers in the declared system, not display names. Sellers must declare supported systems, countries, and place types in get_adcp_capabilities and reject unsupported entries rather than silently dropping them.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1geo-place-area.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1geo-place-area.json",
             "x-adcp-schema-uri": "/schemas/core/geo-place-area.json"
           },
           "minItems": 1
@@ -1878,7 +1878,7 @@
           "type": "array",
           "description": "Exclude catalog-backed named places. Uses the same identifier-based shape as geo_places. Sellers MUST reject overlap with geo_places for the same country, system, place_type, and value.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1geo-place-area.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1geo-place-area.json",
             "x-adcp-schema-uri": "/schemas/core/geo-place-area.json"
           },
           "minItems": 1
@@ -1887,7 +1887,7 @@
           "type": "array",
           "description": "Restrict delivery to specific time windows. Each entry specifies days of week, an hour range, and an optional timezone that defaults to inventory_local. A concrete IANA zone uses one shared civil-time clock, while inventory_local evaluates each inventory unit in its seller-assigned local timezone. Entries are independent and MAY use different clocks.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1daypart-target.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1daypart-target.json"
           },
           "minItems": 1
         },
@@ -1919,7 +1919,7 @@
         },
         "signal_targeting_groups": {
           "title": "Targeting Signal Groups",
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1package-signal-targeting-groups.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1package-signal-targeting-groups.json",
           "description": "Basic Boolean grouping for seller-offered signals. v1 supports a required top-level operator 'all' and child groups with operator 'any' for include groups or 'none' for exclusion groups. Example semantics: group 1 any(A, B) plus group 2 none(C, D) means (A OR B) AND NOT (C OR D). Signal entries reference named signal definitions with signal_ref scope 'product' for product-local signal options or scope 'data_provider' for external signals published in adagents.json signals[]. For simple include-only targeting, send one child group with operator 'any'. Sellers SHOULD reject entries that are not available for the product through inline signal_targeting_options or get_signals, are not active for the account, or exceed the product's signal_targeting_allowed/signal_targeting_rules/product terms. Signal targeting limits are product-scoped, not declared in get_adcp_capabilities, because products may be backed by different ad servers. Sellers MUST echo applied signal_targeting_groups on the resulting package state, including fixed/default selections. Sellers MAY return REQUOTE_REQUIRED when a targeting mutation changes commercial terms."
         },
         "signal_targeting": {
@@ -1927,43 +1927,43 @@
           "description": "DEPRECATED. Use signal_targeting_groups for package-level signal targeting. Legacy flat signal_targeting remains accepted during the SignalRef migration window but cannot express grouped include/exclude composition or product-scoped pricing.",
           "deprecated": true,
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-targeting.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-targeting.json"
           },
           "minItems": 1
         },
         "demographics": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1demographic-targeting-intent.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1demographic-targeting-intent.json",
           "description": "Canonical demographic audience targeting intent with optional constraints on how age may be determined. This is distinct from age_restriction: demographics selects an audience, while age_restriction expresses a legal eligibility or verification floor. Fresh create/update targeting MUST compile exactly or be rejected. During get_products, a seller may offer a different configured predicate only through sparse targeting_resolution modifications on a distinguishable product_id; selecting that product accepts the alternative. Sellers never silently broaden, narrow, default, drop, or substitute the basis."
         },
         "frequency_cap": {
           "title": "Targeting Frequency Cap",
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1frequency-cap.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1frequency-cap.json"
         },
         "property_list": {
           "title": "Targeting Property List",
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1property-list-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1property-list-ref.json",
           "description": "Reference to a property list for targeting specific properties within this product. The package runs on the intersection of the product's publisher_properties and this list. Sellers SHOULD return a validation error if the product has property_targeting_allowed: false."
         },
         "property_list_exclude": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1property-list-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1property-list-ref.json",
           "description": "Reference to a property list whose properties must not carry the buyer's ads. Matched properties are removed from delivery. Use for brand-safety do-not-run lists (apps, sites). Exclude wins on overlap with property_list, and applies regardless of the product's property_targeting_allowed flag. Seller must declare support in get_adcp_capabilities."
         },
         "collection_list": {
           "title": "Targeting Collection List",
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1collection-list-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1collection-list-ref.json",
           "description": "Reference to a collection list for including specific collections (programs, publications, channels) within this product. The package runs on the intersection of matched collections and this list. Use for inclusion-based collection targeting. Seller must declare support in get_adcp_capabilities."
         },
         "collection_list_exclude": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1collection-list-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1collection-list-ref.json",
           "description": "Reference to a collection list for excluding specific collections (programs, publications, channels) from this product. Matched collections must not carry the buyer's ads. Use for brand safety do-not-air lists. Seller must declare support in get_adcp_capabilities."
         },
         "placement_selection": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1placement-selection.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1placement-selection.json",
           "description": "Purchased placement selection within the product. This constrains package inventory; it is distinct from creative_assignments[].placement_refs, which only route individual creatives within the purchased set. On create, mode selected supplies the complete selected set and mode default uses the product default. In request-side Targeting Input, a non-null value replaces this dimension, omission preserves or inherits it, and null clears it when the product permits that broader inventory set."
         },
         "collection_selection": {
           "title": "Targeting Collection Selection",
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1collection-selection.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1collection-selection.json",
           "description": "Purchased collection selection within the product. On create, mode selected supplies the complete selected set and mode default uses the product's full bundle. On package readback this is the committed selection sellers MUST echo as concrete selectors, materializing any collection_list composition; collection_list fields remain the buyer-managed list mechanism. In request-side Targeting Input, a non-null value replaces this dimension, omission preserves or inherits it, and null clears it when the product permits that broader inventory set."
         },
         "age_restriction": {
@@ -1985,7 +1985,7 @@
               "type": "array",
               "description": "Accepted verification methods. If omitted, any method the platform supports is acceptable.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1age-verification-method.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1age-verification-method.json"
               },
               "minItems": 1
             }
@@ -1999,7 +1999,7 @@
           "type": "array",
           "description": "Restrict to specific platforms. Use for technical compatibility (app only works on iOS). Values from Sec-CH-UA-Platform standard, extended for CTV.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1device-platform.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1device-platform.json"
           },
           "minItems": 1
         },
@@ -2007,7 +2007,7 @@
           "type": "array",
           "description": "Exclude specific operating-system platforms from delivery. When a platform appears in both device_platform and device_platform_exclude, exclusion wins. Sellers MUST reject a request they cannot enforce rather than silently dropping the exclusion.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1device-platform.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1device-platform.json"
           },
           "minItems": 1
         },
@@ -2015,7 +2015,7 @@
           "type": "array",
           "description": "Restrict to specific device form factors. Use for campaigns targeting hardware categories rather than operating systems (e.g., mobile-only promotions, CTV campaigns).",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1device-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1device-type.json"
           },
           "minItems": 1
         },
@@ -2023,7 +2023,7 @@
           "type": "array",
           "description": "Exclude specific device form factors from delivery (e.g., exclude CTV for app-install campaigns).",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1device-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1device-type.json"
           },
           "minItems": 1
         },
@@ -2031,7 +2031,7 @@
           "type": "array",
           "description": "Restrict delivery to specific canonical browser families in the impression delivery and rendering environment, not the post-click landing-page browser. Values MUST NOT be inferred solely from operating system, device, web/mobile-web inventory, or placement. Values in this array use OR semantics. When browser is supplied, families not listed are ineligible: other includes a seller-recognized family that is not explicitly enumerated, while unknown includes a browser the seller cannot classify into a recognized family. When the same family appears in browser and browser_exclude, exclusion wins. Browser and device constraints intersect; a seller that cannot enforce the exact combination MUST exclude or explicitly reconfigure the product during discovery and MUST reject it at create or update rather than silently widening delivery. Browser versions and seller-native IDs are intentionally unsupported.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1browser-family.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1browser-family.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -2040,7 +2040,7 @@
           "type": "array",
           "description": "Exclude specific canonical browser families from delivery. other excludes seller-recognized families that are not explicitly enumerated; unknown excludes browsers the seller cannot classify into a recognized family. When the same family appears in browser and browser_exclude, exclusion wins. Sellers MUST reject a request they cannot enforce rather than silently dropping the exclusion.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1browser-family.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1browser-family.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -2111,7 +2111,7 @@
                     "description": "Travel time limit."
                   },
                   "unit": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1travel-time-unit.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1travel-time-unit.json"
                   }
                 },
                 "required": [
@@ -2121,7 +2121,7 @@
                 "additionalProperties": false
               },
               "transport_mode": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1transport-mode.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1transport-mode.json",
                 "description": "Transportation mode for isochrone calculation. Required when travel_time is provided."
               },
               "radius": {
@@ -2134,7 +2134,7 @@
                     "description": "Radius distance."
                   },
                   "unit": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1distance-unit.json",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1distance-unit.json",
                     "description": "Distance unit."
                   }
                 },
@@ -2168,7 +2168,7 @@
                 "additionalProperties": false
               },
               "ext": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
               }
             },
             "oneOf": [
@@ -2244,7 +2244,7 @@
           "type": "array",
           "description": "Restrict to users with specific language preferences using canonical BCP 47 language ranges. Each buyer range is evaluated against a user's language-preference tag with RFC 4647 section 3.3.1 Basic Filtering: 'fr' matches 'fr', 'fr-CA', and 'fr-FR', while 'fr-CA' matches 'fr-CA' and more-specific descendants but not 'fr' or 'fr-FR'. Values use OR logic.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1locale-tag.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1locale-tag.json"
           },
           "minItems": 1
         },
@@ -2261,7 +2261,7 @@
                 "description": "The keyword to target"
               },
               "match_type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1match-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1match-type.json"
               },
               "bid_price": {
                 "type": "number",
@@ -2282,17 +2282,17 @@
           "type": "array",
           "description": "Keywords to exclude from delivery. Queries matching these keywords will not trigger the ad. Each negative keyword is identified by the tuple (keyword, match_type). Seller must declare support in get_adcp_capabilities.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1negative-keyword.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1negative-keyword.json"
           },
           "minItems": 1
         }
       },
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1targeting-unknown-age-eligibility-constraint.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1targeting-unknown-age-eligibility-constraint.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1targeting-verified-age-basis-constraint.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1targeting-verified-age-basis-constraint.json"
         }
       ],
       "additionalProperties": true
@@ -2303,7 +2303,7 @@
       "type": "object",
       "properties": {
         "system": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1metro-system.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1metro-system.json",
           "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')"
         },
         "values": {
@@ -2342,7 +2342,7 @@
           "type": "object",
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1postal-country-system.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1postal-country-system.json"
             }
           ],
           "properties": {
@@ -2352,7 +2352,7 @@
               "description": "ISO 3166-1 alpha-2 country code for the postal values."
             },
             "system": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1postal-system.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1postal-system.json",
               "description": "Country-local postal code system (e.g., 'zip', 'outward', 'plz', 'postal_code')."
             },
             "values": {
@@ -2377,7 +2377,7 @@
           "type": "object",
           "properties": {
             "system": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1legacy-postal-system.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1legacy-postal-system.json",
               "deprecated": true,
               "description": "Deprecated country-fused postal code system (e.g., 'us_zip', 'gb_outward'). Prefer country + postal-system."
             },
@@ -2409,7 +2409,7 @@
           "description": "ISO 3166-1 alpha-2 country code."
         },
         "system": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1postal-system.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1postal-system.json",
           "description": "Country-local postal code system."
         }
       },
@@ -2617,7 +2617,7 @@
           "description": "ISO 3166-1 alpha-2 country code containing the place."
         },
         "system": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1geo-place-system.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1geo-place-system.json"
         },
         "system_version": {
           "type": "string",
@@ -2625,7 +2625,7 @@
           "description": "Optional exact catalog version from the seller's declared supported_versions. When omitted, the seller applies catalog.current_version and MUST echo that version on persisted package state."
         },
         "place_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1geo-place-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1geo-place-type.json"
         },
         "values": {
           "type": "array",
@@ -2646,7 +2646,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -2767,7 +2767,7 @@
           "type": "array",
           "description": "Days of week this window applies to. Use multiple days for compact targeting (e.g., monday-friday in one object).",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1day-of-week.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1day-of-week.json"
           },
           "minItems": 1
         },
@@ -2793,7 +2793,7 @@
               "const": "inventory_local"
             },
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1iana-timezone.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1iana-timezone.json"
             }
           ]
         },
@@ -2854,7 +2854,7 @@
           "type": "array",
           "description": "Signal targeting groups to evaluate. Use operator 'any' for include groups and 'none' for exclusion groups.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1package-signal-targeting-group.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1package-signal-targeting-group.json"
           },
           "minItems": 1
         }
@@ -2882,7 +2882,7 @@
           "type": "array",
           "description": "Signal targeting entries evaluated by this group. Each entry uses the package signal targeting shape, including signal_ref, value expression, and optional pricing, execution-handle, or activation fields.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1package-signal-targeting.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1package-signal-targeting.json"
           },
           "minItems": 1
         }
@@ -2899,7 +2899,7 @@
       "type": "object",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-targeting-expression.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-targeting-expression.json"
         }
       ],
       "properties": {
@@ -2914,7 +2914,7 @@
           "x-entity": "signal_activation_id"
         },
         "activation_key": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1activation-key.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1activation-key.json",
           "description": "Destination-specific activation key returned by get_signals or activate_signal. Usually omitted for seller-offered signals selected directly through the same seller; include only when the selected signal was separately activated and the seller requires the activation key to correlate the package selection."
         }
       },
@@ -2932,7 +2932,7 @@
           "description": "Binary signal expression. In grouped package targeting, value is always true; use a parent group with operator 'none' for exclusion.",
           "properties": {
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
               "description": "Named signal being targeted."
             },
             "value_type": {
@@ -2958,7 +2958,7 @@
           "description": "Categorical signal expression - target users with one of the listed values.",
           "properties": {
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
               "description": "Named signal being targeted."
             },
             "value_type": {
@@ -2987,7 +2987,7 @@
           "description": "Numeric signal expression - target users within a value range. At least one of min_value or max_value is required. If both min_value and max_value are provided, min_value MUST be <= max_value.",
           "properties": {
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
               "description": "Named signal being targeted."
             },
             "value_type": {
@@ -3249,11 +3249,11 @@
           "description": "Binary signal targeting - user either matches or doesn't",
           "properties": {
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
               "description": "The signal to target. New targeting constraints SHOULD use signal_ref."
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-id.json",
               "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
               "deprecated": true
             },
@@ -3290,11 +3290,11 @@
           "description": "Categorical signal targeting - target users with specific values",
           "properties": {
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
               "description": "The signal to target. New targeting constraints SHOULD use signal_ref."
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-id.json",
               "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
               "deprecated": true
             },
@@ -3335,11 +3335,11 @@
           "description": "Numeric signal targeting - target users within a value range. If min_value is provided, it must be <= max_value. Values should be within the signal's defined range (see signal definition).",
           "properties": {
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
               "description": "The signal to target. New targeting constraints SHOULD use signal_ref."
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-id.json",
               "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
               "deprecated": true
             },
@@ -3449,7 +3449,7 @@
         "age": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1demographic-age-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1demographic-age-range.json"
             },
             {
               "type": "object",
@@ -3458,7 +3458,7 @@
                   "type": "array",
                   "description": "User-level age determination bases the buyer permits for this predicate. Sellers MUST use only these bases or reject the request; they MUST NOT silently fall back to another basis. When omitted, the buyer imposes no determination-basis constraint beyond product capability and any age_restriction. population_estimate is structurally unavailable because aggregate evidence cannot identify an eligible user.",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1age-determination-basis.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1age-determination-basis.json"
                   },
                   "minItems": 1,
                   "uniqueItems": true
@@ -3467,7 +3467,7 @@
                   "type": "array",
                   "description": "Verification methods acceptable when verified is an accepted basis. This field narrows verified demographic execution; age_restriction.accepted_methods independently governs legal eligibility and the two sets are intersected when both are present.",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1age-verification-method.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1age-verification-method.json"
                   },
                   "minItems": 1,
                   "uniqueItems": true
@@ -3578,7 +3578,7 @@
         "suppress": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
             }
           ],
           "description": "Cooldown period between consecutive exposures to the same entity. Prevents back-to-back ad delivery (e.g. {\"interval\": 60, \"unit\": \"minutes\"} for a 1-hour cooldown). Preferred over suppress_minutes."
@@ -3597,7 +3597,7 @@
         "per": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1reach-unit.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1reach-unit.json"
             }
           ],
           "description": "Entity granularity for impression counting. Required when max_impressions is set."
@@ -3605,7 +3605,7 @@
         "window": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
             }
           ],
           "description": "Time window for the max_impressions cap (e.g. {\"interval\": 7, \"unit\": \"days\"} or {\"interval\": 1, \"unit\": \"campaign\"} for the full flight). Required when max_impressions is set."
@@ -3769,7 +3769,7 @@
                   {
                     "allOf": [
                       {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1placement-ref.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1placement-ref.json"
                       },
                       {
                         "required": [
@@ -3779,7 +3779,7 @@
                     ]
                   },
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1placement-identity.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1placement-identity.json"
                   }
                 ]
               },
@@ -3787,7 +3787,7 @@
               "uniqueItems": true
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -3805,7 +3805,7 @@
               "const": "default"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -3875,7 +3875,7 @@
               "const": "seller_inline"
             },
             "seller_agent": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1seller-agent-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1seller-agent-ref.json",
               "description": "Sales agent that defines and maintains the inline placement namespace."
             },
             "placement_id": {
@@ -3944,7 +3944,7 @@
               "items": {
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1collection-selector.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1collection-selector.json"
                   },
                   {
                     "required": [
@@ -3957,7 +3957,7 @@
               "uniqueItems": true
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -3975,7 +3975,7 @@
               "const": "default"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -4153,7 +4153,7 @@
           "description": "The keyword to exclude"
         },
         "match_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1match-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1match-type.json"
         }
       },
       "required": [
@@ -4268,13 +4268,13 @@
               ]
             },
             "standard": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1viewability-standard.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1viewability-standard.json"
             },
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
             },
             "reach_unit": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1reach-unit.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1reach-unit.json"
             },
             "target_frequency": {
               "type": "object",
@@ -4288,7 +4288,7 @@
                   "minimum": 1
                 },
                 "window": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
                 }
               },
               "required": [
@@ -4418,7 +4418,7 @@
                     "x-entity": "event_source"
                   },
                   "event_type": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1event-type.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1event-type.json"
                   },
                   "custom_event_name": {
                     "type": "string",
@@ -4455,7 +4455,7 @@
               "additionalProperties": false
             },
             "attribution_window": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1attribution-window.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1attribution-window.json"
             },
             "priority": {
               "type": "integer",
@@ -4476,10 +4476,10 @@
               "const": "vendor_metric"
             },
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
             },
             "metric_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1vendor-metric-id.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1vendor-metric-id.json"
             },
             "target": {
               "type": "object",
@@ -4534,7 +4534,7 @@
         "post_click": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
             }
           ],
           "description": "Post-click attribution window. Conversions occurring within this duration after a click are attributed to the ad."
@@ -4542,13 +4542,13 @@
         "post_view": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
             }
           ],
           "description": "Post-view attribution window. Conversions occurring within this duration after an ad impression (without click) are attributed to the ad."
         },
         "model": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1attribution-model.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1attribution-model.json",
           "description": "Attribution model used to assign credit when multiple touchpoints exist. SHOULD be populated when committing to a specific model; when absent, the seller's default applies."
         }
       },
@@ -4604,7 +4604,7 @@
         "accepted_methodologies": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1audience-evidence-methodology.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1audience-evidence-methodology.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -4612,7 +4612,7 @@
         "excluded_methodologies": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1audience-evidence-methodology.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1audience-evidence-methodology.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -4633,21 +4633,21 @@
         "accepted_providers": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
           },
           "minItems": 1
         },
         "excluded_providers": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
           },
           "minItems": 1
         },
         "accepted_subject_types": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1audience-subject-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1audience-subject-type.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -4655,7 +4655,7 @@
         "accepted_resolution_methods": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1audience-resolution-method.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1audience-resolution-method.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -4668,7 +4668,7 @@
         "maximum_age": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
             },
             {
               "properties": {
@@ -4707,10 +4707,10 @@
                     "const": "brand"
                   },
                   "brand": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
                   },
                   "ext": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
                   }
                 },
                 "required": [
@@ -4732,7 +4732,7 @@
                     "pattern": "^https://[^/?#@]+(?:/[^?#]*)?(?:\\?[^#]*)?$"
                   },
                   "ext": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
                   }
                 },
                 "required": [
@@ -4754,7 +4754,7 @@
                     "pattern": "^https://[^/?#@]+$"
                   },
                   "ext": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
                   }
                 },
                 "required": [
@@ -4778,7 +4778,7 @@
           "uniqueItems": true
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -4868,7 +4868,7 @@
           "pattern": "^sha256:[a-f0-9]{64}$"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -4894,7 +4894,7 @@
           "type": "object",
           "properties": {
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
             },
             "max_variance_percent": {
               "type": "number",
@@ -4921,7 +4921,7 @@
             "available_remedies": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1makegood-remedy.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1makegood-remedy.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -4956,7 +4956,7 @@
       "type": "object",
       "properties": {
         "metric": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1performance-standard-metric.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1performance-standard-metric.json"
         },
         "threshold": {
           "type": "number",
@@ -4964,10 +4964,10 @@
           "maximum": 1
         },
         "standard": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1viewability-standard.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1viewability-standard.json"
         },
         "vendor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
         }
       },
       "required": [
@@ -5017,7 +5017,7 @@
       "description": "A MediaBuy-level maximum-impression cap. The counter is shared across participating packages for the declared per unit. Duration windows are rolling elapsed windows; campaign spans the MediaBuy flight. Aggregate suppression is not defined in 3.2 because suppress-only FrequencyCap values do not identify a counter entity.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1frequency-cap.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1frequency-cap.json"
         },
         {
           "required": [
@@ -5070,7 +5070,7 @@
             "optimization_goals": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-optimization-goal.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-optimization-goal.json"
               },
               "minItems": 1
             }
@@ -5225,7 +5225,7 @@
           "additionalProperties": false
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -5303,10 +5303,10 @@
               "const": "standard"
             },
             "metric_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1available-metric.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1available-metric.json"
             },
             "qualifier": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-metric-qualifier.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-metric-qualifier.json"
             },
             "effective_at": {
               "type": "string",
@@ -5326,13 +5326,13 @@
               "const": "vendor"
             },
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
             },
             "metric_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1vendor-metric-id.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1vendor-metric-id.json"
             },
             "qualifier": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-metric-qualifier.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-metric-qualifier.json"
             },
             "effective_at": {
               "type": "string",
@@ -5410,19 +5410,19 @@
       "type": "object",
       "properties": {
         "viewability_standard": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1viewability-standard.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1viewability-standard.json"
         },
         "completion_source": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1completion-source.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1completion-source.json"
         },
         "attribution_methodology": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1attribution-methodology.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1attribution-methodology.json"
         },
         "attribution_window": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
         },
         "lift_dimension": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1lift-dimension.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1lift-dimension.json"
         }
       },
       "additionalProperties": false
@@ -5518,10 +5518,10 @@
           "x-entity": "media_buy_change_term"
         },
         "action": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1canonical-media-buy-action.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1canonical-media-buy-action.json"
         },
         "service_mode": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1canonical-media-buy-action-mode.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1canonical-media-buy-action-mode.json"
         },
         "allowed_statuses": {
           "type": "array",
@@ -5539,7 +5539,7 @@
           "description": "Non-terminal MediaBuy statuses in which this negotiated right may be exercised. When absent, the right applies in every non-terminal status where the canonical action itself is meaningful. This field describes contractual lifecycle scope; available_actions[] remains authoritative for the current instant."
         },
         "processing_sla": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1sla-window.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1sla-window.json",
           "description": "Binding elapsed-time acknowledgement and completion commitment. Sellers account for weekends and non-working periods when declaring the maximum."
         },
         "conditions": {
@@ -5553,7 +5553,7 @@
           "description": "Opaque stable condition identifiers defined by terms_ref or bilateral commercial documentation. Implementations compare identifiers; they MUST NOT execute or interpret them as instructions."
         },
         "constraints": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:media-buy~1change-term-constraints.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:media-buy~1change-term-constraints.json",
           "description": "Portable bounds that buyer and seller SDKs can preflight. Omission means no machine-readable bound was promised; opaque conditions remain unevaluated."
         },
         "terms_ref": {
@@ -5569,7 +5569,7 @@
           "description": "Display-only summary; it cannot grant authority, add an action, or override typed fields."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -5673,7 +5673,7 @@
               "const": "budget"
             },
             "max_delta_amount": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:media-buy~1change-term-constraints.json/$defs/money",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:media-buy~1change-term-constraints.json/$defs/money",
               "description": "Maximum absolute amount by which the affected budget may change in the direction named by the action."
             },
             "max_delta_percent": {
@@ -5682,11 +5682,11 @@
               "description": "Maximum percentage change relative to the current committed value. Values above 100 are valid for increases greater than the current value."
             },
             "min_result_amount": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:media-buy~1change-term-constraints.json/$defs/money",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:media-buy~1change-term-constraints.json/$defs/money",
               "description": "Minimum resulting committed value after the change."
             },
             "max_result_amount": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:media-buy~1change-term-constraints.json/$defs/money",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:media-buy~1change-term-constraints.json/$defs/money",
               "description": "Maximum resulting committed value after the change."
             }
           },
@@ -5726,7 +5726,7 @@
               "const": "flight"
             },
             "max_change": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json",
               "description": "Maximum extension, shortening, or shift in the direction named by the action."
             },
             "earliest_result": {
@@ -5740,7 +5740,7 @@
               "description": "Latest resulting start or end timestamp accepted for this action."
             },
             "minimum_notice": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json",
               "description": "Minimum elapsed notice before the requested flight change may take effect."
             }
           },
@@ -5826,7 +5826,7 @@
               "const": "effective_timing"
             },
             "minimum_notice": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json",
               "description": "Minimum elapsed notice before pause, resume, cancellation, or another operational action may take effect."
             },
             "earliest_effective_at": {
@@ -5979,22 +5979,22 @@
         "points": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-forecast-point.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-forecast-point.json"
           },
           "minItems": 1
         },
         "forecast_range_unit": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1forecast-range-unit.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1forecast-range-unit.json"
         },
         "method": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1forecast-method.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1forecast-method.json"
         },
         "currency": {
           "type": "string",
           "pattern": "^[A-Z]{3}$"
         },
         "demographic_system": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1demographic-system.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1demographic-system.json"
         },
         "demographic": {
           "type": "string"
@@ -6005,7 +6005,7 @@
           "pattern": "^[a-z0-9_]+$"
         },
         "reach_unit": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1reach-unit.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1reach-unit.json"
         },
         "generated_at": {
           "type": "string",
@@ -6016,7 +6016,7 @@
           "format": "date-time"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -6044,42 +6044,42 @@
           "x-entity": "product"
         },
         "dimensions": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-point-dimensions.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-point-dimensions.json"
         },
         "availability_status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1availability-status.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1availability-status.json"
         },
         "metrics": {
           "type": "object",
           "properties": {
             "coverage_rate": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-rate-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-rate-range.json"
             }
           },
           "additionalProperties": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-range.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-range.json"
           }
         },
         "viewability": {
           "type": "object",
           "properties": {
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
             },
             "measurable_impressions": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-range.json"
             },
             "viewable_impressions": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-range.json"
             },
             "viewable_rate": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-rate-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-rate-range.json"
             },
             "viewed_seconds": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-range.json"
             },
             "standard": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1viewability-standard.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1viewability-standard.json"
             }
           },
           "additionalProperties": false,
@@ -6120,7 +6120,7 @@
         "vendor_metric_values": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-forecast-vendor-metric-value.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1canonical-forecast-vendor-metric-value.json"
           }
         }
       },
@@ -6144,25 +6144,25 @@
       "items": {
         "oneOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-dimension-geo.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-dimension-geo.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-dimension-placement.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-dimension-placement.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-dimension-device-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-dimension-device-type.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-dimension-device-platform.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-dimension-device-platform.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-dimension-audience.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-dimension-audience.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-dimension-signal.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-dimension-signal.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-dimension-time.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-dimension-time.json"
           }
         ]
       }
@@ -6178,7 +6178,7 @@
           "description": "Dimension family discriminator."
         },
         "geo_level": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1geo-level.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1geo-level.json",
           "description": "Geographic level for this forecast point."
         },
         "system": {
@@ -6289,7 +6289,7 @@
           "then": {
             "properties": {
               "system": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1metro-system.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1metro-system.json"
               }
             },
             "required": [
@@ -6316,12 +6316,12 @@
           "then": {
             "anyOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1postal-country-system.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1postal-country-system.json"
               },
               {
                 "properties": {
                   "system": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1legacy-postal-system.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1legacy-postal-system.json"
                   }
                 },
                 "required": [
@@ -6361,7 +6361,7 @@
           "description": "Dimension family discriminator."
         },
         "placement_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1placement-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1placement-ref.json",
           "description": "Structured placement reference for this forecast row. References an entry from the product's placements array."
         },
         "placement_name": {
@@ -6386,7 +6386,7 @@
           "description": "Dimension family discriminator."
         },
         "device_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1device-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1device-type.json",
           "description": "Device form factor for this forecast row."
         }
       },
@@ -6407,7 +6407,7 @@
           "description": "Dimension family discriminator."
         },
         "device_platform": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1device-platform.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1device-platform.json",
           "description": "Operating system or platform for this forecast row."
         }
       },
@@ -6433,7 +6433,7 @@
           "x-entity": "audience"
         },
         "audience_source": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1audience-source.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1audience-source.json",
           "description": "Origin of the audience segment."
         },
         "audience_name": {
@@ -6472,7 +6472,7 @@
           "description": "Dimension family discriminator."
         },
         "signal_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
           "description": "Canonical signal reference for this forecast row. Required when the row needs to disambiguate product-local, data-provider, or signal-source identity. Product-relative forecasts SHOULD use signal_ref."
         },
         "signal_id": {
@@ -6618,7 +6618,7 @@
       "description": "A forecast range whose low, midpoint, and high values are rates in the inclusive interval from 0 to 1.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-range.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-range.json"
         },
         {
           "properties": {
@@ -6677,19 +6677,19 @@
       "type": "object",
       "properties": {
         "vendor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-key.json"
         },
         "metric_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1vendor-metric-id.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1vendor-metric-id.json"
         },
         "value": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-range.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-range.json"
         },
         "unit": {
           "type": "string"
         },
         "measurable_impressions": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-range.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1forecast-range.json"
         },
         "breakdown": {
           "type": "object",
@@ -6823,7 +6823,7 @@
         "channels": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1channels.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1channels.json"
           },
           "description": "Channels the seller will deliver on."
         },
@@ -6838,7 +6838,7 @@
           "description": "Actual flight end the seller will use."
         },
         "frequency_cap": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1frequency-cap.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1frequency-cap.json",
           "description": "Frequency cap the seller will apply."
         },
         "audience_summary": {
@@ -6849,7 +6849,7 @@
           "type": "array",
           "description": "Structured audience targeting the seller will activate. Each entry is either a signal reference or a descriptive criterion. When present, governance agents MUST use this for bias/fairness validation and SHOULD ignore audience_summary for validation purposes. The audience_summary field is a human-readable rendering of this array, not an independent declaration.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1audience-selector.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1audience-selector.json"
           },
           "minItems": 1
         },
@@ -6875,19 +6875,19 @@
         "budget_allocation": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1budget-allocation.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1budget-allocation.json"
             }
           ],
           "description": "Seller-accepted cross-package allocation authority and goals. Presence with seller_optimized mode means automatic within-buy reallocations are part of the committed delivery, not separate modification actions."
         },
         "pacing": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1pacing.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1pacing.json",
           "description": "Aggregate pacing strategy the seller will apply to total_budget."
         },
         "bidding": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1bidding-policy.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1bidding-policy.json"
             }
           ],
           "description": "Seller-interpreted media-buy bidding policy used for governance and delivery transparency. Goal-bound controls follow budget-allocation scope semantics and monetary fields use the planned delivery currency. Package-authored overrides, including explicit automatic overrides, remain on packages rather than being copied into this aggregate field."
@@ -6900,7 +6900,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
         }
       },
       "allOf": [
@@ -6994,11 +6994,11 @@
               "description": "Discriminator for signal-based selectors"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
               "description": "The signal to target. New selectors SHOULD use signal_ref."
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-id.json",
               "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
               "deprecated": true
             },
@@ -7041,11 +7041,11 @@
               "description": "Discriminator for signal-based selectors"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
               "description": "The signal to target. New selectors SHOULD use signal_ref."
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-id.json",
               "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
               "deprecated": true
             },
@@ -7092,11 +7092,11 @@
               "description": "Discriminator for signal-based selectors"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-ref.json",
               "description": "The signal to target. New selectors SHOULD use signal_ref."
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1signal-id.json",
               "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
               "deprecated": true
             },
@@ -7196,7 +7196,7 @@
               "items": {
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1optimization-goal.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1optimization-goal.json"
                   },
                   {
                     "not": {
@@ -7269,7 +7269,7 @@
             "standard": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1viewability-standard.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1viewability-standard.json"
                 }
               ],
               "description": "Viewability standard the goal is judged against. Required when metric is 'viewable_rate'; optional for 'viewed_seconds' (seller default standard when omitted); not allowed for other metrics. Must be in metric_optimization.supported_viewability_standards when declared. A goal below a same-standard viewability performance_standard never relaxes that standard."
@@ -7277,7 +7277,7 @@
             "vendor": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-ref.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-ref.json"
                 }
               ],
               "description": "Measurement vendor judging a viewable_rate or viewed_seconds goal; not allowed for other metrics. When omitted, the seller's default viewability measurement applies. Sellers MUST reject a vendor they cannot optimize against rather than substitute another."
@@ -7285,7 +7285,7 @@
             "reach_unit": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1reach-unit.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1reach-unit.json"
                 }
               ],
               "description": "Unit for reach measurement. Required when metric is 'reach'. Must be a value declared in the product's metric_optimization.supported_reach_units."
@@ -7307,7 +7307,7 @@
                 "window": {
                   "allOf": [
                     {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1duration.json"
                     }
                   ],
                   "description": "Time window over which frequency is measured (e.g. {\"interval\": 7, \"unit\": \"days\"} or {\"interval\": 1, \"unit\": \"campaign\"} for the full flight). Weekly windows are typical for brand campaigns; daily windows suit high-cadence direct response."
@@ -7478,7 +7478,7 @@
                     "description": "Event source to include (must be configured on this account via sync_event_sources)"
                   },
                   "event_type": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1event-type.json",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1event-type.json",
                     "description": "Event type to include from this source (e.g., purchase, lead, app_install, refund)"
                   },
                   "custom_event_name": {
@@ -7570,7 +7570,7 @@
             "attribution_window": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1attribution-window.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1attribution-window.json"
                 }
               ],
               "description": "Attribution window for this optimization goal \u2014 references the canonical `attribution-window` shape (post_click, post_view, model). Values must match an option declared in the seller's `conversion_tracking.attribution_windows` capability. Sellers MUST reject windows not in their declared capabilities. When the entire field is omitted, the seller uses their default window."
@@ -7596,11 +7596,11 @@
               "const": "vendor_metric"
             },
             "vendor": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-ref.json",
               "description": "Vendor that defines and computes this metric. Same shape as `vendor_metric_values.vendor`, `reporting_capabilities.vendor_metrics[].vendor`, and `vendor_metric_optimization.supported_metrics[].vendor` \u2014 symmetric across discovery, capability, commitment, optimization, and reporting surfaces."
             },
             "metric_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1vendor-metric-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1vendor-metric-id.json",
               "description": "Identifier for the metric within the vendor's vocabulary (e.g., `attention_score`, `attention_seconds`, `gco2e_per_impression`, `awareness_lift`). MUST be present in the vendor's published `measurement.metrics[]` catalog and in the product's `vendor_metric_optimization.supported_metrics[]`."
             },
             "target": {
@@ -7678,7 +7678,7 @@
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
         },
         "brand_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-id.json",
           "description": "Brand identifier within the house portfolio. Optional for single-brand domains."
         },
         "countries": {
@@ -7737,7 +7737,7 @@
           "description": "Inline override for brand-kit fields normally resolved from `/.well-known/brand.json` on `domain` (logo, colors, voice, tagline). Use when brand.json is missing, stale, or inappropriate for this specific call \u2014 e.g., a campaign-scoped tagline, a co-branded creative, a freshly-rebranded color palette the brand.json hasn't shipped yet. Same inline-override pattern as `industries` and `data_subject_contestation` above: brand.json is canonical, the override is per-call. Adopters needing to override fields outside this subset (`voice_attributes`, `prohibited_terms`, etc.) MUST publish a different brand.json and reference it via a different `domain` \u2014 the inline override is intentionally narrow to a small high-traffic subset.\n\n**Merge semantics (normative).** The merge is **field-level**, not whole-object replacement. Each field within `brand_kit_override` (`logo`, `colors`, `voice`, `tagline`) is evaluated independently \u2014 when a field is present on the override the override value applies; when a field is absent the brand.json value applies (or is absent if brand.json doesn't carry one either). For composite fields (`colors.primary`, `colors.secondary`, `colors.accent`), the merge is one level deeper: each color slot is evaluated independently \u2014 a producer can override `colors.primary` while still inheriting `colors.secondary` from brand.json. SDKs MUST NOT treat a present `brand_kit_override.colors` as wiping the brand.json `colors` block entirely; only the per-slot fields present in the override take precedence. Without this rule, a partial-override semantics would diverge across SDKs and produce inconsistent rendering for the same payload.",
           "properties": {
             "logo": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1assets~1image-asset.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1assets~1image-asset.json",
               "description": "Override logo asset."
             },
             "colors": {
@@ -7859,7 +7859,7 @@
           "x-accessibility": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1provenance.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1provenance.json",
           "description": "Provenance metadata for this asset, overrides manifest-level provenance"
         }
       },
@@ -7877,7 +7877,7 @@
       "type": "object",
       "properties": {
         "digital_source_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1digital-source-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1digital-source-type.json",
           "description": "IPTC-aligned classification of AI involvement in producing this content"
         },
         "synthetic_depiction": {
@@ -7987,7 +7987,7 @@
             "type": "object",
             "properties": {
               "method": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1embedded-provenance-method.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1embedded-provenance-method.json",
                 "description": "How provenance data is carried within the content"
               },
               "standard": {
@@ -8038,7 +8038,7 @@
             "type": "object",
             "properties": {
               "media_type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1watermark-media-type.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1watermark-media-type.json",
                 "description": "Media category of the watermarked content"
               },
               "provider": {
@@ -8066,7 +8066,7 @@
                 "additionalProperties": false
               },
               "c2pa_action": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1c2pa-watermark-action.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1c2pa-watermark-action.json",
                 "description": "C2PA action classification for this watermark"
               },
               "embedded_at": {
@@ -8117,7 +8117,7 @@
                     "minProperties": 1,
                     "properties": {
                       "persistence": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1disclosure-persistence.json",
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1disclosure-persistence.json",
                         "description": "How long the disclosure must persist during content playback or display"
                       },
                       "min_duration_ms": {
@@ -8129,13 +8129,13 @@
                         "type": "array",
                         "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                         "items": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1disclosure-position.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:enums~1disclosure-position.json"
                         },
                         "minItems": 1,
                         "uniqueItems": true
                       },
                       "ext": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
                       }
                     }
                   }
@@ -8197,7 +8197,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
         }
       }
     },
@@ -8307,7 +8307,7 @@
       "type": "object",
       "properties": {
         "issuer": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1attestation-issuer.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1attestation-issuer.json"
         },
         "claim_type": {
           "type": "string",
@@ -8315,7 +8315,7 @@
           "description": "Open, absolute URI identifying the claim vocabulary. The URI is an identifier and need not be dereferenceable. AdCP does not maintain an enum of approved claims."
         },
         "subject": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1attestation-subject.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1attestation-subject.json"
         },
         "locator": {
           "description": "Stable locator for resolving the credential. Credential URLs are permitted only when their canonical origin is allowlisted for the matched issuer. Issuer-scoped IDs name a resolver_id already published by the evaluator; the presentation cannot introduce a resolver URL.",
@@ -8338,7 +8338,7 @@
                   "description": "HTTPS URI of the credential. Before any fetch, evaluators MUST match its canonical origin to credential_origins on the accepted issuer capability and then apply the attestation fetch contract."
                 },
                 "ext": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
                 }
               },
               "required": [
@@ -8370,7 +8370,7 @@
                   "description": "Identifier of a resolver already published in the matched accepted_issuers[].resolvers[] capability. A presenter cannot supply or override its URL."
                 },
                 "ext": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
                 }
               },
               "required": [
@@ -8400,7 +8400,7 @@
               "minLength": 1
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -8452,7 +8452,7 @@
           "additionalProperties": false
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -8527,10 +8527,10 @@
               "description": "The issuer is identified by an AdCP BrandRef."
             },
             "brand": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-ref.json"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -8555,7 +8555,7 @@
               "description": "Canonical HTTPS endpoint of the issuing agent. Evaluators compare it using AdCP URL canonicalization rules."
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -8580,7 +8580,7 @@
               "description": "Canonical HTTPS origin with no path, query, fragment, or userinfo. This identifies the issuer; it does not authorize a fetch."
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -8624,10 +8624,10 @@
               "const": "brand"
             },
             "brand": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1brand-ref.json"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -8651,7 +8651,7 @@
               "description": "Canonical HTTPS endpoint of the agent the claim concerns."
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -8690,7 +8690,7 @@
               "description": "Optional SHA-256 pin for the exact content or immutable snapshot identified by this resource subject. This is part of the complete typed subject identity and is distinct from AttestationReference.content_digest, which pins credential bytes."
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/check-governance-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [

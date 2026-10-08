@@ -5,11 +5,11 @@
   "type": "object",
   "properties": {
     "requested": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/demographic-targeting-intent.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/demographic-targeting-intent.json",
       "description": "Canonical demographic predicate and determination constraints requested by the buyer."
     },
     "applied": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/demographic-predicate.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/demographic-predicate.json",
       "description": "Canonical demographic predicate actually applied by the seller."
     },
     "equivalent": {
@@ -27,7 +27,7 @@
               "const": "continuous_bounds"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
             }
           },
           "required": [
@@ -54,7 +54,7 @@
               "uniqueItems": true
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
             }
           },
           "required": [
@@ -74,13 +74,13 @@
               "type": "array",
               "description": "Authoritative signal references whose demographic predicates were unioned to produce applied. Signal names alone never establish equivalence.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json"
               },
               "minItems": 1,
               "uniqueItems": true
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
             }
           },
           "required": [
@@ -95,7 +95,7 @@
       "type": "array",
       "description": "Effective user-level determination bases configured for this package after intersecting buyer accepted_bases, product supported_bases, and age_restriction. This is an auditable configuration readback, not proof that every impression used every listed basis.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/age-determination-basis.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/age-determination-basis.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -104,13 +104,13 @@
       "type": "array",
       "description": "Effective verification methods when applied_bases contains verified. A method name does not establish that a particular proof or claim was valid; runtime verification and claim entailment remain required.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/age-verification-method.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/age-verification-method.json"
       },
       "minItems": 1,
       "uniqueItems": true
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

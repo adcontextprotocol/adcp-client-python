@@ -74,23 +74,23 @@
           "maxLength": 256
         },
         "event_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:enums~1event-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:enums~1event-type.json"
         },
         "event_time": {
           "type": "string",
           "format": "date-time"
         },
         "user_match": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1user-match.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1user-match.json"
         },
         "custom_data": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1event-custom-data.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1event-custom-data.json"
         },
         "action_source": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:enums~1action-source.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:enums~1action-source.json"
         },
         "surface": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1event-surface.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1event-surface.json"
         },
         "event_source_url": {
           "type": "string",
@@ -100,7 +100,7 @@
           "type": "string"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
         }
       },
       "allOf": [
@@ -123,7 +123,7 @@
               "custom_data": {
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1event-custom-data.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1event-custom-data.json"
                   },
                   {
                     "anyOf": [
@@ -197,7 +197,7 @@
             "type": "object",
             "properties": {
               "type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:enums~1uid-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:enums~1uid-type.json"
               },
               "value": {
                 "type": "string"
@@ -232,7 +232,7 @@
           "type": "string"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
         }
       },
       "anyOf": [
@@ -357,7 +357,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
         }
       },
       "additionalProperties": true
@@ -411,7 +411,7 @@
           "x-entity": "property"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/log-event-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [

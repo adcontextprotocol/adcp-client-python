@@ -17,7 +17,7 @@
           "const": "pixel_tracker"
         },
         "event": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pixel-tracking-event.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pixel-tracking-event.json"
         },
         "method": {
           "type": "string",
@@ -30,12 +30,12 @@
           "description": "Required only when event is custom."
         },
         "execution_actor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/tracker-execution-actor.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/tracker-execution-actor.json"
         },
         "firing_paths": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/tracker-firing-path.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/tracker-firing-path.json"
           },
           "minItems": 1,
           "uniqueItems": true,
@@ -92,24 +92,24 @@
           "const": "vast_tracker"
         },
         "vast_versions": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vast-tracker-constraints.json#/definitions/vast_versions"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vast-tracker-constraints.json#/definitions/vast_versions"
         },
         "vast_event": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vast-tracker-constraints.json#/definitions/vast_event"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vast-tracker-constraints.json#/definitions/vast_event"
         },
         "target": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vast-tracker-constraints.json#/definitions/vast_target"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vast-tracker-constraints.json#/definitions/vast_target"
         },
         "offset": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vast-tracker-constraints.json#/definitions/vast_offset"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vast-tracker-constraints.json#/definitions/vast_offset"
         },
         "execution_actor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/tracker-execution-actor.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/tracker-execution-actor.json"
         },
         "firing_paths": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/tracker-firing-path.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/tracker-firing-path.json"
           },
           "minItems": 1,
           "uniqueItems": true,
@@ -127,7 +127,7 @@
       ],
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vast-tracker-constraints.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vast-tracker-constraints.json"
         }
       ],
       "additionalProperties": false
@@ -146,24 +146,24 @@
           "const": "daast_tracker"
         },
         "daast_versions": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/daast-tracker-constraints.json#/definitions/daast_versions"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/daast-tracker-constraints.json#/definitions/daast_versions"
         },
         "daast_event": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/daast-tracker-constraints.json#/definitions/daast_event"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/daast-tracker-constraints.json#/definitions/daast_event"
         },
         "target": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/daast-tracker-constraints.json#/definitions/daast_target"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/daast-tracker-constraints.json#/definitions/daast_target"
         },
         "offset": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/daast-tracker-constraints.json#/definitions/daast_offset"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/daast-tracker-constraints.json#/definitions/daast_offset"
         },
         "execution_actor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/tracker-execution-actor.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/tracker-execution-actor.json"
         },
         "firing_paths": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/tracker-firing-path.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/tracker-firing-path.json"
           },
           "minItems": 1,
           "uniqueItems": true,
@@ -181,7 +181,7 @@
       ],
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/daast-tracker-constraints.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/daast-tracker-constraints.json"
         }
       ],
       "additionalProperties": false

@@ -4,10 +4,10 @@
   "description": "Response containing preview links for one or more creatives. Format matches the request: single preview response for single requests, batch results for batch requests, or an async submitted envelope only when the request explicitly set allow_async to true.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "discriminator": {
@@ -38,7 +38,7 @@
                 "type": "array",
                 "description": "Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/creative/preview-render.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/creative/preview-render.json"
                 },
                 "minItems": 1
               },
@@ -76,7 +76,7 @@
           "minItems": 1
         },
         "quality_used": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-quality.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-quality.json",
           "description": "Actual render quality applied to every preview in this response. This field MUST be present when the corresponding request supplied `quality`, and SHOULD be present otherwise. It may differ from the requested value when the agent cannot provide that tier, allowing buyers to detect a downgrade before approval."
         },
         "interactive_url": {
@@ -90,10 +90,10 @@
           "description": "ISO 8601 timestamp when preview links expire. **Optional.** Omit when preview URLs do not expire (some creative agents serve perpetually-valid preview URLs \u2014 e.g., signed asset URLs with no TTL, or session-scoped previews that the agent retires explicitly via revocation). When present, consumers MUST treat the URLs as invalid after this timestamp; when omitted, consumers MAY assume the preview URLs are valid until the creative agent revokes them out-of-band (no protocol-level revocation signal exists in 3.x \u2014 buyers requiring expiry guarantees SHOULD require sellers that publish `expires_at`)."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -138,7 +138,7 @@
                 "x-entity": "creative"
               },
               "quality_used": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-quality.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-quality.json",
                 "description": "Actual render quality applied to every preview in this successful batch result. This field MUST be present when the effective item request supplied `quality`, whether directly or through the batch-level default, and SHOULD be present otherwise. It may differ from the requested value when the agent cannot provide that tier."
               },
               "response": {
@@ -157,7 +157,7 @@
                         "renders": {
                           "type": "array",
                           "items": {
-                            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/creative/preview-render.json"
+                            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/creative/preview-render.json"
                           },
                           "minItems": 1
                         },
@@ -208,7 +208,7 @@
                 "type": "array",
                 "description": "Errors for failed requests",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
                 },
                 "minItems": 1
               }
@@ -249,10 +249,10 @@
           "minItems": 1
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -305,7 +305,7 @@
                 "type": "array",
                 "description": "Rendered pieces for this variant",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/creative/preview-render.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/creative/preview-render.json"
                 },
                 "minItems": 1
               }
@@ -318,7 +318,7 @@
           "minItems": 1
         },
         "manifest": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-manifest.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-manifest.json",
           "description": "The rendered creative manifest for this variant \u2014 the actual output that was served, not the input assets"
         },
         "expires_at": {
@@ -327,10 +327,10 @@
           "description": "ISO 8601 timestamp when preview links expire. **Optional** \u2014 omit for non-expiring preview URLs. See the top-level `PreviewCreativeResponse` branch for the full convention."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -376,10 +376,10 @@
           "description": "Optional human-readable explanation of why preview rendering was queued. Plain text only; buyers MUST treat this as untrusted agent input."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [

@@ -10,7 +10,7 @@
       "description": "ISO 3166-1 alpha-2 country code."
     },
     "system": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/postal-system.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/postal-system.json",
       "description": "Country-local postal code system."
     }
   },

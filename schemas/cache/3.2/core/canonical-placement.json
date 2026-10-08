@@ -43,7 +43,7 @@
           "$ref": "#/definitions/CanonicalDoohScreenResolution"
         },
         "motion": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/dooh-motion-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/dooh-motion-type.json",
           "description": "Physical motion capability of a visual DOOH screen, not an accepted-format declaration. Omit for audio-only placements."
         }
       },
@@ -92,7 +92,7 @@
       "description": "For publisher_ref, the adagents.json publisher namespace. For seller_inline, optional inventory-publisher attribution only."
     },
     "seller_agent": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/seller-agent-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/seller-agent-ref.json",
       "description": "Defining sales agent for seller_inline identity. Recommended for new declarations; optional only to preserve legacy product-context placements."
     },
     "name": {
@@ -119,14 +119,14 @@
     "format_options": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-option.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-option.json"
       },
       "minItems": 1
     },
     "video_placement_types": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/video-placement-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/video-placement-type.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -134,7 +134,7 @@
     "audio_distribution_types": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audio-distribution-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audio-distribution-type.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -142,7 +142,7 @@
     "sponsored_placement_types": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sponsored-placement-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sponsored-placement-type.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -150,7 +150,7 @@
     "social_placement_surfaces": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/social-placement-surface.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/social-placement-surface.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -162,7 +162,7 @@
         "type": "object",
         "properties": {
           "type": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/identifier-types.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/identifier-types.json"
           },
           "value": {
             "type": "string"

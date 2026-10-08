@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "properties": {
@@ -45,7 +45,7 @@
           "accepted_proposal": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-proposal.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-proposal.json"
               },
               {
                 "properties": {
@@ -71,15 +71,15 @@
             "description": "Current accepted compact proposal, including the complete digested commercial envelope. Required whenever accepted_proposal_id is present so restarted SDKs can recover control-versus-refinement routing without reconstructing historical offers."
           },
           "account": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account.json",
             "description": "Account billed for this media buy"
           },
           "invoice_recipient": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/business-entity.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/business-entity.json",
             "description": "Per-buy invoice recipient when provided at creation. Confirms the seller accepted the billing override. Bank details are omitted (write-only)."
           },
           "status": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/media-buy-status.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/media-buy-status.json"
           },
           "status_as_of": {
             "type": [
@@ -92,7 +92,7 @@
           "health": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/media-buy-health.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/media-buy-health.json"
               }
             ],
             "default": "ok",
@@ -102,7 +102,7 @@
             "type": "array",
             "description": "Open impairments \u2014 upstream dependency state changes that affect delivery for at least one package on this buy. Empty when `health` is `ok`; non-empty iff `health` is `impaired` (health-iff rule on non-terminal buys). Sellers MUST add an entry on the next read after a referenced resource transitions to an offline state, and MUST remove the entry when the resource returns to a serviceable state or stops being a dependency (e.g., via assignment swap via update_media_buy). Staleness budget: the snapshot MUST reflect the impairment within 5 minutes of `impairment.observed_at` regardless of buyer poll cadence \u2014 sellers cannot rely on rare buyer polls to defer write propagation. See impairment.coherence assertion for the cross-resource invariant.",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/impairment.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/impairment.json"
             }
           },
           "rejection_reason": {
@@ -125,7 +125,7 @@
             "minimum": 0
           },
           "frequency_cap": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-frequency-cap.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-frequency-cap.json",
             "description": "Current hard MediaBuy-level cap. Sellers MUST echo it whenever set, separately from package targeting-overlay caps."
           },
           "budget_cap_timezone": {
@@ -135,19 +135,19 @@
           "budget_allocation": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/budget-allocation.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/budget-allocation.json"
               }
             ],
             "description": "Current cross-package allocation configuration. Omitted means fixed allocation for legacy buys."
           },
           "pacing": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pacing.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pacing.json",
             "description": "Aggregate pacing strategy for the media-buy budget."
           },
           "bidding": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/bidding-policy.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/bidding-policy.json"
               }
             ],
             "description": "Current media-buy-authored bidding policy with scope-specific goal binding and media-buy-currency denomination. Package entries omit bidding when they inherit this block; explicit package automatic overrides remain visible as `{automatic:true}`."
@@ -189,7 +189,7 @@
                 "description": "ISO 8601 timestamp when this media buy was canceled."
               },
               "canceled_by": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/canceled-by.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/canceled-by.json",
                 "description": "Which party initiated the cancellation."
               },
               "reason": {
@@ -216,7 +216,7 @@
             "description": "Last update timestamp"
           },
           "context": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json",
             "description": "Opaque media-buy-level correlation data echoed unchanged from the create_media_buy request. Sellers MUST include persisted context on read surfaces when the media buy was created through AdCP with context, so buyers can reconcile seller-assigned media_buy_id values with their own tracking state. Sellers MAY omit context for media buys created outside AdCP or created without context. Sellers MUST NOT parse this object for business logic."
           },
           "valid_actions": {
@@ -224,7 +224,7 @@
             "deprecated": true,
             "description": "Flat-vocabulary actions the buyer can perform on this media buy in its current state. Eliminates the need for agents to internalize the state machine \u2014 the seller declares what is permitted right now. Deprecated in favor of `available_actions[]`, which carries mode, optional SLA, and a 3.2 change_term_id link. Sellers SHOULD populate both during the 3.x deprecation window; consumers MUST prefer `available_actions[]` when both are present. Removed in 4.0.",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/media-buy-valid-action.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/media-buy-valid-action.json"
             }
           },
           "available_actions": {
@@ -233,10 +233,10 @@
             "items": {
               "anyOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-media-buy-action.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-media-buy-action.json"
                 },
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-available-action.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-available-action.json"
                 }
               ]
             },
@@ -246,7 +246,7 @@
             "type": "array",
             "description": "Recent webhook fires relevant to this buy for the calling principal, most-recent first. Includes per-buy delivery/health fires and account-anchored indicators.changed or creative.assignment_changed invalidations whose payload names this media_buy_id. Present only when include_webhook_activity was true and the seller surfaces this debug capability. Account-anchored records MUST include subscriber_id. Three-state presence and the 30-day retention floor follow snapshot-and-log.mdx \u00a7 Webhook activity log pattern.",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/webhook-activity-record.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/webhook-activity-record.json"
             },
             "maxItems": 200
           },
@@ -285,7 +285,7 @@
                   "x-entity": "package"
                 },
                 "ext": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
                 }
               },
               "required": [
@@ -343,7 +343,7 @@
                 "bidding": {
                   "allOf": [
                     {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/bidding-policy.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/bidding-policy.json"
                     }
                   ],
                   "description": "Package-authored bidding override. `{automatic:true}` explicitly overrides media_buy.bidding with provider automatic delivery. Omitted when this package inherits; sellers MUST NOT copy an inherited block here. Monetary fields use media_buy.currency."
@@ -352,7 +352,7 @@
                   "type": "array",
                   "description": "Current package objective functions. Currency-bearing execution controls are returned separately in package.bidding or inherited from media_buy.bidding.",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/optimization-goal.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/optimization-goal.json"
                   },
                   "minItems": 1
                 },
@@ -361,7 +361,7 @@
                   "deprecated": true,
                   "description": "Deprecated in AdCP 3.2; removed in AdCP 4.0. Legacy named-format IDs supplied for this package on create_media_buy. Sellers SHOULD echo this field whenever the request included it, including dual-emission cases where another selector won precedence.",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
                   },
                   "minItems": 1
                 },
@@ -369,12 +369,12 @@
                   "type": "array",
                   "description": "Structured 3.1+ format option references supplied for this package on create_media_buy. Sellers SHOULD echo this field whenever the request included it.",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-option-ref.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-option-ref.json"
                   },
                   "minItems": 1
                 },
                 "format_kind": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-kind.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-kind.json",
                   "description": "Direct canonical selector supplied for this package on create_media_buy. Sellers SHOULD echo this field whenever the request included it, including informational-echo cases where another selector won precedence."
                 },
                 "params": {
@@ -388,15 +388,15 @@
                   "minimum": 0
                 },
                 "pacing": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pacing.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pacing.json",
                   "description": "Package-level pacing preference. Under seller-optimized allocation this is subordinate to the media-buy aggregate pacing."
                 },
                 "targeting_overlay": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/targeting.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/targeting.json",
                   "description": "Complete effective targeting applied to this package, including configured-product targeting and the most recent package-specific overlay. Sellers SHOULD echo persisted targeting so buyers can verify stored state without replaying requests. Sellers MUST echo geo_places and geo_places_exclude whenever either was persisted, including the exact applied system_version and normalized values, so buyers can audit catalog-backed targeting. Sellers using placement, property-list, or collection-list targeting MUST include the committed inventory selection here. placement_selection mode default SHOULD resolve to mode selected with committed refs when enumerable; collection_selection follows the same rule, materializing the committed selectors even when the selection was produced through collection_list references."
                 },
                 "targeting_resolution": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/package-targeting-resolution.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/package-targeting-resolution.json",
                   "description": "Execution details for accepted package targeting. Sellers MUST include targeting_resolution.demographics whenever demographic targeting was requested or applied; its applied predicate and execution fields report the effective booked state."
                 },
                 "start_time": {
@@ -431,7 +431,7 @@
                       "description": "ISO 8601 timestamp when this package was canceled."
                     },
                     "canceled_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/canceled-by.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/canceled-by.json",
                       "description": "Which party initiated the package cancellation."
                     },
                     "reason": {
@@ -448,7 +448,7 @@
                   "description": "ISO 8601 timestamp for creative upload or change deadline for this package. After this deadline, creative changes are rejected. When absent, the media buy's creative_deadline applies."
                 },
                 "context": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json",
                   "description": "Opaque package-level correlation data echoed unchanged from the create_media_buy package request. Sellers MUST include persisted package context on read surfaces when the package was created through AdCP with context, so buyers can reconcile seller-assigned package_id values with their own line items; this is the legacy-safe fallback when an older seller did not echo product_id on the create response. Sellers MAY omit context for packages created outside AdCP or created without context. Sellers MUST NOT parse this object for business logic."
                 },
                 "creative_approvals": {
@@ -463,7 +463,7 @@
                         "x-entity": "creative"
                       },
                       "approval_status": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-approval-status.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-approval-status.json"
                       },
                       "rejection_reason": {
                         "type": "string",
@@ -473,7 +473,7 @@
                         "type": "array",
                         "description": "Complete, disjoint publisher/placement approval partition when approval_status is partially_approved. A normalized scope appears once. For one publisher, use either one publisher-wide row or placement-specific rows, never both. Omit when one approval_status applies uniformly to the whole assignment. The same scoped outcomes are mirrored on list_creatives.",
                         "items": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-approval-scope.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-approval-scope.json"
                         },
                         "minItems": 2,
                         "uniqueItems": true,
@@ -489,7 +489,7 @@
                         "type": "array",
                         "description": "Current seller indicators that are true for this creative in this package. The enclosing media buy, package, and creative approval supply the default delivery scope; an indicator may narrow further with scope. Omitted means unknown or not evaluated. A present empty array means the seller completed the evaluation identified by indicators_evaluated_scope at indicators_as_of and asserts no current indicator in that evaluated scope.",
                         "items": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/indicator.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/indicator.json"
                         },
                         "uniqueItems": true
                       },
@@ -497,7 +497,7 @@
                         "type": "array",
                         "description": "Indicator types covered by this assignment snapshot. Required whenever indicators is present; omitted types remain unknown.",
                         "items": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/indicator-type.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/indicator-type.json"
                         },
                         "minItems": 1,
                         "uniqueItems": true
@@ -511,7 +511,7 @@
                         "type": "array",
                         "description": "Optional publisher or placement scopes covered by this evaluation. Omit when indicators covers the whole package\u2013creative assignment. When present, scopes not listed remain unknown; every returned indicator.scope entry MUST be contained by this set.",
                         "items": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/indicator-scope.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/indicator-scope.json"
                         },
                         "minItems": 1,
                         "uniqueItems": true
@@ -542,7 +542,7 @@
                     },
                     "allOf": [
                       {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/indicator-bearing.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/indicator-bearing.json"
                       },
                       {
                         "properties": {
@@ -652,7 +652,7 @@
                   "type": "array",
                   "description": "The immutable PackageFormatSnapshot checklist established for this package at booking time. Contract-bearing snapshots remain present after creative coverage is complete so readback, assignment, and serving never fall back to a mutable live Product declaration.",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/package-format-snapshot.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/package-format-snapshot.json"
                   },
                   "minItems": 1,
                   "x-adcp-validation": {
@@ -665,7 +665,7 @@
                   "type": "array",
                   "description": "PackageFormatSnapshot entries from formats_to_provide that do not yet have creative coverage. Each entry MUST be canonically equal to the corresponding checklist snapshot and, when product_snapshot_digest is present, carry the identical digest. An empty emitted array means all requirements are covered; absence means readiness was not reported.",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/package-format-snapshot.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/package-format-snapshot.json"
                   },
                   "x-adcp-validation": {
                     "verifier_constraints": {
@@ -678,7 +678,7 @@
                   "deprecated": true,
                   "description": "**DEPRECATED in 3.2.** Legacy named-format projection of formats_to_provide retained for older 3.x peers. New sellers emit canonical formats_to_provide declarations.",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
                   }
                 },
                 "format_ids_pending": {
@@ -686,11 +686,11 @@
                   "deprecated": true,
                   "description": "**DEPRECATED in 3.2.** Legacy named-format projection of formats_pending retained for older 3.x peers. New sellers emit canonical formats_pending declarations. An empty emitted array means every projected requirement is covered. Absence means legacy readiness was not reported and MUST NOT be interpreted as full coverage.",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
                   }
                 },
                 "snapshot_unavailable_reason": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/snapshot-unavailable-reason.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/snapshot-unavailable-reason.json",
                   "description": "Machine-readable reason the snapshot is omitted. Present only when include_snapshot was true and snapshot is unavailable for this package."
                 },
                 "snapshot": {
@@ -733,11 +733,11 @@
                       "minimum": 0
                     },
                     "delivery_status": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/delivery-status.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/delivery-status.json",
                       "description": "Operational delivery state of this package. 'not_delivering' means the package is within its scheduled flight but has delivered zero impressions for at least one full staleness cycle \u2014 the signal for automated price adjustments or buyer alerts. Implementers must not return 'not_delivering' until at least staleness_seconds have elapsed since package activation."
                     },
                     "ext": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json",
                       "description": "Optional extension object for seller-specific snapshot fields."
                     }
                   },
@@ -750,7 +750,7 @@
                   "additionalProperties": true
                 },
                 "ext": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
                 }
               },
               "required": [
@@ -758,7 +758,7 @@
               ],
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/indicator-bearing.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/indicator-bearing.json"
                 },
                 {
                   "properties": {
@@ -892,7 +892,7 @@
             }
           },
           "ext": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
           }
         },
         "dependencies": {
@@ -931,7 +931,7 @@
               "properties": {
                 "available_actions": {
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-media-buy-action.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-media-buy-action.json"
                   }
                 }
               },
@@ -941,7 +941,7 @@
             }
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/indicator-bearing.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/indicator-bearing.json"
           },
           {
             "properties": {
@@ -1018,11 +1018,11 @@
       "type": "array",
       "description": "Task-specific errors. A read may return media_buys plus nonfatal resource-state errors. If a pinned place target becomes unexecutable, sellers MUST include PLACE_TARGET_UNAVAILABLE with recovery=correctable, field pointing to the exact media_buys[N].packages[M].targeting_overlay.geo_places[_exclude][A].values[V] response path, and details containing media_buy_id, package_id, system, system_version, country, place_type, and value. The persisted target remains echoed until an intentional update replaces it.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       }
     },
     "pagination": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-response.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-response.json",
       "description": "Pagination metadata for the media_buys array."
     },
     "sandbox": {
@@ -1030,10 +1030,10 @@
       "description": "When true, this response contains simulated data from sandbox mode."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

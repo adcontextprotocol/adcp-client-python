@@ -46,7 +46,7 @@
       "x-entity": "creative"
     },
     "revision_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-revision-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-revision-id.json",
       "description": "Buyer-authored input revision to which this transition applies. Required when the reviewed state has revision identity and the seller advertises creative.supports_revisions; it need not be the current list revision when the fire is received. Omitted for unversioned current content. A stale review outcome MUST NOT emit a fire as though it applied to a newer current revision.",
       "x-adcp-validation": {
         "verifier_constraints": {
@@ -76,7 +76,7 @@
           "description": "Prior status \u2014 restricted to the states from which a seller/system-initiated transition can fire. For initial review outcomes the prior status is `pending_review`; for processing outcomes it is `processing`; for seller re-review, post-approval revocation, recoverable suspension, and seller-initiated archive it is `approved`; for recovery from a dependency/authorization outage or terminal escalation after a suspension it is `suspended`."
         },
         "to": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-status.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-status.json",
           "description": "New status."
         },
         "observed_at": {
@@ -193,7 +193,7 @@
       ]
     },
     "reason_code": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-event-reason-code.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-event-reason-code.json",
       "description": "Categorical reason for the transition. Per-transition valid subsets are constrained by impairment.coherence-style narrative rules \u2014 see docs/creative/creative-lifecycle-webhooks.mdx. Receivers MUST treat unknown reason codes as forward-compatible additions and not reject the fire."
     },
     "reason_detail": {
@@ -210,7 +210,7 @@
       "description": "Who initiated the transition. `seller` \u2014 explicit decision by the seller (human reviewer, policy operator, takedown handler). `system` \u2014 automated seller-side process (processing pipeline, retention sweep, inactivity scan). `buyer` never appears on this event \u2014 buyer-initiated transitions are acknowledged on the `sync_creatives` response path and MUST NOT fire `creative.status_changed`."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

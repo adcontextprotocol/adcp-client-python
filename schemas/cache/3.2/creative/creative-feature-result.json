@@ -57,7 +57,7 @@
       "$comment": "x-entity deliberately omitted \u2014 a PolicyEntry reference can resolve to either a governance_registry_policy or a governance_inline_policy depending on the authorizing entry's source. See issue #2685."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

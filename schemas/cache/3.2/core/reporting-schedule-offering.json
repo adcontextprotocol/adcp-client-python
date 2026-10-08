@@ -10,7 +10,7 @@
       "pattern": "^P(?=.*[1-9])(?=\\d|T)(?:\\d+Y)?(?:\\d+M)?(?:\\d+D)?(?:T(?=\\d)(?:\\d+H)?(?:\\d+M)?(?:\\d+S)?)?$"
     },
     "alignment": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-schedule.json#/definitions/ReportingScheduleAlignment"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-schedule.json#/definitions/ReportingScheduleAlignment"
     },
     "period_anchor_policy": {
       "type": "string",

@@ -180,7 +180,7 @@
           "description": "Transport-managed conversation identifier. On A2A, this maps to the native Message/Task `contextId` used to associate messages with a conversation; it is not carried inside the AdCP DataPart. On MCP, a request-body `context_id`, where admitted by the selected request schema, is a compatibility-only field: servers MUST ignore it, callers MUST NOT rely on it for continuity, and it MUST NOT select session state, identity, account, authorization, task continuation, or idempotency scope. MCP continuity, if provided, comes from the transport session. Distinct from `context` (per-request opaque echo, see below) and from `task_id` (AdCP operation tracking)."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1context.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1context.json",
           "description": "Per-request opaque caller-supplied correlation object echoed unchanged in the response. Used for buyer-side tracking (UI session IDs, trace IDs, custom metadata) that the agent MUST preserve byte-for-byte without parsing. Distinct from `context_id` (transport-managed A2A conversation correlation or MCP compatibility metadata) \u2014 `context` is caller-owned echo and never selects transport state. Both MAY appear on the same response.\n\n**Relationship to per-task body-level `context` declarations.** Many task request/response schemas (147 as of 3.1) already declare a body-level `context` field that `$ref`s `/schemas/core/context.json` at the body root. Under the flat-on-the-wire MCP serialization (see `notes` below), envelope-level `context` and body-level `context` occupy the same key on the response root \u2014 they are NOT separate fields, they MUST share the same value, and they MUST both `$ref` `core/context.json`. The envelope declaration is **authoritative** for the schema definition; per-task body declarations are mirrors retained for tooling reasons (SDK codegen completeness, per-task validation against the response schema in isolation). Future versions MAY drop body-level `context` declarations from per-task schemas; conformance does not require either declaration to be present, only that the wire value `$ref`s `core/context.json`."
         },
         "task_id": {
@@ -189,7 +189,7 @@
           "x-entity": "task"
         },
         "status": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:enums~1task-status.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:enums~1task-status.json",
           "description": "Current AdCP task state or structured outcome. Indicates whether the task completed, is in progress, was submitted for async processing, failed, requires user input, or returned a typed business rejection. REQUIRED on every task response envelope. Synchronous tasks (including read-only metadata calls like `get_adcp_capabilities`) normally emit `status: \"completed\"`; a task-specific rejection arm emits `status: \"rejected\"` without turning the transport into a failure. Async tasks emit `submitted`, `working`, `input-required`, etc. per their lifecycle. Agents MUST NOT emit the legacy task_status or response_status fields alongside this field \u2014 the status field is the single authoritative AdCP response state."
         },
         "message": {
@@ -207,11 +207,11 @@
           "default": false
         },
         "adcp_error": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1error.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1error.json",
           "description": "Transport-envelope error signal for fatal task failures. Per the two-layer model in `error-handling.mdx#envelope-vs-payload-errors-the-two-layer-model`, a fatal task failure SHOULD populate both this envelope-level field AND the payload's `errors[]` array \u2014 the envelope carries a typed, extractable error so MCP/A2A clients can dispatch without re-parsing the payload, while the payload's structured `errors[]` remains the canonical normative shape. Non-fatal warnings populate ONLY `payload.errors[]` with `severity: warning` \u2014 the envelope MUST NOT carry `adcp_error` for non-failures."
         },
         "push_notification_config": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1push-notification-config.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1push-notification-config.json",
           "description": "AdCP application-layer webhook configuration for async task updates over MCP, A2A, or REST. Echoed from the request to confirm webhook settings. It is distinct from transport-native progress or A2A TaskPushNotificationConfig delivery and can outlive the originating transport session."
         },
         "governance_context": {
@@ -579,7 +579,7 @@
               "type": "array",
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -626,7 +626,7 @@
           "type": "array",
           "description": "Feature values for the evaluated creative",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:creative~1creative-feature-result.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:creative~1creative-feature-result.json"
           }
         },
         "detail_url": {
@@ -638,7 +638,7 @@
           "type": "array",
           "description": "Non-blocking audit observations from the governance agent. Observations surface audit-worthy claims that are not verifier refutations and are not rejection grounds by themselves.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:creative~1audit-observation.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:creative~1audit-observation.json"
           }
         },
         "pricing_option_id": {
@@ -657,14 +657,14 @@
           "description": "ISO 4217 currency code for vendor_cost."
         },
         "consumption": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1creative-consumption.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1creative-consumption.json",
           "description": "Structured consumption details for this evaluation. Informational \u2014 lets the buyer verify that vendor_cost is consistent with the rate card. vendor_cost is the billing source of truth."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -749,7 +749,7 @@
           "$comment": "x-entity deliberately omitted \u2014 a PolicyEntry reference can resolve to either a governance_registry_policy or a governance_inline_policy depending on the authorizing entry's source. See issue #2685."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -863,7 +863,7 @@
           "additionalProperties": false
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/creative/get-creative-features-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [

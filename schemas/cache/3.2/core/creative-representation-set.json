@@ -30,7 +30,7 @@
       "description": "Stable logical creative identifier across all representations and later seller-bound manifests."
     },
     "revision_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-revision-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-revision-id.json",
       "description": "Buyer-assigned immutable revision identity for this complete representation set. Changing any revision-bearing part of the set requires a new revision_id; selection does not."
     },
     "revision_content_digest": {
@@ -46,7 +46,7 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-representation.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-representation.json"
       },
       "x-adcp-validation": {
         "unique_item_properties": [
@@ -56,7 +56,7 @@
       "description": "Complete ordered set of equivalent representations. `representation_id` values MUST be unique within this array. Unsupported entries remain byte-for-byte unchanged; neither filtering nor selection changes this revision's canonical content."
     },
     "provenance": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
       "description": "Default provenance for every retained representation and for the selected seller-bound output unless a representation supplies a narrower provenance object."
     }
   },

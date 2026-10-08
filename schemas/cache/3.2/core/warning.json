@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "code": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/warning-code.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/warning-code.json"
     },
     "message": {
       "type": "string",
@@ -14,7 +14,7 @@
       "maxLength": 2000
     },
     "affected_resource": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/warning-resource.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/warning-resource.json",
       "description": "Resource or relationship affected by this warning. Required so multi-package and multi-creative responses remain machine-joinable."
     },
     "details": {
@@ -23,7 +23,7 @@
       "additionalProperties": true
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -20,7 +20,7 @@
       "description": "Path on which verification succeeded. dataset_share readiness requires representative_consumer; delivered warehouse state requires destination."
     },
     "verification_profile": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-verification-profile.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-verification-profile.json"
     },
     "row_count": {
       "type": "integer",
@@ -30,13 +30,13 @@
     "control_totals": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-control-total.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-control-total.json"
       },
       "uniqueItems": true,
       "description": "Profile-defined totals recomputed through verification_path. Names MUST be unique."
     },
     "canonical_content_digest": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-canonical-content-digest.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-canonical-content-digest.json"
     },
     "physical_checksums": {
       "type": "array",
@@ -48,7 +48,7 @@
             "type": "object",
             "properties": {
               "object_ref": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-file-object-ref.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-file-object-ref.json"
               },
               "algorithm": {
                 "type": "string",
@@ -71,7 +71,7 @@
             "type": "object",
             "properties": {
               "object_ref": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-file-object-ref.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-file-object-ref.json"
               },
               "algorithm": {
                 "type": "string",
@@ -98,7 +98,7 @@
       "description": "Provider-native immutable version evidence observed through the named consumer or destination path.",
       "properties": {
         "native_version_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-native-version-ref.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-native-version-ref.json"
         },
         "observed_through": {
           "type": "string",

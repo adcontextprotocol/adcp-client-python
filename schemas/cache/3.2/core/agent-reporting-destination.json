@@ -32,7 +32,7 @@
           "description": "True permits use. False suspends the destination: the seller MUST stop initiating new deliveries to every generation of this destination_id within the advertised suspension interval, and new account-level delivery configurations MUST NOT select it. Suspension does not delete caller-owned data already delivered."
         },
         "provider": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-provider.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-provider.json"
         },
         "transport": {
           "type": "string",
@@ -65,7 +65,7 @@
           "description": "Physical formats accepted by this file-transfer destination."
         },
         "accepted_verification_profiles": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-verification-profile-set.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-verification-profile-set.json"
         }
       },
       "required": [
@@ -108,7 +108,7 @@
           "description": "True permits use. False suspends the destination: the seller MUST stop initiating new deliveries to every generation of this destination_id within the advertised suspension interval, and new account-level delivery configurations MUST NOT select it. Suspension does not delete caller-owned data already delivered."
         },
         "provider": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-provider.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-provider.json"
         },
         "transport": {
           "type": "string",
@@ -125,7 +125,7 @@
           "description": "Provider-native project/dataset, database/schema, or catalog/schema locator. Printable ASCII without whitespace, '?', '#', '%', '\"', '<', or '>'. Never a credential or signed URL; sellers additionally screen and normalize per the secret_rejection and normalization rules."
         },
         "accepted_verification_profiles": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-verification-profile-set.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-verification-profile-set.json"
         }
       },
       "required": [
@@ -167,7 +167,7 @@
           "description": "True permits use. False suspends the destination: the seller MUST stop publishing new revisions to every generation of this destination_id within the advertised suspension interval, and new account-level delivery configurations MUST NOT select it. Suspension does not delete caller-owned data already delivered or revoke provider-side grants by itself."
         },
         "provider": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-provider.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-provider.json"
         },
         "transport": {
           "type": "string",
@@ -184,10 +184,10 @@
           "description": "Dataset-share access family, such as databricks_to_databricks, open_sharing, or secure_data_sharing."
         },
         "recipient": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-recipient.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-recipient.json"
         },
         "accepted_verification_profiles": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-verification-profile-set.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-verification-profile-set.json"
         }
       },
       "required": [

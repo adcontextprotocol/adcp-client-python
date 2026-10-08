@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "properties": {
@@ -21,7 +21,7 @@
       "type": "array",
       "description": "Validation errors for individual records. The field property identifies which record failed (e.g., 'usage[1].pricing_option_id').",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       }
     },
     "sandbox": {
@@ -29,10 +29,10 @@
       "description": "When true, the account is a sandbox account and no billing occurred."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

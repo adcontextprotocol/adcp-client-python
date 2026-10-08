@@ -74,13 +74,13 @@
     "media_buy_ids": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-coverage.json#/definitions/ReportingMediaBuyId"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-coverage.json#/definitions/ReportingMediaBuyId"
       },
       "uniqueItems": true,
       "description": "Exact frozen media-buy denominator inherited from the obligation, including buys with zero rows. An empty array proves a zero-buy period rather than an unknown denominator."
     },
     "coverage": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-coverage.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-coverage.json",
       "description": "Frozen product/package denominator represented by this logical content. The same coverage follows the revision to every destination."
     },
     "period": {
@@ -108,7 +108,7 @@
       "additionalProperties": false
     },
     "finality": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reporting-finality.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reporting-finality.json"
     },
     "finality_basis": {
       "type": "string",
@@ -168,13 +168,13 @@
     "control_totals": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-control-total.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-control-total.json"
       },
       "uniqueItems": true,
       "description": "Profile-defined totals computed from the canonical logical revision. Names MUST be unique."
     },
     "canonical_content_digest": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-canonical-content-digest.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-canonical-content-digest.json"
     },
     "created_at": {
       "type": "string",

@@ -16,7 +16,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
     },
     {
       "properties": {
@@ -33,7 +33,7 @@
           }
         },
         "revision_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-revision-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-revision-id.json",
           "description": "Buyer-authored input revision from which this served execution was derived. Required when that execution derives from a revision-aware creative. Historical reporting may legitimately return an older revision after list_creatives shows a newer current revision. Delivery optimization, generation, transcoding, or representation selection does not mint a revision.",
           "x-adcp-validation": {
             "verifier_constraints": {
@@ -54,7 +54,7 @@
           "x-entity": "creative_locale_variant"
         },
         "manifest": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-manifest.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-manifest.json",
           "description": "The rendered creative manifest for this variant \u2014 the actual output that was served, not the input assets. In 3.2 it carries canonical `format_kind`, optional `format_option_ref`, and the resolved assets (specific headline, image, video, etc. the platform selected or generated). For Tier 2, shows which asset combination was picked. For Tier 3, contains the generated assets which may differ entirely from the input brand identity. Pass to preview_creative to re-render."
         },
         "generation_context": {
@@ -70,7 +70,7 @@
               "description": "Reference to the content-standards artifact that provided the generation context. Links this variant to the specific piece of content (article, video, podcast segment, etc.) where the ad was placed.",
               "properties": {
                 "property_id": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/identifier.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/identifier.json",
                   "description": "Property where the artifact appears"
                 },
                 "artifact_id": {
@@ -85,7 +85,7 @@
               "additionalProperties": false
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
             }
           },
           "additionalProperties": true

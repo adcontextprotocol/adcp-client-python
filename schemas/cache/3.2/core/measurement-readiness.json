@@ -5,14 +5,14 @@
   "type": "object",
   "properties": {
     "status": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/assessment-status.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/assessment-status.json",
       "description": "Overall measurement readiness level for this product given the buyer's event setup. 'insufficient' means the product cannot optimize effectively with the current setup."
     },
     "required_event_types": {
       "type": "array",
       "description": "Event types this product needs for effective optimization. Buyers should ensure their event sources cover these types.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/event-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/event-type.json"
       },
       "minItems": 1
     },
@@ -20,14 +20,14 @@
       "type": "array",
       "description": "Event types this product requires that the buyer has not configured. Empty or absent when all required types are covered.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/event-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/event-type.json"
       }
     },
     "issues": {
       "type": "array",
       "description": "Actionable issues preventing full measurement readiness. Sellers should limit to the top 3-5 most actionable items. Buyer agents should sort by severity rather than relying on array position.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/diagnostic-issue.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/diagnostic-issue.json"
       }
     },
     "notes": {

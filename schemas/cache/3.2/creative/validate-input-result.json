@@ -116,7 +116,7 @@
     "macro_resolution_results": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-resolution-result.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-resolution-result.json"
       },
       "description": "Per-token compatibility against the selected target. Required or unsafe `unsupported`/`ambiguous` results make the target `validated_fail`; deliberate preservation for the declared downstream resolver may still pass."
     }

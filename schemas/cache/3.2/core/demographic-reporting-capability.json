@@ -48,7 +48,7 @@
             "type": "object",
             "properties": {
               "age": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/demographic-age-range.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/demographic-age-range.json"
               },
               "demographic": {
                 "type": "string",
@@ -57,7 +57,7 @@
                 "description": "Optional native demographic label returned for this interval."
               },
               "demographic_system": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/demographic-system.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/demographic-system.json"
               }
             },
             "required": [
@@ -147,7 +147,7 @@
       "type": "array",
       "description": "Measurement-system notations this product may return. A code remains opaque unless its capability interval and response row also carry a canonical age predicate.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/demographic-system.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/demographic-system.json"
       },
       "minItems": 1,
       "uniqueItems": true

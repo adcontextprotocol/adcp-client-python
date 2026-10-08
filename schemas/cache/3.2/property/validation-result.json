@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "identifier": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/identifier.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/identifier.json",
       "description": "The identifier that was validated"
     },
     "record_id": {
@@ -38,7 +38,7 @@
             "description": "Which feature was evaluated. Data features come from the governance agent's feature catalog (e.g., 'mfa_score', 'carbon_score'). Record-level structural checks use reserved namespaces: 'record:list_membership', 'record:excluded', 'delivery:seller_authorization', 'delivery:click_url_presence'. Reserved prefixes: 'record:', 'delivery:'."
           },
           "status": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/feature-check-status.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/feature-check-status.json"
           },
           "policy_id": {
             "type": "string",
@@ -84,11 +84,11 @@
       }
     },
     "authorization": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/property/authorization-result.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/property/authorization-result.json",
       "description": "Authorization validation result (only present if sales_agent_url was provided in the delivery record)"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

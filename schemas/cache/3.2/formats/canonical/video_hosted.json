@@ -4,7 +4,7 @@
   "description": "Direct video file (mp4/webm/mov) hosted by the buyer. Slot: `video_main` (video asset, file or hosted URL), optional `headline`, `brand_name`, `cta`, `companion_banner`, `landing_page_url`. Tracking model: IAB Open Measurement SDK + external impression/click/quartile pixels via universal_macros. Orientation is a parameter (vertical 9:16 / horizontal 16:9 / square 1:1); slot shape includes optional `brand_name` (typical for vertical short-form) and optional `companion_banner` (typical for horizontal instream). Distinct from `video_vast` (VAST tag, inherent VAST event tracking) \u2014 receivers fire impression and click pixels at delivery time.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/_base.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/_base.json"
     },
     {
       "if": {
@@ -241,7 +241,7 @@
       "description": "Whether the product accepts buyer-uploaded video. When `rejected`, the buyer cannot ship a video asset directly \u2014 they must use build_creative, sync_creatives with brief inputs, or sync_creatives with an accepted reference asset so the seller produces or resolves the video."
     },
     "ctv_ad_experience": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/ctv-ad-experience.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/ctv-ad-experience.json",
       "description": "CTV experience this option serves. On `video_hosted` only `screensaver` is valid (ambient looping video the platform plays on idle). Other experiences route per the matrix in docs/creative/ctv-experiences.mdx; linear CTV video declares no experience."
     }
   },

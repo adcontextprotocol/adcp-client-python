@@ -143,14 +143,14 @@
         "errors": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/decline-proposals-response.json#/$defs/external:core~1error.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/decline-proposals-response.json#/$defs/external:core~1error.json"
           }
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/decline-proposals-response.json#/$defs/external:core~1context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/decline-proposals-response.json#/$defs/external:core~1context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/decline-proposals-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/decline-proposals-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [

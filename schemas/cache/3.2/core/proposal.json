@@ -23,28 +23,28 @@
       "type": "array",
       "description": "Products and budget constraints in this plan. Fixed proposals require allocation_percentage on every entry and percentages MUST sum to 100. Seller-optimized proposals forbid exact allocation_percentage and may instead supply min_spend_target_percentage and max_spend_percentage, each only when the seller advertises the matching package-control capability (seller_optimized_min_spend_targets, seller_optimized_package_budgets). Publishers are responsible for validating cross-entry sums; buyers SHOULD validate them before execution.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-allocation.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-allocation.json"
       },
       "minItems": 1
     },
     "budget_allocation": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/budget-allocation.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/budget-allocation.json"
         }
       ],
       "description": "How the executed total budget is allocated across proposal products. Omit for legacy fixed proposals."
     },
     "pacing": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pacing.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pacing.json",
       "description": "Recommended aggregate pacing for the executed media-buy budget. On a committed proposal this is part of the firm delivery terms."
     },
     "frequency_cap": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-frequency-cap.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-frequency-cap.json",
       "description": "Aggregate cap bound into this legacy proposal. It is authoritative when the proposal is executed and uses one counter across its packages."
     },
     "proposal_status": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/proposal-status.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/proposal-status.json",
       "description": "Lifecycle status of this proposal and the per-proposal source of truth for whether finalization is required before create_media_buy. When absent, the proposal is ready to buy (backward compatible). 'draft' means indicative pricing \u2014 finalize via refine before purchasing. 'committed' means firm pricing with inventory reserved until expires_at and executable via create_media_buy."
     },
     "expires_at": {
@@ -53,7 +53,7 @@
       "description": "When this proposal expires and can no longer be executed. For draft proposals, indicates when indicative pricing becomes stale. For committed proposals, indicates when the inventory hold lapses \u2014 the buyer must call create_media_buy before this time."
     },
     "insertion_order": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/insertion-order.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/insertion-order.json",
       "description": "Formal insertion order attached to a committed proposal. Present when the seller requires a signed agreement before the media buy can proceed. The buyer references the io_id in io_acceptance on create_media_buy."
     },
     "total_budget_guidance": {
@@ -88,11 +88,11 @@
       "maxLength": 2000
     },
     "forecast": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-forecast.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-forecast.json",
       "description": "Aggregate forecasted delivery metrics for the entire proposal. When both proposal-level and allocation-level forecasts are present, the proposal-level forecast is authoritative for total delivery estimation."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

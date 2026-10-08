@@ -6,67 +6,67 @@
   "type": "object",
   "oneOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/image-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/image-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/video-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/video-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/audio-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/audio-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/vast-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/vast-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/display-tag-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/display-tag-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/text-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/text-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/url-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/url-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/html-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/html-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/javascript-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/javascript-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/zip-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/zip-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/webhook-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/webhook-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/css-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/css-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/daast-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/daast-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/markdown-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/markdown-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/brief-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/brief-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/catalog-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/catalog-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/published-post-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/published-post-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/card-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/card-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/pixel-tracker-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/pixel-tracker-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/vast-tracker-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/vast-tracker-asset.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/daast-tracker-asset.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/daast-tracker-asset.json"
     }
   ],
   "discriminator": {

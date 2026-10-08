@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "properties": {
@@ -19,20 +19,20 @@
         "type": "object",
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-listing.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-listing.json"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-definition-enrichment.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-definition-enrichment.json"
           }
         ],
         "properties": {
           "signal_id": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-id.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-id.json",
             "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older Signals Protocol clients.",
             "deprecated": true
           },
           "signal_ref": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json",
             "description": "Canonical signal reference for discovery, activation, and media-buy targeting. Provider-published signals use scope 'data_provider'. Source-native custom signals that are not published in adagents.json signals[] use scope 'signal_source'. Product-local refs are only meaningful when the response is explicitly scoped to a product context."
           },
           "signal_agent_segment_id": {
@@ -49,7 +49,7 @@
             "description": "Detailed signal description"
           },
           "value_type": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/signal-value-type.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/signal-value-type.json",
             "description": "The data type of this signal's values (binary, categorical, numeric)"
           },
           "categories": {
@@ -79,7 +79,7 @@
             "additionalProperties": false
           },
           "signal_type": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/signal-catalog-type.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/signal-catalog-type.json",
             "description": "Commercial/provenance type of signal (marketplace, custom, owned)"
           },
           "data_provider": {
@@ -94,21 +94,21 @@
             "deprecated": true
           },
           "coverage_forecast": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-coverage-forecast.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-coverage-forecast.json",
             "description": "Optional forecast-shaped signal availability guidance. When present, this is authoritative for signal-level discovery coverage. Use this to disclose the denominator, bucket semantics, not-present bucket, aggregate present bucket, and per-value coverage distribution for the signal."
           },
           "deployments": {
             "type": "array",
             "description": "Array of deployment targets",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/deployment.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/deployment.json"
             }
           },
           "pricing_options": {
             "type": "array",
             "description": "Pricing options available for this signal when it has an incremental price. The buyer selects one and passes its pricing_option_id in report_usage or package-level signal_targeting_groups for billing verification. Omit when pricing is unavailable to the caller, bundled into the destination product, or has no incremental cost.",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-pricing-option.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-pricing-option.json"
             },
             "minItems": 1
           }
@@ -139,7 +139,7 @@
       "type": "array",
       "description": "Task-specific errors and warnings (e.g., signal discovery or pricing issues)",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       }
     },
     "incomplete": {
@@ -165,7 +165,7 @@
           "estimated_wait": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
               }
             ],
             "description": "How much additional time would resolve this scope. Allows the caller to decide whether to retry with a larger time_budget."
@@ -210,17 +210,17 @@
       "description": "Present and `true` ONLY on wholesale-mode responses when the request carried if_wholesale_feed_version (and/or if_pricing_version) matching the agent's current version for the caller's cache_scope, in which case signals[] MUST be omitted; wholesale_feed_version (echoed), cache_scope (echoed), and pricing_version (echoed when used) MUST still be present. Callers receiving unchanged: true MUST NOT mutate their local wholesale signals mirror. **One shape per state:** agents MUST NOT emit `unchanged: false` \u2014 the absence of the field IS the signal that the response carries signals. **Cross-scope isolation:** the comparator that decides `unchanged` MUST be keyed on `(cache_scope, wholesale_feed_version)`, not on the token value alone. An agent MUST NOT emit `unchanged: true` when it resolves the request to a different `cache_scope` than the one whose token the caller echoed in `if_wholesale_feed_version` (and/or `if_pricing_version`): because the token is scope-keyed, a value minted for `cache_scope: 'public'` cannot match the agent's current token for `cache_scope: 'account'` (or vice-versa), so such a request MUST return the full feed for the resolved scope with that scope's own token."
     },
     "pagination": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-response.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-response.json"
     },
     "sandbox": {
       "type": "boolean",
       "description": "When true, this response contains simulated data from sandbox mode."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "if": {

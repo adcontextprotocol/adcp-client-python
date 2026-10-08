@@ -31,7 +31,7 @@
       ]
     },
     "evidence": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-audience-evidence.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-audience-evidence.json"
     },
     "verified_attestation_digests": {
       "type": "array",
@@ -43,7 +43,7 @@
       "uniqueItems": true
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

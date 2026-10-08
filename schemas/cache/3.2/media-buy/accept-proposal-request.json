@@ -28,10 +28,10 @@
   },
   "properties": {
     "adcp_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_version"
     },
     "adcp_major_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json#/properties/adcp_major_version"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json#/properties/adcp_major_version"
     },
     "idempotency_key": {
       "type": "string",
@@ -47,7 +47,7 @@
       "description": "Human-readable MediaBuy name supplied by the buyer for trafficking UI display and operational communication. When supplied, this value wins over proposal.name; the seller MUST persist it and echo it unchanged on the commitment success response and subsequent get_media_buys reads. It is operational metadata outside accepted_proposal and is not covered by proposal_terms_digest or terms_digest. When an acceptance creates a MediaBuy and name is absent, the seller MAY seed the MediaBuy name from proposal.name only when proposal.name already satisfies the MediaBuy name constraints (non-whitespace and no longer than 255 characters); the seller MUST NOT silently truncate or otherwise rewrite it. A seeded value counts as a name created through AdCP and MUST be reported on commitment and read surfaces. This display label is not an identifier or financial reference."
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-account-ref.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-account-ref.json"
     },
     "proposal_id": {
       "type": "string",
@@ -127,16 +127,16 @@
       "maxLength": 4096
     },
     "push_notification_config": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json"
     },
     "reporting_webhook": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-webhook.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-webhook.json",
       "description": "Optional reporting delivery configuration established atomically when the proposal is accepted. This is execution metadata and does not alter the accepted commercial terms digest."
     },
     "opportunity": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/opportunity-context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/opportunity-context.json"
         },
         {
           "properties": {
@@ -166,10 +166,10 @@
       "description": "Optional planning-cycle closure. Success infers closed with accepted_with_seller when status is omitted. If the proposal carries opportunity_id, a supplied ID MUST match; the accepted proposal preserves that association."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -20,7 +20,7 @@
           "description": "Dot-notation path to the field on the catalog item (e.g., 'name', 'price.amount', 'location.city')."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -47,7 +47,7 @@
           "description": "The asset_group_id on the catalog item's assets array to pull from (e.g., 'images_landscape', 'images_vertical', 'logo')."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -104,7 +104,7 @@
           "minItems": 1
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [

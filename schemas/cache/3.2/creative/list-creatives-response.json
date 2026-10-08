@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "properties": {
@@ -41,7 +41,7 @@
               "type": "string"
             },
             "direction": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json"
             }
           }
         }
@@ -53,7 +53,7 @@
       "additionalProperties": true
     },
     "pagination": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-response.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-response.json"
     },
     "creatives": {
       "type": "array",
@@ -67,7 +67,7 @@
             "x-entity": "creative"
           },
           "revision_id": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-revision-id.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-revision-id.json",
             "description": "Current buyer-authored input revision for this creative. Present when the current effective content has revision identity and the seller advertises creative.supports_revisions; omitted after an accepted content-bearing legacy update without revision_id.",
             "x-adcp-validation": {
               "verifier_constraints": {
@@ -82,7 +82,7 @@
             }
           },
           "representation_selection": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/representation-selection.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/representation-selection.json",
             "description": "Exact source-set and selected-output lineage retained when the current stored creative was resolved from a CreativeRepresentationSet.",
             "x-adcp-validation": {
               "verifier_constraints": {
@@ -96,7 +96,7 @@
             }
           },
           "account": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account.json",
             "description": "Account that owns this creative"
           },
           "name": {
@@ -104,20 +104,20 @@
             "description": "Human-readable creative name"
           },
           "format_id": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json",
             "deprecated": true,
             "description": "**DEPRECATED in 3.2.** Legacy named-format path. New listed creatives use `format_kind` and optional `format_option_ref`."
           },
           "format_kind": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-kind.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-kind.json",
             "description": "Canonical 3.2 path. The canonical format kind this creative targets. Mutually exclusive with deprecated `format_id`."
           },
           "format_option_ref": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-option-ref.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-option-ref.json",
             "description": "Optional reference to the concrete canonical format option this creative targets. Required when `format_kind` alone is ambiguous in the enclosing product context."
           },
           "status": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-status.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-status.json",
             "description": "Current approval status of the creative"
           },
           "created_date": {
@@ -137,12 +137,12 @@
               "^[a-z0-9_]+$": {
                 "oneOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/asset-union.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/asset-union.json"
                   },
                   {
                     "type": "array",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/asset-union.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/asset-union.json"
                     },
                     "minItems": 1
                   }
@@ -156,13 +156,13 @@
             "description": "Preserved component-addressed asset maps for `coordinated_placements`, keyed by coordinated component ID.",
             "patternProperties": {
               "^[a-z][a-z0-9_]*$": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-assets.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-assets.json"
               }
             },
             "additionalProperties": false
           },
           "localization": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-localization-readback.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-localization-readback.json",
             "description": "Authoritative exact materialized locale-variant state. Present for localized creatives when complete. The enclosing creative status is the single review lifecycle for all variants.",
             "x-adcp-validation": {
               "verifier_constraints": {
@@ -195,7 +195,7 @@
               "errors": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
                 },
                 "minItems": 1
               },
@@ -221,7 +221,7 @@
             "type": "array",
             "description": "Exact rights constraints retained from the buyer's creative submission. Presence is presentation readback, not proof that the seller accepted or verified the rights.",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/rights-constraint.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/rights-constraint.json"
             },
             "minItems": 1
           },
@@ -229,7 +229,7 @@
             "type": "array",
             "description": "Complete seller-produced verifier-of-record results for retained rights references. Buyers MUST ignore any evaluation they originally supplied and rely only on this seller readback for this seller's eligibility decision. This array has no independent item ceiling because rights is not capped; under a required policy every applicable retained constraint needs a corresponding current verified result.",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/rights-attestation-evaluation.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/rights-attestation-evaluation.json"
             },
             "minItems": 1
           },
@@ -245,7 +245,7 @@
             "type": "array",
             "description": "Dynamic content variables (DCO slots) for this creative. Included when include_variables=true.",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-variable.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-variable.json"
             }
           },
           "assignments": {
@@ -294,7 +294,7 @@
                       "description": "When this assignment was created"
                     },
                     "approval_status": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-approval-status.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-approval-status.json",
                       "description": "Aggregate approval state for this creative in this package assignment. This mirrors the same relationship in get_media_buys. Sellers advertising list_creatives as an indicator projection task MUST include it; partially_approved requires approval_scopes."
                     },
                     "rejection_reason": {
@@ -305,7 +305,7 @@
                       "type": "array",
                       "description": "Complete, disjoint publisher/placement approval partition when approval_status is partially_approved. A normalized scope appears once. For one publisher, use either one publisher-wide row or placement-specific rows, never both. Omit when one approval_status applies uniformly to the whole assignment. The same scoped outcomes are mirrored on get_media_buys.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-approval-scope.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-approval-scope.json"
                       },
                       "minItems": 2,
                       "uniqueItems": true,
@@ -321,7 +321,7 @@
                       "type": "array",
                       "description": "Current seller indicators that are true for this creative in this package assignment. The package assignment supplies the default delivery scope; an indicator may narrow further with scope. Omitted means unknown or not evaluated. A present empty array means the seller completed the evaluation identified by indicators_evaluated_scope at indicators_as_of and asserts no current indicator in that evaluated scope.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/indicator.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/indicator.json"
                       },
                       "uniqueItems": true
                     },
@@ -329,7 +329,7 @@
                       "type": "array",
                       "description": "Indicator types covered by this assignment snapshot. Required whenever indicators is present; omitted types remain unknown.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/indicator-type.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/indicator-type.json"
                       },
                       "minItems": 1,
                       "uniqueItems": true
@@ -343,7 +343,7 @@
                       "type": "array",
                       "description": "Optional publisher or placement scopes covered by this evaluation. Omit when indicators covers the whole package\u2013creative assignment. When present, scopes not listed remain unknown; every returned indicator.scope entry MUST be contained by this set.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/indicator-scope.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/indicator-scope.json"
                       },
                       "minItems": 1,
                       "uniqueItems": true
@@ -375,7 +375,7 @@
                   },
                   "allOf": [
                     {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/indicator-bearing.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/indicator-bearing.json"
                     },
                     {
                       "properties": {
@@ -531,21 +531,21 @@
             "additionalProperties": true
           },
           "snapshot_unavailable_reason": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/snapshot-unavailable-reason.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/snapshot-unavailable-reason.json",
             "description": "Machine-readable reason the snapshot is omitted. Present only when include_snapshot was true and snapshot data is unavailable for this creative."
           },
           "items": {
             "type": "array",
             "description": "Items for multi-asset formats like carousels and native ads (included when include_items=true)",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-item.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-item.json"
             }
           },
           "pricing_options": {
             "type": "array",
             "description": "Pricing options for using this creative (serving, delivery). Used by ad servers and library agents. Transformation agents expose build pricing on canonical transformer.pricing_options entries from list_transformers instead. Present when include_pricing=true and account provided. The buyer passes the applied pricing_option_id in report_usage.",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-pricing-option.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-pricing-option.json"
             },
             "minItems": 1
           },
@@ -566,7 +566,7 @@
                 "description": "ISO 8601 timestamp when the creative was destroyed. Matches the `purged_at` field on the corresponding `creative.purged` webhook fire."
               },
               "reason_code": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-event-reason-code.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-event-reason-code.json",
                 "description": "Categorical reason for the purge. Matches the value the seller emitted on the corresponding `creative.purged` webhook fire."
               }
             },
@@ -581,7 +581,7 @@
             "type": "array",
             "description": "Recent webhook fires scoped to this creative \u2014 creative.status_changed, creative.purged, creative.assignment_changed, and assignment-level indicators.changed deliveries. Present only when include_webhook_activity is true. Account-anchored records include subscriber_id; the parent creative_id disambiguates the record. Retention: 30 days from completed_at. See snapshot-and-log.mdx \u00a7 Webhook activity log pattern.",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/webhook-activity-record.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/webhook-activity-record.json"
             },
             "maxItems": 200
           }
@@ -729,7 +729,7 @@
       "type": "array",
       "description": "Task-specific errors (e.g., invalid filters, account not found)",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       }
     },
     "sandbox": {
@@ -737,10 +737,10 @@
       "description": "When true, this response contains simulated data from sandbox mode."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

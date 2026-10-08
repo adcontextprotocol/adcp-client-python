@@ -10,7 +10,7 @@
       "maxLength": 512
     },
     "cloud": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/delivery-recipient-cloud.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/delivery-recipient-cloud.json"
     },
     "region": {
       "type": "string",

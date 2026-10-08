@@ -6,7 +6,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
       "not": {
@@ -33,14 +33,14 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Seller account containing these buyer-managed catalogs."
     },
     "catalogs": {
       "type": "array",
       "description": "Array of catalog feeds to sync (create or update). When omitted together with item_availability_updates and item_availability_queries, the call is discovery-only and returns all existing catalogs on the account without modification.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/catalog.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/catalog.json"
       },
       "minItems": 1,
       "maxItems": 50
@@ -49,7 +49,7 @@
       "type": "array",
       "description": "Immediate suppress or restore operations for items in buyer-managed catalogs. Sellers declaring media_buy.features.catalog_item_availability_updates MUST process these updates synchronously and MUST NOT silently ignore them or return a submitted task. A seller that does not declare the capability MUST reject the request with UNSUPPORTED_FEATURE before lookup or mutation and MUST NOT interpret it as discovery. The combined number of item_availability_updates and item_availability_queries MUST NOT exceed 1,000; excess entries are an operation-level INVALID_REQUEST before lookup or mutation. Each (catalog_id, catalog_generation, item_id) tuple MUST appear at most once in updates; a duplicate is an operation-level INVALID_REQUEST before mutation in every validation mode. For mixed catalog/update requests, the seller MUST validate and stage the entire request against the post-upsert candidate state, then commit catalog and availability changes atomically. It MUST reject before any mutation if synchronous atomic commit is unavailable. A successful suppress acknowledgement means the seller MUST stop selecting or rendering the item and every cached or pre-generated creative it materialized from the item. Seller-internal generation lineage MUST retain resolved_account_id, catalog_id, catalog_generation, and item_id. If the seller cannot enforce that guarantee, it MUST return a failed per-item result. Suppression persists across scheduled feed fetches and catalog upserts until explicit restore, expires_at, or deletion of the containing catalog. Restore removes only an existing buyer-authored overlay or tombstone in the same catalog generation and cannot override seller rejection, withdrawal, policy, rights, or inventory controls. A restore for an absent item without such prior state fails with REFERENCE_NOT_FOUND.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/catalog-item-availability-update.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/catalog-item-availability-update.json"
       },
       "minItems": 1,
       "maxItems": 1000
@@ -58,7 +58,7 @@
       "type": "array",
       "description": "Read current buyer-authored availability state. Queries require media_buy.features.catalog_item_availability_updates; a seller that does not declare it rejects with UNSUPPORTED_FEATURE before lookup. Any request containing queries is synchronous. In a mixed request the seller validates and stages catalog upserts and availability updates first, evaluates queries against that post-upsert/post-update candidate state, and atomically commits the staged mutations before returning those query results. If the mixed work cannot commit synchronously, it rejects before mutation. The seller returns exactly one item_availability_states entry per query in the same order and echoes request_index and the complete identity. Unknown, inaccessible, stale-generation, and unauthorized references use the normalized REFERENCE_NOT_FOUND shape described by validation_mode. Use a fresh idempotency_key for a current read; a replayed response is a historical snapshot.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/catalog-item-availability-ref.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/catalog-item-availability-ref.json"
       },
       "minItems": 1,
       "maxItems": 1000
@@ -84,19 +84,19 @@
       "description": "When true, preview catalog create, update, and delete changes without applying them. MUST NOT be combined with item_availability_updates."
     },
     "validation_mode": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/validation-mode.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/validation-mode.json",
       "default": "strict",
       "description": "Validation strictness for semantically valid-looking catalog and item entries. In strict mode (default), an unknown, inaccessible, unauthorized, or stale-generation catalog/item reference, a known seller-managed catalog, a stale expected_overlay_revision, or another per-entry error fails the entire operation before any catalog or availability mutation. In lenient mode, the seller returns a positionally matched failed result for each such item entry and processes the remaining valid entries. Unknown, inaccessible, unauthorized, and stale-generation references MUST be observationally equivalent: code REFERENCE_NOT_FOUND, message exactly 'Catalog item not found', recovery 'correctable', and no field, suggestion, retry_after, issues, details, or resource metadata. Authorization and lookup MUST use the same externally observable failure path and SHOULD avoid materially distinguishable timing. A known seller-managed catalog may use INVALID_REQUEST only after catalog access is authorized. Request-schema failures, duplicate identity tuples, unsupported capability, batch-limit excess, dry_run conflicts, and mixed requests that cannot commit synchronously and atomically are operation-level failures before lookup or mutation in both modes. A stale revision uses CONFLICT without mutation."
     },
     "push_notification_config": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json",
       "description": "Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (common for large feeds requiring platform review)."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

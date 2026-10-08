@@ -66,7 +66,7 @@
       "description": "Optional expiry for a suppress overlay. At this instant the seller automatically removes the buyer-authored suppression as if it received restore. Valid only with action suppress; omit for an indefinite suppression. Sellers MUST reject a timestamp that is not in the future when the request is processed. On a repeated suppress, this value is complete replacement state: a changed timestamp replaces the prior expiry, and omission clears a prior expiry to make suppression indefinite. Either change returns status applied, not unchanged."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

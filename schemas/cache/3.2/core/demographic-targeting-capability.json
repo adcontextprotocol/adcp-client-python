@@ -55,7 +55,7 @@
           "type": "array",
           "description": "User-level age determination bases this product can use for exact execution. Sellers MUST publish only bases whose provenance they can preserve and audit; they MUST NOT infer a basis from an opaque platform age bucket. When omitted, the product makes no basis-aware targeting commitment and MUST reject requests that specify accepted_bases.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/age-determination-basis.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/age-determination-basis.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -64,7 +64,7 @@
           "type": "array",
           "description": "Age verification methods available when supported_bases contains verified. This is an availability declaration only: a method must still establish the entire requested age predicate. Threshold-only methods such as World ID cannot establish an arbitrary bounded range.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/age-verification-method.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/age-verification-method.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -82,7 +82,7 @@
                 "x-entity": "demographic_interval_id"
               },
               "age": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/demographic-age-range.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/demographic-age-range.json"
               }
             },
             "required": [

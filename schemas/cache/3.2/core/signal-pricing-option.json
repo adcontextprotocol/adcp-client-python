@@ -3,5 +3,5 @@
   "title": "Signal Pricing Option",
   "deprecated": true,
   "description": "Deprecated \u2014 use vendor-pricing-option.json for new implementations. This alias is retained for backward compatibility.",
-  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-pricing-option.json"
+  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-pricing-option.json"
 }

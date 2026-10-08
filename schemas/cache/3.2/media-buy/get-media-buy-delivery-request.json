@@ -6,7 +6,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
       "if": {
@@ -86,7 +86,7 @@
   ],
   "properties": {
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Filter delivery data to a specific account. When omitted, returns data across all accessible accounts."
     },
     "media_buy_ids": {
@@ -107,18 +107,18 @@
       "description": "Exact immutable reporting revision to retrieve. This additive Reliable Reporting selector returns content bound to that revision, including its immutable row count, control totals, and content SHA-256. It is mutually exclusive with media-buy, date, metric, and breakdown selectors."
     },
     "pagination": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-request.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-request.json",
       "description": "Cursor pagination. With reporting_revision_id, pages immutable authoritative rows while all revision metadata repeats on every page."
     },
     "status_filter": {
       "oneOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/media-buy-status.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/media-buy-status.json"
         },
         {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/media-buy-status.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/media-buy-status.json"
           },
           "minItems": 1
         }
@@ -144,13 +144,13 @@
       "type": "array",
       "description": "Optional list of metrics to include in the response. When omitted, all available metrics are included (unchanged behavior). Applies to every metrics-bearing object in the response: totals, by_package, daily and window slices, and breakdown rows. impressions and spend are always included regardless of this list, except that a legacy or externally created mixed-currency buy MUST omit monetary and money-derived values from media-buy and window totals, MUST omit daily_breakdown, and MUST report monetary values only on currency-qualified package rows (including window package rows). Requesting a leaf metric identity returns its canonical nested carrier \u2014 e.g. requesting viewable_rate returns the viewability object, requesting quartile_75 returns quartile_data \u2014 never a flat duplicate. Metrics requested but not available for this buy are omitted from the response without error; contract accountability is unchanged \u2014 missing_metrics still reconciles against committed_metrics, but sellers MUST NOT list a metric in missing_metrics when its absence is solely due to this narrowing. Must be a subset of the product's reporting_capabilities.available_metrics; values outside the declared set are ignored. Subset evaluation follows the container-subsumption rule in enums/available-metric.json. Sort is evaluated before narrowing: excluding a metric from this list never triggers the sort_by fallback, and breakdown rows may be ordered by a metric absent from the narrowed payload \u2014 the applied-sort echo still names it. Same narrowing semantics as reporting_webhook.requested_metrics, with one shape difference: this field requires at least one entry when present (omit it entirely for full payloads), while the webhook field permits an empty array with the same meaning as omission.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/available-metric.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/available-metric.json"
       },
       "uniqueItems": true,
       "minItems": 1
     },
     "time_granularity": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reporting-frequency.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reporting-frequency.json",
       "description": "Per-window slice granularity for the pull, using the same vocabulary as reporting_webhook.reporting_frequency. When set, the seller returns per-window delivery slices over the date range \u2014 useful for reconstructing data a buyer's webhook receiver missed, since the slice payload is shape-aligned with what reporting_webhook would have delivered for the same window. Capability-scoped: the value MUST be one of the seller's declared reporting_capabilities.windowed_pull_granularities; otherwise the seller MUST return UNSUPPORTED_GRANULARITY. When set to daily, weekly, monthly, or quarterly and the in-scope packages span more than one reporting timezone, the seller MUST return VALIDATION_ERROR. When omitted, behavior is unchanged (cumulative aggregates plus optional daily breakdowns per existing fields)."
     },
     "include_window_breakdown": {
@@ -165,7 +165,7 @@
         "post_click": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
             }
           ],
           "description": "Post-click attribution window to apply."
@@ -173,13 +173,13 @@
         "post_view": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
             }
           ],
           "description": "Post-view attribution window to apply."
         },
         "model": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/attribution-model.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/attribution-model.json",
           "description": "Attribution model to use. When omitted, the seller applies their default model."
         }
       },
@@ -199,12 +199,12 @@
               "description": "Maximum number of catalog_item entries to return. When omitted, the seller returns its automatic default set."
             },
             "sort_by": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
               "description": "Metric to sort breakdown rows by, in `sort_direction` order (descending by default). Falls back to 'spend' when the seller does not report the requested metric at this breakdown's row grain; on fallback the sort direction resets to 'desc'. Rows lacking a value for the applied sort metric order last regardless of direction. The applied sort is echoed in the response.",
               "default": "spend"
             },
             "sort_direction": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
               "description": "Direction for sort_by ordering. Defaults to 'desc' (largest first). 'asc' enables bottom-N queries (e.g., the 25 worst placements by viewable_rate) that cannot be recovered from a truncated descending pull. Sellers MUST apply the requested direction to the applied sort metric \u2014 direction has no availability fallback.",
               "default": "desc"
             }
@@ -221,12 +221,12 @@
               "description": "Maximum number of creative entries to return. When omitted, the seller returns its automatic default set."
             },
             "sort_by": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
               "description": "Metric to sort breakdown rows by, in `sort_direction` order (descending by default). Falls back to 'spend' when the seller does not report the requested metric at this breakdown's row grain; on fallback the sort direction resets to 'desc'. Rows lacking a value for the applied sort metric order last regardless of direction. The applied sort is echoed in the response.",
               "default": "spend"
             },
             "sort_direction": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
               "description": "Direction for sort_by ordering. Defaults to 'desc' (largest first). 'asc' enables bottom-N queries (e.g., the 25 worst placements by viewable_rate) that cannot be recovered from a truncated descending pull. Sellers MUST apply the requested direction to the applied sort metric \u2014 direction has no availability fallback.",
               "default": "desc"
             }
@@ -243,12 +243,12 @@
               "description": "Maximum number of keyword entries to return. When omitted, the seller returns its automatic default set."
             },
             "sort_by": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
               "description": "Metric to sort breakdown rows by, in `sort_direction` order (descending by default). Falls back to 'spend' when the seller does not report the requested metric at this breakdown's row grain; on fallback the sort direction resets to 'desc'. Rows lacking a value for the applied sort metric order last regardless of direction. The applied sort is echoed in the response.",
               "default": "spend"
             },
             "sort_direction": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
               "description": "Direction for sort_by ordering. Defaults to 'desc' (largest first). 'asc' enables bottom-N queries (e.g., the 25 worst placements by viewable_rate) that cannot be recovered from a truncated descending pull. Sellers MUST apply the requested direction to the applied sort metric \u2014 direction has no availability fallback.",
               "default": "desc"
             }
@@ -260,19 +260,19 @@
           "description": "Request geographic breakdown. Check reporting_capabilities.supports_geo_breakdown for available levels and systems.",
           "properties": {
             "geo_level": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/geo-level.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/geo-level.json",
               "description": "Geographic granularity level for the breakdown"
             },
             "system": {
               "anyOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/metro-system.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/metro-system.json"
                 },
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/postal-system.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/postal-system.json"
                 },
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/legacy-postal-system.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/legacy-postal-system.json"
                 }
               ],
               "description": "Optional classification system for metro or postal_area levels. Metro uses metro-system values (e.g., 'nielsen_dma'); native postal_area uses country-local postal-system values with country (e.g., country 'US', system 'zip'); deprecated legacy postal_area requests may use legacy-postal-system values such as 'us_zip'. Omit to request the level without selecting a specific system."
@@ -289,12 +289,12 @@
               "description": "Maximum number of geo entries to return. Defaults to 25. When truncated, by_geo_truncated is true in the response."
             },
             "sort_by": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
               "description": "Metric to sort breakdown rows by, in `sort_direction` order (descending by default). Falls back to 'spend' when the seller does not report the requested metric at this breakdown's row grain; on fallback the sort direction resets to 'desc'. Rows lacking a value for the applied sort metric order last regardless of direction. The applied sort is echoed in the response.",
               "default": "spend"
             },
             "sort_direction": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
               "description": "Direction for sort_by ordering. Defaults to 'desc' (largest first). 'asc' enables bottom-N queries (e.g., the 25 worst placements by viewable_rate) that cannot be recovered from a truncated descending pull. Sellers MUST apply the requested direction to the applied sort metric \u2014 direction has no availability fallback.",
               "default": "desc"
             }
@@ -357,7 +357,7 @@
                   {
                     "properties": {
                       "system": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/metro-system.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/metro-system.json"
                       }
                     },
                     "required": [
@@ -402,12 +402,12 @@
                     }
                   },
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/postal-country-system.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/postal-country-system.json"
                   },
                   {
                     "properties": {
                       "system": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/legacy-postal-system.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/legacy-postal-system.json"
                       }
                     },
                     "required": [
@@ -435,12 +435,12 @@
               "description": "Maximum number of entries to return. When omitted, all entries are returned (the enum is small and bounded)."
             },
             "sort_by": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
               "description": "Metric to sort breakdown rows by, in `sort_direction` order (descending by default). Falls back to 'spend' when the seller does not report the requested metric at this breakdown's row grain; on fallback the sort direction resets to 'desc'. Rows lacking a value for the applied sort metric order last regardless of direction. The applied sort is echoed in the response.",
               "default": "spend"
             },
             "sort_direction": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
               "description": "Direction for sort_by ordering. Defaults to 'desc' (largest first). 'asc' enables bottom-N queries (e.g., the 25 worst placements by viewable_rate) that cannot be recovered from a truncated descending pull. Sellers MUST apply the requested direction to the applied sort metric \u2014 direction has no availability fallback.",
               "default": "desc"
             },
@@ -461,12 +461,12 @@
               "description": "Maximum number of entries to return. When omitted, all entries are returned (the enum is small and bounded)."
             },
             "sort_by": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
               "description": "Metric to sort breakdown rows by, in `sort_direction` order (descending by default). Falls back to 'spend' when the seller does not report the requested metric at this breakdown's row grain; on fallback the sort direction resets to 'desc'. Rows lacking a value for the applied sort metric order last regardless of direction. The applied sort is echoed in the response.",
               "default": "spend"
             },
             "sort_direction": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
               "description": "Direction for sort_by ordering. Defaults to 'desc' (largest first). 'asc' enables bottom-N queries (e.g., the 25 worst placements by viewable_rate) that cannot be recovered from a truncated descending pull. Sellers MUST apply the requested direction to the applied sort metric \u2014 direction has no availability fallback.",
               "default": "desc"
             },
@@ -487,12 +487,12 @@
               "description": "Maximum number of format rows to return. When omitted, all rows are returned because the canonical format-kind vocabulary is small and bounded."
             },
             "sort_by": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
               "description": "Metric to sort breakdown rows by, in `sort_direction` order (descending by default). Falls back to 'spend' when the seller does not report the requested metric at this breakdown's row grain; on fallback the sort direction resets to 'desc'. Rows lacking a value for the applied sort metric order last regardless of direction. The applied sort is echoed in the response.",
               "default": "spend"
             },
             "sort_direction": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
               "description": "Direction for sort_by ordering. Defaults to 'desc' (largest first). 'asc' enables bottom-N queries (e.g., the 25 worst placements by viewable_rate) that cannot be recovered from a truncated descending pull. Sellers MUST apply the requested direction to the applied sort metric \u2014 direction has no availability fallback.",
               "default": "desc"
             }
@@ -510,12 +510,12 @@
               "description": "Maximum number of entries to return. Defaults to 25."
             },
             "sort_by": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
               "description": "Metric to sort breakdown rows by, in `sort_direction` order (descending by default). Falls back to 'spend' when the seller does not report the requested metric at this breakdown's row grain; on fallback the sort direction resets to 'desc'. Rows lacking a value for the applied sort metric order last regardless of direction. The applied sort is echoed in the response.",
               "default": "spend"
             },
             "sort_direction": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
               "description": "Direction for sort_by ordering. Defaults to 'desc' (largest first). 'asc' enables bottom-N queries (e.g., the 25 worst placements by viewable_rate) that cannot be recovered from a truncated descending pull. Sellers MUST apply the requested direction to the applied sort metric \u2014 direction has no availability fallback.",
               "default": "desc"
             },
@@ -534,7 +534,7 @@
               "type": "array",
               "description": "Optional canonical age ranges to return as distinct rows. Copying an applied targeting predicate here requests aligned reporting only when the reporting capability supports that exact predicate. Omit to request the product's declared native demographic breakdown.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/demographic-age-range.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/demographic-age-range.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -546,12 +546,12 @@
               "description": "Maximum number of demographic entries to return. Defaults to 25."
             },
             "sort_by": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
               "description": "Metric to sort breakdown rows by, in `sort_direction` order (descending by default). Falls back to 'spend' when the seller does not report the requested metric at this breakdown's row grain; on fallback the sort direction resets to 'desc'. Rows lacking a value for the applied sort metric order last regardless of direction. The applied sort is echoed in the response.",
               "default": "spend"
             },
             "sort_direction": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
               "description": "Direction for sort_by ordering. Defaults to 'desc' (largest first). 'asc' enables bottom-N queries (e.g., the 25 worst placements by viewable_rate) that cannot be recovered from a truncated descending pull. Sellers MUST apply the requested direction to the applied sort metric \u2014 direction has no availability fallback.",
               "default": "desc"
             }
@@ -581,12 +581,12 @@
               "description": "Maximum number of entries to return. Defaults to 25."
             },
             "sort_by": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
               "description": "Metric to sort breakdown rows by, in `sort_direction` order (descending by default). Falls back to 'spend' when the seller does not report the requested metric at this breakdown's row grain; on fallback the sort direction resets to 'desc'. Rows lacking a value for the applied sort metric order last regardless of direction. The applied sort is echoed in the response.",
               "default": "spend"
             },
             "sort_direction": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
               "description": "Direction for sort_by ordering. Defaults to 'desc' (largest first). 'asc' enables bottom-N queries (e.g., the 25 worst placements by viewable_rate) that cannot be recovered from a truncated descending pull. Sellers MUST apply the requested direction to the applied sort metric \u2014 direction has no availability fallback.",
               "default": "desc"
             },
@@ -598,37 +598,37 @@
           "additionalProperties": true
         },
         "property": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-breakdown-controls.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-breakdown-controls.json",
           "description": "Request delivery by canonical publisher property. Check reporting_capabilities.supports_property_breakdown."
         },
         "collection": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-breakdown-controls.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-breakdown-controls.json",
           "description": "Request delivery by canonical content collection. Check reporting_capabilities.supports_collection_breakdown."
         },
         "installment": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-breakdown-controls.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-breakdown-controls.json",
           "description": "Request delivery by canonical installment within a collection. Check reporting_capabilities.supports_installment_breakdown."
         },
         "collection_property": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-breakdown-controls.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-breakdown-controls.json",
           "description": "Request delivery at the collection \u00d7 property intersection. This is the reporting grain that can prove a collection delivered on a particular host service; independent collection and property marginals cannot. Check reporting_capabilities.supports_collection_property_breakdown."
         },
         "installment_property": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-breakdown-controls.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-breakdown-controls.json",
           "description": "Request delivery at the installment \u00d7 property intersection. This is the reporting grain that can prove a specific airing, episode, issue, or programming block delivered on a particular host service; independent installment and property marginals cannot. Check reporting_capabilities.supports_installment_property_breakdown."
         },
         "placement_property": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-breakdown-controls.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-breakdown-controls.json",
           "description": "Request delivery at the placement \u00d7 property intersection. Use when a placement may span multiple web, app, social, or assistant properties. Check reporting_capabilities.supports_placement_property_breakdown."
         }
       },
       "additionalProperties": true
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "additionalProperties": true

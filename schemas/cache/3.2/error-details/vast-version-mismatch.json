@@ -13,7 +13,7 @@
       "description": "Machine-readable modern mismatch branch."
     },
     "asset_vast_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/vast-version.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/vast-version.json"
     },
     "observed_document_vast_version": {
       "anyOf": [
@@ -39,7 +39,7 @@
     "product_vast_versions": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/vast-version.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/vast-version.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -47,19 +47,19 @@
     "seller_vast_versions": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/vast-version.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/vast-version.json"
       },
       "minItems": 1,
       "uniqueItems": true
     },
     "format_option_ref": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-option-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-option-ref.json",
       "description": "Selected option reference when the product option is addressable. Omitted for a unique id-less product option."
     },
     "supported_versions": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/vast-version.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/vast-version.json"
       },
       "minItems": 1,
       "uniqueItems": true,

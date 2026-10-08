@@ -47,7 +47,7 @@
       "description": "Immutable caller-owned destination generation selected by the account-authorized obligation. It may be reused by the same caller across other independently authorized accounts."
     },
     "feed_purpose": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
     },
     "method": {
       "type": "string",
@@ -94,10 +94,10 @@
       "description": "Stable safe failure classification. MUST NOT include credentials or provider response bodies."
     },
     "resource": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-resource.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-resource.json"
     },
     "verification": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-verification.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-verification.json"
     },
     "created_at": {
       "type": "string",

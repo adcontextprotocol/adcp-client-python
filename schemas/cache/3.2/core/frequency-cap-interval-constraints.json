@@ -6,7 +6,7 @@
   "type": "object",
   "properties": {
     "unit": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/frequency-cap-duration-unit.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/frequency-cap-duration-unit.json"
     },
     "minimum_interval": {
       "type": "integer",
@@ -26,7 +26,7 @@
       "uniqueItems": true
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -5,11 +5,11 @@
   "type": "object",
   "properties": {
     "rejected_billing": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/billing-party.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/billing-party.json",
       "description": "The `billing` value the seller rejected \u2014 echoed verbatim from the request for caller-side reconciliation."
     },
     "suggested_billing": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/billing-party.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/billing-party.json",
       "description": "A single billing value the calling buyer agent MAY retry with autonomously. Typically `operator` for passthrough-only agents. Sellers MAY omit this field when no retryable value exists for this agent's commercial relationship \u2014 in that case the rejection is terminal-pending-onboarding and the buyer MUST complete offline payments-relationship onboarding before any value other than the original request will succeed. Sellers MUST NOT populate this field with the full subset of values the agent may use; the field surfaces at most one canonical retry."
     }
   },

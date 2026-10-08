@@ -1,0 +1,26 @@
+{
+  "version": "3.2.3",
+  "source_commit": "dfc6ad602780c1cff4fe23e16e30a570900c89d7",
+  "release_url": "https://github.com/adcontextprotocol/adcp/releases/tag/v3.2.3",
+  "bundle_url": "https://adcontextprotocol.org/protocol/3.2.3.tgz",
+  "certificate_identity": "https://github.com/adcontextprotocol/adcp/.github/workflows/release.yml@refs/heads/3.2.x",
+  "certificate_oidc_issuer": "https://token.actions.githubusercontent.com",
+  "artifacts": {
+    "3.2.3.tgz": {
+      "bytes": 26269802,
+      "sha256": "cad841ddef4617fdb6eda130be7b471d9028123489b1384a7ca843ea97fd4ba5"
+    },
+    "3.2.3.tgz.crt": {
+      "bytes": 2472,
+      "sha256": "2d7f90922c141ef9ffcdd8248bb90aa41249cc41dda80ef60bd800c8042aeb28"
+    },
+    "3.2.3.tgz.sha256": {
+      "bytes": 76,
+      "sha256": "6f4f5ad86b261c6ee83e2e2a31b759a67c46275743818591a80189113564697c"
+    },
+    "3.2.3.tgz.sig": {
+      "bytes": 96,
+      "sha256": "a59add2cf82e34be259ab28f7a1d5e194f62205f292ff2495469c85037d4f3cb"
+    }
+  }
+}

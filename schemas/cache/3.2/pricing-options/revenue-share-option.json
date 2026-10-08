@@ -17,7 +17,7 @@
     "event_type": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/event-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/event-type.json"
         }
       ],
       "description": "Conversion event whose attributed value may become commissionable (for example purchase or subscribe)"

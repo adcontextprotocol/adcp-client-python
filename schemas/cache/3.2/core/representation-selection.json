@@ -34,7 +34,7 @@
       "x-entity": "creative"
     },
     "revision_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-revision-id.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-revision-id.json"
     },
     "revision_content_digest": {
       "type": "string",
@@ -47,7 +47,7 @@
       "x-entity": "creative_representation"
     },
     "strategy": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/representation-selection-strategy.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/representation-selection-strategy.json",
       "description": "Deterministic strategy applied after compatibility filtering."
     },
     "selected_output_digest": {
@@ -56,11 +56,11 @@
       "description": "Digest of the derived seller-bound manifest projection, computed with RFC 8785 JCS after removing exactly top-level `$schema`, `representation_selection`, `creative_id`, `revision_id`, `name`, `tags`, `status`, `weight`, `placement_refs`, `placement_ids`, and `inputs`. Every other field, including unknown delivery fields, is included. The identical exclusion list applies to the returned CreativeManifest and its later CreativeAsset sync wrapper. A selected sync item cannot carry localization in this version. This is the review/execution fingerprint for the projection, distinct from revision_content_digest, which binds the complete source set."
     },
     "execution_vast_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/vast-version.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/vast-version.json",
       "description": "Exact VAST version verified for seller-assembled first-class VAST trackers. This is selection lineage and part of the execution review identity; it is not included in selected_output_digest."
     },
     "execution_daast_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/daast-version.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/daast-version.json",
       "description": "Exact DAAST version verified for seller-assembled first-class DAAST trackers. This is selection lineage and part of the execution review identity; it is not included in selected_output_digest."
     },
     "resolved_by": {

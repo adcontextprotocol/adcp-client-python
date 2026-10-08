@@ -4,7 +4,7 @@
   "description": "Error returned by a catalog item availability operation. REFERENCE_NOT_FOUND has a deliberately closed, invariant shape so callers cannot distinguish unknown, inaccessible, unauthorized, or stale-generation references.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
     },
     {
       "if": {
@@ -18,7 +18,7 @@
         ]
       },
       "then": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/catalog-item-reference-not-found-error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/catalog-item-reference-not-found-error.json"
       }
     }
   ]

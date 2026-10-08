@@ -611,7 +611,7 @@
           "additionalProperties": false
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/production/governance/check-governance-response.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/production/governance/check-governance-response.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [

@@ -91,7 +91,7 @@
         {
           "properties": {
             "brand": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/sync-reporting-status-request.json#/$defs/external:core~1brand-key.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/sync-reporting-status-request.json#/$defs/external:core~1brand-key.json"
             },
             "operator": {
               "type": "string",
@@ -99,7 +99,7 @@
               "x-entity": "operator"
             },
             "operator_unit": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/sync-reporting-status-request.json#/$defs/external:core~1operator-unit.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/sync-reporting-status-request.json#/$defs/external:core~1operator-unit.json"
             },
             "currency": {
               "type": "string",
@@ -130,7 +130,7 @@
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
         },
         "brand_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/sync-reporting-status-request.json#/$defs/external:core~1brand-id.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/sync-reporting-status-request.json#/$defs/external:core~1brand-id.json"
         },
         "countries": {
           "type": "array",

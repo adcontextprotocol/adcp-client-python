@@ -71,7 +71,7 @@
       "description": "Deep link URI for re-engagement campaigns targeting existing users. Use Universal Links (iOS) or App Links (Android) where available (e.g., 'https://acmegames.com/app/level/5'). Falls back to URI scheme (e.g., 'acmegames://level/5') when universal links are not configured."
     },
     "price": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/price.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/price.json",
       "description": "App download price. Set amount to 0 for free apps."
     },
     "rating": {
@@ -101,12 +101,12 @@
       "type": "array",
       "description": "Typed creative asset pools for this app. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: 'images_landscape' (promotional hero), 'images_vertical' (9:16 for Snap, Stories), 'images_square' (1:1 for display), 'video' (gameplay or demo video). Supplements icon_url and screenshots for platform-specific format requirements.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/offering-asset-group.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/offering-asset-group.json"
       },
       "minItems": 1
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

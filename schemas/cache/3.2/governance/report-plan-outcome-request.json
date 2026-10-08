@@ -5,7 +5,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
       "if": {
@@ -86,12 +86,12 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "purchase_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/purchase-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/purchase-type.json",
       "description": "The type of financial commitment this outcome is for. Must equal the original approved intent's purchase_type. Determines which budget allocation (if any) to charge against. Defaults to 'media_buy' when omitted.",
       "default": "media_buy"
     },
     "outcome": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/outcome-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/outcome-type.json",
       "description": "Outcome type."
     },
     "seller_response": {
@@ -123,7 +123,7 @@
           }
         },
         "planned_delivery": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/planned-delivery.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/planned-delivery.json",
           "description": "What the seller said it will deliver. When seller-side governance is not configured, this is the governance agent's only view of the seller's delivery parameters."
         },
         "creative_deadline": {
@@ -236,7 +236,7 @@
       "additionalProperties": false
     },
     "error": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/governance/reported-outcome-error.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/governance/reported-outcome-error.json",
       "description": "Buyer-attributed error associated with a failed seller interaction. Required when outcome is failed; classification_source=seller_response_copy preserves what the buyer received without claiming seller-attested provenance."
     },
     "governance_context": {
@@ -247,10 +247,10 @@
       "pattern": "^[\\x20-\\x7E]+$"
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

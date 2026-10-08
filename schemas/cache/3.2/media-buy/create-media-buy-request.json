@@ -11,7 +11,7 @@
   ],
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
       "if": {
@@ -105,7 +105,7 @@
       "x-entity": "governance_plan"
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Account to bill for this media buy. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts."
     },
     "proposal_id": {
@@ -116,7 +116,7 @@
     "opportunity": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/opportunity-context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/opportunity-context.json"
         },
         {
           "properties": {
@@ -172,7 +172,7 @@
       "description": "Optional hard aggregate daily spend ceiling in the media-buy currency. It limits total spend without allocating package amounts. Package caps are subordinate and need not sum to it. Requires advertised media_buy budget-capping scope; otherwise rejected with UNSUPPORTED_FEATURE."
     },
     "frequency_cap": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-frequency-cap.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-frequency-cap.json",
       "description": "Optional max-impression cap using one counter across explicit packages. Requires advertised aggregate_frequency_capping and compatible media_buy_support on every product; otherwise sellers MUST reject with UNSUPPORTED_FEATURE before any mutation and MUST NOT silently drop, soften, or clamp the cap. Omit when executing proposal_id because accepted terms are authoritative."
     },
     "budget_cap_timezone": {
@@ -183,7 +183,7 @@
     "budget_allocation": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/budget-allocation.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/budget-allocation.json"
         }
       ],
       "description": "How budget is allocated across explicit packages. Omission means fixed allocation (legacy-compatible). Buyer agents SHOULD send budget_allocation explicitly ({mode: \"fixed\"} or seller_optimized) rather than rely on omission, and when the principal's instruction does not determine whether the budget is one shared pool across packages or split per package, SHOULD ask the principal rather than guess. seller_optimized requires advertised media_buy.features.seller_optimized_budget; inside it, package budget caps, min_spend_target, and package pacing each require their own advertised sub-capability (seller_optimized_package_budgets, seller_optimized_min_spend_targets, seller_optimized_package_pacing), otherwise the request is rejected with UNSUPPORTED_FEATURE before any over-subscription validation. In proposal mode the committed proposal supplies this configuration and callers MUST omit it here."
@@ -192,20 +192,20 @@
       "type": "array",
       "description": "Array of package configurations. Required when not using proposal_id. Mutually exclusive: provide packages or proposal_id, not both. Fixed allocation requires budget on every package. Seller-optimized allocation permits package budget to be omitted or to act as a hard cap. When executing a proposal, omit packages; the seller derives them from the committed proposal.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/package-request.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/package-request.json"
       },
       "minItems": 1
     },
     "brand": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
       "description": "Brand reference for this media buy. Resolved to full brand identity at execution time from brand.json or the registry."
     },
     "advertiser_industry": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/advertiser-industry.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/advertiser-industry.json",
       "description": "Industry classification for this specific campaign. A brand may operate across multiple industries (brand.json industries field), but each media buy targets one. For example, a consumer health company running a wellness campaign sends 'healthcare.wellness', not 'cpg'. Sellers map this to platform-native codes (e.g., Spotify ADV categories, LinkedIn industry IDs). When omitted, sellers may infer from the brand manifest's industries field."
     },
     "invoice_recipient": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/business-entity.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/business-entity.json",
       "description": "Override the account's default billing entity for this specific buy. When provided, the seller invoices this entity instead. The seller MUST validate the invoice recipient is authorized for this account. When governance_agents are configured, the seller MUST include invoice_recipient in the check_governance request."
     },
     "io_acceptance": {
@@ -256,7 +256,7 @@
       "description": "Agency estimate or authorization number. Primary financial reference for broadcast buys \u2014 links the order to the agency's media plan and billing system. Travels with the order and creative traffic identifiers through the transaction lifecycle."
     },
     "start_time": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/start-timing.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/start-timing.json"
     },
     "end_time": {
       "type": "string",
@@ -264,13 +264,13 @@
       "description": "Campaign end date/time in ISO 8601 format"
     },
     "pacing": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pacing.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pacing.json",
       "description": "Aggregate pacing strategy for the media-buy budget across the media-buy flight. This controls how much the buy spends over time. Package pacing is subordinate and influences which package receives the aggregate spend; package pacing MUST NOT cause aggregate delivery to exceed this strategy. Defaults to even when total_budget is present. When executing a proposal that carries pacing, omit this field or send the identical value; the seller MUST reject a conflicting override with TERMS_REJECTED. In a seller-optimized buy, a seller declaring media_buy.features.seller_optimized_budget MUST accept omission and `even`; it MAY reject `asap` or `front_loaded` with UNSUPPORTED_FEATURE (error.field `pacing`) before any provider mutation and MUST NOT silently coerce them to `even`. Pacing carried by the seller's own committed proposal is not subject to that rejection. Fixed-allocation semantics are unchanged."
     },
     "bidding": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/bidding-policy.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/bidding-policy.json"
         }
       ],
       "description": "Complete media-buy bidding default inherited by packages that omit package.bidding. `{automatic:true}` records an explicit automatic policy. In seller-optimized mode, cost_per/roas bind to the primary budget_allocation.optimization_goals goal. In fixed mode, inherited cost_per is valid only when inheriting package primary-goal result units are compatible; inherited roas requires value-bearing primary goals. Every monetary field uses total_budget.currency or the single currency derived for the media buy, and every affected pricing option MUST declare that currency. Sellers MUST reject incompatible units, combinations, currency, or overrides before mutation with BIDDING_PLACEMENT_CONFLICT. Media-buy bidding combined with any inheriting package's legacy bid_price or legacy monetary optimization-goal target is ambiguous and MUST be rejected with AMBIGUOUS_BIDDING_POLICY."
@@ -281,11 +281,11 @@
       "default": false
     },
     "push_notification_config": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json",
       "description": "Optional webhook configuration for async task status notifications. Publisher will send webhooks when status changes (working, input-required, completed, failed, canceled). Buyers SHOULD supply `push_notification_config.operation_id` as the canonical correlation value; publishers echo that field back verbatim in webhook payloads and MUST NOT parse the URL to derive it."
     },
     "reporting_webhook": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-webhook.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-webhook.json",
       "description": "Optional webhook configuration for automated reporting delivery"
     },
     "artifact_webhook": {
@@ -306,13 +306,13 @@
         "authentication": {
           "type": "object",
           "deprecated": true,
-          "description": "Legacy authentication configuration for webhook delivery (A2A-compatible). Opts the receiver into Bearer or HMAC-SHA256 signing. Both schemes are deprecated; the preferred signing profile for new integrations is RFC 9421, where the seller signs with a key published at its brand.json agents[] entry and the buyer verifies against the seller's JWKS \u2014 no shared secret crosses the wire (see docs/building/implementation/security.mdx#webhook-callbacks). This field is required in AdCP 3.x; the requirement is removed in AdCP 4.0 when the default RFC 9421 path becomes the only path.",
+          "description": "Legacy authentication configuration for webhook delivery (A2A-compatible). Opts the receiver into Bearer or HMAC-SHA256 signing. Both schemes are deprecated; the preferred signing profile for new integrations is RFC 9421, where the seller signs with a key published at its brand.json agents[] entry and the buyer verifies against the seller's JWKS \u2014 no shared secret crosses the wire (see docs/building/by-layer/L1/security.mdx#webhook-callbacks). This field is required in AdCP 3.x; the requirement is removed in AdCP 4.0 when the default RFC 9421 path becomes the only path.",
           "properties": {
             "schemes": {
               "type": "array",
               "description": "Array of authentication schemes. ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD use the RFC 9421 webhook signing profile instead.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -360,10 +360,10 @@
       "additionalProperties": true
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [
@@ -391,7 +391,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/package-request.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/package-request.json"
               },
               {
                 "required": [

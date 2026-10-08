@@ -32,7 +32,7 @@
       "description": "How seriously the buyer is evaluating supply in this cycle."
     },
     "planning_horizon": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/date-range.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/date-range.json",
       "description": "Inclusive calendar range in which the buyer expects the campaign to run."
     },
     "response_deadline": {

@@ -15,10 +15,10 @@
           "const": "brand"
         },
         "brand": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -42,7 +42,7 @@
           "description": "Canonical HTTPS endpoint of the agent the claim concerns."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -81,7 +81,7 @@
           "description": "Optional SHA-256 pin for the exact content or immutable snapshot identified by this resource subject. This is part of the complete typed subject identity and is distinct from AttestationReference.content_digest, which pins credential bytes."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [

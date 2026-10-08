@@ -8,7 +8,7 @@
       "type": "array",
       "description": "Ordered changes applied to the requested targeting_overlay. Sellers apply entries in array order and MUST validate the complete resulting overlay before returning the product.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/targeting-modification.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/targeting-modification.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -19,7 +19,7 @@
       "description": "Optional digest of the canonical effective targeting overlay. Until AdCP defines a cross-implementation canonicalization algorithm, this value is an opaque seller audit handle and buyers MUST NOT attempt to reproduce or compare it across sellers."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

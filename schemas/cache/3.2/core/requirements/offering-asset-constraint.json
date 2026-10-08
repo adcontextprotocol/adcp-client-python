@@ -9,7 +9,7 @@
       "description": "The asset group this constraint applies to. Values are canonical-format vocabulary \u2014 each declaration chooses its own group IDs (e.g., 'headlines', 'images', 'videos'). Buyers discover them through Product.format_options[], publisher adagents.json formats[], or creative.supported_formats[] according to context."
     },
     "asset_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/asset-content-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/asset-content-type.json",
       "description": "The expected content type for this group."
     },
     "required": {
@@ -28,11 +28,11 @@
       "description": "Maximum number of items allowed in this group."
     },
     "asset_requirements": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/requirements/asset-requirements.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/requirements/asset-requirements.json",
       "description": "Technical requirements for each item in this group (e.g., max_length for text, min_width/aspect_ratio for images). Applies uniformly to all items in the group."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

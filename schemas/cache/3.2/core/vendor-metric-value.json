@@ -5,11 +5,11 @@
   "type": "object",
   "properties": {
     "vendor": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
       "description": "Vendor that produced this value. Matches a `vendor_metrics[].vendor` declaration on the product."
     },
     "metric_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-id.json",
       "description": "Identifier for the metric within the vendor's vocabulary. Matches a `vendor_metrics[].metric_id` declaration on the product."
     },
     "value": {
@@ -45,7 +45,7 @@
       "minimum": 0
     },
     "vendor_relationship": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/vendor-relationship.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/vendor-relationship.json",
       "description": "Optional echo of the product's `reporting_capabilities.vendor_metrics[].vendor_relationship` for this `(vendor, metric_id)`, so the delivery row is self-describing without joining back to the product (same reasoning as `viewability.vendor`). When present it MUST equal the declared value; buyers MAY resolve from the product declaration when absent. Absence on the row is *undeclared*, never `third_party`. A relationship disposition, not a trust ranking. Deliberately not a `qualifier` key: the relationship is constant across every row for a (seller, vendor) pair and does not partition rows, so it stays out of the `(vendor, metric_id, qualifier)` reconciliation join."
     },
     "qualifier": {
@@ -53,19 +53,19 @@
       "description": "Optional qualifier disambiguating this row from sibling rows for the same (vendor, metric_id) \u2014 e.g., the same vendor outcome metric reported under 7-day and 30-day attribution windows. Same closed key set as `committed-metric`. When the matching `committed_metrics` entry carries a qualifier, this row MUST carry the identical qualifier so reconciliation joins on `(vendor, metric_id, qualifier)`.",
       "properties": {
         "viewability_standard": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/viewability-standard.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/viewability-standard.json"
         },
         "completion_source": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/completion-source.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/completion-source.json"
         },
         "attribution_methodology": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/attribution-methodology.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/attribution-methodology.json"
         },
         "attribution_window": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
         },
         "lift_dimension": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/lift-dimension.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/lift-dimension.json"
         }
       },
       "additionalProperties": false

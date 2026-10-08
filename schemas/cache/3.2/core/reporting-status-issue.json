@@ -120,12 +120,12 @@
       "minimum": 1
     },
     "feed_purpose": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
     },
     "media_buy_ids": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-coverage.json#/definitions/ReportingMediaBuyId"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-coverage.json#/definitions/ReportingMediaBuyId"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -133,7 +133,7 @@
     "package_ids": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-coverage.json#/definitions/ReportingPackageId"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-coverage.json#/definitions/ReportingPackageId"
       },
       "minItems": 1,
       "uniqueItems": true

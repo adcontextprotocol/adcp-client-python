@@ -39,7 +39,7 @@
       "description": "When true on a legacy template format, logical width, logical height, and pixel ratio are supplied by the parameterized format_id. The image asset's intrinsic dimensions MUST equal logical dimensions multiplied by pixel_ratio (which defaults to 1 when omitted)."
     },
     "unit": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/dimension-unit.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/dimension-unit.json",
       "description": "Unit of measurement for width/height values. Defaults to 'px' when absent. Print formats use 'inches' or 'cm'."
     },
     "aspect_ratio": {

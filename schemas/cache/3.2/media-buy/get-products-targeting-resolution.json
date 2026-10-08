@@ -5,11 +5,11 @@
   "type": "object",
   "properties": {
     "brief_targeting": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/targeting.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/targeting.json",
       "description": "Structured delivery constraints the seller resolved from explicit hard targeting in the brief. This is the seller's literal interpretation, not a counteroffer: products that cannot honor it are omitted. Sellers MUST emit this confirmation when the interpretation materially affects product eligibility, pricing, or forecasting; otherwise it is a best practice. Unchanged structured targeting_overlay values are not repeated."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

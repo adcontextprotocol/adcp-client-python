@@ -21,7 +21,7 @@
           "description": "Parsed HTTPS origin only. The seller MUST strip userinfo, path, query, and fragment and MUST NOT echo the raw candidate URL."
         },
         "accepted_governance_agents": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/governance/accepted-governance-agents.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/governance/accepted-governance-agents.json"
         }
       },
       "required": [

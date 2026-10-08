@@ -16,7 +16,7 @@
     "results": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/creative/creative-feature-result.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/creative/creative-feature-result.json"
       }
     },
     "pricing_option_id": {
@@ -32,7 +32,7 @@
       "pattern": "^[A-Z]{3}$"
     },
     "consumption": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-consumption.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-consumption.json"
     }
   },
   "required": [

@@ -14,7 +14,7 @@
       "description": "JavaScript content"
     },
     "module_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/javascript-module-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/javascript-module-type.json",
       "description": "JavaScript module type"
     },
     "accessibility": {
@@ -41,7 +41,7 @@
       }
     },
     "provenance": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
     }
   },

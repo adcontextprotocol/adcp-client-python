@@ -20,10 +20,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "oneOf": [
@@ -33,7 +33,7 @@
       "type": "object",
       "properties": {
         "creative_manifest": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-manifest.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-manifest.json",
           "description": "The generated, transformed, retrieved, or deterministically selected creative manifest. For creative_representation_set input it MUST carry exact representation_selection lineage."
         },
         "build_variant_id": {
@@ -72,7 +72,7 @@
                     "type": "array",
                     "description": "Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats render as multiple pieces.",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/creative/preview-render.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/creative/preview-render.json"
                     },
                     "minItems": 1
                   },
@@ -127,7 +127,7 @@
           ]
         },
         "preview_error": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json",
           "description": "When include_preview was true in the request but preview generation failed. Uses the standard error structure with code, message, and recovery classification. Distinguishes 'agent does not support inline preview' (preview and preview_error both absent) from 'preview generation failed' (preview absent, preview_error present). Omitted when preview succeeded or was not requested."
         },
         "pricing_option_id": {
@@ -146,14 +146,14 @@
           "description": "ISO 4217 currency code for vendor_cost."
         },
         "consumption": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-consumption.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-consumption.json",
           "description": "Structured consumption details for this build. Informational \u2014 lets the buyer verify that vendor_cost is consistent with the rate card. vendor_cost is the billing source of truth."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -169,7 +169,7 @@
         "creative_manifests": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-manifest.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-manifest.json"
           },
           "minItems": 1,
           "description": "Array of generated canonical creative manifests, one per requested capability. Each manifest carries format_kind and any applicable format_option_ref."
@@ -198,7 +198,7 @@
                     "description": "Unique identifier for this preview"
                   },
                   "format_id": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json",
                     "deprecated": true,
                     "description": "Deprecated named-format correlation for a legacy target_format_ids request."
                   },
@@ -211,7 +211,7 @@
                     "type": "array",
                     "description": "Array of rendered pieces for this format's preview. Most formats render as a single piece. Companion ad formats render as multiple pieces.",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/creative/preview-render.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/creative/preview-render.json"
                     },
                     "minItems": 1
                   },
@@ -278,7 +278,7 @@
           ]
         },
         "preview_error": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json",
           "description": "When include_preview was true in the request but preview generation failed. Uses the standard error structure with code, message, and recovery classification. Omitted when preview succeeded or was not requested."
         },
         "pricing_option_id": {
@@ -297,14 +297,14 @@
           "description": "ISO 4217 currency code for vendor_cost."
         },
         "consumption": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-consumption.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-consumption.json",
           "description": "Structured consumption details for this build. Informational \u2014 lets the buyer verify that vendor_cost is consistent with the rate card."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -346,7 +346,7 @@
                 "additionalProperties": true
               },
               "signal_condition": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-targeting.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-targeting.json",
                 "x-status": "experimental",
                 "description": "When this creative group was produced by fanning out over signal_conditions, the SignalTargeting condition this group is FOR (e.g. weather=rain). Sibling to catalog_item_ref. Carries the SAME signal_ref identity the sales-side package targeting uses, so a sales agent can structurally match condition identity and reject-at-trafficking (SIGNAL_TARGETING_INCOMPATIBLE) when a creative is assigned to an incompatible package."
               },
@@ -371,7 +371,7 @@
                       "description": "When this variant was produced by refining a prior build (request `refine_from_build_variant_id`), the source leaf's `build_variant_id` \u2014 establishing refinement lineage (a leaf may itself be refined, forming a chain). Absent for first-generation builds. AI-derivative attribution rides the manifest's existing `provenance`; this field carries only the lineage edge."
                     },
                     "creative_manifest": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-manifest.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-manifest.json",
                       "description": "The generated creative for this variant. Carries its own format_id."
                     },
                     "variant_axis_value": {
@@ -395,7 +395,7 @@
                           "type": "array",
                           "description": "Creative-feature values the evaluator measured for this leaf \u2014 `creative-feature-result[]` (e.g., a `creative_quality_score` number, an `on_brief` categorical, a calibrated `predicted_performance` in [0,1] from the exemplars form). The gate (evaluator.feature_requirement[]) and ranking (evaluator.rank_by) are evaluated over these values. Same shape get_creative_features returns.",
                           "items": {
-                            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/creative/creative-feature-result.json"
+                            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/creative/creative-feature-result.json"
                           }
                         },
                         "ranked_against": {
@@ -414,7 +414,7 @@
                           "description": "Wall-clock seconds consumed during evaluation. Sellers SHOULD populate when agent_url was used and an eval_budget was supplied, giving buyers visibility into external call usage. No billing coupling in v1."
                         },
                         "ext": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
                         }
                       },
                       "additionalProperties": true
@@ -435,7 +435,7 @@
                       "description": "ISO 4217 currency code for vendor_cost. Co-required with vendor_cost."
                     },
                     "consumption": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-consumption.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-consumption.json",
                       "description": "Structured consumption for this variant leaf. Informational; vendor_cost is the billing source of truth."
                     }
                   },
@@ -463,7 +463,7 @@
                 "type": "array",
                 "description": "Per-creative errors when this catalog item failed to build. Present only on failed items; does not fail the batch (per-item non-atomic). A failed entry carries errors[] and no variants[]; a successful entry carries variants[] and SHOULD NOT carry errors.",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
                 },
                 "minItems": 1
               }
@@ -524,7 +524,7 @@
           "description": "Echoes the `keep_mode` the agent applied (mirrors the request hint). Present when the request set `keep_mode`. `keep_mode` is advisory \u2014 it does not change what is produced or billed (you pay for every leaf in `variants[]`) \u2014 so this echo is the buyer's confirmation that the hint was received, the audit paper trail for a 'I asked for keep_one but was billed for N' dispute. Whether the agent acted on it shows in the `recommended`/`rank` it set on the leaves."
         },
         "selection_strategy_applied": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-selection-strategy.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-selection-strategy.json",
           "x-status": "experimental",
           "description": "Echoes the selection_strategy the agent applied when max_creatives sampling occurred (mirrors keep_mode_applied). Present when the request set selection_strategy. The ranking itself shows in the rank/recommended on creatives[].variants[]."
         },
@@ -541,7 +541,7 @@
           "type": "array",
           "description": "Advisory (non-terminal) entries on an otherwise-successful build \u2014 e.g. a `BUDGET_CAP_REACHED` notice when `budget_status` is `capped`. Terminal failures use the BuildCreativeError shape, not this field.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
           }
         },
         "sandbox": {
@@ -554,10 +554,10 @@
           "description": "ISO 8601 timestamp when the earliest generated asset URL expires across all variants. Re-build after this time to get fresh URLs."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -686,7 +686,7 @@
                     "minimum": 0
                   },
                   "consumption_estimate": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-consumption.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-consumption.json"
                   }
                 },
                 "additionalProperties": true
@@ -707,10 +707,10 @@
           "description": "ISO 8601 timestamp after which this estimate's inputs/prices may no longer hold."
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -728,15 +728,15 @@
           "type": "array",
           "description": "Array of errors explaining why creative generation failed. For a canonical multi-output request, an output-scoped failure MUST set `error.field` to `target_capability_ids[N]` and SHOULD include the rejected value in `error.details.capability_id`. Whole-batch failures may omit output attribution. Deprecated target_format_ids requests retain legacy attribution during the 3.x compatibility window.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -802,14 +802,14 @@
           "type": "array",
           "description": "Optional advisory errors accompanying the submitted envelope. Use only for non-blocking warnings (e.g., throttled_severity advisories, governance observations). Terminal failures belong in the error branch, not here.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
           }
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [

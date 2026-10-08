@@ -96,7 +96,7 @@
           "type": "array",
           "description": "Array of all properties covered by this adagents.json file. Defines the canonical property list that authorized agents reference.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property.json"
           },
           "minItems": 1
         },
@@ -138,14 +138,14 @@
           "type": "array",
           "description": "Collections produced or distributed by this publisher. Declares the content programs whose inventory is sold through authorized agents. Products in get_products responses reference these collections by collection_id.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/collection.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/collection.json"
           }
         },
         "placements": {
           "type": "array",
           "description": "Canonical placement definitions for properties in this file. Products SHOULD reuse these placement_id values when exposing inventory in get_products, and authorized agents can scope authorization to these placement IDs.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/placement-definition.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/placement-definition.json"
           },
           "minItems": 1
         },
@@ -155,7 +155,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-format-declaration.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-format-declaration.json"
               },
               {
                 "type": "object",
@@ -164,7 +164,7 @@
                     "type": "array",
                     "description": "Optional property IDs from this file's `properties[]` that this format declaration applies to. When omitted, the declaration applies to all properties in the file. Mutually compatible with `applies_to_property_tags` (union is the effective scope). Example: Meta declares Reels with `applies_to_property_ids: [\"instagram\", \"facebook\"]` because WhatsApp doesn't carry Reels inventory.",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-id.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-id.json"
                     },
                     "minItems": 1
                   },
@@ -172,12 +172,12 @@
                     "type": "array",
                     "description": "Optional property tags from this file's `tags` map that this format declaration applies to. When omitted, the declaration applies to all properties in the file. Useful for network-wide formats (e.g., a managed network declaring `applies_to_property_tags: [\"premium_video\"]`). Compatible with `applies_to_property_ids` \u2014 a property is in scope if it matches either ID list or tag list.",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-tag.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-tag.json"
                     },
                     "minItems": 1
                   },
                   "reference_renderer": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reference-renderer.json",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reference-renderer.json",
                     "description": "Optional only for an AgenticAdvertising.org community-registry format entry fetched from the configured registry origin. Points to a pinned browser-ESM OSS renderer package export that provides a non-authoritative reference presentation. Registry review and contract fixtures bind the named export to the enclosing format's input contract (its canonical format kind, manifest shape, constraints, and declared macros); renderer package versions and format revisions have independent lifecycles. Display metadata and property scope do not affect that compatibility binding. Non-JavaScript clients use hosted preview_creative or display the manifest. Publisher-origin catalogs and seller product declarations do not use this field: publishers describe placement-specific chrome with placements[].presentation_ref and grant route-specific preview authority with placements[].preview_provider."
                   },
                   "format_revision": {
@@ -275,7 +275,7 @@
                     "type": "array",
                     "description": "Property IDs this agent is authorized for. Resolved against the top-level properties array in this file",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-id.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-id.json"
                     },
                     "minItems": 1
                   },
@@ -283,7 +283,7 @@
                     "type": "array",
                     "description": "Optional collection constraints. When present, authorization only applies to inventory associated with these collections. A selector without collection_ids grants for all collections declared in that selector's publisher_domain adagents.json (the bulk-grant form for owner-sold carriage).",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/collection-selector.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/collection-selector.json"
                     },
                     "minItems": 1
                   },
@@ -345,7 +345,7 @@
                 "additionalProperties": true,
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/authorized-agent-base.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/authorized-agent-base.json"
                   }
                 ]
               },
@@ -361,7 +361,7 @@
                     "type": "array",
                     "description": "Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-tag.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-tag.json"
                     },
                     "minItems": 1
                   },
@@ -369,7 +369,7 @@
                     "type": "array",
                     "description": "Optional collection constraints. When present, authorization only applies to inventory associated with these collections. A selector without collection_ids grants for all collections declared in that selector's publisher_domain adagents.json (the bulk-grant form for owner-sold carriage).",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/collection-selector.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/collection-selector.json"
                     },
                     "minItems": 1
                   },
@@ -431,7 +431,7 @@
                 "additionalProperties": true,
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/authorized-agent-base.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/authorized-agent-base.json"
                   }
                 ]
               },
@@ -447,7 +447,7 @@
                     "type": "array",
                     "description": "Specific properties this agent is authorized for, defined inline on the agent entry (alternative to property_ids/property_tags). Note: this is the companion field for `authorization_type: \"inline_properties\"` \u2014 the field is named `properties`, not `inline_properties`.",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property.json"
                     },
                     "minItems": 1
                   },
@@ -455,7 +455,7 @@
                     "type": "array",
                     "description": "Optional collection constraints. When present, authorization only applies to inventory associated with these collections. A selector without collection_ids grants for all collections declared in that selector's publisher_domain adagents.json (the bulk-grant form for owner-sold carriage).",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/collection-selector.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/collection-selector.json"
                     },
                     "minItems": 1
                   },
@@ -517,7 +517,7 @@
                 "additionalProperties": true,
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/authorized-agent-base.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/authorized-agent-base.json"
                   }
                 ]
               },
@@ -533,7 +533,7 @@
                     "type": "array",
                     "description": "Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/publisher-property-selector.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/publisher-property-selector.json"
                     },
                     "minItems": 1
                   },
@@ -541,7 +541,7 @@
                     "type": "array",
                     "description": "Optional collection constraints. When present, authorization only applies to inventory associated with these collections. A selector without collection_ids grants for all collections declared in that selector's publisher_domain adagents.json (the bulk-grant form for owner-sold carriage).",
                     "items": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/collection-selector.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/collection-selector.json"
                     },
                     "minItems": 1
                   },
@@ -603,7 +603,7 @@
                 "additionalProperties": true,
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/authorized-agent-base.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/authorized-agent-base.json"
                   }
                 ]
               },
@@ -633,7 +633,7 @@
                 "additionalProperties": true,
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/authorized-agent-base.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/authorized-agent-base.json"
                   }
                 ]
               },
@@ -663,7 +663,7 @@
                 "additionalProperties": true,
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/authorized-agent-base.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/authorized-agent-base.json"
                   }
                 ]
               }
@@ -715,7 +715,7 @@
           "type": "array",
           "description": "Signal definitions published by this domain. Each entry defines a signal id within this file's publishing-domain namespace; entries do not include signal_ref objects. Signals Protocol discovery and media-buy product targeting reference these through signal_ref scope 'data_provider', with data_provider_domain set to this file's publishing domain and signal_id set to signals[].id.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-definition.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-definition.json"
           },
           "minItems": 1
         },
@@ -838,12 +838,12 @@
   ],
   "examples": [
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/adagents.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/adagents.json",
       "authoritative_location": "https://cdn.example.com/adagents/v2/adagents.json",
       "last_updated": "2025-01-15T10:00:00Z"
     },
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/adagents.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/adagents.json",
       "properties": [
         {
           "property_id": "example_site",
@@ -924,7 +924,7 @@
       "last_updated": "2025-01-10T12:00:00Z"
     },
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/adagents.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/adagents.json",
       "contact": {
         "name": "Meta Advertising Operations",
         "email": "adops@meta.com",
@@ -1033,7 +1033,7 @@
       "last_updated": "2025-01-10T15:30:00Z"
     },
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/adagents.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/adagents.json",
       "contact": {
         "name": "Tumblr Advertising"
       },
@@ -1072,7 +1072,7 @@
       "last_updated": "2025-01-10T16:00:00Z"
     },
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/adagents.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/adagents.json",
       "contact": {
         "name": "Example Third-Party Sales Agent",
         "email": "sales@agent.example",
@@ -1137,7 +1137,7 @@
       "last_updated": "2025-01-10T17:00:00Z"
     },
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/adagents.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/adagents.json",
       "contact": {
         "name": "Premium News Publisher",
         "email": "adops@news.example.com",
@@ -1212,7 +1212,7 @@
       "last_updated": "2025-01-10T18:00:00Z"
     },
     {
-      "$schema": "https://adcontextprotocol.org/schemas/3.2.1/adagents.json",
+      "$schema": "https://adcontextprotocol.org/schemas/3.2.3/adagents.json",
       "contact": {
         "name": "Polk Automotive Data",
         "email": "partnerships@polk.com",

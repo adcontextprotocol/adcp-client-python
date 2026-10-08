@@ -7,7 +7,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
       "not": {
@@ -52,7 +52,7 @@
       "description": "Optional optimistic-concurrency fence returned by a previous successful sync. When present and stale, the seller rejects the whole request without mutation. Compare only for equality."
     },
     "expected_principal_kind": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/principal-kind.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/principal-kind.json",
       "description": "Optional assertion fence, not identity input: the caller states which party kind it believes it is authenticating as. When present and different from the seller-resolved principal_kind, the seller rejects the whole request with CONFLICT before mutation. The field never influences resolution."
     },
     "configuration": {
@@ -65,7 +65,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/agent-notification-config.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/agent-notification-config.json"
               },
               {
                 "if": {
@@ -91,12 +91,12 @@
           "type": "array",
           "description": "Complete desired reusable reporting destination set. Omitting a previously present destination_id revokes it, and [] revokes every destination: the seller halts new deliveries to all of its generations within the advertised suspension_interval_seconds and retains it as a retired generation for reporting history. Revocation does not delete caller-owned data already delivered. destination_id values MUST be unique.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/agent-reporting-destination.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/agent-reporting-destination.json"
           },
           "maxItems": 64
         },
         "declarations": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/principal-declarations.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/principal-declarations.json",
           "description": "Complete declared consumption facts for this principal record. A present object replaces the declared set wholesale; {} clears it; omission leaves it unchanged. The seller computes and returns the accepted intersection in state."
         }
       },
@@ -109,10 +109,10 @@
       "description": "Validate the proposed replacements and report the would-be action without persisting them, issuing durable identifiers or grants, or sending endpoint proof challenges."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

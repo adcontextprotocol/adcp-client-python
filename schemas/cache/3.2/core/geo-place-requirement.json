@@ -16,7 +16,7 @@
           "additionalProperties": {
             "type": "array",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-place-type.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-place-type.json"
             },
             "minItems": 1,
             "uniqueItems": true
@@ -44,7 +44,7 @@
     "systems": {
       "type": "object",
       "propertyNames": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-place-system.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-place-system.json"
       },
       "additionalProperties": {
         "$ref": "#/definitions/catalogRequirement"

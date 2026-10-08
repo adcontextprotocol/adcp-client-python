@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "role": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/talent-role.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/talent-role.json",
       "description": "Role of this person on the collection or installment"
     },
     "name": {

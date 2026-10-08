@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "properties": {
@@ -157,7 +157,7 @@
       "type": "array",
       "description": "Per-record validation results. By default only includes non_compliant and unknown records. Set include_compliant=true to include all records.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/property/validation-result.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/property/validation-result.json"
       }
     },
     "validated_at": {
@@ -171,10 +171,10 @@
       "description": "Timestamp of the property list resolution used for validation"
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -13,10 +13,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     },
     {
       "if": {
@@ -145,7 +145,7 @@
         "control_totals": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-control-total.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-control-total.json"
           }
         },
         "content_sha256": {
@@ -163,7 +163,7 @@
       "additionalProperties": false
     },
     "reporting_revision": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-revision.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-revision.json",
       "description": "Full immutable revision metadata, identical to the get_reporting_status revision record."
     },
     "reporting_rows": {
@@ -174,7 +174,7 @@
       "description": "One page of authoritative logical rows for an exact reporting_revision_id read. Validate every row against the revision's digest-pinned schema; concatenate pages in cursor order before verifying the binding digest."
     },
     "pagination": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-response.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-response.json",
       "description": "Exact revision pages are frozen for the cursor walk. total_count is mandatory for reporting_revision_id and equals reporting_revision.row_count and reporting_revision_binding.row_count; it counts the complete ordered row sequence, not this page."
     },
     "currency": {
@@ -184,7 +184,7 @@
       "pattern": "^[A-Z]{3}$"
     },
     "attribution_window": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attribution-window.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attribution-window.json",
       "description": "Attribution methodology and lookback windows used for conversion metrics in this response. All media buys from a single seller share the same attribution methodology. Enables cross-platform comparison (e.g., Amazon 14-day click vs. Criteo 30-day click)."
     },
     "aggregated_totals": {
@@ -286,7 +286,7 @@
         "reach_aggregation": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reach-aggregation.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reach-aggregation.json"
             }
           ],
           "description": "How reach was combined across the media buys in this aggregate. When omitted, legacy reach semantics are unknown and consumers MUST NOT use reach as the denominator for frequency."
@@ -294,7 +294,7 @@
         "reach_unit": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reach-unit.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reach-unit.json"
             }
           ],
           "description": "Unit of measurement for reach. Only present when all aggregated media buys use the same reach_unit."
@@ -313,7 +313,7 @@
           "type": "array",
           "description": "Cross-buy delivery aggregates partitioned by qualifier. Row-symmetric with `package.committed_metrics` and `by_package[].missing_metrics` \u2014 same atomic unit `(scope, metric_id, qualifier)` \u2014 so reconciliation collapses to a row-level join on the tuple. Granularity rule: one row per `(metric_id, full-qualifier-set)`, reported at the finest available granularity; buyers re-aggregate up if they want a coarser view. Used only for metrics with non-empty qualifier sets \u2014 unqualified metrics (`impressions`, `spend`, `media_buy_count`, etc.) remain at the top of `aggregated_totals`. **Mutual exclusion MUST**: for any `metric_id` appearing in `metric_aggregates`, the corresponding top-level scalar in `aggregated_totals` MUST be omitted (not zeroed) \u2014 avoids duplicate sources of truth. The qualifier vocabulary on this delivery surface is closed today (`additionalProperties: false`, same content as `committed_metrics.qualifier`) but is expected to **diverge from contract qualifier in future minors** as transparency disclosures buyers don't commit to ship delivery-only (e.g., `tracker_firing` pending #3832 resolution). Each row carries a `value` plus inlined per-metric component fields (e.g., `measurable_impressions` and `viewable_impressions` for `viewable_rate`; `spend` and `conversions` for `cost_per_acquisition`). Per-buy `totals` keeps its flat shape \u2014 each buy is single-qualifier by definition; only the aggregate spans qualifiers. **Qualifier-set drift across reports**: when a campaign gains a new qualifier mid-flight (e.g., adds `tracker_firing` partitioning in week 2), prior periods' rows remain valid at their original granularity; buyers SHOULD NOT retroactively repartition.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metric-aggregate.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metric-aggregate.json"
           },
           "examples": [
             [
@@ -409,7 +409,7 @@
             "description": "ISO 8601 timestamp at which this row became final. Present only when `is_final: true`. Anchors the buyer's reconciliation and (when later defined) dispute-window clocks against the buy's `measurement_terms.billing_measurement`. Computed as the latest `finalized_at` across the row's packages for the reconciliation window."
           },
           "pricing_model": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pricing-model.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pricing-model.json",
             "description": "Pricing model used for this media buy"
           },
           "pacing_index": {
@@ -420,7 +420,7 @@
           "totals": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
               },
               {
                 "type": "object",
@@ -442,7 +442,7 @@
             "items": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
                 },
                 {
                   "type": "object",
@@ -458,7 +458,7 @@
                       "minimum": 0
                     },
                     "pricing_model": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pricing-model.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pricing-model.json",
                       "description": "The pricing model used for this package (e.g., cpm, cpcv, cpp). Indicates how the package is billed and which metrics are most relevant for optimization."
                     },
                     "rate": {
@@ -472,7 +472,7 @@
                       "pattern": "^[A-Z]{3}$"
                     },
                     "delivery_status": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/delivery-status.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/delivery-status.json",
                       "description": "System-reported operational state of this package. Reflects actual delivery state independent of buyer pause control. 'not_delivering' means zero impressions were recorded for the entire reporting_period while the package was in-flight. Sellers SHOULD only report 'not_delivering' once the package's data is_final for the period \u2014 a provisional (is_final: false) zero may still be measurement catching up, not genuine non-delivery."
                     },
                     "paused": {
@@ -511,7 +511,7 @@
                       "type": "array",
                       "description": "Metrics that the binding reporting contract declared but that are NOT populated in this report. Reconciliation source: when `package.committed_metrics` is present, `missing_metrics` is computed against entries where `committed_at < reporting_period.end` \u2014 independent of subsequent product mutations and respecting the commitment timestamp on each entry (a metric committed mid-flight is only flagged missing in reports for periods after its commitment). When `package.committed_metrics` is absent, fall back to the product's current `reporting_capabilities.available_metrics` (no timestamp filter). Empty array (or absent) indicates clean delivery against the contract. Non-empty signals an accountability breach \u2014 the seller committed to the metric but did not produce the value here. Sellers MUST exclude metrics that are not yet measurable for the current `measurement_window` (e.g., post-IVT counts during the live window) \u2014 those will appear (or not) when a wider window supersedes this report via `supersedes_window`. Each entry uses an explicit `scope` discriminator: `standard` for entries from the closed `available-metric.json` enum, `vendor` for vendor-defined metrics anchored on a BrandRef. Symmetric with `committed_metrics`. When the request narrowed the payload via requested_metrics, sellers MUST NOT list a committed metric here solely because the buyer excluded it \u2014 missing_metrics reports delivery gaps, not request narrowing.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/missing-metric.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/missing-metric.json"
                       },
                       "examples": [
                         [],
@@ -540,14 +540,14 @@
                       "type": "array",
                       "description": "Qualified standard delivery values for this package. Each entry is the delivered counterpart to a standard-scope package.committed_metrics or by_package[].missing_metrics row, using the same atomic key (scope, metric_id, qualifier). Sellers report one row per full qualifier set at package grain; when a metric appears here, its flat scalar counterpart on the package MUST be omitted to avoid two sources of truth. Vendor-scope values continue to use vendor_metric_values. Buyers reconcile rows directly and perform any compatible cross-package aggregation themselves.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/package-delivery-metric-value.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/package-delivery-metric-value.json"
                       }
                     },
                     "by_catalog_item": {
                       "type": "array",
                       "description": "Delivery by catalog item within this package. Available for catalog-driven packages when the seller supports item-level reporting.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/catalog-item-delivery-metrics.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/catalog-item-delivery-metrics.json"
                       }
                     },
                     "by_catalog_item_truncated": {
@@ -555,18 +555,18 @@
                       "description": "Whether by_catalog_item was truncated due to the requested limit or a seller-imposed maximum. Sellers MUST return this flag whenever by_catalog_item is present and the request included reporting_dimensions.catalog_item (false means the list is complete). When the breakdown was returned automatically without a request key, the flag is RECOMMENDED but not required \u2014 automatic rows carry no completeness contract."
                     },
                     "by_catalog_item_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_catalog_item rows. Sellers MUST return this field whenever by_catalog_item is present and the request included reporting_dimensions.catalog_item. When the seller cannot sort by the requested sort_by metric it falls back to 'spend'; this echo makes the fallback visible instead of silently returning rows the buyer will misread as ordered by the requested metric. When the breakdown was returned automatically without a request key, the field is RECOMMENDED but not required \u2014 automatic rows carry no completeness contract."
                     },
                     "by_catalog_item_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_catalog_item ordering. Sellers MUST return this field whenever by_catalog_item is present and the request included reporting_dimensions.catalog_item, alongside by_catalog_item_sorted_by. When the breakdown was returned automatically without a request key, the field is RECOMMENDED but not required \u2014 automatic rows carry no completeness contract."
                     },
                     "by_creative": {
                       "type": "array",
                       "description": "Metrics broken down by creative within this package. Available when the seller supports creative-level reporting.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-delivery-metrics.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-delivery-metrics.json"
                       }
                     },
                     "by_format": {
@@ -575,13 +575,13 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+                            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
                           },
                           {
                             "type": "object",
                             "properties": {
                               "format_kind": {
-                                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-kind.json",
+                                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-kind.json",
                                 "description": "Canonical creative format kind aggregated by this row. This identifies creative shape, not duration or other format-option parameters."
                               }
                             },
@@ -599,11 +599,11 @@
                       "description": "Whether by_format was truncated due to the requested limit or a seller-imposed maximum. Sellers MUST return this flag whenever by_format is present (false means the list is complete)."
                     },
                     "by_format_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_format rows. Sellers MUST return this field whenever by_format is present. When the seller cannot sort by the requested sort_by metric it falls back to 'spend'; this echo makes the fallback visible instead of silently returning rows the buyer will misread as ordered by the requested metric."
                     },
                     "by_format_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_format ordering. Sellers MUST return this field whenever by_format is present."
                     },
                     "by_creative_truncated": {
@@ -611,18 +611,18 @@
                       "description": "Whether by_creative was truncated due to the requested limit or a seller-imposed maximum. Sellers MUST return this flag whenever by_creative is present and the request included reporting_dimensions.creative (false means the list is complete). When the breakdown was returned automatically without a request key, the flag is RECOMMENDED but not required \u2014 automatic rows carry no completeness contract."
                     },
                     "by_creative_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_creative rows. Sellers MUST return this field whenever by_creative is present and the request included reporting_dimensions.creative. When the seller cannot sort by the requested sort_by metric it falls back to 'spend'; this echo makes the fallback visible instead of silently returning rows the buyer will misread as ordered by the requested metric. When the breakdown was returned automatically without a request key, the field is RECOMMENDED but not required \u2014 automatic rows carry no completeness contract."
                     },
                     "by_creative_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_creative ordering. Sellers MUST return this field whenever by_creative is present and the request included reporting_dimensions.creative, alongside by_creative_sorted_by. When the breakdown was returned automatically without a request key, the field is RECOMMENDED but not required \u2014 automatic rows carry no completeness contract."
                     },
                     "by_keyword": {
                       "type": "array",
                       "description": "Metrics broken down by keyword within this package. One row per (keyword, match_type) pair \u2014 the same keyword with different match types appears as separate rows. Keyword-grain only: rows reflect aggregate performance of each targeted keyword, not individual search queries. Rows may not sum to package totals when a single impression is attributed to the triggering keyword only. Available for search and retail media packages when the seller supports keyword-level reporting.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/keyword-delivery-metrics.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/keyword-delivery-metrics.json"
                       }
                     },
                     "by_keyword_truncated": {
@@ -630,18 +630,18 @@
                       "description": "Whether by_keyword was truncated due to the requested limit or a seller-imposed maximum. Sellers MUST return this flag whenever by_keyword is present and the request included reporting_dimensions.keyword (false means the list is complete). When the breakdown was returned automatically without a request key, the flag is RECOMMENDED but not required \u2014 automatic rows carry no completeness contract."
                     },
                     "by_keyword_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_keyword rows. Sellers MUST return this field whenever by_keyword is present and the request included reporting_dimensions.keyword. When the seller cannot sort by the requested sort_by metric it falls back to 'spend'; this echo makes the fallback visible instead of silently returning rows the buyer will misread as ordered by the requested metric. When the breakdown was returned automatically without a request key, the field is RECOMMENDED but not required \u2014 automatic rows carry no completeness contract."
                     },
                     "by_keyword_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_keyword ordering. Sellers MUST return this field whenever by_keyword is present and the request included reporting_dimensions.keyword, alongside by_keyword_sorted_by. When the breakdown was returned automatically without a request key, the field is RECOMMENDED but not required \u2014 automatic rows carry no completeness contract."
                     },
                     "by_geo": {
                       "type": "array",
                       "description": "Delivery by geographic area within this package. Available when the buyer requests geo breakdown via reporting_dimensions and the seller supports it. Each dimension's rows are independent slices that should sum to the package total.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-delivery-metrics.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-delivery-metrics.json"
                       }
                     },
                     "by_geo_truncated": {
@@ -649,11 +649,11 @@
                       "description": "Whether by_geo was truncated due to the requested limit or a seller-imposed maximum. Sellers MUST return this flag whenever by_geo is present (false means the list is complete)."
                     },
                     "by_geo_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_geo rows. Sellers MUST return this field whenever by_geo is present. When the seller cannot sort by the requested sort_by metric it falls back to 'spend'; this echo makes the fallback visible instead of silently returning rows the buyer will misread as ordered by the requested metric."
                     },
                     "by_geo_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_geo ordering. Sellers MUST return this field whenever by_geo is present."
                     },
                     "by_device_type": {
@@ -662,13 +662,13 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+                            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
                           },
                           {
                             "type": "object",
                             "properties": {
                               "device_type": {
-                                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/device-type.json",
+                                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/device-type.json",
                                 "description": "Device form factor (desktop, mobile, tablet, ctv, dooh, unknown)"
                               }
                             },
@@ -686,15 +686,15 @@
                       "description": "Whether by_device_type was truncated. Sellers MUST return this flag whenever by_device_type is present (false means the list is complete)."
                     },
                     "by_device_type_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_device_type rows. Sellers MUST return this field whenever by_device_type is present. When the seller cannot sort by the requested sort_by metric it falls back to 'spend'; this echo makes the fallback visible instead of silently returning rows the buyer will misread as ordered by the requested metric."
                     },
                     "by_device_type_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_device_type ordering. Sellers MUST return this field whenever by_device_type is present."
                     },
                     "by_device_type_pagination": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-response.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-response.json",
                       "description": "Cursor to retrieve the remaining by_device_type rows when by_device_type_truncated is true. Sellers MUST return this field whenever by_device_type_truncated is true; omit when false or when by_device_type is absent. Pass the cursor back in the corresponding request's reporting_dimensions.device_type.cursor to fetch the next page; other reporting_dimensions.device_type request fields (limit, sort_by, sort_direction) MUST be repeated unchanged across paged requests."
                     },
                     "by_device_platform": {
@@ -703,13 +703,13 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+                            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
                           },
                           {
                             "type": "object",
                             "properties": {
                               "device_platform": {
-                                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/device-platform.json",
+                                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/device-platform.json",
                                 "description": "Operating system platform"
                               }
                             },
@@ -727,15 +727,15 @@
                       "description": "Whether by_device_platform was truncated. Sellers MUST return this flag whenever by_device_platform is present (false means the list is complete)."
                     },
                     "by_device_platform_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_device_platform rows. Sellers MUST return this field whenever by_device_platform is present. When the seller cannot sort by the requested sort_by metric it falls back to 'spend'; this echo makes the fallback visible instead of silently returning rows the buyer will misread as ordered by the requested metric."
                     },
                     "by_device_platform_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_device_platform ordering. Sellers MUST return this field whenever by_device_platform is present."
                     },
                     "by_device_platform_pagination": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-response.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-response.json",
                       "description": "Cursor to retrieve the remaining by_device_platform rows when by_device_platform_truncated is true. Sellers MUST return this field whenever by_device_platform_truncated is true; omit when false or when by_device_platform is absent. Pass the cursor back in the corresponding request's reporting_dimensions.device_platform.cursor to fetch the next page; other reporting_dimensions.device_platform request fields (limit, sort_by, sort_direction) MUST be repeated unchanged across paged requests."
                     },
                     "by_audience": {
@@ -744,7 +744,7 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+                            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
                           },
                           {
                             "type": "object",
@@ -755,7 +755,7 @@
                                 "x-entity": "audience"
                               },
                               "audience_source": {
-                                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audience-source.json",
+                                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audience-source.json",
                                 "description": "Origin of the audience segment (synced, platform, third_party, lookalike, retargeting, unknown)"
                               },
                               "audience_name": {
@@ -778,15 +778,15 @@
                       "description": "Whether by_audience was truncated. Sellers MUST return this flag whenever by_audience is present (false means the list is complete)."
                     },
                     "by_audience_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_audience rows. Sellers MUST return this field whenever by_audience is present. When the seller cannot sort by the requested sort_by metric it falls back to 'spend'; this echo makes the fallback visible instead of silently returning rows the buyer will misread as ordered by the requested metric."
                     },
                     "by_audience_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_audience ordering. Sellers MUST return this field whenever by_audience is present."
                     },
                     "by_audience_pagination": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-response.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-response.json",
                       "description": "Cursor to retrieve the remaining by_audience rows when by_audience_truncated is true. Sellers MUST return this field whenever by_audience_truncated is true; omit when false or when by_audience is absent. Pass the cursor back in the corresponding request's reporting_dimensions.audience.cursor to fetch the next page; other reporting_dimensions.audience request fields (limit, sort_by, sort_direction) MUST be repeated unchanged across paged requests."
                     },
                     "by_demographic": {
@@ -795,7 +795,7 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+                            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
                           },
                           {
                             "type": "object",
@@ -807,11 +807,11 @@
                                 "description": "Demographic code in the declared system's notation (for example, P25-54 for Nielsen)."
                               },
                               "demographic_system": {
-                                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/demographic-system.json",
+                                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/demographic-system.json",
                                 "description": "Measurement system that defines the demographic code."
                               },
                               "age": {
-                                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/demographic-age-range.json",
+                                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/demographic-age-range.json",
                                 "description": "Canonical age interval represented by this row. Required by protocol semantics for age ranges requested through reporting_dimensions.demographic.age_ranges and for intervals declared in the product's demographic reporting capability."
                               }
                             },
@@ -830,11 +830,11 @@
                       "description": "Whether non-suppressed by_demographic rows were truncated due to the requested limit or a seller-imposed maximum. Sellers MUST return this flag whenever by_demographic is present. False means every non-suppressed row is present; inspect by_demographic_suppressed separately before reconciling rows to package totals."
                     },
                     "by_demographic_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_demographic rows. Sellers MUST return this field whenever by_demographic is present. When the seller cannot sort by the requested sort_by metric it falls back to 'spend'; this echo makes the fallback visible instead of silently returning rows the buyer will misread as ordered by the requested metric."
                     },
                     "by_demographic_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_demographic ordering. Sellers MUST return this field whenever by_demographic is present."
                     },
                     "by_demographic_suppressed": {
@@ -845,7 +845,7 @@
                       "type": "array",
                       "description": "Delivery by placement within this package. placement_id remains required for 3.1 compatibility. New 3.2 sellers also emit placement_identity, whose discriminator separates publisher-catalog identity from sales-agent-defined inline identity.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/placement-delivery-metrics.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/placement-delivery-metrics.json"
                       }
                     },
                     "by_placement_truncated": {
@@ -853,22 +853,22 @@
                       "description": "Whether by_placement was truncated. Sellers MUST return this flag whenever by_placement is present (false means the list is complete)."
                     },
                     "by_placement_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_placement rows. Sellers MUST return this field whenever by_placement is present. When the seller cannot sort by the requested sort_by metric it falls back to 'spend'; this echo makes the fallback visible instead of silently returning rows the buyer will misread as ordered by the requested metric."
                     },
                     "by_placement_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_placement ordering. Sellers MUST return this field whenever by_placement is present."
                     },
                     "by_placement_pagination": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-response.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-response.json",
                       "description": "Cursor to retrieve the remaining by_placement rows when by_placement_truncated is true. Sellers MUST return this field whenever by_placement_truncated is true; omit when false or when by_placement is absent. Pass the cursor back in the corresponding request's reporting_dimensions.placement.cursor to fetch the next page; other reporting_dimensions.placement request fields (limit, sort_by, sort_direction) MUST be repeated unchanged across paged requests."
                     },
                     "by_property": {
                       "type": "array",
                       "description": "Delivery by publisher property within this package. Each row identifies the actual surface with an operational identifier and adds property_ref when it resolves to a canonical publisher catalog entry. Rows are independent of by_collection.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-delivery-metrics.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-delivery-metrics.json"
                       }
                     },
                     "by_property_truncated": {
@@ -880,18 +880,18 @@
                       "description": "Whether one or more otherwise reportable by_property rows were omitted from this response due to privacy, policy, or measurement thresholds. Sellers MUST return this flag whenever by_property is present. False means no rows were threshold-suppressed. Both suppression and truncation may be true."
                     },
                     "by_property_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_property rows. Sellers MUST return this field whenever by_property is present."
                     },
                     "by_property_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_property rows. Sellers MUST return this field whenever by_property is present."
                     },
                     "by_collection": {
                       "type": "array",
                       "description": "Delivery by publisher-scoped collection within this package. This is a marginal breakdown and does not by itself prove which property carried a collection.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/collection-delivery-metrics.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/collection-delivery-metrics.json"
                       }
                     },
                     "by_collection_truncated": {
@@ -899,18 +899,18 @@
                       "description": "Whether by_collection was truncated. Sellers MUST return this flag whenever by_collection is present."
                     },
                     "by_collection_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_collection rows. Sellers MUST return this field whenever by_collection is present."
                     },
                     "by_collection_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_collection rows. Sellers MUST return this field whenever by_collection is present."
                     },
                     "by_installment": {
                       "type": "array",
                       "description": "Delivery by canonically identified installment within this package.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/installment-delivery-metrics.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/installment-delivery-metrics.json"
                       }
                     },
                     "by_installment_truncated": {
@@ -918,18 +918,18 @@
                       "description": "Whether by_installment was truncated. Sellers MUST return this flag whenever by_installment is present."
                     },
                     "by_installment_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_installment rows. Sellers MUST return this field whenever by_installment is present."
                     },
                     "by_installment_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_installment rows. Sellers MUST return this field whenever by_installment is present."
                     },
                     "by_collection_property": {
                       "type": "array",
                       "description": "Delivery at the collection \u00d7 property intersection. A row is affirmative delivery evidence that the referenced collection ran on the referenced property; it is not merely a carriage or catalog assertion.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/collection-property-delivery-metrics.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/collection-property-delivery-metrics.json"
                       }
                     },
                     "by_collection_property_truncated": {
@@ -941,18 +941,18 @@
                       "description": "Whether one or more otherwise reportable by_collection_property rows were omitted from this response due to privacy, policy, or measurement thresholds. Sellers MUST return this flag whenever by_collection_property is present. False means no rows were threshold-suppressed. Both suppression and truncation may be true."
                     },
                     "by_collection_property_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_collection_property rows. Sellers MUST return this field whenever by_collection_property is present."
                     },
                     "by_collection_property_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_collection_property rows. Sellers MUST return this field whenever by_collection_property is present."
                     },
                     "by_installment_property": {
                       "type": "array",
                       "description": "Delivery at the installment \u00d7 property intersection. A row is affirmative delivery evidence that the referenced airing, episode, issue, or programming block ran on the referenced property; it is not inferred from collection carriage or independent marginals.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/installment-property-delivery-metrics.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/installment-property-delivery-metrics.json"
                       }
                     },
                     "by_installment_property_truncated": {
@@ -964,18 +964,18 @@
                       "description": "Whether one or more otherwise reportable by_installment_property rows were omitted from this response due to privacy, policy, or measurement thresholds. Sellers MUST return this flag whenever by_installment_property is present. False means no rows were threshold-suppressed. Both suppression and truncation may be true."
                     },
                     "by_installment_property_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_installment_property rows. Sellers MUST return this field whenever by_installment_property is present."
                     },
                     "by_installment_property_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_installment_property rows. Sellers MUST return this field whenever by_installment_property is present."
                     },
                     "by_placement_property": {
                       "type": "array",
                       "description": "Delivery at the placement \u00d7 property intersection. This proves which actual property carried a placement that may span more than one property.",
                       "items": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/placement-property-delivery-metrics.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/placement-property-delivery-metrics.json"
                       }
                     },
                     "by_placement_property_truncated": {
@@ -987,11 +987,11 @@
                       "description": "Whether one or more otherwise reportable by_placement_property rows were omitted from this response due to privacy, policy, or measurement thresholds. Sellers MUST return this flag whenever by_placement_property is present. False means no rows were threshold-suppressed. Both suppression and truncation may be true."
                     },
                     "by_placement_property_sorted_by": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-metric.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-metric.json",
                       "description": "The metric actually used to order by_placement_property rows. Sellers MUST return this field whenever by_placement_property is present."
                     },
                     "by_placement_property_sort_direction": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sort-direction.json",
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sort-direction.json",
                       "description": "The direction actually applied to by_placement_property rows. Sellers MUST return this field whenever by_placement_property is present."
                     },
                     "by_spot": {
@@ -1000,7 +1000,7 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+                            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
                           },
                           {
                             "type": "object",
@@ -1137,7 +1137,7 @@
                 "totals": {
                   "allOf": [
                     {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
                     }
                   ],
                   "description": "Aggregate metrics for this window slice across all packages. Shape-aligned with reporting_webhook fire payloads at the same granularity."
@@ -1148,7 +1148,7 @@
                   "items": {
                     "allOf": [
                       {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json"
                       },
                       {
                         "type": "object",
@@ -1276,7 +1276,7 @@
       "type": "array",
       "description": "Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       }
     },
     "sandbox": {
@@ -1284,10 +1284,10 @@
       "description": "When true, this response contains simulated data from sandbox mode."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -11,7 +11,7 @@
         "type": "object",
         "properties": {
           "type": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/uid-type.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/uid-type.json",
             "description": "Universal ID type"
           },
           "value": {
@@ -54,7 +54,7 @@
       "description": "Client user agent string for probabilistic matching"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "anyOf": [

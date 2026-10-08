@@ -13,11 +13,11 @@
           "description": "Discriminator for signal-based selectors"
         },
         "signal_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json",
           "description": "The signal to target. New selectors SHOULD use signal_ref."
         },
         "signal_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-id.json",
           "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
           "deprecated": true
         },
@@ -60,11 +60,11 @@
           "description": "Discriminator for signal-based selectors"
         },
         "signal_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json",
           "description": "The signal to target. New selectors SHOULD use signal_ref."
         },
         "signal_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-id.json",
           "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
           "deprecated": true
         },
@@ -111,11 +111,11 @@
           "description": "Discriminator for signal-based selectors"
         },
         "signal_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json",
           "description": "The signal to target. New selectors SHOULD use signal_ref."
         },
         "signal_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-id.json",
           "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
           "deprecated": true
         },

@@ -108,7 +108,7 @@
             "schemes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/decline-proposals-request.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/decline-proposals-request.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -147,7 +147,7 @@
           "x-entity": "proposal"
         },
         "reason": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/decline-proposals-request.json#/$defs/external:enums~1proposal-decline-reason.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/decline-proposals-request.json#/$defs/external:enums~1proposal-decline-reason.json"
         },
         "detail": {
           "type": "string",
@@ -223,7 +223,7 @@
           ]
         },
         "planning_horizon": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/profiles/media-buy/media-buy/decline-proposals-request.json#/$defs/external:core~1date-range.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/profiles/media-buy/media-buy/decline-proposals-request.json#/$defs/external:core~1date-range.json"
         },
         "response_deadline": {
           "type": "string",

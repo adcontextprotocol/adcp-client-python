@@ -12,7 +12,7 @@
       "description": "Immutable proposal ID returned by request_proposals or refine_proposals."
     },
     "reason": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/proposal-decline-reason.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/proposal-decline-reason.json"
     },
     "detail": {
       "type": "string",

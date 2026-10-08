@@ -5,15 +5,15 @@
   "type": "object",
   "properties": {
     "vendor": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
       "description": "Vendor that defines and forecasts this metric. Matches a reporting_capabilities.vendor_metrics declaration on the product."
     },
     "metric_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-id.json",
       "description": "Identifier for the metric within the vendor's vocabulary. Matches a vendor_metrics[].metric_id declaration on the product."
     },
     "value": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-range.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-range.json",
       "description": "Forecasted vendor metric value. Unit semantics are vendor-defined; see unit and the vendor's measurement-agent metric definition."
     },
     "unit": {
@@ -30,15 +30,15 @@
       ]
     },
     "measurable_impressions": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-range.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-range.json",
       "description": "Forecasted number of impressions the vendor expects to be able to measure. Coverage denominator for the vendor metric; buyers compute estimated coverage as measurable_impressions / impressions when both are present. For play-based channels (DOOH, cinema, place-based) forecast measurable_plays or measurable_play_seconds instead."
     },
     "measurable_plays": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-range.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-range.json",
       "description": "Forecasted number of plays the vendor expects to be able to measure. Coverage denominator for channels where a play, not an impression, is the atomic observation unit; buyers compute estimated coverage as measurable_plays / plays when both are present."
     },
     "measurable_play_seconds": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-range.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-range.json",
       "description": "Forecasted play-seconds (creative playout seconds summed across endpoints \u2014 screens, speakers, players) the vendor expects to be able to measure. Coverage denominator when the vendor meters exposure duration rather than discrete plays."
     },
     "breakdown": {

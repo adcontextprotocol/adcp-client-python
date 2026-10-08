@@ -5,10 +5,10 @@
   "type": "object",
   "properties": {
     "delivery_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/delivery-type.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/delivery-type.json"
     },
     "exclusivity": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/exclusivity.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/exclusivity.json"
     },
     "is_fixed_price": {
       "type": "boolean",
@@ -17,7 +17,7 @@
     "pricing_structures": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pricing-structure.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pricing-structure.json"
       },
       "minItems": 1,
       "uniqueItems": true,
@@ -36,7 +36,7 @@
     "format_kinds": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-kind.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-kind.json"
       },
       "minItems": 1,
       "uniqueItems": true,
@@ -45,7 +45,7 @@
     "format_option_refs": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-option-ref.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-option-ref.json"
       },
       "minItems": 1,
       "uniqueItems": true,
@@ -90,7 +90,7 @@
       "additionalProperties": false
     },
     "budget_range": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/budget-range.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/budget-range.json"
     },
     "countries": {
       "type": "array",
@@ -117,7 +117,7 @@
         "type": "object",
         "properties": {
           "system": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/metro-system.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/metro-system.json",
             "description": "Metro classification system"
           },
           "code": {
@@ -137,29 +137,29 @@
       "type": "array",
       "description": "Inventory coverage in the specified postal areas: OR within this field, AND across offer filters. Does not add delivery targeting, require targeting support, or rescope pricing or forecasts.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/postal-area.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/postal-area.json"
       },
       "minItems": 1
     },
     "geo_proximity": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/targeting.json#/properties/geo_proximity",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/targeting.json#/properties/geo_proximity",
       "description": "Inventory coverage in the specified proximity boundaries: OR within this field, AND across offer filters. Does not add delivery targeting, require targeting support, or rescope pricing or forecasts."
     },
     "property_list": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-list-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-list-ref.json",
       "description": "Reference to an externally managed property list. When provided, the seller filters products to only those available on properties in the list. This narrows which publisher inventory is returned; it is a product attribute filter, not a delivery-targeting instruction."
     },
     "channels": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/channels.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/channels.json"
       },
       "minItems": 1
     },
     "video_placement_types": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/video-placement-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/video-placement-type.json"
       },
       "minItems": 1,
       "uniqueItems": true,
@@ -168,7 +168,7 @@
     "audio_distribution_types": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/audio-distribution-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/audio-distribution-type.json"
       },
       "minItems": 1,
       "uniqueItems": true,
@@ -177,7 +177,7 @@
     "sponsored_placement_types": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/sponsored-placement-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/sponsored-placement-type.json"
       },
       "minItems": 1,
       "uniqueItems": true,
@@ -186,7 +186,7 @@
     "social_placement_surfaces": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/social-placement-surface.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/social-placement-surface.json"
       },
       "minItems": 1,
       "uniqueItems": true,
@@ -221,7 +221,7 @@
         "response_types": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/response-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/response-type.json"
           },
           "minItems": 1
         }
@@ -231,7 +231,7 @@
     "required_features": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-media-buy-features.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-media-buy-features.json"
         }
       ],
       "description": "Canonical protocol features the seller must support.",
@@ -243,7 +243,7 @@
         "type": "object",
         "properties": {
           "metric": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/performance-standard-metric.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/performance-standard-metric.json"
           },
           "threshold": {
             "type": "number",
@@ -251,10 +251,10 @@
             "maximum": 1
           },
           "standard": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/viewability-standard.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/viewability-standard.json"
           },
           "vendor": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json"
           }
         },
         "required": [
@@ -269,7 +269,7 @@
     "required_metrics": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/available-metric.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/available-metric.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -280,10 +280,10 @@
         "type": "object",
         "properties": {
           "vendor": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json"
           },
           "metric_id": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-id.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-id.json"
           }
         },
         "anyOf": [
@@ -303,10 +303,10 @@
       "minItems": 1
     },
     "audience_evidence_requirements": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-audience-evidence-requirements.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-audience-evidence-requirements.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "allOf": [

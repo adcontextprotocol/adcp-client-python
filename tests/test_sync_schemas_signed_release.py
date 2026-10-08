@@ -65,6 +65,42 @@ def test_audited_pin_uses_exact_source_and_certificate(published_release):
     assert verified[0][1] == {"certificate_identity": pin["certificate_identity"]}
 
 
+@pytest.mark.parametrize(
+    ("version", "branch", "accepted"),
+    [
+        ("3.2.3", "3.2.x", True),
+        ("3.2.1", "main", True),
+        ("3.2.0-rc.4", "3.2.x", False),
+        ("3.1.25", "3.2.x", False),
+        ("3.2.3", "3.3.x", False),
+        ("3.2.3", "feature/release", False),
+    ],
+)
+def test_audited_pin_release_branch_identity(published_release, version, branch, accepted):
+    files, pin, fetched, verified = published_release
+    files.update({name.replace(VERSION, version): raw for name, raw in list(files.items())})
+    pin["artifacts"] = {
+        name.replace(VERSION, version): metadata for name, metadata in pin["artifacts"].items()
+    }
+    pin["version"] = version
+    pin["bundle_url"] = f"https://adcontextprotocol.org/protocol/{version}.tgz"
+    pin["certificate_identity"] = (
+        "https://github.com/adcontextprotocol/adcp/"
+        f".github/workflows/release.yml@refs/heads/{branch}"
+    )
+    (_mod.RELEASE_PINS_DIR / f"{version}.json").write_text(json.dumps(pin))
+    if not accepted:
+        with pytest.raises(RuntimeError, match="audited release pin identity"):
+            _mod.load_release_pin(version)
+        assert fetched == []
+        assert verified == []
+        return
+    loaded = _mod.load_release_pin(version)
+    assert _mod.fetch_signed_release(version, loaded) == files[version + ".tgz"]
+    assert verified[0][1] == {"certificate_identity": pin["certificate_identity"]}
+    assert all("latest" not in url for url in fetched)
+
+
 @pytest.mark.parametrize("suffix", [".tgz", ".tgz.sha256", ".tgz.sig", ".tgz.crt"])
 def test_missing_published_artifact_never_fetches_latest(published_release, suffix):
     files, pin, fetched, verified = published_release

@@ -18,7 +18,7 @@
     "products": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-product.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-product.json"
       }
     },
     "next_cursor": {
@@ -62,7 +62,7 @@
             "minLength": 1
           },
           "estimated_wait": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
           }
         },
         "required": [
@@ -77,10 +77,10 @@
       "const": true
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "oneOf": [

@@ -6,7 +6,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
       "if": {
@@ -41,7 +41,7 @@
       "deprecated": true,
       "description": "**DEPRECATED in 3.2.** Filter by legacy named input formats. Use input_format_kinds.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
       },
       "minItems": 1
     },
@@ -50,7 +50,7 @@
       "deprecated": true,
       "description": "**DEPRECATED in 3.2.** Filter by legacy named output formats. Use output_capability_ids.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
       },
       "minItems": 1
     },
@@ -58,7 +58,7 @@
       "type": "array",
       "description": "Filter to transformers whose canonical input_formats include any of these canonical format kinds.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-kind.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-kind.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -124,17 +124,17 @@
       "description": "Include `pricing_options` on each transformer. Requires `account`."
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Account reference. Transformers are account-scoped \u2014 the returned set, the enumerable option values, and (with include_pricing) the rate card are all resolved for this credential."
     },
     "pagination": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pagination-request.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pagination-request.json"
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "additionalProperties": true

@@ -17,42 +17,42 @@
       "x-entity": "product"
     },
     "dimensions": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-point-dimensions.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-point-dimensions.json"
     },
     "availability_status": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/availability-status.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/availability-status.json"
     },
     "metrics": {
       "type": "object",
       "properties": {
         "coverage_rate": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-rate-range.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-rate-range.json"
         }
       },
       "additionalProperties": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-range.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-range.json"
       }
     },
     "viewability": {
       "type": "object",
       "properties": {
         "vendor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json"
         },
         "measurable_impressions": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-range.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-range.json"
         },
         "viewable_impressions": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-range.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-range.json"
         },
         "viewable_rate": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-rate-range.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-rate-range.json"
         },
         "viewed_seconds": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-range.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-range.json"
         },
         "standard": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/viewability-standard.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/viewability-standard.json"
         }
       },
       "additionalProperties": false,
@@ -93,7 +93,7 @@
     "vendor_metric_values": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-forecast-vendor-metric-value.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-forecast-vendor-metric-value.json"
       }
     }
   },

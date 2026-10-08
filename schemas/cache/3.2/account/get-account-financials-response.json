@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "oneOf": [
@@ -18,7 +18,7 @@
       "type": "object",
       "properties": {
         "account": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
           "description": "Account reference, echoed from the request"
         },
         "currency": {
@@ -27,7 +27,7 @@
           "description": "ISO 4217 currency code for all monetary amounts in this response"
         },
         "period": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/date-range.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/date-range.json",
           "description": "The actual period covered by spend data. May differ from the requested period if the seller adjusts to billing cycle boundaries."
         },
         "timezone": {
@@ -122,7 +122,7 @@
           "description": "Overall payment status. current: all obligations met. past_due: one or more invoices overdue. suspended: account suspended due to payment issues."
         },
         "payment_terms": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/payment-terms.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/payment-terms.json",
           "description": "Payment terms in effect for this account"
         },
         "invoices": {
@@ -136,7 +136,7 @@
                 "description": "Seller-assigned invoice identifier"
               },
               "period": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/date-range.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/date-range.json",
                 "description": "Billing period covered by this invoice"
               },
               "amount": {
@@ -174,10 +174,10 @@
           }
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -202,15 +202,15 @@
           "type": "array",
           "description": "Operation-level errors",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [

@@ -4,7 +4,7 @@
   "description": "Bounded submitted task envelope for accept_proposal.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/compact-task-submitted.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/compact-task-submitted.json"
     }
   ]
 }

@@ -18,7 +18,7 @@
   },
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/assets/asset-union.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/assets/asset-union.json"
     },
     {
       "if": {
@@ -37,7 +37,7 @@
       "then": {
         "properties": {
           "language": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/locale-tag.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/locale-tag.json"
           }
         }
       }

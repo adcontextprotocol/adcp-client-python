@@ -5,7 +5,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-listing.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-listing.json"
     },
     {
       "description": "Signals that require activation need an operational handle the buyer can pass to activate_signal before package selection.",
@@ -73,7 +73,7 @@
       "type": "array",
       "description": "Signal pricing options available when this signal is selected on this product. Product-scoped pricing is authoritative for this product; if get_signals exposes a different default rate card, use this product-scoped price when composing the buy. Buyers pass the selected pricing_option_id in packages[].targeting_overlay.signal_targeting_groups.groups[].signals[].pricing_option_id. Omit when the signal is bundled into the product price or has no incremental cost.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-pricing-option.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-pricing-option.json"
       },
       "minItems": 1
     }

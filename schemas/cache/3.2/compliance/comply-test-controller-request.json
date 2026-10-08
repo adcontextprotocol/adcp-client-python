@@ -5,7 +5,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
       "if": {
@@ -45,7 +45,7 @@
             ],
             "properties": {
               "status": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-status.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-status.json"
               }
             }
           }
@@ -93,7 +93,7 @@
             ],
             "properties": {
               "status": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/account-status.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/account-status.json"
               }
             }
           }
@@ -120,7 +120,7 @@
             ],
             "properties": {
               "status": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/media-buy-status.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/media-buy-status.json"
               }
             }
           }
@@ -1250,7 +1250,7 @@
           "description": "Purge mode for force_creative_purge. soft retains a list_creatives tombstone; hard removes the creative entirely."
         },
         "reason_code": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/creative-event-reason-code.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/creative-event-reason-code.json",
           "description": "Creative lifecycle reason code for force_creative_status and force_creative_purge."
         },
         "reason_detail": {
@@ -1279,7 +1279,7 @@
         "dooh_metrics": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json#/properties/dooh_metrics"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json#/properties/dooh_metrics"
             }
           ],
           "description": "DOOH delivery detail to inject. Used by simulate_delivery for single-package buys; the latest injected block replaces the previous simulated DOOH detail and MUST surface at totals.dooh_metrics and by_package[0].dooh_metrics. Multi-package simulations require a future package-scoped form and MUST reject this media-buy-scoped field."
@@ -1333,7 +1333,7 @@
           "description": "Average frequency per reach unit to inject. Used by simulate_delivery. When supplied, sellers MUST surface this value at `totals.frequency`, including frequency-only delivery. The measurement window for this frequency value is declared in `reach_window` when also present."
         },
         "reach_unit": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reach-unit.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reach-unit.json",
           "description": "Unit for an injected reach or frequency value. Used by simulate_delivery. When supplied with reach or frequency, sellers MUST surface it on the corresponding delivery row."
         },
         "reach_window": {
@@ -1352,7 +1352,7 @@
             "period": {
               "allOf": [
                 {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
                 }
               ],
               "description": "Duration of the measurement window. REQUIRED when kind is `period` or `rolling`. Matches the `period` field in delivery-metrics.json's reach_window block."
@@ -1389,7 +1389,7 @@
           "description": "Viewability metrics to inject into simulated delivery. Uses the canonical delivery viewability shape, including viewed-seconds distributions. This media-buy-scoped form is valid only for a single-package buy, where the reference seller surfaces the same values at package and media-buy totals grain.",
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/delivery-metrics.json#/properties/viewability"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/delivery-metrics.json#/properties/viewability"
             }
           ]
         },
@@ -1397,7 +1397,7 @@
           "type": "array",
           "description": "Vendor-defined metric values to inject into the next delivery report. Used by simulate_delivery. The reference seller reconciles these rows against each package's seller-stamped committed_metrics contract.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-value.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-value.json"
           }
         },
         "vendor_metric_values_by_package": {
@@ -1406,7 +1406,7 @@
           "additionalProperties": {
             "type": "array",
             "items": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-value.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-value.json"
             }
           }
         },
@@ -1417,13 +1417,13 @@
             "type": "object",
             "properties": {
               "vendor": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json"
               },
               "metric_id": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-id.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-id.json"
               },
               "qualifier": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/committed-metric.json#/oneOf/1/properties/qualifier",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/committed-metric.json#/oneOf/1/properties/qualifier",
                 "description": "Qualifier for the exact committed vendor-metric row whose measurement is deferred."
               }
             },
@@ -1443,13 +1443,13 @@
               "type": "object",
               "properties": {
                 "vendor": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json"
                 },
                 "metric_id": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-id.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-id.json"
                 },
                 "qualifier": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/committed-metric.json#/oneOf/1/properties/qualifier",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/committed-metric.json#/oneOf/1/properties/qualifier",
                   "description": "Qualifier for the exact committed vendor-metric row whose measurement is deferred."
                 }
               },
@@ -1519,7 +1519,7 @@
           "x-entity": "creative_format"
         },
         "vendor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-ref.json",
           "description": "Measurement vendor whose catalog is being seeded. Used by seed_measurement_catalog. The seller MUST treat `metrics[]` as this vendor's `get_adcp_capabilities.measurement.metrics[]` snapshot for the duration of the compliance session."
         },
         "metrics": {
@@ -1534,7 +1534,7 @@
             ],
             "properties": {
               "metric_id": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-id.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-id.json"
               }
             },
             "additionalProperties": true
@@ -1554,17 +1554,17 @@
           "description": "Deterministic age of the stale cache entry used by force_upstream_unavailable. When supplied, the seller MUST emit this exact value in the matching STALE_RESPONSE error.details.cache_age_seconds on the next affected response. This lets the conformance runner bind the advisory code and its required detail fields to the same errors[] entry without assuming array order."
         },
         "result": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/compliance/task-completion-data.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/compliance/task-completion-data.json",
           "description": "Deterministic result payload. force_get_creative_features_arm uses it when arm is completed and returns it on the next matching operation call. force_task_completion records it against an existing task and supports the bounded get_products, get_signals, create_media_buy, and get_creative_features completion union; polling and production SDKs resolve all task results through the originating task's manifest response mapping instead of embedding a global result union. The seller MUST preserve caller-supplied fields. Sellers MUST emit INVALID_PARAMS when the payload does not match the required response branch and MAY reject payloads exceeding 256 KB."
         }
       },
       "additionalProperties": true
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     },
     "account": {
       "type": "object",

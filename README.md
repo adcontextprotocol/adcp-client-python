@@ -333,9 +333,9 @@ async with ADCPMultiAgentClient(
 
 ## AdCP version support
 
-SDK 8 is built against **AdCP 3.2.1**, the AdCP 3.2 general-availability
-release, and makes canonical creatives the primary Python contract. It
-negotiates AdCP 3.0, 3.1, and 3.2. On the wire, 3.2 is `"3.2"`, because
+SDK 8 is built against **AdCP 3.2.3**, the maintenance release including
+the A2A request-signing security errata. Canonical creatives remain the
+primary Python contract. It negotiates AdCP 3.0, 3.1, and 3.2. On the wire, 3.2 is `"3.2"`, because
 `adcp_version` carries release precision only. AdCP 3.2.0 was withdrawn and
 is not a supported target. The SDK package version and protocol version are
 intentionally independent:
@@ -344,7 +344,7 @@ intentionally independent:
 import adcp
 
 adcp.get_adcp_sdk_version()   # SDK package version, e.g. "8.0.0"
-adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.2.1"
+adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.2.3"
 ```
 
 The SDK also accepts and advertises `"3.2-rc.7"` as an explicit compatibility

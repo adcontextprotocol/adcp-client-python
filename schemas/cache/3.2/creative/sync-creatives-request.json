@@ -6,7 +6,7 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
       "if": {
@@ -52,7 +52,7 @@
   "x-mutates-state": true,
   "properties": {
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account-ref.json",
       "description": "Account that owns these creatives."
     },
     "creatives": {
@@ -61,20 +61,20 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-asset.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-asset.json"
           },
           {
             "type": "object",
             "properties": {
               "revision_id": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-revision-id.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-revision-id.json",
                 "description": "Optional buyer-assigned identity for this exact input-content state. Buyers may send it to any 3.2 peer; creative.supports_revisions gates reliance on immutability, echo, readback, and delivery correlation, not whether the open request shape may carry the field. Within a supporting seller, a revision_id is immutable under one creative_id: reusing it with different canonical revision content MUST fail with CREATIVE_REVISION_CONTENT_MISMATCH. Metadata and assignment fields excluded from revision content may change without minting a new revision."
               },
               "localization": {
                 "description": "Sync-only materialized-localization mutation. The top-level assets are the source variant; optional locale_fallbacks declare buyer-approved language-family substitutions, and default_locale_variant_id selects the final serving fallback. An object transactionally replaces the source assets and complete locale set, omission preserves existing localization only when the top-level source assets are unchanged, and null removes localization. This field never requests translation or generation. Receivers MUST advertise get_adcp_capabilities creative.localization before accepting it.",
                 "anyOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/creative-localization.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/creative-localization.json"
                   },
                   {
                     "type": "null"
@@ -445,19 +445,19 @@
       "description": "When true, rehearse this sync_creatives operation without applying it. Validates the actual trafficking request in the seller's current context, including library upsert semantics, creative IDs, assignments, account-scoped gates, and seller policies, then returns what would be created/updated/deleted. This is distinct from validate_input, which only validates manifest structure against canonical/product format targets."
     },
     "validation_mode": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/validation-mode.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/validation-mode.json",
       "default": "strict",
       "description": "Validation strictness. 'strict' fails entire sync on any validation error. 'lenient' processes valid creatives and reports errors."
     },
     "push_notification_config": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/push-notification-config.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/push-notification-config.json",
       "description": "Optional webhook configuration for async sync notifications. The agent will send a webhook when sync completes if the operation takes longer than immediate response time (typically for large bulk operations or manual approval/HITL)."
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

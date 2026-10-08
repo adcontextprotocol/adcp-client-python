@@ -152,7 +152,7 @@
               "type": "array",
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -205,7 +205,7 @@
         {
           "properties": {
             "brand": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1brand-key.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1brand-key.json"
             },
             "operator": {
               "type": "string",
@@ -213,7 +213,7 @@
               "x-entity": "operator"
             },
             "operator_unit": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1operator-unit.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1operator-unit.json",
               "description": "Optional operator-owned business unit, agency seat, or platform account. Only id participates in identity; name is mutable display metadata."
             },
             "currency": {
@@ -270,7 +270,7 @@
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
         },
         "brand_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1brand-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1brand-id.json",
           "description": "Brand within a house-of-brands manifest. Omit for a single-brand domain."
         },
         "countries": {
@@ -355,41 +355,41 @@
           "uniqueItems": true
         },
         "offer_filters": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1product-offer-filters.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1product-offer-filters.json",
           "description": "Hard commercial and product-characteristic filters. Every returned product MUST satisfy them. These fields do not become package delivery targeting."
         },
         "targeting_overlay": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting.json",
           "description": "Concrete delivery constraints the buyer expects to carry into create_media_buy. Returned product pricing and forecasts MUST reflect the effective targeting. A product that cannot apply the request exactly is omitted or returned as a distinct configured product with sparse Product.targeting_resolution modifications; absence of that resolution means exact acceptance."
         },
         "media_buy_frequency_cap": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1media-buy-frequency-cap.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1media-buy-frequency-cap.json",
           "description": "Concrete aggregate max-impression cap expected at the MediaBuy root. Every returned product must participate in one shared counter for this exact value. Proposals carry it in commercial_terms.frequency_cap."
         },
         "required_overlay_support": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json",
           "description": "Minimum product-scoped targeting dimensions the buyer must be able to select independently on packages later. This requests capability, not current values, value-specific availability, a forecast for every later value, or one product per value."
         },
         "required_media_buy_support": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1media-buy-support-requirements.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1media-buy-support-requirements.json",
           "description": "Minimum product participation in shared MediaBuy-level controls. For frequency caps, every returned product is promising composability in one aggregate seller counter for each requested per unit."
         },
         "outcome_target": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:media-buy~1outcome-target.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:media-buy~1outcome-target.json"
             }
           ],
           "x-adcp-schema-uri": "/schemas/media-buy/outcome-target.json",
           "description": "Reverse-forecast planning input for sellers declaring media_buy.outcome_target: a goal plus a volume, a cost target, or both, answered on proposals. Inert on list_products for every seller. See outcome-target.json."
         },
         "acceptance_context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:media-buy~1acceptance-context.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:media-buy~1acceptance-context.json",
           "x-adcp-schema-uri": "/schemas/media-buy/acceptance-context.json",
           "description": "Structured campaign and advertiser facts for coarse acceptance-policy matching. A matching product is not a guarantee of final acceptance."
         },
         "catalog": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog-selection.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog-selection.json"
         },
         "policy_ids": {
           "type": "array",
@@ -414,10 +414,10 @@
       "type": "object",
       "properties": {
         "delivery_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1delivery-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1delivery-type.json"
         },
         "exclusivity": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1exclusivity.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1exclusivity.json"
         },
         "is_fixed_price": {
           "type": "boolean",
@@ -426,7 +426,7 @@
         "pricing_structures": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1pricing-structure.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1pricing-structure.json"
           },
           "minItems": 1,
           "uniqueItems": true,
@@ -445,7 +445,7 @@
         "format_kinds": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1canonical-format-kind.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1canonical-format-kind.json"
           },
           "minItems": 1,
           "uniqueItems": true,
@@ -454,7 +454,7 @@
         "format_option_refs": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1format-option-ref.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1format-option-ref.json"
           },
           "minItems": 1,
           "uniqueItems": true,
@@ -499,7 +499,7 @@
           "additionalProperties": false
         },
         "budget_range": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1budget-range.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1budget-range.json"
         },
         "countries": {
           "type": "array",
@@ -526,7 +526,7 @@
             "type": "object",
             "properties": {
               "system": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1metro-system.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1metro-system.json",
                 "description": "Metro classification system"
               },
               "code": {
@@ -546,29 +546,29 @@
           "type": "array",
           "description": "Inventory coverage in the specified postal areas: OR within this field, AND across offer filters. Does not add delivery targeting, require targeting support, or rescope pricing or forecasts.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1postal-area.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1postal-area.json"
           },
           "minItems": 1
         },
         "geo_proximity": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting.json/properties/geo_proximity",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting.json/properties/geo_proximity",
           "description": "Inventory coverage in the specified proximity boundaries: OR within this field, AND across offer filters. Does not add delivery targeting, require targeting support, or rescope pricing or forecasts."
         },
         "property_list": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1property-list-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1property-list-ref.json",
           "description": "Reference to an externally managed property list. When provided, the seller filters products to only those available on properties in the list. This narrows which publisher inventory is returned; it is a product attribute filter, not a delivery-targeting instruction."
         },
         "channels": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1channels.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1channels.json"
           },
           "minItems": 1
         },
         "video_placement_types": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1video-placement-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1video-placement-type.json"
           },
           "minItems": 1,
           "uniqueItems": true,
@@ -577,7 +577,7 @@
         "audio_distribution_types": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1audio-distribution-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1audio-distribution-type.json"
           },
           "minItems": 1,
           "uniqueItems": true,
@@ -586,7 +586,7 @@
         "sponsored_placement_types": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1sponsored-placement-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1sponsored-placement-type.json"
           },
           "minItems": 1,
           "uniqueItems": true,
@@ -595,7 +595,7 @@
         "social_placement_surfaces": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1social-placement-surface.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1social-placement-surface.json"
           },
           "minItems": 1,
           "uniqueItems": true,
@@ -630,7 +630,7 @@
             "response_types": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1response-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1response-type.json"
               },
               "minItems": 1
             }
@@ -640,7 +640,7 @@
         "required_features": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1canonical-media-buy-features.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1canonical-media-buy-features.json"
             }
           ],
           "description": "Canonical protocol features the seller must support.",
@@ -652,7 +652,7 @@
             "type": "object",
             "properties": {
               "metric": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1performance-standard-metric.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1performance-standard-metric.json"
               },
               "threshold": {
                 "type": "number",
@@ -660,10 +660,10 @@
                 "maximum": 1
               },
               "standard": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1viewability-standard.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1viewability-standard.json"
               },
               "vendor": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1brand-key.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1brand-key.json"
               }
             },
             "required": [
@@ -678,7 +678,7 @@
         "required_metrics": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1available-metric.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1available-metric.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -689,10 +689,10 @@
             "type": "object",
             "properties": {
               "vendor": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1brand-key.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1brand-key.json"
               },
               "metric_id": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1vendor-metric-id.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1vendor-metric-id.json"
               }
             },
             "anyOf": [
@@ -712,10 +712,10 @@
           "minItems": 1
         },
         "audience_evidence_requirements": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1product-audience-evidence-requirements.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1product-audience-evidence-requirements.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
         }
       },
       "allOf": [
@@ -922,7 +922,7 @@
           "type": "object",
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1postal-country-system.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1postal-country-system.json"
             }
           ],
           "properties": {
@@ -932,7 +932,7 @@
               "description": "ISO 3166-1 alpha-2 country code for the postal values."
             },
             "system": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1postal-system.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1postal-system.json",
               "description": "Country-local postal code system (e.g., 'zip', 'outward', 'plz', 'postal_code')."
             },
             "values": {
@@ -957,7 +957,7 @@
           "type": "object",
           "properties": {
             "system": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1legacy-postal-system.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1legacy-postal-system.json",
               "deprecated": true,
               "description": "Deprecated country-fused postal code system (e.g., 'us_zip', 'gb_outward'). Prefer country + postal-system."
             },
@@ -989,7 +989,7 @@
           "description": "ISO 3166-1 alpha-2 country code."
         },
         "system": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1postal-system.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1postal-system.json",
           "description": "Country-local postal code system."
         }
       },
@@ -1242,7 +1242,7 @@
           "type": "array",
           "description": "Restrict delivery to specific metro areas. Each entry specifies the classification system and target values. Seller must declare supported systems in get_adcp_capabilities.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-metro.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-metro.json"
           },
           "minItems": 1
         },
@@ -1253,7 +1253,7 @@
             "type": "object",
             "properties": {
               "system": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1metro-system.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1metro-system.json",
                 "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')"
               },
               "values": {
@@ -1277,7 +1277,7 @@
           "type": "array",
           "description": "Restrict delivery to specific postal areas. Prefer the native country + postal system form. The deprecated legacy country-fused postal-system tokens remain accepted for compatibility. Seller must declare supported systems in get_adcp_capabilities.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1postal-area.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1postal-area.json"
           },
           "minItems": 1
         },
@@ -1285,7 +1285,7 @@
           "type": "array",
           "description": "Exclude specific postal areas from delivery. Prefer the native country + postal system form. The deprecated legacy country-fused postal-system tokens remain accepted for compatibility. Seller must declare supported systems in get_adcp_capabilities.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1postal-area.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1postal-area.json"
           },
           "minItems": 1
         },
@@ -1293,7 +1293,7 @@
           "type": "array",
           "description": "Restrict delivery to catalog-backed named places. Values MUST be stable identifiers in the declared system, not display names. Sellers must declare supported systems, countries, and place types in get_adcp_capabilities and reject unsupported entries rather than silently dropping them.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-area.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-area.json",
             "x-adcp-schema-uri": "/schemas/core/geo-place-area.json"
           },
           "minItems": 1
@@ -1302,7 +1302,7 @@
           "type": "array",
           "description": "Exclude catalog-backed named places. Uses the same identifier-based shape as geo_places. Sellers MUST reject overlap with geo_places for the same country, system, place_type, and value.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-area.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-area.json",
             "x-adcp-schema-uri": "/schemas/core/geo-place-area.json"
           },
           "minItems": 1
@@ -1311,7 +1311,7 @@
           "type": "array",
           "description": "Restrict delivery to specific time windows. Each entry specifies days of week, an hour range, and an optional timezone that defaults to inventory_local. A concrete IANA zone uses one shared civil-time clock, while inventory_local evaluates each inventory unit in its seller-assigned local timezone. Entries are independent and MAY use different clocks.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1daypart-target.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1daypart-target.json"
           },
           "minItems": 1
         },
@@ -1343,7 +1343,7 @@
         },
         "signal_targeting_groups": {
           "title": "Targeting Signal Groups",
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1package-signal-targeting-groups.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1package-signal-targeting-groups.json",
           "description": "Basic Boolean grouping for seller-offered signals. v1 supports a required top-level operator 'all' and child groups with operator 'any' for include groups or 'none' for exclusion groups. Example semantics: group 1 any(A, B) plus group 2 none(C, D) means (A OR B) AND NOT (C OR D). Signal entries reference named signal definitions with signal_ref scope 'product' for product-local signal options or scope 'data_provider' for external signals published in adagents.json signals[]. For simple include-only targeting, send one child group with operator 'any'. Sellers SHOULD reject entries that are not available for the product through inline signal_targeting_options or get_signals, are not active for the account, or exceed the product's signal_targeting_allowed/signal_targeting_rules/product terms. Signal targeting limits are product-scoped, not declared in get_adcp_capabilities, because products may be backed by different ad servers. Sellers MUST echo applied signal_targeting_groups on the resulting package state, including fixed/default selections. Sellers MAY return REQUOTE_REQUIRED when a targeting mutation changes commercial terms."
         },
         "signal_targeting": {
@@ -1351,43 +1351,43 @@
           "description": "DEPRECATED. Use signal_targeting_groups for package-level signal targeting. Legacy flat signal_targeting remains accepted during the SignalRef migration window but cannot express grouped include/exclude composition or product-scoped pricing.",
           "deprecated": true,
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-targeting.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-targeting.json"
           },
           "minItems": 1
         },
         "demographics": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1demographic-targeting-intent.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1demographic-targeting-intent.json",
           "description": "Canonical demographic audience targeting intent with optional constraints on how age may be determined. This is distinct from age_restriction: demographics selects an audience, while age_restriction expresses a legal eligibility or verification floor. Fresh create/update targeting MUST compile exactly or be rejected. During get_products, a seller may offer a different configured predicate only through sparse targeting_resolution modifications on a distinguishable product_id; selecting that product accepts the alternative. Sellers never silently broaden, narrow, default, drop, or substitute the basis."
         },
         "frequency_cap": {
           "title": "Targeting Frequency Cap",
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1frequency-cap.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1frequency-cap.json"
         },
         "property_list": {
           "title": "Targeting Property List",
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1property-list-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1property-list-ref.json",
           "description": "Reference to a property list for targeting specific properties within this product. The package runs on the intersection of the product's publisher_properties and this list. Sellers SHOULD return a validation error if the product has property_targeting_allowed: false."
         },
         "property_list_exclude": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1property-list-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1property-list-ref.json",
           "description": "Reference to a property list whose properties must not carry the buyer's ads. Matched properties are removed from delivery. Use for brand-safety do-not-run lists (apps, sites). Exclude wins on overlap with property_list, and applies regardless of the product's property_targeting_allowed flag. Seller must declare support in get_adcp_capabilities."
         },
         "collection_list": {
           "title": "Targeting Collection List",
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1collection-list-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1collection-list-ref.json",
           "description": "Reference to a collection list for including specific collections (programs, publications, channels) within this product. The package runs on the intersection of matched collections and this list. Use for inclusion-based collection targeting. Seller must declare support in get_adcp_capabilities."
         },
         "collection_list_exclude": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1collection-list-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1collection-list-ref.json",
           "description": "Reference to a collection list for excluding specific collections (programs, publications, channels) from this product. Matched collections must not carry the buyer's ads. Use for brand safety do-not-air lists. Seller must declare support in get_adcp_capabilities."
         },
         "placement_selection": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1placement-selection.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1placement-selection.json",
           "description": "Purchased placement selection within the product. This constrains package inventory; it is distinct from creative_assignments[].placement_refs, which only route individual creatives within the purchased set. On create, mode selected supplies the complete selected set and mode default uses the product default. In request-side Targeting Input, a non-null value replaces this dimension, omission preserves or inherits it, and null clears it when the product permits that broader inventory set."
         },
         "collection_selection": {
           "title": "Targeting Collection Selection",
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1collection-selection.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1collection-selection.json",
           "description": "Purchased collection selection within the product. On create, mode selected supplies the complete selected set and mode default uses the product's full bundle. On package readback this is the committed selection sellers MUST echo as concrete selectors, materializing any collection_list composition; collection_list fields remain the buyer-managed list mechanism. In request-side Targeting Input, a non-null value replaces this dimension, omission preserves or inherits it, and null clears it when the product permits that broader inventory set."
         },
         "age_restriction": {
@@ -1409,7 +1409,7 @@
               "type": "array",
               "description": "Accepted verification methods. If omitted, any method the platform supports is acceptable.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1age-verification-method.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1age-verification-method.json"
               },
               "minItems": 1
             }
@@ -1423,7 +1423,7 @@
           "type": "array",
           "description": "Restrict to specific platforms. Use for technical compatibility (app only works on iOS). Values from Sec-CH-UA-Platform standard, extended for CTV.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1device-platform.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1device-platform.json"
           },
           "minItems": 1
         },
@@ -1431,7 +1431,7 @@
           "type": "array",
           "description": "Exclude specific operating-system platforms from delivery. When a platform appears in both device_platform and device_platform_exclude, exclusion wins. Sellers MUST reject a request they cannot enforce rather than silently dropping the exclusion.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1device-platform.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1device-platform.json"
           },
           "minItems": 1
         },
@@ -1439,7 +1439,7 @@
           "type": "array",
           "description": "Restrict to specific device form factors. Use for campaigns targeting hardware categories rather than operating systems (e.g., mobile-only promotions, CTV campaigns).",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1device-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1device-type.json"
           },
           "minItems": 1
         },
@@ -1447,7 +1447,7 @@
           "type": "array",
           "description": "Exclude specific device form factors from delivery (e.g., exclude CTV for app-install campaigns).",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1device-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1device-type.json"
           },
           "minItems": 1
         },
@@ -1455,7 +1455,7 @@
           "type": "array",
           "description": "Restrict delivery to specific canonical browser families in the impression delivery and rendering environment, not the post-click landing-page browser. Values MUST NOT be inferred solely from operating system, device, web/mobile-web inventory, or placement. Values in this array use OR semantics. When browser is supplied, families not listed are ineligible: other includes a seller-recognized family that is not explicitly enumerated, while unknown includes a browser the seller cannot classify into a recognized family. When the same family appears in browser and browser_exclude, exclusion wins. Browser and device constraints intersect; a seller that cannot enforce the exact combination MUST exclude or explicitly reconfigure the product during discovery and MUST reject it at create or update rather than silently widening delivery. Browser versions and seller-native IDs are intentionally unsupported.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1browser-family.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1browser-family.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -1464,7 +1464,7 @@
           "type": "array",
           "description": "Exclude specific canonical browser families from delivery. other excludes seller-recognized families that are not explicitly enumerated; unknown excludes browsers the seller cannot classify into a recognized family. When the same family appears in browser and browser_exclude, exclusion wins. Sellers MUST reject a request they cannot enforce rather than silently dropping the exclusion.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1browser-family.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1browser-family.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -1535,7 +1535,7 @@
                     "description": "Travel time limit."
                   },
                   "unit": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1travel-time-unit.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1travel-time-unit.json"
                   }
                 },
                 "required": [
@@ -1545,7 +1545,7 @@
                 "additionalProperties": false
               },
               "transport_mode": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1transport-mode.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1transport-mode.json",
                 "description": "Transportation mode for isochrone calculation. Required when travel_time is provided."
               },
               "radius": {
@@ -1558,7 +1558,7 @@
                     "description": "Radius distance."
                   },
                   "unit": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1distance-unit.json",
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1distance-unit.json",
                     "description": "Distance unit."
                   }
                 },
@@ -1592,7 +1592,7 @@
                 "additionalProperties": false
               },
               "ext": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
               }
             },
             "oneOf": [
@@ -1668,7 +1668,7 @@
           "type": "array",
           "description": "Restrict to users with specific language preferences using canonical BCP 47 language ranges. Each buyer range is evaluated against a user's language-preference tag with RFC 4647 section 3.3.1 Basic Filtering: 'fr' matches 'fr', 'fr-CA', and 'fr-FR', while 'fr-CA' matches 'fr-CA' and more-specific descendants but not 'fr' or 'fr-FR'. Values use OR logic.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1locale-tag.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1locale-tag.json"
           },
           "minItems": 1
         },
@@ -1685,7 +1685,7 @@
                 "description": "The keyword to target"
               },
               "match_type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1match-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1match-type.json"
               },
               "bid_price": {
                 "type": "number",
@@ -1706,17 +1706,17 @@
           "type": "array",
           "description": "Keywords to exclude from delivery. Queries matching these keywords will not trigger the ad. Each negative keyword is identified by the tuple (keyword, match_type). Seller must declare support in get_adcp_capabilities.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1negative-keyword.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1negative-keyword.json"
           },
           "minItems": 1
         }
       },
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-unknown-age-eligibility-constraint.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-unknown-age-eligibility-constraint.json"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-verified-age-basis-constraint.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-verified-age-basis-constraint.json"
         }
       ],
       "additionalProperties": true
@@ -1727,7 +1727,7 @@
       "type": "object",
       "properties": {
         "system": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1metro-system.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1metro-system.json",
           "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')"
         },
         "values": {
@@ -1763,7 +1763,7 @@
           "description": "ISO 3166-1 alpha-2 country code containing the place."
         },
         "system": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-system.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-system.json"
         },
         "system_version": {
           "type": "string",
@@ -1771,7 +1771,7 @@
           "description": "Optional exact catalog version from the seller's declared supported_versions. When omitted, the seller applies catalog.current_version and MUST echo that version on persisted package state."
         },
         "place_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-type.json"
         },
         "values": {
           "type": "array",
@@ -1792,7 +1792,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -1913,7 +1913,7 @@
           "type": "array",
           "description": "Days of week this window applies to. Use multiple days for compact targeting (e.g., monday-friday in one object).",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1day-of-week.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1day-of-week.json"
           },
           "minItems": 1
         },
@@ -1939,7 +1939,7 @@
               "const": "inventory_local"
             },
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1iana-timezone.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1iana-timezone.json"
             }
           ]
         },
@@ -2000,7 +2000,7 @@
           "type": "array",
           "description": "Signal targeting groups to evaluate. Use operator 'any' for include groups and 'none' for exclusion groups.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1package-signal-targeting-group.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1package-signal-targeting-group.json"
           },
           "minItems": 1
         }
@@ -2028,7 +2028,7 @@
           "type": "array",
           "description": "Signal targeting entries evaluated by this group. Each entry uses the package signal targeting shape, including signal_ref, value expression, and optional pricing, execution-handle, or activation fields.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1package-signal-targeting.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1package-signal-targeting.json"
           },
           "minItems": 1
         }
@@ -2045,7 +2045,7 @@
       "type": "object",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-targeting-expression.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-targeting-expression.json"
         }
       ],
       "properties": {
@@ -2060,7 +2060,7 @@
           "x-entity": "signal_activation_id"
         },
         "activation_key": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1activation-key.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1activation-key.json",
           "description": "Destination-specific activation key returned by get_signals or activate_signal. Usually omitted for seller-offered signals selected directly through the same seller; include only when the selected signal was separately activated and the seller requires the activation key to correlate the package selection."
         }
       },
@@ -2078,7 +2078,7 @@
           "description": "Binary signal expression. In grouped package targeting, value is always true; use a parent group with operator 'none' for exclusion.",
           "properties": {
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-ref.json",
               "description": "Named signal being targeted."
             },
             "value_type": {
@@ -2104,7 +2104,7 @@
           "description": "Categorical signal expression - target users with one of the listed values.",
           "properties": {
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-ref.json",
               "description": "Named signal being targeted."
             },
             "value_type": {
@@ -2133,7 +2133,7 @@
           "description": "Numeric signal expression - target users within a value range. At least one of min_value or max_value is required. If both min_value and max_value are provided, min_value MUST be <= max_value.",
           "properties": {
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-ref.json",
               "description": "Named signal being targeted."
             },
             "value_type": {
@@ -2395,11 +2395,11 @@
           "description": "Binary signal targeting - user either matches or doesn't",
           "properties": {
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-ref.json",
               "description": "The signal to target. New targeting constraints SHOULD use signal_ref."
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-id.json",
               "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
               "deprecated": true
             },
@@ -2436,11 +2436,11 @@
           "description": "Categorical signal targeting - target users with specific values",
           "properties": {
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-ref.json",
               "description": "The signal to target. New targeting constraints SHOULD use signal_ref."
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-id.json",
               "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
               "deprecated": true
             },
@@ -2481,11 +2481,11 @@
           "description": "Numeric signal targeting - target users within a value range. If min_value is provided, it must be <= max_value. Values should be within the signal's defined range (see signal definition).",
           "properties": {
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-ref.json",
               "description": "The signal to target. New targeting constraints SHOULD use signal_ref."
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1signal-id.json",
               "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
               "deprecated": true
             },
@@ -2595,7 +2595,7 @@
         "age": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1demographic-age-range.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1demographic-age-range.json"
             },
             {
               "type": "object",
@@ -2604,7 +2604,7 @@
                   "type": "array",
                   "description": "User-level age determination bases the buyer permits for this predicate. Sellers MUST use only these bases or reject the request; they MUST NOT silently fall back to another basis. When omitted, the buyer imposes no determination-basis constraint beyond product capability and any age_restriction. population_estimate is structurally unavailable because aggregate evidence cannot identify an eligible user.",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1age-determination-basis.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1age-determination-basis.json"
                   },
                   "minItems": 1,
                   "uniqueItems": true
@@ -2613,7 +2613,7 @@
                   "type": "array",
                   "description": "Verification methods acceptable when verified is an accepted basis. This field narrows verified demographic execution; age_restriction.accepted_methods independently governs legal eligibility and the two sets are intersected when both are present.",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1age-verification-method.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1age-verification-method.json"
                   },
                   "minItems": 1,
                   "uniqueItems": true
@@ -2724,7 +2724,7 @@
         "suppress": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1duration.json"
             }
           ],
           "description": "Cooldown period between consecutive exposures to the same entity. Prevents back-to-back ad delivery (e.g. {\"interval\": 60, \"unit\": \"minutes\"} for a 1-hour cooldown). Preferred over suppress_minutes."
@@ -2743,7 +2743,7 @@
         "per": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1reach-unit.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1reach-unit.json"
             }
           ],
           "description": "Entity granularity for impression counting. Required when max_impressions is set."
@@ -2751,7 +2751,7 @@
         "window": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1duration.json"
             }
           ],
           "description": "Time window for the max_impressions cap (e.g. {\"interval\": 7, \"unit\": \"days\"} or {\"interval\": 1, \"unit\": \"campaign\"} for the full flight). Required when max_impressions is set."
@@ -2915,7 +2915,7 @@
                   {
                     "allOf": [
                       {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1placement-ref.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1placement-ref.json"
                       },
                       {
                         "required": [
@@ -2925,7 +2925,7 @@
                     ]
                   },
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1placement-identity.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1placement-identity.json"
                   }
                 ]
               },
@@ -2933,7 +2933,7 @@
               "uniqueItems": true
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -2951,7 +2951,7 @@
               "const": "default"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -3021,7 +3021,7 @@
               "const": "seller_inline"
             },
             "seller_agent": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1seller-agent-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1seller-agent-ref.json",
               "description": "Sales agent that defines and maintains the inline placement namespace."
             },
             "placement_id": {
@@ -3090,7 +3090,7 @@
               "items": {
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1collection-selector.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1collection-selector.json"
                   },
                   {
                     "required": [
@@ -3103,7 +3103,7 @@
               "uniqueItems": true
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -3121,7 +3121,7 @@
               "const": "default"
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [
@@ -3299,7 +3299,7 @@
           "description": "The keyword to exclude"
         },
         "match_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1match-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1match-type.json"
         }
       },
       "required": [
@@ -3556,7 +3556,7 @@
           "description": "Package pacing inside seller-optimized buys; implies seller_optimized_budget."
         },
         "bidding_policy": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1bidding-policy-capability.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1bidding-policy-capability.json"
         }
       },
       "additionalProperties": {
@@ -3570,11 +3570,11 @@
       "type": "object",
       "properties": {
         "media_buy": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1bidding-policy-capability.json/$defs/scope_capability",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1bidding-policy-capability.json/$defs/scope_capability",
           "description": "Policies accepted at media-buy scope and inherited by packages that omit a package override."
         },
         "package": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1bidding-policy-capability.json/$defs/scope_capability",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1bidding-policy-capability.json/$defs/scope_capability",
           "description": "Policies accepted as package-authored policies, including explicit automatic overrides."
         }
       },
@@ -3586,11 +3586,11 @@
           "description": "Support at one authored scope, partitioned by the media buy's resulting allocation mode. Omitted contexts are unsupported; claims in one context make no claim about the other.",
           "properties": {
             "fixed": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1bidding-policy-capability.json/$defs/policy_profile",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1bidding-policy-capability.json/$defs/policy_profile",
               "description": "Policies supported when budget allocation is fixed or omitted."
             },
             "seller_optimized": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1bidding-policy-capability.json/$defs/policy_profile",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1bidding-policy-capability.json/$defs/policy_profile",
               "description": "Policies supported when budget_allocation.mode is seller_optimized."
             }
           },
@@ -3648,10 +3648,10 @@
               "items": {
                 "oneOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1bidding-policy-capability.json/$defs/max_bid_with_cost_per"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1bidding-policy-capability.json/$defs/max_bid_with_cost_per"
                   },
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1bidding-policy-capability.json/$defs/max_bid_with_roas"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1bidding-policy-capability.json/$defs/max_bid_with_roas"
                   }
                 ]
               },
@@ -3908,7 +3908,7 @@
         "accepted_methodologies": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1audience-evidence-methodology.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1audience-evidence-methodology.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -3916,7 +3916,7 @@
         "excluded_methodologies": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1audience-evidence-methodology.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1audience-evidence-methodology.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -3937,21 +3937,21 @@
         "accepted_providers": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1brand-key.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1brand-key.json"
           },
           "minItems": 1
         },
         "excluded_providers": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1brand-key.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1brand-key.json"
           },
           "minItems": 1
         },
         "accepted_subject_types": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1audience-subject-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1audience-subject-type.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -3959,7 +3959,7 @@
         "accepted_resolution_methods": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1audience-resolution-method.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1audience-resolution-method.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -3972,7 +3972,7 @@
         "maximum_age": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1duration.json"
             },
             {
               "properties": {
@@ -4011,10 +4011,10 @@
                     "const": "brand"
                   },
                   "brand": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1brand-key.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1brand-key.json"
                   },
                   "ext": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
                   }
                 },
                 "required": [
@@ -4036,7 +4036,7 @@
                     "pattern": "^https://[^/?#@]+(?:/[^?#]*)?(?:\\?[^#]*)?$"
                   },
                   "ext": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
                   }
                 },
                 "required": [
@@ -4058,7 +4058,7 @@
                     "pattern": "^https://[^/?#@]+$"
                   },
                   "ext": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
                   }
                 },
                 "required": [
@@ -4082,7 +4082,7 @@
           "uniqueItems": true
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -4153,7 +4153,7 @@
       "description": "A MediaBuy-level maximum-impression cap. The counter is shared across participating packages for the declared per unit. Duration windows are rolling elapsed windows; campaign spans the MediaBuy flight. Aggregate suppression is not defined in 3.2 because suppress-only FrequencyCap values do not identify a counter entity.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1frequency-cap.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1frequency-cap.json"
         },
         {
           "required": [
@@ -4182,18 +4182,18 @@
       "type": "object",
       "properties": {
         "geo_countries": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "geo_countries_exclude": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "geo_regions": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
             },
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-region-requirement.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-region-requirement.json",
               "x-adcp-schema-uri": "/schemas/core/geo-region-requirement.json"
             }
           ]
@@ -4201,69 +4201,69 @@
         "geo_regions_exclude": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
             },
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-region-requirement.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-region-requirement.json",
               "x-adcp-schema-uri": "/schemas/core/geo-region-requirement.json"
             }
           ]
         },
         "geo_metros": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/metroRequirement"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/metroRequirement"
         },
         "geo_metros_exclude": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/metroRequirement"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/metroRequirement"
         },
         "geo_places": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-requirement.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-requirement.json",
           "x-adcp-schema-uri": "/schemas/core/geo-place-requirement.json"
         },
         "geo_places_exclude": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-requirement.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-requirement.json",
           "x-adcp-schema-uri": "/schemas/core/geo-place-requirement.json"
         },
         "geo_postal_areas": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
             },
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1positive-postal-area-support.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1positive-postal-area-support.json"
             }
           ]
         },
         "geo_postal_areas_exclude": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
             },
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1positive-postal-area-support.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1positive-postal-area-support.json"
             }
           ]
         },
         "geo_proximity": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
             },
             {
               "type": "object",
               "properties": {
                 "radius": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
                 },
                 "travel_time": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
                 },
                 "geometry": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
                 },
                 "transport_modes": {
                   "type": "array",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1transport-mode.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1transport-mode.json"
                   },
                   "minItems": 1,
                   "uniqueItems": true
@@ -4296,27 +4296,27 @@
           ]
         },
         "daypart_targets": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/daypartRequirement"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/daypartRequirement"
         },
         "audience_include": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "audience_exclude": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "signal_targeting_groups": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "demographics": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
             },
             {
               "type": "object",
               "properties": {
                 "age": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
                 }
               },
               "required": [
@@ -4327,62 +4327,62 @@
           ]
         },
         "frequency_cap": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "frequency_cap_support": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1frequency-cap-requirements.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1frequency-cap-requirements.json",
           "description": "Minimum structured package-cap support. Matches a broad legacy frequency_cap: true or a containing frequency_cap_support object. Mutually exclusive with a frequency_cap: true requirement, which would exclude every constrained product."
         },
         "property_list": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "property_list_exclude": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "collection_list": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "collection_list_exclude": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "placement_selection": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "age_restriction": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "device_platform": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "device_platform_exclude": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "device_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "device_type_exclude": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "browser": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/browserRequirement"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/browserRequirement"
         },
         "browser_exclude": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/browserRequirement"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/browserRequirement"
         },
         "store_catchments": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "language": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
         },
         "keyword_targets": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/keywordRequirement"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/keywordRequirement"
         },
         "negative_keywords": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/keywordRequirement"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/keywordRequirement"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
         }
       },
       "minProperties": 1,
@@ -4401,7 +4401,7 @@
         "metroRequirement": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
             },
             {
               "type": "object",
@@ -4409,7 +4409,7 @@
                 "systems": {
                   "type": "array",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1metro-system.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1metro-system.json"
                   },
                   "minItems": 1,
                   "uniqueItems": true
@@ -4425,7 +4425,7 @@
         "keywordRequirement": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
             },
             {
               "type": "object",
@@ -4433,7 +4433,7 @@
                 "supported_match_types": {
                   "type": "array",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1match-type.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1match-type.json"
                   },
                   "minItems": 1,
                   "uniqueItems": true
@@ -4449,7 +4449,7 @@
         "browserRequirement": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
             },
             {
               "type": "object",
@@ -4458,7 +4458,7 @@
                 "families": {
                   "type": "array",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1browser-family.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1browser-family.json"
                   },
                   "minItems": 1,
                   "uniqueItems": true
@@ -4474,7 +4474,7 @@
         "daypartRequirement": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1targeting-overlay-requirements.json/$defs/required"
             },
             {
               "type": "object",
@@ -4483,7 +4483,7 @@
                 "timezone_modes": {
                   "type": "array",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1daypart-timezone-mode.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1daypart-timezone-mode.json"
                   },
                   "minItems": 1,
                   "uniqueItems": true
@@ -4492,7 +4492,7 @@
                   "type": "array",
                   "description": "Exact concrete IANA timezone identifiers that must remain selectable after discovery. Valid only when timezone_modes includes iana.",
                   "items": {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1iana-timezone.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1iana-timezone.json"
                   },
                   "minItems": 1,
                   "uniqueItems": true
@@ -4608,10 +4608,10 @@
         "systems": {
           "type": "object",
           "propertyNames": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-system.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-system.json"
           },
           "additionalProperties": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-requirement.json/$defs/catalogRequirement"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-requirement.json/$defs/catalogRequirement"
           },
           "minProperties": 1
         }
@@ -4633,7 +4633,7 @@
               "additionalProperties": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-type.json"
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1geo-place-type.json"
                 },
                 "minItems": 1,
                 "uniqueItems": true
@@ -4663,7 +4663,7 @@
       "description": "Non-vacuous postal capability used for hard targeting requirements and product overlay support. At least one native system array or true-valued deprecated alias is required. The general seller-capabilities postal schema remains permissive for backward compatibility, but an empty or false-only map cannot satisfy a hard discovery requirement.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1postal-area-support.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1postal-area-support.json"
         },
         {
           "type": "object",
@@ -4859,7 +4859,7 @@
             "pattern": "^[A-Z]{2}$"
           },
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1legacy-postal-system.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1legacy-postal-system.json"
           }
         ]
       },
@@ -4884,7 +4884,7 @@
           "type": "array",
           "description": "Require each listed logical field to be mutable after creation. Matches a product whose mutable_fields contains every listed value, or a product that omits mutable_fields, or legacy frequency_cap: true. A product declaring mutable_fields: [] is create-only and never matches a non-empty list.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1frequency-cap-mutable-field.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1frequency-cap-mutable-field.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -4892,7 +4892,7 @@
         "supported_control_modes": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1frequency-cap-control-mode.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1frequency-cap-control-mode.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -4900,7 +4900,7 @@
         "supported_per_units": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1reach-unit.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1reach-unit.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -4909,7 +4909,7 @@
           "type": "array",
           "description": "Require each listed unit to be a supported max_impressions.window unit after seller-wide inheritance.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1frequency-cap-duration-unit.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1frequency-cap-duration-unit.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -4918,7 +4918,7 @@
           "type": "array",
           "description": "Require each listed unit to be a supported suppress unit after seller-wide inheritance.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1frequency-cap-duration-unit.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1frequency-cap-duration-unit.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -4970,7 +4970,7 @@
           "description": "Require product participation in one shared MediaBuy frequency-cap counter."
         },
         "frequency_cap_constraints": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1media-buy-frequency-cap-requirement.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1media-buy-frequency-cap-requirement.json"
         }
       },
       "minProperties": 1,
@@ -4986,7 +4986,7 @@
       "description": "Buyer minimum product-support detail for an aggregate MediaBuy frequency cap. Aggregate support in 3.2 is max-impressions only.",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1frequency-cap-requirements.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1frequency-cap-requirements.json"
         },
         {
           "type": "object",
@@ -4994,7 +4994,7 @@
             "supported_control_modes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1media-buy-frequency-cap-control-mode.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1media-buy-frequency-cap-control-mode.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -5036,7 +5036,7 @@
                   "const": "metric"
                 },
                 "metric": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1forecastable-metric.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1forecastable-metric.json",
                   "description": "Delivery metric to plan for, in the same vocabulary forecast points report."
                 }
               },
@@ -5055,7 +5055,7 @@
                   "const": "event"
                 },
                 "event_type": {
-                  "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1event-type.json",
+                  "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1event-type.json",
                   "description": "Conversion event to plan for, in the same vocabulary forecast points report."
                 },
                 "custom_event_name": {
@@ -5093,7 +5093,7 @@
           "description": "Desired total volume of the goal's metric or event across the planned flight. Alone, the seller solves for budget and answers with total_budget_guidance and a forecast. With cost_per, the seller plans toward the volume at the cost: under a cap it SHOULD keep the buyer's amount and forecast the lower volume it can deliver, unless no volume can be planned at that amount; under a target the ask is plannable when the seller can forecast the volume around it."
         },
         "cost_per": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1outcome-target-cost-per.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1outcome-target-cost-per.json"
         }
       },
       "required": [
@@ -5243,7 +5243,7 @@
           "description": "ISO 4217 currency of amount. BiddingPolicy.cost_per has no currency because it inherits the media-buy currency, and no media buy exists at request time, so the request states it. It becomes the answer's currency: every answering proposal's purchases[].pricing.currency (which bidding amounts use) and forecast.currency MUST equal it, as MUST commercial_terms.total_budget.currency and total_budget_guidance.currency when present; sellers MUST NOT convert currency. It MUST equal offer_filters.budget_range.currency when present. The seller plans within budget_range.max when present, else at or above budget_range.min, and total_budget MUST NOT exceed max or fall below min. A seller rejects a conflict with budget_range, pricing_currencies, the account currency, or the requested products' pricing currencies with INVALID_REQUEST naming criteria.outcome_target.cost_per."
         },
         "strength": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1outcome-target-cost-strength.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1outcome-target-cost-strength.json",
           "description": "BiddingPolicy.cost_per strength: `cap` optimizes for an average at or below the amount and accepts underdelivery when necessary; `target` optimizes around the amount while balancing volume and spend. Neither is a per-result or per-auction guarantee. The answer MUST keep this strength: a cap of 3 the seller can only meet at 4.50 returns {amount: 4.50, strength: 'cap'}, never 'target'. A seller that will not plan at any amount under this strength rejects instead."
         }
       },
@@ -5310,7 +5310,7 @@
           "uniqueItems": true
         },
         "advertiser_industry": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1advertiser-industry.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1advertiser-industry.json"
         },
         "advertiser_jurisdictions": {
           "type": "array",
@@ -5333,7 +5333,7 @@
           "description": "Jurisdictions in which the proposed advertising will be delivered. Seller acceptance rules' jurisdictions and jurisdiction_groups match this field."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
         }
       },
       "x-adcp-validation": {
@@ -5532,12 +5532,12 @@
           "description": "Seller-known catalog identifier returned by sync_catalogs."
         },
         "type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog.json/properties/type"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog.json/properties/type"
         },
         "ids": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog.json/properties/ids"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog.json/properties/ids"
             }
           ],
           "uniqueItems": true
@@ -5545,7 +5545,7 @@
         "gtins": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog.json/properties/gtins"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog.json/properties/gtins"
             }
           ],
           "uniqueItems": true
@@ -5553,18 +5553,18 @@
         "tags": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog.json/properties/tags"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog.json/properties/tags"
             }
           ],
           "uniqueItems": true
         },
         "category": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog.json/properties/category"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog.json/properties/category"
         },
         "query": {
           "allOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog.json/properties/query"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog.json/properties/query"
             }
           ],
           "minLength": 1
@@ -5590,7 +5590,7 @@
           "description": "Human-readable name for this catalog (e.g., 'Summer Products 2025', 'Amsterdam Store Locations')."
         },
         "type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1catalog-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1catalog-type.json",
           "description": "Catalog type. Structural types: 'offering' (AdCP Offering objects), 'product' (ecommerce entries), 'inventory' (stock per location), 'store' (physical locations), 'promotion' (deals and pricing). Vertical types: 'hotel', 'flight', 'job', 'vehicle', 'real_estate', 'education', 'destination', 'app' \u2014 each with an industry-specific item schema."
         },
         "url": {
@@ -5599,11 +5599,11 @@
           "description": "URL to an external catalog feed. The platform fetches and resolves items from this URL. For offering-type catalogs, the feed contains an array of Offering objects. For other types, the feed format is determined by feed_format. When omitted with type 'product', the platform uses its synced copy of the brand's product catalog."
         },
         "feed_format": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1feed-format.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1feed-format.json",
           "description": "Format of the external feed at url. Required when url points to a non-AdCP feed (e.g., Google Merchant Center XML, Meta Product Catalog). Omit for offering-type catalogs where the feed is native AdCP JSON."
         },
         "update_frequency": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1update-frequency.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1update-frequency.json",
           "description": "How often the platform should re-fetch the feed from url. Only applicable when url is provided. Platforms may use this as a hint for polling schedules."
         },
         "items": {
@@ -5651,20 +5651,20 @@
           "type": "array",
           "description": "Event types that represent conversions for items in this catalog. Declares what events the platform should attribute to catalog items \u2014 e.g., a job catalog converts via submit_application, a product catalog via purchase. The event's content_ids field carries the item IDs that connect back to catalog items. Use content_id_type to declare what identifier type content_ids values represent.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1event-type.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1event-type.json"
           },
           "minItems": 1,
           "uniqueItems": true
         },
         "content_id_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1content-id-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:enums~1content-id-type.json",
           "description": "Identifier type that the event's content_ids field should be matched against for items in this catalog. For example, 'gtin' means content_ids values are Global Trade Item Numbers, 'sku' means retailer SKUs. Omit when using a custom identifier scheme not listed in the enum."
         },
         "feed_field_mappings": {
           "type": "array",
           "description": "Declarative normalization rules for external feeds. Maps non-standard feed field names, date formats, price encodings, and image URLs to the AdCP catalog item schema. Applied during sync_catalogs ingestion. Supports field renames, named transforms (date, divide, boolean, split), static literal injection, and assignment of image URLs to typed asset pools.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog-field-mapping.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1catalog-field-mapping.json"
           },
           "minItems": 1
         }
@@ -5922,7 +5922,7 @@
           "description": "Fallback value to use when feed_field is absent, null, or empty. Applied after any transform would have been applied. Allows optional feed fields to have a guaranteed baseline value."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/list-products-request.json#/$defs/external:core~1ext.json"
         }
       },
       "allOf": [

@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "properties": {
@@ -30,7 +30,7 @@
       "type": "array",
       "description": "Current persisted agent-level notification subscribers owned by the authenticated caller after the request. Entries are keyed by `subscriber_id`; `authentication.credentials` is omitted on every entry because credentials are write-only. Present on successful actions and MAY be present on `failed` responses to show the unchanged prior caller-scoped set.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/agent-notification-config.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/agent-notification-config.json"
       },
       "maxItems": 16
     },
@@ -38,14 +38,14 @@
       "type": "array",
       "description": "Operation-level errors and warnings. Present when action is `failed`, and MAY include non-fatal warnings on successful responses.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       }
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

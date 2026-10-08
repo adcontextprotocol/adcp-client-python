@@ -15,7 +15,7 @@
       "description": "Webhook URL to call for dynamic content"
     },
     "method": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/http-method.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/http-method.json",
       "default": "POST",
       "description": "HTTP method"
     },
@@ -31,7 +31,7 @@
       "items": {
         "anyOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/universal-macro.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/universal-macro.json"
           },
           {
             "type": "string",
@@ -46,7 +46,7 @@
       "items": {
         "anyOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/universal-macro.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/universal-macro.json"
           },
           {
             "type": "string",
@@ -57,7 +57,7 @@
       "description": "Universal macros that must be provided for webhook to function"
     },
     "response_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/webhook-response-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/webhook-response-type.json",
       "description": "Expected content type of webhook response"
     },
     "security": {
@@ -65,7 +65,7 @@
       "description": "Security configuration for webhook calls",
       "properties": {
         "method": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/webhook-security-method.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/webhook-security-method.json",
           "description": "Authentication method"
         },
         "hmac_header": {
@@ -82,7 +82,7 @@
       ]
     },
     "provenance": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
     }
   },

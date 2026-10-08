@@ -83,11 +83,11 @@
       "description": "Cache layer affected by this change. MUST equal event.payload.applies_to.scope. Mirrors the cache_scope returned by list_products / get_signals for the affected wholesale feed."
     },
     "event": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/wholesale-feed-event.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/wholesale-feed-event.json",
       "description": "The actual product, signal, or bulk-change event. Consumers MAY apply this payload to their local mirror. Before any binding action, or when ordering/gap checks fail, consumers MUST reconcile through list_products / get_signals."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

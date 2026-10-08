@@ -21,7 +21,7 @@
       "description": "Product owned by the destination seller."
     },
     "format_option": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-format-declaration.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-format-declaration.json",
       "description": "Exact effective destination declaration. The full declaration is carried so an option without format_option_id remains addressable. The destination seller verifies it against the current product and applicable placement/publisher narrowings."
     },
     "placement_refs": {
@@ -29,16 +29,16 @@
       "minItems": 1,
       "uniqueItems": true,
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/placement-ref.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/placement-ref.json"
       },
       "description": "Optional placements the derived manifest must satisfy. Omission means every placement in the intended product route, not an unconstrained destination."
     },
     "execution_vast_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/vast-version.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/vast-version.json",
       "description": "Exact VAST execution version selected for seller-assembled first-class VAST trackers when no sibling exact-version VAST document supplies it. Must be accepted by format_option and is preserved in selection lineage."
     },
     "execution_daast_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/daast-version.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/daast-version.json",
       "description": "Exact DAAST execution version selected for seller-assembled first-class DAAST trackers when no sibling exact-version DAAST document supplies it. Must be accepted by format_option and is preserved in selection lineage."
     }
   },

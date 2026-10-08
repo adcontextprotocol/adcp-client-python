@@ -71,7 +71,7 @@
       ]
     },
     "finality": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reporting-finality.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reporting-finality.json"
     },
     "data_through": {
       "type": [
@@ -81,7 +81,7 @@
       "format": "date-time"
     },
     "feed_purpose": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/reporting-delivery-offering.json#/definitions/ReportingFeedPurpose"
     }
   },
   "required": [

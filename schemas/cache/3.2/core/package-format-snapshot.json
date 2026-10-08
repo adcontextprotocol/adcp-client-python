@@ -17,7 +17,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/placement-ref.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/placement-ref.json"
           },
           {
             "required": [
@@ -29,11 +29,11 @@
       "description": "Nonempty, duplicate-free effective placement set, sorted by publisher_domain then placement_id using ascending UTF-8 bytes without Unicode normalization. Omission binds the product-wide common effective contract; it never means an inferred list of all current placements."
     },
     "execution_vast_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/vast-version.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/vast-version.json",
       "description": "Exact VAST execution version selected for first-class VAST tracker matching when no sibling delivery document supplies one. The value is immutable for the package."
     },
     "execution_daast_version": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/daast-version.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/daast-version.json",
       "description": "Exact DAAST execution version selected for first-class DAAST tracker matching when no sibling delivery document supplies one. The value is immutable for the package."
     },
     "tracker_execution_contract_digest": {
@@ -53,7 +53,7 @@
   ],
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product-format-declaration.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product-format-declaration.json"
     },
     {
       "if": {

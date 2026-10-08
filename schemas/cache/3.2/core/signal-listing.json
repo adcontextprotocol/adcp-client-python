@@ -5,11 +5,11 @@
   "type": "object",
   "properties": {
     "signal_ref": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json",
       "description": "Canonical signal reference. Use scope 'product' for a product-local signal defined by this listing; use scope 'data_provider' with data_provider_domain for a signal defined in a data provider's published adagents.json signals[]; use scope 'signal_source' with signal_source_url for a source-native signal."
     },
     "signal_id": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-id.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-id.json",
       "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older Signals Protocol clients.",
       "deprecated": true
     },
@@ -32,7 +32,7 @@
       "description": "When this listing record was last updated. This indicates freshness of the listing record, not an attestation that the underlying data or model was refreshed at that time."
     },
     "value_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/signal-value-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/signal-value-type.json",
       "description": "The data type of this signal's values. Required when signal_ref.scope is 'product'."
     },
     "categories": {
@@ -66,12 +66,12 @@
       "type": "array",
       "description": "Restricted attribute categories this listing touches. Required with demographic_predicate and must include age. For referenced provider/source signals, any projected values must match the authoritative definition.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/restricted-attribute.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/restricted-attribute.json"
       },
       "minItems": 1
     },
     "demographic_predicate": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/demographic-predicate.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/demographic-predicate.json",
       "description": "Machine-readable demographic meaning. For product-local signals this listing is authoritative; for data-provider and signal-source refs, any projected value MUST match the referenced authoritative definition. Signal names alone never establish demographic semantics."
     }
   },

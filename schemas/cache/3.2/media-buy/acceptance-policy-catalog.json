@@ -15,20 +15,20 @@
     "profiles": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/acceptance-policy-profile.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/acceptance-policy-profile.json"
       },
       "minItems": 1
     },
     "registry_profiles": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/acceptance-policy-profile-ref.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/acceptance-policy-profile-ref.json"
       },
       "minItems": 1,
       "description": "Exact reusable profiles adopted from the shared policy registry. Resolution failure is unknown, never allowed. A seller adds a distinct local profile to narrow a registry profile."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

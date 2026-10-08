@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "collection_ref": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/collection-ref.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/collection-ref.json"
     },
     "installment_id": {
       "type": "string",

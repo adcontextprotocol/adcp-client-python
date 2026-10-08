@@ -31,7 +31,7 @@
         "type": "object",
         "properties": {
           "artifact": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/content-standards/artifact.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/content-standards/artifact.json",
             "description": "The content artifact"
           },
           "delivered_at": {
@@ -73,7 +73,7 @@
       }
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

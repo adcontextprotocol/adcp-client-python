@@ -5,11 +5,11 @@
   "type": "object",
   "properties": {
     "demographics": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/demographic-targeting-resolution.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/demographic-targeting-resolution.json",
       "description": "Canonical demographic predicate and exact seller execution details. Include whenever demographic targeting was requested or applied."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

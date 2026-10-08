@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "oneOf": [
@@ -47,7 +47,7 @@
                 "description": "Which delivery record was evaluated"
               },
               "verdict": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/binary-verdict.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/binary-verdict.json"
               },
               "features": {
                 "type": "array",
@@ -60,7 +60,7 @@
                       "description": "Which feature was evaluated. Data features come from the content-standards feature catalog (e.g., 'brand_safety', 'brand_suitability', 'image_dpi'). Record-level structural checks use reserved namespaces: 'record:malformed_artifact', 'delivery:authorization'. Reserved prefixes: 'record:', 'delivery:'."
                     },
                     "status": {
-                      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/feature-check-status.json"
+                      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/feature-check-status.json"
                     },
                     "policy_id": {
                       "type": "string",
@@ -92,10 +92,10 @@
           }
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -110,14 +110,14 @@
         "errors": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
           }
         },
         "context": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [

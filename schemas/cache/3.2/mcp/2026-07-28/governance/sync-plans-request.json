@@ -503,7 +503,7 @@
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
         },
         "brand_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1brand-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1brand-id.json",
           "description": "Brand identifier within the house portfolio. Optional for single-brand domains."
         },
         "countries": {
@@ -562,7 +562,7 @@
           "description": "Inline override for brand-kit fields normally resolved from `/.well-known/brand.json` on `domain` (logo, colors, voice, tagline). Use when brand.json is missing, stale, or inappropriate for this specific call \u2014 e.g., a campaign-scoped tagline, a co-branded creative, a freshly-rebranded color palette the brand.json hasn't shipped yet. Same inline-override pattern as `industries` and `data_subject_contestation` above: brand.json is canonical, the override is per-call. Adopters needing to override fields outside this subset (`voice_attributes`, `prohibited_terms`, etc.) MUST publish a different brand.json and reference it via a different `domain` \u2014 the inline override is intentionally narrow to a small high-traffic subset.\n\n**Merge semantics (normative).** The merge is **field-level**, not whole-object replacement. Each field within `brand_kit_override` (`logo`, `colors`, `voice`, `tagline`) is evaluated independently \u2014 when a field is present on the override the override value applies; when a field is absent the brand.json value applies (or is absent if brand.json doesn't carry one either). For composite fields (`colors.primary`, `colors.secondary`, `colors.accent`), the merge is one level deeper: each color slot is evaluated independently \u2014 a producer can override `colors.primary` while still inheriting `colors.secondary` from brand.json. SDKs MUST NOT treat a present `brand_kit_override.colors` as wiping the brand.json `colors` block entirely; only the per-slot fields present in the override take precedence. Without this rule, a partial-override semantics would diverge across SDKs and produce inconsistent rendering for the same payload.",
           "properties": {
             "logo": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1assets~1image-asset.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1assets~1image-asset.json",
               "description": "Override logo asset."
             },
             "colors": {
@@ -698,7 +698,7 @@
           "x-accessibility": true
         },
         "provenance": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1provenance.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1provenance.json",
           "description": "Provenance metadata for this asset, overrides manifest-level provenance"
         }
       },
@@ -716,7 +716,7 @@
       "type": "object",
       "properties": {
         "digital_source_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1digital-source-type.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1digital-source-type.json",
           "description": "IPTC-aligned classification of AI involvement in producing this content"
         },
         "synthetic_depiction": {
@@ -826,7 +826,7 @@
             "type": "object",
             "properties": {
               "method": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1embedded-provenance-method.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1embedded-provenance-method.json",
                 "description": "How provenance data is carried within the content"
               },
               "standard": {
@@ -877,7 +877,7 @@
             "type": "object",
             "properties": {
               "media_type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1watermark-media-type.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1watermark-media-type.json",
                 "description": "Media category of the watermarked content"
               },
               "provider": {
@@ -905,7 +905,7 @@
                 "additionalProperties": false
               },
               "c2pa_action": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1c2pa-watermark-action.json",
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1c2pa-watermark-action.json",
                 "description": "C2PA action classification for this watermark"
               },
               "embedded_at": {
@@ -956,7 +956,7 @@
                     "minProperties": 1,
                     "properties": {
                       "persistence": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1disclosure-persistence.json",
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1disclosure-persistence.json",
                         "description": "How long the disclosure must persist during content playback or display"
                       },
                       "min_duration_ms": {
@@ -968,13 +968,13 @@
                         "type": "array",
                         "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                         "items": {
-                          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1disclosure-position.json"
+                          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1disclosure-position.json"
                         },
                         "minItems": 1,
                         "uniqueItems": true
                       },
                       "ext": {
-                        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1ext.json"
+                        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1ext.json"
                       }
                     }
                   }
@@ -1036,7 +1036,7 @@
           }
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1ext.json"
         }
       }
     },
@@ -1215,7 +1215,7 @@
           "type": "array",
           "description": "Desired audience criteria. The seller's targeting should align with these. Each criterion is evaluated independently \u2014 the combined targeting should satisfy at least one inclusion criterion.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1audience-selector.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1audience-selector.json"
           },
           "minItems": 1
         },
@@ -1223,7 +1223,7 @@
           "type": "array",
           "description": "Excluded audience criteria. The seller's targeting must not overlap with these. Exclusions take precedence over inclusions. Used for protected groups, vulnerable communities, regulatory restrictions, or brand safety.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1audience-selector.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1audience-selector.json"
           },
           "minItems": 1
         }
@@ -1245,11 +1245,11 @@
               "description": "Discriminator for signal-based selectors"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1signal-ref.json",
               "description": "The signal to target. New selectors SHOULD use signal_ref."
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1signal-id.json",
               "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
               "deprecated": true
             },
@@ -1292,11 +1292,11 @@
               "description": "Discriminator for signal-based selectors"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1signal-ref.json",
               "description": "The signal to target. New selectors SHOULD use signal_ref."
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1signal-id.json",
               "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
               "deprecated": true
             },
@@ -1343,11 +1343,11 @@
               "description": "Discriminator for signal-based selectors"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1signal-ref.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1signal-ref.json",
               "description": "The signal to target. New selectors SHOULD use signal_ref."
             },
             "signal_id": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1signal-id.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1signal-id.json",
               "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
               "deprecated": true
             },
@@ -1700,11 +1700,11 @@
           "description": "Brief summary of what this policy covers."
         },
         "category": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1policy-category.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1policy-category.json",
           "description": "The nature of the obligation: regulation (legal requirement) or standard (best practice). Optional for inline bespoke policies \u2014 defaults to \"standard\"."
         },
         "enforcement": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1policy-enforcement.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1policy-enforcement.json",
           "description": "How governance agents treat violations. Regulations are typically \"must\"; standards are typically \"should\"."
         },
         "requires_human_review": {
@@ -1740,14 +1740,14 @@
         "channels": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1channels.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1channels.json"
           },
           "description": "Advertising channels this policy applies to. If omitted or null, the policy applies to all channels."
         },
         "governance_domains": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1governance-domain.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1governance-domain.json"
           },
           "description": "Governance sub-domains this policy applies to. Determines which types of governance agents can declare registry:{policy_id} features. For example, a policy with domains [\"creative\", \"property\"] can be declared as a feature by both creative and property governance agents."
         },
@@ -1790,7 +1790,7 @@
           "additionalProperties": false
         },
         "acceptance_profile": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:media-buy~1acceptance-policy-profile.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:media-buy~1acceptance-policy-profile.json",
           "description": "Optional reusable, machine-readable acceptance profile derived from this registry policy. Registry publishers MUST bind policy_refs to exact versions. Sellers adopt a profile explicitly; registry publication alone does not make it authoritative for a seller."
         },
         "policy": {
@@ -1809,14 +1809,14 @@
             "pass": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:governance~1policy-entry.json/$defs/exemplar"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:governance~1policy-entry.json/$defs/exemplar"
               },
               "description": "Scenarios that comply with this policy."
             },
             "fail": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:governance~1policy-entry.json/$defs/exemplar"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:governance~1policy-entry.json/$defs/exemplar"
               },
               "description": "Scenarios that violate this policy."
             }
@@ -1824,7 +1824,7 @@
           "additionalProperties": false
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -2052,12 +2052,12 @@
         "rules": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:media-buy~1acceptance-policy-rule.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:media-buy~1acceptance-policy-rule.json"
           },
           "minItems": 1
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -2201,7 +2201,7 @@
         "requirements": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:media-buy~1acceptance-policy-requirement.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:media-buy~1acceptance-policy-requirement.json"
           },
           "minItems": 1
         },
@@ -2231,7 +2231,7 @@
           "format": "date-time"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -2484,7 +2484,7 @@
             "restricted_attributes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1restricted-attribute.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:enums~1restricted-attribute.json"
               },
               "minItems": 1,
               "uniqueItems": true
@@ -2617,7 +2617,7 @@
               "minLength": 1
             },
             "ext": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1ext.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/governance/sync-plans-request.json#/$defs/external:core~1ext.json"
             }
           },
           "required": [

@@ -84,7 +84,7 @@
     "requirements": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/media-buy/acceptance-policy-requirement.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/media-buy/acceptance-policy-requirement.json"
       },
       "minItems": 1
     },
@@ -114,7 +114,7 @@
       "format": "date-time"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

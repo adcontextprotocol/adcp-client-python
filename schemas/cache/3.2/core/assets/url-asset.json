@@ -11,11 +11,11 @@
       "description": "Discriminator identifying this as a URL asset. See /schemas/creative/asset-types for the registry."
     },
     "url": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-bearing-url.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-bearing-url.json",
       "description": "URL reference carrying plain, AdCP, IAB, or declared vendor macro syntax. Buyers preserve token delimiters; the authoritative declaration determines the processing operation and encoding."
     },
     "url_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/url-asset-type.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/url-asset-type.json",
       "description": "Mechanism a receiver uses to invoke this URL: `clickthrough` for a user destination, `ad_request` for a third-party display creative request, `tracker_pixel` for an event HTTP request, or `tracker_script` for a script include. SHOULD be present on every URL asset."
     },
     "macro_declarations": {
@@ -23,7 +23,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-declaration.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-declaration.json"
           },
           {
             "properties": {
@@ -50,7 +50,7 @@
       "description": "Binding used only when this URL populates a `seller_rendered_stateful_display` `state_click_urls` slot. It MUST match one declared `states[].state_id` (semantic validators resolve it); at most one entry per state. Omit for ordinary URL slots."
     },
     "provenance": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
     }
   },

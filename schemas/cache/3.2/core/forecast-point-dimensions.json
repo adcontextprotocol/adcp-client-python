@@ -14,25 +14,25 @@
   "items": {
     "oneOf": [
       {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-dimension-geo.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-dimension-geo.json"
       },
       {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-dimension-placement.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-dimension-placement.json"
       },
       {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-dimension-device-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-dimension-device-type.json"
       },
       {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-dimension-device-platform.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-dimension-device-platform.json"
       },
       {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-dimension-audience.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-dimension-audience.json"
       },
       {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-dimension-signal.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-dimension-signal.json"
       },
       {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-dimension-time.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-dimension-time.json"
       }
     ]
   }

@@ -236,7 +236,7 @@
           "items": {
             "allOf": [
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:enums~1notification-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:enums~1notification-type.json"
               },
               {
                 "not": {
@@ -272,7 +272,7 @@
             "schemes": {
               "type": "array",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -294,7 +294,7 @@
           "description": "When false, the seller persists the configuration but suppresses fires. Use to pause a subscriber without losing the registration. Paused configs may skip only the outbound proof challenge while inactive; sellers MUST still enforce URL parsing, HTTPS, hostname normalization, and reserved-range rejection at write time. Reactivation requires full SSRF validation with connect pinning plus proof-of-control for any tuple without current valid proof."
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1ext.json"
         }
       },
       "required": [
@@ -465,7 +465,7 @@
               "description": "True permits use. False suspends the destination: the seller MUST stop initiating new deliveries to every generation of this destination_id within the advertised suspension interval, and new account-level delivery configurations MUST NOT select it. Suspension does not delete caller-owned data already delivered."
             },
             "provider": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
             },
             "transport": {
               "type": "string",
@@ -498,7 +498,7 @@
               "description": "Physical formats accepted by this file-transfer destination."
             },
             "accepted_verification_profiles": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
             }
           },
           "required": [
@@ -541,7 +541,7 @@
               "description": "True permits use. False suspends the destination: the seller MUST stop initiating new deliveries to every generation of this destination_id within the advertised suspension interval, and new account-level delivery configurations MUST NOT select it. Suspension does not delete caller-owned data already delivered."
             },
             "provider": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
             },
             "transport": {
               "type": "string",
@@ -558,7 +558,7 @@
               "description": "Provider-native project/dataset, database/schema, or catalog/schema locator. Printable ASCII without whitespace, '?', '#', '%', '\"', '<', or '>'. Never a credential or signed URL; sellers additionally screen and normalize per the secret_rejection and normalization rules."
             },
             "accepted_verification_profiles": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
             }
           },
           "required": [
@@ -600,7 +600,7 @@
               "description": "True permits use. False suspends the destination: the seller MUST stop publishing new revisions to every generation of this destination_id within the advertised suspension interval, and new account-level delivery configurations MUST NOT select it. Suspension does not delete caller-owned data already delivered or revoke provider-side grants by itself."
             },
             "provider": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-provider.json"
             },
             "transport": {
               "type": "string",
@@ -617,10 +617,10 @@
               "description": "Dataset-share access family, such as databricks_to_databricks, open_sharing, or secure_data_sharing."
             },
             "recipient": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-recipient.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1delivery-recipient.json"
             },
             "accepted_verification_profiles": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1reporting-verification-profile-set.json"
             }
           },
           "required": [
@@ -690,7 +690,7 @@
           "maxLength": 512
         },
         "cloud": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:enums~1delivery-recipient-cloud.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:enums~1delivery-recipient-cloud.json"
         },
         "region": {
           "type": "string",
@@ -755,7 +755,7 @@
         "experimental_features": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1experimental-feature-id.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/protocol/sync-principal-request.json#/$defs/external:core~1experimental-feature-id.json"
           },
           "minItems": 1,
           "maxItems": 32,

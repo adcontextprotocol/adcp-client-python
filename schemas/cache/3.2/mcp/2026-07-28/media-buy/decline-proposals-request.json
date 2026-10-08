@@ -134,7 +134,7 @@
               "type": "array",
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.",
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/decline-proposals-request.json#/$defs/external:enums~1auth-scheme.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/decline-proposals-request.json#/$defs/external:enums~1auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -179,7 +179,7 @@
           "description": "Immutable proposal ID returned by request_proposals or refine_proposals."
         },
         "reason": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/decline-proposals-request.json#/$defs/external:enums~1proposal-decline-reason.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/decline-proposals-request.json#/$defs/external:enums~1proposal-decline-reason.json"
         },
         "detail": {
           "type": "string",
@@ -275,7 +275,7 @@
           "description": "How seriously the buyer is evaluating supply in this cycle."
         },
         "planning_horizon": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/mcp/2026-07-28/media-buy/decline-proposals-request.json#/$defs/external:core~1date-range.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/mcp/2026-07-28/media-buy/decline-proposals-request.json#/$defs/external:core~1date-range.json",
           "description": "Inclusive calendar range in which the buyer expects the campaign to run."
         },
         "response_deadline": {

@@ -12,7 +12,7 @@
     "daast_event": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/daast-tracking-event.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/daast-tracking-event.json"
         },
         {
           "not": {
@@ -33,7 +33,7 @@
       "description": "The DAAST tracking event this URL fires on. MUST NOT be `impression` (model as `url` asset with `url_type: \"tracker_pixel\"`), `clickTracking` / `customClick` (click-tracking trackers go on their own URL asset), `error`, or any of the `ViewableImpression`-element children (`viewable`, `notViewable`, `viewUndetermined`, `measurableImpression`, `viewableImpression`)."
     },
     "url": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-bearing-url.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-bearing-url.json",
       "description": "Tracker URL fired for the DAAST event. Attached declarations identify each macro occurrence, processing actor, and exact encoding profile."
     },
     "macro_declarations": {
@@ -41,7 +41,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-declaration.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-declaration.json"
           },
           {
             "properties": {
@@ -74,7 +74,7 @@
       "description": "Which DAAST creative element this tracker scopes to \u2014 `linear` for `<Linear>/<TrackingEvents>` (DAAST 1.1 \u00a73.2.1.7), `companion` for `<CompanionAds>/<Companion>/<TrackingEvents>` (DAAST 1.1 \u00a73.2.2.7). DAAST has no `<NonLinearAds>` element. Defaults to `linear`. Existing 3.x assets remain structurally permissive; a tracker execution contract applies the standards-valid event/target matrix when matching a creative to a product."
     },
     "provenance": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance."
     }
   },

@@ -29,16 +29,16 @@
       "description": "Digest of the current accepted proposal commercial_terms, allowing buyers and governance agents to verify the recovered snapshot."
     },
     "account": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/account.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/account.json",
       "description": "Account billed for this media buy"
     },
     "status": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/media-buy-status.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/media-buy-status.json"
     },
     "health": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/media-buy-health.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/media-buy-health.json"
         }
       ],
       "default": "ok",
@@ -48,7 +48,7 @@
       "type": "array",
       "description": "Open impairments \u2014 upstream dependency state changes that affect delivery for at least one package on this buy. Empty when health is 'ok'. Sellers MUST add an entry on next sync/poll response after a referenced resource transitions to an offline state, and MUST remove the entry (flipping health to 'ok' when the array empties) when the resource returns to a serviceable state. Staleness budget: the snapshot MUST reflect the impairment within 5 minutes of impairment.observed_at regardless of buyer poll cadence \u2014 sellers cannot rely on rare buyer polls to defer write propagation. See impairment.coherence assertion for the cross-resource invariant.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/impairment.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/impairment.json"
       }
     },
     "rejection_reason": {
@@ -77,7 +77,7 @@
           "description": "ISO 8601 timestamp when this media buy was canceled."
         },
         "canceled_by": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/canceled-by.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/canceled-by.json",
           "description": "Which party initiated the cancellation. 'buyer' when canceled through control_media_buy or the 3.x update_media_buy facade; 'seller' when the seller cancels (e.g., policy violation, inventory withdrawal)."
         },
         "reason": {
@@ -99,7 +99,7 @@
       "minimum": 0
     },
     "frequency_cap": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/media-buy-frequency-cap.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/media-buy-frequency-cap.json",
       "description": "Current hard MediaBuy-level cap. Sellers MUST echo it whenever set. Its counter aggregates exposures across all participating packages; each package targeting_overlay.frequency_cap remains independently binding."
     },
     "budget_cap_timezone": {
@@ -114,19 +114,19 @@
     "budget_allocation": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/budget-allocation.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/budget-allocation.json"
         }
       ],
       "description": "Accepted cross-package budget allocation configuration. Omitted means fixed allocation for legacy buys."
     },
     "pacing": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pacing.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pacing.json",
       "description": "Aggregate pacing strategy for total_budget across the media-buy flight."
     },
     "bidding": {
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/bidding-policy.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/bidding-policy.json"
         }
       ],
       "description": "Media-buy-authored bidding policy. This is the complete default inherited by packages that omit package.bidding; `{automatic:true}` is an explicit authored automatic policy. In seller-optimized mode, cost_per/roas bind to the primary budget_allocation optimization goal. In fixed mode, inherited cost_per requires compatible package primary-goal result units and inherited roas requires value-bearing primary goals. Monetary fields use media_buy.currency; every affected pricing option MUST declare the same currency. Package overrides are permitted only where advertised; conflicts MUST be rejected atomically with BIDDING_PLACEMENT_CONFLICT."
@@ -135,15 +135,15 @@
       "type": "array",
       "description": "Array of packages within this media buy",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/package.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/package.json"
       }
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json",
       "description": "Opaque media-buy-level correlation data echoed unchanged from the create_media_buy request. Sellers MUST include persisted context on read surfaces such as get_media_buys when the media buy was created through AdCP with context, so buyers can reconcile seller-assigned media_buy_id values with their own tracking state. Sellers MAY omit context for media buys created outside AdCP or created without context. Sellers MUST NOT parse this object for business logic."
     },
     "invoice_recipient": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/business-entity.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/business-entity.json",
       "description": "Per-buy override for who receives the invoice. When provided, the seller invoices this entity instead of the account's default billing_entity. The seller MUST validate the invoice recipient is authorized for this account. When governance_agents are configured, the seller MUST include invoice_recipient in the check_governance request."
     },
     "creative_deadline": {
@@ -167,7 +167,7 @@
       "description": "Last update timestamp"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "dependencies": {

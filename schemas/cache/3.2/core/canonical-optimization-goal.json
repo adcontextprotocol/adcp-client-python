@@ -29,13 +29,13 @@
           ]
         },
         "standard": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/viewability-standard.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/viewability-standard.json"
         },
         "vendor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json"
         },
         "reach_unit": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reach-unit.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reach-unit.json"
         },
         "target_frequency": {
           "type": "object",
@@ -49,7 +49,7 @@
               "minimum": 1
             },
             "window": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/duration.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/duration.json"
             }
           },
           "required": [
@@ -179,7 +179,7 @@
                 "x-entity": "event_source"
               },
               "event_type": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/event-type.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/event-type.json"
               },
               "custom_event_name": {
                 "type": "string",
@@ -216,7 +216,7 @@
           "additionalProperties": false
         },
         "attribution_window": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/attribution-window.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/attribution-window.json"
         },
         "priority": {
           "type": "integer",
@@ -237,10 +237,10 @@
           "const": "vendor_metric"
         },
         "vendor": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/brand-key.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/brand-key.json"
         },
         "metric_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-metric-id.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-metric-id.json"
         },
         "target": {
           "type": "object",

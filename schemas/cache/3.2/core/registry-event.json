@@ -825,7 +825,7 @@
       "additionalProperties": true
     },
     "badgeRole": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/adcp-protocol.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/adcp-protocol.json"
     },
     "stringArray": {
       "type": "array",
@@ -876,7 +876,7 @@
         "identifiers": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/identifier.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/identifier.json"
           },
           "minItems": 1
         },
@@ -884,7 +884,7 @@
           "$ref": "#/$defs/domain"
         },
         "property": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property.json",
           "description": "Optional full post-change property object when available."
         },
         "changed_fields": {
@@ -901,7 +901,7 @@
           "description": "Distribution platform domain, such as youtube.com or spotify.com."
         },
         "type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/distribution-identifier-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/distribution-identifier-type.json"
         },
         "value": {
           "type": "string"
@@ -940,7 +940,7 @@
         "kind": {
           "anyOf": [
             {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/collection-kind.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/collection-kind.json"
             },
             {
               "type": "null"
@@ -966,7 +966,7 @@
           "description": "Distribution identifiers that alias this collection across platforms."
         },
         "collection": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/collection.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/collection.json",
           "description": "Optional full post-change collection object when available."
         },
         "changed_fields": {
@@ -1024,13 +1024,13 @@
           "deprecated": true,
           "description": "Deprecated in AdCP 3.2; removed in AdCP 4.0. Named-format profile projection. Use canonical `format_kinds` and `format_option_refs`.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/format-id.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/format-id.json"
           }
         },
         "format_kinds": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-format-kind.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-format-kind.json"
           },
           "uniqueItems": true
         },
@@ -1111,28 +1111,28 @@
         "property_ids": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-id.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-id.json"
           },
           "minItems": 1
         },
         "property_tags": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-tag.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-tag.json"
           },
           "minItems": 1
         },
         "properties": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property.json"
           },
           "minItems": 1
         },
         "publisher_properties": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/publisher-property-selector.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/publisher-property-selector.json"
           },
           "minItems": 1
         },
@@ -1170,7 +1170,7 @@
           "type": "array",
           "description": "Collection constraints from authorized_agents[*].collections. When set, the event does NOT authorize the property unqualified \u2014 consumers building a local authorization index MUST scope the grant to these selectors and fail closed when a query carries no collection scope. A selector without collection_ids is a bulk grant for all collections declared at that publisher_domain.",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/collection-selector.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/collection-selector.json"
           },
           "minItems": 1
         },
@@ -1191,7 +1191,7 @@
         "signing_keys": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/agent-signing-key.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/agent-signing-key.json"
           },
           "minItems": 1,
           "description": "Publisher-attested signing keys copied from adagents.json when the registry has them. Advisory in feed events; verifiers MUST re-fetch the authoritative publisher artifact before treating keys as a trust anchor."

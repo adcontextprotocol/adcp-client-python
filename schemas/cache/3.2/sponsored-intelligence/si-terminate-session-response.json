@@ -5,10 +5,10 @@
   "type": "object",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/version-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/version-envelope.json"
     },
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/protocol-envelope.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/protocol-envelope.json"
     }
   ],
   "x-status": "experimental",
@@ -23,7 +23,7 @@
       "description": "Whether session was successfully terminated"
     },
     "session_status": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/si-session-status.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/si-session-status.json",
       "description": "Resulting session state. 'complete' for handoff_transaction/handoff_complete, 'terminated' for user_exit/session_timeout/host_terminated."
     },
     "acp_handoff": {
@@ -75,14 +75,14 @@
     "errors": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/error.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/error.json"
       }
     },
     "context": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/context.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/context.json"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

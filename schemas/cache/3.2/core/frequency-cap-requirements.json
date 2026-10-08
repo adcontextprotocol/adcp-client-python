@@ -8,7 +8,7 @@
       "type": "array",
       "description": "Require each listed logical field to be mutable after creation. Matches a product whose mutable_fields contains every listed value, or a product that omits mutable_fields, or legacy frequency_cap: true. A product declaring mutable_fields: [] is create-only and never matches a non-empty list.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/frequency-cap-mutable-field.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/frequency-cap-mutable-field.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -16,7 +16,7 @@
     "supported_control_modes": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/frequency-cap-control-mode.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/frequency-cap-control-mode.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -24,7 +24,7 @@
     "supported_per_units": {
       "type": "array",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reach-unit.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reach-unit.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -33,7 +33,7 @@
       "type": "array",
       "description": "Require each listed unit to be a supported max_impressions.window unit after seller-wide inheritance.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/frequency-cap-duration-unit.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/frequency-cap-duration-unit.json"
       },
       "minItems": 1,
       "uniqueItems": true
@@ -42,7 +42,7 @@
       "type": "array",
       "description": "Require each listed unit to be a supported suppress unit after seller-wide inheritance.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/frequency-cap-duration-unit.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/frequency-cap-duration-unit.json"
       },
       "minItems": 1,
       "uniqueItems": true

@@ -10,7 +10,7 @@
       "description": "Discriminator identifying this as a renderer-fired pixel tracker asset. See /schemas/creative/asset-types for the registry."
     },
     "event": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/pixel-tracking-event.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/pixel-tracking-event.json",
       "description": "Which event this tracker fires on. The event enum maps its first four measurement values to IAB OpenRTB Native 1.2 event types 1-4 and adds explicit AdCP events for renderer behavior that Native does not assign a standard event type:\n- `impression` (IAB type 1) \u2014 fires when the ad is served. Covers both `imptrackers[]` and `jstracker` from the IAB shape, distinguished by `method`.\n- `viewable_mrc_50` (IAB type 2) \u2014 IAB MRC viewable, 50% pixels for \u22651 second.\n- `viewable_mrc_100` (IAB type 3) \u2014 IAB MRC viewable, 100% pixels for \u22651 second.\n- `viewable_video_50` (IAB type 4) \u2014 video-specific viewable, 50% pixels for \u22652 seconds. Native type 4 does not require audio. On video_hosted; ignored on image/html5.\n- `audible_video_complete` (AdCP-defined) \u2014 video reached 100% completion with audio on. Native reserves event types 500+ for exchange-specific use and does not assign this event a standard numeric type. Meaningful on non-VAST video formats where audible-complete is measured but VAST `<TrackingEvents>` is not the wire format; VAST formats use `vast_tracker` with `vast_event: complete` plus a separate audible tracker instead.\n- `click` \u2014 fires when the user clicks the creative (`link.clicktrackers[]`).\n- `custom` \u2014 adopter-defined event for anything not in the standardized enum. MUST also set `custom_event_name`; it can represent Native's exchange-specific 500+ range or another qualified vendor event without assigning an IAB numeric identity."
     },
     "method": {
@@ -23,7 +23,7 @@
       "description": "How the tracker URL is invoked at serve time:\n- `img` \u2014 fired as an image pixel (HTTP GET with `<img>`-like semantics; no JS execution)\n- `js` \u2014 fired as a script include (renderer evaluates the URL's response as JavaScript)\n\nMatches IAB OpenRTB Native 1.2 method enum (1=img, 2=js). `js` MUST only be used by sellers whose renderer supports JavaScript trackers; sellers without JS-tracker support MUST reject `method: js` declarations at sync_creatives time with `CREATIVE_REJECTED` carrying the reason."
     },
     "url": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-bearing-url.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-bearing-url.json",
       "description": "Tracker URL fired when `event` occurs. Macro processing and encoding follow an attached occurrence declaration; absent declarations retain the legacy universal-macro path."
     },
     "macro_declarations": {
@@ -31,7 +31,7 @@
       "items": {
         "allOf": [
           {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/macro-declaration.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/macro-declaration.json"
           },
           {
             "properties": {
@@ -54,7 +54,7 @@
       "description": "REQUIRED when `event` is `custom`; otherwise MUST be absent. Adopter-defined event name. When tracker execution is undeclared, an unknown custom event is a forward-compatible probe and the seller silently no-ops instead of rejecting the creative. An effective tracker_execution_contract overrides that legacy fallback: with complete:true an unlisted custom selector is unsupported and rejects compatibility with tracker_contract_mismatch; a listed custom selector is an affirmative accept-and-initiate commitment."
     },
     "provenance": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/provenance.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance."
     }
   },

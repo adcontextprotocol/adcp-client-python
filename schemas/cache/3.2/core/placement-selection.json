@@ -23,7 +23,7 @@
               {
                 "allOf": [
                   {
-                    "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/placement-ref.json"
+                    "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/placement-ref.json"
                   },
                   {
                     "required": [
@@ -33,7 +33,7 @@
                 ]
               },
               {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/placement-identity.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/placement-identity.json"
               }
             ]
           },
@@ -41,7 +41,7 @@
           "uniqueItems": true
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [
@@ -59,7 +59,7 @@
           "const": "default"
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [

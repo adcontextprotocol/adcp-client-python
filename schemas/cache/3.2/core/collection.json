@@ -19,7 +19,7 @@
       "description": "Human-readable collection name"
     },
     "kind": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/collection-kind.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/collection-kind.json",
       "description": "What kind of content program this is. Helps agents interpret installments correctly. A channel collection represents the persistent programmed stream; its installments, when present, are scheduled airings or programming blocks. Defaults to 'series' when absent."
     },
     "description": {
@@ -42,11 +42,11 @@
       "description": "Primary language (BCP 47 tag, e.g., 'en', 'es-MX')"
     },
     "content_rating": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/content-rating.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/content-rating.json",
       "description": "Baseline content rating for the collection. Individual installments may override this."
     },
     "cadence": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/collection-cadence.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/collection-cadence.json",
       "description": "How frequently the collection releases new installments"
     },
     "season": {
@@ -54,37 +54,37 @@
       "description": "Current or most recent season identifier (e.g., '3', '2026', 'spring_2026'). A lightweight label \u2014 not a full season object."
     },
     "status": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/collection-status.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/collection-status.json",
       "description": "Lifecycle status of the collection"
     },
     "production_quality": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/production-quality.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/production-quality.json",
       "description": "Production quality tier. Seller-declared. Maps to OpenRTB content.prodq (professional=1, prosumer=2, ugc=3)."
     },
     "talent": {
       "type": "array",
       "description": "Hosts, recurring cast, creators associated with the collection. Each talent entry may include a brand_url linking to their brand.json identity.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/talent.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/talent.json"
       }
     },
     "special": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/special.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/special.json",
       "description": "When present, this collection is a special \u2014 content anchored to a real-world event or occasion. Individual installments may override with their own event context."
     },
     "limited_series": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/limited-series.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/limited-series.json",
       "description": "When present, this collection is a limited series \u2014 a bounded run with a defined arc, installment count, and end date."
     },
     "distribution": {
       "type": "array",
       "description": "Where this collection is distributed. Each entry maps the collection to a publisher platform using host property IDs, identifiers, or both. For channel collections this is the carriage map. It is a publisher assertion for discovery, not sales authorization; buyers validate owner-sold carriage against the host publisher's collection-scoped authorized_agents declaration. Collections SHOULD include at least one platform-independent identifier (imdb_id, gracenote_id, eidr_id) when available.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/collection-distribution.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/collection-distribution.json"
       }
     },
     "deadline_policy": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/deadline-policy.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/deadline-policy.json",
       "description": "Default deadline rules for installments of this collection. Agents compute absolute deadlines from each installment's scheduled_at and these lead times. Installments with explicit deadlines override this policy. Only meaningful when installments carry scheduled_at; a continuously programmed channel collection without enumerated installments has no deadlines to derive."
     },
     "related_collections": {
@@ -99,7 +99,7 @@
             "x-entity": "collection"
           },
           "relationship": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/collection-relationship.json",
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/collection-relationship.json",
             "description": "How the collections are related"
           }
         },
@@ -111,7 +111,7 @@
       }
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

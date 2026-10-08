@@ -222,7 +222,7 @@
         "restricted_attributes": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/restricted-attribute.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/restricted-attribute.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -355,7 +355,7 @@
           "minLength": 1
         },
         "ext": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
         }
       },
       "required": [

@@ -4,7 +4,7 @@
   "description": "Bounded input-required payload for decline_proposals.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/compact-task-input-required.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/compact-task-input-required.json"
     }
   ]
 }

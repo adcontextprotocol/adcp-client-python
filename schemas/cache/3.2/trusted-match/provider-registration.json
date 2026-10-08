@@ -15,7 +15,7 @@
     "endpoint": {
       "type": "string",
       "format": "uri",
-      "description": "Base URL the router calls. The router appends /context for Context Match and /identity for Identity Match. MUST be HTTPS in production, validated against the canonical reserved IPv4 and IPv6 ranges, with the TCP connection pinned to the validated IP (DNS re-resolution alone is insufficient against rebinding). Publishers comparing two provider registrations for the same `endpoint` MUST canonicalize both per the AdCP URL canonicalization rules; two registrations differing only in case, default port, or path-slash collapsing are the same provider. See docs/trusted-match/specification#provider-registration-security, docs/building/implementation/security#webhook-url-validation-ssrf, and docs/reference/url-canonicalization."
+      "description": "Base URL the router calls. The router appends /context for Context Match and /identity for Identity Match. MUST be HTTPS in production, validated against the canonical reserved IPv4 and IPv6 ranges, with the TCP connection pinned to the validated IP (DNS re-resolution alone is insufficient against rebinding). Publishers comparing two provider registrations for the same `endpoint` MUST canonicalize both per the AdCP URL canonicalization rules; two registrations differing only in case, default port, or path-slash collapsing are the same provider. See docs/trusted-match/specification#provider-registration-security, docs/building/by-layer/L1/security#webhook-url-validation-ssrf, and docs/reference/url-canonicalization."
     },
     "context_match": {
       "type": "boolean",
@@ -38,7 +38,7 @@
       "type": "array",
       "description": "Identity types this provider can resolve. The router selects Identity Match providers whose uid_types overlaps with any uid_type in the request's identities array. MUST be present and non-empty when identity_match is true.",
       "items": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/uid-type.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/uid-type.json"
       },
       "minItems": 1
     },

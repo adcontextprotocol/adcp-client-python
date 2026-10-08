@@ -4,7 +4,7 @@
   "description": "Direct audio creative \u2014 buyer ships an `audio` asset (mp3/aac/wav) for asset-driven products, or ships a `script` / `creative_brief` text asset for products where the seller produces audio internally (podcast host-reads, TTS synthesis). Optional companion slots: `companion_image`, `brand_name`, `landing_page_url`. Tracking model: standard impression + completion + companion-image-click pixels via universal_macros. Distinct from `audio_daast` (DAAST tag, inherent DAAST event tracking). For host-reads and synthesized audio, the format declares `asset_source: 'publisher_host_recorded'` or `'agent_synthesized'` plus `buyer_asset_acceptance: 'rejected'`; the format's `slots` declaration enumerates which assets the buyer ships (e.g., `script` text asset for host-reads). The seller decides how to consume each asset (render verbatim vs produce audio from text) \u2014 there is no separate manifest 'inputs' map; everything the buyer ships goes in `assets`.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/formats/canonical/_base.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/formats/canonical/_base.json"
     }
   ],
   "properties": {

@@ -19,7 +19,7 @@
       "description": "ISO 3166-2 subdivision containing the place when the catalog has a subdivision mapping. Required by resolver semantics when the request constrained subdivision."
     },
     "place_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-place-type.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-place-type.json"
     },
     "label": {
       "type": "string",
@@ -64,7 +64,7 @@
       "description": "Known time after which the identifier must no longer be accepted for new targeting."
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

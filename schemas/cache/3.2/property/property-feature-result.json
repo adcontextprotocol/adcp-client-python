@@ -11,7 +11,7 @@
           "description": "Domain string (e.g., 'example.com')"
         },
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/property-id.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/property-id.json"
         }
       ],
       "description": "The property these features apply to"
@@ -20,7 +20,7 @@
       "type": "object",
       "description": "Map of feature_id to feature value",
       "additionalProperties": {
-        "$ref": "https://adcontextprotocol.org/schemas/3.2.1/property/property-feature-value.json"
+        "$ref": "https://adcontextprotocol.org/schemas/3.2.3/property/property-feature-value.json"
       }
     },
     "coverage_status": {
@@ -38,7 +38,7 @@
       "description": "When features were last evaluated for this property"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

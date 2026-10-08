@@ -41,11 +41,11 @@
       "x-entity": "account"
     },
     "previous_status": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/account-status.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/account-status.json",
       "description": "Account status immediately before this transition."
     },
     "status": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/account-status.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/account-status.json",
       "description": "Account status after this transition. Receivers SHOULD treat this as advisory and re-read list_accounts for the authoritative account snapshot."
     },
     "observed_at": {
@@ -97,7 +97,7 @@
       "additionalProperties": false
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

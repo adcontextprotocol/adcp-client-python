@@ -4,7 +4,7 @@
   "description": "A forecast range whose low, midpoint, and high values are rates in the inclusive interval from 0 to 1.",
   "allOf": [
     {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/forecast-range.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/forecast-range.json"
     },
     {
       "properties": {

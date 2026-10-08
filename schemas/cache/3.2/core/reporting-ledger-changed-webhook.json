@@ -60,7 +60,7 @@
       "x-entity": "reporting_revision"
     },
     "finality": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/reporting-finality.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/reporting-finality.json"
     },
     "reporting_adjustment_id": {
       "type": "string",
@@ -77,7 +77,7 @@
       "x-entity": "reporting_revision"
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

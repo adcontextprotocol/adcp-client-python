@@ -10,7 +10,7 @@
       "description": "Dimension family discriminator."
     },
     "device_platform": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/device-platform.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/device-platform.json",
       "description": "Operating system or platform for this forecast row."
     }
   },

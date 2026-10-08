@@ -17,7 +17,7 @@
       "description": "ISO 3166-1 alpha-2 country code containing the place."
     },
     "system": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-place-system.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-place-system.json"
     },
     "system_version": {
       "type": "string",
@@ -25,7 +25,7 @@
       "description": "Optional exact catalog version from the seller's declared supported_versions. When omitted, the seller applies catalog.current_version and MUST echo that version on persisted package state."
     },
     "place_type": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/geo-place-type.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/geo-place-type.json"
     },
     "values": {
       "type": "array",
@@ -46,7 +46,7 @@
       }
     },
     "ext": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/ext.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/ext.json"
     }
   },
   "required": [

@@ -79,11 +79,11 @@
               "type": "string"
             },
             "product": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product.json",
               "description": "Legacy 3.x post-change Product. Subscribers using get_products consume this form."
             },
             "canonical_product": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-product.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-product.json",
               "description": "Canonical post-change Product for subscribers that negotiated lifecycle_tools.list_products. Consumers replace the matching canonical mirror entry directly."
             },
             "applies_to": {
@@ -136,11 +136,11 @@
               "type": "string"
             },
             "product": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/product.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/product.json",
               "description": "Legacy 3.x post-change Product for get_products mirrors."
             },
             "canonical_product": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-product.json",
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-product.json",
               "description": "Canonical post-change Product for list_products mirrors."
             },
             "changed_fields": {
@@ -202,7 +202,7 @@
               "type": "array",
               "minItems": 1,
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/pricing-option.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/pricing-option.json"
               },
               "description": "Full post-change pricing_options array. NOT a delta \u2014 consumers replace the prior options with this list."
             },
@@ -210,7 +210,7 @@
               "type": "array",
               "minItems": 1,
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/canonical-pricing-option.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/canonical-pricing-option.json"
               },
               "description": "Full post-change canonical pricing array for list_products mirrors."
             },
@@ -314,7 +314,7 @@
               "type": "string"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json"
             },
             "applies_to": {
               "$ref": "#/$defs/appliesTo",
@@ -353,7 +353,7 @@
               "type": "string"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json"
             },
             "changed_fields": {
               "type": "array",
@@ -398,13 +398,13 @@
               "type": "string"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json"
             },
             "pricing_options": {
               "type": "array",
               "minItems": 1,
               "items": {
-                "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-pricing-option.json"
+                "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-pricing-option.json"
               },
               "description": "Full post-change pricing_options array. NOT a delta."
             },
@@ -455,7 +455,7 @@
               "type": "string"
             },
             "signal_ref": {
-              "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json"
+              "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json"
             },
             "removal_reason": {
               "$ref": "#/$defs/removalReason"
@@ -585,16 +585,16 @@
       "description": "One signal entry using the same wire shape as an item in get_signals.signals[].",
       "allOf": [
         {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-listing.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-listing.json"
         }
       ],
       "properties": {
         "signal_ref": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-ref.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-ref.json",
           "description": "Canonical signal reference for this wholesale signal. New events SHOULD use signal_ref."
         },
         "signal_id": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-id.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-id.json",
           "description": "DEPRECATED. Use signal_ref instead. Legacy SignalId retained for compatibility with older clients.",
           "deprecated": true
         },
@@ -614,7 +614,7 @@
           "minLength": 1
         },
         "value_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/signal-value-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/signal-value-type.json"
         },
         "categories": {
           "type": "array",
@@ -640,7 +640,7 @@
           "additionalProperties": false
         },
         "signal_type": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/enums/signal-catalog-type.json"
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/enums/signal-catalog-type.json"
         },
         "data_provider": {
           "type": "string",
@@ -654,20 +654,20 @@
           "deprecated": true
         },
         "coverage_forecast": {
-          "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/signal-coverage-forecast.json",
+          "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/signal-coverage-forecast.json",
           "description": "Optional forecast-shaped signal availability guidance using the same wire shape as get_signals.signals[].coverage_forecast. When present, this is authoritative for signal-level discovery coverage."
         },
         "deployments": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/deployment.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/deployment.json"
           },
           "minItems": 1
         },
         "pricing_options": {
           "type": "array",
           "items": {
-            "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/vendor-pricing-option.json"
+            "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/vendor-pricing-option.json"
           },
           "minItems": 1
         }

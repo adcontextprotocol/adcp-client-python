@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "age": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/demographic-age-range.json"
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/demographic-age-range.json"
     }
   },
   "required": [

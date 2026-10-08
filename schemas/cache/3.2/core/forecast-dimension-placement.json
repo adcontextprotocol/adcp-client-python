@@ -10,7 +10,7 @@
       "description": "Dimension family discriminator."
     },
     "placement_ref": {
-      "$ref": "https://adcontextprotocol.org/schemas/3.2.1/core/placement-ref.json",
+      "$ref": "https://adcontextprotocol.org/schemas/3.2.3/core/placement-ref.json",
       "description": "Structured placement reference for this forecast row. References an entry from the product's placements array."
     },
     "placement_name": {
