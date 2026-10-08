@@ -1018,27 +1018,64 @@ def remove_imports_shadowed_by_a_local_class() -> None:
 
 def preserve_geo_place_system_map_keys() -> None:
     """Emit validated string keys, including for cold imports of generated models (#1450)."""
-    pattern = re.compile(
-        r"(dict\[\s*)(?:geo_place_system\.GeographicPlaceIdentifierSystem|GeoPlaces1 \| GeoPlaces2)(\s*,)"
-    )
-    for relative in (
-        "core/targeting_overlay_support.py",
-        "core/geo_place_requirement.py",
-        "protocol/get_adcp_capabilities_response.py",
-        "bundled/protocol/get_adcp_capabilities_response.py",
+    for relative, class_name, field_name in (
+        ("core/targeting_overlay_support.py", "PlaceSupport", "systems"),
+        ("core/geo_place_requirement.py", "GeographicPlaceRequirement", "systems"),
+        ("protocol/get_adcp_capabilities_response.py", "Targeting", "geo_places"),
+        ("bundled/protocol/get_adcp_capabilities_response.py", "Targeting", "geo_places"),
     ):
         target = OUTPUT_DIR / relative
         if not target.exists():
             continue
         source = target.read_text()
-        updated, count = pattern.subn(r"\1GeoPlaceSystemKey\2", source)
-        if not count:
-            if (
-                "dict[GeoPlaceSystemKey," not in source
-                and "        GeoPlaceSystemKey," not in source
-            ):
-                raise RuntimeError(f"{relative}: expected geographic place-system map not found")
+        tree = ast.parse(source)
+        model = next(
+            (
+                node
+                for node in tree.body
+                if isinstance(node, ast.ClassDef) and node.name == class_name
+            ),
+            None,
+        )
+        field = (
+            next(
+                (
+                    node
+                    for node in model.body
+                    if isinstance(node, ast.AnnAssign)
+                    and isinstance(node.target, ast.Name)
+                    and node.target.id == field_name
+                ),
+                None,
+            )
+            if model is not None
+            else None
+        )
+        mapping = (
+            next(
+                (
+                    node
+                    for node in ast.walk(field.annotation)
+                    if isinstance(node, ast.Subscript)
+                    and isinstance(node.value, ast.Name)
+                    and node.value.id == "dict"
+                ),
+                None,
+            )
+            if field is not None
+            else None
+        )
+        if mapping is None or not isinstance(mapping.slice, ast.Tuple):
+            raise RuntimeError(f"{relative}: expected {class_name}.{field_name} map not found")
+        key = mapping.slice.elts[0]
+        if isinstance(key, ast.Name) and key.id == "GeoPlaceSystemKey":
             continue
+        # AST columns count UTF-8 bytes, including in multiline annotations.
+        lines = source.encode("utf-8").splitlines(keepends=True)
+        start = sum(map(len, lines[: key.lineno - 1])) + key.col_offset
+        end = sum(map(len, lines[: key.end_lineno - 1])) + key.end_col_offset
+        encoded = source.encode("utf-8")
+        updated = (encoded[:start] + b"GeoPlaceSystemKey" + encoded[end:]).decode("utf-8")
         updated = add_to_import(updated, "adcp.types.base", "GeoPlaceSystemKey")
         target.write_text(updated)
         print(f"  {relative}: geographic place-system keys keep their wire strings")
