@@ -769,6 +769,100 @@ def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
     return "".join(lines), changed
 
 
+def preserve_geo_place_system_map_keys() -> None:
+    """Emit validated string keys, including for cold imports of generated models (#1450)."""
+    for relative, class_name, field_name in (
+        ("core/targeting_overlay_support.py", "PlaceSupport", "systems"),
+        ("core/geo_place_requirement.py", "GeographicPlaceRequirement", "systems"),
+        ("protocol/get_adcp_capabilities_response.py", "Targeting", "geo_places"),
+        ("bundled/protocol/get_adcp_capabilities_response.py", "Targeting", "geo_places"),
+    ):
+        target = OUTPUT_DIR / relative
+        if not target.exists():
+            continue
+        source = target.read_text()
+        tree = ast.parse(source)
+        model = next(
+            (
+                node
+                for node in tree.body
+                if isinstance(node, ast.ClassDef) and node.name == class_name
+            ),
+            None,
+        )
+        field = (
+            next(
+                (
+                    node
+                    for node in model.body
+                    if isinstance(node, ast.AnnAssign)
+                    and isinstance(node.target, ast.Name)
+                    and node.target.id == field_name
+                ),
+                None,
+            )
+            if model is not None
+            else None
+        )
+        mapping = (
+            next(
+                (
+                    node
+                    for node in ast.walk(field.annotation)
+                    if isinstance(node, ast.Subscript)
+                    and isinstance(node.value, ast.Name)
+                    and node.value.id == "dict"
+                ),
+                None,
+            )
+            if field is not None
+            else None
+        )
+        if mapping is None or not isinstance(mapping.slice, ast.Tuple):
+            raise RuntimeError(f"{relative}: expected {class_name}.{field_name} map not found")
+        key = mapping.slice.elts[0]
+        if isinstance(key, ast.Name) and key.id == "GeoPlaceSystemKey":
+            continue
+        # AST columns count UTF-8 bytes, including in multiline annotations.
+        lines = source.encode("utf-8").splitlines(keepends=True)
+        start = sum(map(len, lines[: key.lineno - 1])) + key.col_offset
+        end = sum(map(len, lines[: key.end_lineno - 1])) + key.end_col_offset
+        encoded = source.encode("utf-8")
+        updated = (encoded[:start] + b"GeoPlaceSystemKey" + encoded[end:]).decode("utf-8")
+        updated = re.sub(
+            r"^(from adcp\.types\.base import [^\n]+)$",
+            r"\1, GeoPlaceSystemKey",
+            updated,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        target.write_text(updated)
+        print(f"  {relative}: geographic place-system keys keep their wire strings")
+
+
+def preserve_manifest_tool_map_keys() -> None:
+    """Keep 8.x manifest tool-name keys as strings with their generated constraints."""
+    target = OUTPUT_DIR / "manifest_schema.py"
+    if not target.exists():
+        return
+    source = target.read_text()
+    if "dict[ToolName," not in source:
+        return
+    tree = ast.parse(source)
+    model = next(
+        node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "ToolName"
+    )
+    root = next(
+        node for node in model.body if isinstance(node, ast.AnnAssign) and node.target.id == "root"
+    )
+    annotation = ast.get_source_segment(source, root.annotation)
+    if annotation is None:
+        raise RuntimeError("manifest_schema.py: missing ToolName root annotation")
+    source = source.replace("dict[ToolName,", f"dict[{annotation},")
+    target.write_text(source)
+    print("  manifest_schema.py: tool-name map keys keep their string constraints")
+
+
 def remove_unused_pydantic_field_imports() -> None:
     """Remove spurious ``Field`` imports emitted for generated enum modules."""
     modified_files = 0
@@ -6232,6 +6326,8 @@ def main(argv: list[str] | None = None):
         fix_list_creatives_format_reference_xor,
         rewrite_generated_enums_to_strenum,
         annotate_registry_track_verdict,
+        preserve_geo_place_system_map_keys,
+        preserve_manifest_tool_map_keys,
         remove_unused_pydantic_field_imports,
         strip_extra_blank_lines_at_eof,
     ]

@@ -11,7 +11,7 @@ from datetime import date
 from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Dict, Literal
 
-from adcp.types.base import AdCPBaseModel
+from adcp.types.base import AdCPBaseModel, GeoPlaceSystemKey
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field, RootModel, StringConstraints
 
 
@@ -4906,7 +4906,7 @@ class Targeting(AdCPBaseModel):
         ),
     ] = None
     geo_places: Annotated[
-        dict[GeoPlaces1 | GeoPlaces2, GeoPlaces] | None,
+        dict[GeoPlaceSystemKey, GeoPlaces] | None,
         Field(
             description='Place targeting support keyed by collision-safe identifier system. Each system declares exact country-to-place-type combinations, accepted catalog versions, and a machine-readable resolver. Sellers MUST reject unsupported systems, country/type pairs, versions, and identifiers rather than silently dropping them.',
             min_length=1,

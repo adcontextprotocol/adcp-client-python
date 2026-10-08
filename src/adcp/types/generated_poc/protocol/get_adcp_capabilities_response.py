@@ -8,7 +8,7 @@ from datetime import date
 from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Dict, Literal
 
-from adcp.types.base import AdCPBaseModel
+from adcp.types.base import AdCPBaseModel, GeoPlaceSystemKey
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, RootModel
 
 from ..core import account_timezone_capability, attestation_capabilities, audience_activation_method
@@ -1779,7 +1779,7 @@ class Targeting(AdCPBaseModel):
     ] = None
     geo_places: Annotated[
         dict[
-            geo_place_system.GeographicPlaceIdentifierSystem,
+            GeoPlaceSystemKey,
             geo_place_support.GeographicPlaceSystemSupport,
         ]
         | None,

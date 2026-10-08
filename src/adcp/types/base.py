@@ -16,6 +16,8 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, SerializerFunctionWrapHandler, model_serializer
 from pydantic_core import PydanticSerializationError
 
+from adcp.types._geo_place_keys import GeoPlaceSystemKey as GeoPlaceSystemKey
+
 # Type alias to shorten long type annotations
 MessageFormatter = Callable[[Any], str]
 
