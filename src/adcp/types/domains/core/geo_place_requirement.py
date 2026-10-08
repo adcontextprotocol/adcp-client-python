@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from adcp.types.base import AdCPBaseModel
+from adcp.types.base import AdCPBaseModel, GeoPlaceSystemKey
 from adcp.types._scalar import ScalarStr
 from pydantic import ConfigDict, Field, StringConstraints
 
@@ -40,6 +40,6 @@ class GeographicPlaceRequirement(AdCPBaseModel):
         extra='forbid',
     )
     systems: Annotated[
-        dict[geo_place_system.GeographicPlaceIdentifierSystem, CatalogRequirement],
+        dict[GeoPlaceSystemKey, CatalogRequirement],
         Field(min_length=1),
     ]

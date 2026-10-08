@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Any, Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel, SchemaInt
+from adcp.types.base import AdCPBaseModel, GeoPlaceSystemKey, SchemaInt
 from adcp.types._scalar import ScalarStr
 from pydantic import ConfigDict, Field, RootModel, StringConstraints
 
@@ -119,7 +119,7 @@ class PlaceSupport(AdCPBaseModel):
         extra='forbid',
     )
     systems: Annotated[
-        dict[geo_place_system.GeographicPlaceIdentifierSystem, PlaceCatalogSupport],
+        dict[GeoPlaceSystemKey, PlaceCatalogSupport],
         Field(min_length=1),
     ]
     max_values_per_package: Annotated[SchemaInt | None, Field(ge=1)] = None

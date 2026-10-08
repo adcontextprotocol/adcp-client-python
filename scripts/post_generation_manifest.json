@@ -67,6 +67,7 @@
     "rewrite_scalar_rootmodels": true,
     "rewrite_generated_enums_to_strenum": true,
     "annotate_registry_track_verdict": true,
+    "preserve_geo_place_system_map_keys": true,
     "preserve_format_reference_agent_url_wire_string": true,
     "insert_task_message_markers": true,
     "point_integer_fields_at_the_schema_integer_type": true,

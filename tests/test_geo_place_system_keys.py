@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from typing import Any
 
 import pytest
@@ -45,6 +47,65 @@ _SYSTEMS = [
     "https://seller.example",
     "https://SELLER.example:443/places/%7eCity?version=v1#Catalog",
 ]
+
+
+def test_cold_schema_imports_validate_without_flat_surface_initialization() -> None:
+    cases = [
+        (model.__module__, model.__name__, field, value)
+        for model, field, value in (
+            (PlaceSupport, "systems", _SUPPORT),
+            (GeographicPlaceRequirement, "systems", {"countries": _COUNTRIES}),
+            (Targeting, "geo_places", _CAPABILITY),
+            (BundledTargeting, "geo_places", _CAPABILITY),
+        )
+    ]
+    script = """
+import importlib
+import json
+import sys
+from pydantic import ValidationError
+for module, name, field, value in json.loads(sys.argv[1]):
+    model = getattr(importlib.import_module(module), name)
+    for key in ('geonames', 'https://SELLER.example:443/places/%7eCity'):
+        result = model.model_validate_json(json.dumps({field: {key: value}}))
+        assert list(json.loads(result.model_dump_json())[field]) == [key]
+    try:
+        model.model_validate({field: {'http://seller.example/places': value}})
+    except ValidationError:
+        pass
+    else:
+        raise AssertionError('HTTP place-system key accepted')
+print('cold schema imports passed')
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script, json.dumps(cases)],
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "cold schema imports passed" in result.stdout
+
+
+def test_place_key_rewrite_survives_codegen_and_is_idempotent(tmp_path, monkeypatch) -> None:
+    from scripts import post_generate_fixes
+
+    target = tmp_path / "core" / "geo_place_requirement.py"
+    target.parent.mkdir()
+    target.write_text(
+        "from adcp.types.base import AdCPBaseModel\n"
+        "class GeographicPlaceRequirement(AdCPBaseModel):\n"
+        "    systems: Annotated[dict[geo_place_system.GeographicPlaceIdentifierSystem, "
+        "CatalogRequirement], Field(min_length=1)]\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", tmp_path)
+    post_generate_fixes.preserve_geo_place_system_map_keys()
+    updated = target.read_text()
+    assert "dict[GeoPlaceSystemKey, CatalogRequirement]" in updated
+    assert "Field(min_length=1)" in updated
+    assert "import AdCPBaseModel, GeoPlaceSystemKey" in updated
+    post_generate_fixes.preserve_geo_place_system_map_keys()
+    assert target.read_text() == updated
 
 
 @pytest.mark.parametrize("model,field,value", _MODELS)

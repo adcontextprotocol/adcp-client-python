@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from adcp.types.base import AdcpResponse, SchemaInt
+from adcp.types.base import AdcpResponse, GeoPlaceSystemKey, SchemaInt
 
 from datetime import date
 from adcp.types._str_enum import StrEnum
@@ -1796,7 +1796,7 @@ class Targeting(AdCPBaseModel):
     ] = None
     geo_places: Annotated[
         dict[
-            geo_place_system.GeographicPlaceIdentifierSystem,
+            GeoPlaceSystemKey,
             geo_place_support.GeographicPlaceSystemSupport,
         ]
         | None,
