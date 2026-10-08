@@ -57,7 +57,8 @@ dependencies = [
     # All installable 2.12 releases fail public type imports while resolving
     # generated __pydantic_extra__ annotations (NameError: Dict). 2.13.0 is the first
     # supported release; the targeting import/runtime regressions cover it.
-    "pydantic>=2.13.0,<3",
+    # 2.14 breaks nested subclass serializers and deferred models under Freezegun.
+    "pydantic>=2.13.0,<2.14",
     "typing-extensions>=4.14.1",  # pydantic 2.13.0 requires 4.14.1
     # A2A protocol v1.0 (protobuf types, ProtoJSON on the wire). We run
     # on the v1.0 Python SDK with ``enable_v0_3_compat=True`` on the
