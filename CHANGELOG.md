@@ -14,6 +14,13 @@
   [migration guide](docs/canonical-format-kinds-migration.md).
   This closes [#1241](https://github.com/adcontextprotocol/adcp-client-python/issues/1241).
 
+## [8.1.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.1.1...v8.1.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* **types:** backport validated geographic and manifest map keys to 8.x ([#1452](https://github.com/adcontextprotocol/adcp-client-python/issues/1452)) ([8afd2de](https://github.com/adcontextprotocol/adcp-client-python/commit/8afd2de53eeceac64b2f2923c8508c0a81cf78db))
+
 ## [8.1.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.1.0...v8.1.1) (2026-10-08)
 
 
