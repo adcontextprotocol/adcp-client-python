@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from adcp.types import v31
+from adcp.types.domains.core.assets.image_asset import ImageAsset
 from adcp.validation.schema_loader import (
     _build_format_checker,
     _draft7_validator_type,
@@ -71,6 +72,12 @@ def test_retained_source_bundle_and_latest_minor_are_isolated() -> None:
         ("https://[::1]:8080/tag?url=https%3A%2F%2Fexample.test", True),
         ("urn:example:creative", True),
         ("https://ads.acme.example/tag?cb=%2F", True),
+        ("https://\u4f8b\u3048.\u30c6\u30b9\u30c8/path", True),
+        ("https://ads.acme.example/cr\u00e9ative?nom=\u00e9t\u00e9", True),
+        ("https://\u4f8b\u3048.\u30c6\u30b9\u30c8/path?bad=%zz", False),
+        ("https://\u4f8b\u3048.\u30c6\u30b9\u30c8/\\path", False),
+        ("https://ads.acme.example/path\u0080", False),
+        ("https://ads.acme.example/path\ud800", False),
         ("https://ads.acme.example/tag?cb=%%CACHEBUSTER%%", False),
         ("https://ads.acme.example/tag?cb=%zz", False),
         ("https://ads.acme.example/tag with spaces", False),
@@ -82,6 +89,22 @@ def test_uri_format_checks_original_syntax(url: str, valid: bool) -> None:
     checker = _build_format_checker()
     assert "uri-template" in checker.checkers
     assert checker.conforms(url, "uri") is valid
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://\u4f8b\u3048.\u30c6\u30b9\u30c8/path",
+        "https://ads.acme.example/cr\u00e9ative?nom=\u00e9t\u00e9",
+    ],
+)
+def test_primary_pin_retains_internationalized_url_model_compatibility(url: str) -> None:
+    asset = {"asset_type": "image", "url": url, "width": 1, "height": 1}
+    assert get_bundle_adcp_version() == "3.2.1"
+    validator = get_named_validator("core/assets/image-asset.json")
+    assert validator is not None
+    validator.validate(asset)
+    assert ImageAsset.model_validate(asset).url is not None
 
 
 @pytest.mark.parametrize(

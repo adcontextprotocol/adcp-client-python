@@ -37,7 +37,7 @@ from functools import lru_cache
 from importlib.resources import as_file, files
 from pathlib import Path
 from typing import Any, Literal, cast
-from urllib.parse import unquote, urldefrag, urljoin, urlparse, urlsplit
+from urllib.parse import quote, unquote, urldefrag, urljoin, urlparse, urlsplit
 
 from pydantic import AnyUrl, TypeAdapter, ValidationError
 
@@ -113,7 +113,7 @@ _HOSTNAME = re.compile(
 
 
 def _is_uri(instance: Any) -> bool:
-    """Return whether ``instance`` is an absolute RFC 3986 URI.
+    """Validate URI syntax while retaining AnyUrl's internationalized URLs.
 
     Check the original syntax before applying the ``pydantic.AnyUrl`` parser
     used by generated models. AnyUrl alone accepts malformed percent escapes
@@ -125,7 +125,20 @@ def _is_uri(instance: Any) -> bool:
         return True
     from rfc3986_validator import validate_rfc3986
 
-    if any(char.isspace() for char in instance) or not validate_rfc3986(instance):
+    if any(char.isspace() or 0x7F <= ord(char) <= 0x9F for char in instance):
+        return False
+    try:
+        # Escape only non-ASCII characters for the RFC 3986 syntax check.
+        # Leave original ASCII untouched so normalization cannot hide malformed
+        # percent escapes or backslashes. AnyUrl still checks IDN validity.
+        syntax = (
+            instance
+            if instance.isascii()
+            else "".join(char if char.isascii() else quote(char, safe="") for char in instance)
+        )
+    except UnicodeEncodeError:
+        return False
+    if not validate_rfc3986(syntax):
         return False
     try:
         _uri_adapter().validate_python(instance)
