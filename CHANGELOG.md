@@ -14,6 +14,13 @@
   [migration guide](docs/canonical-format-kinds-migration.md).
   This closes [#1241](https://github.com/adcontextprotocol/adcp-client-python/issues/1241).
 
+## [8.1.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.1.0...v8.1.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **protocol:** adopt the signed AdCP 3.2.3 security bundle ([#1429](https://github.com/adcontextprotocol/adcp-client-python/issues/1429)) ([d739088](https://github.com/adcontextprotocol/adcp-client-python/commit/d7390884d2aa0133e4845aac3f7bb80fc17d1cee))
+
 ## [8.1.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0...v8.1.0) (2026-10-06)
 
 
