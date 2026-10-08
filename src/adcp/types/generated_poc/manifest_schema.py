@@ -261,7 +261,13 @@ class TaskResultResolution(AdCPBaseModel):
     discriminator_field: Literal['task_type'] = 'task_type'
     terminal_schema_pointer_template: Literal['/tools/{task_type}/response_schema'] = '/tools/{task_type}/response_schema'
     terminal_schema_overrides: Annotated[
-        dict[ToolName, SchemaPath],
+        dict[Annotated[
+        str,
+        Field(
+            description='Canonical snake_case tool name safe for use as a manifest JSON Pointer segment.',
+            pattern='^[a-z][a-z0-9_]*$',
+        ),
+    ], SchemaPath],
         Field(
             description='Result schemas for retained 3.x task_type values that do not name manifest tools, such as media_buy_delivery.'
         ),
@@ -289,7 +295,13 @@ class AdcpManifest(AdCPBaseModel):
         ),
     ]
     tools: Annotated[
-        dict[ToolName, Tools],
+        dict[Annotated[
+        str,
+        Field(
+            description='Canonical snake_case tool name safe for use as a manifest JSON Pointer segment.',
+            pattern='^[a-z][a-z0-9_]*$',
+        ),
+    ], Tools],
         Field(
             description='Every tool the AdCP spec defines, keyed by tool name (the snake_case name used in MCP/A2A invocations).',
             min_length=1,

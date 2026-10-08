@@ -840,6 +840,29 @@ def preserve_geo_place_system_map_keys() -> None:
         print(f"  {relative}: geographic place-system keys keep their wire strings")
 
 
+def preserve_manifest_tool_map_keys() -> None:
+    """Keep 8.x manifest tool-name keys as strings with their generated constraints."""
+    target = OUTPUT_DIR / "manifest_schema.py"
+    if not target.exists():
+        return
+    source = target.read_text()
+    if "dict[ToolName," not in source:
+        return
+    tree = ast.parse(source)
+    model = next(
+        node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "ToolName"
+    )
+    root = next(
+        node for node in model.body if isinstance(node, ast.AnnAssign) and node.target.id == "root"
+    )
+    annotation = ast.get_source_segment(source, root.annotation)
+    if annotation is None:
+        raise RuntimeError("manifest_schema.py: missing ToolName root annotation")
+    source = source.replace("dict[ToolName,", f"dict[{annotation},")
+    target.write_text(source)
+    print("  manifest_schema.py: tool-name map keys keep their string constraints")
+
+
 def remove_unused_pydantic_field_imports() -> None:
     """Remove spurious ``Field`` imports emitted for generated enum modules."""
     modified_files = 0
@@ -6304,6 +6327,7 @@ def main(argv: list[str] | None = None):
         rewrite_generated_enums_to_strenum,
         annotate_registry_track_verdict,
         preserve_geo_place_system_map_keys,
+        preserve_manifest_tool_map_keys,
         remove_unused_pydantic_field_imports,
         strip_extra_blank_lines_at_eof,
     ]
