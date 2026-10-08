@@ -17,6 +17,7 @@ from asgi_lifespan import LifespanManager
 from jsonschema import FormatChecker
 from jsonschema.validators import validator_for
 
+from adcp import get_adcp_spec_version
 from adcp.server import ADCPHandler, create_mcp_server, mcp_tools
 from adcp.server.a2a_server import create_a2a_server
 from adcp.validation import schema_loader as loader
@@ -316,7 +317,7 @@ def test_cached_current_schema_retains_all_signed_summary_and_period_controls():
                 parent[parts[-1]] = deepcopy(operation["value"])
         return value
 
-    version = "3.2.1"
+    version = get_adcp_spec_version()
     fixture = json.loads(
         files("adcp")
         .joinpath("_compliance", version, "test-vectors/reporting-summary/complete-summary.json")
