@@ -37,12 +37,16 @@ from types import GenericAlias
 from typing import Annotated, Any, cast, get_args
 
 from pydantic import (
+    AfterValidator,
+    AnyUrl,
     BaseModel,
     ConfigDict,
     Field,
     GetCoreSchemaHandler,
     GetPydanticSchema,
     SerializerFunctionWrapHandler,
+    TypeAdapter,
+    UrlConstraints,
     ValidationError,
     ValidatorFunctionWrapHandler,
     create_model,
@@ -60,6 +64,9 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
     AcceptancePolicyDiscovery as BundledAcceptancePolicyDiscovery,
 )
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
+    GeoPlaces as BundledGeoPlaces,
+)
+from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     MediaBuy as BundledCapabilitiesMediaBuy,
 )
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
@@ -71,16 +78,29 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     PublisherDomain as BundledPublisherDomain,
 )
+from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
+    Targeting as BundledTargeting,
+)
 from adcp.types.generated_poc.core.async_response_data import AdcpAsyncResponseData
 from adcp.types.generated_poc.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.generated_poc.core.canonical_product import PublisherDomain
 from adcp.types.generated_poc.core.creative_manifest import CreativeManifest
 from adcp.types.generated_poc.core.creative_variant import CreativeVariant
 from adcp.types.generated_poc.core.format import Format
+from adcp.types.generated_poc.core.geo_place_requirement import (
+    CatalogRequirement,
+    GeographicPlaceRequirement,
+)
+from adcp.types.generated_poc.core.geo_place_support import GeographicPlaceSystemSupport
+from adcp.types.generated_poc.core.geo_place_system import GeographicPlaceIdentifierSystem1
 from adcp.types.generated_poc.core.mcp_webhook_payload import McpWebhookPayload
 from adcp.types.generated_poc.core.media_buy_features import MediaBuyFeatures
 from adcp.types.generated_poc.core.targeting import TargetingOverlay
 from adcp.types.generated_poc.core.targeting_input import TargetingOverlayInput
+from adcp.types.generated_poc.core.targeting_overlay_support import (
+    PlaceCatalogSupport,
+    PlaceSupport,
+)
 from adcp.types.generated_poc.core.version_envelope import AdcpVersionEnvelope
 from adcp.types.generated_poc.creative.get_creative_delivery_response import (
     Creative as DeliveryCreative,
@@ -108,6 +128,7 @@ from adcp.types.generated_poc.media_buy.product_purchase_input import ProductPur
 from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
     AcceptancePolicyDiscovery,
     PrimaryCountry,
+    Targeting,
 )
 from adcp.types.generated_poc.trusted_match.context_match_response import (
     ContextMatchResponseRouterPublisher,
@@ -116,6 +137,20 @@ from adcp.types.generated_poc.trusted_match.offer import Offer
 from adcp.types.generated_poc.trusted_match.provider_context_match_response import (
     ContextMatchResponseProviderRouter,
 )
+
+_GEO_SYSTEM_HTTPS: TypeAdapter[AnyUrl] = TypeAdapter(
+    Annotated[AnyUrl, UrlConstraints(allowed_schemes=["https"], host_required=True)]
+)
+
+
+def _validate_geo_system_key(value: str) -> str:
+    """Validate the namespace without normalizing its exact opaque wire spelling."""
+    if value not in GeographicPlaceIdentifierSystem1._value2member_map_:
+        _GEO_SYSTEM_HTTPS.validate_python(value)
+    return value
+
+
+GeoPlaceSystemKey = Annotated[str, AfterValidator(_validate_geo_system_key)]
 
 _OpenCanonicalFormatKind = Annotated[
     CanonicalFormatKind | str,
@@ -234,6 +269,67 @@ def _annotation_contains(annotation: Any, expected: type[BaseModel]) -> bool:
     return annotation is expected or any(
         _annotation_contains(arg, expected) for arg in get_args(annotation)
     )
+
+
+def _rebuild_model_parents(patched: set[type[BaseModel]]) -> None:
+    """Refresh cached nested validators, from patched children out to public parents."""
+    parents: dict[type[BaseModel], set[type[BaseModel]]] = {}
+    seen: set[type[BaseModel]] = set()
+    pending = [BaseModel]
+
+    def dependencies(annotation: Any) -> set[type[BaseModel]]:
+        if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+            return {annotation}
+        return {model for arg in get_args(annotation) for model in dependencies(arg)}
+
+    while pending:
+        model = pending.pop()
+        if model in seen:
+            continue
+        seen.add(model)
+        pending.extend(model.__subclasses__())
+        if not model.__module__.startswith("adcp.types."):
+            continue
+        for field in model.model_fields.values():
+            for child in dependencies(field.annotation):
+                parents.setdefault(child, set()).add(model)
+
+    affected = set(patched)
+    pending = list(patched)
+    while pending:
+        for parent in parents.get(pending.pop(), ()):
+            if parent not in affected:
+                affected.add(parent)
+                pending.append(parent)
+
+    rebuilt: set[type[BaseModel]] = set()
+
+    def rebuild(model: type[BaseModel]) -> None:
+        if model in rebuilt:
+            return
+        rebuilt.add(model)
+        for field in model.model_fields.values():
+            for child in dependencies(field.annotation) & affected:
+                rebuild(child)
+        model.model_rebuild(force=True)
+
+    for model in affected:
+        rebuild(model)
+
+
+def _patch_geo_place_system_keys() -> None:
+    # JSON object keys cannot be RootModels: they are unhashable and their
+    # serializers do not preserve namespace strings. Keep generated constraints
+    # (including min_length=1 and the optional capabilities default) intact.
+    fields = (
+        (PlaceSupport, "systems", dict[GeoPlaceSystemKey, PlaceCatalogSupport]),
+        (GeographicPlaceRequirement, "systems", dict[GeoPlaceSystemKey, CatalogRequirement]),
+        (Targeting, "geo_places", dict[GeoPlaceSystemKey, GeographicPlaceSystemSupport] | None),
+        (BundledTargeting, "geo_places", dict[GeoPlaceSystemKey, BundledGeoPlaces] | None),
+    )
+    for model, field_name, annotation in fields:
+        _patch_model_field(model, field_name, annotation)
+    _rebuild_model_parents({model for model, _, _ in fields})
 
 
 def _patch_equivalent_model_field(
@@ -358,6 +454,8 @@ def _patch_targeting_overlay(model: type[BaseModel]) -> None:
 
 def _apply_forward_compat() -> None:
     """Apply open-union, capability, and public-model compatibility patches."""
+    _patch_geo_place_system_keys()
+
     for model in (
         PackageRequest,
         PackageUpdate,
