@@ -86,7 +86,7 @@
         },
         "replayed": {
           "type": "boolean",
-          "description": "Set to true when this response was returned from the idempotency cache rather than from a fresh execution. Set to false (or omitted) when the request was executed fresh. Buyers use this to distinguish cached replays from new executions \u2014 matters for billing reconciliation, audit logs, state-machine routing (cached state-tracking fields are historical snapshots, not current state \u2014 re-read via the resource's read endpoint), and any downstream system that assumes exactly-once event semantics. From 3.1 onward, `replayed` MAY appear on responses to any request that resolved via the idempotency cache, including read tools \u2014 universal `idempotency_key` (see security.mdx \u00a7Idempotency) means the cache holds read responses too.",
+          "description": "Set to true when this response was returned from the idempotency cache rather than from a fresh execution. Set to false (or omitted) when the request was executed fresh. Buyers use this to distinguish cached replays from new executions \u2014 matters for billing reconciliation, audit logs, state-machine routing (cached state-tracking fields are historical snapshots, not current state \u2014 re-read via the resource's read endpoint), and any downstream system that assumes exactly-once event semantics. `replayed` appears only when the request actually resolved through the idempotency cache. Pure reads may ignore an optional `idempotency_key`; when a seller voluntarily caches keyed reads, those responses use the same replay indicator and full cache contract.",
           "default": false
         },
         "adcp_error": {
@@ -1535,29 +1535,7 @@
                           "type": "array",
                           "description": "Accepted feed formats for this catalog type. When specified, the synced catalog must use one of these formats. When omitted, any format is accepted.",
                           "items": {
-                            "title": "Feed Format",
-                            "description": "Catalog feed formats. Determines how the platform (seller) parses items from an external feed URL. Each named value is an externally-documented feed specification a seller parses natively without buyer-supplied feed_field_mappings; values are vendor spec names (proper nouns), not semantic categories. Use `custom` + feed_field_mappings for any feed whose shape is not one of the named formats.",
-                            "type": "string",
-                            "enum": [
-                              "google_merchant_center",
-                              "facebook_catalog",
-                              "shopify",
-                              "linkedin_jobs",
-                              "tiktok_shop",
-                              "pinterest_catalog",
-                              "openai_product_feed",
-                              "custom"
-                            ],
-                            "enumDescriptions": {
-                              "google_merchant_center": "Google Merchant Center / Google Shopping product data specification \u2014 the de-facto e-commerce product-feed lingua franca that the other named commerce formats derive from.",
-                              "facebook_catalog": "Meta (Facebook / Instagram) product catalog feed \u2014 a Google-Merchant-Center-derived dialect, the closest clone of the GMC field set.",
-                              "shopify": "Shopify product feed export.",
-                              "linkedin_jobs": "LinkedIn job-posting feed (XML).",
-                              "tiktok_shop": "TikTok Shop product catalog feed \u2014 a GMC-derived dialect with material deltas (sku_id as the primary identifier rather than id, and a first-class video_link) that a GMC parser keyed on id would mis-parse.",
-                              "pinterest_catalog": "Pinterest product catalog feed \u2014 a GMC-derived dialect with stricter serialization (composite-encoded price and shipping, a mandatory google_product_category, space-delimited availability enums) that a strict GMC parser would mis-handle.",
-                              "openai_product_feed": "OpenAI Commerce product feed for ChatGPT shopping \u2014 a GMC-derived dialect adding ChatGPT-specific eligibility flags (is_eligible_search / is_eligible_checkout / is_eligible_ads). Spec: https://developers.openai.com/commerce/specs/file-upload/products",
-                              "custom": "A feed whose shape is not one of the named formats above. The buyer MUST supply feed_field_mappings to normalize it to the AdCP catalog item schema."
-                            }
+                            "$ref": "#/$defs/FeedFormat"
                           },
                           "minItems": 1,
                           "uniqueItems": true
@@ -1575,26 +1553,7 @@
                                 "description": "The asset group this constraint applies to. Values are format-defined vocabulary \u2014 each format chooses its own group IDs (e.g., 'headlines', 'images', 'videos'). Buyers discover them via list_creative_formats."
                               },
                               "asset_type": {
-                                "title": "Asset Content Type",
-                                "description": "The expected content type for this group.",
-                                "type": "string",
-                                "enum": [
-                                  "image",
-                                  "video",
-                                  "audio",
-                                  "text",
-                                  "markdown",
-                                  "html",
-                                  "css",
-                                  "javascript",
-                                  "vast",
-                                  "daast",
-                                  "url",
-                                  "webhook",
-                                  "brief",
-                                  "catalog",
-                                  "published_post"
-                                ]
+                                "$ref": "#/$defs/AssetContentType"
                               },
                               "required": {
                                 "type": "boolean",
@@ -2418,6 +2377,91 @@
                         "catalog_type"
                       ],
                       "additionalProperties": true
+                    }
+                  }
+                },
+                {
+                  "title": "IndividualPublishedPostAsset",
+                  "description": "Published post asset",
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/baseIndividualAsset"
+                    }
+                  ],
+                  "properties": {
+                    "item_type": {
+                      "const": "individual"
+                    },
+                    "asset_type": {
+                      "const": "published_post"
+                    }
+                  }
+                },
+                {
+                  "title": "IndividualCardAsset",
+                  "description": "Card asset",
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/baseIndividualAsset"
+                    }
+                  ],
+                  "properties": {
+                    "item_type": {
+                      "const": "individual"
+                    },
+                    "asset_type": {
+                      "const": "card"
+                    }
+                  }
+                },
+                {
+                  "title": "IndividualPixelTrackerAsset",
+                  "description": "Pixel tracker asset",
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/baseIndividualAsset"
+                    }
+                  ],
+                  "properties": {
+                    "item_type": {
+                      "const": "individual"
+                    },
+                    "asset_type": {
+                      "const": "pixel_tracker"
+                    }
+                  }
+                },
+                {
+                  "title": "IndividualVastTrackerAsset",
+                  "description": "VAST tracker asset",
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/baseIndividualAsset"
+                    }
+                  ],
+                  "properties": {
+                    "item_type": {
+                      "const": "individual"
+                    },
+                    "asset_type": {
+                      "const": "vast_tracker"
+                    }
+                  }
+                },
+                {
+                  "title": "IndividualDaastTrackerAsset",
+                  "description": "DAAST tracker asset",
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/baseIndividualAsset"
+                    }
+                  ],
+                  "properties": {
+                    "item_type": {
+                      "const": "individual"
+                    },
+                    "asset_type": {
+                      "const": "daast_tracker"
                     }
                   }
                 },
@@ -3310,6 +3354,1004 @@
                                   }
                                 },
                                 "additionalProperties": true
+                              }
+                            },
+                            "required": [
+                              "asset_type"
+                            ]
+                          },
+                          {
+                            "title": "GroupBriefAsset",
+                            "description": "Brief asset in group",
+                            "allOf": [
+                              {
+                                "$ref": "#/$defs/baseGroupAsset"
+                              }
+                            ],
+                            "properties": {
+                              "asset_type": {
+                                "const": "brief"
+                              }
+                            },
+                            "required": [
+                              "asset_type"
+                            ]
+                          },
+                          {
+                            "title": "GroupCatalogAsset",
+                            "description": "Catalog asset in group",
+                            "allOf": [
+                              {
+                                "$ref": "#/$defs/baseGroupAsset"
+                              }
+                            ],
+                            "properties": {
+                              "asset_type": {
+                                "const": "catalog"
+                              },
+                              "requirements": {
+                                "title": "Catalog Requirements",
+                                "description": "Format-level declaration of what catalog feeds a creative needs. Formats that render product listings, store locators, or promotional content declare which catalog types must be synced and what fields each catalog must provide. Buyers use this to ensure the right catalogs are synced before submitting creatives.",
+                                "type": "object",
+                                "properties": {
+                                  "catalog_type": {
+                                    "$ref": "#/$defs/CatalogType"
+                                  },
+                                  "required": {
+                                    "type": "boolean",
+                                    "description": "Whether this catalog type must be present. When true, creatives using this format must reference a synced catalog of this type.",
+                                    "default": true
+                                  },
+                                  "min_items": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "description": "Minimum number of items the catalog must contain for this format to render properly (e.g., a carousel might require at least 3 products)"
+                                  },
+                                  "max_items": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "description": "Maximum number of items the format can render. Items beyond this limit are ignored. Useful for fixed-slot layouts (e.g., a 3-product card) or feed-size constraints."
+                                  },
+                                  "required_fields": {
+                                    "type": "array",
+                                    "description": "Fields that must be present and non-empty on every item in the catalog. Field names are catalog-type-specific (e.g., 'title', 'price', 'image_url' for product catalogs; 'store_id', 'quantity' for inventory feeds).",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "minItems": 1,
+                                    "uniqueItems": true
+                                  },
+                                  "feed_formats": {
+                                    "type": "array",
+                                    "description": "Accepted feed formats for this catalog type. When specified, the synced catalog must use one of these formats. When omitted, any format is accepted.",
+                                    "items": {
+                                      "$ref": "#/$defs/FeedFormat"
+                                    },
+                                    "minItems": 1,
+                                    "uniqueItems": true
+                                  },
+                                  "offering_asset_constraints": {
+                                    "type": "array",
+                                    "description": "Per-item creative asset requirements. Declares what asset groups (headlines, images, videos) each catalog item must provide in its assets array, along with count bounds and per-asset technical constraints. Applicable to 'offering' and all vertical catalog types (hotel, flight, job, etc.) whose items carry typed assets.",
+                                    "items": {
+                                      "title": "Offering Asset Constraint",
+                                      "description": "Declares per-group creative requirements that each offering must satisfy. Allows formats to specify what asset groups (headlines, images, videos) offerings must provide, along with count and per-asset technical constraints.",
+                                      "type": "object",
+                                      "properties": {
+                                        "asset_group_id": {
+                                          "type": "string",
+                                          "description": "The asset group this constraint applies to. Values are format-defined vocabulary \u2014 each format chooses its own group IDs (e.g., 'headlines', 'images', 'videos'). Buyers discover them via list_creative_formats."
+                                        },
+                                        "asset_type": {
+                                          "$ref": "#/$defs/AssetContentType"
+                                        },
+                                        "required": {
+                                          "type": "boolean",
+                                          "description": "Whether this asset group must be present in each offering. Defaults to true.",
+                                          "default": true
+                                        },
+                                        "min_count": {
+                                          "type": "integer",
+                                          "minimum": 1,
+                                          "description": "Minimum number of items required in this group."
+                                        },
+                                        "max_count": {
+                                          "type": "integer",
+                                          "minimum": 1,
+                                          "description": "Maximum number of items allowed in this group."
+                                        },
+                                        "asset_requirements": {
+                                          "title": "Asset Requirements",
+                                          "description": "Technical requirements for each item in this group (e.g., max_length for text, min_width/aspect_ratio for images). Applies uniformly to all items in the group.",
+                                          "anyOf": [
+                                            {
+                                              "title": "Image Asset Requirements",
+                                              "description": "Requirements for image creative assets. These define the technical constraints for image files.",
+                                              "type": "object",
+                                              "properties": {
+                                                "min_width": {
+                                                  "type": "number",
+                                                  "exclusiveMinimum": 0,
+                                                  "description": "Minimum width. Interpretation depends on unit (default: pixels). For exact dimensions, set min_width = max_width."
+                                                },
+                                                "max_width": {
+                                                  "type": "number",
+                                                  "exclusiveMinimum": 0,
+                                                  "description": "Maximum width. Interpretation depends on unit (default: pixels). For exact dimensions, set min_width = max_width."
+                                                },
+                                                "min_height": {
+                                                  "type": "number",
+                                                  "exclusiveMinimum": 0,
+                                                  "description": "Minimum height. Interpretation depends on unit (default: pixels). For exact dimensions, set min_height = max_height."
+                                                },
+                                                "max_height": {
+                                                  "type": "number",
+                                                  "exclusiveMinimum": 0,
+                                                  "description": "Maximum height. Interpretation depends on unit (default: pixels). For exact dimensions, set min_height = max_height."
+                                                },
+                                                "unit": {
+                                                  "$ref": "#/$defs/DimensionUnit"
+                                                },
+                                                "aspect_ratio": {
+                                                  "type": "string",
+                                                  "pattern": "^\\d+(\\.\\d+)?:\\d+(\\.\\d+)?$",
+                                                  "description": "Required aspect ratio (e.g., '16:9', '1:1', '1.91:1')"
+                                                },
+                                                "formats": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "jpg",
+                                                      "jpeg",
+                                                      "png",
+                                                      "gif",
+                                                      "webp",
+                                                      "svg",
+                                                      "avif",
+                                                      "tiff",
+                                                      "pdf",
+                                                      "eps"
+                                                    ]
+                                                  },
+                                                  "description": "Accepted image file formats"
+                                                },
+                                                "min_dpi": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Minimum resolution in dots per inch. Always in DPI regardless of the dimension unit. Standard print requires 300 DPI, newspaper 150 DPI."
+                                                },
+                                                "bleed": {
+                                                  "type": "object",
+                                                  "description": "Required bleed area beyond the trim size. The submitted image must be larger than the declared dimensions: total width = trim width + left bleed + right bleed, total height = trim height + top bleed + bottom bleed. For uniform bleed: total = trim + (2 * uniform). Uses the same unit as the parent dimensions.",
+                                                  "oneOf": [
+                                                    {
+                                                      "properties": {
+                                                        "uniform": {
+                                                          "type": "number",
+                                                          "minimum": 0,
+                                                          "description": "Same bleed on all four sides"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "uniform"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "properties": {
+                                                        "top": {
+                                                          "type": "number",
+                                                          "minimum": 0
+                                                        },
+                                                        "right": {
+                                                          "type": "number",
+                                                          "minimum": 0
+                                                        },
+                                                        "bottom": {
+                                                          "type": "number",
+                                                          "minimum": 0
+                                                        },
+                                                        "left": {
+                                                          "type": "number",
+                                                          "minimum": 0
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "top",
+                                                        "right",
+                                                        "bottom",
+                                                        "left"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    }
+                                                  ]
+                                                },
+                                                "color_space": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "rgb",
+                                                    "cmyk",
+                                                    "grayscale"
+                                                  ],
+                                                  "description": "Required color space. Print typically requires CMYK."
+                                                },
+                                                "max_file_size_kb": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum file size in kilobytes"
+                                                },
+                                                "transparency_required": {
+                                                  "type": "boolean",
+                                                  "description": "Whether the image must support transparency (requires PNG, WebP, or GIF)"
+                                                },
+                                                "animation_allowed": {
+                                                  "type": "boolean",
+                                                  "description": "Whether animated images (GIF, animated WebP) are accepted"
+                                                },
+                                                "max_animation_duration_ms": {
+                                                  "type": "integer",
+                                                  "minimum": 0,
+                                                  "description": "Maximum animation duration in milliseconds (if animation_allowed is true)"
+                                                },
+                                                "max_weight_grams": {
+                                                  "type": "integer",
+                                                  "exclusiveMinimum": 0,
+                                                  "description": "Maximum weight in grams for the finished physical piece (print inserts, flyers). Affects postage calculations and production constraints. Only applicable to print channels."
+                                                }
+                                              },
+                                              "if": {
+                                                "required": [
+                                                  "min_dpi"
+                                                ]
+                                              },
+                                              "then": {
+                                                "required": [
+                                                  "unit"
+                                                ]
+                                              },
+                                              "additionalProperties": true
+                                            },
+                                            {
+                                              "title": "Video Asset Requirements",
+                                              "description": "Requirements for video creative assets. These define the technical constraints for video files.",
+                                              "type": "object",
+                                              "properties": {
+                                                "min_width": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Minimum width in pixels"
+                                                },
+                                                "max_width": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum width in pixels"
+                                                },
+                                                "min_height": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Minimum height in pixels"
+                                                },
+                                                "max_height": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum height in pixels"
+                                                },
+                                                "aspect_ratio": {
+                                                  "type": "string",
+                                                  "pattern": "^\\d+:\\d+$",
+                                                  "description": "Required aspect ratio (e.g., '16:9', '9:16')"
+                                                },
+                                                "min_duration_ms": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Minimum duration in milliseconds"
+                                                },
+                                                "max_duration_ms": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum duration in milliseconds"
+                                                },
+                                                "containers": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "mp4",
+                                                      "webm",
+                                                      "mov",
+                                                      "avi",
+                                                      "mkv"
+                                                    ]
+                                                  },
+                                                  "description": "Accepted video container formats"
+                                                },
+                                                "codecs": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "h264",
+                                                      "h265",
+                                                      "vp8",
+                                                      "vp9",
+                                                      "av1",
+                                                      "prores"
+                                                    ]
+                                                  },
+                                                  "description": "Accepted video codecs"
+                                                },
+                                                "max_file_size_kb": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum file size in kilobytes"
+                                                },
+                                                "min_bitrate_kbps": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Minimum video bitrate in kilobits per second"
+                                                },
+                                                "max_bitrate_kbps": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum video bitrate in kilobits per second"
+                                                },
+                                                "frame_rates": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "number",
+                                                    "minimum": 1
+                                                  },
+                                                  "description": "Accepted frame rates in frames per second (e.g., [24, 30, 60])"
+                                                },
+                                                "audio_required": {
+                                                  "type": "boolean",
+                                                  "description": "Whether the video must include an audio track"
+                                                },
+                                                "frame_rate_type": {
+                                                  "$ref": "#/$defs/FrameRateType"
+                                                },
+                                                "scan_type": {
+                                                  "$ref": "#/$defs/ScanType"
+                                                },
+                                                "gop_type": {
+                                                  "$ref": "#/$defs/GOPType"
+                                                },
+                                                "min_gop_interval_seconds": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "description": "Minimum keyframe interval in seconds"
+                                                },
+                                                "max_gop_interval_seconds": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "description": "Maximum keyframe interval in seconds. SSAI typically requires 1-2 second intervals."
+                                                },
+                                                "moov_atom_position": {
+                                                  "$ref": "#/$defs/MoovAtomPosition"
+                                                },
+                                                "audio_codecs": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "aac",
+                                                      "pcm",
+                                                      "ac3",
+                                                      "eac3",
+                                                      "mp3",
+                                                      "opus",
+                                                      "vorbis",
+                                                      "flac"
+                                                    ]
+                                                  },
+                                                  "description": "Accepted audio codecs (e.g., ['aac', 'pcm', 'ac3'])"
+                                                },
+                                                "audio_sample_rates": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                  },
+                                                  "description": "Accepted audio sample rates in Hz (e.g., [44100, 48000])"
+                                                },
+                                                "audio_channels": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "$ref": "#/$defs/AudioChannelLayout"
+                                                  },
+                                                  "description": "Accepted audio channel configurations"
+                                                },
+                                                "loudness_lufs": {
+                                                  "type": "number",
+                                                  "description": "Target integrated loudness in LUFS (e.g., -24 for broadcast, -16 for streaming)"
+                                                },
+                                                "loudness_tolerance_db": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "description": "Acceptable deviation from loudness_lufs target in dB (e.g., 2 means -22 to -26 LUFS for a -24 target)"
+                                                },
+                                                "true_peak_dbfs": {
+                                                  "type": "number",
+                                                  "description": "Maximum true peak level in dBFS (e.g., -2 for broadcast)"
+                                                }
+                                              },
+                                              "additionalProperties": true
+                                            },
+                                            {
+                                              "title": "Audio Asset Requirements",
+                                              "description": "Requirements for audio creative assets.",
+                                              "type": "object",
+                                              "properties": {
+                                                "min_duration_ms": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Minimum duration in milliseconds"
+                                                },
+                                                "max_duration_ms": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum duration in milliseconds"
+                                                },
+                                                "formats": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "mp3",
+                                                      "aac",
+                                                      "wav",
+                                                      "ogg",
+                                                      "flac"
+                                                    ]
+                                                  },
+                                                  "description": "Accepted audio file formats"
+                                                },
+                                                "max_file_size_kb": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum file size in kilobytes"
+                                                },
+                                                "sample_rates": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                  },
+                                                  "description": "Accepted sample rates in Hz (e.g., [44100, 48000])"
+                                                },
+                                                "channels": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "mono",
+                                                      "stereo"
+                                                    ]
+                                                  },
+                                                  "description": "Accepted audio channel configurations"
+                                                },
+                                                "min_bitrate_kbps": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Minimum audio bitrate in kilobits per second"
+                                                },
+                                                "max_bitrate_kbps": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum audio bitrate in kilobits per second"
+                                                }
+                                              },
+                                              "additionalProperties": true
+                                            },
+                                            {
+                                              "title": "Text Asset Requirements",
+                                              "description": "Requirements for text creative assets such as headlines, body copy, and CTAs.",
+                                              "type": "object",
+                                              "properties": {
+                                                "min_length": {
+                                                  "type": "integer",
+                                                  "minimum": 0,
+                                                  "description": "Minimum character length"
+                                                },
+                                                "max_length": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum character length"
+                                                },
+                                                "min_lines": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Minimum number of lines"
+                                                },
+                                                "max_lines": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum number of lines"
+                                                },
+                                                "character_pattern": {
+                                                  "type": "string",
+                                                  "description": "Regex pattern defining allowed characters (e.g., '^[a-zA-Z0-9 .,!?-]+$')"
+                                                },
+                                                "prohibited_terms": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string"
+                                                  },
+                                                  "description": "List of prohibited words or phrases"
+                                                },
+                                                "allowed_values": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string"
+                                                  },
+                                                  "minItems": 1,
+                                                  "uniqueItems": true,
+                                                  "description": "Closed set of permitted string values for this text slot. When present, a conformant implementation MUST reject any submitted content not in this list with `CREATIVE_VALUE_NOT_ALLOWED` (echoing the offending field path in `error.field` and the allowed list in `error.details.allowed_values`). Matching is case-sensitive; producers MUST supply exact casing. If the submitted value contains unresolved template tokens (e.g., {{product_name}}), validation against allowed_values MUST be deferred until interpolation is complete. All declared constraints (allowed_values, character_pattern, max_length, etc.) are conjunctive \u2014 submitted content must satisfy every applicable constraint simultaneously."
+                                                }
+                                              },
+                                              "additionalProperties": true
+                                            },
+                                            {
+                                              "title": "Markdown Asset Requirements",
+                                              "description": "Requirements for markdown creative assets.",
+                                              "type": "object",
+                                              "properties": {
+                                                "max_length": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum character length"
+                                                }
+                                              },
+                                              "additionalProperties": true
+                                            },
+                                            {
+                                              "title": "HTML Asset Requirements",
+                                              "description": "Requirements for HTML creative assets. These define the execution environment constraints that the HTML must be compatible with.",
+                                              "type": "object",
+                                              "properties": {
+                                                "max_file_size_kb": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum file size in kilobytes for the HTML asset"
+                                                },
+                                                "sandbox": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "none",
+                                                    "iframe",
+                                                    "safeframe",
+                                                    "fencedframe"
+                                                  ],
+                                                  "default": "none",
+                                                  "description": "Sandbox environment the HTML must be compatible with. 'none' = direct DOM access, 'iframe' = standard iframe isolation, 'safeframe' = IAB SafeFrame container, 'fencedframe' = Privacy Sandbox fenced frame"
+                                                },
+                                                "external_resources_allowed": {
+                                                  "type": "boolean",
+                                                  "description": "Whether the HTML creative can load external resources (scripts, images, fonts, etc.). When false, all resources must be inlined or bundled."
+                                                },
+                                                "allowed_external_domains": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string",
+                                                    "format": "hostname"
+                                                  },
+                                                  "description": "List of domains the HTML creative may reference for external resources. Only applicable when external_resources_allowed is true."
+                                                }
+                                              },
+                                              "additionalProperties": true
+                                            },
+                                            {
+                                              "title": "CSS Asset Requirements",
+                                              "description": "Requirements for CSS creative assets.",
+                                              "type": "object",
+                                              "properties": {
+                                                "max_file_size_kb": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum file size in kilobytes"
+                                                }
+                                              },
+                                              "additionalProperties": true
+                                            },
+                                            {
+                                              "title": "JavaScript Asset Requirements",
+                                              "description": "Requirements for JavaScript creative assets. These define the execution environment constraints that the JavaScript must be compatible with.",
+                                              "type": "object",
+                                              "properties": {
+                                                "max_file_size_kb": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum file size in kilobytes for the JavaScript asset"
+                                                },
+                                                "module_type": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "script",
+                                                    "module",
+                                                    "iife"
+                                                  ],
+                                                  "description": "Required JavaScript module format. 'script' = classic script, 'module' = ES modules, 'iife' = immediately invoked function expression"
+                                                },
+                                                "strict_mode_required": {
+                                                  "type": "boolean",
+                                                  "description": "Whether the JavaScript must use strict mode"
+                                                },
+                                                "external_resources_allowed": {
+                                                  "type": "boolean",
+                                                  "description": "Whether the JavaScript can load external resources dynamically"
+                                                },
+                                                "allowed_external_domains": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string",
+                                                    "format": "hostname"
+                                                  },
+                                                  "description": "List of domains the JavaScript may reference for external resources. Only applicable when external_resources_allowed is true."
+                                                }
+                                              },
+                                              "additionalProperties": true
+                                            },
+                                            {
+                                              "title": "VAST Asset Requirements",
+                                              "description": "Requirements for VAST (Video Ad Serving Template) creative assets.",
+                                              "type": "object",
+                                              "properties": {
+                                                "vast_version": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "2.0",
+                                                    "3.0",
+                                                    "4.0",
+                                                    "4.1",
+                                                    "4.2"
+                                                  ],
+                                                  "description": "Required VAST version"
+                                                }
+                                              },
+                                              "additionalProperties": true
+                                            },
+                                            {
+                                              "title": "DAAST Asset Requirements",
+                                              "description": "Requirements for DAAST (Digital Audio Ad Serving Template) creative assets.",
+                                              "type": "object",
+                                              "properties": {
+                                                "daast_version": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "1.0"
+                                                  ],
+                                                  "description": "Required DAAST version. DAAST 1.0 is the current IAB standard."
+                                                }
+                                              },
+                                              "additionalProperties": true
+                                            },
+                                            {
+                                              "title": "URL Asset Requirements",
+                                              "description": "Requirements for URL assets such as click-through URLs, tracking pixels, and landing pages.",
+                                              "type": "object",
+                                              "properties": {
+                                                "role": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "clickthrough",
+                                                    "landing_page",
+                                                    "impression_tracker",
+                                                    "click_tracker",
+                                                    "viewability_tracker",
+                                                    "third_party_tracker"
+                                                  ],
+                                                  "description": "Purpose this URL slot serves in the format \u2014 distinct from `url_type` on the manifest-side asset (which declares the receiver's invocation mechanism). A slot can be `click_tracker` (purpose) and accept a `tracker_pixel` (mechanism) URL, or `clickthrough` (purpose) and accept a `clickthrough` (mechanism) URL. Complements `asset_role` (human-readable label) by providing a machine-readable enum and serves as the receiver's fallback signal when a manifest URL asset omits `url_type`."
+                                                },
+                                                "protocols": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "https",
+                                                      "http"
+                                                    ]
+                                                  },
+                                                  "description": "Allowed URL protocols. HTTPS is recommended for all ad URLs."
+                                                },
+                                                "allowed_domains": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string",
+                                                    "format": "hostname"
+                                                  },
+                                                  "description": "List of allowed domains for the URL"
+                                                },
+                                                "max_length": {
+                                                  "type": "integer",
+                                                  "minimum": 1,
+                                                  "description": "Maximum URL length in characters"
+                                                },
+                                                "macro_support": {
+                                                  "type": "boolean",
+                                                  "description": "Whether the URL supports macro substitution (e.g., ${CACHEBUSTER})"
+                                                }
+                                              },
+                                              "additionalProperties": true
+                                            },
+                                            {
+                                              "title": "Webhook Asset Requirements",
+                                              "description": "Requirements for webhook creative assets.",
+                                              "type": "object",
+                                              "properties": {
+                                                "methods": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "GET",
+                                                      "POST"
+                                                    ]
+                                                  },
+                                                  "description": "Allowed HTTP methods"
+                                                }
+                                              },
+                                              "additionalProperties": true
+                                            }
+                                          ]
+                                        },
+                                        "ext": {
+                                          "title": "Extension Object",
+                                          "description": "Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.",
+                                          "type": "object",
+                                          "additionalProperties": true
+                                        }
+                                      },
+                                      "required": [
+                                        "asset_group_id",
+                                        "asset_type"
+                                      ],
+                                      "additionalProperties": true,
+                                      "examples": [
+                                        {
+                                          "description": "Headline constraint with count bounds",
+                                          "data": {
+                                            "asset_group_id": "headlines",
+                                            "asset_type": "text",
+                                            "required": true,
+                                            "min_count": 3,
+                                            "max_count": 15
+                                          }
+                                        },
+                                        {
+                                          "description": "Landscape image constraint with count bounds",
+                                          "data": {
+                                            "asset_group_id": "images_landscape",
+                                            "asset_type": "image",
+                                            "required": true,
+                                            "min_count": 1,
+                                            "max_count": 20
+                                          }
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 1,
+                                    "uniqueItems": true
+                                  },
+                                  "field_bindings": {
+                                    "type": "array",
+                                    "description": "Explicit mappings from format template slots to catalog item fields or typed asset pools. Optional \u2014 creative agents can infer mappings without them, but bindings make the relationship self-describing and enable validation. Covers scalar fields (asset_id \u2192 catalog_field), asset pools (asset_id \u2192 asset_group_id on the catalog item), and repeatable groups that iterate over catalog items.",
+                                    "items": {
+                                      "title": "Catalog Field Binding",
+                                      "description": "Maps a format template slot to a catalog item field or typed asset pool. The 'kind' field identifies the binding variant. All bindings are optional \u2014 agents can still infer mappings without them.",
+                                      "discriminator": {
+                                        "propertyName": "kind"
+                                      },
+                                      "oneOf": [
+                                        {
+                                          "$ref": "#/definitions/ScalarBinding"
+                                        },
+                                        {
+                                          "$ref": "#/definitions/AssetPoolBinding"
+                                        },
+                                        {
+                                          "type": "object",
+                                          "description": "A format repeatable_group where each repetition corresponds to one catalog item. Iterates the group over catalog items in catalog item order.",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "const": "catalog_group"
+                                            },
+                                            "format_group_id": {
+                                              "type": "string",
+                                              "description": "The asset_group_id of a repeatable_group in the format's assets array."
+                                            },
+                                            "catalog_item": {
+                                              "type": "boolean",
+                                              "const": true,
+                                              "description": "Each repetition of the format's repeatable_group maps to one item from the catalog."
+                                            },
+                                            "per_item_bindings": {
+                                              "type": "array",
+                                              "description": "Scalar and asset pool bindings that apply within each repetition of the group. Nested catalog_group bindings are not permitted.",
+                                              "items": {
+                                                "discriminator": {
+                                                  "propertyName": "kind"
+                                                },
+                                                "oneOf": [
+                                                  {
+                                                    "$ref": "#/definitions/ScalarBinding"
+                                                  },
+                                                  {
+                                                    "$ref": "#/definitions/AssetPoolBinding"
+                                                  }
+                                                ]
+                                              },
+                                              "minItems": 1
+                                            },
+                                            "ext": {
+                                              "title": "Extension Object",
+                                              "description": "Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.",
+                                              "type": "object",
+                                              "additionalProperties": true
+                                            }
+                                          },
+                                          "required": [
+                                            "kind",
+                                            "format_group_id",
+                                            "catalog_item"
+                                          ],
+                                          "additionalProperties": true
+                                        }
+                                      ],
+                                      "examples": [
+                                        {
+                                          "description": "Scalar binding \u2014 hotel name to headline slot",
+                                          "data": {
+                                            "kind": "scalar",
+                                            "asset_id": "headline",
+                                            "catalog_field": "name"
+                                          }
+                                        },
+                                        {
+                                          "description": "Scalar binding \u2014 nested field (nightly rate)",
+                                          "data": {
+                                            "kind": "scalar",
+                                            "asset_id": "price_badge",
+                                            "catalog_field": "price.amount"
+                                          }
+                                        },
+                                        {
+                                          "description": "Asset pool binding \u2014 hero image from landscape pool",
+                                          "data": {
+                                            "kind": "asset_pool",
+                                            "asset_id": "hero_image",
+                                            "asset_group_id": "images_landscape"
+                                          }
+                                        },
+                                        {
+                                          "description": "Asset pool binding \u2014 Snap vertical background from vertical pool",
+                                          "data": {
+                                            "kind": "asset_pool",
+                                            "asset_id": "snap_background",
+                                            "asset_group_id": "images_vertical"
+                                          }
+                                        },
+                                        {
+                                          "description": "Catalog group binding \u2014 carousel where each slide is one hotel",
+                                          "data": {
+                                            "kind": "catalog_group",
+                                            "format_group_id": "slide",
+                                            "catalog_item": true,
+                                            "per_item_bindings": [
+                                              {
+                                                "kind": "scalar",
+                                                "asset_id": "title",
+                                                "catalog_field": "name"
+                                              },
+                                              {
+                                                "kind": "scalar",
+                                                "asset_id": "price",
+                                                "catalog_field": "price.amount"
+                                              },
+                                              {
+                                                "kind": "asset_pool",
+                                                "asset_id": "image",
+                                                "asset_group_id": "images_landscape"
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 1,
+                                    "uniqueItems": true
+                                  }
+                                },
+                                "required": [
+                                  "catalog_type"
+                                ],
+                                "additionalProperties": true
+                              }
+                            },
+                            "required": [
+                              "asset_type"
+                            ]
+                          },
+                          {
+                            "title": "GroupPublishedPostAsset",
+                            "description": "Published post asset in group",
+                            "allOf": [
+                              {
+                                "$ref": "#/$defs/baseGroupAsset"
+                              }
+                            ],
+                            "properties": {
+                              "asset_type": {
+                                "const": "published_post"
+                              }
+                            },
+                            "required": [
+                              "asset_type"
+                            ]
+                          },
+                          {
+                            "title": "GroupCardAsset",
+                            "description": "Card asset in group",
+                            "allOf": [
+                              {
+                                "$ref": "#/$defs/baseGroupAsset"
+                              }
+                            ],
+                            "properties": {
+                              "asset_type": {
+                                "const": "card"
+                              }
+                            },
+                            "required": [
+                              "asset_type"
+                            ]
+                          },
+                          {
+                            "title": "GroupPixelTrackerAsset",
+                            "description": "Pixel tracker asset in group",
+                            "allOf": [
+                              {
+                                "$ref": "#/$defs/baseGroupAsset"
+                              }
+                            ],
+                            "properties": {
+                              "asset_type": {
+                                "const": "pixel_tracker"
+                              }
+                            },
+                            "required": [
+                              "asset_type"
+                            ]
+                          },
+                          {
+                            "title": "GroupVastTrackerAsset",
+                            "description": "VAST tracker asset in group",
+                            "allOf": [
+                              {
+                                "$ref": "#/$defs/baseGroupAsset"
+                              }
+                            ],
+                            "properties": {
+                              "asset_type": {
+                                "const": "vast_tracker"
+                              }
+                            },
+                            "required": [
+                              "asset_type"
+                            ]
+                          },
+                          {
+                            "title": "GroupDaastTrackerAsset",
+                            "description": "DAAST tracker asset in group",
+                            "allOf": [
+                              {
+                                "$ref": "#/$defs/baseGroupAsset"
+                              }
+                            ],
+                            "properties": {
+                              "asset_type": {
+                                "const": "daast_tracker"
                               }
                             },
                             "required": [
@@ -13520,6 +14562,53 @@
         "app"
       ]
     },
+    "FeedFormat": {
+      "title": "Feed Format",
+      "description": "Catalog feed formats. Determines how the platform (seller) parses items from an external feed URL. Each named value is an externally-documented feed specification a seller parses natively without buyer-supplied feed_field_mappings; values are vendor spec names (proper nouns), not semantic categories. Use `custom` + feed_field_mappings for any feed whose shape is not one of the named formats.",
+      "type": "string",
+      "enum": [
+        "google_merchant_center",
+        "facebook_catalog",
+        "shopify",
+        "linkedin_jobs",
+        "tiktok_shop",
+        "pinterest_catalog",
+        "openai_product_feed",
+        "custom"
+      ],
+      "enumDescriptions": {
+        "google_merchant_center": "Google Merchant Center / Google Shopping product data specification \u2014 the de-facto e-commerce product-feed lingua franca that the other named commerce formats derive from.",
+        "facebook_catalog": "Meta (Facebook / Instagram) product catalog feed \u2014 a Google-Merchant-Center-derived dialect, the closest clone of the GMC field set.",
+        "shopify": "Shopify product feed export.",
+        "linkedin_jobs": "LinkedIn job-posting feed (XML).",
+        "tiktok_shop": "TikTok Shop product catalog feed \u2014 a GMC-derived dialect with material deltas (sku_id as the primary identifier rather than id, and a first-class video_link) that a GMC parser keyed on id would mis-parse.",
+        "pinterest_catalog": "Pinterest product catalog feed \u2014 a GMC-derived dialect with stricter serialization (composite-encoded price and shipping, a mandatory google_product_category, space-delimited availability enums) that a strict GMC parser would mis-handle.",
+        "openai_product_feed": "OpenAI Commerce product feed for ChatGPT shopping \u2014 a GMC-derived dialect adding ChatGPT-specific eligibility flags (is_eligible_search / is_eligible_checkout / is_eligible_ads). Spec: https://developers.openai.com/commerce/specs/file-upload/products",
+        "custom": "A feed whose shape is not one of the named formats above. The buyer MUST supply feed_field_mappings to normalize it to the AdCP catalog item schema."
+      }
+    },
+    "AssetContentType": {
+      "title": "Asset Content Type",
+      "description": "The expected content type for this group.",
+      "type": "string",
+      "enum": [
+        "image",
+        "video",
+        "audio",
+        "text",
+        "markdown",
+        "html",
+        "css",
+        "javascript",
+        "vast",
+        "daast",
+        "url",
+        "webhook",
+        "brief",
+        "catalog",
+        "published_post"
+      ]
+    },
     "DisclosurePosition": {
       "title": "Disclosure Position",
       "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
@@ -13634,7 +14723,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-08-16T19:12:16.977Z",
+    "generatedAt": "2026-10-08T00:50:14.743Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

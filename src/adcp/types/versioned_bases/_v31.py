@@ -1861,7 +1861,7 @@ class _ExternalCoreFormat(TypedDict, total=False):
     example_url: NotRequired[builtins.str]
     accepts_parameters: NotRequired[builtins.list[Literal['dimensions', 'duration']]]
     renders: NotRequired[builtins.list[_ExternalCoreFormatRendersItemVariant1 | _ExternalCoreFormatRendersItemVariant2]]
-    assets: NotRequired[builtins.list[_ExternalCoreFormatAssetsItemVariant1 | _ExternalCoreFormatAssetsItemVariant2 | _ExternalCoreFormatAssetsItemVariant3 | _ExternalCoreFormatAssetsItemVariant4 | _ExternalCoreFormatAssetsItemVariant5 | _ExternalCoreFormatAssetsItemVariant6 | _ExternalCoreFormatAssetsItemVariant7 | _ExternalCoreFormatAssetsItemVariant8 | _ExternalCoreFormatAssetsItemVariant9 | _ExternalCoreFormatAssetsItemVariant10 | _ExternalCoreFormatAssetsItemVariant11 | _ExternalCoreFormatAssetsItemVariant12 | _ExternalCoreFormatAssetsItemVariant13 | _ExternalCoreFormatAssetsItemVariant14 | _ExternalCoreFormatAssetsItemVariant15 | _ExternalCoreFormatAssetsItemVariant16]]
+    assets: NotRequired[builtins.list[_ExternalCoreFormatAssetsItemVariant1 | _ExternalCoreFormatAssetsItemVariant2 | _ExternalCoreFormatAssetsItemVariant3 | _ExternalCoreFormatAssetsItemVariant4 | _ExternalCoreFormatAssetsItemVariant5 | _ExternalCoreFormatAssetsItemVariant6 | _ExternalCoreFormatAssetsItemVariant7 | _ExternalCoreFormatAssetsItemVariant8 | _ExternalCoreFormatAssetsItemVariant9 | _ExternalCoreFormatAssetsItemVariant10 | _ExternalCoreFormatAssetsItemVariant11 | _ExternalCoreFormatAssetsItemVariant12 | _ExternalCoreFormatAssetsItemVariant13 | _ExternalCoreFormatAssetsItemVariant14 | _ExternalCoreFormatAssetsItemVariant15 | _ExternalCoreFormatAssetsItemVariant16 | _ExternalCoreFormatAssetsItemVariant17 | _ExternalCoreFormatAssetsItemVariant18 | _ExternalCoreFormatAssetsItemVariant19 | _ExternalCoreFormatAssetsItemVariant20 | _ExternalCoreFormatAssetsItemVariant21]]
     delivery: NotRequired[builtins.dict[builtins.str, Any]]
     supported_macros: NotRequired[builtins.list[Literal['MEDIA_BUY_ID', 'PACKAGE_ID', 'CREATIVE_ID', 'CACHEBUSTER', 'TIMESTAMP', 'CLICK_URL', 'GDPR', 'GDPR_CONSENT', 'US_PRIVACY', 'GPP_STRING', 'GPP_SID', 'IP_ADDRESS', 'LIMIT_AD_TRACKING', 'DEVICE_TYPE', 'OS', 'OS_VERSION', 'DEVICE_MAKE', 'DEVICE_MODEL', 'USER_AGENT', 'APP_BUNDLE', 'APP_NAME', 'COUNTRY', 'REGION', 'CITY', 'ZIP', 'DMA', 'LAT', 'LONG', 'DEVICE_ID', 'DEVICE_ID_TYPE', 'DOMAIN', 'PAGE_URL', 'REFERRER', 'KEYWORDS', 'PLACEMENT_ID', 'FOLD_POSITION', 'AD_WIDTH', 'AD_HEIGHT', 'VIDEO_ID', 'VIDEO_TITLE', 'VIDEO_DURATION', 'VIDEO_CATEGORY', 'CONTENT_GENRE', 'CONTENT_RATING', 'PLAYER_WIDTH', 'PLAYER_HEIGHT', 'POD_POSITION', 'POD_SIZE', 'AD_BREAK_ID', 'STATION_ID', 'COLLECTION_NAME', 'INSTALLMENT_ID', 'AUDIO_DURATION', 'TMPX', 'IMPRESSION_ID', 'AXEM', 'CATALOG_ID', 'SKU', 'GTIN', 'OFFERING_ID', 'JOB_ID', 'HOTEL_ID', 'FLIGHT_ID', 'VEHICLE_ID', 'LISTING_ID', 'STORE_ID', 'PROGRAM_ID', 'DESTINATION_ID', 'CREATIVE_VARIANT_ID', 'APP_ITEM_ID', 'ITEM_NAME', 'ITEM_DESCRIPTION', 'ITEM_TAGLINE', 'ITEM_PRICE', 'ITEM_PRICE_CURRENCY'] | builtins.str]]
     input_format_ids: NotRequired[builtins.list[_ExternalCoreFormatId]]
@@ -6550,13 +6550,63 @@ class _ExternalCoreFormatAssetsItemVariant15(TypedDict, total=False):
 
 @with_config(ConfigDict(extra="allow"))
 class _ExternalCoreFormatAssetsItemVariant16(TypedDict, total=False):
+    item_type: Required[Literal['individual']]
+    asset_id: Required[builtins.str]
+    asset_role: NotRequired[builtins.str]
+    required: Required[builtins.bool]
+    overlays: NotRequired[builtins.list[_ExternalCoreOverlay]]
+    asset_group_id: NotRequired[builtins.str]
+    asset_type: Required[Literal['published_post']]
+
+@with_config(ConfigDict(extra="allow"))
+class _ExternalCoreFormatAssetsItemVariant17(TypedDict, total=False):
+    item_type: Required[Literal['individual']]
+    asset_id: Required[builtins.str]
+    asset_role: NotRequired[builtins.str]
+    required: Required[builtins.bool]
+    overlays: NotRequired[builtins.list[_ExternalCoreOverlay]]
+    asset_group_id: NotRequired[builtins.str]
+    asset_type: Required[Literal['card']]
+
+@with_config(ConfigDict(extra="allow"))
+class _ExternalCoreFormatAssetsItemVariant18(TypedDict, total=False):
+    item_type: Required[Literal['individual']]
+    asset_id: Required[builtins.str]
+    asset_role: NotRequired[builtins.str]
+    required: Required[builtins.bool]
+    overlays: NotRequired[builtins.list[_ExternalCoreOverlay]]
+    asset_group_id: NotRequired[builtins.str]
+    asset_type: Required[Literal['pixel_tracker']]
+
+@with_config(ConfigDict(extra="allow"))
+class _ExternalCoreFormatAssetsItemVariant19(TypedDict, total=False):
+    item_type: Required[Literal['individual']]
+    asset_id: Required[builtins.str]
+    asset_role: NotRequired[builtins.str]
+    required: Required[builtins.bool]
+    overlays: NotRequired[builtins.list[_ExternalCoreOverlay]]
+    asset_group_id: NotRequired[builtins.str]
+    asset_type: Required[Literal['vast_tracker']]
+
+@with_config(ConfigDict(extra="allow"))
+class _ExternalCoreFormatAssetsItemVariant20(TypedDict, total=False):
+    item_type: Required[Literal['individual']]
+    asset_id: Required[builtins.str]
+    asset_role: NotRequired[builtins.str]
+    required: Required[builtins.bool]
+    overlays: NotRequired[builtins.list[_ExternalCoreOverlay]]
+    asset_group_id: NotRequired[builtins.str]
+    asset_type: Required[Literal['daast_tracker']]
+
+@with_config(ConfigDict(extra="allow"))
+class _ExternalCoreFormatAssetsItemVariant21(TypedDict, total=False):
     item_type: Required[Literal['repeatable_group']]
     asset_group_id: Required[builtins.str]
     required: Required[builtins.bool]
     min_count: Required[builtins.int]
     max_count: Required[builtins.int]
     selection_mode: NotRequired[Literal['sequential', 'optimize']]
-    assets: Required[builtins.list[_ExternalCoreFormatAssetsItemVariant16AssetsItemVariant1 | _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant2 | _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant3 | _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant4 | _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant5 | _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant6 | _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant7 | _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant8 | _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant9 | _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant10 | _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant11 | _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant12 | _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant13]]
+    assets: Required[builtins.list[_ExternalCoreFormatAssetsItemVariant21AssetsItemVariant1 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant2 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant3 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant4 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant5 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant6 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant7 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant8 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant9 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant10 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant11 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant12 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant13 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant14 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant15 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant16 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant17 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant18 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant19 | _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant20]]
 
 @with_config(ConfigDict(extra="allow"))
 class _ExternalCoreFormatFormatCard(TypedDict, total=False):
@@ -12638,7 +12688,7 @@ class _ExternalCoreRequirementsCatalogRequirements(TypedDict, total=False):
     field_bindings: NotRequired[builtins.list[_ExternalCoreRequirementsCatalogRequirementsFieldBindingsItemVariant1 | _ExternalCoreRequirementsCatalogRequirementsFieldBindingsItemVariant2 | _ExternalCoreRequirementsCatalogRequirementsFieldBindingsItemVariant3]]
 
 @with_config(ConfigDict(extra="allow"))
-class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant1(TypedDict, total=False):
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant1(TypedDict, total=False):
     asset_id: Required[builtins.str]
     asset_role: NotRequired[builtins.str]
     asset_group_id: NotRequired[builtins.str]
@@ -12648,7 +12698,7 @@ class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant1(TypedDict, total=
     requirements: NotRequired[_ExternalCoreRequirementsImageAssetRequirements]
 
 @with_config(ConfigDict(extra="allow"))
-class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant2(TypedDict, total=False):
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant2(TypedDict, total=False):
     asset_id: Required[builtins.str]
     asset_role: NotRequired[builtins.str]
     asset_group_id: NotRequired[builtins.str]
@@ -12658,7 +12708,7 @@ class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant2(TypedDict, total=
     requirements: NotRequired[_ExternalCoreRequirementsVideoAssetRequirements]
 
 @with_config(ConfigDict(extra="allow"))
-class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant3(TypedDict, total=False):
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant3(TypedDict, total=False):
     asset_id: Required[builtins.str]
     asset_role: NotRequired[builtins.str]
     asset_group_id: NotRequired[builtins.str]
@@ -12668,7 +12718,7 @@ class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant3(TypedDict, total=
     requirements: NotRequired[_ExternalCoreRequirementsAudioAssetRequirements]
 
 @with_config(ConfigDict(extra="allow"))
-class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant4(TypedDict, total=False):
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant4(TypedDict, total=False):
     asset_id: Required[builtins.str]
     asset_role: NotRequired[builtins.str]
     asset_group_id: NotRequired[builtins.str]
@@ -12678,7 +12728,7 @@ class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant4(TypedDict, total=
     requirements: NotRequired[_ExternalCoreRequirementsTextAssetRequirements]
 
 @with_config(ConfigDict(extra="allow"))
-class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant5(TypedDict, total=False):
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant5(TypedDict, total=False):
     asset_id: Required[builtins.str]
     asset_role: NotRequired[builtins.str]
     asset_group_id: NotRequired[builtins.str]
@@ -12688,7 +12738,7 @@ class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant5(TypedDict, total=
     requirements: NotRequired[_ExternalCoreRequirementsMarkdownAssetRequirements]
 
 @with_config(ConfigDict(extra="allow"))
-class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant6(TypedDict, total=False):
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant6(TypedDict, total=False):
     asset_id: Required[builtins.str]
     asset_role: NotRequired[builtins.str]
     asset_group_id: NotRequired[builtins.str]
@@ -12698,7 +12748,7 @@ class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant6(TypedDict, total=
     requirements: NotRequired[_ExternalCoreRequirementsHtmlAssetRequirements]
 
 @with_config(ConfigDict(extra="allow"))
-class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant7(TypedDict, total=False):
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant7(TypedDict, total=False):
     asset_id: Required[builtins.str]
     asset_role: NotRequired[builtins.str]
     asset_group_id: NotRequired[builtins.str]
@@ -12708,7 +12758,7 @@ class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant7(TypedDict, total=
     requirements: NotRequired[_ExternalCoreRequirementsCssAssetRequirements]
 
 @with_config(ConfigDict(extra="allow"))
-class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant8(TypedDict, total=False):
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant8(TypedDict, total=False):
     asset_id: Required[builtins.str]
     asset_role: NotRequired[builtins.str]
     asset_group_id: NotRequired[builtins.str]
@@ -12718,7 +12768,7 @@ class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant8(TypedDict, total=
     requirements: NotRequired[_ExternalCoreRequirementsJavascriptAssetRequirements]
 
 @with_config(ConfigDict(extra="allow"))
-class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant9(TypedDict, total=False):
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant9(TypedDict, total=False):
     asset_id: Required[builtins.str]
     asset_role: NotRequired[builtins.str]
     asset_group_id: NotRequired[builtins.str]
@@ -12727,7 +12777,7 @@ class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant9(TypedDict, total=
     asset_type: Required[Literal['zip']]
 
 @with_config(ConfigDict(extra="allow"))
-class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant10(TypedDict, total=False):
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant10(TypedDict, total=False):
     asset_id: Required[builtins.str]
     asset_role: NotRequired[builtins.str]
     asset_group_id: NotRequired[builtins.str]
@@ -12737,7 +12787,7 @@ class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant10(TypedDict, total
     requirements: NotRequired[_ExternalCoreRequirementsVastAssetRequirements]
 
 @with_config(ConfigDict(extra="allow"))
-class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant11(TypedDict, total=False):
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant11(TypedDict, total=False):
     asset_id: Required[builtins.str]
     asset_role: NotRequired[builtins.str]
     asset_group_id: NotRequired[builtins.str]
@@ -12747,7 +12797,7 @@ class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant11(TypedDict, total
     requirements: NotRequired[_ExternalCoreRequirementsDaastAssetRequirements]
 
 @with_config(ConfigDict(extra="allow"))
-class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant12(TypedDict, total=False):
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant12(TypedDict, total=False):
     asset_id: Required[builtins.str]
     asset_role: NotRequired[builtins.str]
     asset_group_id: NotRequired[builtins.str]
@@ -12757,7 +12807,7 @@ class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant12(TypedDict, total
     requirements: NotRequired[_ExternalCoreRequirementsUrlAssetRequirements]
 
 @with_config(ConfigDict(extra="allow"))
-class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant13(TypedDict, total=False):
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant13(TypedDict, total=False):
     asset_id: Required[builtins.str]
     asset_role: NotRequired[builtins.str]
     asset_group_id: NotRequired[builtins.str]
@@ -12765,6 +12815,70 @@ class _ExternalCoreFormatAssetsItemVariant16AssetsItemVariant13(TypedDict, total
     overlays: NotRequired[builtins.list[_ExternalCoreOverlay]]
     asset_type: Required[Literal['webhook']]
     requirements: NotRequired[_ExternalCoreRequirementsWebhookAssetRequirements]
+
+@with_config(ConfigDict(extra="allow"))
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant14(TypedDict, total=False):
+    asset_id: Required[builtins.str]
+    asset_role: NotRequired[builtins.str]
+    asset_group_id: NotRequired[builtins.str]
+    required: Required[builtins.bool]
+    overlays: NotRequired[builtins.list[_ExternalCoreOverlay]]
+    asset_type: Required[Literal['brief']]
+
+@with_config(ConfigDict(extra="allow"))
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant15(TypedDict, total=False):
+    asset_id: Required[builtins.str]
+    asset_role: NotRequired[builtins.str]
+    asset_group_id: NotRequired[builtins.str]
+    required: Required[builtins.bool]
+    overlays: NotRequired[builtins.list[_ExternalCoreOverlay]]
+    asset_type: Required[Literal['catalog']]
+    requirements: NotRequired[_ExternalCoreRequirementsCatalogRequirements]
+
+@with_config(ConfigDict(extra="allow"))
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant16(TypedDict, total=False):
+    asset_id: Required[builtins.str]
+    asset_role: NotRequired[builtins.str]
+    asset_group_id: NotRequired[builtins.str]
+    required: Required[builtins.bool]
+    overlays: NotRequired[builtins.list[_ExternalCoreOverlay]]
+    asset_type: Required[Literal['published_post']]
+
+@with_config(ConfigDict(extra="allow"))
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant17(TypedDict, total=False):
+    asset_id: Required[builtins.str]
+    asset_role: NotRequired[builtins.str]
+    asset_group_id: NotRequired[builtins.str]
+    required: Required[builtins.bool]
+    overlays: NotRequired[builtins.list[_ExternalCoreOverlay]]
+    asset_type: Required[Literal['card']]
+
+@with_config(ConfigDict(extra="allow"))
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant18(TypedDict, total=False):
+    asset_id: Required[builtins.str]
+    asset_role: NotRequired[builtins.str]
+    asset_group_id: NotRequired[builtins.str]
+    required: Required[builtins.bool]
+    overlays: NotRequired[builtins.list[_ExternalCoreOverlay]]
+    asset_type: Required[Literal['pixel_tracker']]
+
+@with_config(ConfigDict(extra="allow"))
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant19(TypedDict, total=False):
+    asset_id: Required[builtins.str]
+    asset_role: NotRequired[builtins.str]
+    asset_group_id: NotRequired[builtins.str]
+    required: Required[builtins.bool]
+    overlays: NotRequired[builtins.list[_ExternalCoreOverlay]]
+    asset_type: Required[Literal['vast_tracker']]
+
+@with_config(ConfigDict(extra="allow"))
+class _ExternalCoreFormatAssetsItemVariant21AssetsItemVariant20(TypedDict, total=False):
+    asset_id: Required[builtins.str]
+    asset_role: NotRequired[builtins.str]
+    asset_group_id: NotRequired[builtins.str]
+    required: Required[builtins.bool]
+    overlays: NotRequired[builtins.list[_ExternalCoreOverlay]]
+    asset_type: Required[Literal['daast_tracker']]
 
 @with_config(ConfigDict(extra="allow"))
 class _ExternalCoreFormatPricingOptionsItemVariant5Metadata(TypedDict, total=False):
@@ -39497,6 +39611,7 @@ FIELDS: dict[str, dict[str, tuple[Any, Any]]] = {
     'GetProductsRequestBase': {
         'adcp_version': (builtins.str | None, None),
         'adcp_major_version': (builtins.int | None, None),
+        'idempotency_key': (builtins.str | None, None),
         'buying_mode': (Literal['brief', 'wholesale', 'refine'], ...),
         'brief': (builtins.str | None, None),
         'refine': (builtins.list[_GetProductsRequestBaseRefineItemVariant1 | _GetProductsRequestBaseRefineItemVariant2 | _GetProductsRequestBaseRefineItemVariant3] | None, None),

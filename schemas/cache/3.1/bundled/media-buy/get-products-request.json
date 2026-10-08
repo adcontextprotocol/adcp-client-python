@@ -57,6 +57,13 @@
     }
   ],
   "properties": {
+    "idempotency_key": {
+      "type": "string",
+      "description": "Optional client-generated key on the AdCP 3.x compatibility facade. The field remains optional on every arm for wire compatibility. A seller MAY ignore a supplied key on a guaranteed side-effect-free synchronous read. Buyers SHOULD supply a key whenever the request may allocate a task, finalize a proposal, or otherwise change observable state. When a key is supplied on such a request and the seller declares adcp.idempotency.supported: true, the seller MUST apply the AdCP replay contract before that effect. If the key is omitted or the seller declares adcp.idempotency.supported: false, the buyer has no portable at-most-once retry guarantee after an ambiguous result. Keys MUST be unique per seller and logical request.",
+      "minLength": 16,
+      "maxLength": 255,
+      "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
+    },
     "buying_mode": {
       "type": "string",
       "enum": [
@@ -2148,7 +2155,7 @@
             },
             "property_list_filtering": {
               "type": "boolean",
-              "description": "Honors property_list parameter in get_products to filter results to buyer-approved properties"
+              "description": "Honors property_list references in get_products filtering and in targeting_overlay on create_media_buy and update_media_buy"
             },
             "catalog_management": {
               "type": "boolean",
@@ -5317,7 +5324,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-08-16T19:12:17.405Z",
+    "generatedAt": "2026-10-08T00:50:15.181Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

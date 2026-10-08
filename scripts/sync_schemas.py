@@ -40,6 +40,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -116,10 +117,10 @@ COSIGN_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
 # generated types. Prereleases keep their full identifier (see
 # ``resolve_bundle_key``).
 #
-# Empty by default — populate when actively staging a beta. The
-# multi-bundle plumbing stays in place so flipping it back on is a
-# one-line change rather than a refactor.
-PREVIEW_VERSIONS: tuple[str, ...] = ()
+# Keep the supported 3.1 validation cache on its signed maintenance release.
+# Generated Pydantic types and the primary SDK pin remain on 3.2.
+# Retain cache/3.1.15 for exact-source compatibility continuations.
+PREVIEW_VERSIONS: tuple[str, ...] = ("3.1.27",)
 
 
 def get_target_adcp_version() -> str:
@@ -252,12 +253,17 @@ def load_release_pin(version: str) -> dict | None:
     if not path.is_file():
         return None
     pin = json.loads(path.read_text(encoding="utf-8"))
+    release_workflow = (
+        "https://github.com/adcontextprotocol/adcp/.github/workflows/release.yml@refs/heads/"
+    )
+    allowed_identities = {release_workflow + "main"}
+    if re.fullmatch(r"3\.1\.\d+", version):
+        allowed_identities.add(release_workflow + "3.1.x")
     if (
         pin.get("version") != version
         or pin.get("bundle_url") != f"https://adcontextprotocol.org/protocol/{version}.tgz"
         or pin.get("certificate_oidc_issuer") != COSIGN_OIDC_ISSUER
-        or pin.get("certificate_identity")
-        != "https://github.com/adcontextprotocol/adcp/.github/workflows/release.yml@refs/heads/main"
+        or pin.get("certificate_identity") not in allowed_identities
     ):
         raise RuntimeError("invalid audited release pin identity")
     return pin
@@ -944,6 +950,19 @@ def main() -> None:
                 file=sys.stderr,
             )
             sys.exit(1)
+
+        # Additional bundles need the same offline reference normalization as
+        # the primary cache gets from make regenerate-schemas. Otherwise an
+        # absolute /schemas/ ref can escape to file:///schemas at validation.
+        subprocess.run(
+            [
+                sys.executable,
+                str(REPO_ROOT / "scripts" / "fix_schema_refs.py"),
+                "--bundle-key",
+                preview_key,
+            ],
+            check=True,
+        )
 
     # Apply tracked hand-patches once, AFTER every bundle (primary +
     # previews) has been extracted into ``schemas/cache/``. Doing this in

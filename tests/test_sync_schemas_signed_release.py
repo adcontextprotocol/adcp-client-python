@@ -65,6 +65,40 @@ def test_audited_pin_uses_exact_source_and_certificate(published_release):
     assert verified[0][1] == {"certificate_identity": pin["certificate_identity"]}
 
 
+@pytest.mark.parametrize(
+    ("version", "branch", "accepted"),
+    [
+        ("3.1.27", "3.1.x", True),
+        ("3.1.27", "main", True),
+        ("3.2.1", "main", True),
+        ("3.2.1", "3.1.x", False),
+        ("3.1.27", "untrusted", False),
+        ("3.1.27-beta.0", "3.1.x", False),
+    ],
+)
+def test_audited_pin_binds_maintenance_identity_to_release_line(
+    published_release, version, branch, accepted
+):
+    _, original, fetched, verified = published_release
+    pin = {
+        **original,
+        "version": version,
+        "bundle_url": f"https://adcontextprotocol.org/protocol/{version}.tgz",
+        "certificate_identity": (
+            "https://github.com/adcontextprotocol/adcp/"
+            f".github/workflows/release.yml@refs/heads/{branch}"
+        ),
+    }
+    (_mod.RELEASE_PINS_DIR / f"{version}.json").write_text(json.dumps(pin))
+    if accepted:
+        assert _mod.load_release_pin(version) == pin
+    else:
+        with pytest.raises(RuntimeError, match="audited release pin identity"):
+            _mod.load_release_pin(version)
+    assert fetched == []
+    assert verified == []
+
+
 @pytest.mark.parametrize("suffix", [".tgz", ".tgz.sha256", ".tgz.sig", ".tgz.crt"])
 def test_missing_published_artifact_never_fetches_latest(published_release, suffix):
     files, pin, fetched, verified = published_release

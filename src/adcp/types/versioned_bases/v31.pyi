@@ -990,6 +990,7 @@ class GetProductsInputRequiredResponseBase(_VersionedExtensionModel):
 class GetProductsRequestBase(_VersionedExtensionModel):
     adcp_version: builtins.str | None = Field(default=None)
     adcp_major_version: builtins.int | None = Field(default=None)
+    idempotency_key: builtins.str | None = Field(default=None)
     buying_mode: Literal['brief', 'wholesale', 'refine']
     brief: builtins.str | None = Field(default=None)
     refine: builtins.list[_definitions._GetProductsRequestBaseRefineItemVariant1 | _definitions._GetProductsRequestBaseRefineItemVariant2 | _definitions._GetProductsRequestBaseRefineItemVariant3] | None = Field(default=None)

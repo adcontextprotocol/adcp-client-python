@@ -955,7 +955,7 @@
         "id5": "ID5 universal ID",
         "uid2": "Unified ID 2.0",
         "euid": "European Unified ID",
-        "pairid": "Publisher Addressable Identity via IAB Tech Lab PAIR protocol",
+        "pairid": "Publisher Addressable Identity via IAB Tech Lab PAIR. The OpenRTB profile uses User.eids[].source pair-protocol.com, EID.mm 3, EID.matcher set to the publisher's canonical ads.txt ownerdomain, and uids[].atype 3. The URL-safe Base64-encoded KsKp Publisher Identifier must be interpreted with that matcher scope. It is stable across a publisher's advertiser matches only within a Ks key epoch; Ks rotates every 30 days, and current and prior Publisher Identifiers can overlap during rollover. TMP identity objects do not carry matcher or ownerdomain, so a bridge requires an authenticated out-of-band binding to preserve PAIR scope.",
         "maid": "Mobile Advertising ID (IDFA/GAID)",
         "hashed_email": "SHA-256 hashed email address. Pseudonymous PII, not anonymous \u2014 unsalted SHA-256 of the email namespace is recoverable via precomputed dictionaries; treat as PII. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
         "publisher_first_party": "Publisher's own first-party identifier, opaque to buyers",
@@ -965,7 +965,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-08-16T19:12:17.512Z",
+    "generatedAt": "2026-10-08T00:50:15.288Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

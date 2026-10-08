@@ -86,7 +86,7 @@
         },
         "replayed": {
           "type": "boolean",
-          "description": "Set to true when this response was returned from the idempotency cache rather than from a fresh execution. Set to false (or omitted) when the request was executed fresh. Buyers use this to distinguish cached replays from new executions \u2014 matters for billing reconciliation, audit logs, state-machine routing (cached state-tracking fields are historical snapshots, not current state \u2014 re-read via the resource's read endpoint), and any downstream system that assumes exactly-once event semantics. From 3.1 onward, `replayed` MAY appear on responses to any request that resolved via the idempotency cache, including read tools \u2014 universal `idempotency_key` (see security.mdx \u00a7Idempotency) means the cache holds read responses too.",
+          "description": "Set to true when this response was returned from the idempotency cache rather than from a fresh execution. Set to false (or omitted) when the request was executed fresh. Buyers use this to distinguish cached replays from new executions \u2014 matters for billing reconciliation, audit logs, state-machine routing (cached state-tracking fields are historical snapshots, not current state \u2014 re-read via the resource's read endpoint), and any downstream system that assumes exactly-once event semantics. `replayed` appears only when the request actually resolved through the idempotency cache. Pure reads may ignore an optional `idempotency_key`; when a seller voluntarily caches keyed reads, those responses use the same replay indicator and full cache contract.",
           "default": false
         },
         "adcp_error": {
@@ -5485,9 +5485,21 @@
                                               "description": "Discriminator indicating VAST is delivered via URL endpoint"
                                             },
                                             "url": {
+                                              "title": "Macro-bearing URL",
+                                              "description": "URL endpoint that returns VAST XML. May carry unsubstituted ad-server macros \u2014 VAST-style `[MACRO]`, `${MACRO}`, and `%%MACRO%%` placeholders are accepted as-is; buyers MUST NOT pre-encode macro delimiters, since players match the literal token at substitution time.",
                                               "type": "string",
-                                              "format": "uri-template",
-                                              "description": "URL endpoint that returns VAST XML. May carry unsubstituted ad-server macros \u2014 VAST-style `[MACRO]` and `${MACRO}` placeholders are accepted as-is (RFC 6570 syntax); buyers MUST NOT pre-encode macro delimiters, since players match the literal token at substitution time."
+                                              "anyOf": [
+                                                {
+                                                  "format": "uri-template"
+                                                },
+                                                {
+                                                  "format": "uri",
+                                                  "pattern": "^https?://(?:[A-Za-z0-9._~!$&'()*+,;=:%-]+@)?(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#]|$)"
+                                                },
+                                                {
+                                                  "pattern": "^https?://(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#](?:[^%\\s\\u0000-\\u001F\\u007F\"<>`\\\\]|%[0-9A-Fa-f]{2}|%%[A-Za-z0-9_.:-]+%%)*)?$"
+                                                }
+                                              ]
                                             }
                                           },
                                           "required": [
@@ -5892,9 +5904,21 @@
                                           "description": "Discriminator identifying this as a URL asset. See /schemas/creative/asset-types for the registry."
                                         },
                                         "url": {
+                                          "title": "Macro-bearing URL",
+                                          "description": "URL reference. May be a plain URI or an RFC 6570 URI template carrying AdCP universal macros (e.g., `{SKU}`, `{MEDIA_BUY_ID}`). Buyers MUST NOT pre-encode macro braces at sync time; the ad server URL-encodes substituted values at impression time. See docs/creative/universal-macros.mdx.",
                                           "type": "string",
-                                          "format": "uri-template",
-                                          "description": "URL reference. May be a plain URI or an RFC 6570 URI template carrying AdCP universal macros (e.g., `{SKU}`, `{MEDIA_BUY_ID}`). Buyers MUST NOT pre-encode macro braces at sync time; the ad server URL-encodes substituted values at impression time. See docs/creative/universal-macros.mdx."
+                                          "anyOf": [
+                                            {
+                                              "format": "uri-template"
+                                            },
+                                            {
+                                              "format": "uri",
+                                              "pattern": "^https?://(?:[A-Za-z0-9._~!$&'()*+,;=:%-]+@)?(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#]|$)"
+                                            },
+                                            {
+                                              "pattern": "^https?://(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#](?:[^%\\s\\u0000-\\u001F\\u007F\"<>`\\\\]|%[0-9A-Fa-f]{2}|%%[A-Za-z0-9_.:-]+%%)*)?$"
+                                            }
+                                          ]
                                         },
                                         "url_type": {
                                           "$ref": "#/$defs/URLAssetType"
@@ -8617,9 +8641,21 @@
                                               "description": "Discriminator indicating DAAST is delivered via URL endpoint"
                                             },
                                             "url": {
+                                              "title": "Macro-bearing URL",
+                                              "description": "URL endpoint that returns DAAST XML. May carry unsubstituted ad-server macros \u2014 DAAST/VAST-style `[MACRO]`, `${MACRO}`, and `%%MACRO%%` placeholders are accepted as-is; buyers MUST NOT pre-encode macro delimiters, since players match the literal token at substitution time.",
                                               "type": "string",
-                                              "format": "uri-template",
-                                              "description": "URL endpoint that returns DAAST XML. May carry unsubstituted ad-server macros \u2014 DAAST/VAST-style `[MACRO]` and `${MACRO}` placeholders are accepted as-is (RFC 6570 syntax); buyers MUST NOT pre-encode macro delimiters, since players match the literal token at substitution time."
+                                              "anyOf": [
+                                                {
+                                                  "format": "uri-template"
+                                                },
+                                                {
+                                                  "format": "uri",
+                                                  "pattern": "^https?://(?:[A-Za-z0-9._~!$&'()*+,;=:%-]+@)?(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#]|$)"
+                                                },
+                                                {
+                                                  "pattern": "^https?://(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#](?:[^%\\s\\u0000-\\u001F\\u007F\"<>`\\\\]|%[0-9A-Fa-f]{2}|%%[A-Za-z0-9_.:-]+%%)*)?$"
+                                                }
+                                              ]
                                             }
                                           },
                                           "required": [
@@ -10619,9 +10655,21 @@
                                               "description": "Discriminator identifying this as a URL asset. See /schemas/creative/asset-types for the registry."
                                             },
                                             "url": {
+                                              "title": "Macro-bearing URL",
+                                              "description": "URL reference. May be a plain URI or an RFC 6570 URI template carrying AdCP universal macros (e.g., `{SKU}`, `{MEDIA_BUY_ID}`). Buyers MUST NOT pre-encode macro braces at sync time; the ad server URL-encodes substituted values at impression time. See docs/creative/universal-macros.mdx.",
                                               "type": "string",
-                                              "format": "uri-template",
-                                              "description": "URL reference. May be a plain URI or an RFC 6570 URI template carrying AdCP universal macros (e.g., `{SKU}`, `{MEDIA_BUY_ID}`). Buyers MUST NOT pre-encode macro braces at sync time; the ad server URL-encodes substituted values at impression time. See docs/creative/universal-macros.mdx."
+                                              "anyOf": [
+                                                {
+                                                  "format": "uri-template"
+                                                },
+                                                {
+                                                  "format": "uri",
+                                                  "pattern": "^https?://(?:[A-Za-z0-9._~!$&'()*+,;=:%-]+@)?(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#]|$)"
+                                                },
+                                                {
+                                                  "pattern": "^https?://(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#](?:[^%\\s\\u0000-\\u001F\\u007F\"<>`\\\\]|%[0-9A-Fa-f]{2}|%%[A-Za-z0-9_.:-]+%%)*)?$"
+                                                }
+                                              ]
                                             },
                                             "url_type": {
                                               "$ref": "#/$defs/URLAssetType"
@@ -11380,9 +11428,21 @@
                                           "description": "How the tracker URL is invoked at serve time:\n- `img` \u2014 fired as an image pixel (HTTP GET with `<img>`-like semantics; no JS execution)\n- `js` \u2014 fired as a script include (renderer evaluates the URL's response as JavaScript)\n\nMatches IAB OpenRTB Native 1.2 method enum (1=img, 2=js). `js` MUST only be used by sellers whose renderer supports JavaScript trackers; sellers without JS-tracker support MUST reject `method: js` declarations at sync_creatives time with `CREATIVE_REJECTED` carrying the reason."
                                         },
                                         "url": {
+                                          "title": "Macro-bearing URL",
+                                          "description": "Tracker URL fired when `event` occurs. May carry AdCP universal macros (e.g., `{MEDIA_BUY_ID}`, `{CREATIVE_ID}`, `{CACHEBUSTER}`); the seller's renderer URL-encodes substituted values at serve time. See docs/creative/universal-macros.mdx.",
                                           "type": "string",
-                                          "format": "uri-template",
-                                          "description": "Tracker URL fired when `event` occurs. May carry AdCP universal macros (e.g., `{MEDIA_BUY_ID}`, `{CREATIVE_ID}`, `{CACHEBUSTER}`); the seller's renderer URL-encodes substituted values at serve time. See docs/creative/universal-macros.mdx."
+                                          "anyOf": [
+                                            {
+                                              "format": "uri-template"
+                                            },
+                                            {
+                                              "format": "uri",
+                                              "pattern": "^https?://(?:[A-Za-z0-9._~!$&'()*+,;=:%-]+@)?(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#]|$)"
+                                            },
+                                            {
+                                              "pattern": "^https?://(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#](?:[^%\\s\\u0000-\\u001F\\u007F\"<>`\\\\]|%[0-9A-Fa-f]{2}|%%[A-Za-z0-9_.:-]+%%)*)?$"
+                                            }
+                                          ]
                                         },
                                         "custom_event_name": {
                                           "type": "string",
@@ -11832,9 +11892,21 @@
                                           "description": "The VAST tracking event this URL fires on. Maps 1:1 to the VAST `Tracking event=\"...\"` attribute inside `TrackingEvents`. MUST NOT be `impression` (belongs in the VAST `Impression` element \u2014 model as a `url` asset with `url_type: \"tracker_pixel\"`), `clickTracking` / `customClick` (belong in `VideoClicks`), `error` (VAST `Error` element), or any of `viewable` / `notViewable` / `viewUndetermined` / `measurableImpression` / `viewableImpression` (children of the VAST `ViewableImpression` element, not `TrackingEvents`)."
                                         },
                                         "url": {
+                                          "title": "Macro-bearing URL",
+                                          "description": "Tracker URL that fires when `vast_event` occurs. May carry AdCP universal macros (e.g., `{SKU}`, `{MEDIA_BUY_ID}`); the sales agent or ad server URL-encodes substituted values at serve time. See docs/creative/universal-macros.mdx.",
                                           "type": "string",
-                                          "format": "uri-template",
-                                          "description": "Tracker URL that fires when `vast_event` occurs. May carry AdCP universal macros (e.g., `{SKU}`, `{MEDIA_BUY_ID}`); the sales agent or ad server URL-encodes substituted values at serve time. See docs/creative/universal-macros.mdx."
+                                          "anyOf": [
+                                            {
+                                              "format": "uri-template"
+                                            },
+                                            {
+                                              "format": "uri",
+                                              "pattern": "^https?://(?:[A-Za-z0-9._~!$&'()*+,;=:%-]+@)?(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#]|$)"
+                                            },
+                                            {
+                                              "pattern": "^https?://(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#](?:[^%\\s\\u0000-\\u001F\\u007F\"<>`\\\\]|%[0-9A-Fa-f]{2}|%%[A-Za-z0-9_.:-]+%%)*)?$"
+                                            }
+                                          ]
                                         },
                                         "offset": {
                                           "type": "string",
@@ -12249,9 +12321,21 @@
                                           "description": "The DAAST tracking event this URL fires on. MUST NOT be `impression` (model as `url` asset with `url_type: \"tracker_pixel\"`), `clickTracking` / `customClick` (click-tracking trackers go on their own URL asset), `error`, or any of the `ViewableImpression`-element children (`viewable`, `notViewable`, `viewUndetermined`, `measurableImpression`, `viewableImpression`)."
                                         },
                                         "url": {
+                                          "title": "Macro-bearing URL",
+                                          "description": "Tracker URL that fires when `daast_event` occurs. May carry AdCP universal macros; the sales agent or ad server URL-encodes substituted values at serve time. See docs/creative/universal-macros.mdx.",
                                           "type": "string",
-                                          "format": "uri-template",
-                                          "description": "Tracker URL that fires when `daast_event` occurs. May carry AdCP universal macros; the sales agent or ad server URL-encodes substituted values at serve time. See docs/creative/universal-macros.mdx."
+                                          "anyOf": [
+                                            {
+                                              "format": "uri-template"
+                                            },
+                                            {
+                                              "format": "uri",
+                                              "pattern": "^https?://(?:[A-Za-z0-9._~!$&'()*+,;=:%-]+@)?(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#]|$)"
+                                            },
+                                            {
+                                              "pattern": "^https?://(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#](?:[^%\\s\\u0000-\\u001F\\u007F\"<>`\\\\]|%[0-9A-Fa-f]{2}|%%[A-Za-z0-9_.:-]+%%)*)?$"
+                                            }
+                                          ]
                                         },
                                         "offset": {
                                           "type": "string",
@@ -14336,9 +14420,21 @@
                                                 "description": "Discriminator indicating VAST is delivered via URL endpoint"
                                               },
                                               "url": {
+                                                "title": "Macro-bearing URL",
+                                                "description": "URL endpoint that returns VAST XML. May carry unsubstituted ad-server macros \u2014 VAST-style `[MACRO]`, `${MACRO}`, and `%%MACRO%%` placeholders are accepted as-is; buyers MUST NOT pre-encode macro delimiters, since players match the literal token at substitution time.",
                                                 "type": "string",
-                                                "format": "uri-template",
-                                                "description": "URL endpoint that returns VAST XML. May carry unsubstituted ad-server macros \u2014 VAST-style `[MACRO]` and `${MACRO}` placeholders are accepted as-is (RFC 6570 syntax); buyers MUST NOT pre-encode macro delimiters, since players match the literal token at substitution time."
+                                                "anyOf": [
+                                                  {
+                                                    "format": "uri-template"
+                                                  },
+                                                  {
+                                                    "format": "uri",
+                                                    "pattern": "^https?://(?:[A-Za-z0-9._~!$&'()*+,;=:%-]+@)?(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#]|$)"
+                                                  },
+                                                  {
+                                                    "pattern": "^https?://(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#](?:[^%\\s\\u0000-\\u001F\\u007F\"<>`\\\\]|%[0-9A-Fa-f]{2}|%%[A-Za-z0-9_.:-]+%%)*)?$"
+                                                  }
+                                                ]
                                               }
                                             },
                                             "required": [
@@ -14743,9 +14839,21 @@
                                             "description": "Discriminator identifying this as a URL asset. See /schemas/creative/asset-types for the registry."
                                           },
                                           "url": {
+                                            "title": "Macro-bearing URL",
+                                            "description": "URL reference. May be a plain URI or an RFC 6570 URI template carrying AdCP universal macros (e.g., `{SKU}`, `{MEDIA_BUY_ID}`). Buyers MUST NOT pre-encode macro braces at sync time; the ad server URL-encodes substituted values at impression time. See docs/creative/universal-macros.mdx.",
                                             "type": "string",
-                                            "format": "uri-template",
-                                            "description": "URL reference. May be a plain URI or an RFC 6570 URI template carrying AdCP universal macros (e.g., `{SKU}`, `{MEDIA_BUY_ID}`). Buyers MUST NOT pre-encode macro braces at sync time; the ad server URL-encodes substituted values at impression time. See docs/creative/universal-macros.mdx."
+                                            "anyOf": [
+                                              {
+                                                "format": "uri-template"
+                                              },
+                                              {
+                                                "format": "uri",
+                                                "pattern": "^https?://(?:[A-Za-z0-9._~!$&'()*+,;=:%-]+@)?(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#]|$)"
+                                              },
+                                              {
+                                                "pattern": "^https?://(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#](?:[^%\\s\\u0000-\\u001F\\u007F\"<>`\\\\]|%[0-9A-Fa-f]{2}|%%[A-Za-z0-9_.:-]+%%)*)?$"
+                                              }
+                                            ]
                                           },
                                           "url_type": {
                                             "$ref": "#/$defs/URLAssetType"
@@ -17468,9 +17576,21 @@
                                                 "description": "Discriminator indicating DAAST is delivered via URL endpoint"
                                               },
                                               "url": {
+                                                "title": "Macro-bearing URL",
+                                                "description": "URL endpoint that returns DAAST XML. May carry unsubstituted ad-server macros \u2014 DAAST/VAST-style `[MACRO]`, `${MACRO}`, and `%%MACRO%%` placeholders are accepted as-is; buyers MUST NOT pre-encode macro delimiters, since players match the literal token at substitution time.",
                                                 "type": "string",
-                                                "format": "uri-template",
-                                                "description": "URL endpoint that returns DAAST XML. May carry unsubstituted ad-server macros \u2014 DAAST/VAST-style `[MACRO]` and `${MACRO}` placeholders are accepted as-is (RFC 6570 syntax); buyers MUST NOT pre-encode macro delimiters, since players match the literal token at substitution time."
+                                                "anyOf": [
+                                                  {
+                                                    "format": "uri-template"
+                                                  },
+                                                  {
+                                                    "format": "uri",
+                                                    "pattern": "^https?://(?:[A-Za-z0-9._~!$&'()*+,;=:%-]+@)?(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#]|$)"
+                                                  },
+                                                  {
+                                                    "pattern": "^https?://(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#](?:[^%\\s\\u0000-\\u001F\\u007F\"<>`\\\\]|%[0-9A-Fa-f]{2}|%%[A-Za-z0-9_.:-]+%%)*)?$"
+                                                  }
+                                                ]
                                               }
                                             },
                                             "required": [
@@ -19470,9 +19590,21 @@
                                                 "description": "Discriminator identifying this as a URL asset. See /schemas/creative/asset-types for the registry."
                                               },
                                               "url": {
+                                                "title": "Macro-bearing URL",
+                                                "description": "URL reference. May be a plain URI or an RFC 6570 URI template carrying AdCP universal macros (e.g., `{SKU}`, `{MEDIA_BUY_ID}`). Buyers MUST NOT pre-encode macro braces at sync time; the ad server URL-encodes substituted values at impression time. See docs/creative/universal-macros.mdx.",
                                                 "type": "string",
-                                                "format": "uri-template",
-                                                "description": "URL reference. May be a plain URI or an RFC 6570 URI template carrying AdCP universal macros (e.g., `{SKU}`, `{MEDIA_BUY_ID}`). Buyers MUST NOT pre-encode macro braces at sync time; the ad server URL-encodes substituted values at impression time. See docs/creative/universal-macros.mdx."
+                                                "anyOf": [
+                                                  {
+                                                    "format": "uri-template"
+                                                  },
+                                                  {
+                                                    "format": "uri",
+                                                    "pattern": "^https?://(?:[A-Za-z0-9._~!$&'()*+,;=:%-]+@)?(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#]|$)"
+                                                  },
+                                                  {
+                                                    "pattern": "^https?://(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#](?:[^%\\s\\u0000-\\u001F\\u007F\"<>`\\\\]|%[0-9A-Fa-f]{2}|%%[A-Za-z0-9_.:-]+%%)*)?$"
+                                                  }
+                                                ]
                                               },
                                               "url_type": {
                                                 "$ref": "#/$defs/URLAssetType"
@@ -20231,9 +20363,21 @@
                                             "description": "How the tracker URL is invoked at serve time:\n- `img` \u2014 fired as an image pixel (HTTP GET with `<img>`-like semantics; no JS execution)\n- `js` \u2014 fired as a script include (renderer evaluates the URL's response as JavaScript)\n\nMatches IAB OpenRTB Native 1.2 method enum (1=img, 2=js). `js` MUST only be used by sellers whose renderer supports JavaScript trackers; sellers without JS-tracker support MUST reject `method: js` declarations at sync_creatives time with `CREATIVE_REJECTED` carrying the reason."
                                           },
                                           "url": {
+                                            "title": "Macro-bearing URL",
+                                            "description": "Tracker URL fired when `event` occurs. May carry AdCP universal macros (e.g., `{MEDIA_BUY_ID}`, `{CREATIVE_ID}`, `{CACHEBUSTER}`); the seller's renderer URL-encodes substituted values at serve time. See docs/creative/universal-macros.mdx.",
                                             "type": "string",
-                                            "format": "uri-template",
-                                            "description": "Tracker URL fired when `event` occurs. May carry AdCP universal macros (e.g., `{MEDIA_BUY_ID}`, `{CREATIVE_ID}`, `{CACHEBUSTER}`); the seller's renderer URL-encodes substituted values at serve time. See docs/creative/universal-macros.mdx."
+                                            "anyOf": [
+                                              {
+                                                "format": "uri-template"
+                                              },
+                                              {
+                                                "format": "uri",
+                                                "pattern": "^https?://(?:[A-Za-z0-9._~!$&'()*+,;=:%-]+@)?(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#]|$)"
+                                              },
+                                              {
+                                                "pattern": "^https?://(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#](?:[^%\\s\\u0000-\\u001F\\u007F\"<>`\\\\]|%[0-9A-Fa-f]{2}|%%[A-Za-z0-9_.:-]+%%)*)?$"
+                                              }
+                                            ]
                                           },
                                           "custom_event_name": {
                                             "type": "string",
@@ -20683,9 +20827,21 @@
                                             "description": "The VAST tracking event this URL fires on. Maps 1:1 to the VAST `Tracking event=\"...\"` attribute inside `TrackingEvents`. MUST NOT be `impression` (belongs in the VAST `Impression` element \u2014 model as a `url` asset with `url_type: \"tracker_pixel\"`), `clickTracking` / `customClick` (belong in `VideoClicks`), `error` (VAST `Error` element), or any of `viewable` / `notViewable` / `viewUndetermined` / `measurableImpression` / `viewableImpression` (children of the VAST `ViewableImpression` element, not `TrackingEvents`)."
                                           },
                                           "url": {
+                                            "title": "Macro-bearing URL",
+                                            "description": "Tracker URL that fires when `vast_event` occurs. May carry AdCP universal macros (e.g., `{SKU}`, `{MEDIA_BUY_ID}`); the sales agent or ad server URL-encodes substituted values at serve time. See docs/creative/universal-macros.mdx.",
                                             "type": "string",
-                                            "format": "uri-template",
-                                            "description": "Tracker URL that fires when `vast_event` occurs. May carry AdCP universal macros (e.g., `{SKU}`, `{MEDIA_BUY_ID}`); the sales agent or ad server URL-encodes substituted values at serve time. See docs/creative/universal-macros.mdx."
+                                            "anyOf": [
+                                              {
+                                                "format": "uri-template"
+                                              },
+                                              {
+                                                "format": "uri",
+                                                "pattern": "^https?://(?:[A-Za-z0-9._~!$&'()*+,;=:%-]+@)?(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#]|$)"
+                                              },
+                                              {
+                                                "pattern": "^https?://(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#](?:[^%\\s\\u0000-\\u001F\\u007F\"<>`\\\\]|%[0-9A-Fa-f]{2}|%%[A-Za-z0-9_.:-]+%%)*)?$"
+                                              }
+                                            ]
                                           },
                                           "offset": {
                                             "type": "string",
@@ -21100,9 +21256,21 @@
                                             "description": "The DAAST tracking event this URL fires on. MUST NOT be `impression` (model as `url` asset with `url_type: \"tracker_pixel\"`), `clickTracking` / `customClick` (click-tracking trackers go on their own URL asset), `error`, or any of the `ViewableImpression`-element children (`viewable`, `notViewable`, `viewUndetermined`, `measurableImpression`, `viewableImpression`)."
                                           },
                                           "url": {
+                                            "title": "Macro-bearing URL",
+                                            "description": "Tracker URL that fires when `daast_event` occurs. May carry AdCP universal macros; the sales agent or ad server URL-encodes substituted values at serve time. See docs/creative/universal-macros.mdx.",
                                             "type": "string",
-                                            "format": "uri-template",
-                                            "description": "Tracker URL that fires when `daast_event` occurs. May carry AdCP universal macros; the sales agent or ad server URL-encodes substituted values at serve time. See docs/creative/universal-macros.mdx."
+                                            "anyOf": [
+                                              {
+                                                "format": "uri-template"
+                                              },
+                                              {
+                                                "format": "uri",
+                                                "pattern": "^https?://(?:[A-Za-z0-9._~!$&'()*+,;=:%-]+@)?(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#]|$)"
+                                              },
+                                              {
+                                                "pattern": "^https?://(?:[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::[0-9]{1,5})?(?:[/?#](?:[^%\\s\\u0000-\\u001F\\u007F\"<>`\\\\]|%[0-9A-Fa-f]{2}|%%[A-Za-z0-9_.:-]+%%)*)?$"
+                                              }
+                                            ]
                                           },
                                           "offset": {
                                             "type": "string",
@@ -23570,7 +23738,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-08-16T19:12:16.924Z",
+    "generatedAt": "2026-10-08T00:50:14.688Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

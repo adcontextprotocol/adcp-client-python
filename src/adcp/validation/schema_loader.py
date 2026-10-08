@@ -33,6 +33,7 @@ import warnings
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import date
+from functools import lru_cache
 from importlib.resources import as_file, files
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -112,14 +113,20 @@ _HOSTNAME = re.compile(
 
 
 def _is_uri(instance: Any) -> bool:
-    """Return whether ``instance`` is an absolute URI.
+    """Return whether ``instance`` is an absolute RFC 3986 URI.
 
-    Delegates to the same ``pydantic.AnyUrl`` parser the generated models
-    apply to every ``format: uri`` field, so a payload cannot pass schema
-    validation and then fail model validation on the same string.
+    Check the original syntax before applying the ``pydantic.AnyUrl`` parser
+    used by generated models. AnyUrl alone accepts malformed percent escapes
+    and normalizes whitespace/backslashes; that would bypass the explicit
+    ad-server-token branch in macro-bearing-url. Retaining its check also
+    prevents values passing schema validation but failing model validation.
     """
     if not isinstance(instance, str):
         return True
+    from rfc3986_validator import validate_rfc3986
+
+    if any(char.isspace() for char in instance) or not validate_rfc3986(instance):
+        return False
     try:
         _uri_adapter().validate_python(instance)
     except ValidationError:
@@ -134,6 +141,25 @@ def _is_hostname(instance: Any) -> bool:
     return _HOSTNAME.fullmatch(instance) is not None
 
 
+# RFC 6570 sections 2.1-2.4: literal percent escapes, variable names and
+# modifiers. Optional template-expansion libraries do not consistently check
+# literal syntax; supply the format checker rather than depending on them.
+_TEMPLATE_VARCHAR = r"(?:[a-z0-9_]|%[0-9a-f]{2})"
+_TEMPLATE_VARNAME = rf"{_TEMPLATE_VARCHAR}+(?:\.{_TEMPLATE_VARCHAR}+)*"
+_TEMPLATE_VARSPEC = rf"{_TEMPLATE_VARNAME}(?::[1-9][0-9]{{0,3}}|\*)?"
+_URI_TEMPLATE = re.compile(
+    r"(?:[^\x00-\x20\x7f-\x9f\"'<>%\\^`{|}]|%[0-9a-f]{2}|"
+    rf"\{{[+#./;?&=,!@|]?{_TEMPLATE_VARSPEC}(?:,{_TEMPLATE_VARSPEC})*\}})*",
+    re.IGNORECASE | re.ASCII,
+)
+
+
+def _is_uri_template(instance: Any) -> bool:
+    if not isinstance(instance, str):
+        return True
+    return _URI_TEMPLATE.fullmatch(instance) is not None
+
+
 #: Formats whose checker this module supplies. ``jsonschema`` resolves the
 #: rest of the formats the AdCP bundle uses (``date``, ``date-time``,
 #: ``email``, ``uuid``) from its own registry, and treats a format with no
@@ -145,6 +171,7 @@ def _is_hostname(instance: Any) -> bool:
 _SUPPLIED_FORMAT_CHECKS: dict[str, Any] = {
     "date-time": _is_rfc3339_date_time,
     "uri": _is_uri,
+    "uri-template": _is_uri_template,
     "hostname": _is_hostname,
 }
 
@@ -175,9 +202,7 @@ class _ValidatorSpec:
     bundle_key: str | None = None
 
     def make(self) -> Any:
-        from jsonschema import Draft7Validator
-
-        return Draft7Validator(
+        return _draft7_validator_type()(
             self.schema,
             resolver=_ref_resolver_from_store(
                 self.base_uri, self.schema, self.store, bundle_key=self.bundle_key
@@ -372,12 +397,21 @@ def _build_mcp_index(root: _SchemaRoot) -> dict[tuple[str, Direction], Path]:
 
 
 def _resolve_bundle_key_for_version(version: str | None) -> str:
-    """Resolve a caller-supplied version (or ``None``) to a bundle key."""
+    """Resolve a version, preferring a retained exact stable source bundle.
+
+    Minor selectors receive maintenance fixes. Retained patch snapshots keep
+    persisted compatibility continuations on their original source contract.
+    Versions without a retained snapshot still use the minor-line bundle.
+    """
     if version is None:
         return _sdk_pinned_bundle_key()
     from adcp._version import resolve_adcp_version_alias
 
-    return resolve_bundle_key(resolve_adcp_version_alias(version))
+    resolved = resolve_adcp_version_alias(version)
+    bundle_key = resolve_bundle_key(resolved)
+    if resolved != bundle_key and _resolve_schema_root(resolved) is not None:
+        return resolved
+    return bundle_key
 
 
 def _ensure_state(version: str | None = None) -> _LoaderState | None:
@@ -688,6 +722,45 @@ def _reachable_schema_store(
     return store
 
 
+def _validate_ecma_pattern(validator: Any, pattern: str, instance: Any, schema: Any) -> Any:
+    """Apply ECMA-262 final-$ semantics without rewriting schema documents."""
+    from jsonschema import Draft7Validator
+
+    aligned = pattern
+    if pattern.endswith("$"):
+        prefix = pattern[:-1]
+        if (len(prefix) - len(prefix.rstrip("\\"))) % 2 == 0:
+            aligned = prefix + r"$(?![\s\S])"
+    for error in Draft7Validator.VALIDATORS["pattern"](validator, aligned, instance, schema):
+        error.message = f"{instance!r} does not match {pattern!r}"
+        yield error
+
+
+@lru_cache(maxsize=1)
+def _draft7_validator_type() -> Any:
+    from jsonschema import Draft7Validator
+    from jsonschema.validators import extend, validator_for
+
+    cls = extend(Draft7Validator, {"pattern": _validate_ecma_pattern})
+    original_evolve = cls.evolve
+
+    def evolve(self: Any, **changes: Any) -> Any:
+        schema = changes.get("schema", self.schema)
+        if isinstance(schema, dict) and validator_for(schema, default=cls) is Draft7Validator:
+            # A referenced document's Draft 7 declaration must not switch back
+            # to jsonschema's default Python pattern checker. Omit the dialect
+            # metadata only while selecting the evolved class, then expose the
+            # original document. All validation keywords stay identical.
+            selection = {key: value for key, value in schema.items() if key != "$schema"}
+            evolved = original_evolve(self, **{**changes, "schema": selection})
+            evolved.schema = schema
+            return evolved
+        return original_evolve(self, **changes)
+
+    cls.evolve = evolve
+    return cls
+
+
 def _normalize_bundled_schema_for_validation(schema: dict[str, Any]) -> dict[str, Any]:
     """Remove nested ``$id`` scope changes from a flattened bundle.
 
@@ -984,9 +1057,10 @@ def get_named_schema_document(
 def get_bundle_adcp_version(*, version: str | None = None) -> str | None:
     """Return the exact AdCP release declared by a resolved schema bundle.
 
-    Stable validation normally collapses patch releases to a shared
-    ``MAJOR.MINOR`` cache key. Exact-source compatibility coordinators compare
-    this value with the negotiated patch and fail closed on a mismatch.
+    Stable validation normally uses a shared ``MAJOR.MINOR`` cache key;
+    explicitly retained patch snapshots take precedence for exact selectors.
+    Exact-source compatibility coordinators compare this value with the
+    negotiated patch and fail closed on a mismatch.
     """
 
     state = _ensure_state(version)

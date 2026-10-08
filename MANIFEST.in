@@ -5,26 +5,18 @@ include MIGRATION*.md
 recursive-include src/adcp py.typed
 recursive-include src/adcp/reporting/materializer/assets *.json
 recursive-include src/adcp/_compliance/3.2.1 *.json *.jsonl *.yaml *.md
-# Bundled AdCP JSON schemas. ``scripts/bundle_schemas.py`` mirrors
-# ``schemas/cache/`` into ``src/adcp/_schemas/`` before ``python -m
-# build`` so the validator ships with the wheel. Keep distributions on
-# supported released lines: 3.0, 3.1 and 3.2 (AdCP 3.2.1).
-recursive-include src/adcp/_schemas/3.0 *.json
-recursive-include src/adcp/_schemas/3.1 *.json
-recursive-include src/adcp/_schemas/3.2 *.json
-prune src/adcp/_schemas/2.5
-prune src/adcp/_schemas/3.2.0-beta.6
-prune src/adcp/_schemas/3.2.0-rc.3
-prune src/adcp/_schemas/3.2.0-rc.6
-prune src/adcp/_schemas/3.2.0-rc.7
+# build_py copies the tracked cache into wheels. Do not duplicate those
+# inputs with ignored, generated package copies in the source distribution.
+prune src/adcp/_schemas
 prune src/adcp/_compliance/3.2.0-rc.6
 prune src/adcp/_compliance/3.2.0-rc.7
-prune src/adcp/_schemas/3.1.0-*
 # A clean VCS source tree has no ignored ``src/adcp/_schemas`` directory.
 # Keep the tracked inputs needed by the build_py hook in source distributions
 # so wheels built from an sdist have the same schema set as direct VCS wheels.
+# Include the retained 3.1.15 source contract for persisted continuations.
 recursive-include schemas/cache/3.0 *.json
 recursive-include schemas/cache/3.1 *.json
+recursive-include schemas/cache/3.1.15 *.json
 recursive-include schemas/cache/3.2 *.json
 prune schemas/cache/2.5
 prune schemas/cache/3.2.0-beta.6
@@ -33,3 +25,4 @@ prune schemas/cache/3.2.0-rc.6
 prune schemas/cache/3.2.0-rc.7
 prune schemas/releases
 include schemas/releases/3.2.1.json
+include schemas/releases/3.1.27.json

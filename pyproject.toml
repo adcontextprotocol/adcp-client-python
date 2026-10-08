@@ -100,6 +100,8 @@ dependencies = [
     # bundled AdCP schemas. Pin to the Draft 7 generation the schemas
     # declare via ``$schema``. Floor at 4.20.0 because mcp 2.0.0 requires it.
     "jsonschema>=4.20.0",
+    # Validate original URI syntax before AnyUrl can normalize it.
+    "rfc3986-validator>=0.1.1,<0.2",
     # Public Suffix List lookups — used by ``adcp.signing.etld`` to compute
     # the eTLD+1 (registrable domain) for the brand-authorization binding
     # mandated by ADCP request-signing spec (#3690). We pin a recent floor
@@ -233,6 +235,7 @@ adcp = [
     # ``adcp.validation.schema_loader``.
     "_schemas/3.0/**/*.json",
     "_schemas/3.1/**/*.json",
+    "_schemas/3.1.15/**/*.json",
     "_schemas/3.2/**/*.json",
     # Exact signed compliance inputs plus their immutable release provenance.
     "_compliance/3.2.1/**/*.json",
@@ -346,7 +349,7 @@ ignore_missing_imports = true
 # ``types-jsonschema`` stub package is optional and we use
 # :class:`Any`-typed returns across the validator boundary anyway.
 [[tool.mypy.overrides]]
-module = ["jsonschema", "jsonschema.*"]
+module = ["jsonschema", "jsonschema.*", "rfc3986_validator"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

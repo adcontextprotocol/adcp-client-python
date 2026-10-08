@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "List Collection Lists Response",
+  "description": "Response payload for list_collection_lists task",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "../core/version-envelope.json"
+    },
+    {
+      "$ref": "../core/protocol-envelope.json"
+    }
+  ],
+  "properties": {
+    "lists": {
+      "type": "array",
+      "description": "Array of collection lists (metadata only, not resolved collections)",
+      "items": {
+        "$ref": "collection-list.json"
+      }
+    },
+    "pagination": {
+      "$ref": "../core/pagination-response.json"
+    },
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    }
+  },
+  "required": [
+    "lists"
+  ],
+  "additionalProperties": true
+}

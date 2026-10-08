@@ -1,7 +1,7 @@
 {
-  "$schema": "/schemas/3.1.15/manifest.schema.json",
-  "adcp_version": "3.1.15",
-  "generated_at": "2026-08-16T19:12:16.453Z",
+  "$schema": "/schemas/3.1.27/manifest.schema.json",
+  "adcp_version": "3.1.27",
+  "generated_at": "2026-10-08T00:50:14.212Z",
   "tools": {
     "acquire_rights": {
       "protocol": "brand",
@@ -1353,10 +1353,10 @@
       "title": "Broadcast linear TV seller agent",
       "entry_point_tools": [
         "create_media_buy",
-        "get_products",
-        "sync_governance"
+        "get_products"
       ],
       "exercised_tools": [
+        "assert_contribution",
         "create_media_buy",
         "expect_webhook",
         "get_adcp_capabilities",
@@ -1375,8 +1375,7 @@
       "title": "Catalog-driven creative and conversion tracking",
       "entry_point_tools": [
         "create_media_buy",
-        "get_products",
-        "sync_governance"
+        "get_products"
       ],
       "exercised_tools": [
         "build_creative",
@@ -1402,10 +1401,10 @@
       "title": "Guaranteed media buy with human IO approval",
       "entry_point_tools": [
         "create_media_buy",
-        "get_products",
-        "sync_governance"
+        "get_products"
       ],
       "exercised_tools": [
+        "assert_contribution",
         "create_media_buy",
         "get_adcp_capabilities",
         "get_media_buy_delivery",
@@ -1422,10 +1421,10 @@
       "title": "Non-guaranteed auction-based media buy",
       "entry_point_tools": [
         "create_media_buy",
-        "get_products",
-        "sync_governance"
+        "get_products"
       ],
       "exercised_tools": [
+        "assert_contribution",
         "create_media_buy",
         "get_adcp_capabilities",
         "get_media_buy_delivery",
@@ -1448,6 +1447,7 @@
         "get_products"
       ],
       "exercised_tools": [
+        "assert_contribution",
         "create_media_buy",
         "get_adcp_capabilities",
         "get_media_buy_delivery",
