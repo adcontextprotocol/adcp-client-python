@@ -111,6 +111,26 @@ def test_place_key_rewrite_survives_codegen_and_is_idempotent(tmp_path, monkeypa
     assert target.read_text() == updated
 
 
+def test_bundled_key_rewrite_survives_generated_type_renumbering(tmp_path, monkeypatch) -> None:
+    from scripts import post_generate_fixes
+
+    target = tmp_path / "bundled" / "protocol" / "get_adcp_capabilities_response.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "from adcp.types.base import AdCPBaseModel\n"
+        "class Targeting(AdCPBaseModel):\n"
+        "    geo_places: Annotated[dict[CatalogSystem77 | CatalogSystem812, "
+        "PlaceCatalog], Field(min_length=1)] | None = None\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", tmp_path)
+    post_generate_fixes.preserve_geo_place_system_map_keys()
+    updated = target.read_text()
+    assert "dict[GeoPlaceSystemKey, PlaceCatalog]" in updated
+    assert "Field(min_length=1)] | None = None" in updated
+    post_generate_fixes.preserve_geo_place_system_map_keys()
+    assert target.read_text() == updated
+
+
 @pytest.mark.parametrize("model,field,value", _MODELS)
 @pytest.mark.parametrize("system", _SYSTEMS)
 @pytest.mark.parametrize("from_json", [False, True], ids=["python", "json"])
