@@ -769,6 +769,40 @@ def _remove_unused_pydantic_field_import(source: str) -> tuple[str, bool]:
     return "".join(lines), changed
 
 
+def preserve_geo_place_system_map_keys() -> None:
+    """Emit validated string keys, including for cold imports of generated models (#1450)."""
+    pattern = re.compile(
+        r"(dict\[\s*)(?:geo_place_system\.GeographicPlaceIdentifierSystem|GeoPlaces1 \| GeoPlaces2)(\s*,)"
+    )
+    for relative in (
+        "core/targeting_overlay_support.py",
+        "core/geo_place_requirement.py",
+        "protocol/get_adcp_capabilities_response.py",
+        "bundled/protocol/get_adcp_capabilities_response.py",
+    ):
+        target = OUTPUT_DIR / relative
+        if not target.exists():
+            continue
+        source = target.read_text()
+        updated, count = pattern.subn(r"\1GeoPlaceSystemKey\2", source)
+        if not count:
+            if (
+                "dict[GeoPlaceSystemKey," not in source
+                and "        GeoPlaceSystemKey," not in source
+            ):
+                raise RuntimeError(f"{relative}: expected geographic place-system map not found")
+            continue
+        updated = re.sub(
+            r"^(from adcp\.types\.base import [^\n]+)$",
+            r"\1, GeoPlaceSystemKey",
+            updated,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        target.write_text(updated)
+        print(f"  {relative}: geographic place-system keys keep their wire strings")
+
+
 def remove_unused_pydantic_field_imports() -> None:
     """Remove spurious ``Field`` imports emitted for generated enum modules."""
     modified_files = 0
@@ -6232,6 +6266,7 @@ def main(argv: list[str] | None = None):
         fix_list_creatives_format_reference_xor,
         rewrite_generated_enums_to_strenum,
         annotate_registry_track_verdict,
+        preserve_geo_place_system_map_keys,
         remove_unused_pydantic_field_imports,
         strip_extra_blank_lines_at_eof,
     ]

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Any, Annotated, Literal
 
-from adcp.types.base import AdCPBaseModel
+from adcp.types.base import AdCPBaseModel, GeoPlaceSystemKey
 from pydantic import ConfigDict, Field, RootModel, StringConstraints
 
 from ..enums import browser_family, daypart_timezone_mode, match_type, metro_system, transport_mode
@@ -113,7 +113,7 @@ class PlaceSupport(AdCPBaseModel):
         extra='forbid',
     )
     systems: Annotated[
-        dict[geo_place_system.GeographicPlaceIdentifierSystem, PlaceCatalogSupport],
+        dict[GeoPlaceSystemKey, PlaceCatalogSupport],
         Field(min_length=1),
     ]
     max_values_per_package: Annotated[int | None, Field(ge=1)] = None
