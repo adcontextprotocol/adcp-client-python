@@ -4,13 +4,13 @@
 
 from __future__ import annotations
 
-from adcp.types.base import AdcpResponse, GeoPlaceSystemKey, SchemaInt
+from adcp.types.base import AdcpResponse, SchemaInt
 
 from datetime import date
 from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Dict, Literal
 
-from adcp.types.base import AdCPBaseModel
+from adcp.types.base import AdCPBaseModel, GeoPlaceSystemKey
 from adcp.types._scalar import ScalarInt, ScalarStr
 from pydantic import (
     AnyUrl,
