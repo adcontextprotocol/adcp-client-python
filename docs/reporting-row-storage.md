@@ -273,3 +273,32 @@ Python keeps revision headers and their records until the shared Core layout (pe
 stays as a small marker that makes reads answer as expired; the records are already outside the status projection,
 whose horizon excludes periods past retention. Versioned buckets, soft delete and retention locks are allowed as
 backstops, but a `pruned` period is not "erased" while they keep the old bytes.
+
+## Interoperability with the JavaScript SDK
+
+Both SDKs read and write the same `adcp_reporting_row_*` tables and the same canonical bytes, so chunks written by
+either verify in the other. Three things must match between the two deployments:
+
+- **The same `deployment_namespace`** (and therefore the same installation identity) on both sides, or the binding is
+  refused with `UNSAFE_BINDING`.
+- **The same binding definitions.** A binding's identity digest is `sha256(JCS([kind, provider, identity_config]))`
+  over the names the JavaScript SDK uses (`location`, `prefix`, `keyTemplate`), so an object binding that differs in
+  location, prefix or key template is a different binding and is refused rather than silently redirected.
+- **The row-storage migration applied by this SDK first**, because the JavaScript `adcp_reporting_row_sets` has a
+  foreign key to its own obligations table that Python obligations can never satisfy. See "Layout notes".
+
+Until the shared Core layout (persistence Stage 3) each SDK keeps its own revision headers, so what is shared today
+is the row sets: JavaScript-written row sets verify through `ReportingRowStorageV1.find` and `read_all` here, and the
+other way around.
+
+The acceptance test runs both SDKs against one PostgreSQL schema and one filesystem bucket root, in both directions:
+
+```bash
+ADCP_JS_SDK_DIR=/path/to/adcp-client ADCP_PG_TEST_URL=postgresql://... \
+    pytest tests/conformance/reporting/test_reporting_row_storage_interop_pg.py
+```
+
+It needs Node and a built `adcp-client` checkout (`npm ci && npm run build`); without them it skips. The rows each SDK
+wrote are committed under `tests/fixtures/reporting-row-storage-interop-v1/` (refresh them with
+`ADCP_UPDATE_INTEROP_FIXTURES=1`), and the replay tests load them into a fresh database and bucket and verify them
+here, so Python CI does not need Node. The JavaScript SDK can replay `python-written.json` the same way.
