@@ -136,7 +136,10 @@ class ReportingActivitySupport:
                         "notification_schema_unready:catalog_unavailable"
                     ) from None
                 # One physical catalog capture, each required contract once.
-                _schema._validate_schema_objects(installed, activity=True)
+                retired = await _schema.legacy_rows_retired(connection, installed)
+                _schema._validate_schema_objects(
+                    installed, activity=True, **({"legacy_rows_retired": True} if retired else {})
+                )
                 if composite:
                     from adcp.reporting.outbox import status_schema
 

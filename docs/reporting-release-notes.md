@@ -18,6 +18,14 @@ restart across the upgrade does not turn a replay into a conflict. This is part 
 the shared layout in adcontextprotocol/adcp#7996 (Stage 2, tracked in
 [#1457](https://github.com/adcontextprotocol/adcp-client-python/issues/1457)).
 
+## Chunked row storage (opt-in)
+
+`PgReportingLedgerStore(row_storage=...)` stores new revisions' rows as verified canonical JSONL chunks in the shared
+`adcp_reporting_row_*` tables, the same tables and bytes the JavaScript SDK uses. Nothing changes unless you opt in.
+Reads handle both forms. `migrate_inline_rows` moves legacy rows with verification, quarantining any revision whose
+rows do not reproduce its binding, and `retire_legacy_inline_rows` then renames the legacy table so older binaries fail
+closed. See [row storage](reporting-row-storage.md).
+
 ## Caller ownership: breaking API and storage release
 
 Reporting generations now include the authenticated caller: `(account_id,

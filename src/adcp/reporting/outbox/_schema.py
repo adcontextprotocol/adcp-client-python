@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from importlib.resources import files
 from typing import Any
 
@@ -167,18 +168,50 @@ async def schema_contract(connection: Any) -> dict[str, str]:
     return {key: value["fingerprint"] for key, value in (await schema_objects(connection)).items()}
 
 
+LEGACY_ROW_ARCHIVE = "adcp_reporting_legacy_revision_rows_v0"
+_LEGACY_ROW_OBJECT = re.compile(r"^[a-z]+:reporting_revision_rows(?:\.|$)")
+
+
+def is_legacy_row_object(key: str) -> bool:
+    """Whether a manifest key belongs to the retired ``reporting_revision_rows`` table."""
+    return _LEGACY_ROW_OBJECT.match(key) is not None
+
+
+async def legacy_rows_retired(connection: Any, installed: dict[str, dict[str, Any]]) -> bool:
+    """Whether row storage retired the legacy inline-row table by renaming it.
+
+    Chunked rows replace ``reporting_revision_rows``. Once every revision is
+    migrated or quarantined the table is renamed (never truncated) so a binary
+    that predates chunked rows fails closed. The renamed table satisfies the
+    manifest. A table that is merely missing still does not, and the extra
+    query runs only when that table is absent.
+    """
+    if "table:reporting_revision_rows" in installed:
+        return False
+    row = await (
+        await connection.execute(
+            "SELECT to_regclass(quote_ident(current_schema()) || '.' || %s)", (LEGACY_ROW_ARCHIVE,)
+        )
+    ).fetchone()
+    return row is not None and row[0] is not None
+
+
 async def validate_schema(connection: Any, *, activity: bool = False) -> None:
     try:
         installed = await schema_objects(connection)
+        retired = await legacy_rows_retired(connection, installed)
     except Exception:
         raise ReportingNotificationError(
             "notification_schema_unready:catalog_unavailable"
         ) from None
-    _validate_schema_objects(installed, activity=activity)
+    _validate_schema_objects(installed, activity=activity, legacy_rows_retired=retired)
 
 
 def _validate_schema_objects(
-    installed: dict[str, dict[str, Any]], *, activity: bool = False
+    installed: dict[str, dict[str, Any]],
+    *,
+    activity: bool = False,
+    legacy_rows_retired: bool = False,
 ) -> None:
     """Apply the packaged B contract to an already captured catalog."""
     if not REQUIRED_OBJECTS:
@@ -191,6 +224,8 @@ def _validate_schema_objects(
         required = {**required, **PROVISIONAL_REQUIRED_OBJECTS}
     for key, expected in required.items():
         if not activity and "reporting_webhook_" in key:
+            continue
+        if legacy_rows_retired and is_legacy_row_object(key):
             continue
         actual = installed.get(key)
         if actual is None:

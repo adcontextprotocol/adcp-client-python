@@ -7,7 +7,13 @@ from importlib.resources import files
 from typing import Any
 
 from adcp.reporting.ledger.store import LedgerConflictError
-from adcp.reporting.outbox._schema import REQUIRED_OBJECTS, schema_objects, validate_schema
+from adcp.reporting.outbox._schema import (
+    REQUIRED_OBJECTS,
+    is_legacy_row_object,
+    legacy_rows_retired,
+    schema_objects,
+    validate_schema,
+)
 
 
 async def validate_materializer_schema(connection: Any, *, notifications: bool = False) -> None:
@@ -29,11 +35,19 @@ async def validate_materializer_schema(connection: Any, *, notifications: bool =
         raise LedgerConflictError("MATERIALIZER_SCHEMA_UNREADY", "install the materializer schema")
     # Inherit the reviewed foundation prerequisites without appending B2 objects
     # to A's manifest or requiring optional notification delivery infrastructure.
+    try:
+        retired = await legacy_rows_retired(connection, installed)
+    except Exception:
+        raise LedgerConflictError(
+            "MATERIALIZER_SCHEMA_UNREADY", "materializer schema catalog is unavailable"
+        ) from None
     for key, expected in REQUIRED_OBJECTS.items():
         if any(
             word in key
             for word in ("notification_", "webhook_", "status_dirty", "status_checkpoints")
         ):
+            continue
+        if retired and is_legacy_row_object(key):
             continue
         if installed.get(key) != expected:
             raise LedgerConflictError(

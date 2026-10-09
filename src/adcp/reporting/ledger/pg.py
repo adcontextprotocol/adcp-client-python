@@ -149,6 +149,7 @@ if TYPE_CHECKING:
 
     from adcp.reporting._source_authorization import InlineSealPublisher
     from adcp.reporting.inline_source import ReportingSealStore, SealedSlice
+    from adcp.reporting.ledger.row_migration import ReportingRowMigrationBatchV1
     from adcp.reporting.ledger.status_projection import ReportingStatusSnapshot
 
 try:
@@ -169,6 +170,7 @@ _CURRENCY_DDL_PATH = Path(__file__).parent / "reporting_ledger_obligation_curren
 _RECONCILIATION_DDL_PATH = Path(__file__).parent / "reporting_ledger_reconciliation.sql"
 _NOTIFICATIONS_DDL_PATH = Path(__file__).parent / "reporting_notification_outbox.sql"
 _ACTIVITY_DDL_PATH = Path(__file__).parent / "reporting_webhook_activity.sql"
+_ROW_MIGRATION_DDL_PATH = Path(__file__).parent / "reporting_row_migration.sql"
 
 __all__ = ["PG_AVAILABLE", "PgReportingLedgerStore"]
 
@@ -315,6 +317,38 @@ class PgReportingLedgerStore:
         async with self._pool.connection() as connection, connection.transaction():
             await self._row_storage.ready(connection)
 
+    async def migrate_inline_rows(
+        self,
+        *,
+        limit: int = 100,
+        account_id: str | None = None,
+        cursor: str | None = None,
+        binding_id: str | None = None,
+    ) -> ReportingRowMigrationBatchV1:
+        """Move legacy inline rows into verified chunks, one bounded batch at a time.
+
+        Each revision's rows must reproduce its committed binding before chunks
+        are written. A revision that does not is quarantined and reported in
+        ``quarantined``, never rewritten, and reads of it fail with
+        ``ROWS_INTEGRITY_FAILED``. Pass the returned ``cursor`` back to resume; it is
+        ``None`` once no candidates remain. Requires the ``row_storage`` option.
+        """
+        from adcp.reporting.ledger.row_migration import migrate_inline_rows
+
+        return await migrate_inline_rows(
+            self, limit=limit, account_id=account_id, cursor=cursor, binding_id=binding_id
+        )
+
+    async def retire_legacy_inline_rows(self) -> bool:
+        """Rename ``reporting_revision_rows`` after every revision is migrated or quarantined.
+
+        The table is renamed, never truncated, so binaries that predate chunked
+        rows fail closed. Returns ``False`` when it was already retired.
+        """
+        from adcp.reporting.ledger.row_migration import retire_legacy_inline_rows
+
+        return await retire_legacy_inline_rows(self)
+
     async def _create_schema_on(self, connection: Any) -> None:
         from adcp.reporting.migration import require_owned_schema_or_empty
 
@@ -332,6 +366,7 @@ class PgReportingLedgerStore:
             await connection.execute(path.read_text())
         if self._row_storage is not None:
             await connection.execute(REPORTING_ROW_STORAGE_DDL_PATH.read_text())
+            await connection.execute(_ROW_MIGRATION_DDL_PATH.read_text())
         await self._require_provisional_schema(connection)
         if self._notifications_enabled:
             from adcp.reporting.outbox._schema import validate_schema
@@ -1064,7 +1099,13 @@ class PgReportingLedgerStore:
         return revision
 
     async def _write_revision_row_set(
-        self, connection: Any, revision: ReportingRevisionRecord, rows: Sequence[dict[str, Any]]
+        self,
+        connection: Any,
+        revision: ReportingRevisionRecord,
+        rows: Sequence[dict[str, Any]],
+        *,
+        binding_id: str | None = None,
+        postgres_only: bool = False,
     ) -> None:
         """Store a revision's rows as verified canonical chunks in this transaction.
 
@@ -1104,6 +1145,7 @@ class PgReportingLedgerStore:
                 control_totals=[item.to_wire() for item in revision.managed_control_totals or ()],
                 expected_sha256=None if legacy else revision.revision_content_sha256,
                 finality=revision.finality,
+                binding_id=binding_id,
             )
         except ReportingRowStoreError as error:
             if error.code != "INVALID_INPUT":
@@ -1116,6 +1158,12 @@ class PgReportingLedgerStore:
             raise LedgerConflictError(
                 "ROWS_NOT_PORTABLE", "revision rows cannot be canonicalized for storage"
             ) from None
+        if postgres_only and prepared.binding.kind != "postgres":
+            raise ReportingRowStoreError(
+                "INVALID_INPUT",
+                "migrated rows are written inside the ledger transaction;"
+                " select a postgres binding",
+            )
         await storage.write_in_transaction(connection, prepared)
 
     async def _row_sets_present(self, connection: Any) -> bool:
@@ -1530,6 +1578,7 @@ class PgReportingLedgerStore:
                 limit=limit,
             )
             if page_rows is None:
+                guarded = await self._guard_inline_rows(connection, reporting_revision_id)
                 rows = await (
                     await connection.execute(
                         "SELECT row_payload FROM reporting_revision_rows"
@@ -1539,6 +1588,10 @@ class PgReportingLedgerStore:
                     )
                 ).fetchall()
                 page_rows = [row[0] for row in rows]
+                if guarded and len(page_rows) != max(0, min(limit, int(owned[0]) - offset)):
+                    raise ReportingRowStoreError(
+                        "ROWS_INTEGRITY_FAILED", "inline rows do not cover the revision"
+                    )
         total = int(owned[0])
         has_more = offset + limit < total
         return ReportingRowPage(
@@ -1613,6 +1666,7 @@ class PgReportingLedgerStore:
                         "ROWS_INTEGRITY_FAILED", "row set does not match its revision header"
                     )
                 return tuple(rows)
+            await self._guard_inline_rows(connection, reporting_revision_id)
             inline = await (
                 await connection.execute(
                     "SELECT row_payload FROM reporting_revision_rows"
@@ -1634,6 +1688,38 @@ class PgReportingLedgerStore:
                 "ROWS_INTEGRITY_FAILED", "rows do not reproduce the revision binding"
             )
         return tuple(legacy_rows)
+
+    async def _guard_inline_rows(self, connection: Any, reporting_revision_id: str) -> bool:
+        """Refuse inline rows the migration quarantined or retired.
+
+        Returns whether row storage is installed, in which case inline reads are
+        also checked for completeness. A database without row storage keeps the
+        original behavior and pays no extra query.
+        """
+        if not self._row_sets_known:
+            return False
+        state = await (
+            await connection.execute(
+                "SELECT to_regclass(quote_ident(current_schema()) || '.reporting_revision_rows'),"
+                " to_regclass(quote_ident(current_schema()) || '.adcp_reporting_row_quarantine')"
+            )
+        ).fetchone()
+        if state is not None and state[1] is not None:
+            marked = await (
+                await connection.execute(
+                    "SELECT 1 FROM adcp_reporting_row_quarantine WHERE reporting_revision_id = %s",
+                    (reporting_revision_id,),
+                )
+            ).fetchone()
+            if marked is not None:
+                raise ReportingRowStoreError(
+                    "ROWS_INTEGRITY_FAILED", "this revision's inline rows failed migration"
+                )
+        if state is None or state[0] is None:
+            raise ReportingRowStoreError(
+                "ROWS_UNAVAILABLE", "the revision has no chunks and the inline row table is retired"
+            )
+        return True
 
     async def _read_row_set_page(
         self,

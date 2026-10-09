@@ -54,3 +54,42 @@ refuses with the constraint name; apply this migration first, or drop that const
 A revision written before protocol-shape control totals (see the release notes) has a binding over `{name, value}`
 pairs. Its row set records the rows-only digest profile `rows_v1`, and its pair binding is verified against the
 stored bytes on a full read.
+
+## Migrating legacy inline rows
+
+Revisions written before you enabled row storage keep their rows in `reporting_revision_rows` and keep reading
+through it. To move them into verified chunks, run the resumable migration in bounded batches. Each revision
+migrates in its own transaction under the account lock, so a batch never holds the lock longer than one revision.
+
+```python
+cursor = None
+while True:
+    batch = await store.migrate_inline_rows(limit=100, cursor=cursor)
+    if batch.quarantined:
+        log.warning("unverifiable inline rows: %s", batch.quarantined)
+    cursor = batch.cursor
+    if cursor is None:
+        break
+```
+
+A revision is migrated only if its inline rows, re-canonicalized, reproduce its committed
+`revision_content_sha256` (a retained pair-hashed revision is proven under the algorithm it was written with), the
+ordinals are contiguous and the row count matches. Anything else is **quarantined**: recorded in
+`adcp_reporting_row_quarantine`, reported in `batch.quarantined`, never rewritten, and refused by every read with
+`ROWS_INTEGRITY_FAILED`. Investigate it as damaged evidence; the inline rows are left exactly as found.
+Inline rows are not deleted by migration.
+
+Once a pass finishes with no cursor, stop every writer that predates chunked rows and retire the legacy table:
+
+```python
+await store.retire_legacy_inline_rows()  # ROWS_MIGRATION_INCOMPLETE while any revision is unaccounted for
+```
+
+This **renames** `reporting_revision_rows` to `adcp_reporting_legacy_revision_rows_v0`. It never truncates the
+table, so a binary that predates chunked rows fails closed (its insert hits a missing table) instead of writing rows
+nobody reads. `create_schema` does not recreate the retired table, and the schema checks for notifications and the
+materializer accept the renamed table. The archive keeps every inline row, including quarantined revisions' rows;
+drop it yourself once you no longer need it. Reclaiming the space of the original table needs the drop.
+
+Upgrade note: the pre-ownership `migrate_legacy_reporting` and `backfill_legacy_reporting` operator APIs write to
+`reporting_revision_rows`, so run them before retiring it.

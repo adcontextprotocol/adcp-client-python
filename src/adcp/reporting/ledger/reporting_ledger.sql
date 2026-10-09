@@ -208,13 +208,24 @@ CREATE TABLE IF NOT EXISTS adcp_reporting_producer_retry_schedules (
     recorded_at      TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS reporting_revision_rows (
-    reporting_revision_id TEXT COLLATE "C" NOT NULL
-        REFERENCES reporting_revisions (reporting_revision_id),
-    ordinal               BIGINT           NOT NULL,
-    row_payload           JSONB            NOT NULL,
-    PRIMARY KEY (reporting_revision_id, ordinal)
-);
+-- Legacy inline rows, one JSONB value per row. Row storage migrates them to
+-- verified chunks and then renames this table to
+-- adcp_reporting_legacy_revision_rows_v0 (never truncates it), so a binary that
+-- predates chunked rows fails closed instead of writing rows nobody reads. Do not
+-- recreate the table once it has been retired.
+DO $legacy_rows$
+BEGIN
+    IF to_regclass(quote_ident(current_schema()) || '.adcp_reporting_legacy_revision_rows_v0') IS NULL THEN
+        CREATE TABLE IF NOT EXISTS reporting_revision_rows (
+            reporting_revision_id TEXT COLLATE "C" NOT NULL
+                REFERENCES reporting_revisions (reporting_revision_id),
+            ordinal               BIGINT           NOT NULL,
+            row_payload           JSONB            NOT NULL,
+            PRIMARY KEY (reporting_revision_id, ordinal)
+        );
+    END IF;
+END
+$legacy_rows$;
 
 CREATE TABLE IF NOT EXISTS reporting_adjustments (
     reporting_adjustment_id TEXT COLLATE "C" NOT NULL PRIMARY KEY,
