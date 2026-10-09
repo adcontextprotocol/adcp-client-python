@@ -250,11 +250,16 @@ def _typed_control_totals(
     if obligation.definition is not None:
         units.update(dict(obligation.definition.monetary_control_total_units))
     try:
-        return tuple(
+        totals = tuple(
             ReportingControlTotalRecord(
                 total.name, total.value, total.value_type, total.unit or units.get(total.name)
             )
             for total in manifest.control_totals
+        )
+        # Closed evidence: names are unique and agree with the retained pairs. A
+        # manifest that repeats a name is a source defect, not a worker crash.
+        return freeze_control_totals(
+            totals, tuple((total.name, total.value) for total in manifest.control_totals)
         )
     except ValueError:
         raise LedgerConflictError(

@@ -25,6 +25,7 @@ from adcp.reporting.ledger import (
 from adcp.reporting.ledger import producer as producer_module
 from adcp.reporting.ledger.producer import revision_binding_algorithm
 from adcp.reporting.ledger.status import _revision_to_wire
+from adcp.reporting.ledger.store import LedgerConflictError
 from tests.conformance.reporting._generation_support import isolated_reporting_pool
 from tests.test_reporting_settling import ACCOUNT, _capabilities, _harness, _revisions
 
@@ -144,3 +145,20 @@ async def test_replaying_a_retained_pair_hashed_revision_keeps_its_original_bind
     replayed = await original(*args, **kwargs)
     assert replayed == retained
     assert await _revisions(store) == (retained,)
+
+
+def test_a_manifest_that_repeats_a_total_name_is_a_manifest_conflict() -> None:
+    from types import SimpleNamespace
+
+    from adcp.reporting.ledger.producer import _typed_control_totals
+
+    def total(name: str, value: str) -> Any:
+        return SimpleNamespace(name=name, value=value, value_type="integer", unit=None)
+
+    obligation = SimpleNamespace(currency="USD", definition=None)
+    manifest = SimpleNamespace(
+        control_totals=[total("impressions", "1"), total("impressions", "2")]
+    )
+    with pytest.raises(LedgerConflictError) as conflict:
+        _typed_control_totals(obligation, manifest)  # type: ignore[arg-type]
+    assert conflict.value.code == "MANIFEST_MISMATCH"
