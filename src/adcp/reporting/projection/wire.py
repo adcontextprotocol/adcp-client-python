@@ -79,7 +79,7 @@ def exact_revision_evidence(
 ) -> dict[str, Any]:
     if owner is None or owner.account_id != caller.account_id:
         raise LedgerConflictError(
-            "LOOKUP_UNAVAILABLE", "no such revision is available to this caller"
+            "REFERENCE_NOT_FOUND", "no such revision is available to this caller"
         )
     history = tuple(
         r for r in core.revisions if r.reporting_obligation_id == owner.reporting_obligation_id

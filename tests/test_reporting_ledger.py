@@ -703,7 +703,7 @@ async def test_an_unknown_revision_looks_the_same_as_an_unauthorized_one() -> No
         )
     with pytest.raises(LedgerConflictError) as unauthorized:
         await handler.handle({"view": "revision", "reporting_revision_id": "rpr_1"}, caller=other)
-    assert unknown.value.code == unauthorized.value.code == "LOOKUP_UNAVAILABLE"
+    assert unknown.value.code == unauthorized.value.code == "REFERENCE_NOT_FOUND"
 
 
 async def test_scope_data_through_is_the_weakest_member() -> None:
