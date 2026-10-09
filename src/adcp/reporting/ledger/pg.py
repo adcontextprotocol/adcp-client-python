@@ -120,6 +120,12 @@ from adcp.reporting.ledger.notification_models import (
     validate_scope_refinement,
 )
 from adcp.reporting.ledger.provisional import ProvisionalAcquisition, ProvisionalObservation
+from adcp.reporting.ledger.row_storage import (
+    REPORTING_ROW_STORAGE_DDL_PATH,
+    ReportingRowStorageOptionsV1,
+    ReportingRowStorageV1,
+    ReportingRowStoreError,
+)
 from adcp.reporting.ledger.store import (
     LeasedConfiguration,
     LedgerConflictError,
@@ -180,6 +186,9 @@ def _json(value: object) -> str:
 
 
 _LEASE_ACCOUNT_WAIT_SECONDS = 0.05
+# Reads never register bindings, so one shared instance serves every store that
+# was not configured for row-storage writes.
+_READ_ONLY_ROW_STORAGE = ReportingRowStorageV1()
 
 
 class PgReportingLedgerStore:
@@ -193,10 +202,21 @@ class PgReportingLedgerStore:
         pool: AsyncConnectionPool,
         clock: Callable[[], datetime] | None = None,
         notifications: bool = False,
+        row_storage: bool | ReportingRowStorageOptionsV1 | None = None,
     ) -> None:
         if not PG_AVAILABLE:
             raise ImportError(_INSTALL_HINT)
         self._pool = pool
+        # Opt-in chunked row storage. Without it new revisions keep their rows in
+        # reporting_revision_rows; reads handle both forms either way.
+        self._row_storage: ReportingRowStorageV1 | None = (
+            None
+            if row_storage is None or row_storage is False
+            else ReportingRowStorageV1(
+                row_storage if isinstance(row_storage, ReportingRowStorageOptionsV1) else None
+            )
+        )
+        self._row_sets_known = False
         # Change timestamps and the snapshot boundary default to the *database* clock,
         # which is what makes two readers of one snapshot agree even across
         # application hosts with drifting clocks -- do not override it in
@@ -280,6 +300,20 @@ class PgReportingLedgerStore:
         async with self._connection() as connection:
             async with connection.transaction():
                 await self._create_schema_on(connection)
+        await self.ready_row_storage()
+
+    async def ready_row_storage(self) -> None:
+        """Probe and register the configured row bindings. Safe to call repeatedly.
+
+        ``create_schema`` calls this after its migration commits. Call it on boot
+        when the schema is managed outside this store. Registration commits in
+        its own transaction so a later rollback cannot strand an unregistered
+        binding.
+        """
+        if self._row_storage is None:
+            return
+        async with self._pool.connection() as connection, connection.transaction():
+            await self._row_storage.ready(connection)
 
     async def _create_schema_on(self, connection: Any) -> None:
         from adcp.reporting.migration import require_owned_schema_or_empty
@@ -296,6 +330,8 @@ class PgReportingLedgerStore:
             Path(__file__).with_name("reporting_caller_ownership.sql"),
         ):
             await connection.execute(path.read_text())
+        if self._row_storage is not None:
+            await connection.execute(REPORTING_ROW_STORAGE_DDL_PATH.read_text())
         await self._require_provisional_schema(connection)
         if self._notifications_enabled:
             from adcp.reporting.outbox._schema import validate_schema
@@ -983,7 +1019,9 @@ class PgReportingLedgerStore:
                 write_error = _translate_integrity_error(error)
             if write_error is not None:
                 raise write_error
-            if rows:
+            if self._row_storage is not None:
+                await self._write_revision_row_set(connection, revision, rows)
+            elif rows:
                 await connection.cursor().executemany(
                     "INSERT INTO reporting_revision_rows"
                     " (reporting_revision_id, ordinal, row_payload)"
@@ -1024,6 +1062,72 @@ class PgReportingLedgerStore:
                     ),
                 )
         return revision
+
+    async def _write_revision_row_set(
+        self, connection: Any, revision: ReportingRevisionRecord, rows: Sequence[dict[str, Any]]
+    ) -> None:
+        """Store a revision's rows as verified canonical chunks in this transaction.
+
+        A protocol-shape revision's chunks must reproduce its committed binding
+        exactly. A retained pair-hashed revision cannot: its binding hashes
+        ``{name, value}`` pairs, so its row set records the rows-only digest and
+        the pair binding is proven here from the supplied rows instead.
+        """
+        from adcp.reporting.ledger.producer import (
+            recompute_revision_content_sha256,
+            revision_binding_algorithm,
+        )
+
+        storage = self._row_storage
+        assert storage is not None
+        legacy = revision_binding_algorithm(revision) == "legacy_py_core_pairs_v0"
+        if legacy:
+            try:
+                bound = recompute_revision_content_sha256(revision, rows)
+            except Exception:
+                raise LedgerConflictError(
+                    "ROWS_NOT_PORTABLE", "revision rows cannot be canonicalized for storage"
+                ) from None
+            if bound != revision.revision_content_sha256.lower():
+                raise LedgerConflictError(
+                    "REVISION_CONTENT_MISMATCH",
+                    "revision row content does not match its immutable binding",
+                )
+        try:
+            prepared = await storage.prepare(
+                row_set_id=revision.reporting_revision_id,
+                row_set_kind="revision",
+                account_id=revision.account_id,
+                obligation_id=revision.reporting_obligation_id,
+                rows=rows,
+                digest_profile="rows_v1" if legacy else "revision_envelope_v1",
+                control_totals=[item.to_wire() for item in revision.managed_control_totals or ()],
+                expected_sha256=None if legacy else revision.revision_content_sha256,
+                finality=revision.finality,
+            )
+        except ReportingRowStoreError as error:
+            if error.code != "INVALID_INPUT":
+                raise
+            if "committed binding" in (error.detail or ""):
+                raise LedgerConflictError(
+                    "REVISION_CONTENT_MISMATCH",
+                    "revision row content does not match its immutable binding",
+                ) from None
+            raise LedgerConflictError(
+                "ROWS_NOT_PORTABLE", "revision rows cannot be canonicalized for storage"
+            ) from None
+        await storage.write_in_transaction(connection, prepared)
+
+    async def _row_sets_present(self, connection: Any) -> bool:
+        if self._row_sets_known:
+            return True
+        row = await (
+            await connection.execute(
+                "SELECT to_regclass(quote_ident(current_schema()) || '.adcp_reporting_row_sets')"
+            )
+        ).fetchone()
+        self._row_sets_known = row is not None and row[0] is not None
+        return self._row_sets_known
 
     @staticmethod
     async def _require_current_leaf(connection: Any, revision: ReportingRevisionRecord) -> None:
@@ -1409,26 +1513,37 @@ class PgReportingLedgerStore:
         async with self._connection() as connection:
             owned = await (
                 await connection.execute(
-                    "SELECT row_count FROM reporting_revisions"
+                    "SELECT row_count, revision_content_sha256 FROM reporting_revisions"
                     " WHERE account_id = %s AND reporting_revision_id = %s",
                     (account_id, reporting_revision_id),
                 )
             ).fetchone()
             if owned is None:
                 raise LedgerConflictError("REVISION_NOT_FOUND", "no such revision for this account")
-            rows = await (
-                await connection.execute(
-                    "SELECT row_payload FROM reporting_revision_rows"
-                    " WHERE reporting_revision_id = %s"
-                    " ORDER BY ordinal OFFSET %s LIMIT %s",
-                    (reporting_revision_id, offset, limit),
-                )
-            ).fetchall()
+            page_rows = await self._read_row_set_page(
+                connection,
+                account_id=account_id,
+                reporting_revision_id=reporting_revision_id,
+                row_count=int(owned[0]),
+                revision_sha256=str(owned[1]),
+                offset=offset,
+                limit=limit,
+            )
+            if page_rows is None:
+                rows = await (
+                    await connection.execute(
+                        "SELECT row_payload FROM reporting_revision_rows"
+                        " WHERE reporting_revision_id = %s"
+                        " ORDER BY ordinal OFFSET %s LIMIT %s",
+                        (reporting_revision_id, offset, limit),
+                    )
+                ).fetchall()
+                page_rows = [row[0] for row in rows]
         total = int(owned[0])
         has_more = offset + limit < total
         return ReportingRowPage(
             reporting_revision_id=reporting_revision_id,
-            rows=tuple(row[0] for row in rows),
+            rows=tuple(page_rows),
             total_count=total,
             has_more=has_more,
             cursor=(
@@ -1439,6 +1554,126 @@ class PgReportingLedgerStore:
                 else None
             ),
         )
+
+    async def read_verified_revision_rows(
+        self, *, account_id: str, reporting_revision_id: str, max_bytes: int | None = None
+    ) -> tuple[dict[str, Any], ...]:
+        """Every row of one revision, proven against its committed binding.
+
+        Unlike the paged read, which verifies each segment it releases, this reads
+        the whole revision and checks ``revision_content_sha256`` over the stored
+        bytes, with the totals encoding the revision was written under. Chunked
+        revisions are hashed as stored, never re-serialized. A legacy inline
+        revision can only be re-canonicalized from JSONB, which proves the same
+        binding when its numbers survive that round trip.
+
+        ``max_bytes`` caps hydration of a chunked revision's canonical bytes.
+        Raises ``ROWS_INTEGRITY_FAILED`` when the rows do not reproduce the
+        binding, and never returns unverified rows.
+        """
+        from adcp.reporting.ledger.producer import (
+            recompute_revision_content_sha256,
+            revision_binding_algorithm,
+        )
+
+        revision = await self.get_revision(
+            account_id=account_id, reporting_revision_id=reporting_revision_id
+        )
+        if revision is None:
+            raise LedgerConflictError("REVISION_NOT_FOUND", "no such revision for this account")
+        legacy = revision_binding_algorithm(revision) == "legacy_py_core_pairs_v0"
+        async with self._connection() as connection:
+            handle = None
+            storage = self._row_storage or _READ_ONLY_ROW_STORAGE
+            if await self._row_sets_present(connection):
+                try:
+                    handle = await storage.find(connection, reporting_revision_id, account_id)
+                except ReportingRowStoreError as error:
+                    if error.code == "ROWS_EXPIRED":
+                        raise LedgerConflictError(
+                            "REVISION_NOT_FOUND", "no such revision for this account"
+                        ) from None
+                    raise
+            if handle is not None:
+                if handle.row_count != revision.row_count:
+                    raise ReportingRowStoreError(
+                        "ROWS_INTEGRITY_FAILED", "row set does not match its revision header"
+                    )
+                typed = [item.to_wire() for item in revision.managed_control_totals or ()]
+                pairs = [{"name": name, "value": value} for name, value in revision.control_totals]
+                rows = await storage.read_all(
+                    connection,
+                    handle,
+                    control_totals=typed,
+                    max_bytes=max_bytes,
+                    also_verify=(pairs, revision.revision_content_sha256) if legacy else None,
+                )
+                if not legacy and handle.content_sha256 != revision.revision_content_sha256.lower():
+                    raise ReportingRowStoreError(
+                        "ROWS_INTEGRITY_FAILED", "row set does not match its revision header"
+                    )
+                return tuple(rows)
+            inline = await (
+                await connection.execute(
+                    "SELECT row_payload FROM reporting_revision_rows"
+                    " WHERE reporting_revision_id = %s ORDER BY ordinal",
+                    (reporting_revision_id,),
+                )
+            ).fetchall()
+        legacy_rows = [row[0] for row in inline]
+        try:
+            matches = (
+                len(legacy_rows) == revision.row_count
+                and recompute_revision_content_sha256(revision, legacy_rows)
+                == revision.revision_content_sha256.lower()
+            )
+        except Exception:
+            matches = False
+        if not matches:
+            raise ReportingRowStoreError(
+                "ROWS_INTEGRITY_FAILED", "rows do not reproduce the revision binding"
+            )
+        return tuple(legacy_rows)
+
+    async def _read_row_set_page(
+        self,
+        connection: Any,
+        *,
+        account_id: str,
+        reporting_revision_id: str,
+        row_count: int,
+        revision_sha256: str,
+        offset: int,
+        limit: int,
+    ) -> list[dict[str, Any]] | None:
+        """Verified rows from the revision's row set, or ``None`` for legacy inline rows.
+
+        Reads work with or without the write option: any database that has the
+        row-storage tables serves the chunks it holds. A row set whose bytes
+        cannot be verified raises ``ROWS_INTEGRITY_FAILED`` and is never
+        released; expired rows read like an unknown revision.
+        """
+        if not await self._row_sets_present(connection):
+            return None
+        storage = self._row_storage or _READ_ONLY_ROW_STORAGE
+        try:
+            handle = await storage.find(connection, reporting_revision_id, account_id)
+            if handle is None:
+                return None
+            if handle.row_count != row_count or (
+                handle.digest_profile == "revision_envelope_v1"
+                and handle.content_sha256 != revision_sha256.lower()
+            ):
+                raise ReportingRowStoreError(
+                    "ROWS_INTEGRITY_FAILED", "row set does not match its revision header"
+                )
+            return await storage.read_page(connection, handle, offset, limit)
+        except ReportingRowStoreError as error:
+            if error.code == "ROWS_EXPIRED":
+                raise LedgerConflictError(
+                    "REVISION_NOT_FOUND", "no such revision for this account"
+                ) from None
+            raise
 
     async def set_revision_readable(
         self, *, account_id: str, reporting_revision_id: str, readable: bool

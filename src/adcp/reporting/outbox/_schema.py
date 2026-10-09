@@ -36,13 +36,29 @@ async def schema_objects(connection: Any) -> dict[str, dict[str, Any]]:
     return await _catalog_objects(connection)
 
 
+_CATALOG_PREFIXES = ("reporting_", "adcp_")
+
+
 async def _catalog_objects(
     connection: Any,
     *,
     table_names: tuple[str, ...] | None = None,
     function_identity: tuple[str, str] | None = None,
+    name_prefix: str = "reporting_",
 ) -> dict[str, dict[str, Any]]:
-    """Read fresh catalog state with the same fingerprints for either scope."""
+    """Read fresh catalog state with the same fingerprints for either scope.
+
+    ``name_prefix`` selects the object namespace. Every notification and
+    extension manifest covers ``reporting_*``; the private shared row-storage
+    tables are ``adcp_*`` and pass an explicit table list, so unrelated adopter
+    objects stay out of scope there too.
+    """
+    if name_prefix not in _CATALOG_PREFIXES:
+        raise ValueError("unsupported catalog prefix")
+
+    def scoped(query: str) -> str:
+        return query.replace("'reporting_'", f"'{name_prefix}'")
+
     table_query = (
         "SELECT c.oid, c.relname, c.relkind, c.relpersistence FROM pg_class c"
         " JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = current_schema()"
@@ -58,7 +74,7 @@ async def _catalog_objects(
         )
     tables = await (
         await connection.execute(
-            table_query,
+            scoped(table_query),
             (list(table_names),) if table_names is not None else None,
         )
     ).fetchall()
@@ -139,7 +155,9 @@ async def _catalog_objects(
             " AND p.proname=%s AND pg_get_function_identity_arguments(p.oid)=%s"
             " ORDER BY p.proname, pg_get_function_identity_arguments(p.oid)"
         )
-    functions = await (await connection.execute(function_query, function_identity)).fetchall()
+    functions = await (
+        await connection.execute(scoped(function_query), function_identity)
+    ).fetchall()
     for row in functions:
         remember(f"function:{row[0]}({row[1]})", row[2:])
     return result

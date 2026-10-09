@@ -39,6 +39,8 @@ from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 from zoneinfo import ZoneInfo
 
+import rfc8785
+
 from adcp.reporting._settlement import cancel_and_settle
 from adcp.reporting._source_authorization import (
     bind_inline_publication,
@@ -185,8 +187,12 @@ def revision_content_sha256(
         if control_total_evidence is not None
         else [{"name": name, "value": value} for name, value in control_totals]
     )
+    # RFC 8785 exactly, not the restricted evidence profile: a reader must
+    # accept any JCS number in a stored row, so a row a peer SDK wrote with a
+    # fractional or exponent number still verifies. The two encodings are
+    # byte-identical for every value the profile accepts.
     return hashlib.sha256(
-        canonical_json_utf8_v1(
+        rfc8785.dumps(
             {
                 "reporting_revision_id": reporting_revision_id,
                 "row_count": row_count,

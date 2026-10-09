@@ -1,0 +1,526 @@
+{
+  "column:adcp_persistence_installation.created_at": {
+    "enabled": true,
+    "fingerprint": "336df3243b293695d8321965e92f26d3f132e11514ed9678fb5e64e0015fa580"
+  },
+  "column:adcp_persistence_installation.installation_id": {
+    "enabled": true,
+    "fingerprint": "e8e0bf8c87faa926c1a5040b6c30707acd2b94e3d0340352abf5faf37c5c7dc3"
+  },
+  "column:adcp_persistence_installation.singleton": {
+    "enabled": true,
+    "fingerprint": "b53adb77cbd95524b16abf02100e53643b297b4687168fab253a9fb99c6393e5"
+  },
+  "column:adcp_reporting_chunk_bodies.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_chunk_bodies.body": {
+    "enabled": true,
+    "fingerprint": "554c34e416bd4546469b42d5773bc7c59b2104366ffa5259a2838c64cd826e57"
+  },
+  "column:adcp_reporting_chunk_bodies.obligation_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_chunk_bodies.recorded_at": {
+    "enabled": true,
+    "fingerprint": "336df3243b293695d8321965e92f26d3f132e11514ed9678fb5e64e0015fa580"
+  },
+  "column:adcp_reporting_chunk_bodies.sha256": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_bindings.created_at": {
+    "enabled": true,
+    "fingerprint": "336df3243b293695d8321965e92f26d3f132e11514ed9678fb5e64e0015fa580"
+  },
+  "column:adcp_reporting_row_bindings.identity_config": {
+    "enabled": true,
+    "fingerprint": "ac355fc16c02b70cb0a24afee8214cdce5f5cbfdc7fd1630786d5101932ecfa4"
+  },
+  "column:adcp_reporting_row_bindings.identity_sha256": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_bindings.kind": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:adcp_reporting_row_bindings.namespace_key": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_bindings.operational_config": {
+    "enabled": true,
+    "fingerprint": "e01033d3fd711e647883a41d4b652659bf3ed2f570894a3ec51bed0e3e94cd44"
+  },
+  "column:adcp_reporting_row_bindings.provider": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:adcp_reporting_row_bindings.retired_at": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
+  "column:adcp_reporting_row_bindings.row_binding_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_bindings.state": {
+    "enabled": true,
+    "fingerprint": "03df1bb6144cb02539699acbdd1519ab281e4a98a6447db1e51d3e2d78bf4938"
+  },
+  "column:adcp_reporting_row_chunks.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_chunks.byte_count": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:adcp_reporting_row_chunks.chunk_index": {
+    "enabled": true,
+    "fingerprint": "64be57437fdc0a07a97985c2aa058031f8082db7251bdb4d5afa1a9b088de97a"
+  },
+  "column:adcp_reporting_row_chunks.compression": {
+    "enabled": true,
+    "fingerprint": "9dff7065ecd41d1130fa47ba671727ca66c540db64c07c1bcee08cbd6d8f484f"
+  },
+  "column:adcp_reporting_row_chunks.first_ordinal": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:adcp_reporting_row_chunks.native_version": {
+    "enabled": true,
+    "fingerprint": "5b92595d0b54d473a3a3818455845f1fe0dc20b48cfe0faf63061a82d1a3cb02"
+  },
+  "column:adcp_reporting_row_chunks.object_key": {
+    "enabled": true,
+    "fingerprint": "85b88fb407e112399f25b5dc8830dfdcb2a8271ecf00e70b662f6917b4a002cd"
+  },
+  "column:adcp_reporting_row_chunks.obligation_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_chunks.physical_byte_count": {
+    "enabled": true,
+    "fingerprint": "992336704a95e12ec6e959825c59fa2e51cddc5f1568af6bebaf12f03ac5655f"
+  },
+  "column:adcp_reporting_row_chunks.physical_sha256": {
+    "enabled": true,
+    "fingerprint": "85b88fb407e112399f25b5dc8830dfdcb2a8271ecf00e70b662f6917b4a002cd"
+  },
+  "column:adcp_reporting_row_chunks.row_count": {
+    "enabled": true,
+    "fingerprint": "64be57437fdc0a07a97985c2aa058031f8082db7251bdb4d5afa1a9b088de97a"
+  },
+  "column:adcp_reporting_row_chunks.row_set_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_chunks.segments": {
+    "enabled": true,
+    "fingerprint": "ac355fc16c02b70cb0a24afee8214cdce5f5cbfdc7fd1630786d5101932ecfa4"
+  },
+  "column:adcp_reporting_row_chunks.sha256": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_sets.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_sets.canonical_byte_count": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:adcp_reporting_row_sets.chunk_count": {
+    "enabled": true,
+    "fingerprint": "64be57437fdc0a07a97985c2aa058031f8082db7251bdb4d5afa1a9b088de97a"
+  },
+  "column:adcp_reporting_row_sets.content_sha256": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_sets.digest_profile": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:adcp_reporting_row_sets.encoding": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:adcp_reporting_row_sets.obligation_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_sets.recorded_at": {
+    "enabled": true,
+    "fingerprint": "336df3243b293695d8321965e92f26d3f132e11514ed9678fb5e64e0015fa580"
+  },
+  "column:adcp_reporting_row_sets.row_binding_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_sets.row_count": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
+  "column:adcp_reporting_row_sets.row_location_version": {
+    "enabled": true,
+    "fingerprint": "7d6ce545a69d9f3e873875690ed9ccbec7114a9e32ad4820babca3f1c97b38ea"
+  },
+  "column:adcp_reporting_row_sets.row_manifest_sha256": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_sets.row_set_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_sets.row_set_kind": {
+    "enabled": true,
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
+  },
+  "column:adcp_reporting_row_sets.rows_shared_from_row_set_id": {
+    "enabled": true,
+    "fingerprint": "85b88fb407e112399f25b5dc8830dfdcb2a8271ecf00e70b662f6917b4a002cd"
+  },
+  "column:adcp_reporting_row_sets.rows_state": {
+    "enabled": true,
+    "fingerprint": "90ff290227ac70af857421d68e995953511c7555b40fdc2aa90fe819bf710ace"
+  },
+  "column:adcp_reporting_row_sets.rows_state_changed_at": {
+    "enabled": true,
+    "fingerprint": "6f1466ce5d0aaac8471e39834b9c4b1f85d6f7169d9238a245ac035ff518e0fc"
+  },
+  "column:adcp_reporting_row_write_intents.account_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_write_intents.content_sha256": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_write_intents.created_at": {
+    "enabled": true,
+    "fingerprint": "336df3243b293695d8321965e92f26d3f132e11514ed9678fb5e64e0015fa580"
+  },
+  "column:adcp_reporting_row_write_intents.created_objects": {
+    "enabled": true,
+    "fingerprint": "3cddda27b283bb6e5a335e88170dc75ed50ded8194e1c9e52a73c024e4f90cd3"
+  },
+  "column:adcp_reporting_row_write_intents.expires_at": {
+    "enabled": true,
+    "fingerprint": "1cac4e73af11a8ecafd646ef6a0ff6ecb087d46f150408dcfebc630fe1bf5e1e"
+  },
+  "column:adcp_reporting_row_write_intents.owner_token": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_write_intents.row_binding_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_write_intents.row_set_id": {
+    "enabled": true,
+    "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
+  },
+  "column:adcp_reporting_row_write_intents.state": {
+    "enabled": true,
+    "fingerprint": "69ff456c4ece2240eee5eddda514b673f39e572f0191c402234ea6371a703b95"
+  },
+  "constraint:adcp_persistence_installation.adcp_persistence_installation_pkey": {
+    "enabled": true,
+    "fingerprint": "6d646464d3fcdea76ac48511fecf27101a27ee2e0844407a8a9f933b021ba949"
+  },
+  "constraint:adcp_persistence_installation.adcp_persistence_installation_singleton_check": {
+    "enabled": true,
+    "fingerprint": "8925fe519de0595d6f78dc89262e8a1308452ebb46b256909444674d0a44eaa2"
+  },
+  "constraint:adcp_reporting_chunk_bodies.adcp_reporting_chunk_bodies_check": {
+    "enabled": true,
+    "fingerprint": "27291b685ef75e6ad7358955846c6af9a31d806152d66a0fd52a2330a5d7603c"
+  },
+  "constraint:adcp_reporting_chunk_bodies.adcp_reporting_chunk_bodies_pkey": {
+    "enabled": true,
+    "fingerprint": "e6189a821449733273ebcf408116ff74a4b165b695d343947c5bdbfaaa8e31d4"
+  },
+  "constraint:adcp_reporting_row_bindings.adcp_reporting_row_bindings_check": {
+    "enabled": true,
+    "fingerprint": "d175f4322fcf918286b817d8636792cb3efd231891b80453c2592da9a3953ec8"
+  },
+  "constraint:adcp_reporting_row_bindings.adcp_reporting_row_bindings_identity_config_check": {
+    "enabled": true,
+    "fingerprint": "ceac6097df314bcf0f5d7f2057718a9d3aff6ac2d44392a3b85e355f52115e91"
+  },
+  "constraint:adcp_reporting_row_bindings.adcp_reporting_row_bindings_identity_sha256_check": {
+    "enabled": true,
+    "fingerprint": "7ae09c19320885ab36255a9e0f53b2fb0959439662e37897b33533428b627ccb"
+  },
+  "constraint:adcp_reporting_row_bindings.adcp_reporting_row_bindings_kind_check": {
+    "enabled": true,
+    "fingerprint": "514ece2755557fe62e41f0cc8a1f82fb9655d272496980b22e5c5bb4bfb9831f"
+  },
+  "constraint:adcp_reporting_row_bindings.adcp_reporting_row_bindings_namespace_key_check": {
+    "enabled": true,
+    "fingerprint": "cb3466d8c3b1cf6f0c2f2b381180ad55c2684992606157464ba2d0e50afce6ab"
+  },
+  "constraint:adcp_reporting_row_bindings.adcp_reporting_row_bindings_operational_config_check": {
+    "enabled": true,
+    "fingerprint": "e4abb438c91e7525f8daef891c7387561fa5554905b25da051e9d2dbc2ec2f12"
+  },
+  "constraint:adcp_reporting_row_bindings.adcp_reporting_row_bindings_pkey": {
+    "enabled": true,
+    "fingerprint": "cf6cce75e9ccf7fb2829a20c06d16931eecd8d9dfa49f6108dc1d5053e5a9af0"
+  },
+  "constraint:adcp_reporting_row_bindings.adcp_reporting_row_bindings_provider_check": {
+    "enabled": true,
+    "fingerprint": "b0825d60a99952fe5be6f33e0123ae5166e1d17eda49af821d22a5ca8856e13b"
+  },
+  "constraint:adcp_reporting_row_bindings.adcp_reporting_row_bindings_row_binding_id_check": {
+    "enabled": true,
+    "fingerprint": "a804a095e5b6b0b8434f809b087674c480399eef72e852c297ad00ecb3c5694c"
+  },
+  "constraint:adcp_reporting_row_bindings.adcp_reporting_row_bindings_state_check": {
+    "enabled": true,
+    "fingerprint": "2849ca0da547593cacdd14d98ab8a33a4cbdb6b169e8e022900942a397cf2912"
+  },
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_byte_count_check": {
+    "enabled": true,
+    "fingerprint": "54b3e92e0c1f55f4bf5b2d85661cbf28055befe7d4a1cba56f5b2e579550dea7"
+  },
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_check": {
+    "enabled": true,
+    "fingerprint": "bc02575db323e33679b611b550d21951cb05255ee4583c88e5427a7f64da079e"
+  },
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_check1": {
+    "enabled": true,
+    "fingerprint": "ce6f37283fb00f795857df0dafefc194514cacd99b8c880659a50f56c40eafcf"
+  },
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_check2": {
+    "enabled": true,
+    "fingerprint": "5764caa49c4c45f4a560255baa33a1410139852f204490896893ab8089d7534c"
+  },
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_chunk_index_check": {
+    "enabled": true,
+    "fingerprint": "8681dbc4d41913a73c02dbb516f4406eb29f2f884206aa6015ed8cd1c5d084a2"
+  },
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_compression_check": {
+    "enabled": true,
+    "fingerprint": "5f73aba6ef190f21b62f4bb0d99b7bbfcf5c520cc8efa61421a7d0c1b6f80005"
+  },
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_first_ordinal_check": {
+    "enabled": true,
+    "fingerprint": "3a1abd05453b6d3402eebb5dba064399e16d84918b6f704ec1dfb9bd2abe37b1"
+  },
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_physical_byte_count_check": {
+    "enabled": true,
+    "fingerprint": "b7a849815e85051545f08d2bf2d14c7c15f12acaa0eb44f38dcc117e86dc3b63"
+  },
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_physical_sha256_check": {
+    "enabled": true,
+    "fingerprint": "44023faa2a5d5922d2af2860cf7a241ea4fb24a2239c9b0466670781845bbf6e"
+  },
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_pkey": {
+    "enabled": true,
+    "fingerprint": "45049f590c737f02f4ed4674c064236284ce0f766cad5c506d17d124f034fe91"
+  },
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_row_count_check": {
+    "enabled": true,
+    "fingerprint": "b4c26acbf3034431233eb50e32045351f6b624aff8e5fb0a60ea58394f415b5d"
+  },
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_row_set_id_account_id_obligation_fkey": {
+    "enabled": true,
+    "fingerprint": "aa53b58ce29554b1658351845d7ee5699ce7d400523e0cca4c96b998ddc3c5a9"
+  },
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_segments_check": {
+    "enabled": true,
+    "fingerprint": "d8786143f1e3750cb409e6ea8eb8e1a070ab93b8b6725b43f2755961a964ae21"
+  },
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_sha256_check": {
+    "enabled": true,
+    "fingerprint": "9349b530820bca69cf6ca38641139e81b9164f3791316d92fa867a8242a10a0d"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_canonical_byte_count_check": {
+    "enabled": true,
+    "fingerprint": "e5968f0701dc40c83c9be0857e7d08ca2ecc1736ef3c27aeb8604cc248fa8bda"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_check": {
+    "enabled": true,
+    "fingerprint": "8e1438ca8cbbec2764bbfbdff4f178b7c8eada7980f6fdfccb9b6e2b0c493bd8"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_check1": {
+    "enabled": true,
+    "fingerprint": "4ec94c53b10598604384c8bd82436ff876f3999b7e0b386c7ef0cddbe59cca8c"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_chunk_count_check": {
+    "enabled": true,
+    "fingerprint": "f679c87cce39682d82855b750f1dd188ae613e426f8012783bb4778945e93287"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_content_sha256_check": {
+    "enabled": true,
+    "fingerprint": "2afe58d90df96e397cb8e6a941e52fcf8e01b7835024dd3b4ba67141a3578505"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_digest_profile_check": {
+    "enabled": true,
+    "fingerprint": "eb65a1c0b1b6867fe1e3d08a952cc52dd21f5fb737551c492f6690a7cdbda1d3"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_encoding_check": {
+    "enabled": true,
+    "fingerprint": "98107d1c31171c250dc01de37af63d67c4e3dc65a4d9a44bb8d293244bb3a8d4"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_pkey": {
+    "enabled": true,
+    "fingerprint": "9e4566fddca61cdee16e74ffad2294e8eeb3edffb7568a300dc5080de5f8ec3f"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_row_binding_id_fkey": {
+    "enabled": true,
+    "fingerprint": "c6b7f5fd24650b3bb06408c8eb269e6b3857d93ef318b4c2456590069e1bb700"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_row_count_check": {
+    "enabled": true,
+    "fingerprint": "f6f6989f9f5932bf544cc50ae07e186605527794da0a7ed523d618dcec1c6e3b"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_row_location_version_check": {
+    "enabled": true,
+    "fingerprint": "bcc54def941183197d5d04eda2a8ea13b26426e67f07f8bc96b782bfc698593c"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_row_manifest_sha256_check": {
+    "enabled": true,
+    "fingerprint": "4742a6722e101760aa9d8d10d7b3ee9f0be709de0559d13e763d7abffdabb770"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_row_set_id_account_id_obligation_id_key": {
+    "enabled": true,
+    "fingerprint": "c75f6c1ddbba9cd04823beb7b2f7014201ba3c475443b7a12e7981d0e701128b"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_row_set_kind_check": {
+    "enabled": true,
+    "fingerprint": "42ddad7bce7833da227f90449ae0e5a2b36c2ace931cdfd96132e1d585377ccc"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_rows_shared_from_row_set_id_accoun_fkey": {
+    "enabled": true,
+    "fingerprint": "06ae615fa45c760c078f9cc291ee5f3ca00efadfe201d5ee1c1daa0cd743207d"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_rows_state_check": {
+    "enabled": true,
+    "fingerprint": "3f7c3423d0ca7a48b7c251f236b352a82e49e21683c96f7160dbd45a27395cf8"
+  },
+  "constraint:adcp_reporting_row_write_intents.adcp_reporting_row_write_intents_content_sha256_check": {
+    "enabled": true,
+    "fingerprint": "2afe58d90df96e397cb8e6a941e52fcf8e01b7835024dd3b4ba67141a3578505"
+  },
+  "constraint:adcp_reporting_row_write_intents.adcp_reporting_row_write_intents_created_objects_check": {
+    "enabled": true,
+    "fingerprint": "a7712c2047153cabba8eaddc3b7c53cad351d38e186b2c99445b6e02b1ddfd46"
+  },
+  "constraint:adcp_reporting_row_write_intents.adcp_reporting_row_write_intents_pkey": {
+    "enabled": true,
+    "fingerprint": "0c59d8e7e06575861c29abfe9b1d78c5209e6fdbdd074ddbdbf3df8d992a7ea9"
+  },
+  "constraint:adcp_reporting_row_write_intents.adcp_reporting_row_write_intents_row_binding_id_fkey": {
+    "enabled": true,
+    "fingerprint": "c6b7f5fd24650b3bb06408c8eb269e6b3857d93ef318b4c2456590069e1bb700"
+  },
+  "constraint:adcp_reporting_row_write_intents.adcp_reporting_row_write_intents_state_check": {
+    "enabled": true,
+    "fingerprint": "aa8a9f39109ec5c7c689a54c64dafabf489069fced537b8db8151c3658107079"
+  },
+  "function:adcp_reporting_row_storage_immutable()": {
+    "enabled": true,
+    "fingerprint": "21ecac33f7a3dc4af79ee2f291a4d72934ceb809382b3c2411adb988d329a22b"
+  },
+  "index:adcp_persistence_installation.adcp_persistence_installation_pkey": {
+    "enabled": true,
+    "fingerprint": "569e37767b3c5dc08ef435455e500da6c7aeb07642e8382c37bab5df1952474b"
+  },
+  "index:adcp_reporting_chunk_bodies.adcp_reporting_chunk_bodies_pkey": {
+    "enabled": true,
+    "fingerprint": "1973e909ec01bbb652893459a591a7b83a889e00aa76afd9c2cbfb7dd3ed7243"
+  },
+  "index:adcp_reporting_row_bindings.adcp_reporting_row_bindings_pkey": {
+    "enabled": true,
+    "fingerprint": "10506a9f96035a1a9221efc357c5f8c278d5ab0b7e94bd33543b736ff61fed2a"
+  },
+  "index:adcp_reporting_row_chunks.adcp_reporting_row_chunks_body": {
+    "enabled": true,
+    "fingerprint": "cbe2efd7f7f2286d44e03f9f436b9930159c2d9a0c7792278d69dc77b2dad3eb"
+  },
+  "index:adcp_reporting_row_chunks.adcp_reporting_row_chunks_object": {
+    "enabled": true,
+    "fingerprint": "1a360131de5b308542bf3b1af3b021507cfa58a9515e046b206e0079f6aa13bc"
+  },
+  "index:adcp_reporting_row_chunks.adcp_reporting_row_chunks_pkey": {
+    "enabled": true,
+    "fingerprint": "19960fce82b1f59771129f12e528a1fdd86266bcd22536debd30609457089c33"
+  },
+  "index:adcp_reporting_row_sets.adcp_reporting_row_sets_obligation": {
+    "enabled": true,
+    "fingerprint": "155226df5af374dbd425c0822f3ea9bb42cccb5a20ac527486c5ff10959ad4a0"
+  },
+  "index:adcp_reporting_row_sets.adcp_reporting_row_sets_pkey": {
+    "enabled": true,
+    "fingerprint": "603219ce0b8f903534cdf19445017aa7db485f8b17d615820b13936bcb450e75"
+  },
+  "index:adcp_reporting_row_sets.adcp_reporting_row_sets_row_set_id_account_id_obligation_id_key": {
+    "enabled": true,
+    "fingerprint": "8491d110b7ee5f590a60544294d2901d7192a5c99ddecba71a01d5b0b27f3131"
+  },
+  "index:adcp_reporting_row_sets.adcp_reporting_row_sets_shared": {
+    "enabled": true,
+    "fingerprint": "438c88a06c20b117e1f9605a14e30eda05aef3c046882e14b40d982cb92de9a6"
+  },
+  "index:adcp_reporting_row_sets.adcp_reporting_row_sets_state": {
+    "enabled": true,
+    "fingerprint": "b23cdfc8c4f7baee619cfcadb3589bde77e68a927ac070a4ff528c6970290156"
+  },
+  "index:adcp_reporting_row_write_intents.adcp_reporting_row_write_intents_expiry": {
+    "enabled": true,
+    "fingerprint": "5f02fcfe196caddcb760163c49b241460a4f7604d89b817055842f3b3ac7b13b"
+  },
+  "index:adcp_reporting_row_write_intents.adcp_reporting_row_write_intents_pkey": {
+    "enabled": true,
+    "fingerprint": "ea4f649554585ea58f747ce71c2864a40601d777e1abe60348a79b55f8dd0863"
+  },
+  "table:adcp_persistence_installation": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:adcp_reporting_chunk_bodies": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:adcp_reporting_row_bindings": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:adcp_reporting_row_chunks": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:adcp_reporting_row_sets": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "table:adcp_reporting_row_write_intents": {
+    "enabled": true,
+    "fingerprint": "1f824779ff80f110344420b019786663d8c9beaad230da90e0439795e734ccda"
+  },
+  "trigger:adcp_reporting_chunk_bodies.adcp_reporting_chunk_bodies_immutable": {
+    "enabled": true,
+    "fingerprint": "5be83174fe6cf044b676ccfeaac3ce07b6c37a8688c9aa00e588f34c9439c770"
+  },
+  "trigger:adcp_reporting_row_bindings.adcp_reporting_row_bindings_immutable": {
+    "enabled": true,
+    "fingerprint": "34edf9d1cd9dbd9ceccba89f373e25cf2eabd6c6b73189a9de112d9269d5e32e"
+  },
+  "trigger:adcp_reporting_row_chunks.adcp_reporting_row_chunks_immutable": {
+    "enabled": true,
+    "fingerprint": "d916b49bddf44beb610058738175969280f7774065fc6b702b838a5087cb7853"
+  },
+  "trigger:adcp_reporting_row_sets.adcp_reporting_row_sets_immutable": {
+    "enabled": true,
+    "fingerprint": "e19f6ca7c331c425fa26cf0186c7b079737cdc3fc91c09136c542f070616e5d9"
+  }
+}

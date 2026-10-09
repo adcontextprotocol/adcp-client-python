@@ -358,3 +358,29 @@ def test_matches_the_shared_golden_fixture_byte_for_byte(vector: dict[str, Any])
             )
             == vector["rows"][parsed.first_ordinal : parsed.first_ordinal + parsed.row_count]
         )
+
+
+def test_the_revision_binding_is_rfc8785_and_accepts_any_jcs_number() -> None:
+    from adcp.reporting.canonical_json import canonical_json_utf8_v1
+    from adcp.reporting.ledger import revision_content_sha256
+
+    rows = [{"name": "caf\u00e9 \U0001f600", "n": 5, "nested": {"z": [1, None, True], "a": "x"}}]
+    envelope = {
+        "reporting_revision_id": "rrev_parity",
+        "row_count": 1,
+        "control_totals": [],
+        "reporting_rows": rows,
+    }
+    # Byte-identical to the restricted evidence profile for everything it accepts.
+    assert hashlib.sha256(canonical_json_utf8_v1(envelope)).hexdigest() == revision_content_sha256(
+        reporting_revision_id="rrev_parity", row_count=1, control_totals=(), reporting_rows=rows
+    )
+    # A peer SDK may write any JCS number; verification must not reject it.
+    fractional = [{"ratio": 0.30000000000000004, "tiny": 1e-7, "big": 1.5e-300}]
+    digest = revision_content_sha256(
+        reporting_revision_id="rrev_float",
+        row_count=1,
+        control_totals=(),
+        reporting_rows=fractional,
+    )
+    assert digest == reference_binding("rrev_float", fractional, [])[0]
