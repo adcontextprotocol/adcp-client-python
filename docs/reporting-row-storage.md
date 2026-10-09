@@ -158,3 +158,77 @@ await store.create_schema()
 - Custom providers implement `ReportingRowObjectProviderV1`. Run
   `run_reporting_row_object_provider_conformance_v1(provider, location=..., prefix=...)` against a dedicated test
   prefix before using one.
+
+### Cloud providers
+
+Cloud providers wrap official clients that the host constructs with its own credentials, so the extras only need to
+be installed where those clients are created: `pip install 'adcp[reporting-gcs]'`, `'adcp[reporting-s3]'` or
+`'adcp[reporting-azure]'`. A binding's `location` holds only non-secret coordinates, and its optional
+`credential_ref` names one of the clients you injected; an unknown reference fails `UNSAFE_BINDING`. Provider errors
+surface only as stable `ReportingRowStoreError` codes. Row buckets are separate from Managed Delivery buckets. A
+native version always identifies exactly one write, and every read and delete is pinned to it. An ETag is never
+enough, because an identical upload re-created at the same key has the same ETag and a delayed delete would remove
+the replacement.
+
+**Google Cloud Storage** (`adcp.reporting.ledger.row_storage_gcs`):
+
+```python
+from google.cloud import storage
+from adcp.reporting.ledger.row_storage_gcs import create_gcs_reporting_row_object_provider_v1
+
+gcs = create_gcs_reporting_row_object_provider_v1(
+    storage=storage.Client(),  # keyless credentials: workload identity or ADC
+    clients={"tenant-eu": eu_client},  # optional, selected by credential_ref
+)
+# ReportingObjectRowBindingV1(provider="gcs", location={"bucket": "acme-adcp-rows"}, prefix="adcp-rows")
+# providers={"gcs": gcs}
+```
+
+- Writes are single-request uploads with `if_generation_match=0` and a declared MD5. The recorded native version is
+  the object generation. Reads request raw stored bytes, so GCS never transcodes them.
+- The probe requires uniform bucket-level access and enforced public access prevention. Versioning, soft delete and
+  retention policies are allowed. A lifecycle `Delete` rule that can match live objects under the binding prefix
+  (no `matchesPrefix`, or one that overlaps it) is refused; rules limited to noncurrent versions are allowed. Keep
+  retention-driven deletion in the ledger, not in bucket lifecycle.
+- The client needs `storage.buckets.get` for the probe plus object create, get and delete.
+
+**Amazon S3 and S3-compatible stores** (`adcp.reporting.ledger.row_storage_s3`):
+
+```python
+import boto3
+from adcp.reporting.ledger.row_storage_s3 import create_s3_reporting_row_object_provider_v1
+
+s3 = create_s3_reporting_row_object_provider_v1(client=boto3.client("s3", region_name="us-east-1"))
+# ReportingObjectRowBindingV1(provider="s3", location={"bucket": "acme-adcp-rows", "region": "us-east-1"}, ...)
+```
+
+- **Bucket versioning is required.** Writes use `put_object` with `IfNoneMatch="*"` (a 409 is retried once). The
+  recorded native version is the write-unique `VersionId`; reads pin it, and a delete confirms the exact version
+  with `head_object` first, then deletes that version, which removes it permanently without a delete marker. The
+  probe refuses any bucket whose versioning status is not `Enabled`, and a write that returns no `VersionId`.
+- Endpoint, region, credentials and path style come only from the client you inject; `location` accepts just `bucket`
+  and an optional `region`, which the probe checks against the client.
+- S3-compatible stores may ignore `If-None-Match`, so the probe writes a probe key under the binding prefix twice and
+  requires the second write to fail with 412, then deletes it. It also refuses missing or inaccessible buckets, a
+  bucket policy reported as public, and enabled lifecycle `Expiration` rules that can match the prefix.
+- The client needs `s3:ListBucket`, `s3:GetLifecycleConfiguration`, `s3:GetBucketVersioning`, object put and get,
+  `s3:GetObjectVersion` and `s3:DeleteObjectVersion`. `s3:GetBucketPolicyStatus` is optional.
+
+**Azure Blob Storage** (`adcp.reporting.ledger.row_storage_azure`):
+
+```python
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient
+from adcp.reporting.ledger.row_storage_azure import create_azure_blob_reporting_row_object_provider_v1
+
+azure = create_azure_blob_reporting_row_object_provider_v1(
+    client=BlobServiceClient("https://acmerows.blob.core.windows.net", credential=DefaultAzureCredential())
+)
+# ReportingObjectRowBindingV1(provider="azure_blob", location={"account": "acmerows", "container": "rows"}, ...)
+```
+
+- **Blob versioning is required** on the storage account. Writes are block-blob uploads with `If-None-Match: *`;
+  the recorded native version is the write-unique `version_id`, and a delete removes the base blob when it is still
+  that version, then the version itself. The probe refuses containers that allow anonymous read access or that do
+  not enforce create-only writes, and a write that returns no `version_id`.
+- The client you inject must belong to the binding's `account`.

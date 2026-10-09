@@ -175,6 +175,12 @@ dev = [
     # In-memory span exporter used by the optional observability tests.  The
     # library itself imports only opentelemetry-api and never configures an SDK.
     "opentelemetry-sdk>=1.25,<2",
+    # Cloud row-storage providers are tested against the real client libraries;
+    # moto emulates S3 including versioning and conditional writes.
+    "google-cloud-storage>=2.18",
+    "boto3>=1.35",
+    "azure-storage-blob>=12.20",
+    "moto[s3]>=5.0",
 ]
 docs = [
     "pdoc3>=0.10.0",
@@ -186,6 +192,19 @@ pg = [
     # interfaces so the single dep serves all three use cases.
     "psycopg[binary]>=3.1.0",
     "psycopg-pool>=3.2.0",
+]
+reporting-gcs = [
+    # Row storage on Google Cloud Storage. The provider takes a client you build,
+    # with keyless credentials; it never imports the library itself.
+    "google-cloud-storage>=2.18",
+]
+reporting-s3 = [
+    # Row storage on Amazon S3 or an S3-compatible store (needs bucket versioning).
+    "boto3>=1.35",
+]
+reporting-azure = [
+    # Row storage on Azure Blob Storage (needs blob versioning on the account).
+    "azure-storage-blob>=12.20",
 ]
 observability = [
     # API-only library instrumentation: without an application-configured SDK
