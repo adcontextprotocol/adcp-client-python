@@ -150,6 +150,7 @@ if TYPE_CHECKING:
     from adcp.reporting._source_authorization import InlineSealPublisher
     from adcp.reporting.inline_source import ReportingSealStore, SealedSlice
     from adcp.reporting.ledger.row_migration import ReportingRowMigrationBatchV1
+    from adcp.reporting.ledger.row_retention import ReportingRowIntentSweepV1, ReportingRowPruneV1
     from adcp.reporting.ledger.status_projection import ReportingStatusSnapshot
 
 try:
@@ -356,6 +357,44 @@ class PgReportingLedgerStore:
 
         return await migrate_inline_rows(
             self, limit=limit, account_id=account_id, cursor=cursor, binding_id=binding_id
+        )
+
+    async def sweep_row_write_intents(
+        self, *, limit: int = 100, account_id: str | None = None
+    ) -> ReportingRowIntentSweepV1:
+        """Resolve abandoned object uploads: delete only what an expired upload created.
+
+        An expired write intent with no committed header moves to ``sweeping`` under
+        the account lock, so no writer can commit against it, then the objects it
+        created are deleted at their recorded versions. Adopted objects and objects a
+        committed chunk references are never touched. Schedule it alongside the
+        producer.
+        """
+        from adcp.reporting.ledger.row_retention import sweep_row_write_intents
+
+        return await sweep_row_write_intents(self, limit=limit, account_id=account_id)
+
+    async def prune_expired_row_sets(
+        self,
+        *,
+        limit: int = 20,
+        account_id: str | None = None,
+        ledger_record_retention_days: int | None = None,
+    ) -> ReportingRowPruneV1:
+        """Retire the row bytes of periods past their retention window, resumably.
+
+        Rows stop being served first, then external objects are deleted at their
+        recorded versions, then the manifests and bodies go. A failed delete leaves
+        the period ``pruning`` with every locator intact and the next pass resumes.
+        See :mod:`adcp.reporting.ledger.row_retention` for what qualifies a period.
+        """
+        from adcp.reporting.ledger.row_retention import prune_expired_row_sets
+
+        return await prune_expired_row_sets(
+            self,
+            limit=limit,
+            account_id=account_id,
+            ledger_record_retention_days=ledger_record_retention_days,
         )
 
     async def retire_legacy_inline_rows(self) -> bool:

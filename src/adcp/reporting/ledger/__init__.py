@@ -163,6 +163,7 @@ from adcp.reporting.ledger.producer import (
     revision_binding_algorithm,
     revision_content_sha256,
 )
+from adcp.reporting.ledger.row_retention import ReportingRowIntentSweepV1, ReportingRowPruneV1
 from adcp.reporting.ledger.row_storage import (
     ReportingObjectRowBindingV1,
     ReportingPostgresRowBindingV1,
@@ -303,7 +304,9 @@ __all__ = [
     "ReportingRevisionReceiptRecord",
     "ReportingRevisionRecord",
     "ReportingRowBindingSelectionInputV1",
+    "ReportingRowIntentSweepV1",
     "ReportingRowPage",
+    "ReportingRowPruneV1",
     "ReportingRowStorageOptionsV1",
     "ReportingRowStoreError",
     "ReportingRowStoreErrorCode",

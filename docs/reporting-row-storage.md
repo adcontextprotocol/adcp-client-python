@@ -237,3 +237,37 @@ azure = create_azure_blob_reporting_row_object_provider_v1(
   that version, then the version itself. The probe refuses containers that allow anonymous read access or that do
   not enforce create-only writes, and a write that returns no `version_id`.
 - The client you inject must belong to the binding's `account`.
+
+## Retention
+
+Two maintenance operations keep row storage bounded. Both are safe to run from any worker on a schedule, in bounded
+batches; neither runs on its own, so schedule them next to your producer.
+
+```python
+await store.sweep_row_write_intents(limit=100)  # abandoned uploads
+await store.prune_expired_row_sets(limit=20)  # periods past their retention window
+```
+
+**Intent sweeps** resolve uploads whose ledger commit never happened (a crash, a lost lease, a numbering conflict).
+An expired write intent moves to `sweeping` under the account lock, so no writer can commit against it. Only the
+objects that upload *created* are then deleted, at their recorded native versions. Adopted objects are never recorded
+as created, and any object a committed chunk references is skipped. A sweep that cannot delete (for example because
+the binding is no longer configured) leaves the intent for the next pass.
+
+**Row pruning** retires one period's row bytes at a time, in an ordered, resumable sequence:
+
+1. Under the account lock, live row sets become `pruning`. Reads of those revisions now answer `REVISION_NOT_FOUND`,
+   exactly like an unknown revision, never as an integrity failure.
+2. The period's recorded object versions are deleted outside any transaction. A failure leaves the period `pruning`
+   with every locator intact and the next pass resumes.
+3. Under the account lock, chunk manifests and PostgreSQL bodies are deleted and the row sets become `pruned`.
+
+A period qualifies once the later of its period end and its newest revision or adjustment is older than
+`max(status_retention_days, ledger_record_retention_days)`, and no materializer work is pending for it. The default
+`ledger_record_retention_days` is the generation's `status_retention_days`; a shorter value is ignored, because a row
+retention shorter than the advertised window is non-conformant.
+
+Python keeps revision headers and their records until the shared Core layout (persistence Stage 3). A pruned row set
+stays as a small marker that makes reads answer as expired; the records are already outside the status projection,
+whose horizon excludes periods past retention. Versioned buckets, soft delete and retention locks are allowed as
+backstops, but a `pruned` period is not "erased" while they keep the old bytes.
