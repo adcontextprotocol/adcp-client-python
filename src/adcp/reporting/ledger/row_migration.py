@@ -190,9 +190,7 @@ async def _prove_and_write(
         return "ROWS_NOT_PORTABLE"
     try:
         async with connection.transaction():
-            await store._write_revision_row_set(
-                connection, revision, rows, binding_id=binding_id, postgres_only=True
-            )
+            await store._write_revision_row_set(connection, revision, rows, binding_id=binding_id)
     except LedgerConflictError as error:
         if error.code == "REVISION_CONTENT_MISMATCH":
             return "BINDING_MISMATCH"

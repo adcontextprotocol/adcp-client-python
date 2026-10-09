@@ -93,3 +93,68 @@ drop it yourself once you no longer need it. Reclaiming the space of the origina
 
 Upgrade note: the pre-ownership `migrate_legacy_reporting` and `backfill_legacy_reporting` operator APIs write to
 `reporting_revision_rows`, so run them before retiring it.
+
+## Object storage bindings
+
+Rows can live in object storage instead of PostgreSQL. A binding is defined in host code, which makes the
+configuration the allowlist: the database records which binding each revision used and its identity digest, but it
+can never point reads or writes at a destination the host did not configure.
+
+```python
+from adcp.reporting.ledger import (
+    PgReportingLedgerStore,
+    ReportingObjectRowBindingV1,
+    ReportingPostgresRowBindingV1,
+    ReportingRowStorageOptionsV1,
+)
+from adcp.reporting.ledger.row_storage_object import create_filesystem_reporting_row_object_provider_v1
+
+store = PgReportingLedgerStore(
+    pool=pool,
+    row_storage=ReportingRowStorageOptionsV1(
+        deployment_namespace="prod-us",
+        bindings={
+            "inline": ReportingPostgresRowBindingV1(),
+            "reports": ReportingObjectRowBindingV1(
+                provider="filesystem", location={"root": "reports"}, prefix="adcp-rows", compression="gzip"
+            ),
+        },
+        providers={
+            "filesystem": create_filesystem_reporting_row_object_provider_v1(
+                roots={"reports": "/var/lib/adcp/rows"}
+            )
+        },
+        select_row_binding=lambda s: "inline" if s.canonical_byte_count < 256 * 1024 else "reports",
+    ),
+)
+await store.create_schema()
+```
+
+- Each chunk is one object, written create-only. An object already at a planned key is adopted only when its bytes
+  decode to the exact chunk; otherwise the commit fails with `CONTENT_CONFLICT`.
+- Keys always start with `{prefix}/{namespace_key}/` and use a hashed account segment, never a raw account ID.
+  Templates may use the placeholders in `REPORTING_ROW_KEY_PLACEHOLDERS` and must include `{content_sha256}` and
+  `{chunk_index}`. Keep a retired binding configured while revisions still reference it.
+- **Upload before the ledger transaction.** `ReportingProducer` stages every object-bound revision first
+  (`store.stage_revision_rows`), so a slow store never holds the account lock or a transaction. If you call
+  `commit_revision` yourself for an object-bound revision, call `stage_revision_rows` first; `commit_revision`
+  refuses to upload inside a ledger transaction.
+- An upload runs only while the configuration's worker lease outlives `write_deadline_seconds` (default 30) plus five
+  seconds, so a producer needs a lease above 35 seconds (the default is 60). A fenced write intent records every
+  object the upload created, and the ledger commit closes the intent in the same transaction; if a sweep or another
+  writer got there first, the commit fails and no header is written. Objects of an upload that never committed are
+  left for the intent sweep. The lease is read from the database, but it is set from the producer's clock, so keep
+  clocks in sync.
+- Rows that are byte-identical to a live row set in the same obligation are stored once: the new revision gets its
+  own header and binding and references the existing chunks (`rows_shared_from_row_set_id`), so an unchanged pulse
+  uploads nothing.
+- Every read verifies the stored bytes against the recorded physical digest before decompressing, then verifies
+  segments and the revision binding. A missing object is `ROWS_UNAVAILABLE`; different bytes are
+  `ROWS_INTEGRITY_FAILED`.
+- The filesystem provider records each write as `inode:birth_ns:mtime_ns:size`, the format the JavaScript provider
+  uses, stamping a random sub-millisecond mtime on every write. It needs a filesystem with sub-second mtime and,
+  ideally, birth time (ext4, XFS, APFS, NTFS). The `write-unique-version` conformance check fails on a coarse
+  filesystem, which means the filesystem is wrong, not the code.
+- Custom providers implement `ReportingRowObjectProviderV1`. Run
+  `run_reporting_row_object_provider_conformance_v1(provider, location=..., prefix=...)` against a dedicated test
+  prefix before using one.

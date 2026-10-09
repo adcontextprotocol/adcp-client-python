@@ -1855,11 +1855,37 @@ class ReportingProducer:
             source_publication_id=manifest.publication_id,
             source_manifest_sha256=manifest.content_fingerprint.split(":", 1)[-1],
         )
-        async with self._revision_publication(obligation, manifest.offering_id):
-            if self._revision_verifier is not None:
-                from adcp.reporting.materializer.publication import verified_publication
+        if self._revision_verifier is not None:
+            from adcp.reporting.materializer.publication import verified_publication
 
-                revision = verified_publication(self._revision_verifier, obligation, revision, rows)
+            # Pure validation of the source rows and totals; it needs no lock, and the
+            # bytes staged below must be the bytes of the revision that commits.
+            revision = verified_publication(self._revision_verifier, obligation, revision, rows)
+        # An object-bound revision uploads its chunks before the ledger transaction,
+        # never inside it, so a slow store cannot hold the account lock.
+        stage = getattr(self._store, "stage_revision_rows", None)
+        staged = bool(await stage(revision, rows)) if stage is not None else False
+        try:
+            committed = await self._commit_publication(
+                obligation, manifest, revision, rows, finality, now, acquisition
+            )
+        finally:
+            if staged:
+                self._store.discard_staged_revision_rows(revision)  # type: ignore[attr-defined]
+        turn.revisions_committed.append(committed.reporting_revision_id)
+        return committed
+
+    async def _commit_publication(
+        self,
+        obligation: ReportingObligationRecord,
+        manifest: SourceBatchManifestV1,
+        revision: ReportingRevisionRecord,
+        rows: Sequence[dict[str, Any]],
+        finality: str,
+        now: datetime,
+        acquisition: ProvisionalAcquisition | None,
+    ) -> ReportingRevisionRecord:
+        async with self._revision_publication(obligation, manifest.offering_id):
             if acquisition is None:
                 committed = await self._store.commit_revision(revision, rows)
             else:
@@ -1877,7 +1903,7 @@ class ReportingProducer:
                 committed = await self._observation_store().commit_provisional_observation(
                     ProvisionalObservation(
                         acquisition,
-                        revision_id,
+                        revision.reporting_revision_id,
                         checked_at,
                         _utc(boundary),
                         next_due,
@@ -1886,7 +1912,6 @@ class ReportingProducer:
                     revision,
                     rows,
                 )
-        turn.revisions_committed.append(committed.reporting_revision_id)
         return committed
 
     async def _stored_obligation(

@@ -164,6 +164,7 @@ from adcp.reporting.ledger.producer import (
     revision_content_sha256,
 )
 from adcp.reporting.ledger.row_storage import (
+    ReportingObjectRowBindingV1,
     ReportingPostgresRowBindingV1,
     ReportingRowBindingSelectionInputV1,
     ReportingRowStorageOptionsV1,
@@ -279,6 +280,7 @@ __all__ = [
     "ReportingObligationDeliveryRecord",
     "ReportingObligationRecord",
     "ReportingPeriodBoundary",
+    "ReportingObjectRowBindingV1",
     "ReportingPhysicalChecksum",
     "ReportingPostgresRowBindingV1",
     "ReportingProducer",
