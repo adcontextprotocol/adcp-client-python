@@ -73,6 +73,7 @@ one failure mode a reporting ledger must not have.
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import json
 from collections.abc import AsyncIterator, Callable, Sequence
@@ -93,6 +94,7 @@ from adcp.reporting.canonical_json import canonical_json_utf8_v1
 from adcp.reporting.currency import require_frozen_currency
 from adcp.reporting.evidence import ReportingCanonicalDigest, ReportingControlTotalRecord
 from adcp.reporting.ledger.health import issue_id_for_occurrence
+from adcp.reporting.ledger.host_reads import ReportingCurrentRevisionsPageV1
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     LedgerRecordKind,
@@ -1664,6 +1666,111 @@ class PgReportingLedgerStore:
             ).fetchone()
         return _revision_from_row(row) if row else None
 
+    async def get_current_revision(
+        self, *, account_id: str, reporting_obligation_id: str
+    ) -> ReportingRevisionRecord | None:
+        """The obligation's current revision header: the official revision if one exists,
+        otherwise the snapshot nothing supersedes yet.
+
+        One indexed lookup. Rows are read separately through the verified paged reader.
+        """
+        query = "".join(
+            (
+                "SELECT ",
+                _REVISION_COLUMNS,
+                " FROM reporting_revisions r WHERE r.account_id = %s",
+                " AND r.reporting_obligation_id = %s AND ",
+                _CURRENT_REVISION_FILTER,
+                _CURRENT_REVISION_ORDER,
+                " LIMIT 1",
+            )
+        )
+        async with self._connection() as connection:
+            row = await (
+                await connection.execute(query, (account_id, reporting_obligation_id))
+            ).fetchone()
+        return _revision_from_row(row) if row else None
+
+    async def list_current_revisions(
+        self,
+        *,
+        account_id: str,
+        period_start_from: datetime,
+        period_start_to: datetime,
+        delivery_config_id: str | None = None,
+        limit: int = 100,
+        cursor: str | None = None,
+    ) -> ReportingCurrentRevisionsPageV1:
+        """Current revision headers for an account's obligations whose period starts in
+        ``[period_start_from, period_start_to)``, ordered by period start.
+
+        Obligations without a revision yet are omitted. Page with ``cursor``; the
+        cursor format matches the JavaScript SDK's. A change-feed consumer that
+        received ``CURSOR_EXPIRED`` resynchronizes from this read.
+        """
+        if type(limit) is not int or not 1 <= limit <= 1000:
+            raise ValueError("limit must be between 1 and 1000")
+        after: tuple[str, str] | None = None
+        if cursor is not None:
+            try:
+                padded = cursor + "=" * (-len(cursor) % 4)
+                parsed = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")))
+                after = (str(parsed["start"]), str(parsed["id"]))
+                if not isinstance(parsed["start"], str) or not isinstance(parsed["id"], str):
+                    raise ValueError("invalid")
+            except (ValueError, KeyError, TypeError, UnicodeError):
+                raise ValueError("current revisions cursor is invalid") from None
+        query = "".join(
+            (
+                "SELECT ",
+                _OUTER_REVISION_COLUMNS,
+                ", to_char(o.period_start AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"')",
+                " FROM reporting_obligations o JOIN LATERAL (SELECT ",
+                _REVISION_COLUMNS,
+                " FROM reporting_revisions r WHERE r.account_id = o.account_id",
+                " AND r.reporting_obligation_id = o.reporting_obligation_id AND ",
+                _CURRENT_REVISION_FILTER,
+                _CURRENT_REVISION_ORDER,
+                " LIMIT 1) r ON TRUE",
+                " WHERE o.account_id = %s AND o.period_start >= %s AND o.period_start < %s",
+                " AND (%s::text IS NULL OR o.delivery_config_id = %s)",
+                " AND (%s::timestamptz IS NULL OR (o.period_start, o.reporting_obligation_id)",
+                "      > (%s::timestamptz, %s::text))",
+                " ORDER BY o.period_start, o.reporting_obligation_id LIMIT %s",
+            )
+        )
+        async with self._connection() as connection:
+            rows = await (
+                await connection.execute(
+                    query,
+                    (
+                        account_id,
+                        period_start_from,
+                        period_start_to,
+                        delivery_config_id,
+                        delivery_config_id,
+                        after[0] if after else None,
+                        after[0] if after else None,
+                        after[1] if after else None,
+                        limit + 1,
+                    ),
+                )
+            ).fetchall()
+        page = rows[:limit]
+        next_cursor = None
+        if len(rows) > limit:
+            last = page[-1]
+            next_cursor = (
+                base64.urlsafe_b64encode(
+                    json.dumps({"start": last[-1], "id": last[2]}, separators=(",", ":")).encode()
+                )
+                .rstrip(b"=")
+                .decode("ascii")
+            )
+        return ReportingCurrentRevisionsPageV1(
+            tuple(_revision_from_row(row[:-1]) for row in page), next_cursor
+        )
+
     async def read_revision_rows(
         self,
         *,
@@ -3062,6 +3169,17 @@ _REVISION_COLUMNS = (
     " created_at, supersedes_reporting_revision_id, finality_basis, finality_policy_id,"
     " finalized_at, readable, readable_at_commit, source_publication_id, source_manifest_sha256,"
     " canonical_content_digest, managed_control_totals"
+)
+
+_OUTER_REVISION_COLUMNS = ", ".join(f"r.{name.strip()}" for name in _REVISION_COLUMNS.split(","))
+# The current revision of an obligation is the official one if it exists, otherwise the
+# snapshot nothing supersedes yet. An official revision is terminal, so it is never superseded.
+_CURRENT_REVISION_FILTER = (
+    "NOT EXISTS (SELECT 1 FROM reporting_revisions s WHERE s.account_id = r.account_id"
+    " AND s.supersedes_reporting_revision_id = r.reporting_revision_id)"
+)
+_CURRENT_REVISION_ORDER = (
+    " ORDER BY (r.finality = 'official') DESC, r.created_at DESC, r.reporting_revision_id DESC"
 )
 
 _ADJUSTMENT_COLUMNS = (

@@ -134,6 +134,7 @@ from adcp.reporting.ledger.health import (
     issue_id_for_occurrence,
     project_obligation_health,
 )
+from adcp.reporting.ledger.host_reads import ReportingCurrentRevisionsPageV1
 from adcp.reporting.ledger.models import (
     ConsumerStatusRecord,
     ConsumerStatusValue,
@@ -268,6 +269,7 @@ __all__ = [
     "ReportingConfigurationGenerationKey",
     "ReportingControlTotalRecord",
     "ReportingCurrencyError",
+    "ReportingCurrentRevisionsPageV1",
     "ReportingDefinitionBinding",
     "ReportingDeliveryEscalation",
     "ReportingDeliveryPrincipal",

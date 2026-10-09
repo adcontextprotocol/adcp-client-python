@@ -328,3 +328,22 @@ await store.changes_after(account_id="acct_a", cursor=page.cursor)
 - A registered consumer holds back `prune_changes` until it has passed those changes in its own feed order, up to
   `max_feed_hold_days` (default 7) after its last update, so a dead consumer cannot block retention. Schedule
   `prune_changes(change_retention_days=30)` next to the other maintenance. Cursors are the same bytes in both SDKs.
+
+## Host reads
+
+In-process consumers such as pacing, alerts and a warehouse sink read the ledger directly. Both reads return revision
+headers; rows come from the verified paged reader.
+
+```python
+current = await store.get_current_revision(account_id="acct_a", reporting_obligation_id="robl_1")
+page = await store.list_current_revisions(
+    account_id="acct_a", period_start_from=start, period_start_to=end, delivery_config_id="daily", limit=100
+)
+while page.cursor:
+    page = await store.list_current_revisions(..., cursor=page.cursor)
+```
+
+The current revision is the official revision if one exists, otherwise the snapshot nothing supersedes yet.
+`list_current_revisions` pages obligations whose period starts in `[period_start_from, period_start_to)` in period order
+and omits obligations without a revision. Its cursor is the format the JavaScript SDK uses. A change-feed consumer
+that receives `CURSOR_EXPIRED` resynchronizes from this read.
