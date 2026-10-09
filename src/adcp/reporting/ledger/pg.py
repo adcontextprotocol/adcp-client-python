@@ -149,6 +149,7 @@ if TYPE_CHECKING:
 
     from adcp.reporting._source_authorization import InlineSealPublisher
     from adcp.reporting.inline_source import ReportingSealStore, SealedSlice
+    from adcp.reporting.ledger.change_feed import ReportingChangeKindV1, ReportingChangesPageV1
     from adcp.reporting.ledger.row_migration import ReportingRowMigrationBatchV1
     from adcp.reporting.ledger.row_retention import ReportingRowIntentSweepV1, ReportingRowPruneV1
     from adcp.reporting.ledger.status_projection import ReportingStatusSnapshot
@@ -172,6 +173,7 @@ _RECONCILIATION_DDL_PATH = Path(__file__).parent / "reporting_ledger_reconciliat
 _NOTIFICATIONS_DDL_PATH = Path(__file__).parent / "reporting_notification_outbox.sql"
 _ACTIVITY_DDL_PATH = Path(__file__).parent / "reporting_webhook_activity.sql"
 _ROW_MIGRATION_DDL_PATH = Path(__file__).parent / "reporting_row_migration.sql"
+_CHANGES_DDL_PATH = Path(__file__).parent / "reporting_changes.sql"
 
 __all__ = ["PG_AVAILABLE", "PgReportingLedgerStore"]
 
@@ -224,6 +226,7 @@ class PgReportingLedgerStore:
         clock: Callable[[], datetime] | None = None,
         notifications: bool = False,
         row_storage: bool | ReportingRowStorageOptionsV1 | None = None,
+        change_feed: bool = False,
     ) -> None:
         if not PG_AVAILABLE:
             raise ImportError(_INSTALL_HINT)
@@ -238,6 +241,8 @@ class PgReportingLedgerStore:
             )
         )
         self._row_sets_known = False
+        # Opt-in shared host change feed (adcp_reporting_changes), PostgreSQL 13+.
+        self._change_feed = change_feed is True
         self._staged_rows: dict[tuple[str, str, str], Any] = {}
         # Change timestamps and the snapshot boundary default to the *database* clock,
         # which is what makes two readers of one snapshot agree even across
@@ -397,6 +402,49 @@ class PgReportingLedgerStore:
             ledger_record_retention_days=ledger_record_retention_days,
         )
 
+    async def changes_after(
+        self,
+        *,
+        cursor: str | None = None,
+        account_id: str | None = None,
+        kinds: Sequence[ReportingChangeKindV1] | None = None,
+        limit: int = 500,
+    ) -> ReportingChangesPageV1:
+        """Read the shared host change feed; see :mod:`adcp.reporting.ledger.change_feed`.
+
+        Account feeds order by ``seq``; the deployment-wide feed orders by ``(xid, seq)``
+        below the reading snapshot's ``xmin``. A cursor older than the retained history
+        raises ``ReportingChangeCursorExpiredError``. Requires ``change_feed=True``.
+        """
+        from adcp.reporting.ledger.change_feed import changes_after
+
+        return await changes_after(
+            self, cursor=cursor, account_id=account_id, kinds=kinds, limit=limit
+        )
+
+    async def save_feed_consumer_cursor(self, name: str, cursor: str) -> None:
+        """Register a named consumer's position, holding back pruning and retirement."""
+        from adcp.reporting.ledger.change_feed import save_feed_consumer_cursor
+
+        await save_feed_consumer_cursor(self, name, cursor)
+
+    async def prune_changes(
+        self,
+        *,
+        change_retention_days: int = 30,
+        max_feed_hold_days: int = 7,
+        limit: int = 10_000,
+    ) -> int:
+        """Delete change rows past retention that every live registered consumer has passed."""
+        from adcp.reporting.ledger.change_feed import prune_changes
+
+        return await prune_changes(
+            self,
+            change_retention_days=change_retention_days,
+            max_feed_hold_days=max_feed_hold_days,
+            limit=limit,
+        )
+
     async def retire_legacy_inline_rows(self) -> bool:
         """Rename ``reporting_revision_rows`` after every revision is migrated or quarantined.
 
@@ -422,6 +470,8 @@ class PgReportingLedgerStore:
             Path(__file__).with_name("reporting_caller_ownership.sql"),
         ):
             await connection.execute(path.read_text())
+        if self._change_feed:
+            await connection.execute(_CHANGES_DDL_PATH.read_text())
         if self._row_storage is not None:
             await connection.execute(REPORTING_ROW_STORAGE_DDL_PATH.read_text())
             await connection.execute(_ROW_MIGRATION_DDL_PATH.read_text())
@@ -589,7 +639,16 @@ class PgReportingLedgerStore:
         record_id: str,
         *,
         consumer_id: str,
+        obligation_id: str | None = None,
     ) -> None:
+        if self._change_feed and kind != "consumer_status":
+            # The shared host feed (adcp_reporting_changes). It runs after the account
+            # lock the caller already holds, so per-account sequence order is commit order.
+            await connection.execute(
+                "INSERT INTO adcp_reporting_changes"
+                " (account_id, record_kind, record_id, obligation_id) VALUES (%s, %s, %s, %s)",
+                (account_id, kind, record_id, obligation_id or record_id),
+            )
         await connection.execute(
             "INSERT INTO reporting_ledger_changes"
             " (account_id, consumer_id, record_kind, record_id, committed_at)"
@@ -943,6 +1002,7 @@ class PgReportingLedgerStore:
                     "obligation",
                     obligation.reporting_obligation_id,
                     consumer_id=obligation.consumer_id,
+                    obligation_id=obligation.reporting_obligation_id,
                 )
                 if self._notifications_enabled:
                     await self._dirty_status(
@@ -1139,6 +1199,7 @@ class PgReportingLedgerStore:
                 "revision",
                 revision.reporting_revision_id,
                 consumer_id=_obligation_from_row(obligation).consumer_id,
+                obligation_id=revision.reporting_obligation_id,
             )
             if self._notifications_enabled:
                 from adcp.reporting.ledger.notification_events import revision_event
@@ -2031,6 +2092,7 @@ class PgReportingLedgerStore:
                 "adjustment",
                 adjustment.reporting_adjustment_id,
                 consumer_id=_obligation_from_row(obligation).consumer_id,
+                obligation_id=_obligation_from_row(obligation).reporting_obligation_id,
             )
             if self._notifications_enabled:
                 from adcp.reporting.ledger.notification_events import adjustment_event

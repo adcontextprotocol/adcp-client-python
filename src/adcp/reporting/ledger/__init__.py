@@ -67,6 +67,12 @@ from adcp.reporting.currency import (
     validate_currency,
 )
 from adcp.reporting.evidence import ReportingCanonicalDigest
+from adcp.reporting.ledger.change_feed import (
+    ReportingChangeCursorExpiredError,
+    ReportingChangeKindV1,
+    ReportingChangeRecordV1,
+    ReportingChangesPageV1,
+)
 from adcp.reporting.ledger.consumer_status import (
     ConsumerMismatch,
     ConsumerStatusDisabledError,
@@ -254,6 +260,10 @@ __all__ = [
     "ReportingAdjustmentReceiptRecord",
     "ReportingAdjustmentRecord",
     "ReportingCanonicalDigest",
+    "ReportingChangeCursorExpiredError",
+    "ReportingChangeKindV1",
+    "ReportingChangeRecordV1",
+    "ReportingChangesPageV1",
     "ReportingConfiguration",
     "ReportingConfigurationGenerationKey",
     "ReportingControlTotalRecord",

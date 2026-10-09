@@ -302,3 +302,29 @@ It needs Node and a built `adcp-client` checkout (`npm ci && npm run build`); wi
 wrote are committed under `tests/fixtures/reporting-row-storage-interop-v1/` (refresh them with
 `ADCP_UPDATE_INTEROP_FIXTURES=1`), and the replay tests load them into a fresh database and bucket and verify them
 here, so Python CI does not need Node. The JavaScript SDK can replay `python-written.json` the same way.
+
+## Host change feed and consumers
+
+`PgReportingLedgerStore(pool=pool, change_feed=True)` also appends one row to the shared `adcp_reporting_changes`
+table (PostgreSQL 13 or later, `xid8`) for every obligation, revision and adjustment, in the transaction that writes
+the record and after the account lock. The JavaScript SDK writes the same table. It is separate from
+`reporting_ledger_changes`, the buyer-facing feed behind `changes_checkpoint` and `changes_after`, until the shared
+Core layout.
+
+```python
+page = await store.changes_after(account_id="acct_a", kinds=["revision"], limit=500)
+for change in page.records:
+    ...
+await store.save_feed_consumer_cursor("warehouse-sink", page.cursor)  # holds back pruning
+await store.changes_after(account_id="acct_a", cursor=page.cursor)
+```
+
+- **Account feeds** order by `seq`, which is gap-free because the sequence value is taken under the account lock.
+- **The deployment-wide feed** (no `account_id`) orders by `(xid, seq)` and returns only changes whose transaction is
+  older than every transaction still in flight, so a slow commit is never skipped. A long-running transaction delays
+  this feed; it never makes it lose a record.
+- A cursor older than the retained history raises `ReportingChangeCursorExpiredError` (`code == "CURSOR_EXPIRED"`).
+  Resynchronize from `list_current_revisions` and resume from the cursor returned with that read.
+- A registered consumer holds back `prune_changes` until it has passed those changes in its own feed order, up to
+  `max_feed_hold_days` (default 7) after its last update, so a dead consumer cannot block retention. Schedule
+  `prune_changes(change_retention_days=30)` next to the other maintenance. Cursors are the same bytes in both SDKs.
