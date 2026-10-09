@@ -240,9 +240,11 @@ def canonical_reporting_row_v1(row: object, ordinal: int = 0) -> bytes:
     """
     if not isinstance(row, dict):
         raise ReportingRowEncodingError("INVALID_ROW", f"row {ordinal} is not a JSON object")
-    _assert_portable_numbers(row, ordinal)
     try:
+        _assert_portable_numbers(row, ordinal)
         return rfc8785.dumps(row)
+    except ReportingRowEncodingError:
+        raise
     except (rfc8785.CanonicalizationError, ValueError, TypeError, RecursionError) as error:
         raise ReportingRowEncodingError(
             "INVALID_ROW", f"row {ordinal} is not canonical JSON: {type(error).__name__}"

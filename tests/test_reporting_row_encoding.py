@@ -11,6 +11,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -182,6 +183,19 @@ def test_chunks_close_before_exceeding_8_mib_and_an_oversized_row_stands_alone()
 def test_refuses_rows_whose_canonical_bytes_are_not_portable(row: Any) -> None:
     with assert_code("INVALID_ROW"):
         encode_reporting_rows_v1([row])
+
+
+def test_refuses_circular_and_over_deep_rows_with_the_typed_error() -> None:
+    circular: dict[str, Any] = {}
+    circular["self"] = circular
+    deep: dict[str, Any] = {}
+    cursor = deep
+    for _ in range(sys.getrecursionlimit() + 10):
+        cursor["next"] = {}
+        cursor = cursor["next"]
+    for row in (circular, deep):
+        with assert_code("INVALID_ROW"):
+            encode_reporting_rows_v1([row])
 
 
 def test_accepts_the_edges_of_the_portable_domain() -> None:
