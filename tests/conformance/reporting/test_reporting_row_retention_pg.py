@@ -184,8 +184,13 @@ async def age(pool: Any, *, days: int) -> None:
             await connection.execute(f"ALTER TABLE {table} ENABLE TRIGGER USER")  # noqa: S608
         await connection.execute("ALTER TABLE reporting_obligations DISABLE TRIGGER USER")
         await connection.execute(
-            "UPDATE reporting_obligations SET period_end = period_end - make_interval(days => %s)",
-            (days,),
+            "UPDATE reporting_obligations SET period_end = period_end - make_interval(days => %s),"
+            " period_start = period_start - make_interval(days => %s),"
+            " scope_resolved_at = scope_resolved_at - make_interval(days => %s),"
+            " expected_at = expected_at - make_interval(days => %s),"
+            " automated_recovery_deadline_at ="
+            "   automated_recovery_deadline_at - make_interval(days => %s)",
+            (days, days, days, days, days),
         )
         await connection.execute("ALTER TABLE reporting_obligations ENABLE TRIGGER USER")
         await connection.execute("ALTER TABLE adcp_reporting_row_sets DISABLE TRIGGER USER")

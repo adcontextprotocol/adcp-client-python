@@ -160,6 +160,7 @@ from adcp.reporting.ledger.models import (
     derive_period,
     iso_duration_to_timedelta,
 )
+from adcp.reporting.ledger.period_retirement import ReportingPeriodRetirementV1
 from adcp.reporting.ledger.producer import (
     CurrencyResolver,
     FixedCurrencyResolver,
@@ -294,6 +295,7 @@ __all__ = [
     "ReportingObligationRecord",
     "ReportingPeriodBoundary",
     "ReportingObjectRowBindingV1",
+    "ReportingPeriodRetirementV1",
     "ReportingPhysicalChecksum",
     "ReportingPostgresRowBindingV1",
     "ReportingProducer",

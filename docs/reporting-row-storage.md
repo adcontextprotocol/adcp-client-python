@@ -352,3 +352,32 @@ that receives `CURSOR_EXPIRED` resynchronizes from this read.
 `reporting_obligations_account_period_idx` to back that order; a host without it can create the same index itself on
 `reporting_obligations (account_id, period_start, reporting_obligation_id)`. A cursor whose position is not a
 timestamp with a zone raises `ValueError`, never a driver error.
+
+## Period retirement
+
+`store.retire_expired_periods()` retires a whole period once its retention window has elapsed, as one ordered,
+resumable sequence that never deletes the records that locate row bytes while the bytes remain stored:
+
+1. **Tombstone.** Under the account lock, a `retiring` tombstone records the final revision, its digests, and the
+   revision and adjustment counts, and the period's row sets stop being served.
+2. **External bytes.** The period's recorded object versions are deleted. A failure leaves the period `retiring` with
+   every locator intact; the next pass resumes `retiring` periods before new candidates.
+3. **Records.** Under the account lock the manifests, bodies and the period's ledger records are deleted, the
+   tombstone becomes `retired`, and a `retirement` change is appended when the change feed is on.
+
+A period qualifies once the later of its period end, its newest revision's `created_at` and its newest adjustment's
+`created_at`, plus `max(status_retention_days, ledger_record_retention_days)`, has passed. It is held, and simply not a
+candidate this pass, while a materialization, a receipt or pending materializer work references it, or while a
+registered feed consumer updated within `max_feed_hold_days` has not passed its change rows. A silent consumer stops
+holding after `max_feed_hold_days`, so retention is never blocked forever. Eligibility is re-checked under the account
+lock before the tombstone is written, so a late revision cannot be retired with a stale candidate. A tombstoned period
+is never recreated or extended: `commit_obligation`, `commit_revision` and `commit_adjustment` refuse it with
+`PERIOD_RETIRED`.
+
+**Current limit.** Several Python extension tables (provisional observations, reconciliation records, notification
+events) are append-only by trigger and foreign key, and their guards are frozen catalog objects. A period that still has
+such records finishes phases 1 and 2, then stays `retiring` and is reported in `protected`: its row bytes are gone and
+reads answer as expired, while its records wait for the shared Core layout (persistence Stage 3), which carries
+retirement exemptions. Phase 3 deletes every record of a period or none.
+
+Tombstones live in `adcp_reporting_period_tombstones`, created with row storage or the change feed.

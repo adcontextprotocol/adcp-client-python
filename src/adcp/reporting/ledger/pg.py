@@ -152,6 +152,7 @@ if TYPE_CHECKING:
     from adcp.reporting._source_authorization import InlineSealPublisher
     from adcp.reporting.inline_source import ReportingSealStore, SealedSlice
     from adcp.reporting.ledger.change_feed import ReportingChangeKindV1, ReportingChangesPageV1
+    from adcp.reporting.ledger.period_retirement import ReportingPeriodRetirementV1
     from adcp.reporting.ledger.row_migration import ReportingRowMigrationBatchV1
     from adcp.reporting.ledger.row_retention import ReportingRowIntentSweepV1, ReportingRowPruneV1
     from adcp.reporting.ledger.status_projection import ReportingStatusSnapshot
@@ -176,6 +177,7 @@ _NOTIFICATIONS_DDL_PATH = Path(__file__).parent / "reporting_notification_outbox
 _ACTIVITY_DDL_PATH = Path(__file__).parent / "reporting_webhook_activity.sql"
 _ROW_MIGRATION_DDL_PATH = Path(__file__).parent / "reporting_row_migration.sql"
 _CHANGES_DDL_PATH = Path(__file__).parent / "reporting_changes.sql"
+_RETIREMENT_DDL_PATH = Path(__file__).parent / "reporting_period_retirement.sql"
 
 __all__ = ["PG_AVAILABLE", "PgReportingLedgerStore"]
 
@@ -243,6 +245,7 @@ class PgReportingLedgerStore:
             )
         )
         self._row_sets_known = False
+        self._tombstones_known = False
         # Opt-in shared host change feed (adcp_reporting_changes), PostgreSQL 13+.
         self._change_feed = change_feed is True
         self._staged_rows: dict[tuple[str, str, str], Any] = {}
@@ -447,6 +450,32 @@ class PgReportingLedgerStore:
             limit=limit,
         )
 
+    async def retire_expired_periods(
+        self,
+        *,
+        limit: int = 20,
+        account_id: str | None = None,
+        ledger_record_retention_days: int | None = None,
+        max_feed_hold_days: int = 7,
+    ) -> ReportingPeriodRetirementV1:
+        """Retire whole periods past ``max(status_retention_days, ledger_record_retention_days)``.
+
+        Tombstone and stop serving rows, delete external bytes, then delete the period's
+        records: ordered and resumable, so the records that locate row bytes are never
+        deleted while the bytes remain. Periods referenced by a materialization, a receipt
+        or an unread registered feed consumer are held. See
+        :mod:`adcp.reporting.ledger.period_retirement` for what Python can delete today.
+        """
+        from adcp.reporting.ledger.period_retirement import retire_expired_periods
+
+        return await retire_expired_periods(
+            self,
+            limit=limit,
+            account_id=account_id,
+            ledger_record_retention_days=ledger_record_retention_days,
+            max_feed_hold_days=max_feed_hold_days,
+        )
+
     async def retire_legacy_inline_rows(self) -> bool:
         """Rename ``reporting_revision_rows`` after every revision is migrated or quarantined.
 
@@ -474,6 +503,8 @@ class PgReportingLedgerStore:
             await connection.execute(path.read_text())
         if self._change_feed:
             await connection.execute(_CHANGES_DDL_PATH.read_text())
+        if self._change_feed or self._row_storage is not None:
+            await connection.execute(_RETIREMENT_DDL_PATH.read_text())
         if self._row_storage is not None:
             await connection.execute(REPORTING_ROW_STORAGE_DDL_PATH.read_text())
             await connection.execute(_ROW_MIGRATION_DDL_PATH.read_text())
@@ -923,6 +954,58 @@ class PgReportingLedgerStore:
 
     # -- obligations ------------------------------------------------------
 
+    async def _period_is_tombstoned(
+        self, connection: Any, obligation: ReportingObligationRecord
+    ) -> bool:
+        """Whether retirement already took this period, so a replay cannot resurrect it."""
+        if not self._tombstones_known:
+            present = await (
+                await connection.execute(
+                    "SELECT to_regclass(quote_ident(current_schema())"
+                    " || '.adcp_reporting_period_tombstones')"
+                )
+            ).fetchone()
+            if present is None or present[0] is None:
+                return False
+            self._tombstones_known = True
+        key = obligation.generation_key
+        row = await (
+            await connection.execute(
+                "SELECT 1 FROM adcp_reporting_period_tombstones"
+                " WHERE reporting_obligation_id = %s OR (account_id = %s AND consumer_id = %s"
+                " AND delivery_config_id = %s AND delivery_config_version = %s"
+                " AND period_start = %s AND period_end = %s) LIMIT 1",
+                (
+                    obligation.reporting_obligation_id,
+                    key.account_id,
+                    key.consumer_id,
+                    key.delivery_config_id,
+                    key.delivery_config_version,
+                    obligation.period.start,
+                    obligation.period.end,
+                ),
+            )
+        ).fetchone()
+        return row is not None
+
+    async def _obligation_is_tombstoned(self, connection: Any, obligation_id: str) -> bool:
+        present = await (
+            await connection.execute(
+                "SELECT to_regclass(quote_ident(current_schema())"
+                " || '.adcp_reporting_period_tombstones')"
+            )
+        ).fetchone()
+        if present is None or present[0] is None:
+            return False
+        row = await (
+            await connection.execute(
+                "SELECT 1 FROM adcp_reporting_period_tombstones"
+                " WHERE reporting_obligation_id = %s LIMIT 1",
+                (obligation_id,),
+            )
+        ).fetchone()
+        return row is not None
+
     async def commit_obligation(
         self, obligation: ReportingObligationRecord
     ) -> ReportingObligationRecord:
@@ -947,6 +1030,11 @@ class PgReportingLedgerStore:
             ).fetchone()
             if existing_row is not None:
                 return _obligation_from_row(existing_row)
+            if await self._period_is_tombstoned(connection, obligation):
+                raise LedgerConflictError(
+                    "PERIOD_RETIRED",
+                    "this period was retired; a retired obligation is never recreated",
+                )
             require_frozen_currency(obligation.currency)
             try:
                 inserted = await (
@@ -1123,6 +1211,11 @@ class PgReportingLedgerStore:
             await self._require_writable_generation(
                 connection, _obligation_from_row(obligation).generation_key
             )
+            if await self._period_is_tombstoned(connection, _obligation_from_row(obligation)):
+                raise LedgerConflictError(
+                    "PERIOD_RETIRED",
+                    "this period is being retired; no revision may be added to it",
+                )
             validate_revision_currency(_obligation_from_row(obligation), revision, rows)
             if revision.supersedes_reporting_revision_id:
                 await self._require_current_leaf(connection, revision)
@@ -2144,6 +2237,11 @@ class PgReportingLedgerStore:
             if revision is None:
                 raise LedgerConflictError(
                     "REVISION_NOT_FOUND", "an adjustment must name a committed revision"
+                )
+            if await self._obligation_is_tombstoned(connection, revision[1]):
+                raise LedgerConflictError(
+                    "PERIOD_RETIRED",
+                    "this period is being retired; no adjustment may be added to it",
                 )
             if revision[0] != "official":
                 raise LedgerConflictError(
