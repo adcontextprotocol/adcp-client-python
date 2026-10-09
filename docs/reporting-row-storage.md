@@ -381,3 +381,23 @@ reads answer as expired, while its records wait for the shared Core layout (pers
 retirement exemptions. Phase 3 deletes every record of a period or none.
 
 Tombstones live in `adcp_reporting_period_tombstones`, created with row storage or the change feed.
+
+## Scheduling
+
+`ReportingProductionSupport` runs the maintenance for the features your store opted into, every
+`maintenance_seconds` (default 300; `None` disables it), on the same worker loop as the producer and materializer:
+
+| Store option | Operation | Bound |
+| --- | --- | --- |
+| `row_storage` | `sweep_row_write_intents` | 100 intents |
+| `row_storage` or `change_feed` | `retire_expired_periods` | 20 periods |
+| `change_feed` | `prune_changes` | 10,000 rows |
+
+Each operation is bounded and resumable. A failing operation never stops the worker: the next interval retries it, and
+only the closed operation name (`REPORTING_MAINTENANCE_FAILED`, `intent_sweep`, `period_retirement` or
+`change_pruning`) is logged, never an exception, provider message or identifier. An operation that finishes but reports
+failed items (a binding that cannot delete, for example) is logged the same way on every pass it does, so a stuck
+binding is visible; read `causes` from the result for the stable per-item code. `period_retirement` also removes the
+row bytes of every period it retires, so `prune_expired_row_sets` is not scheduled: call it yourself only if you want
+row bytes retired earlier than whole periods. Outside the production service, call
+the same methods from your own scheduler.
