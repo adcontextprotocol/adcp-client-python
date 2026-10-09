@@ -36,7 +36,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequenc
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 from zoneinfo import ZoneInfo
 
 from adcp.reporting._settlement import cancel_and_settle
@@ -195,6 +195,71 @@ def revision_content_sha256(
             }
         )
     ).hexdigest()
+
+
+RevisionBindingAlgorithm = Literal["rfc8785_jcs_v1", "legacy_py_core_pairs_v0"]
+
+
+def revision_binding_algorithm(revision: ReportingRevisionRecord) -> RevisionBindingAlgorithm:
+    """Which encoding of ``control_totals`` the revision's content digest binds.
+
+    ``rfc8785_jcs_v1`` is the protocol shape: ``{name, value, value_type[, unit]}``
+    members, which a buyer can recompute from the wire. Core releases before
+    protocol-shape totals hashed ``{name, value}`` pairs while serving typed
+    totals, so a buyer could not recompute the digest whenever totals were
+    non-empty. Those retained revisions are never rehashed; they report
+    ``legacy_py_core_pairs_v0``, an import-only algorithm that is never written.
+    Revisions without totals are byte-identical under both encodings.
+    """
+    if revision.managed_control_totals is not None or not revision.control_totals:
+        return "rfc8785_jcs_v1"
+    return "legacy_py_core_pairs_v0"
+
+
+def recompute_revision_content_sha256(
+    revision: ReportingRevisionRecord, rows: Sequence[dict[str, Any]]
+) -> str:
+    """Recompute a retained revision's binding with the algorithm it was written under.
+
+    Use this to verify what was read against ``revision.revision_content_sha256``:
+    protocol-shape revisions bind their typed totals, retained pair-hashed
+    revisions bind ``{name, value}`` pairs, and neither is rehashed.
+    """
+    return revision_content_sha256(
+        reporting_revision_id=revision.reporting_revision_id,
+        row_count=revision.row_count,
+        control_totals=revision.control_totals,
+        reporting_rows=rows,
+        control_total_evidence=revision.managed_control_totals,
+    )
+
+
+def _typed_control_totals(
+    obligation: ReportingObligationRecord, manifest: SourceBatchManifestV1
+) -> tuple[ReportingControlTotalRecord, ...]:
+    """Protocol-shape totals for a new revision.
+
+    The declared ``value_type`` and ``unit`` come from the source manifest.
+    A monetary total with no declared unit takes the obligation's frozen unit,
+    the same projection the legacy read path applied, so the served and the
+    hashed totals agree.
+    """
+    units: dict[str, str] = {}
+    if obligation.currency is not None:
+        units["spend"] = obligation.currency
+    if obligation.definition is not None:
+        units.update(dict(obligation.definition.monetary_control_total_units))
+    try:
+        return tuple(
+            ReportingControlTotalRecord(
+                total.name, total.value, total.value_type, total.unit or units.get(total.name)
+            )
+            for total in manifest.control_totals
+        )
+    except ValueError:
+        raise LedgerConflictError(
+            "MANIFEST_MISMATCH", "source control totals are not valid protocol totals"
+        ) from None
 
 
 @dataclass(frozen=True)
@@ -1713,6 +1778,14 @@ class ReportingProducer:
         control_totals = tuple((total.name, total.value) for total in manifest.control_totals)
         revision_id = f"rpr_{manifest.publication_id[4:44]}"
         prior = next((item for item in existing if item.reporting_revision_id == revision_id), None)
+        # New revisions bind protocol-shape totals. A replay of a retained
+        # pair-hashed revision must reproduce its original binding, because
+        # retained evidence is never rehashed.
+        typed_totals = (
+            _typed_control_totals(obligation, manifest)
+            if control_totals and (prior is None or prior.managed_control_totals is not None)
+            else None
+        )
         created_at = prior.created_at if prior is not None else now
         if prior is not None:
             # Still reconstruct and verify the supplied content below. Merely
@@ -1744,9 +1817,11 @@ class ReportingProducer:
                 row_count=manifest.row_count,
                 control_totals=control_totals,
                 reporting_rows=rows,
+                control_total_evidence=typed_totals,
             ),
             row_count=manifest.row_count,
             control_totals=control_totals,
+            managed_control_totals=typed_totals,
             observed_at=manifest.observed_at,
             data_through=manifest.data_through,
             created_at=created_at,

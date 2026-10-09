@@ -1,5 +1,23 @@
 # Reliable Reporting upgrade and release notes
 
+## Protocol-shape control totals
+
+New Core revisions bind `{name, value, value_type[, unit]}` control totals in
+`revision_content_sha256`, exactly as `get_reporting_status` and exact reads serve
+them, so a buyer can recompute the digest from the wire. Earlier releases hashed
+`{name, value}` pairs and served typed totals, which a buyer could not recompute
+whenever totals were non-empty.
+
+Retained revisions are never rehashed. A revision with non-empty totals and no
+typed evidence is a legacy pair-hashed revision;
+`adcp.reporting.ledger.producer.revision_binding_algorithm` reports it as
+`legacy_py_core_pairs_v0`, an import-only algorithm that new revisions never use.
+Revisions without totals hash identically under both encodings. The producer
+replays a retained pair-hashed publication with its original binding, so a
+restart across the upgrade does not turn a replay into a conflict. This is part of
+the shared layout in adcontextprotocol/adcp#7996 (Stage 2, tracked in
+[#1457](https://github.com/adcontextprotocol/adcp-client-python/issues/1457)).
+
 ## Caller ownership: breaking API and storage release
 
 Reporting generations now include the authenticated caller: `(account_id,
