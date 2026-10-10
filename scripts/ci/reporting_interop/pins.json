@@ -148,7 +148,7 @@
       "source_correction_merge_commit": "3d8c3dfec6d0b325d602964e067703f05408d76f",
       "release_pr": 3030,
       "package_lock": "scripts/ci/reporting_interop/npm/rc48/package-lock.json",
-      "package_lock_sha256": "431fcc5b38c28b52ed772a80ec148e848a5e0e2e9a39e2bcc1a7bf235a0d6fcc",
+      "package_lock_sha256": "7e8a6a0ab24ac9a97c17e86d52c2e258806662ffe4ca2533721f1691ba388d3f",
       "protocol": "3.2.0-rc.6",
       "package_engines_node": "^20.19.0 || >=22.12.0",
       "development_runtime_pin": "22.12.0",
@@ -174,7 +174,7 @@
       "registry_git_head": "94171fe20d632f027eb362604c715ed361fadb51",
       "source_tree": "8d3c29d9a1779f04520c33cdc9ed3e15e5296cdd",
       "package_lock": "scripts/ci/reporting_interop/npm/rc45/package-lock.json",
-      "package_lock_sha256": "fc344df04de5bbc3182e70cb184ea2df0e5cbc8bd164299ea3f551a33ab91c57",
+      "package_lock_sha256": "f0619b2fe41e449d6ee6814fb8755f181ff316d815504836656c1aa80a42bdfc",
       "protocol": "3.2.0-rc.4",
       "node_floor": "22.12.0",
       "blocking": false,
@@ -189,7 +189,7 @@
       "tarball_sha256": "63fd1930026c5bf0774199536f9b6082b45fd056a5b6d803f018a77d5356a748",
       "registry_git_head": "7b963da36eeca5ce7872af0bc429b1ee5abb0cb6",
       "package_lock": "scripts/ci/reporting_interop/npm/rc42/package-lock.json",
-      "package_lock_sha256": "a5d0819de6aea8ce36605550f4f0c95232c6552c376837a4bf7fe3c782b75516",
+      "package_lock_sha256": "b065665b37d0cc80382692754ee36bebef184eae40b80a48580d88f0e1722d41",
       "protocol": "3.2.0-rc.4",
       "qualification": "historical_matrix12_red_not_current_candidate"
     },
@@ -224,7 +224,7 @@
       "tarball": "https://registry.npmjs.org/@adcp/sdk/-/sdk-14.0.0-rc.47.tgz",
       "tarball_bytes": 19686924,
       "tarball_members": 6261,
-      "package_lock_sha256": "2f62e22374e69362042923e7f960a28a4abb8a3ac429653a90e47cccba74294a"
+      "package_lock_sha256": "9342471f27f58248c1c7f9bac1720230faa0bffda883a598396f52356b5de701"
     },
     "latest_canary": {
       "observed_version": "13.1.1",
@@ -241,7 +241,7 @@
       "tarball_sha256": "f74c30ba4e113984b26ee95ea9a77e1138848a913ed43e8c94c0ec256ea62fb5",
       "registry_git_head": "9043b770e32e7916b107894f1a1d226a1f388d48",
       "package_lock": "scripts/ci/reporting_interop/npm/rc44/package-lock.json",
-      "package_lock_sha256": "868d8384bea8628dfc38ff7d7bfa6cb4ea9ead85efc1c002744b8cd305214e38",
+      "package_lock_sha256": "ebfbff31ab224320236696613c41812c3990f89a060c482299f9601db353329a",
       "protocol": "3.2.0-rc.4",
       "blocking": false,
       "qualification": "historical_supplemental_core_lead_not_current_candidate",
@@ -256,7 +256,7 @@
       "tarball_sha256": "c9bb1e22b63dfedf6bc1ae9c07d1a1312465489671e9841dd5f1425b817b0a90",
       "registry_git_head": "51bf16d1b5425bd9aa2f37e7960ec9c1634d5fc6",
       "package_lock": "scripts/ci/reporting_interop/npm/rc41/package-lock.json",
-      "package_lock_sha256": "2059bd6794ff8f2f06f5ec83187ba7de5607f262b9b0a18a4d0d0be5682efa74",
+      "package_lock_sha256": "6d453097b9a80863cfbdf597143e7cbe773136a958802427f2736e28c742f6d6",
       "protocol": "3.2.0-rc.4",
       "node_floor": "22.12.0"
     },

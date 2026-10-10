@@ -80,7 +80,7 @@
         "tarball_bytes": 19686924,
         "integrity": "sha512-Zi2r9CZ2HJmB7i8XTlt5Z1QrVq+nnKkTcl8fSQUkjsi3ChhVtR24BIu/6Gg7yz5ctBWfMR2Lxqn4wv8kh3Wygw==",
         "package_lock": "scripts/ci/reporting_interop/npm/rc47/package-lock.json",
-        "package_lock_sha256": "2f62e22374e69362042923e7f960a28a4abb8a3ac429653a90e47cccba74294a",
+        "package_lock_sha256": "9342471f27f58248c1c7f9bac1720230faa0bffda883a598396f52356b5de701",
         "installed_member_count": 6261,
         "installed_member_manifest_sha256": "81f661470397bd9d02ceb640710f728804cecd0b4d06660301540531df054593"
       },
@@ -93,7 +93,7 @@
         "tarball_bytes": 19763811,
         "integrity": "sha512-mK6NpfFRm1f/0SoVxvyG9Snm78IXDfyNl3gAlWp5lVIzLHZcdwfDemNKIl5O6hjh9OugRwD4Chlax3Li9efHZw==",
         "package_lock": "scripts/ci/reporting_interop/npm/rc48/package-lock.json",
-        "package_lock_sha256": "431fcc5b38c28b52ed772a80ec148e848a5e0e2e9a39e2bcc1a7bf235a0d6fcc",
+        "package_lock_sha256": "7e8a6a0ab24ac9a97c17e86d52c2e258806662ffe4ca2533721f1691ba388d3f",
         "installed_member_count": 6274,
         "installed_member_manifest_sha256": "17fffd769ea636bc0206975c9fee478cb3f8b0ce1858af01353b431f5c185c06"
       }
