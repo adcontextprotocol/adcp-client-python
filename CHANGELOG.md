@@ -100,6 +100,29 @@
   change public consumer defaults. See
   [format-kind migration](docs/canonical-format-kinds-migration.md).
 
+## [9.0.0-beta.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.0.0-beta.2...v9.0.0-beta.3) (2026-10-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* **types:** `adcp.types.ProductFormatDeclaration` is a class again rather than an `Annotated` union, so `get_args()` on it no longer yields the 16 generated branches and `params` is the open bag `Format` declares rather than a typed canonical model — use `params_as(CanonicalFormatImage)` for typed parameters, or `LegacyProductFormatDeclaration` for the union. `validate_union` and `TypeAdapter` continue to work and now return the class.
+* **signing:** `canonicalize_target_uri` returns `https://host/` for an authority-only URL where it returned `https://host`, so the `@target-uri` signature base changes for the bare-authority, non-default-port, IPv6-literal, default-port and trailing-`?` spellings. A signer on this release and a verifier on an earlier one derive different bases for the same request, and verification fails with `request_signature_invalid`. Dial signed clients at the explicit root path -- `https://host/` canonicalizes the same way before and after, so both ends can then upgrade in any order -- or move an agent URL you cannot respell with its verifier in one window, or hold the affected operation at `warn_for` across that window. Identifier matching on `adagents.json`, `brand.json`, TMP `seller_agent.agent_url`, `format-id.agent_url` and the governance issuer only becomes more permissive: the two spellings converge, so a lookup that refused before can now succeed and none that matched stops matching. Migration note: `MIGRATION_v8_to_v9.md` and `docs/request-signing-migration.md` section 6.
+
+### Features
+
+* **reporting:** add canonical JSONL row encoding for shared row storage ([#1458](https://github.com/adcontextprotocol/adcp-client-python/issues/1458)) ([800125b](https://github.com/adcontextprotocol/adcp-client-python/commit/800125b5441c1c755d875bc8dcbb360cea8061af))
+* **reporting:** bind protocol-shape control totals in new revisions ([#1459](https://github.com/adcontextprotocol/adcp-client-python/issues/1459)) ([2565230](https://github.com/adcontextprotocol/adcp-client-python/commit/25652304cca11d6fcd75b6b7f2f40c35c733f906))
+
+
+### Bug Fixes
+
+* **codegen:** name the JSON Schema keyword an injected check enforces ([#1435](https://github.com/adcontextprotocol/adcp-client-python/issues/1435)) ([9e5c42d](https://github.com/adcontextprotocol/adcp-client-python/commit/9e5c42dfef4e51c1b99162d27083632e5e808542))
+* **release:** preserve beta validation and document adoption contracts ([#1461](https://github.com/adcontextprotocol/adcp-client-python/issues/1461)) ([6d632dd](https://github.com/adcontextprotocol/adcp-client-python/commit/6d632dda5bc032ca67c04f37fe4071a6b0fd5f84))
+* **signing:** apply canonicalization step 5 whatever the query does ([#1456](https://github.com/adcontextprotocol/adcp-client-python/issues/1456)) ([0830b4e](https://github.com/adcontextprotocol/adcp-client-python/commit/0830b4e2262435ca7b66c256288a1657f3f51dfd))
+* **types:** keep ProductFormatDeclaration a class, graded from its schema ([#1447](https://github.com/adcontextprotocol/adcp-client-python/issues/1447)) ([23eb355](https://github.com/adcontextprotocol/adcp-client-python/commit/23eb35545d6f31f93af8a67fc031e06b55fae9e2)), closes [#1401](https://github.com/adcontextprotocol/adcp-client-python/issues/1401)
+* **types:** preserve geographic place system map keys ([#1451](https://github.com/adcontextprotocol/adcp-client-python/issues/1451)) ([2a58bf7](https://github.com/adcontextprotocol/adcp-client-python/commit/2a58bf7a9ba645a0f4bad769301c978646ea5440))
+* **validation:** sync signed 3.1.27 macro URL schemas ([#1454](https://github.com/adcontextprotocol/adcp-client-python/issues/1454)) ([7d610e1](https://github.com/adcontextprotocol/adcp-client-python/commit/7d610e1ae1f6aedd5b9290857052e86c209b634c))
+
 ## [9.0.0-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v9.0.0-beta.1...v9.0.0-beta.2) (2026-10-07)
 
 ### Migration notes
