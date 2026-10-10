@@ -786,6 +786,12 @@ def test_list_creatives_merged_model_restores_xor_and_legacy_aliases(tmp_path, m
     fixed = target.read_text()
     assert "def _validate_format_reference_xor(self) -> Creative:" in fixed
     assert "Creatives = Creative\nCreatives1 = Creative" in fixed
+    # The record's schema states the rule as a ``oneOf`` whose arms forbid each
+    # other, so that is the keyword the refusal names. A bare ``ValueError``
+    # reaches the consumer as ``value_error`` and names no keyword at all.
+    assert "from pydantic_core import PydanticCustomError" in fixed
+    assert "raise PydanticCustomError(\n                'oneOf'," in fixed
+    assert "raise ValueError(" not in fixed
     compile(fixed, str(target), "exec")
 
 
@@ -2686,6 +2692,170 @@ def test_root_required_group_validator_enforces_every_declared_group(tmp_path, m
     # A partial group is not a group.
     with pytest.raises(ValidationError, match="at least one of these field groups"):
         model.model_validate({"account": "acct_1", "proposal_id": "prop_1"})
+
+
+_ONE_OF_REQUIRED_GROUP_SCHEMA = {
+    "title": "Budget Plan",
+    "type": "object",
+    "properties": {
+        "packages": {"type": "array"},
+        "proposal_id": {"type": "string"},
+    },
+    "oneOf": [
+        {"required": ["packages"], "not": {"required": ["proposal_id"]}},
+        {"required": ["proposal_id"], "not": {"required": ["packages"]}},
+    ],
+}
+
+_ONE_OF_REQUIRED_GROUP_MODULE = (
+    "from __future__ import annotations\n\n"
+    "from pydantic import BaseModel\n\n\n"
+    "class BudgetPlan(BaseModel):\n"
+    "    packages: list[str] | None = None\n"
+    "    proposal_id: str | None = None\n"
+)
+
+
+@pytest.mark.parametrize(
+    "schema,module_source,keyword",
+    [
+        (_REQUIRED_GROUP_SCHEMA, _REQUIRED_GROUP_MODULE, "anyOf"),
+        (_ONE_OF_REQUIRED_GROUP_SCHEMA, _ONE_OF_REQUIRED_GROUP_MODULE, "oneOf"),
+    ],
+    ids=["anyOf", "oneOf"],
+)
+def test_root_required_group_refusal_names_the_root_combinator(
+    tmp_path, monkeypatch, schema, module_source, keyword
+):
+    """The refused payload reports the schema keyword, not ``value_error``.
+
+    ``core/error.json`` requires every ``issues[]`` entry to carry a ``keyword``
+    "drawn from the JSON Schema vocabulary". A bare ``ValueError`` reaches the
+    consumer as pydantic's ``value_error``, which names no keyword, so an
+    envelope builder has to drop the issue and the buyer is refused with no
+    structured reason. The keyword comes from the root combinator the groups
+    were read out of — the message text does not distinguish the two.
+    """
+    from pydantic import ValidationError
+
+    target = _write_required_group_fixture(tmp_path, monkeypatch, schema, module_source)
+    fixed = target.read_text()
+
+    assert "from pydantic_core import PydanticCustomError" in fixed
+    assert f"raise PydanticCustomError(\n            {keyword!r}," in fixed
+
+    namespace: dict[str, object] = {}
+    exec(compile(fixed, str(target), "exec"), namespace)  # noqa: S102
+    model = namespace["BudgetPlan"]
+
+    payload = {"account": "acct_1"} if "account" in schema["properties"] else {}
+    with pytest.raises(ValidationError) as refusal:
+        model.model_validate(payload)
+    errors = [error for error in refusal.value.errors() if error["type"] == keyword]
+    assert len(errors) == 1, refusal.value.errors()
+    assert "at least one of these field groups" in errors[0]["msg"]
+
+    # The conforming document still validates: only the error type changed.
+    accepted = {**payload, "packages": ["pkg_1"]}
+    assert model.model_validate(accepted).packages == ["pkg_1"]
+
+
+def test_every_root_required_group_refusal_names_its_own_schema_combinator():
+    """Over the committed tree, not a fixture: each keyword matches its schema.
+
+    The keyword is derived, so a derivation that matched nothing would pass
+    silently. The floors below are the anti-vacuity check — both keywords are
+    represented, and ``CreativeAsset``, the ``oneOf`` a consumer reported
+    reaching the wire as ``value_error``, is named outright.
+    """
+    from scripts import post_generate_fixes
+
+    found: dict[str, str] = {}
+    for schema_file in sorted(post_generate_fixes.SCHEMA_DIR.rglob("*.json")):
+        relative = schema_file.relative_to(post_generate_fixes.SCHEMA_DIR)
+        try:
+            schema = json.loads(schema_file.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        if not isinstance(schema, dict):
+            continue
+        declared = post_generate_fixes._root_required_groups(schema)
+        if declared is None:
+            continue
+        module = post_generate_fixes.OUTPUT_DIR.joinpath(
+            *(part.replace("-", "_") for part in relative.with_suffix(".py").parts)
+        )
+        if not module.is_file():
+            continue
+        source = module.read_text()
+        class_name = post_generate_fixes._root_generated_class(source, schema)
+        if class_name is None or "def _require_schema_required_group" not in source:
+            continue
+        keyword = declared[0]
+        assert f"raise PydanticCustomError(\n            {keyword!r}," in source, relative
+        assert "raise ValueError(\n            '" + class_name not in source, relative
+        found[class_name] = keyword
+
+    assert len(found) >= 42, found
+    assert set(found.values()) == {"anyOf", "oneOf"}, found
+    assert found["CreativeAsset"] == "oneOf", found
+    assert found["CreateMediaBuyRequest"] == "anyOf", found
+
+
+def test_a_consumer_reads_the_schema_keyword_off_the_refusal():
+    """The obligation, through the public models rather than their source.
+
+    Each case is a document the schema rejects for a reason the schema states
+    with one keyword, and ``e.errors()[0]["type"]`` is where a consumer
+    assembling ``error.issues[]`` reads that keyword. The conforming document
+    beside each one is the other direction: only the error type changed.
+    """
+    from pydantic import ValidationError
+
+    from adcp.types import CreateMediaBuyRequest
+    from adcp.types.domains.core.creative_asset import CreativeAsset
+
+    media_buy = {
+        "account": {"account_id": "acct_test"},
+        "brand": {"domain": "example.com"},
+        "idempotency_key": "0123456789abcdef0123",
+        "start_time": "2026-10-07T00:00:00+00:00",
+        "end_time": "2026-11-05T00:00:00+00:00",
+    }
+    with pytest.raises(ValidationError) as refusal:
+        CreateMediaBuyRequest.model_validate(media_buy)
+    assert [error["type"] for error in refusal.value.errors()] == ["anyOf"]
+    assert CreateMediaBuyRequest.model_validate(
+        {**media_buy, "packages": [{"product_id": "p1", "pricing_option_id": "cpm_usd_fixed"}]}
+    ).packages
+
+    # The generated class, because the public ``adcp.types.CreativeAsset`` is
+    # the canonical refinement that marks ``format_kind`` required outright — so
+    # the ``oneOf`` cannot reach a consumer through that name. It reaches one
+    # through the domain path and through ``adcp.types.legacy``.
+    creative = {
+        "creative_id": "c1",
+        "name": "n",
+        "assets": {"hero": {"asset_type": "text", "content": "hello"}},
+    }
+    with pytest.raises(ValidationError) as refusal:
+        CreativeAsset.model_validate(creative)
+    assert [error["type"] for error in refusal.value.errors()] == ["oneOf"]
+    assert CreativeAsset.model_validate({**creative, "format_kind": "image"}).format_kind == "image"
+
+
+def test_schema_keyword_raise_refuses_a_keyword_outside_the_vocabulary():
+    """``issues[].keyword`` says "do not invent custom values here".
+
+    The membership check is what makes that rule hold at generation time: an
+    invented keyword reaches the wire looking exactly like a real one, and no
+    consumer can tell them apart.
+    """
+    from scripts import post_generate_fixes
+
+    assert "oneOf" in post_generate_fixes.SCHEMA_KEYWORDS
+    with pytest.raises(ValueError, match="not a JSON Schema keyword"):
+        post_generate_fixes.schema_keyword_raise("mutuallyExclusive", "nope")
 
 
 def test_root_required_group_leaves_per_arm_models_alone(tmp_path, monkeypatch):

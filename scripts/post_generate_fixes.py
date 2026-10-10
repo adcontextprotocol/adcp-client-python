@@ -162,6 +162,84 @@ def ensure_pydantic_import(source: str, *names: str) -> str:
     return add_to_import(source, "pydantic", *names)
 
 
+def ensure_pydantic_core_import(source: str, *names: str) -> str:
+    """Add ``names`` to the module's ``from pydantic_core import`` statement.
+
+    datamodel-code-generator never imports from ``pydantic_core``, so unlike
+    :func:`ensure_pydantic_import` there is usually no statement to extend and
+    one is written ahead of the first class.
+    """
+    if _import_pattern("pydantic_core").search(source) is not None:
+        return add_to_import(source, "pydantic_core", *names)
+    statement = _render_import("pydantic_core", sorted(names), False)
+    source, replaced = re.subn(
+        r"^class ", statement + "\n\n\nclass ", source, count=1, flags=re.MULTILINE
+    )
+    if replaced != 1:
+        raise RuntimeError(f"no class to place {statement!r} ahead of")
+    return source
+
+
+#: The JSON Schema keywords an injected runtime check may name.
+#:
+#: ``core/error.json`` requires every ``issues[]`` entry to carry a ``keyword``
+#: "drawn from the JSON Schema vocabulary" and says not to invent values there,
+#: so a check names the keyword of the construct it restores and nothing else.
+#: Membership is checked rather than documented because an invented keyword
+#: reaches the wire looking exactly like a real one.
+SCHEMA_KEYWORDS = frozenset(
+    {
+        "allOf",
+        "anyOf",
+        "const",
+        "contains",
+        "dependentRequired",
+        "else",
+        "enum",
+        "format",
+        "if",
+        "maxItems",
+        "maxLength",
+        "maximum",
+        "minItems",
+        "minLength",
+        "minimum",
+        "not",
+        "oneOf",
+        "pattern",
+        "propertyNames",
+        "required",
+        "then",
+        "type",
+        "uniqueItems",
+    }
+)
+
+
+def schema_keyword_raise(keyword: str, message: str, *, indent: str = " " * 8) -> str:
+    """Render the ``raise`` statement an injected runtime check refuses with.
+
+    ``PydanticCustomError`` sets pydantic's error ``type`` to its first argument
+    and keeps the message verbatim, so ``e.errors()[0]["type"]`` is the schema
+    keyword that rejected the payload — which is what a consumer needs for
+    ``error.issues[].keyword``. A bare ``ValueError`` becomes ``value_error``,
+    which names no keyword, and a consumer assembling a conformant envelope then
+    has to drop the issue and refuse the buyer with no structured reason.
+
+    The caller passes the keyword the SCHEMA states, never one read off the
+    message: the English is written for a human and two different keywords can
+    share a phrasing.
+    """
+    if keyword not in SCHEMA_KEYWORDS:
+        raise ValueError(f"{keyword!r} is not a JSON Schema keyword an issue may name")
+    return (
+        f"{indent}raise PydanticCustomError(\n"
+        f"{indent}    {keyword!r},\n"
+        f"{indent}    {message!r},\n"
+        f"{indent})"
+    )
+
+
 _VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
 _BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())
 
@@ -6283,12 +6361,24 @@ def fix_list_creatives_format_reference_xor() -> None:
     datamodel-code-generator preserves the required fields but drops the
     opposing ``not`` constraints, so add runtime validators to the generated
     branch models.
+
+    All three refusals name ``oneOf``: that is the combinator the record's
+    schema states, and a document satisfying no arm — or both — failed it.
+    ``not`` is the arm-internal clause that makes the arms disjoint, not the
+    keyword the record was rejected by.
     """
 
     target = OUTPUT_DIR / "creative" / "list_creatives_response.py"
     if not target.exists():
         print("  creative/list_creatives_response.py: not found (skipping)")
         return
+
+    xor_refusal = schema_keyword_raise(
+        "oneOf", "exactly one of format_id and format_kind is required", indent=" " * 12
+    )
+    exclusive_refusal = schema_keyword_raise(
+        "oneOf", "format_id and format_kind are mutually exclusive", indent=" " * 12
+    )
 
     source = target.read_text()
     if "class Creative(AdCPBaseModel):" in source and "class Creatives(" not in source:
@@ -6297,12 +6387,13 @@ def fix_list_creatives_format_reference_xor() -> None:
             return
 
         source = ensure_pydantic_import(source, "model_validator")
-        merged_validator = """
+        source = ensure_pydantic_core_import(source, "PydanticCustomError")
+        merged_validator = f"""
 
     @model_validator(mode='after')
     def _validate_format_reference_xor(self) -> Creative:
         if (self.format_id is None) == (self.format_kind is None):
-            raise ValueError('exactly one of format_id and format_kind is required')
+{xor_refusal}
         return self
 
 
@@ -6321,21 +6412,22 @@ Creatives1 = Creative
         return
 
     source = ensure_pydantic_import(source, "model_validator")
+    source = ensure_pydantic_core_import(source, "PydanticCustomError")
 
-    legacy_validator = """
+    legacy_validator = f"""
 
     @model_validator(mode='after')
     def _reject_canonical_format_ref(self) -> Creatives:
         if self.format_kind is not None:
-            raise ValueError('format_id and format_kind are mutually exclusive')
+{exclusive_refusal}
         return self
 """
-    canonical_validator = """
+    canonical_validator = f"""
 
     @model_validator(mode='after')
     def _reject_legacy_format_ref(self) -> Creatives1:
         if self.format_id is not None:
-            raise ValueError('format_id and format_kind are mutually exclusive')
+{exclusive_refusal}
         return self
 """
 
@@ -7026,13 +7118,19 @@ _REQUIRED_GROUP_VALIDATOR = "_require_schema_required_group"
 _FIELDLESS_GENERATED_BASES = {"AdCPBaseModel", "BaseModel", "RootModel"}
 
 
-def _root_required_groups(schema: dict) -> tuple[tuple[str, ...], ...] | None:
-    """Return the required-field groups a schema root declares.
+def _root_required_groups(schema: dict) -> tuple[str, tuple[tuple[str, ...], ...]] | None:
+    """Return the combinator a schema root declares and its required-field groups.
 
     A root ``anyOf``/``oneOf`` whose every arm carries ``required`` states which
     combinations of fields a document may omit. Arms also carry discriminating
     ``properties`` and ``not`` clauses; those narrow an arm further and are not
     part of its group.
+
+    The combinator comes back with the groups because it is the JSON Schema
+    keyword the emitted check enforces, and ``core/error.json`` requires every
+    ``issues[]`` entry to name one. Deriving it here is the only place it is
+    known: the message text does not distinguish the two, and a consumer reading
+    a bare ``value_error`` off the wire has nothing to put in ``keyword``.
     """
     for combinator in ("anyOf", "oneOf"):
         arms = schema.get(combinator)
@@ -7046,7 +7144,7 @@ def _root_required_groups(schema: dict) -> tuple[tuple[str, ...], ...] | None:
             if names and names not in groups:
                 groups.append(names)
         if groups:
-            return tuple(groups)
+            return combinator, tuple(groups)
     return None
 
 
@@ -7228,6 +7326,13 @@ def enforce_root_required_groups() -> None:
     distinguished by ``properties`` discriminators and several schemas give two
     arms the same ``required`` set, which no "exactly one required group"
     reading satisfies.
+
+    The refusal names the combinator the groups came from — ``anyOf`` or
+    ``oneOf``, whichever the root declared — so the pydantic error ``type`` is
+    the keyword ``core/error.json`` requires in ``issues[].keyword``. The
+    partial ``oneOf`` enforcement still names ``oneOf``: the document failed the
+    root ``oneOf``, and which of its obligations went unmet is what the message
+    says, not what the keyword says.
     """
     emitted = 0
     already = 0
@@ -7241,9 +7346,10 @@ def enforce_root_required_groups() -> None:
             continue
         if not isinstance(schema, dict):
             continue
-        groups = _root_required_groups(schema)
-        if groups is None:
+        declared = _root_required_groups(schema)
+        if declared is None:
             continue
+        keyword, groups = declared
 
         module_path = relative_path.with_suffix(".py")
         py_path = OUTPUT_DIR.joinpath(*(part.replace("-", "_") for part in module_path.parts))
@@ -7270,6 +7376,10 @@ def enforce_root_required_groups() -> None:
 
         rendered = ", ".join(repr(group) for group in attribute_groups)
         readable = " | ".join("+".join(group) for group in attribute_groups)
+        refusal = schema_keyword_raise(
+            keyword,
+            f"{class_name} requires at least one of these field groups: {readable}",
+        )
         validator = f"""
 
     @model_validator(mode='after')
@@ -7281,12 +7391,13 @@ def enforce_root_required_groups() -> None:
         for group in ({rendered},):
             if all(name in self.model_fields_set for name in group):
                 return self
-        raise ValueError(
-            '{class_name} requires at least one of these field groups: {readable}'
-        )
+        # The refusal names the root combinator the groups came from, so a
+        # consumer reads the keyword off ``e.errors()[0]["type"]``.
+{refusal}
 """
         content = _append_to_class_block(content, class_name, validator)
         content = _ensure_model_validator_import(content)
+        content = ensure_pydantic_core_import(content, "PydanticCustomError")
         py_path.write_text(content)
         emitted += 1
 
