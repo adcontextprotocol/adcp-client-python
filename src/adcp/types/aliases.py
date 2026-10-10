@@ -403,8 +403,9 @@ AssetInstanceType: TypeAlias = Literal[
     "daast_tracker",
 ]
 
-# Use the generated authoring union with its schema-derived cross-field rules.
-from adcp.types._product_format_declaration import ProductFormatDeclaration
+# The public authoring type is a class whose root rules are read from the
+# bundled schema — see canonical_creative.ProductFormatDeclaration.
+from adcp.types.canonical_creative import ProductFormatDeclaration
 from adcp.types.domains.core.assets.pixel_tracker_asset import (
     Method as PixelTrackerMethod,
 )

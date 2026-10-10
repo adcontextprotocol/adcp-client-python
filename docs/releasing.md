@@ -24,15 +24,17 @@ before confirming; the PR title and description alone are not parsed.
 After re-enabling a disabled Release Please workflow, run it once manually on
 `main` to process the current head; subsequent main pushes start it automatically.
 
-Before SDK 9 GA, resolve the public declaration naming in
-[#1401](https://github.com/adcontextprotocol/adcp-client-python/issues/1401).
-`ProductFormatDeclaration` currently aliases the canonical `Format` helper,
-while the schema's discriminated union is exposed as
-`LegacyProductFormatDeclaration`. Simply rebinding the public name to that
-union loses the mutual-exclusion validator for `canonical_formats_only` and
-`v1_format_ref`. The fix must preserve that validation, credential-key
-screening, typed parameter access, and the explicit legacy projection
-boundary. Make any public-name changes during beta and document the migration.
+The public declaration naming in
+[#1401](https://github.com/adcontextprotocol/adcp-client-python/issues/1401) is
+resolved: `ProductFormatDeclaration` is a `Format` subclass that reads the root
+rules of `core/product-format-declaration.json` on every validation. That keeps
+the four things a public-name change had to preserve — the
+`canonical_formats_only`/`v1_format_ref` mutual exclusion, credential-key
+screening, the explicit legacy projection boundary, and a constructible,
+`isinstance`-able type whose `params_as` reaches typed parameters. Typed
+`params` attribute access lives on `LegacyProductFormatDeclaration`, the
+generated branch union. Make any further public-name changes during beta and
+document the migration.
 
 At the reviewed GA exit, remove the three prerelease configuration keys,
 update the release-channel contract test, and select `Release-As: 9.0.0`.

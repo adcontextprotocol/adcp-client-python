@@ -264,3 +264,83 @@ def test_non_digit_port_is_rejected_with_the_spec_code(url: str) -> None:
     with pytest.raises(ValueError) as excinfo:
         canonicalize_authority(url)
     assert getattr(excinfo.value, "code", None) == "request_target_uri_malformed"
+
+
+# ---- step 5: empty path + authority -> "/", whatever the query does ----
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        # The canonicalization.json case, kept here so the no-query rows below
+        # are read against the one spelling the vector set already pins.
+        ("https://seller.example.com?x=1", "https://seller.example.com/?x=1"),
+        # No query at all -- the rows the vector set does not reach.
+        ("https://seller.example.com", "https://seller.example.com/"),
+        ("https://seller.example.com:8443", "https://seller.example.com:8443/"),
+        ("https://[2001:db8::1]", "https://[2001:db8::1]/"),
+        ("http://seller.example.com:80", "http://seller.example.com/"),
+        # Empty query, i.e. a bare trailing "?". Step 5 supplies the slash and
+        # step 7 keeps the "?"; the two rules compose rather than compete.
+        ("https://seller.example.com?", "https://seller.example.com/?"),
+    ],
+    ids=[
+        "query",
+        "no-query",
+        "no-query-port",
+        "no-query-ipv6",
+        "no-query-default-port",
+        "empty-query",
+    ],
+)
+def test_empty_path_with_authority_becomes_slash_regardless_of_query(
+    url: str, expected: str
+) -> None:
+    """Step 5 keys on the path and the authority, never on the query.
+
+    The spec's step 5 reads "If the path is empty AND an authority is present,
+    substitute `/`"; the query appears only inside its illustrative example
+    (`https://host?x=1` -> `https://host/?x=1`). RFC 3986 §6.2.3 is the same --
+    scheme-based normalization gives an authority-bearing hierarchical URI the
+    `/` path whether or not a query follows.
+
+    This was implemented as `if not path and parts.query`, so `https://host`
+    canonicalized to `https://host` and only the queried spelling got its
+    slash. `canonicalization.json` could not catch it: of its 37 cases exactly
+    one has an empty path, and that one carries `?x=1`. The empty-query row is
+    the same gate failing on its own terms -- `https://host?` has a `?` in the
+    raw URL but `urlsplit` reports `query == ""`, so the condition read False
+    and the output was `https://host?`, a path-less URI no RFC 3986 normalizer
+    produces.
+
+    Both consequences are silent until they are not. On the signing path a
+    producer applying step 5 and a comparer skipping it derive different
+    `@target-uri` bytes for one URL, and every signature between them fails
+    verification with nothing in either log naming the cause. Off the signing
+    path the same function is the identifier comparer for `adagents.json`
+    `authorized_agents[].url`, `brand.json` `agents[].url`, TMP
+    `seller_agent.agent_url` and the governance issuer, which is what
+    `test_bare_authority_and_trailing_slash_are_one_identifier` pins.
+    """
+    assert canonicalize_target_uri(url) == expected
+
+
+def test_bare_authority_and_trailing_slash_are_one_identifier() -> None:
+    """`https://host` and `https://host/` are the same URL, so one canonical form.
+
+    Stated as a relationship rather than literals: what matters is that the two
+    spellings converge, not which string they converge on. Before step 5 ran
+    unconditionally they did not, and because this canonicalizer is shared by
+    every URL-identifier surface in the SDK -- not just `@target-uri` -- a
+    publisher who registered an agent as `https://agent.example.com` failed to
+    match a caller arriving as `https://agent.example.com/`, and the rejection
+    named authorization rather than canonicalization.
+    """
+    for bare in (
+        "https://agent.example.com",
+        "https://agent.example.com:8443",
+        "https://[2001:db8::1]",
+    ):
+        assert canonicalize_target_uri(bare) == canonicalize_target_uri(
+            f"{bare}/"
+        ), f"bare authority and trailing slash diverge for {bare!r}"

@@ -12,7 +12,7 @@ pass. The pull requests are linked for the full rationale and measurements.
 | Structural pointer refs resolve to the type they select | #1371 | 47 per-position `RootModel` wrapper names under `adcp.types._generated` |
 | Generated models validate `boolean`/`integer`/`number` strictly | #1375 | Payloads that relied on `"yes"`, `"1"`, `1` coercion |
 | Root-level `anyOf`/`oneOf` required groups are enforced | #1368 | Documents that omit every required group of 42 request/response models, on generated and canonical names alike |
-| Consumer `format_kind` fields preserve open strings | [adcp#7929](https://github.com/adcontextprotocol/adcp/issues/7929) | `x.format_kind is CanonicalFormatKind.y` identity comparisons; the authoring union still requires a known discriminator |
+| Consumer `format_kind` fields preserve open strings | [adcp#7929](https://github.com/adcontextprotocol/adcp/issues/7929) | `x.format_kind is CanonicalFormatKind.y` identity comparisons; `ProductFormatDeclaration` still refuses a kind outside its schema's closed set |
 
 Nothing is removed from `adcp` or `adcp.types`: every name importable before
 is importable after. The additions are `Issue`, `AdcpVersionEnvelope`, seven
@@ -137,27 +137,68 @@ when schemas are regenerated.
 A single-model root such as `CheckGovernanceRequest` keeps
 `model_validate(...)` and can now be subclassed with `extra="forbid"`.
 
-### Product declarations use the authoring union
+### Product declarations are graded against their root schema
 
-`ProductFormatDeclaration` now names the 16 generated, discriminated authoring
-branches from `core/product-format-declaration.json`, with its normative
-cross-field rules enforced. It is no longer an alias for the open `Format`
-model. Validate an authored declaration with the cached helper:
+`ProductFormatDeclaration` is a `Format` subclass that enforces the root rules
+of `core/product-format-declaration.json`: the six cross-field `allOf` clauses
+and the sixteen-branch `format_kind`/`params` `oneOf`, including each branch's
+own schema. It is no longer an alias for the open `Format` model, which
+enforces none of them.
 
 ```python
-from adcp.types import ProductFormatDeclaration, validate_union
+from adcp.types import ProductFormatDeclaration
 
-declaration = validate_union(ProductFormatDeclaration, {
-    "format_kind": "image", "params": {"width": 300, "height": 250},
-})
+declaration = ProductFormatDeclaration(
+    format_kind="image", params={"width": 300, "height": 250}
+)
 ```
 
-The selected branch exposes typed parameters and requires a known discriminator.
-Use `Format(...)` for open consumer parsing, projection helpers and the existing
-`params_as` convenience method. `Format` continues to preserve unknown kind
-strings and parameter fields. `LegacyProductFormatDeclaration` remains available
-as a compatibility spelling for the raw generated union; new authoring code
-should use the current name with its cross-field validation.
+Because it is a class, `ProductFormatDeclaration(...)`,
+`ProductFormatDeclaration.model_validate(...)` and
+`isinstance(x, ProductFormatDeclaration)` all work, and `validate_union` and
+`TypeAdapter` return it. Because it is a `Format`, every projection helper in
+`adcp.canonical_formats` accepts one, and `legacy_format_refs` and `params_as`
+are reachable on it.
+
+`params` is the open bag `Format` declares; read it as a typed model with
+`declaration.params_as(CanonicalFormatImage)`. Use `Format(...)` for open
+consumer parsing of kinds this SDK's pin does not know —
+`ProductFormatDeclaration` refuses a `format_kind` outside the schema's closed
+set, which is the producer-side rule. `LegacyProductFormatDeclaration` names the
+raw generated branch union for code that wants per-branch typed parameters.
+
+#### Validating a declaration and publishing it as a `Format`
+
+`Product.format_options` is `list[Format]`, so a seller converting stored
+declarations into products validates each option strictly and then publishes the
+validated object itself. There is no conversion step: a
+`ProductFormatDeclaration` *is* a `Format`.
+
+```python
+from adcp.types import Product, ProductFormatDeclaration
+
+options = [ProductFormatDeclaration.model_validate(raw) for raw in stored_options]
+product = Product(product_id="p1", format_options=options, ...)
+```
+
+The published element keeps its `ProductFormatDeclaration` type, and the wire
+document carries only the fields the stored option set — no branch defaults are
+added, under `model_dump()`, `exclude_unset=True` or `exclude_none=True` alike:
+
+```python
+product.model_dump(mode="json")["format_options"]
+# [{'format_kind': 'image', 'params': {'width': 300, 'height': 250}}]
+```
+
+Round-tripping holds: `ProductFormatDeclaration.model_validate(...)` on a
+published element re-grades it against the root schema.
+
+One field does not survive, by design. `v1_format_ref` is legacy identity, which
+every canonical boundary model strips from its output — `Format` and
+`ProductFormatDeclaration` both capture it on input and expose it as
+`declaration.legacy_format_refs`, and neither serializes it. Project it
+explicitly with `adcp.canonical_formats.project_declaration_to_v1(declaration)`
+when a legacy peer needs `format_ids`.
 
 ## 3. Pointer refs resolve to the selected type (#1371)
 
@@ -283,8 +324,69 @@ For application models that should reject unknown kinds during construction,
 use the opt-in `CanonicalFormatKindStr` annotation or an
 `AfterValidator(require_canonical_format_kind(vocabulary))`. Nullable and list
 annotations compose normally. See [format-kind validation](canonical-format-kinds-migration.md).
-The product authoring union described above has a fixed set of discriminator
-branches; use open `Format` when consuming a declaration for a future kind.
+`ProductFormatDeclaration`, described above, is the producer-side exception:
+it refuses a `format_kind` outside the closed set its root schema declares,
+and the refusal carries the `oneOf` keyword. Use open `Format` when consuming
+a declaration for a kind this pin does not know.
+
+### What you now own
+
+This is a transfer of responsibility, not a new helper. Before 9.0 a closed
+enum refused an unknown `format_kind` inside the model, so a seller got that
+refusal without asking for it. Now the SDK accepts any string on the way out
+and on the way back, and the seller owns the refusal. **A seller that adds no
+check has silently stopped validating something the library used to validate
+for it** — no error appears, and nothing in a passing test suite says so.
+
+If you emit `format_kind`, the producer-side rule that you MUST NOT mint
+ad-hoc values is now yours to enforce, and `is_canonical_format_kind` is how:
+
+```python
+# at the point you build a declaration, not at the point you serialize it
+if not is_canonical_format_kind(kind, vocabulary=MY_SUPPORTED_KINDS):
+    raise MySellerError(f"{kind} is not a kind this seller publishes")
+```
+
+**`CanonicalFormatKind` is a vocabulary to pass in, not a type to annotate
+with.** It is still exported, still has its sixteen members, and is the
+default `vocabulary` argument. Annotating a model field with the enum is the
+mistake this change exists to undo — it rebuilds the closed enum one layer
+down, and reintroduces the pin-as-ceiling problem described above. Three
+spellings of the same field, as alternatives:
+
+```python
+class MyProduct(BaseModel):
+    format_kind: CanonicalFormatKind      # don't — the field is no longer a str
+    format_kind: str                      # open — accept, then check with your own vocabulary
+    format_kind: CanonicalFormatKindStr   # strict — the opt-in annotation above, still a str
+```
+
+Measured on all three with a kind one version newer than the pin: the enum
+refuses it, `str` retains it, `CanonicalFormatKindStr` refuses it. So if you
+want construction to refuse, reach for `CanonicalFormatKindStr`, not the
+enum — the two differ in what you are left holding, not in strictness. It is
+`Annotated[str, AfterValidator(require_canonical_format_kind())]`, so the
+field stays a `str`, and the vocabulary is a parameter you can replace with
+`require_canonical_format_kind(MY_SUPPORTED_KINDS)` — which is the escape from
+pin-as-ceiling, and the enum annotation offers neither.
+
+**One closed-set rule did not move.** `core/product-format-declaration.json`
+requires a seller to reject a `create_media_buy` targeting a `format_kind`
+that is absent from that product's `format_options[]`, and the SDK still
+enforces it for you:
+
+```python
+from adcp.canonical_formats import (
+    FormatKindNotInClosedSetError,
+    validate_format_kind_in_options,
+)
+
+validate_format_kind_in_options(requested_kind, product.format_options)
+```
+
+That is a per-product obligation about what *this* product accepts, and it is
+unrelated to whether the kind is in the canonical sixteen. Only the
+model-level enum refusal was removed; this one is unchanged.
 
 **What this replaced.** Five pieces of scaffolding existed only to reconcile
 the closed enum with the open requirement, and all five are gone: the

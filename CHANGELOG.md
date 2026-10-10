@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### ⚠ BREAKING CHANGES
+
+* **types:** `ProductFormatDeclaration` is a class again — a `Format` subclass
+  that reads the root rules of `core/product-format-declaration.json` on every
+  validation — rather than an `Annotated` union. Construction,
+  `model_validate`, `isinstance` and the `adcp.canonical_formats` projection
+  helpers all work on it, and `legacy_format_refs` / `params_as` are reachable;
+  `validate_union` and `TypeAdapter` keep working and return the class.
+  `get_args()` no longer yields the 16 generated branches and `params` is the
+  open bag `Format` declares — read typed parameters with
+  `params_as(CanonicalFormatImage)`, or use `LegacyProductFormatDeclaration`
+  for the branch union. Enforcement is wider: the root `oneOf` is evaluated as
+  well as the `allOf`, so each branch's own schema is graded — a declaration
+  such as `{"format_kind": "image", "params": {"width": 300}}` is now refused
+  by `image.json`'s size-mode mutex. Refs #1401.
+
 ### Features
 
 * **auth:** `BearerTokenAuth.resolve_principal` supports sync/async non-bearer
