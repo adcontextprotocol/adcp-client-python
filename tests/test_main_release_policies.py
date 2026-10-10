@@ -447,3 +447,20 @@ def test_native_policy_jobs_are_read_only_pinned_and_run_on_main() -> None:
         }
         assert job["steps"][1]["run"] == f"python3 -m scripts.check_main_policies {command}"
         assert "secrets." not in json.dumps(job)
+
+
+def test_main_ci_cannot_be_superseded_by_a_different_release_commit() -> None:
+    root = Path(__file__).resolve().parent.parent
+    ci = yaml.load((root / ".github/workflows/ci.yml").read_text(), Loader=yaml.BaseLoader)
+    concurrency = ci["concurrency"]
+    assert concurrency["group"] == (
+        "ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}"
+    )
+    assert concurrency["cancel-in-progress"] == "${{ github.event_name == 'pull_request' }}"
+    publisher = yaml.load(
+        (root / ".github/workflows/release-publish.yml").read_text(), Loader=yaml.BaseLoader
+    )
+    gate = publisher["jobs"]["build"]["steps"][1]["run"]
+    assert '--commit "$RELEASE_SHA"' in gate
+    assert '.headSha == $sha and .headBranch == "main"' in gate
+    assert 'git checkout --detach "$RELEASE_SHA"' in gate

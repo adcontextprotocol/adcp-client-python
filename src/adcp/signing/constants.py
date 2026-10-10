@@ -6,6 +6,8 @@ DEFAULT_TAG = "adcp/request-signing/v1"
 WEBHOOK_TAG = "adcp/webhook-signing/v1"
 ADCP_USE_REQUEST = "request-signing"
 ADCP_USE_WEBHOOK = "webhook-signing"
+#: Current request keys and deprecated webhook keys are both valid for webhooks.
+WEBHOOK_ACCEPTED_ADCP_USES: frozenset[str] = frozenset({ADCP_USE_REQUEST, ADCP_USE_WEBHOOK})
 MAX_WINDOW_SECONDS = 300
 DEFAULT_EXPIRES_IN_SECONDS = 300
 DEFAULT_SKEW_SECONDS = 60
@@ -21,5 +23,6 @@ __all__ = [
     "MAX_WINDOW_SECONDS",
     "NONCE_BYTES",
     "SIG_LABEL_DEFAULT",
+    "WEBHOOK_ACCEPTED_ADCP_USES",
     "WEBHOOK_TAG",
 ]

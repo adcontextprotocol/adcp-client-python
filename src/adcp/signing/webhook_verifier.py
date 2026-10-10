@@ -29,11 +29,10 @@ import httpx
 
 from adcp.signing.canonical import _lookup, parse_signature_input_header, split_structured_field
 from adcp.signing.constants import (
-    ADCP_USE_REQUEST,
-    ADCP_USE_WEBHOOK,
     DEFAULT_SKEW_SECONDS,
     MAX_WINDOW_SECONDS,
     SIG_LABEL_DEFAULT,
+    WEBHOOK_ACCEPTED_ADCP_USES,
     WEBHOOK_TAG,
 )
 from adcp.signing.crypto import ALLOWED_ALGS
@@ -176,7 +175,7 @@ def verify_webhook_signature(
         max_window_seconds=options.max_window_seconds,
         label=options.label,
         expected_tag=WEBHOOK_TAG,
-        accepted_adcp_uses=frozenset({ADCP_USE_REQUEST, ADCP_USE_WEBHOOK}),
+        accepted_adcp_uses=WEBHOOK_ACCEPTED_ADCP_USES,
         allowed_algs=options.allowed_algs,
         agent_url=options.sender_url,
         expected_key_origins=(

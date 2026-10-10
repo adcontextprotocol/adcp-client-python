@@ -11,6 +11,7 @@ from importlib.resources import files
 import pytest
 
 from adcp.signing import InMemoryReplayStore, SignatureVerificationError
+from adcp.signing.constants import WEBHOOK_ACCEPTED_ADCP_USES
 from adcp.signing.revocation import RevocationList
 from adcp.webhooks import WebhookVerifyOptions, verify_webhook_signature
 
@@ -81,6 +82,30 @@ def test_protocol_owned_webhook_vector(name):
         assert raised.value.code == expected["error_code"]
         if name.split("/")[1][:3] in {"006", "009", "015", "019", "021"}:
             assert raised.value.step == expected["failed_step"]
+
+
+@pytest.mark.parametrize("purpose", ["request-signing", "webhook-signing", "response-signing"])
+def test_named_webhook_key_purposes_match_actual_verification(purpose):
+    assert WEBHOOK_ACCEPTED_ADCP_USES == frozenset({"request-signing", "webhook-signing"})
+    vector = json.loads(VECTORS.joinpath("positive/001-basic-post.json").read_text())
+    options = vector_options(vector)
+    resolve = options.jwks_resolver
+    options = replace(options, jwks_resolver=lambda kid: {**resolve(kid), "adcp_use": purpose})
+    request = vector["request"]
+    arguments = {
+        "method": request["method"],
+        "url": request["url"],
+        "headers": request["headers"],
+        "body": request["body"].encode(),
+        "options": options,
+    }
+    if purpose in WEBHOOK_ACCEPTED_ADCP_USES:
+        assert verify_webhook_signature(**arguments).label == "sig1"
+    else:
+        with pytest.raises(SignatureVerificationError) as raised:
+            verify_webhook_signature(**arguments)
+        assert raised.value.code == "webhook_signature_key_purpose_invalid"
+        assert raised.value.step == 8
 
 
 @pytest.mark.parametrize(
