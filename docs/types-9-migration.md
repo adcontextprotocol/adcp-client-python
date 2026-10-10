@@ -329,6 +329,65 @@ it refuses a `format_kind` outside the closed set its root schema declares,
 and the refusal carries the `oneOf` keyword. Use open `Format` when consuming
 a declaration for a kind this pin does not know.
 
+### What you now own
+
+This is a transfer of responsibility, not a new helper. Before 9.0 a closed
+enum refused an unknown `format_kind` inside the model, so a seller got that
+refusal without asking for it. Now the SDK accepts any string on the way out
+and on the way back, and the seller owns the refusal. **A seller that adds no
+check has silently stopped validating something the library used to validate
+for it** — no error appears, and nothing in a passing test suite says so.
+
+If you emit `format_kind`, the producer-side rule that you MUST NOT mint
+ad-hoc values is now yours to enforce, and `is_canonical_format_kind` is how:
+
+```python
+# at the point you build a declaration, not at the point you serialize it
+if not is_canonical_format_kind(kind, vocabulary=MY_SUPPORTED_KINDS):
+    raise MySellerError(f"{kind} is not a kind this seller publishes")
+```
+
+**`CanonicalFormatKind` is a vocabulary to pass in, not a type to annotate
+with.** It is still exported, still has its sixteen members, and is the
+default `vocabulary` argument. Annotating a model field with the enum is the
+mistake this change exists to undo — it rebuilds the closed enum one layer
+down, and reintroduces the pin-as-ceiling problem described above. Three
+spellings of the same field, as alternatives:
+
+```python
+class MyProduct(BaseModel):
+    format_kind: CanonicalFormatKind      # don't — the field is no longer a str
+    format_kind: str                      # open — accept, then check with your own vocabulary
+    format_kind: CanonicalFormatKindStr   # strict — the opt-in annotation above, still a str
+```
+
+Measured on all three with a kind one version newer than the pin: the enum
+refuses it, `str` retains it, `CanonicalFormatKindStr` refuses it. So if you
+want construction to refuse, reach for `CanonicalFormatKindStr`, not the
+enum — the two differ in what you are left holding, not in strictness. It is
+`Annotated[str, AfterValidator(require_canonical_format_kind())]`, so the
+field stays a `str`, and the vocabulary is a parameter you can replace with
+`require_canonical_format_kind(MY_SUPPORTED_KINDS)` — which is the escape from
+pin-as-ceiling, and the enum annotation offers neither.
+
+**One closed-set rule did not move.** `core/product-format-declaration.json`
+requires a seller to reject a `create_media_buy` targeting a `format_kind`
+that is absent from that product's `format_options[]`, and the SDK still
+enforces it for you:
+
+```python
+from adcp.canonical_formats import (
+    FormatKindNotInClosedSetError,
+    validate_format_kind_in_options,
+)
+
+validate_format_kind_in_options(requested_kind, product.format_options)
+```
+
+That is a per-product obligation about what *this* product accepts, and it is
+unrelated to whether the kind is in the canonical sixteen. Only the
+model-level enum refusal was removed; this one is unchanged.
+
 **What this replaced.** Five pieces of scaffolding existed only to reconcile
 the closed enum with the open requirement, and all five are gone: the
 `_OpenCanonicalFormatKind` alias in `adcp.types.canonical_creative`, a second
