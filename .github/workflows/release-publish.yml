@@ -22,7 +22,8 @@ jobs:
   build:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 75
+    # Allow the 85-minute main CI lane plus queueing and distribution builds.
+    timeout-minutes: 120
     permissions:
       contents: read
       actions: read
@@ -42,7 +43,7 @@ jobs:
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$RELEASE_SHA"
           git merge-base --is-ancestor "$RELEASE_SHA" HEAD
-          for attempt in {1..130}; do
+          for attempt in {1..220}; do
             if gh run list --workflow CI --event push --commit "$RELEASE_SHA" --json headSha,headBranch,status,conclusion --limit 20 |
               jq -e --arg sha "$RELEASE_SHA" 'any(.[]; .headSha == $sha and .headBranch == "main" and .status == "completed" and .conclusion == "success")'; then
               git checkout --detach "$RELEASE_SHA"
