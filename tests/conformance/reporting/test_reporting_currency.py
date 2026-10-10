@@ -56,6 +56,7 @@ from adcp.reporting.ledger import (
 )
 from adcp.reporting.ledger import ReportingStatusCaller as OwnershipCaller
 from adcp.reporting.ledger.pg import PgReportingLedgerStore
+from adcp.reporting.ledger.producer import recompute_revision_content_sha256
 from adcp.reporting.source import (
     ReportingSourceCapabilitiesV1,
     ReportingSourceExecutorResult,
@@ -318,11 +319,9 @@ async def test_concurrent_accounts_freeze_before_acquisition_and_survive_restart
         )
         assert {row["currency"] for row in rows.rows} == {expected}
         assert dict(restated.control_totals)["spend"] == "0.30"
-        assert restated.revision_content_sha256 == revision_content_sha256(
-            reporting_revision_id=restated.reporting_revision_id,
-            row_count=2,
-            control_totals=restated.control_totals,
-            reporting_rows=rows.rows,
+        assert restated.row_count == 2
+        assert restated.revision_content_sha256 == recompute_revision_content_sha256(
+            restated, rows.rows
         )
         reading = ReportingContentReading(
             reporting_revision_id=restated.reporting_revision_id,

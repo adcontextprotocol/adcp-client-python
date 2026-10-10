@@ -76,13 +76,13 @@ from adcp.reporting.ledger import (  # noqa: E402
     ReportingStatusCaller,
     ReportingStatusHandler,
     derive_period,
-    revision_content_sha256,
 )
 from adcp.reporting.ledger.models import (  # noqa: E402
     first_ordinal_after,
     iso_duration_to_timedelta,
 )
 from adcp.reporting.ledger.pg import PgReportingLedgerStore  # noqa: E402
+from adcp.reporting.ledger.producer import recompute_revision_content_sha256  # noqa: E402
 from adcp.reporting.source import reporting_source_capabilities_sha256_v1  # noqa: E402
 from adcp.types import (  # noqa: E402
     GetReportingStatusRequest,
@@ -426,15 +426,7 @@ async def test_reporting_core_lifecycle(ledger: PgReportingLedgerStore) -> None:
             "spend": "4.80",
         }
     ]
-    assert (
-        revision_content_sha256(
-            reporting_revision_id=revision_id,
-            row_count=len(walked),
-            control_totals=revision.control_totals,
-            reporting_rows=walked,
-        )
-        == revision.revision_content_sha256
-    )
+    assert recompute_revision_content_sha256(revision, walked) == revision.revision_content_sha256
 
     # 6. A genuinely empty period. A zero-row revision is a revision: it
     #    satisfies its obligation exactly like any other.

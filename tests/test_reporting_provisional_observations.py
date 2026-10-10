@@ -596,6 +596,7 @@ async def test_recorded_observation_replay_validates_content_and_keeps_original_
             row_count=revision.row_count,
             control_totals=revision.control_totals,
             reporting_rows=changed_rows,
+            control_total_evidence=revision.managed_control_totals,
         ),
     )
     assert changed_revision.revision_content_sha256 != revision.revision_content_sha256
