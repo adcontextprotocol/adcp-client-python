@@ -333,10 +333,12 @@ a declaration for a kind this pin does not know.
 
 This is a transfer of responsibility, not a new helper. Before 9.0 a closed
 enum refused an unknown `format_kind` inside the model, so a seller got that
-refusal without asking for it. Now the SDK accepts any string on the way out
-and on the way back, and the seller owns the refusal. **A seller that adds no
-check has silently stopped validating something the library used to validate
-for it** — no error appears, and nothing in a passing test suite says so.
+refusal without asking for it. Open `Format` and other consumer models now
+accept any string on the way out and on the way back, so a seller using those
+models owns the refusal. **A seller using an open model without an explicit
+check has stopped validating something the library used to validate for it**.
+The strict `ProductFormatDeclaration` authoring class still enforces its
+schema's closed set, as described above; using that class supplies the check.
 
 If you emit `format_kind`, the producer-side rule that you MUST NOT mint
 ad-hoc values is now yours to enforce, and `is_canonical_format_kind` is how:

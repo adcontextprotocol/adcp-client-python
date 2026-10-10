@@ -224,12 +224,12 @@ pip install adcp
 
 SDK 9 is available as a prerelease. Ordinary installation selects the stable
 SDK 8 release; a stable `adcp==9.0.0` pin becomes available at GA. The release
-tag `9.0.0-beta.2` corresponds to the Python package version `9.0.0b2`.
+tag `9.0.0-beta.3` corresponds to the Python package version `9.0.0b3`.
 
 ```bash
-pip install 'adcp==9.0.0b2'                         # exact beta
-pip install --pre 'adcp>=9.0.0b2,<10'              # latest SDK 9 prerelease
-uv add --prerelease allow 'adcp>=9.0.0b2,<10'       # uv prerelease opt-in
+pip install 'adcp==9.0.0b3'                         # exact beta
+pip install --pre 'adcp>=9.0.0b3,<10'              # latest SDK 9 prerelease
+uv add --prerelease allow 'adcp>=9.0.0b3,<10'       # uv prerelease opt-in
 ```
 
 Read [the SDK 9 migration guide](MIGRATION_v8_to_v9.md) before upgrading.
