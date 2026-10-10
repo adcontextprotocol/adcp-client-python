@@ -122,7 +122,12 @@ def canonicalize_target_uri(url: str) -> str:
     scheme = parts.scheme.lower()
     netloc = _canon_authority(parts.netloc, scheme)
     path = _normalize_path(parts.path)
-    if not path and parts.query:
+    if not path:
+        # Step 5: an empty path with an authority present canonicalizes to "/"
+        # (RFC 3986 §6.2.3). The condition is the path and the authority, never
+        # the query: `https://host` takes the slash exactly as `https://host?x=1`
+        # does. `_canon_authority` above has already rejected an authority with
+        # no host, so reaching this line guarantees one is present.
         path = "/"
     # RFC 9421 §2.2.2 + RFC 7230 §5.5: effective request URI excludes the
     # fragment (client-local, never sent on wire).

@@ -314,6 +314,33 @@ Ordering is different — the old kid must stop being trusted *before* anything 
 - [ ] Redirect-following is disabled on every signing client.
 - [ ] Clock sync monitoring is in place on signer and verifier hosts.
 
+## 6. Upgrading across the empty-path canonicalization fix
+
+`canonicalize_target_uri` substitutes `/` for an empty path whenever an authority is present, which is what step 5 of the [AdCP URL-canonicalization algorithm](https://github.com/adcontextprotocol/adcp/blob/main/docs/reference/url-canonicalization.mdx) and RFC 3986 §6.2.3 require. Earlier releases applied the substitution only when the URL also carried a query string, so an empty path kept its emptiness unless a `?x=1` followed it:
+
+| URL dialled | Earlier releases | This release |
+| --- | --- | --- |
+| `https://seller.example.com` | `https://seller.example.com` | `https://seller.example.com/` |
+| `https://seller.example.com:8443` | `https://seller.example.com:8443` | `https://seller.example.com:8443/` |
+| `https://[2001:db8::1]` | `https://[2001:db8::1]` | `https://[2001:db8::1]/` |
+| `http://seller.example.com:80` | `http://seller.example.com` | `http://seller.example.com/` |
+| `https://seller.example.com?` | `https://seller.example.com?` | `https://seller.example.com/?` |
+
+A URL with any non-empty path, and `https://seller.example.com?x=1`, canonicalize exactly as they did before.
+
+### On the signing path
+
+`@target-uri` is part of the signature base, so for the URLs above the signed bytes change. A signer on this release and a verifier on an earlier one — or the reverse — derive different bases for the same request, and verification fails with `request_signature_invalid`. Nothing in that error names canonicalization, so sequence the upgrade rather than diagnosing it afterwards.
+
+Two ways across:
+
+- **Dial the explicit root path.** `https://seller.example.com/` canonicalizes to `https://seller.example.com/` on every release, before and after this change. Point signed clients at the URL with its path spelled out and both versions derive the same base, so signer and verifier upgrade independently and in any order. Worth making permanent: an agent URL registered with its path never depended on the fix.
+- **Upgrade both ends together.** For an agent URL you cannot respell, move its signer and its verifier in one window the way you would a key rotation, or hold the affected operation at `warn_for` (§2, step B) across the window so a base mismatch logs instead of rejecting.
+
+### Off the signing path
+
+The same function is the identifier comparer for `adagents.json` `authorized_agents[].url`, `brand.json` `agents[].url`, TMP `seller_agent.agent_url`, `format-id.agent_url` and the governance issuer. There the change is strictly more permissive: `https://agent.example.com` and `https://agent.example.com/` now compare equal, where before a publisher who registered the first did not match a caller who arrived as the second, and the refusal named authorization rather than canonicalization. No registration needs editing, and no pair that matched before stops matching.
+
 ## Related
 
 - [`adcp.signing.install_signing_event_hook`](../src/adcp/signing/client.py) — buyer-side preset for adapters not using `ADCPClient`.
