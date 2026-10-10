@@ -10,6 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@adcp/sdk": "14.0.0-rc.44"
+    "@adcp/sdk": "14.4.0"
   }
 }
