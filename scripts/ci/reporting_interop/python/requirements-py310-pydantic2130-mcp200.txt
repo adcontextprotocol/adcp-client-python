@@ -38,7 +38,7 @@ pyasn1-modules==0.4.2
 pycparser==3.0
 pydantic==2.13.0
 pydantic-core==2.46.0
-pyjwt==2.14.0
+pyjwt==2.15.0
 python-multipart==0.0.32
 referencing==0.37.0
 requests==2.34.2
