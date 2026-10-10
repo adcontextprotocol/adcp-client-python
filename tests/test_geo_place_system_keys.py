@@ -163,7 +163,18 @@ def test_registered_enum_keys_become_plain_strings(
 
 @pytest.mark.parametrize("model,field,value", _MODELS)
 @pytest.mark.parametrize(
-    "system", ["http://seller.example/places", "ftp://seller.example", "unknown", "", "https://"]
+    "system",
+    [
+        "http://seller.example/places",
+        "ftp://seller.example",
+        "unknown",
+        "",
+        "https://",
+        "HTTPS://seller.example/places",
+        "Https://seller.example/places",
+        " https://seller.example/places",
+        "https:\\seller.example/places",
+    ],
 )
 @pytest.mark.parametrize("from_json", [False, True], ids=["python", "json"])
 def test_invalid_system_keys_raise_validation_errors(
