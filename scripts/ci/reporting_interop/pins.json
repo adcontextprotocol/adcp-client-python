@@ -76,14 +76,14 @@
           "pydantic": "2.13.0",
           "mcp": "2.0.0",
           "lock": "scripts/ci/reporting_interop/python/requirements-py310-pydantic2130-mcp200.txt",
-          "lock_sha256": "83d81a1b400c33aa6536bc2002f11656b7a7b4dc88db37eda5faa7da7a85599f"
+          "lock_sha256": "1743ff76e33d8685bf28ad7ccb87215cbf4b747b40233042086bac22f8fb155f"
         },
         {
           "python": "3.10.21",
           "pydantic": "2.13.5",
           "mcp": "2.2.0",
           "lock": "scripts/ci/reporting_interop/python/requirements-py310-pydantic2135-mcp220.txt",
-          "lock_sha256": "1e6d45d094fd24b61e749ed0d658ed1d9f6a5e54e7977bc8cbefe3fcabeccb69"
+          "lock_sha256": "9dee0bf386a831a4fd30717bf0dd4de54894db3c7e935cbf031c6108d88e002b"
         }
       ],
       "protocol": "3.2.0-rc.7",
