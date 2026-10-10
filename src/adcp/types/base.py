@@ -29,6 +29,7 @@ from pydantic import (
 from pydantic_core import PydanticSerializationError
 
 from adcp._deferred_adapters import deferred_adapter
+from adcp.types._geo_place_keys import GeoPlaceSystemKey as GeoPlaceSystemKey
 from adcp.types._scalar import as_json_schema_integer
 
 if TYPE_CHECKING:
