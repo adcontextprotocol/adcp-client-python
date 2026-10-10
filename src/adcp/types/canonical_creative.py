@@ -38,10 +38,13 @@ validator. The producer-side MUST is a seller's obligation; this library gives
 it the vocabulary and :func:`is_canonical_format_kind` to meet it, and leaves
 the decision where the knowledge is.
 
-The explicit ``ProductFormatDeclaration`` authoring union selects one of the
-sixteen generated branches and enforces the schema's root cross-field rules.
-Use ``Format`` to parse consumer declarations with future kinds, and the
-opt-in ``CanonicalFormatKindStr`` annotation to restrict an adopter boundary.
+The ``ProductFormatDeclaration`` authoring class is a ``Format`` narrowed by
+the root rules of ``core/product-format-declaration.json`` — the six
+cross-field ``allOf`` clauses and the sixteen-branch ``format_kind``/``params``
+``oneOf``, both read from the bundled schema. Use ``Format`` to parse consumer
+declarations with future kinds, ``LegacyProductFormatDeclaration`` for the
+generated branch union, and the opt-in ``CanonicalFormatKindStr`` annotation to
+restrict an adopter boundary.
 
 So the vocabulary is not discarded, it is **relocated**:
 :class:`CanonicalFormatKind` stays a first-class export, used for comparison
@@ -90,7 +93,10 @@ from pydantic import (
 from pydantic.json_schema import GenerateJsonSchema
 from pydantic_core import CoreSchema
 
-from adcp.types._product_format_declaration import ProductFormatDeclaration
+from adcp.types._product_format_declaration import (
+    PRODUCT_FORMAT_DECLARATION_SCHEMA,
+    check_declaration_rules,
+)
 from adcp.types.base import AdCPBaseModel
 from adcp.types.domains.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.domains.core.creative_asset import CreativeAsset as _CanonicalCreativeWire
@@ -482,9 +488,13 @@ def _serialize_canonical_model(
 ) -> Any:
     """Enforce the boundary for nested and TypeAdapter serialization too."""
 
+    # ``self`` is whatever pydantic is serializing at this position, which is not
+    # always a model: a field annotated with a canonical model can hold a plain
+    # dict (a mismatched value pydantic serializes with a warning). Read the
+    # capability off the type defensively, because ``dict`` does not carry it.
     return strip_legacy_creative_identity(
         handler(self),
-        _format_scope=self.__class__.__name__ == "Format",
+        _format_scope=getattr(type(self), "__adcp_format_declaration_scope__", False),
     )
 
 
@@ -515,6 +525,13 @@ class CanonicalBoundaryModel(AdCPBaseModel):
 
     model_config = ConfigDict(extra="allow", defer_build=True)
     __adcp_canonical_creative_model__: ClassVar[bool] = True
+
+    # Whether this model is a format declaration, and so may carry a root
+    # ``v1_format_ref`` and owns the format-scoped legacy-identity strip. It is
+    # a declared, INHERITED capability rather than a ``cls.__name__ ==
+    # "Format"`` comparison, which no subclass of ``Format`` could satisfy —
+    # a subclass would silently lose both behaviours.
+    __adcp_format_declaration_scope__: ClassVar[bool] = False
 
     _serialize_canonical = model_serializer(mode="wrap")(_serialize_canonical_model)
 
@@ -552,8 +569,8 @@ class CanonicalBoundaryModel(AdCPBaseModel):
     def _reject_legacy_creative_identity(cls, value: Any) -> Any:
         found = _legacy_creative_identity_path(
             value,
-            allow_root_v1_ref=cls.__name__ == "Format",
-            format_scope=cls.__name__ == "Format",
+            allow_root_v1_ref=cls.__adcp_format_declaration_scope__,
+            format_scope=cls.__adcp_format_declaration_scope__,
         )
         if found is not None:
             raise ValueError(
@@ -565,7 +582,7 @@ class CanonicalBoundaryModel(AdCPBaseModel):
         kwargs.setdefault("serialize_as_any", False)
         stripped: dict[str, Any] = strip_legacy_creative_identity(
             super().model_dump(**kwargs),
-            _format_scope=self.__class__.__name__ == "Format",
+            _format_scope=type(self).__adcp_format_declaration_scope__,
         )
         return stripped
 
@@ -574,7 +591,7 @@ class CanonicalBoundaryModel(AdCPBaseModel):
         raw = super().model_dump_json(**kwargs)
         clean = strip_legacy_creative_identity(
             json.loads(raw),
-            _format_scope=self.__class__.__name__ == "Format",
+            _format_scope=type(self).__adcp_format_declaration_scope__,
         )
         indent = kwargs.get("indent")
         return json.dumps(
@@ -636,6 +653,14 @@ CanonicalPricingOption = Annotated[
 class Format(CanonicalBoundaryModel):
     """Canonical format declaration exposed as ``adcp.Format``."""
 
+    __adcp_format_declaration_scope__: ClassVar[bool] = True
+
+    # Set by a subclass that enforces a bundled root schema. ``None`` keeps the
+    # permissive reader behaviour every other ``Format`` consumer relies on;
+    # naming a schema makes the root rules authoritative, which includes the
+    # ``allOf`` clause forbidding ``capability_id`` outright.
+    _root_schema_name: ClassVar[str | None] = None
+
     format_option_id: str | None = Field(
         default=None,
         description="Stable option identifier within the product or publisher namespace.",
@@ -686,7 +711,11 @@ class Format(CanonicalBoundaryModel):
 
     def __init__(self, **data: Any) -> None:
         refs = data.get("v1_format_ref")
-        if "capability_id" in data and "format_option_id" not in data:
+        if (
+            "capability_id" in data
+            and "format_option_id" not in data
+            and type(self)._root_schema_name is None
+        ):
             data["format_option_id"] = data.pop("capability_id")
         super().__init__(**data)
         if self.__pydantic_extra__ is not None:
@@ -717,6 +746,36 @@ class Format(CanonicalBoundaryModel):
         elif self.format_shape is not None or self.format_schema is not None:
             raise ValueError("format_shape and format_schema are only valid for custom formats")
         return self
+
+
+class ProductFormatDeclaration(Format):
+    """A product-bound canonical declaration, graded against its root schema.
+
+    The AdCP 3.2 authoring type. It is a :class:`Format` — so every projection
+    entry point in :mod:`adcp.canonical_formats` accepts it, and
+    ``legacy_format_refs`` / ``params_as`` stay reachable — narrowed by the root
+    rules of ``core/product-format-declaration.json``: the six cross-field
+    ``allOf`` clauses and the sixteen-branch ``format_kind``/``params``
+    ``oneOf``. Those are read from the bundled schema on every validation
+    rather than restated here, so the schema stays the only statement of them.
+    """
+
+    # ``revalidate_instances`` stays at its ``"never"`` default deliberately.
+    # Setting ``"always"`` hands this validator a dict of every declared field,
+    # unset ones included as ``None`` — which destroys the presence the root
+    # rules test. ``format_shape: None`` would then read as present and
+    # allOf[2]'s ``else`` branch would refuse every non-custom declaration.
+    # Presence therefore comes from the buyer's own document, or from
+    # ``exclude_unset`` when a model is revalidated across classes.
+    _root_schema_name: ClassVar[str | None] = PRODUCT_FORMAT_DECLARATION_SCHEMA
+
+    @model_validator(mode="before")
+    @classmethod
+    def _enforce_root_schema_rules(cls, data: Any) -> Any:
+        schema_name = cls._root_schema_name
+        if schema_name is None:  # pragma: no cover - set on this class
+            return data
+        return check_declaration_rules(data, schema_name=schema_name)
 
 
 class Placement(_LegacyPlacement, CanonicalBoundaryModel):
