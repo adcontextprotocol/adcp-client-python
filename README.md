@@ -220,6 +220,22 @@ pip install adcp
 
 > **Note**: This client requires Python 3.10 or later and supports both synchronous and asynchronous workflows.
 
+### SDK 9 beta
+
+SDK 9 is available as a prerelease. Ordinary installation selects the stable
+SDK 8 release; a stable `adcp==9.0.0` pin becomes available at GA. The release
+tag `9.0.0-beta.3` corresponds to the Python package version `9.0.0b3`.
+
+```bash
+pip install 'adcp==9.0.0b3'                         # exact beta
+pip install --pre 'adcp>=9.0.0b3,<10'              # latest SDK 9 prerelease
+uv add --prerelease allow 'adcp>=9.0.0b3,<10'       # uv prerelease opt-in
+```
+
+Read [the SDK 9 migration guide](MIGRATION_v8_to_v9.md) before upgrading.
+The package's Production/Stable classifier describes the stable channel;
+SDK 9 betas remain prereleases regardless of that classifier.
+
 ## Quick Start: Test Helpers
 
 The fastest way to get started is using pre-configured test agents with the **`.simple` API**:
@@ -532,6 +548,26 @@ For latency-sensitive cold starts (AWS Lambda, agent tool invocations), warm the
 import adcp.types
 adcp.types.Product  # forces the one-time graph build now, not on the hot path
 ```
+
+Request serialization also discovers nullable paths separately for each task
+and wire version. Warming the generated type graph does not warm that cache.
+Allow startup time before imposing a short first-call deadline. Applications
+that need to warm known task/version pairs can use the internal schema helper
+at startup; its import path is not a public API stability guarantee:
+
+```python
+from adcp._null_clear import nullable_request_paths
+
+nullable_request_paths("get_products", "3.2")
+nullable_request_paths("create_media_buy", "3.2")
+```
+
+Cold discovery has taken about 127–204 ms on a loaded machine, compared with
+about 0.001 ms from the cache; these are measurements, not latency guarantees.
+A deadline that expires before transport dispatch returns `recovery=None`
+because the request was never sent. A timeout after dispatch may need recovery
+because the remote outcome is uncertain. Warming changes startup latency, not
+that distinction.
 
 #### Semantic Type Aliases
 

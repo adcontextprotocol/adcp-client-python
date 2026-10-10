@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import copy
 import json
+import re
 import subprocess
 import urllib.error
 from pathlib import Path
@@ -447,3 +448,43 @@ def test_native_policy_jobs_are_read_only_pinned_and_run_on_main() -> None:
         }
         assert job["steps"][1]["run"] == f"python3 -m scripts.check_main_policies {command}"
         assert "secrets." not in json.dumps(job)
+
+
+def test_main_ci_cannot_be_superseded_by_a_different_release_commit() -> None:
+    root = Path(__file__).resolve().parent.parent
+    ci = yaml.load((root / ".github/workflows/ci.yml").read_text(), Loader=yaml.BaseLoader)
+    concurrency = ci["concurrency"]
+    assert concurrency["group"] == (
+        "ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}"
+    )
+    assert concurrency["cancel-in-progress"] == "${{ github.event_name == 'pull_request' }}"
+    publisher = yaml.load(
+        (root / ".github/workflows/release-publish.yml").read_text(), Loader=yaml.BaseLoader
+    )
+    gate = publisher["jobs"]["build"]["steps"][1]["run"]
+    assert '--commit "$RELEASE_SHA"' in gate
+    assert '.headSha == $sha and .headBranch == "main"' in gate
+    assert 'git checkout --detach "$RELEASE_SHA"' in gate
+
+
+def test_release_wait_and_job_budgets_cover_full_test_steps() -> None:
+    root = Path(__file__).resolve().parent.parent
+    ci = yaml.load((root / ".github/workflows/ci.yml").read_text(), Loader=yaml.BaseLoader)
+    job = ci["jobs"]["test"]
+    budgets = [int(value) for value in re.findall(r"&& (\d+)", job["timeout-minutes"])]
+    steps = {step["name"]: step for step in job["steps"] if "name" in step}
+    coverage_minutes = int(steps["Run canonical suite with coverage"]["timeout-minutes"])
+    full_minutes = int(steps["Run full native suite"]["timeout-minutes"])
+    assert coverage_minutes >= 70
+    assert full_minutes >= 55
+    assert budgets[0] >= coverage_minutes + 15
+    assert budgets[1] >= full_minutes + 15
+    publisher = yaml.load(
+        (root / ".github/workflows/release-publish.yml").read_text(), Loader=yaml.BaseLoader
+    )["jobs"]["build"]
+    gate = publisher["steps"][1]["run"]
+    attempts = int(re.search(r"for attempt in \{1\.\.(\d+)\}", gate)[1])
+    delay = int(re.search(r"sleep (\d+)", gate)[1])
+    wait_minutes = attempts * delay / 60
+    assert wait_minutes >= max(budgets) + 20
+    assert int(publisher["timeout-minutes"]) >= wait_minutes + 10

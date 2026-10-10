@@ -21,6 +21,10 @@ def _https_system_adapter() -> TypeAdapter[AnyUrl]:
 def _validate_geo_system_key(value: str) -> str:
     """Validate the namespace and preserve its exact opaque wire spelling."""
     if value not in _REGISTERED_SYSTEMS:
+        # URL parsing normalizes schemes, but the schema's ^https:// pattern
+        # applies to the original opaque identifier, before any normalization.
+        if not value.startswith("https://"):
+            raise ValueError("geographic place system URLs must start with https://")
         _https_system_adapter().validate_python(value)
     return value
 
