@@ -114,7 +114,6 @@ class ReportingRowObjectProviderV1(Protocol):
 
         Raise ``INVALID_INPUT`` for unknown fields or values that could carry secrets.
         """
-        ...
 
     async def probe(
         self,
@@ -124,7 +123,6 @@ class ReportingRowObjectProviderV1(Protocol):
         credential_ref: str | None = None,
     ) -> None:
         """Fail closed (``UNSAFE_BINDING``) when the destination is unsafe."""
-        ...
 
     async def put_if_absent(
         self, put: ReportingRowObjectPutInputV1, context: ReportingRowObjectContextV1
@@ -134,19 +132,16 @@ class ReportingRowObjectProviderV1(Protocol):
         Returns ``created=True`` with the new native version, or ``created=False``
         with the existing object's version when the key is taken.
         """
-        ...
 
     async def get(
         self, get: ReportingRowObjectGetInputV1, context: ReportingRowObjectContextV1
     ) -> bytes | None:
         """Bytes at the exact native version, or ``None`` when that version is absent."""
-        ...
 
     async def delete(
         self, delete: ReportingRowObjectDeleteInputV1, context: ReportingRowObjectContextV1
     ) -> Literal["deleted", "absent"]:
         """Delete the exact native version. Idempotent: ``absent`` is success."""
-        ...
 
 
 #: Placeholders allowed in object key templates.
@@ -563,19 +558,15 @@ async def run_reporting_row_object_provider_conformance_v1(
         ranged = await provider.get(get(created.native_version, byte_range=(8, 8)), context)
         assert ranged == b'{"b":2}\n', "ranged read returned wrong bytes"
         passed.append("ranged-read")
-    assert (
-        await provider.get(get("not-a-version"), context) is None
-    ), "get returned bytes for a version that does not exist"
+    missing = await provider.get(get("not-a-version"), context)
+    assert missing is None, "get returned bytes for a version that does not exist"
     passed.append("version-pinned-read")
-    assert (
-        await provider.delete(delete("not-a-version"), context) == "absent"
-    ), "delete removed an object at a different version"
-    assert (
-        await provider.delete(delete(created.native_version), context) == "deleted"
-    ), "delete did not remove the exact version"
-    assert (
-        await provider.delete(delete(created.native_version), context) == "absent"
-    ), "repeated delete was not idempotent"
+    outcome = await provider.delete(delete("not-a-version"), context)
+    assert outcome == "absent", "delete removed an object at a different version"
+    outcome = await provider.delete(delete(created.native_version), context)
+    assert outcome == "deleted", "delete did not remove the exact version"
+    outcome = await provider.delete(delete(created.native_version), context)
+    assert outcome == "absent", "repeated delete was not idempotent"
     passed.append("exact-version-delete")
     # A delayed delete of an old version must never remove a later write at the same key,
     # even one with identical bytes: native versions are unique per write, never
@@ -585,13 +576,11 @@ async def run_reporting_row_object_provider_conformance_v1(
     assert (
         recreated.native_version != created.native_version
     ), "re-creating identical bytes produced the same native version; versions must be write-unique"
-    assert (
-        await provider.delete(delete(created.native_version), context) == "absent"
-    ), "delete of a stale version removed or reported a later write"
+    outcome = await provider.delete(delete(created.native_version), context)
+    assert outcome == "absent", "delete of a stale version removed or reported a later write"
     survivor = await provider.get(get(recreated.native_version), context)
     assert survivor == first, "delete of a stale version removed a later write with identical bytes"
-    assert (
-        await provider.delete(delete(recreated.native_version), context) == "deleted"
-    ), "delete did not remove the re-created version"
+    outcome = await provider.delete(delete(recreated.native_version), context)
+    assert outcome == "deleted", "delete did not remove the re-created version"
     passed.append("write-unique-version")
     return passed

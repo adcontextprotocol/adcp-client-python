@@ -78,18 +78,14 @@ async def test_reads_and_deletes_are_pinned_to_the_exact_version(tmp_path: Path)
         CONTEXT,
     )
     stale = created.native_version.replace(":", ":9", 1)
-    assert (
-        await provider.get(
-            ReportingRowObjectGetInputV1(location, "p/ns/b.jsonl", stale, 100), CONTEXT
-        )
-        is None
+    stale_read = await provider.get(
+        ReportingRowObjectGetInputV1(location, "p/ns/b.jsonl", stale, 100), CONTEXT
     )
-    assert (
-        await provider.delete(
-            ReportingRowObjectDeleteInputV1(location, "p/ns/b.jsonl", stale), CONTEXT
-        )
-        == "absent"
+    assert stale_read is None
+    stale_delete = await provider.delete(
+        ReportingRowObjectDeleteInputV1(location, "p/ns/b.jsonl", stale), CONTEXT
     )
+    assert stale_delete == "absent"
     inode, birth, mtime, size = created.native_version.split(":")
     assert int(size) == len(b"bytes\n") and int(inode) > 0 and int(mtime) > 0
 
