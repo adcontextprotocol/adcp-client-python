@@ -204,14 +204,12 @@ async def dump_state(pool: Any, root: Path, row_set_ids: list[str]) -> dict[str,
     return {"row_sets": sets, "row_chunks": chunks, "chunk_bodies": bodies, "objects": objects}
 
 
-async def replay_state(
-    pool: Any, root: Path, state: dict[str, Any], namespace_key: str
-) -> dict[str, str]:
+async def replay_state(pool: Any, root: Path, state: dict[str, Any]) -> dict[str, str]:
     """Load another SDK's recorded row sets into this database and bucket root.
 
     Object native versions are write-unique per filesystem, so each recorded object
-    is re-created in the new bucket and its fresh version recorded. Everything else
-    (manifests, digests, bodies, compressed bytes) is the other SDK's, untouched.
+    is re-created in the new bucket, at the same key, and its fresh version recorded.
+    Everything else (manifests, digests, bodies, compressed bytes) is the other SDK's, untouched.
     Returns the object versions it recorded, by key.
     """
     provider = create_filesystem_reporting_row_object_provider_v1(roots={"reports": root})
@@ -219,7 +217,7 @@ async def replay_state(
     await provider.probe({"root": "reports"}, "adcp-rows", context)
     versions: dict[str, str] = {}
     for key, encoded in state["objects"].items():
-        # Keys embed the writer's namespace key; re-root them under this installation's.
+        # Keys are kept verbatim: reads resolve by the recorded key, never by recomputing it.
         data = base64.b64decode(encoded)
         created = await provider.put_if_absent(
             ReportingRowObjectPutInputV1(

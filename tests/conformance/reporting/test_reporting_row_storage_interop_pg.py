@@ -124,7 +124,7 @@ async def test_rows_written_by_the_other_sdk_verify_here(writer: str, tmp_path: 
     root = tmp_path / "bucket"
     async with isolated_reporting_pool() as pool:
         _, storage = await setup(pool, root)
-        await interop.replay_state(pool, root, recorded["state"], storage.installation_identity[1])
+        await interop.replay_state(pool, root, recorded["state"])
         verified = await interop.python_verify(storage, pool, recorded["expected"])
         assert verified == len(recorded["expected"]) == 12
 
