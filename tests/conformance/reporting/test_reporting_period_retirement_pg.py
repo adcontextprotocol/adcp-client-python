@@ -248,3 +248,25 @@ async def test_a_period_that_stopped_qualifying_is_not_retired(tmp_path: Path) -
             )
         assert await count(pool, "adcp_reporting_period_tombstones") == 0
         assert await count(pool, "reporting_obligations") == 1
+
+
+async def test_a_change_feed_host_without_row_storage_retires_periods() -> None:
+    """``adcp_reporting_row_sets`` exists only with row storage; retirement must not need it."""
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(pool=pool, change_feed=True)
+        await store.create_schema()
+        obligation = await seeded(store)
+        rows = many_rows(10)
+        revision = typed_revision(obligation, rows, suffix="inline")
+        await store.commit_revision(revision, rows)
+        await age(pool, days=500)
+
+        result = await store.retire_expired_periods()
+        assert (result.retired, result.protected, result.failed) == (1, (), ())
+        for table in ("reporting_obligations", "reporting_revisions", "reporting_revision_rows"):
+            assert await count(pool, table) == 0, table
+        assert await fetch_all(
+            pool,
+            "SELECT state, final_revision_id, final_row_manifest_sha256, revision_count"
+            " FROM adcp_reporting_period_tombstones",
+        ) == [("retired", revision.reporting_revision_id, None, 1)]

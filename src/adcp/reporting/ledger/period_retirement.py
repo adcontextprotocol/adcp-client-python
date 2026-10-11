@@ -209,6 +209,48 @@ def _candidate_query(holds: str, *, only: bool) -> str:
     )
 
 
+def _tombstone_insert(has_rows: bool) -> str:
+    """The phase 1 tombstone insert. ``adcp_reporting_row_sets`` exists only with row storage,
+    so a change-feed-only host records no row manifest instead of failing on the missing table."""
+    manifest = (
+        "(SELECT s.row_manifest_sha256 FROM adcp_reporting_row_sets s"
+        " WHERE s.row_set_id = latest.reporting_revision_id)"
+        if has_rows
+        else "NULL::text"
+    )
+    return "".join(
+        (
+            "INSERT INTO adcp_reporting_period_tombstones",
+            " (reporting_obligation_id, account_id, consumer_id, delivery_config_id,",
+            "  delivery_config_version, period_start, period_end, state, final_revision_id,",
+            "  final_content_sha256, final_row_manifest_sha256, revision_count,",
+            "  adjustment_count)",
+            " SELECT o.reporting_obligation_id, o.account_id, o.consumer_id,",
+            "        o.delivery_config_id, o.delivery_config_version, o.period_start,",
+            "        o.period_end, 'retiring', latest.reporting_revision_id,",
+            "        latest.revision_content_sha256, ",
+            manifest,
+            ", (SELECT count(*) FROM reporting_revisions r",
+            "    WHERE r.account_id = o.account_id",
+            "      AND r.reporting_obligation_id = o.reporting_obligation_id),",
+            "  (SELECT count(*) FROM reporting_adjustments a",
+            "    JOIN reporting_revisions ar",
+            "      ON ar.reporting_revision_id = a.adjusts_reporting_revision_id",
+            "   WHERE ar.account_id = o.account_id",
+            "     AND ar.reporting_obligation_id = o.reporting_obligation_id)",
+            " FROM reporting_obligations o LEFT JOIN LATERAL (",
+            "   SELECT r.reporting_revision_id, r.revision_content_sha256",
+            "     FROM reporting_revisions r",
+            "    WHERE r.account_id = o.account_id",
+            "      AND r.reporting_obligation_id = o.reporting_obligation_id",
+            "    ORDER BY (r.finality = 'official') DESC, r.created_at DESC,",
+            "             r.reporting_revision_id DESC LIMIT 1) latest ON TRUE",
+            " WHERE o.reporting_obligation_id = %s AND o.account_id = %s",
+            " ON CONFLICT (reporting_obligation_id) DO NOTHING",
+        )
+    )
+
+
 async def _retire_period(
     store: PgReportingLedgerStore,
     obligation_id: str,
@@ -247,34 +289,7 @@ async def _retire_period(
             ).fetchone()
             if still is None:
                 raise NoLongerEligibleError
-        await connection.execute(
-            "INSERT INTO adcp_reporting_period_tombstones"
-            " (reporting_obligation_id, account_id, consumer_id, delivery_config_id,"
-            "  delivery_config_version, period_start, period_end, state, final_revision_id,"
-            "  final_content_sha256, final_row_manifest_sha256, revision_count, adjustment_count)"
-            " SELECT o.reporting_obligation_id, o.account_id, o.consumer_id, o.delivery_config_id,"
-            "        o.delivery_config_version, o.period_start, o.period_end, 'retiring',"
-            "        latest.reporting_revision_id, latest.revision_content_sha256,"
-            "        (SELECT s.row_manifest_sha256 FROM adcp_reporting_row_sets s"
-            "          WHERE s.row_set_id = latest.reporting_revision_id) AS manifest,"
-            "        (SELECT count(*) FROM reporting_revisions r WHERE r.account_id = o.account_id"
-            "           AND r.reporting_obligation_id = o.reporting_obligation_id),"
-            "        (SELECT count(*) FROM reporting_adjustments a"
-            "           JOIN reporting_revisions ar ON ar.reporting_revision_id ="
-            "                a.adjusts_reporting_revision_id"
-            "          WHERE ar.account_id = o.account_id"
-            "            AND ar.reporting_obligation_id = o.reporting_obligation_id)"
-            " FROM reporting_obligations o LEFT JOIN LATERAL ("
-            "   SELECT r.reporting_revision_id, r.revision_content_sha256"
-            "     FROM reporting_revisions r"
-            "    WHERE r.account_id = o.account_id"
-            "      AND r.reporting_obligation_id = o.reporting_obligation_id"
-            "    ORDER BY (r.finality = 'official') DESC, r.created_at DESC,"
-            "             r.reporting_revision_id DESC LIMIT 1) latest ON TRUE"
-            " WHERE o.reporting_obligation_id = %s AND o.account_id = %s"
-            " ON CONFLICT (reporting_obligation_id) DO NOTHING",
-            (obligation_id, account_id),
-        )
+        await connection.execute(_tombstone_insert(has_rows), (obligation_id, account_id))
         if has_rows:
             from adcp.reporting.ledger.row_retention import mark_period_pruning
 

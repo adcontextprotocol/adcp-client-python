@@ -193,13 +193,19 @@ async def age(pool: Any, *, days: int) -> None:
             (days, days, days, days, days),
         )
         await connection.execute("ALTER TABLE reporting_obligations ENABLE TRIGGER USER")
-        await connection.execute("ALTER TABLE adcp_reporting_row_sets DISABLE TRIGGER USER")
-        await connection.execute(
-            "UPDATE adcp_reporting_row_sets"
-            " SET recorded_at = recorded_at - make_interval(days => %s)",
-            (days,),
-        )
-        await connection.execute("ALTER TABLE adcp_reporting_row_sets ENABLE TRIGGER USER")
+        present = await (
+            await connection.execute(
+                "SELECT to_regclass(quote_ident(current_schema()) || '.adcp_reporting_row_sets')"
+            )
+        ).fetchone()
+        if present is not None and present[0] is not None:  # row storage is optional
+            await connection.execute("ALTER TABLE adcp_reporting_row_sets DISABLE TRIGGER USER")
+            await connection.execute(
+                "UPDATE adcp_reporting_row_sets"
+                " SET recorded_at = recorded_at - make_interval(days => %s)",
+                (days,),
+            )
+            await connection.execute("ALTER TABLE adcp_reporting_row_sets ENABLE TRIGGER USER")
 
 
 async def test_expired_periods_lose_their_row_bytes_in_every_binding(tmp_path: Path) -> None:
