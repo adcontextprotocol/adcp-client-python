@@ -251,8 +251,10 @@ await store.prune_expired_row_sets(limit=20)  # periods past their retention win
 **Intent sweeps** resolve uploads whose ledger commit never happened (a crash, a lost lease, a numbering conflict).
 An expired write intent moves to `sweeping` under the account lock, so no writer can commit against it. Only the
 objects that upload *created* are then deleted, at their recorded native versions. Adopted objects are never recorded
-as created, and any object a committed chunk references is skipped. A sweep that cannot delete (for example because
-the binding is no longer configured) leaves the intent for the next pass.
+as created, and any object a committed chunk references is skipped. A sweep that cannot delete leaves the intent for
+the next pass and reports a stable, secret-free code per failed intent in `causes` (`(row_set_id, code)`), so a
+scheduled sweep that keeps failing is diagnosable. Intents of bindings this host does not configure are not this
+host's to sweep; they are counted in `skipped_unconfigured` and left for the host that does.
 
 **Row pruning** retires one period's row bytes at a time, in an ordered, resumable sequence:
 

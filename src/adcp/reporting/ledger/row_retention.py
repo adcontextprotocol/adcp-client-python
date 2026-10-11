@@ -50,6 +50,10 @@ class ReportingRowIntentSweepV1:
     swept: int
     objects_deleted: int
     failed: int
+    #: Stable, secret-free cause per failed intent: ``(row_set_id, code)``.
+    causes: tuple[tuple[str, str], ...] = ()
+    #: Expired intents of bindings this host does not configure; another host owns them.
+    skipped_unconfigured: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +98,18 @@ async def sweep_row_write_intents(
                 },
             )
         ).fetchall()
+    async with store._pool.connection() as connection:
+        skipped_row = await (
+            await connection.execute(
+                "SELECT count(*) FROM adcp_reporting_row_write_intents"
+                " WHERE (%(account)s::text IS NULL OR account_id = %(account)s)"
+                " AND NOT (row_binding_id = ANY(%(bindings)s::text[]))"
+                " AND (state = 'sweeping' OR expires_at <= clock_timestamp())",
+                {"account": account_id, "bindings": list(storage._bindings)},
+            )
+        ).fetchone()
+    skipped = int(skipped_row[0]) if skipped_row else 0
+    causes: list[tuple[str, str]] = []
     swept = deleted = failed = 0
     for binding_id, owner, row_set_id, content_sha256 in expired:
         key = (binding_id, row_set_id, content_sha256)
@@ -124,9 +140,19 @@ async def sweep_row_write_intents(
                 )
             swept += 1
             deleted += removed
-        except Exception:
+        except Exception as error:
             failed += 1
-    return ReportingRowIntentSweepV1(swept, deleted, failed)
+            causes.append(
+                (
+                    row_set_id,
+                    (
+                        error.code
+                        if isinstance(error, ReportingRowStoreError)
+                        else type(error).__name__
+                    ),
+                )
+            )
+    return ReportingRowIntentSweepV1(swept, deleted, failed, tuple(causes), skipped)
 
 
 def prune_candidate_query(materializer_hold: str, *, only: bool) -> str:

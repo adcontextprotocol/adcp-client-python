@@ -163,6 +163,7 @@ async def test_a_sweep_that_cannot_delete_keeps_the_intent_for_the_next_pass(
         # Intents of bindings this host does not configure are skipped, so they can never
         # starve the intents it can delete.
         assert (result.swept, result.failed) == (0, 0)
+        assert result.skipped_unconfigured == 1
         assert await fetch_all(pool, "SELECT state FROM adcp_reporting_row_write_intents") == [
             ("open",)
         ]
@@ -333,3 +334,27 @@ async def test_retention_requires_row_storage_and_sane_limits() -> None:
                 await store.sweep_row_write_intents(limit=bad)
             with pytest.raises(ValueError):
                 await store.prune_expired_row_sets(limit=bad)
+
+
+async def test_a_failed_sweep_reports_its_stable_cause(tmp_path: Path) -> None:
+    import json
+
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(pool=pool, row_storage=options(tmp_path))
+        await store.create_schema()
+        obligation = await seeded(store)
+        await lease(pool)
+        revision = await staged_revision(store, obligation, "corrupt", many_rows(10))
+        # A corrupted locator outside the installation's owned prefix is never deleted.
+        async with pool.connection() as connection:
+            await connection.execute(
+                "UPDATE adcp_reporting_row_write_intents SET created_objects = %s::jsonb",
+                (json.dumps([{"objectKey": "other/tenant/object", "nativeVersion": "1:2:3:4"}]),),
+            )
+        await expire_intents(pool)
+        result = await store.sweep_row_write_intents()
+        assert (result.swept, result.failed) == (0, 1)
+        assert result.causes == ((revision.reporting_revision_id, "UNSAFE_BINDING"),)
+        assert await fetch_all(pool, "SELECT state FROM adcp_reporting_row_write_intents") == [
+            ("sweeping",)
+        ]
