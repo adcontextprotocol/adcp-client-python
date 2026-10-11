@@ -347,3 +347,8 @@ The current revision is the official revision if one exists, otherwise the snaps
 `list_current_revisions` pages obligations whose period starts in `[period_start_from, period_start_to)` in period order
 and omits obligations without a revision. Its cursor is the format the JavaScript SDK uses. A change-feed consumer
 that receives `CURSOR_EXPIRED` resynchronizes from this read.
+
+`list_current_revisions` pages by `(period_start, reporting_obligation_id)`. Enabling `change_feed` creates
+`reporting_obligations_account_period_idx` to back that order; a host without it can create the same index itself on
+`reporting_obligations (account_id, period_start, reporting_obligation_id)`. A cursor whose position is not a
+timestamp with a zone raises `ValueError`, never a driver error.

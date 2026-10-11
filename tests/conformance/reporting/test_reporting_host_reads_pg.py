@@ -12,7 +12,7 @@ import pytest
 from adcp.reporting.ledger import PgReportingLedgerStore
 
 from ._generation_support import START, configuration, isolated_reporting_pool, obligation_for
-from .test_reporting_row_storage_pg import many_rows, typed_revision
+from .test_reporting_row_storage_pg import fetch_all, many_rows, typed_revision
 
 
 async def obligations(store: PgReportingLedgerStore, count: int) -> list[Any]:
@@ -62,7 +62,7 @@ async def test_the_current_revision_is_the_unsuperseded_snapshot_then_the_offici
 
 async def test_current_revisions_page_by_period_start_with_a_javascript_compatible_cursor() -> None:
     async with isolated_reporting_pool() as pool:
-        store = PgReportingLedgerStore(pool=pool)
+        store = PgReportingLedgerStore(pool=pool, change_feed=True)
         await store.create_schema()
         created = await obligations(store, 5)
         rows = many_rows(1)
@@ -100,3 +100,26 @@ async def test_current_revisions_page_by_period_start_with_a_javascript_compatib
                 await store.list_current_revisions(**window, limit=bad)
         with pytest.raises(ValueError):
             await store.list_current_revisions(**window, cursor="!!")
+
+        def cursor_of(body: object) -> str:
+            return base64.urlsafe_b64encode(json.dumps(body).encode()).rstrip(b"=").decode()
+
+        # Well-formed JSON that is not a usable position fails as a cursor error, never as a
+        # driver error from the timestamp cast.
+        for body in (
+            {"start": "garbage", "id": "x"},
+            {"start": "2026-09-01T00:00:00", "id": "x"},  # no zone
+            {"start": 5, "id": "x"},
+            {"start": "2026-09-01T00:00:00Z", "id": 7},
+            {"id": "x"},
+            ["start", "id"],
+        ):
+            with pytest.raises(ValueError, match="cursor is invalid"):
+                await store.list_current_revisions(**window, cursor=cursor_of(body))
+        # Hosts that enable the change feed get an index on the account's period
+        # starts behind the page order.
+        assert await fetch_all(
+            pool,
+            "SELECT 1 FROM pg_indexes WHERE schemaname = current_schema()"
+            " AND indexname = 'reporting_obligations_account_period_idx'",
+        ) == [(1,)]

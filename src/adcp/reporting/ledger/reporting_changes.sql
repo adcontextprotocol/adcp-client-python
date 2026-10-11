@@ -18,6 +18,12 @@
 
 SELECT pg_advisory_xact_lock(hashtext('adcp.reporting.schema'), hashtext(current_schema()));
 
+-- Backs list_current_revisions: an account's obligations in (period_start, id) order. Kept out of
+-- the base ledger DDL, whose parent catalog objects are pinned; extra indexes are ignored by the
+-- catalog checks.
+CREATE INDEX IF NOT EXISTS reporting_obligations_account_period_idx
+  ON reporting_obligations (account_id, period_start, reporting_obligation_id);
+
 CREATE TABLE IF NOT EXISTS adcp_reporting_changes (
   seq BIGSERIAL PRIMARY KEY,
   xid xid8 NOT NULL DEFAULT pg_current_xact_id(),

@@ -1715,10 +1715,16 @@ class PgReportingLedgerStore:
             try:
                 padded = cursor + "=" * (-len(cursor) % 4)
                 parsed = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")))
-                after = (str(parsed["start"]), str(parsed["id"]))
-                if not isinstance(parsed["start"], str) or not isinstance(parsed["id"], str):
+                start, identity = parsed["start"], parsed["id"]
+                if not isinstance(start, str) or not isinstance(identity, str):
                     raise ValueError("invalid")
-            except (ValueError, KeyError, TypeError, UnicodeError):
+                # A cursor the JavaScript SDK wrote or a corrupted one must fail as a
+                # cursor error here, not as a driver error from the timestamp cast.
+                moment = datetime.fromisoformat(start.replace("Z", "+00:00"))
+                if moment.tzinfo is None:
+                    raise ValueError("invalid")
+                after = (start, identity)
+            except (ValueError, KeyError, TypeError, UnicodeError, AttributeError):
                 raise ValueError("current revisions cursor is invalid") from None
         query = "".join(
             (
