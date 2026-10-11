@@ -6,9 +6,10 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timedelta
-from typing import Annotated, Any, NoReturn, TypeVar
+from typing import Annotated, Any, NoReturn, TypeVar, cast
 
 from pydantic import Field, TypeAdapter, ValidationError
+from typing_extensions import TypeForm
 
 from adcp._deferred_adapters import deferred_adapter
 from adcp.reporting.canonical_json import canonical_json_utf8_v1
@@ -44,7 +45,12 @@ RecordT = TypeVar("RecordT", bound=ReportingDeliveryRecord)
 
 @deferred_adapter
 def _delivery_adapter() -> TypeAdapter[ReportingDeliveryRecord]:
-    return TypeAdapter(Annotated[ReportingDeliveryRecord, Field(discriminator="kind")])
+    return TypeAdapter(
+        cast(
+            TypeForm[ReportingDeliveryRecord],
+            Annotated[ReportingDeliveryRecord, Field(discriminator="kind")],
+        )
+    )
 
 
 _RECEIPTS = (ReportingRevisionReceiptRecord, ReportingAdjustmentReceiptRecord)

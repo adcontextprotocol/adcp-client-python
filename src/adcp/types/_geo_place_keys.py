@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, cast
 
 from pydantic import AfterValidator, AnyUrl, TypeAdapter, UrlConstraints
+from typing_extensions import TypeForm
 
 from adcp._deferred_adapters import deferred_adapter
 
@@ -14,7 +15,10 @@ _REGISTERED_SYSTEMS = frozenset({"geonames", "google_ads", "microsoft_ads"})
 @deferred_adapter
 def _https_system_adapter() -> TypeAdapter[AnyUrl]:
     return TypeAdapter(
-        Annotated[AnyUrl, UrlConstraints(allowed_schemes=["https"], host_required=True)]
+        cast(
+            TypeForm[AnyUrl],
+            Annotated[AnyUrl, UrlConstraints(allowed_schemes=["https"], host_required=True)],
+        )
     )
 
 

@@ -299,6 +299,10 @@ ignore = [
 ]
 
 [tool.mypy]
+enable_incomplete_feature = ["TypeForm"]
+# Mypy 1.20.2 drops is_type_form in its fixed-format cache. The JSON
+# cache preserves Pydantic 2.14 adapter signatures across incremental checks.
+fixed_format_cache = false
 python_version = "3.10"
 strict = true
 warn_return_any = true

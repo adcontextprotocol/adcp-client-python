@@ -21,9 +21,10 @@ Usage:
 from __future__ import annotations
 
 from types import UnionType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import TypeAdapter
+from typing_extensions import TypeForm
 
 from adcp.exceptions import ADCPSimpleAPIError
 from adcp.types import (
@@ -88,7 +89,7 @@ def _get_adapter(tp: type | UnionType) -> TypeAdapter[Any]:
     try:
         return _adapter_cache[tp]
     except KeyError:
-        adapter: TypeAdapter[Any] = TypeAdapter(tp)
+        adapter: TypeAdapter[Any] = TypeAdapter(cast(TypeForm[Any], tp))
         _adapter_cache[tp] = adapter
         return adapter
 
