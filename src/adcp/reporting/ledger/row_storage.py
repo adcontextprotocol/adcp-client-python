@@ -89,11 +89,9 @@ ReportingRowStoreErrorCode = Literal[
 
 DigestProfile = Literal["revision_envelope_v1", "rows_v1"]
 RowSetKind = Literal["revision", "adjustment"]
-RowsState = Literal["live", "pruning", "pruned", "unavailable"]
 
 _DEFAULT_BINDING_ID = "postgres"
 _BINDING_ID_PATTERN = "^[A-Za-z0-9_.:-]{1,128}$"
-_SHA256_HEX = "0123456789abcdef"
 
 
 class ReportingRowStoreError(RuntimeError):

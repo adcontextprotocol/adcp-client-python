@@ -221,3 +221,35 @@ def test_string_subclass_empty_iterator_retains_utf8_error(as_key: bool) -> None
     text = EmptyIteratorString("\ud800")
     with pytest.raises(UnicodeEncodeError, match="surrogates not allowed"):
         canonical_json_utf8_v1({text: 1} if as_key else text)
+
+
+@pytest.mark.parametrize(("name", "value", "expected_hex"), GOLDEN_VECTORS)
+def test_revision_binding_matches_the_retained_profile_on_every_golden_vector(
+    name: str, value: object, expected_hex: str
+) -> None:
+    """Revision digests written under the in-repo profile must re-verify under RFC 8785.
+
+    ``revision_content_sha256`` encodes with ``rfc8785``; retained revisions were hashed
+    with ``canonical_json_utf8_v1``. Any value the old profile accepts must hash the same.
+    """
+    from adcp.reporting.ledger.producer import revision_content_sha256
+
+    row = value if isinstance(value, dict) else {"v": value}
+    for totals in ([], [("rows", "1")]):
+        legacy = canonical_json_sha256_v1(
+            {
+                "reporting_revision_id": "rev_golden",
+                "row_count": 1,
+                "control_totals": [{"name": n, "value": v} for n, v in totals],
+                "reporting_rows": [row],
+            }
+        )
+        assert (
+            revision_content_sha256(
+                reporting_revision_id="rev_golden",
+                row_count=1,
+                control_totals=totals,
+                reporting_rows=[row],
+            )
+            == legacy
+        ), name
