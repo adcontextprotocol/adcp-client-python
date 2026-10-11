@@ -169,7 +169,29 @@ class _S3Provider:
         client, bucket = self._target(location, credential_ref)
         await asyncio.to_thread(self._probe, client, bucket, location.get("region"), prefix)
 
+    @staticmethod
+    def _assert_bounded_transport(client: Any) -> None:
+        """Refuse a client whose socket calls can block forever.
+
+        botocore takes timeouts from the client's ``Config``, not per call, and
+        ``asyncio.wait_for`` cannot stop the worker thread running a hung call, so the call
+        budget is only honoured when the injected client bounds its own connect and read.
+        botocore defaults both to 60 seconds; an explicit ``None`` disables them.
+        """
+        config = getattr(getattr(client, "meta", None), "config", None)
+        if config is None:
+            return
+        for name in ("connect_timeout", "read_timeout"):
+            value = getattr(config, name, None)
+            if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
+                raise ReportingRowStoreError(
+                    "UNSAFE_BINDING",
+                    f"the S3 client has no finite {name}; build it with a botocore Config "
+                    "that sets connect and read timeouts",
+                )
+
     def _probe(self, client: Any, bucket: str, region: str | None, prefix: str) -> None:
+        self._assert_bounded_transport(client)
         try:
             client.head_bucket(Bucket=bucket)
         except Exception as error:

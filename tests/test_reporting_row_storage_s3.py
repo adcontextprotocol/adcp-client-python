@@ -259,3 +259,21 @@ def test_locations_are_closed_and_options_validated(s3: Any) -> None:
     for kwargs in ({}, {"client": object()}, {"clients": {"bad ref": s3}}):
         with pytest.raises(ReportingRowStoreError):
             create_s3_reporting_row_object_provider_v1(**kwargs)
+
+
+async def test_a_client_without_finite_socket_timeouts_is_refused_at_the_probe() -> None:
+    """The call budget cannot stop a worker thread, so the client must bound its own calls."""
+    import boto3
+    from botocore.config import Config
+
+    client = boto3.client(
+        "s3",
+        region_name="us-east-1",
+        aws_access_key_id="test",
+        aws_secret_access_key="test",  # noqa: S106  # nosec B106
+        config=Config(read_timeout=None),
+    )
+    provider = create_s3_reporting_row_object_provider_v1(client=client)
+    with pytest.raises(ReportingRowStoreError) as refused:
+        await provider.probe(LOCATION, "adcp-rows", CONTEXT)
+    assert refused.value.code == "UNSAFE_BINDING" and "read_timeout" in str(refused.value)

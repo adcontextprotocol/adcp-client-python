@@ -62,7 +62,7 @@ class FakeStorage:
         storage = self
 
         class Bucket:
-            def reload(self) -> None:
+            def reload(self, timeout: Any = None) -> None:
                 if name not in storage.buckets:
                     raise exceptions.NotFound("no bucket")
 
@@ -81,7 +81,7 @@ class FakeStorage:
             def blob(self, key: str, generation: int | None = None) -> Any:
                 return Blob(name, key, generation)
 
-            def get_blob(self, key: str) -> Any:
+            def get_blob(self, key: str, timeout: Any = None) -> Any:
                 live = storage.objects.get((name, key))
                 if not live:
                     return None
@@ -120,7 +120,7 @@ class FakeStorage:
                 storage.objects.setdefault((self.bucket, self.key), []).append(version)
                 self.generation = version.generation
 
-            def reload(self) -> None:
+            def reload(self, timeout: Any = None) -> None:
                 version = self._at()
                 if version is None:
                     raise exceptions.NotFound("no object")
@@ -139,7 +139,7 @@ class FakeStorage:
                 end = options.get("end")
                 return version.data[start : None if end is None else end + 1]
 
-            def delete(self) -> None:
+            def delete(self, timeout: Any = None) -> None:
                 storage.calls.append(("delete", {"key": self.key, "generation": self.pinned}))
                 version = self._at()
                 if version is None:
@@ -315,7 +315,7 @@ async def test_the_probe_refuses_missing_and_inaccessible_buckets() -> None:
         def bucket(self, name: str) -> Any:
             bucket = super().bucket(name)
 
-            def reload() -> None:
+            def reload(timeout: Any = None) -> None:
                 raise exceptions.Forbidden("secret-project-name")
 
             bucket.reload = reload
@@ -417,3 +417,36 @@ def test_the_official_client_accepts_every_argument_the_provider_sends() -> None
     iam = storage.bucket.IAMConfiguration
     assert hasattr(iam, "uniform_bucket_level_access_enabled")
     assert hasattr(iam, "public_access_prevention")
+
+
+async def test_probe_and_delete_carry_the_call_budget() -> None:
+    """``wait_for`` cannot stop a worker thread, so every GCS call gets ``timeout=``."""
+    seen: list[tuple[str, Any]] = []
+
+    class Blob:
+        def delete(self, timeout: Any = None) -> None:
+            seen.append(("delete", timeout))
+
+    class Bucket:
+        iam_configuration = SimpleNamespace(
+            uniform_bucket_level_access_enabled=True, public_access_prevention="enforced"
+        )
+        lifecycle_rules: list[dict[str, Any]] = []
+
+        def reload(self, timeout: Any = None) -> None:
+            seen.append(("reload", timeout))
+
+        def blob(self, key: str, generation: int | None = None) -> Any:
+            return Blob()
+
+    class Storage:
+        def bucket(self, name: str) -> Any:
+            return Bucket()
+
+    provider = create_gcs_reporting_row_object_provider_v1(storage=Storage())
+    context = ReportingRowObjectContextV1(4.5)
+    await provider.probe(LOCATION, "adcp-rows", context)
+    await provider.delete(
+        ReportingRowObjectDeleteInputV1(LOCATION, "adcp-rows/ns/x", "123"), context
+    )
+    assert seen == [("reload", 4.5), ("delete", 4.5)]

@@ -57,12 +57,14 @@ class FakeBlobService:
     containers: set[str] = field(default_factory=lambda: {"rows"})
     blobs: dict[tuple[str, str], list[_Version]] = field(default_factory=dict)
     tick: int = 0
+    transport: list[dict[str, Any]] = field(default_factory=list)
 
     def get_container_client(self, name: str) -> Any:
         service = self
 
         class Container:
-            def get_container_properties(self) -> Any:
+            def get_container_properties(self, **transport: Any) -> Any:
+                service.transport.append(transport)
                 if name not in service.containers:
                     raise rest_error(404, "ContainerNotFound")
                 return SimpleNamespace(public_access=service.public_access)
@@ -96,6 +98,7 @@ class FakeBlobService:
                 return current[-1]
 
             def upload_blob(self, data: bytes, **options: Any) -> dict[str, Any]:
+                service.transport.append(options)
                 versions = self._versions()
                 if (
                     options.get("overwrite") is False
@@ -124,7 +127,8 @@ class FakeBlobService:
                     result["version_id"] = version.version_id
                 return result
 
-            def get_blob_properties(self, version_id: str | None = None) -> Any:
+            def get_blob_properties(self, version_id: str | None = None, **transport: Any) -> Any:
+                service.transport.append(transport)
                 version = self._select(version_id)
                 return SimpleNamespace(
                     version_id=version.version_id if service.versioning else None,
@@ -137,7 +141,9 @@ class FakeBlobService:
                 offset: int | None = None,
                 length: int | None = None,
                 version_id: str | None = None,
+                **transport: Any,
             ) -> Any:
+                service.transport.append(transport)
                 version = self._select(version_id)
                 start = offset or 0
                 if start >= len(version.data) and len(version.data) > 0:
@@ -152,6 +158,7 @@ class FakeBlobService:
                 )
 
             def delete_blob(self, version_id: str | None = None, **options: Any) -> None:
+                service.transport.append(options)
                 versions = self._versions()
                 if version_id is None:
                     version = self._select(None)
@@ -176,6 +183,27 @@ def put(key: str, data: bytes = b'{"a":1}\n', **extra: Any) -> ReportingRowObjec
         {"adcp-installation": "inst", "adcp-intent": "intent"},
         **extra,
     )
+
+
+async def test_every_sdk_call_carries_the_call_budget() -> None:
+    """``wait_for`` cannot stop a worker thread, so the budget must reach the transport."""
+    service = FakeBlobService()
+    provider = create_azure_blob_reporting_row_object_provider_v1(client=service)
+    context = ReportingRowObjectContextV1(7.5)
+    await provider.probe(LOCATION, "adcp-rows", context)
+    created = await provider.put_if_absent(put("adcp-rows/ns/b.jsonl"), context)
+    await provider.get(
+        ReportingRowObjectGetInputV1(LOCATION, "adcp-rows/ns/b.jsonl", created.native_version, 100),
+        context,
+    )
+    await provider.delete(
+        ReportingRowObjectDeleteInputV1(LOCATION, "adcp-rows/ns/b.jsonl", created.native_version),
+        context,
+    )
+    assert service.transport
+    for transport in service.transport:
+        assert transport["timeout"] == 8
+        assert transport["connection_timeout"] == 7.5 and transport["read_timeout"] == 7.5
 
 
 async def test_passes_the_shared_provider_conformance_suite() -> None:

@@ -208,6 +208,11 @@ s3 = create_s3_reporting_row_object_provider_v1(client=boto3.client("s3", region
   probe refuses any bucket whose versioning status is not `Enabled`, and a write that returns no `VersionId`.
 - Endpoint, region, credentials and path style come only from the client you inject; `location` accepts just `bucket`
   and an optional `region`, which the probe checks against the client.
+- **Bound the client's own timeouts.** botocore takes timeouts from the client's `Config`, not per call, and the
+  call budget cannot stop a thread already blocked on a socket. The probe therefore refuses a client whose
+  `connect_timeout` or `read_timeout` is `None` or non-positive. botocore's defaults (60 seconds each) pass; set
+  tighter values with `botocore.config.Config(connect_timeout=..., read_timeout=...)`. GCS and Azure carry the budget
+  into each call as `timeout=` instead.
 - S3-compatible stores may ignore `If-None-Match`, so the probe writes a probe key under the binding prefix twice and
   requires the second write to fail with 412, then deletes it. It also refuses missing or inaccessible buckets, a
   bucket policy reported as public, and enabled lifecycle `Expiration` rules that can match the prefix.

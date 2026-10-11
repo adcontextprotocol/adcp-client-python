@@ -20,6 +20,7 @@ its helper types.
 from __future__ import annotations
 
 import asyncio
+import math
 import re
 import uuid
 from collections.abc import Mapping
@@ -48,6 +49,36 @@ _ACCOUNT = re.compile(r"^[a-z0-9]{3,24}$")
 _CONTAINER = re.compile(r"^[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9])){2,62}$")
 # Version IDs are RFC 3339 timestamps.
 _VERSION_ID = re.compile(r"^[0-9A-Za-z:.+-]{1,64}$")
+
+
+class _Budgeted:
+    """Carries the call budget into every Azure SDK call made through a container or blob.
+
+    ``asyncio.wait_for`` cancels the awaiter, not the worker thread, so the budget must reach
+    the transport or a hung call would hold a thread past it. ``timeout`` is the service-side
+    limit in whole seconds; ``connection_timeout`` and ``read_timeout`` bound the socket.
+    """
+
+    __slots__ = ("_target", "_seconds")
+
+    def __init__(self, target: Any, seconds: float) -> None:
+        self._target = target
+        self._seconds = seconds
+
+    def __getattr__(self, name: str) -> Any:
+        attribute = getattr(self._target, name)
+        if name == "get_blob_client":
+            return lambda *args, **kwargs: _Budgeted(attribute(*args, **kwargs), self._seconds)
+        if not callable(attribute):
+            return attribute
+
+        def call(*args: Any, **kwargs: Any) -> Any:
+            kwargs.setdefault("timeout", max(1, math.ceil(self._seconds)))
+            kwargs.setdefault("connection_timeout", self._seconds)
+            kwargs.setdefault("read_timeout", self._seconds)
+            return attribute(*args, **kwargs)
+
+        return call
 
 
 def _status(error: BaseException) -> int | None:
@@ -153,7 +184,7 @@ class _AzureProvider:
         context: ReportingRowObjectContextV1,
         credential_ref: str | None = None,
     ) -> None:
-        container = self._container(location, credential_ref)
+        container = _Budgeted(self._container(location, credential_ref), context.timeout_seconds)
         await asyncio.to_thread(self._probe, container, prefix)
 
     def _probe(self, container: Any, prefix: str) -> None:
@@ -226,7 +257,9 @@ class _AzureProvider:
     async def put_if_absent(
         self, put: ReportingRowObjectPutInputV1, context: ReportingRowObjectContextV1
     ) -> ReportingRowObjectPutResultV1:
-        blob = self._blob(put.location, put.credential_ref, put.key)
+        blob = _Budgeted(
+            self._blob(put.location, put.credential_ref, put.key), context.timeout_seconds
+        )
         return await asyncio.to_thread(self._put, blob, put)
 
     def _put(self, blob: Any, put: ReportingRowObjectPutInputV1) -> ReportingRowObjectPutResultV1:
@@ -245,7 +278,9 @@ class _AzureProvider:
     async def get(
         self, get: ReportingRowObjectGetInputV1, context: ReportingRowObjectContextV1
     ) -> bytes | None:
-        blob = self._blob(get.location, get.credential_ref, get.key)
+        blob = _Budgeted(
+            self._blob(get.location, get.credential_ref, get.key), context.timeout_seconds
+        )
         assert_read_bounds(get)
         version = _pinned(get.native_version)
         if version is None:
@@ -303,7 +338,9 @@ class _AzureProvider:
     async def delete(
         self, delete: ReportingRowObjectDeleteInputV1, context: ReportingRowObjectContextV1
     ) -> Literal["deleted", "absent"]:
-        blob = self._blob(delete.location, delete.credential_ref, delete.key)
+        blob = _Budgeted(
+            self._blob(delete.location, delete.credential_ref, delete.key), context.timeout_seconds
+        )
         version = _pinned(delete.native_version)
         if version is None:
             return "absent"

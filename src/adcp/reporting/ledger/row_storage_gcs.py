@@ -136,12 +136,12 @@ class _GcsProvider:
         credential_ref: str | None = None,
     ) -> None:
         bucket = self._bucket(location, credential_ref)
-        await asyncio.to_thread(self._probe, bucket, prefix)
+        await asyncio.to_thread(self._probe, bucket, prefix, context.timeout_seconds)
 
     @staticmethod
-    def _probe(bucket: Any, prefix: str) -> None:
+    def _probe(bucket: Any, prefix: str, timeout: float) -> None:
         try:
-            bucket.reload()
+            bucket.reload(timeout=timeout)
         except Exception as error:
             code = _status(error)
             if code == 404:
@@ -188,7 +188,7 @@ class _GcsProvider:
                 raise
             # The key is taken. Report the existing generation; the caller adopts it
             # only on identical bytes.
-            existing = bucket.get_blob(put.key)
+            existing = bucket.get_blob(put.key, timeout=timeout)
             if existing is None:
                 raise
             return ReportingRowObjectPutResultV1(False, _generation_of(existing))
@@ -214,7 +214,7 @@ class _GcsProvider:
             if get.byte_range is not None:
                 offset, length = get.byte_range
                 if length == 0:
-                    blob.reload()
+                    blob.reload(timeout=timeout)
                     if offset > int(blob.size or 0):
                         raise ReportingRowStoreError(
                             "ROWS_INTEGRITY_FAILED", "requested range exceeds the stored object"
@@ -263,16 +263,20 @@ class _GcsProvider:
         generation = _pinned_generation(delete.native_version)
         if generation is None:
             return "absent"
-        return await asyncio.to_thread(self._delete, bucket, delete.key, generation)
+        return await asyncio.to_thread(
+            self._delete, bucket, delete.key, generation, context.timeout_seconds
+        )
 
     @staticmethod
-    def _delete(bucket: Any, key: str, generation: int) -> Literal["deleted", "absent"]:
+    def _delete(
+        bucket: Any, key: str, generation: int, timeout: float
+    ) -> Literal["deleted", "absent"]:
         try:
             # The generation is the exact-version precondition: it deletes only the
             # recorded object, live or noncurrent, and answers 404 for any other
             # generation. An extra if_generation_match would strand a recorded
             # noncurrent generation on versioned buckets, so it is not added.
-            bucket.blob(key, generation=generation).delete()
+            bucket.blob(key, generation=generation).delete(timeout=timeout)
             return "deleted"
         except Exception as error:
             if _status(error) in (404, 412):
