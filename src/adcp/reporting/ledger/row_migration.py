@@ -215,13 +215,22 @@ async def retire_legacy_inline_rows(store: PgReportingLedgerStore) -> bool:
     Stop every writer that predates chunked rows first. Their inserts fail once
     the table is renamed, which is the point, but a revision they committed
     between the last migration pass and the rename would block retirement.
+
+    The locks retirement takes are bounded twice: ``lock_timeout`` (15s) for acquiring each
+    and ``statement_timeout`` (30s) for every statement run under them, so a slow count or
+    rename aborts the transaction and releases them instead of stalling readers and
+    commits. The unmigrated count is capped at 1000. A timeout surfaces as the driver's
+    ``LockNotAvailable`` / ``QueryCanceled``; retry in a quieter window.
     """
     async with store._pool.connection() as connection, connection.transaction():
         await connection.execute(
             "SELECT pg_advisory_xact_lock(hashtext('adcp.reporting.schema'),"
             " hashtext(current_schema()))"
         )
+        # Bound both the wait for each lock and how long the locks are held: the count and
+        # the rename run under ACCESS EXCLUSIVE, which blocks inline reads and commits.
         await connection.execute("SET LOCAL lock_timeout = '15s'")
+        await connection.execute("SET LOCAL statement_timeout = '30s'")
         legacy = await (
             await connection.execute(
                 "SELECT to_regclass(quote_ident(current_schema()) || '.reporting_revision_rows'),"
@@ -246,11 +255,12 @@ async def retire_legacy_inline_rows(store: PgReportingLedgerStore) -> bool:
         await connection.execute("LOCK TABLE reporting_revision_rows IN ACCESS EXCLUSIVE MODE")
         remaining = await (
             await connection.execute(
-                "SELECT count(*) FROM reporting_revisions r"
+                "SELECT count(*) FROM (SELECT 1 FROM reporting_revisions r"
                 " WHERE NOT EXISTS (SELECT 1 FROM adcp_reporting_row_sets s"
                 "                    WHERE s.row_set_id = r.reporting_revision_id)"
                 " AND NOT EXISTS (SELECT 1 FROM adcp_reporting_row_quarantine q"
                 "                  WHERE q.reporting_revision_id = r.reporting_revision_id)"
+                " LIMIT 1000) unmigrated"
             )
         ).fetchone()
         if remaining is None or remaining[0]:
