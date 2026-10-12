@@ -46,7 +46,7 @@ class _ExtendedChildWithSerializer(_SpecChild):
 
     @model_serializer(mode="wrap")
     def _serialize(self, handler: Any, info: SerializationInfo) -> dict[str, Any]:
-        result: dict[str, Any] = handler(self, info)
+        result: dict[str, Any] = handler(self)
         result["normalized_by_subclass"] = True
         return result
 

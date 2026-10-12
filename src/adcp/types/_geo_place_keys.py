@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, cast
 
 from pydantic import AfterValidator, AnyUrl, TypeAdapter, UrlConstraints
+from typing_extensions import TypeForm
 
 _REGISTERED_SYSTEMS = frozenset({"geonames", "google_ads", "microsoft_ads"})
 
@@ -13,7 +14,10 @@ _REGISTERED_SYSTEMS = frozenset({"geonames", "google_ads", "microsoft_ads"})
 @lru_cache(maxsize=1)
 def _https_system_adapter() -> TypeAdapter[AnyUrl]:
     return TypeAdapter(
-        Annotated[AnyUrl, UrlConstraints(allowed_schemes=["https"], host_required=True)]
+        cast(
+            TypeForm[AnyUrl],
+            Annotated[AnyUrl, UrlConstraints(allowed_schemes=["https"], host_required=True)],
+        )
     )
 
 

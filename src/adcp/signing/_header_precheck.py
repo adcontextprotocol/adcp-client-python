@@ -10,8 +10,9 @@ The rules are a predicate table rather than an if-chain: the same predicate can
 be reused at another call site that raises a different code at a different step.
 `host_has_raw_non_ascii` is shared with `canonical` for precisely that reason --
 canonicalization rejects a malformed authority as `request_target_uri_malformed`
-at step 6, while a U-label arriving on the wire is `request_signature_header_malformed`
-at step 1. Same rule, two codes, two steps.
+at step 6, and `target_uri_precheck` below applies the same code to a U-label or a
+malformed `Host` arriving on the wire (the 3.2.4 corpus corrected the 3.1 grading of
+`negative/026` from `request_signature_header_malformed`). Same rule, same code.
 
 ## What "raw headers" buys, and where it does not
 
@@ -32,10 +33,12 @@ rule is inert there -- the comma-joined rules below still apply.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 
 from adcp.signing.canonical import (
     TargetUriMalformedError,
+    _malformed_authority_reason,
     _split_or_reject,
     host_has_raw_non_ascii,
     split_structured_field,
@@ -56,6 +59,12 @@ _SINGLE_LINE_SIGNED_HEADERS = frozenset(
 #: `Content-Type` is a singleton by RFC 9110 §8.3, so a comma means two values
 #: were folded together regardless of whether the signature covers it.
 _SINGLE_VALUE_HEADERS = frozenset({"content-type"})
+
+#: RFC 8941 §3.1.2 `key`: a lowercase letter or `*`, then lowercase letters, digits,
+#: and `_ - . *`. An uppercase key is not a case-insensitive synonym of its lowercase
+#: form -- it is not a valid key at all -- so `SHA-256=..., sha-256=...` is two entries,
+#: one of them malformed, and the verifier must not pick one.
+_SF_KEY = re.compile(r"[a-z*][a-z0-9_.*-]*")
 
 
 def strict_header_precheck(
@@ -92,12 +101,48 @@ def strict_header_precheck(
             reason = _duplicate_dictionary_key_reason(value, "Signature-Input")
             if reason is not None:
                 return reason
+        if name == "signature":
+            # RFC 9421 §4.2: `Signature` is a Dictionary keyed by label. A repeated label
+            # is the same smuggling vector as a repeated `Signature-Input` label.
+            reason = _duplicate_dictionary_key_reason(value, "Signature")
+            if reason is not None:
+                return reason
         if name == "content-digest":
-            reason = _duplicate_dictionary_key_reason(value, "Content-Digest")
+            reason = _invalid_dictionary_key_reason(value, "Content-Digest")
+            if reason is None:
+                reason = _duplicate_dictionary_key_reason(value, "Content-Digest")
             if reason is not None:
                 return reason
 
-    return _non_ascii_authority_reason(pairs=pairs, url=url)
+    return None
+
+
+def target_uri_precheck(
+    *,
+    headers: Mapping[str, str],
+    raw_headers: Sequence[tuple[bytes, bytes]] | None,
+    url: str,
+) -> str | None:
+    """Why the request's wire authority cannot be canonicalized, or `None`.
+
+    Unlike `strict_header_precheck`, a hit here is `request_target_uri_malformed`: the
+    defect is in the authority the signature base is derived from, not in a structured
+    field. It still runs before any key lookup, replay-store write, or signature work,
+    so a malformed authority is refused statelessly rather than after consuming a nonce.
+    """
+    pairs = _header_pairs(headers=headers, raw_headers=raw_headers)
+    reason = _non_ascii_authority_reason(pairs=pairs, url=url)
+    if reason is not None:
+        return reason
+    for name, value in pairs:
+        if name == "host":
+            malformed = _malformed_authority_reason(value)
+            if malformed is not None:
+                # `@authority` is derived from the as-received `Host` and canonicalized by the
+                # same algorithm as `@target-uri`; a Host that algorithm rejects (e.g. an
+                # unbracketed IPv6 literal) must not be skipped because the URL alone is clean.
+                return f"the Host header authority is malformed: {malformed}"
+    return None
 
 
 def _header_pairs(
@@ -121,6 +166,21 @@ def _header_pairs(
         except (UnicodeDecodeError, AttributeError):
             continue
     return pairs
+
+
+def _invalid_dictionary_key_reason(value: str, header_name: str) -> str | None:
+    """RFC 8941 §3.1.2: a dictionary key outside the `key` grammar MUST be rejected."""
+    for entry in split_structured_field(value, ","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        key = entry.split("=", 1)[0].strip()
+        if key and not _SF_KEY.fullmatch(key):
+            return (
+                f"{header_name} carries dictionary key {key!r} outside the RFC 8941 §3.1.2 key "
+                "grammar (lowercase only); an uppercase key is not a synonym of its lowercase form"
+            )
+    return None
 
 
 def _duplicate_dictionary_key_reason(value: str, header_name: str) -> str | None:
