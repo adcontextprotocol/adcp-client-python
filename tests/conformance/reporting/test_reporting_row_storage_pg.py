@@ -506,7 +506,9 @@ async def test_the_database_enforces_immutability_and_body_digests() -> None:
                 await connection.execute("UPDATE adcp_reporting_row_sets SET row_count = 99")
         async with pool.connection() as connection:
             with pytest.raises(errors.CheckViolation, match="row chunk content is immutable"):
-                await connection.execute("UPDATE adcp_reporting_row_chunks SET byte_count = 1")
+                await connection.execute(
+                    "UPDATE adcp_reporting_row_chunks SET canonical_size_bytes = 1"
+                )
         async with pool.connection() as connection:
             with pytest.raises(errors.CheckViolation, match="chunk bodies are immutable"):
                 await connection.execute("UPDATE adcp_reporting_chunk_bodies SET body = body")
@@ -521,7 +523,7 @@ async def test_the_database_enforces_immutability_and_body_digests() -> None:
             with pytest.raises(errors.ForeignKeyViolation):
                 await connection.execute(
                     "INSERT INTO adcp_reporting_row_chunks (row_set_id, chunk_index, account_id,"
-                    " obligation_id, first_ordinal, row_count, byte_count, sha256, segments)"
+                    " obligation_id, first_ordinal, row_count, canonical_size_bytes, sha256, segments)"
                     " VALUES (%s, 5, 'acct_other', %s, 0, 1, 3, %s, '[]')",
                     (revision.reporting_revision_id, obligation.reporting_obligation_id, "d" * 64),
                 )

@@ -33,6 +33,8 @@ from adcp.reporting.ledger.row_storage_object import (
     ReportingRowObjectProviderV1,
     ReportingRowObjectPutInputV1,
     ReportingRowObjectPutResultV1,
+    ReportingRowObjectStatInputV1,
+    ReportingRowObjectStatResultV1,
 )
 from adcp.reporting.ledger.row_storage_provider_io import (
     assert_key,
@@ -109,10 +111,10 @@ def _version_of(output: Mapping[str, Any]) -> str:
     return version
 
 
-def _selector(native_version: str) -> str | None:
-    if not isinstance(native_version, str) or native_version == "null":
+def _selector(native_version_ref: str) -> str | None:
+    if not isinstance(native_version_ref, str) or native_version_ref == "null":
         return None
-    return native_version if _VERSION_ID.match(native_version) else None
+    return native_version_ref if _VERSION_ID.match(native_version_ref) else None
 
 
 def _live_expiration_covers(rule: Mapping[str, Any], prefix: str) -> bool:
@@ -330,7 +332,7 @@ class _S3Provider:
         self, put: ReportingRowObjectPutInputV1, context: ReportingRowObjectContextV1
     ) -> ReportingRowObjectPutResultV1:
         client, bucket = self._target(put.location, put.credential_ref)
-        assert_key(put.key)
+        assert_key(put.object_ref)
         return await asyncio.to_thread(self._put, client, bucket, put)
 
     def _put(
@@ -340,7 +342,7 @@ class _S3Provider:
             output = self._put_create_only(
                 client,
                 Bucket=bucket,
-                Key=put.key,
+                Key=put.object_ref,
                 Body=put.data,
                 ContentLength=len(put.data),
                 ContentType=put.content_type,
@@ -353,16 +355,16 @@ class _S3Provider:
                 raise
         # The key is taken. Report the existing version; the caller adopts it only on
         # identical bytes.
-        head = client.head_object(Bucket=bucket, Key=put.key)
+        head = client.head_object(Bucket=bucket, Key=put.object_ref)
         return ReportingRowObjectPutResultV1(False, _version_of(head))
 
     async def get(
         self, get: ReportingRowObjectGetInputV1, context: ReportingRowObjectContextV1
     ) -> bytes | None:
         client, bucket = self._target(get.location, get.credential_ref)
-        assert_key(get.key)
+        assert_key(get.object_ref)
         assert_read_bounds(get)
-        version = _selector(get.native_version)
+        version = _selector(get.native_version_ref)
         if version is None:
             return None
         return await asyncio.to_thread(self._get, client, bucket, get, version)
@@ -373,7 +375,7 @@ class _S3Provider:
     ) -> bytes | None:
         try:
             if get.byte_range is not None and get.byte_range[1] == 0:
-                head = client.head_object(Bucket=bucket, Key=get.key, VersionId=version)
+                head = client.head_object(Bucket=bucket, Key=get.object_ref, VersionId=version)
                 if head.get("VersionId") != version:
                     return None
                 if get.byte_range[0] > int(head.get("ContentLength") or 0):
@@ -381,7 +383,11 @@ class _S3Provider:
                         "ROWS_INTEGRITY_FAILED", "requested range exceeds the stored object"
                     )
                 return b""
-            parameters: dict[str, Any] = {"Bucket": bucket, "Key": get.key, "VersionId": version}
+            parameters: dict[str, Any] = {
+                "Bucket": bucket,
+                "Key": get.object_ref,
+                "VersionId": version,
+            }
             if get.byte_range is not None:
                 offset, length = get.byte_range
                 parameters["Range"] = f"bytes={offset}-{offset + length - 1}"
@@ -420,15 +426,47 @@ class _S3Provider:
                 ) from None
             raise
 
+    async def stat(
+        self, stat: ReportingRowObjectStatInputV1, context: ReportingRowObjectContextV1
+    ) -> ReportingRowObjectStatResultV1 | None:
+        client, bucket = self._target(stat.location, stat.credential_ref)
+        assert_key(stat.object_ref)
+        version = _selector(stat.native_version_ref)
+        if version is None:
+            return None
+        return await asyncio.to_thread(self._stat, client, bucket, stat.object_ref, version)
+
+    @staticmethod
+    def _stat(
+        client: Any, bucket: str, key: str, version: str
+    ) -> ReportingRowObjectStatResultV1 | None:
+        # A VersionId-pinned HEAD: S3 versions are unique per write, and only an echoed exact
+        # version counts (some S3-compatible stores ignore ``VersionId``).
+        try:
+            head = client.head_object(Bucket=bucket, Key=key, VersionId=version)
+        except Exception as error:
+            if _not_found(error) or _precondition_failed(error):
+                return None
+            # 400: malformed or foreign version ID; 405: the version is a delete marker.
+            if _status(error) in (400, 405):
+                return None
+            raise
+        if head.get("VersionId") != version:
+            return None
+        size = head.get("ContentLength")
+        if type(size) is not int or size < 0:
+            raise ReportingRowStoreError("PROVIDER_UNAVAILABLE", "object metadata is malformed")
+        return ReportingRowObjectStatResultV1(version, size)
+
     async def delete(
         self, delete: ReportingRowObjectDeleteInputV1, context: ReportingRowObjectContextV1
     ) -> Literal["deleted", "absent"]:
         client, bucket = self._target(delete.location, delete.credential_ref)
-        assert_key(delete.key)
-        version = _selector(delete.native_version)
+        assert_key(delete.object_ref)
+        version = _selector(delete.native_version_ref)
         if version is None:
             return "absent"
-        return await asyncio.to_thread(self._delete, client, bucket, delete.key, version)
+        return await asyncio.to_thread(self._delete, client, bucket, delete.object_ref, version)
 
     @staticmethod
     def _delete(client: Any, bucket: str, key: str, version: str) -> Literal["deleted", "absent"]:

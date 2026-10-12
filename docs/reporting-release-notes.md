@@ -26,6 +26,18 @@ Reads handle both forms. `migrate_inline_rows` moves legacy rows with verificati
 rows do not reproduce its binding, and `retire_legacy_inline_rows` then renames the legacy table so older binaries fail
 closed. See [row storage](reporting-row-storage.md).
 
+## Row storage field alignment (breaking for row storage adopters)
+
+Row storage stores every value in the format AdCP defines for it, matching the JavaScript SDK byte for byte:
+`object_ref` and `native_version_ref` (1 to 1024 characters), `size_bytes` (stored size), `canonical_size_bytes`,
+`content_size_bytes`, and `format` plus `algorithm` instead of `encoding`; `{period_date}` is the period start's
+calendar date in its `source_timezone` as `YYYY-MM-DD`; and an adopted object is proven by a version-pinned `stat`
+instead of a re-download inside the commit transaction. Every writable object binding's key template must now include
+`{revision_key}` (validated at configuration and readiness); keep an older template as a `read_only=True` binding, which
+stays readable at its recorded `object_ref`. No digest changed. `create_schema` migrates an existing
+database in place and idempotently; stop older writers first. Not affected: the wire, PostgreSQL-kind row storage
+behaviour and anyone who never enabled row storage. See [row storage](reporting-row-storage.md#stored-names-follow-adcp).
+
 ## Caller ownership: breaking API and storage release
 
 Reporting generations now include the authenticated caller: `(account_id,

@@ -28,6 +28,10 @@ from adcp.reporting.ledger.row_storage_object import (
 )
 
 NAMESPACE = "interop"
+#: A zone whose local date differs from UTC, so the object key proves the timezone rule.
+PERIOD_START = "2026-10-01T00:00:00Z"
+SOURCE_TIMEZONE = "America/Los_Angeles"
+PERIOD_DATE = "2026-09-30"
 ACCOUNT = "acct_interop"
 OBLIGATION = "robl_interop"
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
@@ -38,10 +42,11 @@ _ROW_SET_COLUMNS = (
     "row_set_kind",
     "account_id",
     "obligation_id",
-    "encoding",
+    "format",
+    "algorithm",
     "digest_profile",
     "content_sha256",
-    "canonical_byte_count",
+    "content_size_bytes",
     "row_count",
     "row_manifest_sha256",
     "chunk_count",
@@ -117,7 +122,8 @@ async def python_write(storage: ReportingRowStorageV1, pool: Any) -> list[dict[s
                 control_totals=totals,
                 expected_sha256=digest.sha256,
                 finality="snapshot" if kind == "revision" else None,
-                period_start="2026-10-01T00:00:00Z",
+                period_start=PERIOD_START,
+                source_timezone=SOURCE_TIMEZONE,
                 binding_id=binding_id,
             )
             locators = None
@@ -138,7 +144,7 @@ async def python_write(storage: ReportingRowStorageV1, pool: Any) -> list[dict[s
                     "obligation_id": OBLIGATION,
                     "digest_profile": prepared.digest_profile,
                     "content_sha256": digest.sha256,
-                    "canonical_byte_count": digest.byte_count,
+                    "content_size_bytes": digest.byte_count,
                     "control_totals": totals,
                     "rows": vector["rows"],
                 }
@@ -157,7 +163,7 @@ async def python_verify(
             assert handle is not None, item["row_set_id"]
             assert handle.content_sha256 == item["content_sha256"], item["row_set_id"]
             assert handle.digest_profile == item["digest_profile"], item["row_set_id"]
-            assert handle.canonical_byte_count == item["canonical_byte_count"], item["row_set_id"]
+            assert handle.content_size_bytes == item["content_size_bytes"], item["row_set_id"]
             rows = await storage.read_all(connection, handle, control_totals=item["control_totals"])
             assert rows == item["rows"], item["row_set_id"]
             page = await storage.read_page(connection, handle, 0, min(500, len(item["rows"])))
@@ -176,16 +182,17 @@ async def dump_state(pool: Any, root: Path, row_set_ids: list[str]) -> dict[str,
             return [dict(zip(names, row, strict=True)) for row in await cursor.fetchall()]
 
         sets = await rows(
-            "SELECT row_set_id, row_set_kind, account_id, obligation_id, encoding, digest_profile,"
-            " content_sha256, canonical_byte_count, row_count, row_manifest_sha256, chunk_count,"
+            "SELECT row_set_id, row_set_kind, account_id, obligation_id, format, algorithm,"
+            " digest_profile,"
+            " content_sha256, content_size_bytes, row_count, row_manifest_sha256, chunk_count,"
             " row_binding_id, rows_shared_from_row_set_id FROM adcp_reporting_row_sets"
             " WHERE row_set_id = ANY(%s) ORDER BY row_set_id",
             (row_set_ids,),
         )
         chunks = await rows(
             "SELECT row_set_id, chunk_index, account_id, obligation_id, first_ordinal, row_count,"
-            " byte_count, sha256, segments, object_key, compression, physical_sha256,"
-            " physical_byte_count FROM adcp_reporting_row_chunks"
+            " canonical_size_bytes, sha256, segments, object_ref, compression, physical_sha256,"
+            " size_bytes FROM adcp_reporting_row_chunks"
             " WHERE row_set_id = ANY(%s) ORDER BY row_set_id, chunk_index",
             (row_set_ids,),
         )
@@ -197,9 +204,9 @@ async def dump_state(pool: Any, root: Path, row_set_ids: list[str]) -> dict[str,
             (row_set_ids,),
         )
     objects = {
-        chunk["object_key"]: base64.b64encode((root / chunk["object_key"]).read_bytes()).decode()
+        chunk["object_ref"]: base64.b64encode((root / chunk["object_ref"]).read_bytes()).decode()
         for chunk in chunks
-        if chunk["object_key"]
+        if chunk["object_ref"]
     }
     return {"row_sets": sets, "row_chunks": chunks, "chunk_bodies": bodies, "objects": objects}
 
@@ -225,14 +232,15 @@ async def replay_state(pool: Any, root: Path, state: dict[str, Any]) -> dict[str
             ),
             context,
         )
-        versions[key] = created.native_version
+        versions[key] = created.native_version_ref
     async with pool.connection() as connection, connection.transaction():
         for row in state["row_sets"]:
             await connection.execute(
                 "INSERT INTO adcp_reporting_row_sets (row_set_id, row_set_kind, account_id,"
-                " obligation_id, encoding, digest_profile, content_sha256, canonical_byte_count,"
-                " row_count, row_manifest_sha256, chunk_count, row_binding_id,"
-                " rows_shared_from_row_set_id) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                " obligation_id, format, algorithm, digest_profile, content_sha256,"
+                " content_size_bytes, row_count, row_manifest_sha256, chunk_count, row_binding_id,"
+                " rows_shared_from_row_set_id)"
+                " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 tuple(row[name] for name in _ROW_SET_COLUMNS),
             )
         for body in state["chunk_bodies"]:
@@ -244,8 +252,8 @@ async def replay_state(pool: Any, root: Path, state: dict[str, Any]) -> dict[str
         for chunk in state["row_chunks"]:
             await connection.execute(
                 "INSERT INTO adcp_reporting_row_chunks (row_set_id, chunk_index, account_id,"
-                " obligation_id, first_ordinal, row_count, byte_count, sha256, segments,"
-                " object_key, native_version, compression, physical_sha256, physical_byte_count)"
+                " obligation_id, first_ordinal, row_count, canonical_size_bytes, sha256, segments,"
+                " object_ref, native_version_ref, compression, physical_sha256, size_bytes)"
                 " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s,%s,%s)",
                 (
                     chunk["row_set_id"],
@@ -254,14 +262,14 @@ async def replay_state(pool: Any, root: Path, state: dict[str, Any]) -> dict[str
                     chunk["obligation_id"],
                     chunk["first_ordinal"],
                     chunk["row_count"],
-                    chunk["byte_count"],
+                    chunk["canonical_size_bytes"],
                     chunk["sha256"],
                     json.dumps(chunk["segments"]),
-                    chunk["object_key"],
-                    versions.get(chunk["object_key"]) if chunk["object_key"] else None,
+                    chunk["object_ref"],
+                    versions.get(chunk["object_ref"]) if chunk["object_ref"] else None,
                     chunk["compression"],
                     chunk["physical_sha256"],
-                    chunk["physical_byte_count"],
+                    chunk["size_bytes"],
                 ),
             )
     return versions

@@ -40,7 +40,7 @@ def options(tmp_path: Path, **overrides: Any) -> ReportingRowStorageOptionsV1:
             )
         },
         select_row_binding=lambda selection: (
-            "reports" if selection.canonical_byte_count > 0 else "inline"
+            "reports" if selection.content_size_bytes > 0 else "inline"
         ),
         **overrides,
     )
@@ -92,7 +92,7 @@ async def test_an_object_bound_revision_uploads_create_only_chunks_and_serves_ve
         assert await fetch_all(pool, "SELECT count(*) FROM adcp_reporting_chunk_bodies") == [(0,)]
         (chunk,) = await fetch_all(
             pool,
-            "SELECT object_key, native_version, compression, physical_byte_count"
+            "SELECT object_ref, native_version_ref, compression, size_bytes"
             " FROM adcp_reporting_row_chunks",
         )
         key, version, compression, physical = chunk
@@ -174,7 +174,11 @@ async def test_identical_bytes_at_a_planned_key_are_adopted_and_never_swept(tmp_
         rows = many_rows(12)
         revision = typed_revision(obligation, rows, suffix="adopt")
         prepared = await prepare_revision_row_set(
-            store, revision, rows, period_start="2026-09-01T00:00:00Z"
+            store,
+            revision,
+            rows,
+            period_start="2026-09-01T00:00:00Z",
+            source_timezone=obligation.period.source_timezone,
         )
         planned = prepared.objects[0]
         provider = create_filesystem_reporting_row_object_provider_v1(
@@ -182,7 +186,7 @@ async def test_identical_bytes_at_a_planned_key_are_adopted_and_never_swept(tmp_
         )
         await provider.put_if_absent(
             ReportingRowObjectPutInputV1(
-                {"root": "rows"}, planned.key, planned.physical_bytes, "application/gzip", {}
+                {"root": "rows"}, planned.object_ref, planned.physical_bytes, "application/gzip", {}
             ),
             ReportingRowObjectContextV1(),
         )
@@ -205,7 +209,11 @@ async def test_different_bytes_at_a_planned_key_are_a_content_conflict(tmp_path:
         rows = many_rows(12)
         revision = typed_revision(obligation, rows, suffix="conflict")
         prepared = await prepare_revision_row_set(
-            store, revision, rows, period_start="2026-09-01T00:00:00Z"
+            store,
+            revision,
+            rows,
+            period_start="2026-09-01T00:00:00Z",
+            source_timezone=obligation.period.source_timezone,
         )
         provider = create_filesystem_reporting_row_object_provider_v1(
             roots={"rows": tmp_path / "rows"}
@@ -213,7 +221,7 @@ async def test_different_bytes_at_a_planned_key_are_a_content_conflict(tmp_path:
         await provider.put_if_absent(
             ReportingRowObjectPutInputV1(
                 {"root": "rows"},
-                prepared.objects[0].key,
+                prepared.objects[0].object_ref,
                 b"someone else's bytes",
                 "application/gzip",
                 {},
@@ -311,7 +319,7 @@ async def test_unchanged_rows_share_the_previous_revisions_chunks(tmp_path: Path
         ]
         assert await fetch_all(
             pool,
-            "SELECT count(DISTINCT object_key), count(*) FROM adcp_reporting_row_chunks",
+            "SELECT count(DISTINCT object_ref), count(*) FROM adcp_reporting_row_chunks",
         ) == [(1, 2)]
         for revision in (first, second):
             walked, _ = await walk(
@@ -337,7 +345,7 @@ async def test_reads_fail_closed_on_missing_tampered_and_unconfigured_objects(
         await store.commit_revision(revision, rows)
         (key,) = [
             row[0]
-            for row in await fetch_all(pool, "SELECT object_key FROM adcp_reporting_row_chunks")
+            for row in await fetch_all(pool, "SELECT object_ref FROM adcp_reporting_row_chunks")
         ]
         target = tmp_path / "rows" / key
 
@@ -477,8 +485,8 @@ async def test_object_deletes_keep_referenced_objects_and_adopters_fail_closed(
         binding, key, version, physical_sha, physical_size = (
             await fetch_all(
                 pool,
-                "SELECT s.row_binding_id, c.object_key, c.native_version, c.physical_sha256,"
-                " c.physical_byte_count FROM adcp_reporting_row_chunks c"
+                "SELECT s.row_binding_id, c.object_ref, c.native_version_ref, c.physical_sha256,"
+                " c.size_bytes FROM adcp_reporting_row_chunks c"
                 " JOIN adcp_reporting_row_sets s USING (row_set_id)",
             )
         )[0]
@@ -527,6 +535,180 @@ async def test_the_object_lock_uses_the_text_the_javascript_sdk_hashes(tmp_path:
             assert held == 1
 
 
+class RecordingProvider:
+    """Delegates to the filesystem provider, counting calls and optionally misbehaving."""
+
+    def __init__(self, inner: Any, *, with_stat: bool = True) -> None:
+        self.inner = inner
+        self.name = inner.name
+        self.ranged_reads = inner.ranged_reads
+        self.calls: list[str] = []
+        self.stat_size_delta = 0
+        self.stat_echoes_version = True
+        self.version_suffix = ""
+        if with_stat:
+            self.stat = self._stat  # type: ignore[assignment]
+
+    def validate_location(self, location: Any) -> None:
+        self.inner.validate_location(location)
+
+    async def probe(self, *args: Any, **kwargs: Any) -> None:
+        await self.inner.probe(*args, **kwargs)
+
+    async def put_if_absent(self, put: Any, context: Any) -> Any:
+        from adcp.reporting.ledger.row_storage_object import ReportingRowObjectPutResultV1
+
+        result = await self.inner.put_if_absent(put, context)
+        return ReportingRowObjectPutResultV1(
+            result.created, result.native_version_ref + self.version_suffix
+        )
+
+    async def get(self, get: Any, context: Any) -> Any:
+        self.calls.append("get")
+        return await self.inner.get(get, context)
+
+    async def delete(self, delete: Any, context: Any) -> Any:
+        return await self.inner.delete(delete, context)
+
+    async def _stat(self, stat: Any, context: Any) -> Any:
+        from adcp.reporting.ledger.row_storage_object import ReportingRowObjectStatResultV1
+
+        self.calls.append("stat")
+        found = await self.inner.stat(stat, context)
+        if found is None:
+            return None
+        return ReportingRowObjectStatResultV1(
+            found.native_version_ref if self.stat_echoes_version else "other-version",
+            found.size_bytes + self.stat_size_delta,
+        )
+
+
+async def adopted_revision(
+    tmp_path: Path, *, with_stat: bool = True
+) -> tuple[Any, Any, Any, Any, Any, RecordingProvider]:
+    """A staged revision whose only chunk object was already there, so it is adopted."""
+    from dataclasses import replace
+
+    pool_manager = isolated_reporting_pool()
+    pool = await pool_manager.__aenter__()
+    inner = create_filesystem_reporting_row_object_provider_v1(roots={"rows": tmp_path / "rows"})
+    provider = RecordingProvider(inner, with_stat=with_stat)
+    store = PgReportingLedgerStore(
+        pool=pool, row_storage=replace(options(tmp_path), providers={"filesystem": provider})
+    )
+    await store.create_schema()
+    obligation = await seeded(store)
+    await lease(pool)
+    rows = many_rows(12)
+    revision = typed_revision(obligation, rows, suffix="adopt")
+    prepared = await prepare_revision_row_set(
+        store,
+        revision,
+        rows,
+        period_start="2026-09-01T00:00:00Z",
+        source_timezone=obligation.period.source_timezone,
+    )
+    planned = prepared.objects[0]
+    await inner.put_if_absent(
+        ReportingRowObjectPutInputV1(
+            {"root": "rows"}, planned.object_ref, planned.physical_bytes, "application/gzip", {}
+        ),
+        ReportingRowObjectContextV1(),
+    )
+    assert await store.stage_revision_rows(revision, rows) is True
+    return pool_manager, store, revision, rows, planned, provider
+
+
+async def test_an_adopted_object_is_proven_by_a_metadata_check_not_a_re_download(
+    tmp_path: Path,
+) -> None:
+    manager, store, revision, rows, _, provider = await adopted_revision(tmp_path)
+    try:
+        # Adoption read the object once to verify its bytes.
+        assert provider.calls == ["get"]
+        provider.calls.clear()
+        await store.commit_revision(revision, rows)
+        # The commit transaction proved the object with a version-pinned stat and no download.
+        assert provider.calls == ["stat"]
+    finally:
+        await manager.__aexit__(None, None, None)
+
+
+async def test_a_replaced_object_with_identical_bytes_fails_the_commit(tmp_path: Path) -> None:
+    manager, store, revision, rows, planned, provider = await adopted_revision(tmp_path)
+    try:
+        # Delete the adopted object and write the same bytes again: a different native version.
+        (path,) = list((tmp_path / "rows").rglob("*.jsonl.gz"))
+        path.unlink()
+        await provider.inner.put_if_absent(
+            ReportingRowObjectPutInputV1(
+                {"root": "rows"}, planned.object_ref, planned.physical_bytes, "application/gzip", {}
+            ),
+            ReportingRowObjectContextV1(),
+        )
+        with pytest.raises(ReportingRowStoreError) as changed:
+            await store.commit_revision(revision, rows)
+        assert changed.value.code == "STATE_UNAVAILABLE"
+    finally:
+        await manager.__aexit__(None, None, None)
+
+
+@pytest.mark.parametrize("lie", ["size", "version"])
+async def test_a_stat_that_misreports_size_or_version_fails_the_commit(
+    tmp_path: Path, lie: str
+) -> None:
+    manager, store, revision, rows, _, provider = await adopted_revision(tmp_path)
+    try:
+        if lie == "size":
+            provider.stat_size_delta = 1
+        else:
+            provider.stat_echoes_version = False
+        with pytest.raises(ReportingRowStoreError) as changed:
+            await store.commit_revision(revision, rows)
+        assert changed.value.code == "STATE_UNAVAILABLE"
+    finally:
+        await manager.__aexit__(None, None, None)
+
+
+async def test_a_provider_without_stat_falls_back_to_reading_the_object(tmp_path: Path) -> None:
+    manager, store, revision, rows, _, provider = await adopted_revision(tmp_path, with_stat=False)
+    try:
+        provider.calls.clear()
+        await store.commit_revision(revision, rows)
+        assert provider.calls == ["get"]
+    finally:
+        await manager.__aexit__(None, None, None)
+
+
+async def test_a_malformed_native_version_still_leaves_the_object_in_the_intent(
+    tmp_path: Path,
+) -> None:
+    from dataclasses import replace
+
+    async with isolated_reporting_pool() as pool:
+        inner = create_filesystem_reporting_row_object_provider_v1(
+            roots={"rows": tmp_path / "rows"}
+        )
+        provider = RecordingProvider(inner)
+        store = PgReportingLedgerStore(
+            pool=pool, row_storage=replace(options(tmp_path), providers={"filesystem": provider})
+        )
+        await store.create_schema()
+        obligation = await seeded(store)
+        await lease(pool)
+        rows = many_rows(12)
+        revision = typed_revision(obligation, rows, suffix="long")
+        provider.version_suffix = "x" * 1024  # AdCP bounds native_version_ref at 1024 characters
+        with pytest.raises(ReportingRowStoreError) as invalid:
+            await store.stage_revision_rows(revision, rows)
+        assert invalid.value.code == "PROVIDER_UNAVAILABLE"
+        # The object the provider created is named in the intent, so a sweep can remove it.
+        (created,) = await fetch_all(
+            pool, "SELECT jsonb_array_length(created_objects) FROM adcp_reporting_row_write_intents"
+        )
+        assert created == (1,)
+
+
 async def test_a_failed_intent_record_leaves_the_object_and_never_deletes_it(
     tmp_path: Path,
 ) -> None:
@@ -571,6 +753,7 @@ async def test_a_failed_intent_record_leaves_the_object_and_never_deletes_it(
             revision,
             rows,
             period_start="2026-09-01T00:00:00Z",
+            source_timezone=obligation.period.source_timezone,
         )
         storage = store._row_storage
         assert storage is not None
@@ -583,3 +766,170 @@ async def test_a_failed_intent_record_leaves_the_object_and_never_deletes_it(
         assert failed.value.code == "STATE_UNAVAILABLE"
         assert deletes == []
         assert len(list_objects(tmp_path / "rows")) == 1
+
+
+# -- every writable template includes {revision_key} (mirrors adcp-client #3226) --------------
+
+OLD_TEMPLATE = "{prefix}/{namespace_key}/{account_key}/{content_sha256}/{chunk_index}"
+
+
+def old_binding(**kwargs: Any) -> ReportingObjectRowBindingV1:
+    return ReportingObjectRowBindingV1(
+        provider="filesystem",
+        location={"root": "rows"},
+        prefix="adcp-rows",
+        key_template=OLD_TEMPLATE,
+        **kwargs,
+    )
+
+
+async def test_rows_written_under_an_older_template_stay_readable_through_a_read_only_binding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from dataclasses import replace
+
+    from adcp.reporting.ledger import row_storage
+    from adcp.reporting.ledger.row_storage_object import assert_reporting_row_key_template_v1
+
+    from .test_reporting_row_retention_pg import age
+
+    provider = create_filesystem_reporting_row_object_provider_v1(roots={"rows": tmp_path / "rows"})
+
+    def configured(**bindings: Any) -> Any:
+        return replace(
+            options(tmp_path),
+            bindings={"inline": ReportingPostgresRowBindingV1(), **bindings},
+            providers={"filesystem": provider},
+        )
+
+    async with isolated_reporting_pool() as pool:
+        # An older release wrote through a template without {revision_key}.
+        with monkeypatch.context() as legacy:
+            legacy.setattr(
+                row_storage,
+                "assert_reporting_row_key_template_v1",
+                lambda template, **_: assert_reporting_row_key_template_v1(
+                    template, require_revision_key=False
+                ),
+            )
+            earlier = PgReportingLedgerStore(
+                pool=pool,
+                row_storage=replace(
+                    configured(reports=old_binding()),
+                    select_row_binding=lambda selection: "reports",
+                ),
+            )
+            await earlier.create_schema()
+            obligation = await seeded(earlier)
+            await lease(pool)
+            rows = many_rows(12)
+            revision = typed_revision(obligation, rows, suffix="legacy")
+            assert await earlier.stage_revision_rows(revision, rows) is True
+            await earlier.commit_revision(revision, rows)
+        (recorded,) = await fetch_all(pool, "SELECT object_ref FROM adcp_reporting_row_chunks")
+
+        # Today's configuration: the old definition is kept read-only, and a new binding writes.
+        current = PgReportingLedgerStore(
+            pool=pool,
+            row_storage=replace(
+                configured(reports=old_binding(read_only=True), current=old_binding_current()),
+                select_row_binding=lambda selection: "current",
+            ),
+        )
+        await current.create_schema()
+        # Reads use the recorded object_ref, never a re-rendered key.
+        walked, _ = await walk(current, obligation.account_id, revision.reporting_revision_id, 7)
+        assert walked == rows
+        verified = await current.read_verified_revision_rows(
+            account_id=obligation.account_id, reporting_revision_id=revision.reporting_revision_id
+        )
+        assert list(verified) == rows
+        assert await fetch_all(pool, "SELECT object_ref FROM adcp_reporting_row_chunks") == [
+            recorded
+        ]
+
+        # It never takes a new write: UNSAFE_BINDING, not INVALID_INPUT (which means bad rows).
+        more = many_rows(3)
+        next_revision = typed_revision(
+            obligation, more, suffix="next", supersedes=revision.reporting_revision_id
+        )
+        with pytest.raises(ReportingRowStoreError) as refused:
+            await current._row_storage.prepare(  # type: ignore[union-attr]
+                row_set_id=next_revision.reporting_revision_id,
+                row_set_kind="revision",
+                account_id=obligation.account_id,
+                obligation_id=obligation.reporting_obligation_id,
+                rows=more,
+                digest_profile="revision_envelope_v1",
+                control_totals=[],
+                finality="snapshot",
+                binding_id="reports",
+            )
+        assert refused.value.code == "UNSAFE_BINDING"
+
+        # The selected binding writes under the new template, so the key carries the revision.
+        assert await current.stage_revision_rows(next_revision, more) is True
+        await current.commit_revision(next_revision, more)
+        refs = [
+            row[0]
+            for row in await fetch_all(
+                pool, "SELECT object_ref FROM adcp_reporting_row_chunks ORDER BY row_set_id"
+            )
+        ]
+        assert len(refs) == 2 and len(set(refs)) == 2
+
+        # Retirement still works through the read-only binding: its bytes are deleted.
+        await age(pool, days=500)
+        pruned = await current.prune_expired_row_sets()
+        assert (pruned.retired, pruned.failed) == (1, ())
+        assert list_objects(tmp_path / "rows") == []
+
+
+def old_binding_current() -> ReportingObjectRowBindingV1:
+    return ReportingObjectRowBindingV1(
+        provider="filesystem", location={"root": "rows"}, prefix="adcp-rows"
+    )
+
+
+async def test_readiness_fails_closed_when_a_writable_template_lost_revision_key(
+    tmp_path: Path,
+) -> None:
+    async with isolated_reporting_pool() as pool:
+        store = PgReportingLedgerStore(pool=pool, row_storage=options(tmp_path))
+        await store.create_schema()
+        storage = store._row_storage
+        assert storage is not None
+        # A configuration changed after construction is refused again at readiness.
+        storage._installation = None  # as before readiness
+        storage._bindings["reports"] = old_binding()  # type: ignore[index]
+        with pytest.raises(ReportingRowStoreError) as refused:
+            await store.ready_row_storage()
+        assert refused.value.code == "INVALID_INPUT"
+        assert "row binding reports" in (refused.value.detail or "")
+
+
+async def test_a_store_whose_bindings_are_all_read_only_has_nowhere_to_write(
+    tmp_path: Path,
+) -> None:
+    from dataclasses import replace
+
+    async with isolated_reporting_pool() as pool:
+        provider = create_filesystem_reporting_row_object_provider_v1(
+            roots={"rows": tmp_path / "rows"}
+        )
+        store = PgReportingLedgerStore(
+            pool=pool,
+            row_storage=replace(
+                options(tmp_path),
+                bindings={"reports": old_binding(read_only=True)},
+                providers={"filesystem": provider},
+                select_row_binding=None,
+            ),
+        )
+        await store.create_schema()
+        obligation = await seeded(store)
+        rows = many_rows(4)
+        revision = typed_revision(obligation, rows, suffix="nowhere")
+        with pytest.raises(ReportingRowStoreError) as refused:
+            await prepare_revision_row_set(store, revision, rows)
+        assert refused.value.code == "UNSAFE_BINDING"

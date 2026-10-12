@@ -143,7 +143,18 @@ async def sweep_row_write_intents(
                 continue
             # Referenced objects are kept; the check and the delete are one atomic step
             # against a concurrent commit adopting the object.
-            orphaned = [(str(item["objectKey"]), str(item["nativeVersion"])) for item in claimed[0]]
+            # An older writer still running during a rolling upgrade may record the pre-alignment
+            # keys (``objectKey``, ``nativeVersion``); read both so its objects are still swept.
+            orphaned = [
+                (
+                    str(item.get("object_ref", item.get("objectKey"))),
+                    str(item.get("native_version_ref", item.get("nativeVersion"))),
+                )
+                for item in claimed[0]
+                if isinstance(item, dict)
+                and isinstance(item.get("object_ref", item.get("objectKey")), str)
+                and isinstance(item.get("native_version_ref", item.get("nativeVersion")), str)
+            ]
             removed = await storage.delete_unreferenced(store._pool, binding_id, orphaned)
             async with store._pool.connection() as connection:
                 await connection.execute(
@@ -375,16 +386,16 @@ async def delete_period_objects(
     async with store._pool.connection() as connection:
         objects = await (
             await connection.execute(
-                "SELECT DISTINCT s.row_binding_id, c.object_key, c.native_version"
+                "SELECT DISTINCT s.row_binding_id, c.object_ref, c.native_version_ref"
                 " FROM adcp_reporting_row_chunks c JOIN adcp_reporting_row_sets s"
                 "   ON s.row_set_id = c.row_set_id"
-                " WHERE c.row_set_id = ANY(%(ids)s::text[]) AND c.object_key IS NOT NULL",
+                " WHERE c.row_set_id = ANY(%(ids)s::text[]) AND c.object_ref IS NOT NULL",
                 {"ids": row_set_ids},
             )
         ).fetchall()
     by_binding: dict[str, list[tuple[str, str]]] = {}
-    for binding_id, object_key, native_version in objects:
-        by_binding.setdefault(binding_id, []).append((object_key, native_version))
+    for binding_id, object_ref, native_version_ref in objects:
+        by_binding.setdefault(binding_id, []).append((object_ref, native_version_ref))
     for binding_id, pairs in by_binding.items():
         # Objects a chunk of any other row set still references are kept, checked
         # atomically with the delete so a concurrent commit cannot adopt a doomed object.

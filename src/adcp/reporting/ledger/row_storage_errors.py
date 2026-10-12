@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Literal
 
-__all__ = ["ReportingRowStoreError", "ReportingRowStoreErrorCode"]
+__all__ = [
+    "ReportingRowBindingMismatchError",
+    "ReportingRowStoreError",
+    "ReportingRowStoreErrorCode",
+]
 
 ReportingRowStoreErrorCode = Literal[
     "INVALID_INPUT",
@@ -34,3 +38,13 @@ class ReportingRowStoreError(RuntimeError):
         )
         self.code: ReportingRowStoreErrorCode = code
         self.detail = detail
+
+
+class ReportingRowBindingMismatchError(ReportingRowStoreError):
+    """The rows do not reproduce the committed binding they were prepared against.
+
+    An ``INVALID_INPUT`` that callers can tell apart by type instead of by reading its message.
+    """
+
+    def __init__(self) -> None:
+        super().__init__("INVALID_INPUT", "rows do not reproduce their committed binding")

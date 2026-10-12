@@ -193,11 +193,15 @@ async def test_every_sdk_call_carries_the_call_budget() -> None:
     await provider.probe(LOCATION, "adcp-rows", context)
     created = await provider.put_if_absent(put("adcp-rows/ns/b.jsonl"), context)
     await provider.get(
-        ReportingRowObjectGetInputV1(LOCATION, "adcp-rows/ns/b.jsonl", created.native_version, 100),
+        ReportingRowObjectGetInputV1(
+            LOCATION, "adcp-rows/ns/b.jsonl", created.native_version_ref, 100
+        ),
         context,
     )
     await provider.delete(
-        ReportingRowObjectDeleteInputV1(LOCATION, "adcp-rows/ns/b.jsonl", created.native_version),
+        ReportingRowObjectDeleteInputV1(
+            LOCATION, "adcp-rows/ns/b.jsonl", created.native_version_ref
+        ),
         context,
     )
     assert service.transport
@@ -218,7 +222,7 @@ async def test_create_only_upload_sets_headers_and_identifier_safe_metadata() ->
     service = FakeBlobService()
     provider = create_azure_blob_reporting_row_object_provider_v1(client=service)
     created = await provider.put_if_absent(put("adcp-rows/ns/a.jsonl.gz"), CONTEXT)
-    assert created.created and created.native_version.startswith("2026-")
+    assert created.created and created.native_version_ref.startswith("2026-")
     (version,) = service.blobs[("rows", "adcp-rows/ns/a.jsonl.gz")]
     assert version.content_type == "application/gzip" and version.cache_control == "no-store"
     assert version.metadata == {"adcp_installation": "inst", "adcp_intent": "intent"}
@@ -229,8 +233,8 @@ async def test_an_existing_blob_is_adopted_not_replaced() -> None:
     key = "adcp-rows/ns/a.jsonl"
     first = await provider.put_if_absent(put(key, b"first\n"), CONTEXT)
     second = await provider.put_if_absent(put(key, b"second\n"), CONTEXT)
-    assert (second.created, second.native_version) == (False, first.native_version)
-    read = ReportingRowObjectGetInputV1(LOCATION, key, first.native_version, 100)
+    assert (second.created, second.native_version_ref) == (False, first.native_version_ref)
+    read = ReportingRowObjectGetInputV1(LOCATION, key, first.native_version_ref, 100)
     assert await provider.get(read, CONTEXT) == b"first\n"
 
 
@@ -254,7 +258,7 @@ async def test_reads_pin_the_version_and_honour_ranges_and_the_cap() -> None:
     def read(**kwargs: Any) -> Any:
         return provider.get(
             ReportingRowObjectGetInputV1(
-                LOCATION, "adcp-rows/ns/r.jsonl", created.native_version, **kwargs
+                LOCATION, "adcp-rows/ns/r.jsonl", created.native_version_ref, **kwargs
             ),
             CONTEXT,
         )
@@ -281,10 +285,10 @@ async def test_a_store_that_ignores_the_version_never_serves_or_deletes_another_
     key = "adcp-rows/ns/v.jsonl"
     first = await provider.put_if_absent(put(key, b"one\n"), CONTEXT)
     service.versioning = False
-    ghost = ReportingRowObjectGetInputV1(LOCATION, key, first.native_version, 100)
+    ghost = ReportingRowObjectGetInputV1(LOCATION, key, first.native_version_ref, 100)
     assert await provider.get(ghost, CONTEXT) is None
     outcome = await provider.delete(
-        ReportingRowObjectDeleteInputV1(LOCATION, key, first.native_version), CONTEXT
+        ReportingRowObjectDeleteInputV1(LOCATION, key, first.native_version_ref), CONTEXT
     )
     assert outcome == "absent"
     assert any(version.data == b"one\n" for version in service.blobs[("rows", key)])
@@ -295,15 +299,15 @@ async def test_a_delayed_delete_never_removes_an_identical_recreation() -> None:
     provider = create_azure_blob_reporting_row_object_provider_v1(client=service)
     key = "adcp-rows/ns/w.jsonl"
     first = await provider.put_if_absent(put(key, b"same\n"), CONTEXT)
-    delete_first = ReportingRowObjectDeleteInputV1(LOCATION, key, first.native_version)
+    delete_first = ReportingRowObjectDeleteInputV1(LOCATION, key, first.native_version_ref)
     assert await provider.delete(delete_first, CONTEXT) == "deleted"
     second = await provider.put_if_absent(put(key, b"same\n"), CONTEXT)
-    assert second.native_version != first.native_version
+    assert second.native_version_ref != first.native_version_ref
     assert await provider.delete(delete_first, CONTEXT) == "absent"
-    survivor = ReportingRowObjectGetInputV1(LOCATION, key, second.native_version, 100)
+    survivor = ReportingRowObjectGetInputV1(LOCATION, key, second.native_version_ref, 100)
     assert await provider.get(survivor, CONTEXT) == b"same\n"
     outcome = await provider.delete(
-        ReportingRowObjectDeleteInputV1(LOCATION, key, second.native_version), CONTEXT
+        ReportingRowObjectDeleteInputV1(LOCATION, key, second.native_version_ref), CONTEXT
     )
     assert outcome == "deleted"
     assert service.blobs[("rows", key)] == []

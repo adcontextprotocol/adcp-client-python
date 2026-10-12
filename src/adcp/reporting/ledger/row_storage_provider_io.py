@@ -39,8 +39,9 @@ def assert_location_keys(
         raise ReportingRowStoreError("INVALID_INPUT", f"location accepts only {accepted}")
 
 
-def assert_key(key: str, *, maximum_bytes: int = 1024) -> None:
-    if not isinstance(key, str) or not key or len(key.encode("utf-8")) > maximum_bytes:
+def assert_key(key: str, *, maximum_length: int = 1024) -> None:
+    """AdCP ``object_ref`` bound (``reporting-file-object-ref.json``): 1 to 1024 characters."""
+    if not isinstance(key, str) or not 1 <= len(key) <= maximum_length:
         raise ReportingRowStoreError("INVALID_INPUT", "object key is invalid")
 
 

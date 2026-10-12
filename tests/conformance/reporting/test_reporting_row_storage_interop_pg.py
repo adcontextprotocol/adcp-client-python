@@ -98,6 +98,21 @@ async def test_one_database_and_one_bucket_in_both_directions(tmp_path: Path) ->
         py_out.write_text(json.dumps(python_written))
         await run_js("read", "--in", str(py_out), environment=environment)
 
+        # Both SDKs render {period_date} as the period start's date in its source_timezone
+        # (2026-10-01T00:00:00Z is still 2026-09-30 in America/Los_Angeles), one path segment.
+        async with pool.connection() as connection:
+            refs = [
+                row[0]
+                for row in await (
+                    await connection.execute(
+                        "SELECT object_ref FROM adcp_reporting_row_chunks"
+                        " WHERE object_ref IS NOT NULL ORDER BY object_ref"
+                    )
+                ).fetchall()
+            ]
+        assert refs and all(f"/{interop.PERIOD_DATE}/" in ref for ref in refs), refs
+        assert {ref.split("/")[0] for ref in refs} == {"adcp-rows"}
+
         # Both SDKs resolved the same binding rows: one identity digest, one namespace.
         async with pool.connection() as connection:
             bindings = await (
@@ -151,9 +166,9 @@ async def test_the_recorded_object_bytes_decompress_to_the_golden_chunks(tmp_pat
         for vector in interop.golden_vectors()
     }
     by_key = {
-        chunk["object_key"]: chunk
+        chunk["object_ref"]: chunk
         for chunk in recorded["state"]["row_chunks"]
-        if chunk["object_key"]
+        if chunk["object_ref"]
     }
     assert by_key
     for key, encoded in recorded["state"]["objects"].items():

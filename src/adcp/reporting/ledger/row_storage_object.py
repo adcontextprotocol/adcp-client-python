@@ -32,16 +32,21 @@ from adcp.reporting.ledger.row_storage_errors import ReportingRowStoreError
 __all__ = [
     "REPORTING_ROW_DEFAULT_KEY_TEMPLATE",
     "REPORTING_ROW_KEY_PLACEHOLDERS",
+    "REPORTING_ROW_NATIVE_VERSION_REF_MAX_LENGTH",
+    "REPORTING_ROW_OBJECT_REF_MAX_LENGTH",
     "ReportingRowObjectContextV1",
     "ReportingRowObjectDeleteInputV1",
     "ReportingRowObjectGetInputV1",
     "ReportingRowObjectProviderV1",
     "ReportingRowObjectPutInputV1",
     "ReportingRowObjectPutResultV1",
+    "ReportingRowObjectStatInputV1",
+    "ReportingRowObjectStatResultV1",
     "assert_reporting_row_key_template_v1",
     "assert_reporting_row_prefix_v1",
     "create_filesystem_reporting_row_object_provider_v1",
     "render_reporting_row_object_key_v1",
+    "reporting_period_date_v1",
     "reporting_row_account_key_v1",
     "reporting_row_revision_key_v1",
     "run_reporting_row_object_provider_conformance_v1",
@@ -55,11 +60,19 @@ class ReportingRowObjectContextV1:
     timeout_seconds: float = 30.0
 
 
+#: Bounds AdCP puts on ``object_ref`` and ``native_version_ref``
+#: (``reporting-file-object-ref.json``, ``reporting-native-version-ref.json``): 1 to 1024
+#: characters. The row-storage ``CHECK`` constraints enforce the same.
+REPORTING_ROW_OBJECT_REF_MAX_LENGTH = 1024
+REPORTING_ROW_NATIVE_VERSION_REF_MAX_LENGTH = 1024
+
+
 @dataclass(frozen=True, slots=True)
 class ReportingRowObjectPutInputV1:
     #: Non-secret provider coordinates (bucket, container, filesystem root name).
     location: Mapping[str, str]
-    key: str
+    #: AdCP ``object_ref``: the decoded, destination-relative object key.
+    object_ref: str
     data: bytes
     content_type: Literal["application/x-ndjson", "application/gzip"]
     #: Non-secret object metadata (installation and intent identifiers).
@@ -71,15 +84,15 @@ class ReportingRowObjectPutInputV1:
 @dataclass(frozen=True, slots=True)
 class ReportingRowObjectPutResultV1:
     created: bool
-    native_version: str
+    native_version_ref: str
 
 
 @dataclass(frozen=True, slots=True)
 class ReportingRowObjectGetInputV1:
     location: Mapping[str, str]
-    key: str
-    #: Exact native version recorded at write time.
-    native_version: str
+    object_ref: str
+    #: AdCP ``native_version_ref``: the exact native version recorded at write time.
+    native_version_ref: str
     #: Hard cap on bytes read; providers abort beyond it.
     max_bytes: int
     #: ``(offset, length)`` within the stored object; ``None`` reads it whole.
@@ -90,9 +103,25 @@ class ReportingRowObjectGetInputV1:
 @dataclass(frozen=True, slots=True)
 class ReportingRowObjectDeleteInputV1:
     location: Mapping[str, str]
-    key: str
-    native_version: str
+    object_ref: str
+    native_version_ref: str
     credential_ref: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ReportingRowObjectStatInputV1:
+    location: Mapping[str, str]
+    object_ref: str
+    native_version_ref: str
+    credential_ref: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ReportingRowObjectStatResultV1:
+    #: The version the provider resolved; it must equal the one asked for.
+    native_version_ref: str
+    #: AdCP ``size_bytes``: the stored object's size.
+    size_bytes: int
 
 
 @runtime_checkable
@@ -143,6 +172,18 @@ class ReportingRowObjectProviderV1(Protocol):
     ) -> Literal["deleted", "absent"]:
         """Delete the exact native version. Idempotent: ``absent`` is success."""
 
+    # Optional, so it is not part of the runtime-checkable port:
+    #
+    #   async def stat(self, stat: ReportingRowObjectStatInputV1, context)
+    #       -> ReportingRowObjectStatResultV1 | None
+    #
+    # Metadata of the exact native version without reading its bytes: the version it resolved
+    # (which must equal the requested one) and its stored size, or ``None`` when that version
+    # is absent. The commit transaction uses it to prove an adopted object unchanged (native
+    # versions are write-unique, so the same version at the recorded size is the same bytes)
+    # without downloading it under the account lock. A provider without ``stat`` falls back to
+    # a full read there. Never return a size for a different version.
+
 
 #: Placeholders allowed in object key templates.
 REPORTING_ROW_KEY_PLACEHOLDERS: tuple[str, ...] = (
@@ -165,15 +206,40 @@ _KEY = re.compile(r"^[A-Za-z0-9_.=-]+(?:/[A-Za-z0-9_.=-]+)*$")
 _PLACEHOLDER = re.compile(r"\{([a-z0-9_]+)\}")
 
 
-def assert_reporting_row_key_template_v1(template: str) -> None:
-    """Validate an object key template; raises ``INVALID_INPUT``."""
+_REVISION_KEY_REQUIRED = (
+    "key templates must include {revision_key} so every row set has unique object keys. "
+    "A binding identity includes its template, so add it under a NEW binding ID and keep the "
+    "old definition configured with read_only=True while rows reference it (rows already "
+    "written stay readable at their recorded object_ref)"
+)
+
+
+def assert_reporting_row_key_template_v1(
+    template: str, *, require_revision_key: bool = True
+) -> None:
+    """Validate an object key template; raises ``INVALID_INPUT``.
+
+    Every template that writes must include ``{revision_key}``, so no two row sets can ever name
+    the same object key; ``require_revision_key=False`` is for a read-only binding that only
+    reads rows written under an older template.
+    """
     if not template.startswith("{prefix}/{namespace_key}/"):
         raise ReportingRowStoreError(
             "INVALID_INPUT", "key templates must begin with {prefix}/{namespace_key}/"
         )
-    for required in ("{content_sha256}", "{chunk_index}"):
-        if required not in template:
-            raise ReportingRowStoreError("INVALID_INPUT", f"key templates must include {required}")
+    required = ["{content_sha256}", "{chunk_index}"]
+    if require_revision_key:
+        required.append("{revision_key}")
+    for placeholder in required:
+        if placeholder not in template:
+            raise ReportingRowStoreError(
+                "INVALID_INPUT",
+                (
+                    _REVISION_KEY_REQUIRED
+                    if placeholder == "{revision_key}"
+                    else f"key templates must include {placeholder}"
+                ),
+            )
     unknown = [
         name
         for name in _PLACEHOLDER.findall(template)
@@ -212,18 +278,80 @@ def reporting_row_revision_key_v1(row_set_id: str) -> str:
     return _sha256_hex(rfc8785.dumps(["adcp.revision_key.v1", row_set_id]))
 
 
-def _period_date(period_start: str | None) -> str:
+_PERIOD_INSTANT = re.compile(
+    r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[zZ]|([+-])(\d{2}):(\d{2}))$"
+)
+
+
+def reporting_period_date_v1(period_start: str, source_timezone: str) -> str:
+    """The calendar date, as AdCP's ``YYYY-MM-DD``, of a period's start in its ``source_timezone``.
+
+    A period starting ``2026-10-02T07:00:00Z`` in ``America/Los_Angeles`` begins on 2026-10-02
+    local time; ``2026-10-01T16:00:00Z`` is already 2026-10-02 in ``Asia/Tokyo``. The date is
+    the civil date of the start instant: a period that starts on a daylight-saving boundary
+    keeps the local date it begins on.
+
+    Fails closed with ``ValueError``: an unparseable or calendar-invalid instant (February 30,
+    ``T24:00``), a missing, unknown or non-IANA timezone, or a year outside 0001-9999. The host's
+    own default zone is never consulted and UTC is never assumed.
+    """
+    from datetime import datetime, timedelta, timezone
+    from zoneinfo import ZoneInfo
+
+    if not isinstance(period_start, str):
+        raise ValueError("period start must be an RFC 3339 instant")
+    if (
+        not isinstance(source_timezone, str)
+        or not 1 <= len(source_timezone) <= 255
+        or source_timezone[0] in "+-"
+    ):
+        raise ValueError("a period date requires the period source_timezone")
+    match = _PERIOD_INSTANT.match(period_start)
+    if match is None:
+        raise ValueError("period start must be an RFC 3339 instant")
+    year, month, day, hour, minute, second = (int(match.group(index)) for index in range(1, 7))
+    leap_second = second == 60
+    try:
+        # ``datetime`` rejects what ``Date.parse`` would roll forward: February 30, T24:00, hour 25.
+        base = datetime(year, month, day, hour, minute, 59 if leap_second else second)
+        if match.group(7):
+            hours, minutes = int(match.group(8)), int(match.group(9))
+            if hours > 23 or minutes > 59:
+                raise ValueError("invalid offset")
+            offset = timedelta(hours=hours, minutes=minutes)
+            zone_offset = timezone(offset if match.group(7) == "+" else -offset)
+        else:
+            zone_offset = timezone.utc
+        instant = base.replace(tzinfo=zone_offset)
+        if leap_second:
+            instant += timedelta(seconds=1)
+    except (ValueError, OverflowError):
+        raise ValueError("period start must be an RFC 3339 instant") from None
+    if not re.fullmatch(r"[A-Za-z0-9_+\-/]+", source_timezone) or ".." in source_timezone:
+        raise ValueError("source_timezone must be an IANA timezone")
+    try:
+        local = instant.astimezone(ZoneInfo(source_timezone))
+    except (ValueError, KeyError, OSError):
+        raise ValueError("source_timezone must be an IANA timezone") from None
+    except OverflowError:
+        raise ValueError("the period date is outside the supported year range") from None
+    return f"{local.year:04d}-{local.month:02d}-{local.day:02d}"
+
+
+def _rendered_period_date(period_start: str | None, source_timezone: str | None) -> str:
     if not period_start:
         return "undated"
-    from datetime import datetime, timezone
-
+    if not source_timezone:
+        raise ReportingRowStoreError(
+            "INVALID_INPUT", "a period start needs its source_timezone to render {period_date}"
+        )
     try:
-        parsed = datetime.fromisoformat(period_start.replace("Z", "+00:00"))
+        return reporting_period_date_v1(period_start, source_timezone)
     except ValueError:
-        return "undated"
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc).strftime("%Y/%m/%d")
+        raise ReportingRowStoreError(
+            "INVALID_INPUT",
+            "period start or source_timezone is invalid; cannot render {period_date}",
+        ) from None
 
 
 def render_reporting_row_object_key_v1(
@@ -234,17 +362,27 @@ def render_reporting_row_object_key_v1(
     account_id: str,
     row_set_id: str,
     period_start: str | None,
+    source_timezone: str | None = None,
     finality: Literal["snapshot", "official"] | None,
     content_sha256: str,
     chunk_index: int,
     compression: Literal["none", "gzip"],
 ) -> str:
-    """Render one chunk's object key and confine it to the binding's owned prefix."""
+    """Render one chunk's object key and confine it to the binding's owned prefix.
+
+    ``{period_date}`` is AdCP's ``YYYY-MM-DD``: the period start's calendar date in the period's
+    ``source_timezone``, one path segment (``undated`` without a period start). It is rendered
+    only when the template uses it, so a template without it needs no timezone.
+    """
     values = {
         "prefix": prefix,
         "namespace_key": namespace_key,
         "account_key": reporting_row_account_key_v1(namespace_key, account_id),
-        "period_date": _period_date(period_start),
+        "period_date": (
+            _rendered_period_date(period_start, source_timezone)
+            if "{period_date}" in template
+            else ""
+        ),
         "finality": finality or "adjustment",
         "revision_key": reporting_row_revision_key_v1(row_set_id),
         "content_sha256": content_sha256,
@@ -260,6 +398,12 @@ def render_reporting_row_object_key_v1(
     ):
         raise ReportingRowStoreError(
             "INVALID_INPUT", "rendered object key escapes the binding prefix"
+        )
+    if len(key) > REPORTING_ROW_OBJECT_REF_MAX_LENGTH:
+        raise ReportingRowStoreError(
+            "INVALID_INPUT",
+            f"rendered object key exceeds {REPORTING_ROW_OBJECT_REF_MAX_LENGTH} characters"
+            " (AdCP object_ref bound)",
         )
     return key
 
@@ -387,7 +531,7 @@ class _FilesystemProvider:
     async def put_if_absent(
         self, put: ReportingRowObjectPutInputV1, context: ReportingRowObjectContextV1
     ) -> ReportingRowObjectPutResultV1:
-        target = self._resolve(put.location, put.key)
+        target = self._resolve(put.location, put.object_ref)
         return await asyncio.to_thread(self._put, target, put.data)
 
     @staticmethod
@@ -427,7 +571,7 @@ class _FilesystemProvider:
     async def get(
         self, get: ReportingRowObjectGetInputV1, context: ReportingRowObjectContextV1
     ) -> bytes | None:
-        target = self._resolve(get.location, get.key)
+        target = self._resolve(get.location, get.object_ref)
         return await asyncio.to_thread(self._get, target, get)
 
     @staticmethod
@@ -443,7 +587,7 @@ class _FilesystemProvider:
             version = (
                 f"{stat.st_ino}:{_birth_time_ns(target, stat)}:{stat.st_mtime_ns}:{stat.st_size}"
             )
-            if version != get.native_version:
+            if version != get.native_version_ref:
                 return None
             size = stat.st_size
             offset, length = get.byte_range if get.byte_range else (0, size)
@@ -458,16 +602,34 @@ class _FilesystemProvider:
             handle.seek(offset)
             return handle.read(length)
 
+    async def stat(
+        self, stat: ReportingRowObjectStatInputV1, context: ReportingRowObjectContextV1
+    ) -> ReportingRowObjectStatResultV1 | None:
+        target = self._resolve(stat.location, stat.object_ref)
+        return await asyncio.to_thread(self._stat, target, stat.native_version_ref)
+
+    @staticmethod
+    def _stat(target: str, native_version_ref: str) -> ReportingRowObjectStatResultV1 | None:
+        try:
+            version = _filesystem_version(target)
+        except FileNotFoundError:
+            return None
+        except OSError:
+            raise ReportingRowStoreError("PROVIDER_UNAVAILABLE", "filesystem stat failed") from None
+        if version != native_version_ref:
+            return None
+        return ReportingRowObjectStatResultV1(version, int(version.rsplit(":", 1)[1]))
+
     async def delete(
         self, delete: ReportingRowObjectDeleteInputV1, context: ReportingRowObjectContextV1
     ) -> Literal["deleted", "absent"]:
-        target = self._resolve(delete.location, delete.key)
-        return await asyncio.to_thread(self._delete, target, delete.native_version)
+        target = self._resolve(delete.location, delete.object_ref)
+        return await asyncio.to_thread(self._delete, target, delete.native_version_ref)
 
     @staticmethod
-    def _delete(target: str, native_version: str) -> Literal["deleted", "absent"]:
+    def _delete(target: str, native_version_ref: str) -> Literal["deleted", "absent"]:
         try:
-            if _filesystem_version(target) != native_version:
+            if _filesystem_version(target) != native_version_ref:
                 return "absent"
             os.unlink(target)
             return "deleted"
@@ -542,45 +704,76 @@ async def run_reporting_row_object_provider_conformance_v1(
     def delete(version: str) -> ReportingRowObjectDeleteInputV1:
         return ReportingRowObjectDeleteInputV1(location, key, version, credential_ref)
 
+    def stat_input(version: str) -> ReportingRowObjectStatInputV1:
+        return ReportingRowObjectStatInputV1(location, key, version, credential_ref)
+
+    stat = getattr(provider, "stat", None)
+
     await provider.probe(location, prefix, context, credential_ref)
     passed.append("probe")
     created = await provider.put_if_absent(put(first), context)
-    assert created.created and created.native_version, "put_if_absent did not create a new object"
+    assert (
+        created.created and created.native_version_ref
+    ), "put_if_absent did not create a new object"
     passed.append("create")
     conflict = await provider.put_if_absent(put(b'{"c":3}\n'), context)
     assert (
-        not conflict.created and conflict.native_version == created.native_version
+        not conflict.created and conflict.native_version_ref == created.native_version_ref
     ), "put_if_absent replaced or re-versioned an existing object"
-    stored = await provider.get(get(created.native_version), context)
+    stored = await provider.get(get(created.native_version_ref), context)
     assert stored == first, "create-only write did not preserve the first bytes"
     passed.append("create-only")
     if provider.ranged_reads:
-        ranged = await provider.get(get(created.native_version, byte_range=(8, 8)), context)
+        ranged = await provider.get(get(created.native_version_ref, byte_range=(8, 8)), context)
         assert ranged == b'{"b":2}\n', "ranged read returned wrong bytes"
         passed.append("ranged-read")
     missing = await provider.get(get("not-a-version"), context)
     assert missing is None, "get returned bytes for a version that does not exist"
     passed.append("version-pinned-read")
+    if stat is not None:
+        found = await stat(stat_input(created.native_version_ref), context)
+        assert found is not None and found.size_bytes == len(
+            first
+        ), "stat did not report the stored object size"
+        assert (
+            found.native_version_ref == created.native_version_ref
+        ), "stat did not echo the version it checked"
+        missing_stat = await stat(stat_input("not-a-version"), context)
+        assert missing_stat is None, "stat returned metadata for a version that does not exist"
+        passed.append("version-pinned-stat")
     outcome = await provider.delete(delete("not-a-version"), context)
     assert outcome == "absent", "delete removed an object at a different version"
-    outcome = await provider.delete(delete(created.native_version), context)
+    outcome = await provider.delete(delete(created.native_version_ref), context)
     assert outcome == "deleted", "delete did not remove the exact version"
-    outcome = await provider.delete(delete(created.native_version), context)
+    outcome = await provider.delete(delete(created.native_version_ref), context)
     assert outcome == "absent", "repeated delete was not idempotent"
     passed.append("exact-version-delete")
+    if stat is not None:
+        deleted_stat = await stat(stat_input(created.native_version_ref), context)
+        assert deleted_stat is None, "stat returned metadata for a deleted version"
     # A delayed delete of an old version must never remove a later write at the same key,
     # even one with identical bytes: native versions are unique per write, never
     # content-derived.
     recreated = await provider.put_if_absent(put(first), context)
-    assert recreated.created and recreated.native_version, "put_if_absent did not re-create"
+    assert recreated.created and recreated.native_version_ref, "put_if_absent did not re-create"
     assert (
-        recreated.native_version != created.native_version
+        recreated.native_version_ref != created.native_version_ref
     ), "re-creating identical bytes produced the same native version; versions must be write-unique"
-    outcome = await provider.delete(delete(created.native_version), context)
+    outcome = await provider.delete(delete(created.native_version_ref), context)
     assert outcome == "absent", "delete of a stale version removed or reported a later write"
-    survivor = await provider.get(get(recreated.native_version), context)
+    if stat is not None:
+        # A stale version must never be proven present by a later write at the same key.
+        stale_stat = await stat(stat_input(created.native_version_ref), context)
+        assert stale_stat is None, "stat of a stale version reported a later write at the same key"
+        current = await stat(stat_input(recreated.native_version_ref), context)
+        assert (
+            current is not None
+            and current.size_bytes == len(first)
+            and current.native_version_ref == recreated.native_version_ref
+        ), "stat did not report the re-created object"
+    survivor = await provider.get(get(recreated.native_version_ref), context)
     assert survivor == first, "delete of a stale version removed a later write with identical bytes"
-    outcome = await provider.delete(delete(recreated.native_version), context)
+    outcome = await provider.delete(delete(recreated.native_version_ref), context)
     assert outcome == "deleted", "delete did not remove the re-created version"
     passed.append("write-unique-version")
     return passed

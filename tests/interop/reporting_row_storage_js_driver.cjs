@@ -108,6 +108,7 @@ async function main() {
             rows: vector.rows,
             ...(kind === 'revision' ? { finality: 'snapshot', controlTotals } : {}),
             periodStart: '2026-10-01T00:00:00Z',
+            sourceTimezone: 'America/Los_Angeles',
             binding: bound,
             bindingId,
           });
@@ -134,7 +135,7 @@ async function main() {
             obligation_id: 'robl_interop',
             digest_profile: kind === 'revision' ? 'revision_envelope_v1' : 'rows_v1',
             content_sha256: bound.sha256,
-            canonical_byte_count: bound.byteCount,
+            content_size_bytes: bound.byteCount,
             control_totals: controlTotals ?? null,
             rows: vector.rows,
           });

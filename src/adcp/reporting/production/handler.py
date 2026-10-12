@@ -499,7 +499,7 @@ class ReportingProductionHandler(ReportingReceiptHandler):
         except Exception as error:
             if isinstance(error, ReportingRowStoreError) or (
                 isinstance(error, ReportingNotificationError)
-                and str(error) == "reporting_revision_content_unavailable"
+                and error.code == "reporting_revision_content_unavailable"
             ):
                 # Operator codes never reach a buyer, so a buyer cannot probe whether an
                 # object exists. Rows that are missing or fail their binding inside the

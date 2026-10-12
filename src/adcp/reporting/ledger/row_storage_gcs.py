@@ -27,6 +27,8 @@ from adcp.reporting.ledger.row_storage_object import (
     ReportingRowObjectProviderV1,
     ReportingRowObjectPutInputV1,
     ReportingRowObjectPutResultV1,
+    ReportingRowObjectStatInputV1,
+    ReportingRowObjectStatResultV1,
 )
 from adcp.reporting.ledger.row_storage_provider_io import (
     assert_key,
@@ -65,9 +67,9 @@ def _generation_of(blob: Any) -> str:
     return generation
 
 
-def _pinned_generation(native_version: str) -> int | None:
-    if isinstance(native_version, str) and _GENERATION.match(native_version):
-        return int(native_version)
+def _pinned_generation(native_version_ref: str) -> int | None:
+    if isinstance(native_version_ref, str) and _GENERATION.match(native_version_ref):
+        return int(native_version_ref)
     return None
 
 
@@ -163,14 +165,14 @@ class _GcsProvider:
         self, put: ReportingRowObjectPutInputV1, context: ReportingRowObjectContextV1
     ) -> ReportingRowObjectPutResultV1:
         bucket = self._bucket(put.location, put.credential_ref)
-        assert_key(put.key)
+        assert_key(put.object_ref)
         return await asyncio.to_thread(self._put, bucket, put, context.timeout_seconds)
 
     @staticmethod
     def _put(
         bucket: Any, put: ReportingRowObjectPutInputV1, timeout: float
     ) -> ReportingRowObjectPutResultV1:
-        blob = bucket.blob(put.key)
+        blob = bucket.blob(put.object_ref)
         blob.cache_control = "no-store"
         blob.metadata = dict(put.metadata)
         try:
@@ -188,7 +190,7 @@ class _GcsProvider:
                 raise
             # The key is taken. Report the existing generation; the caller adopts it
             # only on identical bytes.
-            existing = bucket.get_blob(put.key, timeout=timeout)
+            existing = bucket.get_blob(put.object_ref, timeout=timeout)
             if existing is None:
                 raise
             return ReportingRowObjectPutResultV1(False, _generation_of(existing))
@@ -198,9 +200,9 @@ class _GcsProvider:
         self, get: ReportingRowObjectGetInputV1, context: ReportingRowObjectContextV1
     ) -> bytes | None:
         bucket = self._bucket(get.location, get.credential_ref)
-        assert_key(get.key)
+        assert_key(get.object_ref)
         assert_read_bounds(get)
-        generation = _pinned_generation(get.native_version)
+        generation = _pinned_generation(get.native_version_ref)
         if generation is None:
             return None
         return await asyncio.to_thread(self._get, bucket, get, generation, context.timeout_seconds)
@@ -209,7 +211,7 @@ class _GcsProvider:
     def _get(
         bucket: Any, get: ReportingRowObjectGetInputV1, generation: int, timeout: float
     ) -> bytes | None:
-        blob = bucket.blob(get.key, generation=generation)
+        blob = bucket.blob(get.object_ref, generation=generation)
         try:
             if get.byte_range is not None:
                 offset, length = get.byte_range
@@ -255,16 +257,53 @@ class _GcsProvider:
             )
         return bytes(data)
 
+    async def stat(
+        self, stat: ReportingRowObjectStatInputV1, context: ReportingRowObjectContextV1
+    ) -> ReportingRowObjectStatResultV1 | None:
+        bucket = self._bucket(stat.location, stat.credential_ref)
+        assert_key(stat.object_ref)
+        generation = _pinned_generation(stat.native_version_ref)
+        if generation is None:
+            return None
+        return await asyncio.to_thread(
+            self._stat, bucket, stat.object_ref, generation, context.timeout_seconds
+        )
+
+    @staticmethod
+    def _stat(
+        bucket: Any, key: str, generation: int, timeout: float
+    ) -> ReportingRowObjectStatResultV1 | None:
+        # A generation-pinned metadata read: 404 for any other generation, so a hit proves this
+        # exact write (generations are unique per write) and its stored size without reading
+        # the bytes.
+        blob = bucket.blob(key, generation=generation)
+        try:
+            blob.reload(timeout=timeout)
+        except Exception as error:
+            if _status(error) == 404:
+                return None
+            raise
+        # A store that ignores the pin and answers for another generation is not this object.
+        if str(getattr(blob, "generation", "")) != str(generation):
+            return None
+        try:
+            size = int(blob.size)
+        except (TypeError, ValueError):
+            size = -1
+        if size < 0:
+            raise ReportingRowStoreError("PROVIDER_UNAVAILABLE", "object metadata is malformed")
+        return ReportingRowObjectStatResultV1(str(generation), size)
+
     async def delete(
         self, delete: ReportingRowObjectDeleteInputV1, context: ReportingRowObjectContextV1
     ) -> Literal["deleted", "absent"]:
         bucket = self._bucket(delete.location, delete.credential_ref)
-        assert_key(delete.key)
-        generation = _pinned_generation(delete.native_version)
+        assert_key(delete.object_ref)
+        generation = _pinned_generation(delete.native_version_ref)
         if generation is None:
             return "absent"
         return await asyncio.to_thread(
-            self._delete, bucket, delete.key, generation, context.timeout_seconds
+            self._delete, bucket, delete.object_ref, generation, context.timeout_seconds
         )
 
     @staticmethod

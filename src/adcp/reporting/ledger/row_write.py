@@ -43,6 +43,7 @@ from adcp.reporting.ledger.row_storage import (
     ReportingRowChunkLocatorV1,
     ReportingRowStoreError,
 )
+from adcp.reporting.ledger.row_storage_errors import ReportingRowBindingMismatchError
 from adcp.reporting.ledger.store import LedgerConflictError
 
 if TYPE_CHECKING:
@@ -79,6 +80,7 @@ async def prepare_revision_row_set(
     *,
     binding_id: str | None = None,
     period_start: str | None = None,
+    source_timezone: str | None = None,
 ) -> ReportingPreparedRowSetV1:
     """Chunk a revision's rows and prove them against its committed binding.
 
@@ -119,12 +121,13 @@ async def prepare_revision_row_set(
             expected_sha256=None if legacy else revision.revision_content_sha256,
             finality=revision.finality,
             period_start=period_start,
+            source_timezone=source_timezone,
             binding_id=binding_id,
         )
     except ReportingRowStoreError as error:
         if error.code != "INVALID_INPUT":
             raise
-        if "committed binding" in (error.detail or ""):
+        if isinstance(error, ReportingRowBindingMismatchError):
             raise LedgerConflictError(
                 "REVISION_CONTENT_MISMATCH",
                 "revision row content does not match its immutable binding",
@@ -158,7 +161,7 @@ async def stage_revision_rows(
         row = await (
             await connection.execute(
                 "SELECT to_char(period_start AT TIME ZONE 'UTC',"
-                ' \'YYYY-MM-DD"T"HH24:MI:SS"Z"\') FROM reporting_obligations'
+                ' \'YYYY-MM-DD"T"HH24:MI:SS"Z"\'), source_timezone FROM reporting_obligations'
                 " WHERE reporting_obligation_id = %s AND account_id = %s",
                 (revision.reporting_obligation_id, revision.account_id),
             )
@@ -174,7 +177,11 @@ async def stage_revision_rows(
         # A replay needs no upload, and nothing is staged for it.
         return None
     prepared = await prepare_revision_row_set(
-        store, revision, rows, period_start=row[0] if row else None
+        store,
+        revision,
+        rows,
+        period_start=row[0] if row else None,
+        source_timezone=row[1] if row else None,
     )
     staged = StagedRevisionRows(prepared)
     if not isinstance(prepared.binding, ReportingObjectRowBindingV1):
@@ -195,7 +202,7 @@ async def stage_revision_rows(
     await _open_intent(store, prepared, owner_token)
     staged.owner_token = owner_token
 
-    async def record(object_key: str, native_version: str) -> None:
+    async def record(object_ref: str, native_version_ref: str) -> None:
         async with store._pool.connection() as connection:
             cursor = await connection.execute(
                 "UPDATE adcp_reporting_row_write_intents"
@@ -203,7 +210,9 @@ async def stage_revision_rows(
                 " WHERE row_binding_id = %s AND row_set_id = %s AND content_sha256 = %s"
                 " AND owner_token = %s AND state = 'open'",
                 (
-                    json.dumps([{"objectKey": object_key, "nativeVersion": native_version}]),
+                    json.dumps(
+                        [{"object_ref": object_ref, "native_version_ref": native_version_ref}]
+                    ),
                     prepared.binding_id,
                     prepared.row_set_id,
                     prepared.content_sha256,

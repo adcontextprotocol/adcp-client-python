@@ -135,7 +135,7 @@ store = PgReportingLedgerStore(
                 roots={"reports": "/var/lib/adcp/rows"}
             )
         },
-        select_row_binding=lambda s: "inline" if s.canonical_byte_count < 256 * 1024 else "reports",
+        select_row_binding=lambda s: "inline" if s.content_size_bytes < 256 * 1024 else "reports",
     ),
 )
 await store.create_schema()
@@ -144,8 +144,21 @@ await store.create_schema()
 - Each chunk is one object, written create-only. An object already at a planned key is adopted only when its bytes
   decode to the exact chunk; otherwise the commit fails with `CONTENT_CONFLICT`.
 - Keys always start with `{prefix}/{namespace_key}/` and use a hashed account segment, never a raw account ID.
-  Templates may use the placeholders in `REPORTING_ROW_KEY_PLACEHOLDERS` and must include `{content_sha256}` and
-  `{chunk_index}`. Keep a retired binding configured while revisions still reference it.
+  Templates may use the placeholders in `REPORTING_ROW_KEY_PLACEHOLDERS` and must include `{content_sha256}`,
+  `{chunk_index}` **and `{revision_key}`**, so no two row sets name the same object key. This is validated when the
+  store is configured and again at readiness, failing closed with `INVALID_INPUT` (`row binding <id>: ...`). A binding's
+  identity includes its template, so a custom template without `{revision_key}` must be added under a **new** binding
+  ID. Keep the old definition configured with `read_only=True` while rows reference it: a read-only binding is exempt
+  from the requirement (its template is otherwise validated), is never selected for new writes (a write through it
+  fails with `UNSAFE_BINDING`, never `INVALID_INPUT`, which would read as bad rows), is not part of the binding
+  identity, and is still used for reads and retirement. Rows already written stay readable at their recorded
+  `object_ref`; reads never re-render a key. Keep a retired binding configured while revisions still reference it.
+- **`{period_date}` is AdCP's `YYYY-MM-DD`**: the calendar date of the period start in the period's
+  `source_timezone`, as one path segment (a period starting `2026-10-01T00:00:00Z` in `America/Los_Angeles` is
+  `2026-09-30`). It fails closed (`INVALID_INPUT`) on a missing, unknown or non-IANA timezone and never assumes UTC;
+  a period with no start renders `undated`. A rendered key is bounded at AdCP's 1024-character `object_ref`, and a
+  provider's native version at the 1024-character `native_version_ref`. The default key template is unchanged, so
+  binding identities stay valid.
 - **Upload before the ledger transaction.** `ReportingProducer` stages every object-bound revision first
   (`store.stage_revision_rows`), so a slow store never holds the account lock or a transaction. If you call
   `commit_revision` yourself for an object-bound revision, call `stage_revision_rows` first; `commit_revision`
@@ -169,6 +182,12 @@ await store.create_schema()
   uses, stamping a random sub-millisecond mtime on every write. It needs a filesystem with sub-second mtime and,
   ideally, birth time (ext4, XFS, APFS, NTFS). The `write-unique-version` conformance check fails on a coarse
   filesystem, which means the filesystem is wrong, not the code.
+- A commit that adopted an object another row set created locks it and proves it unchanged inside the ledger
+  transaction without downloading it: a provider's optional `stat(ReportingRowObjectStatInputV1, context)` returns
+  the exact native version it resolved and its stored `size_bytes`, or `None`. Native versions are write-unique, so
+  the same version at the recorded size is the same bytes, which were verified when the object was uploaded or
+  adopted. A provider without `stat` falls back to reading the whole object and comparing its digest. Every bundled
+  provider implements `stat`, and the conformance suite checks it (`version-pinned-stat`).
 - Custom providers implement `ReportingRowObjectProviderV1`. Run
   `run_reporting_row_object_provider_conformance_v1(provider, location=..., prefix=...)` against a dedicated test
   prefix before using one.
@@ -287,6 +306,35 @@ Python keeps revision headers and their records until the shared Core layout (pe
 stays as a small marker that makes reads answer as expired; the records are already outside the status projection,
 whose horizon excludes periods past retention. Versioned buckets, soft delete and retention locks are allowed as
 backstops, but a `pruned` period is not "erased" while they keep the old bytes.
+
+## Stored names follow AdCP
+
+Stored values use the names and bounds AdCP already defines (`reporting-file-manifest.json`,
+`reporting-file-entry.json`). `create_schema` (or applying `reporting_row_storage.sql`) migrates a database created
+by an earlier release in place, idempotently, under both SDKs' migration advisory locks; stop older writers first.
+
+| Before | After | Meaning |
+| --- | --- | --- |
+| `adcp_reporting_row_chunks.object_key` | `object_ref` (1 to 1024 characters) | decoded, destination-relative object key |
+| `adcp_reporting_row_chunks.native_version` | `native_version_ref` (1 to 1024 characters) | provider-native immutable version |
+| `adcp_reporting_row_chunks.physical_byte_count` | `size_bytes` | stored object size, after compression |
+| `adcp_reporting_row_chunks.byte_count` | `canonical_size_bytes` | uncompressed canonical bytes; the digest-pinned manifest value |
+| `adcp_reporting_row_sets.canonical_byte_count` | `content_size_bytes` | size of the content `content_sha256` covers (a revision's includes the envelope, so it is not the sum of its chunks) |
+| `adcp_reporting_row_sets.encoding` | `format` = `jsonl`, `algorithm` = `adcp_jcs_rows_v1` | `adcp_jcs_rows_v1` names the per-row RFC 8785 canonicalization |
+
+In Python: `ReportingRowChunkLocatorV1` has `object_ref`, `native_version_ref` and `size_bytes`; provider inputs take
+`object_ref` and `native_version_ref`; `ReportingRowBindingSelectionInputV1.content_size_bytes` replaces
+`canonical_byte_count`; `REPORTING_ROW_ENCODING_V1` is replaced by `REPORTING_ROW_FORMAT_V1` and
+`REPORTING_ROW_ALGORITHM_V1`. Manifest JSON field names (`byte_count`, `byte_offset`) are digest-pinned and did not
+change, and no digest changed: the format and algorithm tokens feed none. Open write intents record
+`{"object_ref", "native_version_ref"}`; the sweep and the reference check also read the earlier `objectKey` /
+`nativeVersion` spelling, for a writer still running during a rolling upgrade.
+
+The migration does not rewrite recorded object keys. Objects written before the upgrade keep their recorded
+`object_ref` (rendered under the old UTC `yyyy/MM/dd` layout), so reads, retention and deletes keep working; new writes
+render the new key. It refuses, naming the count and rolling back, a database that already holds a key or version
+outside AdCP's 1 to 1024 characters. `ReportingRowBindingMismatchError` (an `INVALID_INPUT`) is the typed signal that
+rows do not reproduce their committed binding; callers no longer read the message.
 
 ## Interoperability with the JavaScript SDK
 

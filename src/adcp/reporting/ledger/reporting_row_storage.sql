@@ -19,10 +19,85 @@
 -- composite key still binds every chunk and every shared row set to its own
 -- account and obligation.
 --
+-- Stored values use AdCP's names and bounds (reporting-file-manifest.json,
+-- reporting-file-entry.json): object_ref and native_version_ref are 1 to 1024
+-- characters, size_bytes is the stored object's size, and the row-set format and
+-- algorithm are jsonl and adcp_jcs_rows_v1. A database created before this
+-- alignment (object_key, native_version, byte_count, physical_byte_count,
+-- canonical_byte_count, encoding) is renamed in place by the first block below,
+-- which also rewrites open write intents. Recorded object keys are not rewritten.
+--
 -- The adcp_ prefix keeps these objects outside the reporting_* catalog contract
 -- older binaries verify, so adding them cannot change any retained manifest.
 
 SELECT pg_advisory_xact_lock(hashtext('adcp.reporting.schema'), hashtext(current_schema()));
+-- The JavaScript SDK serializes its appliers on this key; taking it too serializes the two SDKs'
+-- migrations of these shared tables against each other.
+SELECT pg_advisory_xact_lock(hashtextextended('adcp-reporting-row-storage-migration', 0));
+
+-- In-place upgrade from the pre-AdCP-alignment names. Every step is guarded, so a fresh install
+-- (no tables yet) and a reapplied migration are both no-ops here.
+DO $align$
+DECLARE
+  renames TEXT[][] := ARRAY[
+    ARRAY['adcp_reporting_row_chunks', 'object_key', 'object_ref'],
+    ARRAY['adcp_reporting_row_chunks', 'native_version', 'native_version_ref'],
+    ARRAY['adcp_reporting_row_chunks', 'byte_count', 'canonical_size_bytes'],
+    ARRAY['adcp_reporting_row_chunks', 'physical_byte_count', 'size_bytes'],
+    ARRAY['adcp_reporting_row_sets', 'canonical_byte_count', 'content_size_bytes']
+  ];
+  -- Column CHECK constraints are named after their column when created; keep an upgraded database
+  -- identical to a fresh one, which the startup catalog check compares by name.
+  constraint_renames TEXT[][] := ARRAY[
+    ARRAY['adcp_reporting_row_chunks', 'adcp_reporting_row_chunks_byte_count_check',
+          'adcp_reporting_row_chunks_canonical_size_bytes_check'],
+    ARRAY['adcp_reporting_row_chunks', 'adcp_reporting_row_chunks_physical_byte_count_check',
+          'adcp_reporting_row_chunks_size_bytes_check'],
+    ARRAY['adcp_reporting_row_sets', 'adcp_reporting_row_sets_canonical_byte_count_check',
+          'adcp_reporting_row_sets_content_size_bytes_check']
+  ];
+  item TEXT[];
+BEGIN
+  FOREACH item SLICE 1 IN ARRAY renames LOOP
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+       WHERE table_schema = current_schema() AND table_name = item[1] AND column_name = item[2]
+    ) AND NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+       WHERE table_schema = current_schema() AND table_name = item[1] AND column_name = item[3]
+    ) THEN
+      EXECUTE format('ALTER TABLE %I RENAME COLUMN %I TO %I', item[1], item[2], item[3]);
+    END IF;
+  END LOOP;
+  FOREACH item SLICE 1 IN ARRAY constraint_renames LOOP
+    IF EXISTS (
+      SELECT 1 FROM pg_constraint
+       WHERE conname = item[2] AND conrelid = to_regclass(quote_ident(current_schema()) || '.' || quote_ident(item[1]))
+    ) AND NOT EXISTS (
+      SELECT 1 FROM pg_constraint
+       WHERE conname = item[3] AND conrelid = to_regclass(quote_ident(current_schema()) || '.' || quote_ident(item[1]))
+    ) THEN
+      EXECUTE format('ALTER TABLE %I RENAME CONSTRAINT %I TO %I', item[1], item[2], item[3]);
+    END IF;
+  END LOOP;
+  -- encoding = 'adcp_canonical_jsonl_v1' becomes AdCP's format = 'jsonl' plus
+  -- algorithm = 'adcp_jcs_rows_v1'. The old CHECK admitted one value, so the defaults backfill
+  -- every row without an UPDATE (the immutability trigger forbids one).
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = current_schema() AND table_name = 'adcp_reporting_row_sets' AND column_name = 'encoding'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = current_schema() AND table_name = 'adcp_reporting_row_sets' AND column_name = 'format'
+  ) THEN
+    ALTER TABLE adcp_reporting_row_sets
+      ADD COLUMN format TEXT NOT NULL DEFAULT 'jsonl' CHECK (format = 'jsonl'),
+      ADD COLUMN algorithm TEXT NOT NULL DEFAULT 'adcp_jcs_rows_v1' CHECK (algorithm = 'adcp_jcs_rows_v1');
+    ALTER TABLE adcp_reporting_row_sets ALTER COLUMN format DROP DEFAULT, ALTER COLUMN algorithm DROP DEFAULT;
+    ALTER TABLE adcp_reporting_row_sets DROP COLUMN encoding;
+  END IF;
+END
+$align$;
 
 CREATE TABLE IF NOT EXISTS adcp_persistence_installation (
   singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
@@ -50,10 +125,11 @@ CREATE TABLE IF NOT EXISTS adcp_reporting_row_sets (
   row_set_kind TEXT NOT NULL CHECK (row_set_kind IN ('revision', 'adjustment')),
   account_id TEXT COLLATE "C" NOT NULL,
   obligation_id TEXT COLLATE "C" NOT NULL,
-  encoding TEXT NOT NULL CHECK (encoding = 'adcp_canonical_jsonl_v1'),
+  format TEXT NOT NULL CHECK (format = 'jsonl'),
+  algorithm TEXT NOT NULL CHECK (algorithm = 'adcp_jcs_rows_v1'),
   digest_profile TEXT NOT NULL CHECK (digest_profile IN ('revision_envelope_v1', 'rows_v1')),
   content_sha256 TEXT COLLATE "C" NOT NULL CHECK (content_sha256 ~ '^[0-9a-f]{64}$'),
-  canonical_byte_count BIGINT NOT NULL CHECK (canonical_byte_count > 0),
+  content_size_bytes BIGINT NOT NULL CHECK (content_size_bytes > 0),
   row_count BIGINT NOT NULL CHECK (row_count >= 0),
   row_manifest_sha256 TEXT COLLATE "C" NOT NULL CHECK (row_manifest_sha256 ~ '^[0-9a-f]{64}$'),
   chunk_count INTEGER NOT NULL CHECK (chunk_count >= 0),
@@ -87,27 +163,29 @@ CREATE TABLE IF NOT EXISTS adcp_reporting_row_chunks (
   obligation_id TEXT COLLATE "C" NOT NULL,
   first_ordinal BIGINT NOT NULL CHECK (first_ordinal >= 0),
   row_count INTEGER NOT NULL CHECK (row_count > 0),
-  byte_count BIGINT NOT NULL CHECK (byte_count > 0),
+  canonical_size_bytes BIGINT NOT NULL CHECK (canonical_size_bytes > 0),
   sha256 TEXT COLLATE "C" NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
   segments JSONB NOT NULL CHECK (jsonb_typeof(segments) = 'array'),
-  object_key TEXT COLLATE "C",
-  native_version TEXT,
+  object_ref TEXT COLLATE "C" CONSTRAINT adcp_reporting_row_chunks_object_ref_bounds
+    CHECK (object_ref IS NULL OR char_length(object_ref) BETWEEN 1 AND 1024),
+  native_version_ref TEXT CONSTRAINT adcp_reporting_row_chunks_native_version_ref_bounds
+    CHECK (native_version_ref IS NULL OR char_length(native_version_ref) BETWEEN 1 AND 1024),
   compression TEXT NOT NULL DEFAULT 'none' CHECK (compression IN ('none', 'gzip')),
   physical_sha256 TEXT COLLATE "C" CHECK (physical_sha256 IS NULL OR physical_sha256 ~ '^[0-9a-f]{64}$'),
-  physical_byte_count BIGINT CHECK (physical_byte_count IS NULL OR physical_byte_count > 0),
+  size_bytes BIGINT CHECK (size_bytes IS NULL OR size_bytes > 0),
   PRIMARY KEY (row_set_id, chunk_index),
   FOREIGN KEY (row_set_id, account_id, obligation_id)
     REFERENCES adcp_reporting_row_sets (row_set_id, account_id, obligation_id),
-  CHECK ((object_key IS NULL) = (native_version IS NULL)),
-  CHECK ((object_key IS NULL) = (physical_sha256 IS NULL)),
-  CHECK ((object_key IS NULL) = (physical_byte_count IS NULL))
+  CHECK ((object_ref IS NULL) = (native_version_ref IS NULL)),
+  CHECK ((object_ref IS NULL) = (physical_sha256 IS NULL)),
+  CHECK ((object_ref IS NULL) = (size_bytes IS NULL))
 );
 CREATE INDEX IF NOT EXISTS adcp_reporting_row_chunks_object
-  ON adcp_reporting_row_chunks (object_key, native_version)
-  WHERE object_key IS NOT NULL;
+  ON adcp_reporting_row_chunks (object_ref, native_version_ref)
+  WHERE object_ref IS NOT NULL;
 CREATE INDEX IF NOT EXISTS adcp_reporting_row_chunks_body
   ON adcp_reporting_row_chunks (account_id, obligation_id, sha256)
-  WHERE object_key IS NULL;
+  WHERE object_ref IS NULL;
 
 CREATE TABLE IF NOT EXISTS adcp_reporting_chunk_bodies (
   account_id TEXT COLLATE "C" NOT NULL,
@@ -147,13 +225,13 @@ BEGIN
       RAISE EXCEPTION 'reporting row binding identity is immutable' USING ERRCODE = '23514';
     END IF;
   ELSIF TG_TABLE_NAME = 'adcp_reporting_row_sets' THEN
-    IF (NEW.row_set_id, NEW.row_set_kind, NEW.account_id, NEW.obligation_id, NEW.encoding, NEW.digest_profile,
-        NEW.content_sha256, NEW.canonical_byte_count, NEW.row_count, NEW.row_manifest_sha256, NEW.chunk_count,
-        NEW.rows_shared_from_row_set_id, NEW.recorded_at)
+    IF (NEW.row_set_id, NEW.row_set_kind, NEW.account_id, NEW.obligation_id, NEW.format, NEW.algorithm,
+        NEW.digest_profile, NEW.content_sha256, NEW.content_size_bytes, NEW.row_count, NEW.row_manifest_sha256,
+        NEW.chunk_count, NEW.rows_shared_from_row_set_id, NEW.recorded_at)
        IS DISTINCT FROM
-       (OLD.row_set_id, OLD.row_set_kind, OLD.account_id, OLD.obligation_id, OLD.encoding, OLD.digest_profile,
-        OLD.content_sha256, OLD.canonical_byte_count, OLD.row_count, OLD.row_manifest_sha256, OLD.chunk_count,
-        OLD.rows_shared_from_row_set_id, OLD.recorded_at) THEN
+       (OLD.row_set_id, OLD.row_set_kind, OLD.account_id, OLD.obligation_id, OLD.format, OLD.algorithm,
+        OLD.digest_profile, OLD.content_sha256, OLD.content_size_bytes, OLD.row_count, OLD.row_manifest_sha256,
+        OLD.chunk_count, OLD.rows_shared_from_row_set_id, OLD.recorded_at) THEN
       RAISE EXCEPTION 'reporting row set content is immutable' USING ERRCODE = '23514';
     END IF;
     IF NEW.row_binding_id IS DISTINCT FROM OLD.row_binding_id
@@ -162,10 +240,10 @@ BEGIN
     END IF;
   ELSIF TG_TABLE_NAME = 'adcp_reporting_row_chunks' THEN
     IF (NEW.row_set_id, NEW.chunk_index, NEW.account_id, NEW.obligation_id, NEW.first_ordinal, NEW.row_count,
-        NEW.byte_count, NEW.sha256, NEW.segments)
+        NEW.canonical_size_bytes, NEW.sha256, NEW.segments)
        IS DISTINCT FROM
        (OLD.row_set_id, OLD.chunk_index, OLD.account_id, OLD.obligation_id, OLD.first_ordinal, OLD.row_count,
-        OLD.byte_count, OLD.sha256, OLD.segments) THEN
+        OLD.canonical_size_bytes, OLD.sha256, OLD.segments) THEN
       RAISE EXCEPTION 'reporting row chunk content is immutable' USING ERRCODE = '23514';
     END IF;
   ELSIF TG_TABLE_NAME = 'adcp_reporting_chunk_bodies' THEN
@@ -205,3 +283,52 @@ $triggers$;
 ALTER TABLE adcp_reporting_row_write_intents
   ADD COLUMN IF NOT EXISTS sweep_attempts INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE adcp_reporting_row_write_intents ADD COLUMN IF NOT EXISTS next_sweep_at TIMESTAMPTZ;
+
+-- AdCP bounds on installs created before they existed (a fresh install has them inline).
+DO $bounds$
+DECLARE
+  offending BIGINT;
+BEGIN
+  SELECT count(*) INTO offending FROM adcp_reporting_row_chunks
+   WHERE object_ref IS NOT NULL
+     AND (char_length(object_ref) NOT BETWEEN 1 AND 1024
+          OR char_length(native_version_ref) NOT BETWEEN 1 AND 1024);
+  IF offending > 0 THEN
+    RAISE EXCEPTION 'reporting row storage: % chunk(s) hold an object_ref or native_version_ref outside AdCP 1 to 1024 characters; re-sync them before applying this migration', offending
+      USING ERRCODE = '23514';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+     WHERE conname = 'adcp_reporting_row_chunks_object_ref_bounds'
+       AND conrelid = to_regclass(quote_ident(current_schema()) || '.adcp_reporting_row_chunks')
+  ) THEN
+    ALTER TABLE adcp_reporting_row_chunks ADD CONSTRAINT adcp_reporting_row_chunks_object_ref_bounds
+      CHECK (object_ref IS NULL OR char_length(object_ref) BETWEEN 1 AND 1024);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+     WHERE conname = 'adcp_reporting_row_chunks_native_version_ref_bounds'
+       AND conrelid = to_regclass(quote_ident(current_schema()) || '.adcp_reporting_row_chunks')
+  ) THEN
+    ALTER TABLE adcp_reporting_row_chunks ADD CONSTRAINT adcp_reporting_row_chunks_native_version_ref_bounds
+      CHECK (native_version_ref IS NULL OR char_length(native_version_ref) BETWEEN 1 AND 1024);
+  END IF;
+END
+$bounds$;
+
+-- Open write intents written before the rename name objects objectKey / nativeVersion.
+UPDATE adcp_reporting_row_write_intents
+   SET created_objects = (
+     SELECT COALESCE(jsonb_agg(
+       CASE WHEN jsonb_typeof(created) = 'object' AND created ? 'objectKey'
+         THEN jsonb_build_object('object_ref', created -> 'objectKey',
+                                 'native_version_ref', created -> 'nativeVersion')
+         ELSE created END
+       ORDER BY ordinality
+     ), '[]'::jsonb)
+       FROM jsonb_array_elements(created_objects) WITH ORDINALITY AS element(created, ordinality)
+   )
+ WHERE EXISTS (
+   SELECT 1 FROM jsonb_array_elements(created_objects) AS element(created)
+    WHERE jsonb_typeof(created) = 'object' AND created ? 'objectKey'
+ );

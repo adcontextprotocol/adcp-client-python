@@ -34,6 +34,8 @@ from adcp.reporting.ledger.row_storage_object import (
     ReportingRowObjectProviderV1,
     ReportingRowObjectPutInputV1,
     ReportingRowObjectPutResultV1,
+    ReportingRowObjectStatInputV1,
+    ReportingRowObjectStatResultV1,
 )
 from adcp.reporting.ledger.row_storage_provider_io import (
     assert_location_keys,
@@ -140,9 +142,9 @@ def _metadata(metadata: Mapping[str, str]) -> dict[str, str]:
     return result
 
 
-def _pinned(native_version: str) -> str | None:
-    if isinstance(native_version, str) and _VERSION_ID.match(native_version):
-        return native_version
+def _pinned(native_version_ref: str) -> str | None:
+    if isinstance(native_version_ref, str) and _VERSION_ID.match(native_version_ref):
+        return native_version_ref
     return None
 
 
@@ -171,7 +173,7 @@ class _AzureProvider:
         return client.get_container_client(location["container"])
 
     def _blob(self, location: Mapping[str, str], credential_ref: str | None, key: str) -> Any:
-        if not isinstance(key, str) or not key or len(key) > 1024:
+        if not isinstance(key, str) or not 1 <= len(key) <= 1024:
             raise ReportingRowStoreError("INVALID_INPUT", "object key is invalid")
         return self._container(location, credential_ref).get_blob_client(key)
 
@@ -258,7 +260,7 @@ class _AzureProvider:
         self, put: ReportingRowObjectPutInputV1, context: ReportingRowObjectContextV1
     ) -> ReportingRowObjectPutResultV1:
         blob = _Budgeted(
-            self._blob(put.location, put.credential_ref, put.key), context.timeout_seconds
+            self._blob(put.location, put.credential_ref, put.object_ref), context.timeout_seconds
         )
         return await asyncio.to_thread(self._put, blob, put)
 
@@ -279,10 +281,10 @@ class _AzureProvider:
         self, get: ReportingRowObjectGetInputV1, context: ReportingRowObjectContextV1
     ) -> bytes | None:
         blob = _Budgeted(
-            self._blob(get.location, get.credential_ref, get.key), context.timeout_seconds
+            self._blob(get.location, get.credential_ref, get.object_ref), context.timeout_seconds
         )
         assert_read_bounds(get)
-        version = _pinned(get.native_version)
+        version = _pinned(get.native_version_ref)
         if version is None:
             return None
         return await asyncio.to_thread(self._get, blob, get, version)
@@ -335,13 +337,43 @@ class _AzureProvider:
             )
         return data
 
+    async def stat(
+        self, stat: ReportingRowObjectStatInputV1, context: ReportingRowObjectContextV1
+    ) -> ReportingRowObjectStatResultV1 | None:
+        blob = _Budgeted(
+            self._blob(stat.location, stat.credential_ref, stat.object_ref),
+            context.timeout_seconds,
+        )
+        version = _pinned(stat.native_version_ref)
+        if version is None:
+            return None
+        return await asyncio.to_thread(self._stat, blob, version)
+
+    @staticmethod
+    def _stat(blob: Any, version: str) -> ReportingRowObjectStatResultV1 | None:
+        # A version_id-pinned properties read: only an echoed exact version counts (stores
+        # without blob versioning ignore it), and versions are unique per write.
+        try:
+            properties = blob.get_blob_properties(version_id=version)
+        except Exception as error:
+            if _is_missing(error) or _status(error) == 400:
+                return None
+            raise
+        if not _served(properties, version):
+            return None
+        size = getattr(properties, "size", None)
+        if type(size) is not int or size < 0:
+            raise ReportingRowStoreError("PROVIDER_UNAVAILABLE", "blob metadata is malformed")
+        return ReportingRowObjectStatResultV1(version, size)
+
     async def delete(
         self, delete: ReportingRowObjectDeleteInputV1, context: ReportingRowObjectContextV1
     ) -> Literal["deleted", "absent"]:
         blob = _Budgeted(
-            self._blob(delete.location, delete.credential_ref, delete.key), context.timeout_seconds
+            self._blob(delete.location, delete.credential_ref, delete.object_ref),
+            context.timeout_seconds,
         )
-        version = _pinned(delete.native_version)
+        version = _pinned(delete.native_version_ref)
         if version is None:
             return "absent"
         return await asyncio.to_thread(self._delete, blob, version)

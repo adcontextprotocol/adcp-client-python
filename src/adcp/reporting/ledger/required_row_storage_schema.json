@@ -75,7 +75,7 @@
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
   },
-  "column:adcp_reporting_row_chunks.byte_count": {
+  "column:adcp_reporting_row_chunks.canonical_size_bytes": {
     "enabled": true,
     "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
   },
@@ -91,21 +91,17 @@
     "enabled": true,
     "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
   },
-  "column:adcp_reporting_row_chunks.native_version": {
+  "column:adcp_reporting_row_chunks.native_version_ref": {
     "enabled": true,
     "fingerprint": "5b92595d0b54d473a3a3818455845f1fe0dc20b48cfe0faf63061a82d1a3cb02"
   },
-  "column:adcp_reporting_row_chunks.object_key": {
+  "column:adcp_reporting_row_chunks.object_ref": {
     "enabled": true,
     "fingerprint": "85b88fb407e112399f25b5dc8830dfdcb2a8271ecf00e70b662f6917b4a002cd"
   },
   "column:adcp_reporting_row_chunks.obligation_id": {
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
-  },
-  "column:adcp_reporting_row_chunks.physical_byte_count": {
-    "enabled": true,
-    "fingerprint": "992336704a95e12ec6e959825c59fa2e51cddc5f1568af6bebaf12f03ac5655f"
   },
   "column:adcp_reporting_row_chunks.physical_sha256": {
     "enabled": true,
@@ -127,13 +123,17 @@
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
   },
+  "column:adcp_reporting_row_chunks.size_bytes": {
+    "enabled": true,
+    "fingerprint": "992336704a95e12ec6e959825c59fa2e51cddc5f1568af6bebaf12f03ac5655f"
+  },
   "column:adcp_reporting_row_sets.account_id": {
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
   },
-  "column:adcp_reporting_row_sets.canonical_byte_count": {
+  "column:adcp_reporting_row_sets.algorithm": {
     "enabled": true,
-    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+    "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
   },
   "column:adcp_reporting_row_sets.chunk_count": {
     "enabled": true,
@@ -143,11 +143,15 @@
     "enabled": true,
     "fingerprint": "fdc4b549138bf90a5af5ed00b87a86ff9a0cbea553e7f017b4d95510708f6f88"
   },
+  "column:adcp_reporting_row_sets.content_size_bytes": {
+    "enabled": true,
+    "fingerprint": "54a5f9962598caa8723435f8b55bd5e15823053af5dd63d531663997537dc6ba"
+  },
   "column:adcp_reporting_row_sets.digest_profile": {
     "enabled": true,
     "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
   },
-  "column:adcp_reporting_row_sets.encoding": {
+  "column:adcp_reporting_row_sets.format": {
     "enabled": true,
     "fingerprint": "10ccaa0dc3b93d48a1f32c7ef2352a11676632e1e871d77ef9ef4393eea15d27"
   },
@@ -295,21 +299,21 @@
     "enabled": true,
     "fingerprint": "2849ca0da547593cacdd14d98ab8a33a4cbdb6b169e8e022900942a397cf2912"
   },
-  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_byte_count_check": {
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_canonical_size_bytes_check": {
     "enabled": true,
-    "fingerprint": "54b3e92e0c1f55f4bf5b2d85661cbf28055befe7d4a1cba56f5b2e579550dea7"
+    "fingerprint": "160527cd5df11ab44e0a77b794c24b576a11ef2fc3e73beee5afed66ddefcd0b"
   },
   "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_check": {
     "enabled": true,
-    "fingerprint": "bc02575db323e33679b611b550d21951cb05255ee4583c88e5427a7f64da079e"
+    "fingerprint": "748cb6ed4d0158fa222a247762013579e8788a1c48f1153875398496a2ab75b7"
   },
   "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_check1": {
     "enabled": true,
-    "fingerprint": "ce6f37283fb00f795857df0dafefc194514cacd99b8c880659a50f56c40eafcf"
+    "fingerprint": "b897bc191e19e7679c6d8f9035210a53e89a4d96ebe319faa7c9eeab6967a370"
   },
   "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_check2": {
     "enabled": true,
-    "fingerprint": "5764caa49c4c45f4a560255baa33a1410139852f204490896893ab8089d7534c"
+    "fingerprint": "619c2e0ac282074141b1c28f310373400da3f6984f55a3a906b0a4f3a15574b9"
   },
   "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_chunk_index_check": {
     "enabled": true,
@@ -323,9 +327,13 @@
     "enabled": true,
     "fingerprint": "3a1abd05453b6d3402eebb5dba064399e16d84918b6f704ec1dfb9bd2abe37b1"
   },
-  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_physical_byte_count_check": {
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_native_version_ref_bounds": {
     "enabled": true,
-    "fingerprint": "b7a849815e85051545f08d2bf2d14c7c15f12acaa0eb44f38dcc117e86dc3b63"
+    "fingerprint": "9b154dfbd21bf73a7d629aba2aec57d522e4114c4ac04bcb795a2dccb3004a45"
+  },
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_object_ref_bounds": {
+    "enabled": true,
+    "fingerprint": "dcb1940c67d3b726431c33ab2e85fd64b89df4463a9512b3bca06595416d4e05"
   },
   "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_physical_sha256_check": {
     "enabled": true,
@@ -351,9 +359,13 @@
     "enabled": true,
     "fingerprint": "9349b530820bca69cf6ca38641139e81b9164f3791316d92fa867a8242a10a0d"
   },
-  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_canonical_byte_count_check": {
+  "constraint:adcp_reporting_row_chunks.adcp_reporting_row_chunks_size_bytes_check": {
     "enabled": true,
-    "fingerprint": "e5968f0701dc40c83c9be0857e7d08ca2ecc1736ef3c27aeb8604cc248fa8bda"
+    "fingerprint": "e316d8c13ce342529576a08aa61ae16b3df7952260bf404343d1d06273837b96"
+  },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_algorithm_check": {
+    "enabled": true,
+    "fingerprint": "f400184ba9dbd79bcc904714952f973ed05589a3e8a93df3c595cd0f94793a72"
   },
   "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_check": {
     "enabled": true,
@@ -371,13 +383,17 @@
     "enabled": true,
     "fingerprint": "2afe58d90df96e397cb8e6a941e52fcf8e01b7835024dd3b4ba67141a3578505"
   },
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_content_size_bytes_check": {
+    "enabled": true,
+    "fingerprint": "4febfa2958b1be0157d64b6e409cf5f76202fb57c9657cef6d1cbec4586c7bd9"
+  },
   "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_digest_profile_check": {
     "enabled": true,
     "fingerprint": "eb65a1c0b1b6867fe1e3d08a952cc52dd21f5fb737551c492f6690a7cdbda1d3"
   },
-  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_encoding_check": {
+  "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_format_check": {
     "enabled": true,
-    "fingerprint": "98107d1c31171c250dc01de37af63d67c4e3dc65a4d9a44bb8d293244bb3a8d4"
+    "fingerprint": "48781f04920c7a6c8056e70513f2783f77115c623f772238afcf6d0e67dcdecc"
   },
   "constraint:adcp_reporting_row_sets.adcp_reporting_row_sets_pkey": {
     "enabled": true,
@@ -437,7 +453,7 @@
   },
   "function:adcp_reporting_row_storage_immutable()": {
     "enabled": true,
-    "fingerprint": "21ecac33f7a3dc4af79ee2f291a4d72934ceb809382b3c2411adb988d329a22b"
+    "fingerprint": "ff4661d722e7d85f8171913021706825994a28ed56b6c9d1e2af8f5dbd283d06"
   },
   "index:adcp_persistence_installation.adcp_persistence_installation_pkey": {
     "enabled": true,
@@ -453,11 +469,11 @@
   },
   "index:adcp_reporting_row_chunks.adcp_reporting_row_chunks_body": {
     "enabled": true,
-    "fingerprint": "cbe2efd7f7f2286d44e03f9f436b9930159c2d9a0c7792278d69dc77b2dad3eb"
+    "fingerprint": "15f8ee1086f58bb5d98e663f0c36a52cdb79ae555e6e43959aa8edefbd4dd13c"
   },
   "index:adcp_reporting_row_chunks.adcp_reporting_row_chunks_object": {
     "enabled": true,
-    "fingerprint": "1a360131de5b308542bf3b1af3b021507cfa58a9515e046b206e0079f6aa13bc"
+    "fingerprint": "40b6cee4b3fdf70aedc1ed36055db5ccdcd6b13100e7bd469e4df7110e8d9b74"
   },
   "index:adcp_reporting_row_chunks.adcp_reporting_row_chunks_pkey": {
     "enabled": true,

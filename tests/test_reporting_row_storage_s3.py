@@ -58,13 +58,13 @@ async def test_create_only_writes_record_the_version_id_and_adopt_on_conflict(s3
     created = await provider.put_if_absent(put("adcp-rows/ns/a.jsonl.gz", b"first\n"), CONTEXT)
     taken = await provider.put_if_absent(put("adcp-rows/ns/a.jsonl.gz", b"second\n"), CONTEXT)
     assert created.created and not taken.created
-    assert taken.native_version == created.native_version
+    assert taken.native_version_ref == created.native_version_ref
     head = s3.head_object(Bucket="rows-bucket", Key="adcp-rows/ns/a.jsonl.gz")
-    assert head["VersionId"] == created.native_version
+    assert head["VersionId"] == created.native_version_ref
     assert head["Metadata"] == {"adcp-installation": "i", "adcp-intent": "t"}
     assert head["CacheControl"] == "no-store" and head["ContentType"] == "application/gzip"
     read = ReportingRowObjectGetInputV1(
-        LOCATION, "adcp-rows/ns/a.jsonl.gz", created.native_version, 100
+        LOCATION, "adcp-rows/ns/a.jsonl.gz", created.native_version_ref, 100
     )
     assert await provider.get(read, CONTEXT) == b"first\n"
 
@@ -78,7 +78,7 @@ async def test_reads_pin_the_version_and_honour_ranges_and_the_cap(s3: Any) -> N
     def read(**kwargs: Any) -> Any:
         return provider.get(
             ReportingRowObjectGetInputV1(
-                LOCATION, "adcp-rows/ns/r.jsonl", created.native_version, **kwargs
+                LOCATION, "adcp-rows/ns/r.jsonl", created.native_version_ref, **kwargs
             ),
             CONTEXT,
         )
@@ -104,17 +104,17 @@ async def test_a_delayed_delete_never_removes_an_identical_recreation(s3: Any) -
     provider = create_s3_reporting_row_object_provider_v1(client=s3)
     key = "adcp-rows/ns/w.jsonl"
     first = await provider.put_if_absent(put(key, b"same\n"), CONTEXT)
-    delete_first = ReportingRowObjectDeleteInputV1(LOCATION, key, first.native_version)
+    delete_first = ReportingRowObjectDeleteInputV1(LOCATION, key, first.native_version_ref)
     assert await provider.delete(delete_first, CONTEXT) == "deleted"
     second = await provider.put_if_absent(put(key, b"same\n"), CONTEXT)
-    assert second.native_version != first.native_version
+    assert second.native_version_ref != first.native_version_ref
     # The delayed delete of the first write finds nothing and leaves the replacement.
     assert await provider.delete(delete_first, CONTEXT) == "absent"
-    survivor = ReportingRowObjectGetInputV1(LOCATION, key, second.native_version, 100)
+    survivor = ReportingRowObjectGetInputV1(LOCATION, key, second.native_version_ref, 100)
     assert await provider.get(survivor, CONTEXT) == b"same\n"
     # Deleting an exact version leaves no delete marker behind.
     await provider.delete(
-        ReportingRowObjectDeleteInputV1(LOCATION, key, second.native_version), CONTEXT
+        ReportingRowObjectDeleteInputV1(LOCATION, key, second.native_version_ref), CONTEXT
     )
     assert s3.list_object_versions(Bucket="rows-bucket", Prefix=key).get("DeleteMarkers") is None
 

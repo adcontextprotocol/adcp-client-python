@@ -171,6 +171,7 @@ async def test_passes_the_shared_provider_conformance_suite() -> None:
         "create-only",
         "ranged-read",
         "version-pinned-read",
+        "version-pinned-stat",
         "exact-version-delete",
         "write-unique-version",
     ]
@@ -180,7 +181,7 @@ async def test_create_only_upload_sends_the_precondition_and_a_declared_checksum
     storage = FakeStorage().add_bucket()
     provider = create_gcs_reporting_row_object_provider_v1(storage=storage)
     created = await provider.put_if_absent(put("adcp-rows/ns/a.jsonl.gz"), CONTEXT)
-    assert created.created and created.native_version.isdigit()
+    assert created.created and created.native_version_ref.isdigit()
     (_, options) = next(call for call in storage.calls if call[0] == "upload")
     assert options["if_generation_match"] == 0
     assert options["content_type"] == "application/gzip" and options["checksum"] == "md5"
@@ -193,8 +194,10 @@ async def test_conflict_adopts_the_existing_generation_without_replacing_it() ->
     provider = create_gcs_reporting_row_object_provider_v1(storage=FakeStorage().add_bucket())
     first = await provider.put_if_absent(put("adcp-rows/ns/a.jsonl", b"first\n"), CONTEXT)
     second = await provider.put_if_absent(put("adcp-rows/ns/a.jsonl", b"second\n"), CONTEXT)
-    assert (second.created, second.native_version) == (False, first.native_version)
-    read = ReportingRowObjectGetInputV1(LOCATION, "adcp-rows/ns/a.jsonl", first.native_version, 100)
+    assert (second.created, second.native_version_ref) == (False, first.native_version_ref)
+    read = ReportingRowObjectGetInputV1(
+        LOCATION, "adcp-rows/ns/a.jsonl", first.native_version_ref, 100
+    )
     assert await provider.get(read, CONTEXT) == b"first\n"
 
 
@@ -208,14 +211,14 @@ async def test_reads_pin_the_generation_request_raw_bytes_and_honour_ranges_and_
     def read(**kwargs: Any) -> Any:
         return provider.get(
             ReportingRowObjectGetInputV1(
-                LOCATION, "adcp-rows/ns/r.jsonl", created.native_version, **kwargs
+                LOCATION, "adcp-rows/ns/r.jsonl", created.native_version_ref, **kwargs
             ),
             CONTEXT,
         )
 
     assert await read(max_bytes=6, byte_range=(4, 6)) == b"456789"
     (_, options) = [call for call in storage.calls if call[0] == "download"][-1]
-    assert options["generation"] == int(created.native_version)
+    assert options["generation"] == int(created.native_version_ref)
     assert options["raw_download"] is True and options["checksum"] is None
     assert (options["start"], options["end"]) == (4, 9)
     assert await read(max_bytes=100) == b"0123456789abcdef"
@@ -238,13 +241,13 @@ async def test_delete_targets_the_exact_generation_and_is_idempotent() -> None:
     provider = create_gcs_reporting_row_object_provider_v1(storage=storage)
     key = "adcp-rows/ns/d.jsonl"
     first = await provider.put_if_absent(put(key, b"same\n"), CONTEXT)
-    delete = ReportingRowObjectDeleteInputV1(LOCATION, key, first.native_version)
+    delete = ReportingRowObjectDeleteInputV1(LOCATION, key, first.native_version_ref)
     assert await provider.delete(delete, CONTEXT) == "deleted"
     assert await provider.delete(delete, CONTEXT) == "absent"
     second = await provider.put_if_absent(put(key, b"same\n"), CONTEXT)
-    assert second.native_version != first.native_version
+    assert second.native_version_ref != first.native_version_ref
     assert await provider.delete(delete, CONTEXT) == "absent"
-    assert storage.objects[("rows-bucket", key)][0].generation == int(second.native_version)
+    assert storage.objects[("rows-bucket", key)][0].generation == int(second.native_version_ref)
     outcome = await provider.delete(ReportingRowObjectDeleteInputV1(LOCATION, key, "bad"), CONTEXT)
     assert outcome == "absent"
 

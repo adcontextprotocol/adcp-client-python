@@ -35,8 +35,9 @@ from typing import TYPE_CHECKING, Any, Literal, TypeVar
 import rfc8785
 
 from adcp.reporting.ledger.row_encoding import (
+    REPORTING_ROW_ALGORITHM_V1,
     REPORTING_ROW_CHUNK_MAX_BYTES,
-    REPORTING_ROW_ENCODING_V1,
+    REPORTING_ROW_FORMAT_V1,
     ReportingEncodedRowsV1,
     ReportingRowChunkManifestV1,
     ReportingRowEncodingError,
@@ -49,6 +50,7 @@ from adcp.reporting.ledger.row_encoding import (
     verify_reporting_row_manifests_v1,
 )
 from adcp.reporting.ledger.row_storage_errors import (
+    ReportingRowBindingMismatchError,
     ReportingRowStoreError,
     ReportingRowStoreErrorCode,
 )
@@ -59,6 +61,7 @@ from adcp.reporting.ledger.row_storage_object import (
     ReportingRowObjectGetInputV1,
     ReportingRowObjectProviderV1,
     ReportingRowObjectPutInputV1,
+    ReportingRowObjectStatInputV1,
     assert_reporting_row_key_template_v1,
     assert_reporting_row_prefix_v1,
     render_reporting_row_object_key_v1,
@@ -104,6 +107,7 @@ Compression = Literal["none", "gzip"]
 _DEFAULT_BINDING_ID = "postgres"
 _BINDING_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 _CREDENTIAL_REF = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
+_NATIVE_VERSION_REF_MAX_LENGTH = 1024
 #: Upper bound for adopting an existing object whose encoding may differ byte for byte.
 _MAX_ADOPTED_OBJECT_BYTES = 2 * REPORTING_ROW_CHUNK_MAX_BYTES + 1024 * 1024
 _T = TypeVar("_T")
@@ -131,12 +135,20 @@ class ReportingObjectRowBindingV1:
     location: Mapping[str, str]
     #: Owned key prefix. Sweeps and deletes never touch keys outside it.
     prefix: str
-    #: Object key template; see ``REPORTING_ROW_DEFAULT_KEY_TEMPLATE``.
+    #: Object key template; see ``REPORTING_ROW_DEFAULT_KEY_TEMPLATE``. It must include
+    #: ``{revision_key}``, so every row set writes its own object keys (a read-only binding is
+    #: exempt).
     key_template: str | None = None
     #: Stored encoding. Digests always cover uncompressed bytes.
     compression: Compression = "gzip"
     #: Host-mapped client reference passed to the provider; never a secret.
     credential_ref: str | None = None
+    #: Keep this binding configured only to read (and retire) row sets already written through
+    #: it, for example under an older template without ``{revision_key}``. A read-only binding is
+    #: never selected for new writes and is exempt from the ``{revision_key}`` requirement; reads
+    #: use each chunk's recorded ``object_ref``, never a re-rendered key. Not part of the
+    #: binding's identity.
+    read_only: bool = False
     kind: Literal["object"] = "object"
 
 
@@ -150,7 +162,7 @@ class ReportingRowBindingSelectionInputV1:
     row_set_kind: RowSetKind
     finality: Literal["snapshot", "official"] | None
     row_count: int
-    canonical_byte_count: int
+    content_size_bytes: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,18 +195,22 @@ class ReportingRowStorageOptionsV1:
 class ReportingRowChunkLocatorV1:
     """Where one chunk was stored; recorded in the chunk manifest."""
 
-    object_key: str
-    native_version: str
+    #: AdCP ``object_ref``: decoded, destination-relative, 1 to 1024 characters.
+    object_ref: str
+    #: AdCP ``native_version_ref``: the provider-native immutable version, 1 to 1024 characters.
+    native_version_ref: str
     compression: Compression
+    #: SHA-256 of the stored (possibly compressed) object bytes.
     physical_sha256: str
-    physical_byte_count: int
+    #: AdCP ``size_bytes``: the stored object's size, after any compression.
+    size_bytes: int
     #: Whether this upload created the object, as opposed to adopting identical bytes.
     created: bool = False
 
 
 @dataclass(frozen=True, slots=True)
 class _PlannedObject:
-    key: str
+    object_ref: str
     physical_bytes: bytes
     physical_sha256: str
     compression: Compression
@@ -211,7 +227,9 @@ class ReportingPreparedRowSetV1:
     encoded: ReportingEncodedRowsV1
     digest_profile: DigestProfile
     content_sha256: str
-    canonical_byte_count: int
+    #: Byte count of the content ``content_sha256`` covers. For a revision this includes the
+    #: envelope, so it is not the sum of the chunks' ``canonical_size_bytes``.
+    content_size_bytes: int
     binding_id: str
     binding: ReportingRowBindingDefinitionV1
     #: Object kind only: one planned object per chunk.
@@ -228,7 +246,7 @@ class ReportingRowSetHandleV1:
     obligation_id: str
     digest_profile: DigestProfile
     content_sha256: str
-    canonical_byte_count: int
+    content_size_bytes: int
     row_count: int
     row_manifest_sha256: str
     binding_id: str
@@ -271,6 +289,18 @@ def _binding_identity_sha256(binding: ReportingRowBindingDefinitionV1) -> str:
     )
 
 
+def _assert_binding_key_template(binding_id: str, binding: ReportingObjectRowBindingV1) -> None:
+    """A writable object binding's template must include ``{revision_key}`` (``INVALID_INPUT``)."""
+    try:
+        assert_reporting_row_key_template_v1(
+            _key_template(binding), require_revision_key=not binding.read_only
+        )
+    except ReportingRowStoreError as error:
+        raise ReportingRowStoreError(
+            "INVALID_INPUT", f"row binding {binding_id}: {error.detail}"
+        ) from None
+
+
 def _binding_operational_config(binding: ReportingRowBindingDefinitionV1) -> dict[str, Any]:
     if isinstance(binding, ReportingObjectRowBindingV1):
         return {
@@ -305,6 +335,21 @@ def _physical_chunks(chunks: Sequence[bytes], compression: Compression) -> list[
     if compression == "none":
         return list(chunks)
     return [gzip.compress(data, compresslevel=6, mtime=0) for data in chunks]
+
+
+def _adopted_object_changed() -> ReportingRowStoreError:
+    return ReportingRowStoreError(
+        "STATE_UNAVAILABLE",
+        "an adopted object was deleted or replaced before this commit; stage the rows again",
+    )
+
+
+def _assert_native_version_ref(value: object) -> None:
+    """AdCP ``native_version_ref`` bound (``reporting-native-version-ref.json``): 1-1024 chars."""
+    if not isinstance(value, str) or not 1 <= len(value) <= _NATIVE_VERSION_REF_MAX_LENGTH:
+        raise ReportingRowStoreError(
+            "PROVIDER_UNAVAILABLE", "provider returned an invalid native version reference"
+        )
 
 
 def _inflate(physical: bytes, compression: Compression, byte_count: int) -> bytes | None:
@@ -358,7 +403,7 @@ class ReportingRowStorageV1:
                 )
             provider.validate_location(binding.location)
             assert_reporting_row_prefix_v1(binding.prefix)
-            assert_reporting_row_key_template_v1(_key_template(binding))
+            _assert_binding_key_template(binding_id, binding)
             if binding.compression not in ("none", "gzip"):
                 raise ReportingRowStoreError(
                     "INVALID_INPUT", f"row binding {binding_id} has an unsupported compression"
@@ -414,6 +459,11 @@ class ReportingRowStorageV1:
                 await self._register(connection)
 
     async def _register(self, connection: Any) -> None:
+        # Readiness re-checks what the constructor checked, so a configuration changed after
+        # construction still fails closed.
+        for binding_id, binding in self._bindings.items():
+            if isinstance(binding, ReportingObjectRowBindingV1):
+                _assert_binding_key_template(binding_id, binding)
         present = await (
             await connection.execute(
                 "SELECT table_name FROM information_schema.tables"
@@ -601,6 +651,7 @@ class ReportingRowStorageV1:
         expected_sha256: str | None = None,
         finality: Literal["snapshot", "official"] | None = None,
         period_start: str | None = None,
+        source_timezone: str | None = None,
         binding_id: str | None = None,
     ) -> ReportingPreparedRowSetV1:
         """Encode rows, prove them against the committed digest, choose a binding, plan objects.
@@ -608,7 +659,8 @@ class ReportingRowStorageV1:
         ``digest_profile`` is ``revision_envelope_v1`` (the protocol revision
         binding, with ``control_totals``) or ``rows_v1`` (``sha256(JCS(rows))``).
         When ``expected_sha256`` is given the rows must reproduce it.
-        ``period_start`` (RFC 3339) feeds ``{period_date}`` in object keys.
+        ``period_start`` (RFC 3339) with the period's ``source_timezone`` feeds
+        ``{period_date}`` in object keys: the period start's calendar date in that zone.
         """
         if self._installation is None:
             raise ReportingRowStoreError("STATE_UNAVAILABLE", "row storage is not ready")
@@ -621,10 +673,18 @@ class ReportingRowStorageV1:
         except ReportingRowEncodingError as error:
             raise ReportingRowStoreError("INVALID_INPUT", error.detail) from None
         if expected_sha256 is not None and digest.sha256 != expected_sha256.lower():
-            raise ReportingRowStoreError(
-                "INVALID_INPUT", "rows do not reproduce their committed binding"
-            )
+            raise ReportingRowBindingMismatchError()
         chosen = binding_id
+        writable = [
+            identifier
+            for identifier, candidate in self._bindings.items()
+            if not (isinstance(candidate, ReportingObjectRowBindingV1) and candidate.read_only)
+        ]
+        if not writable and chosen is None and self._options.select_row_binding is None:
+            raise ReportingRowStoreError(
+                "UNSAFE_BINDING",
+                "no writable row binding is configured: every binding is read-only",
+            )
         if chosen is None:
             if self._options.select_row_binding is not None:
                 selected = self._options.select_row_binding(
@@ -634,18 +694,24 @@ class ReportingRowStorageV1:
                         row_set_kind=row_set_kind,
                         finality=finality,
                         row_count=len(rows),
-                        canonical_byte_count=digest.byte_count,
+                        content_size_bytes=digest.byte_count,
                     )
                 )
                 chosen = await selected if inspect.isawaitable(selected) else selected
-            elif len(self._bindings) == 1:
-                chosen = next(iter(self._bindings))
+            elif len(writable) == 1:
+                chosen = writable[0]
             else:
                 chosen = _DEFAULT_BINDING_ID
         binding = self._bindings.get(chosen)
         if binding is None:
             raise ReportingRowStoreError(
                 "STATE_UNAVAILABLE", f"row binding {chosen} is not configured"
+            )
+        if isinstance(binding, ReportingObjectRowBindingV1) and binding.read_only:
+            # Not INVALID_INPUT: that code means the rows are bad, and callers quarantine on it.
+            raise ReportingRowStoreError(
+                "UNSAFE_BINDING",
+                f"row binding {chosen} is read-only and cannot take new row sets",
             )
         objects: tuple[_PlannedObject, ...] = ()
         if isinstance(binding, ReportingObjectRowBindingV1):
@@ -657,13 +723,14 @@ class ReportingRowStorageV1:
             for chunk, physical in zip(encoded.chunks, compressed, strict=True):
                 planned.append(
                     _PlannedObject(
-                        key=render_reporting_row_object_key_v1(
+                        object_ref=render_reporting_row_object_key_v1(
                             template=_key_template(binding),
                             prefix=binding.prefix,
                             namespace_key=namespace_key,
                             account_id=account_id,
                             row_set_id=row_set_id,
                             period_start=period_start,
+                            source_timezone=source_timezone,
                             finality=finality,
                             content_sha256=digest.sha256,
                             chunk_index=chunk.manifest.chunk_index,
@@ -683,7 +750,7 @@ class ReportingRowStorageV1:
             encoded=encoded,
             digest_profile=digest_profile,
             content_sha256=digest.sha256,
-            canonical_byte_count=digest.byte_count,
+            content_size_bytes=digest.byte_count,
             binding_id=chosen,
             binding=binding,
             objects=objects,
@@ -699,7 +766,7 @@ class ReportingRowStorageV1:
 
         An object already at a planned key is adopted only when its bytes decode to
         the exact chunk; otherwise ``CONTENT_CONFLICT``. ``on_created`` is awaited
-        with ``(object_key, native_version)`` for every object this call created,
+        with ``(object_ref, native_version_ref)`` for every object this call created,
         before the next upload, so the caller can record it in its write intent.
         Adopted objects are never reported, so a sweep never deletes them. If ``on_created``
         raises, the object it was told about stays in the store: an upload never deletes, because
@@ -729,7 +796,7 @@ class ReportingRowStorageV1:
                 provider.put_if_absent(
                     ReportingRowObjectPutInputV1(
                         location=binding.location,
-                        key=planned.key,
+                        object_ref=planned.object_ref,
                         data=planned.physical_bytes,
                         content_type=(
                             "application/gzip"
@@ -749,11 +816,14 @@ class ReportingRowStorageV1:
                 # delete would remove a committed revision's bytes for good. Leave the object: at
                 # worst it is storage a later sweep removes through the reference check (the same
                 # choice the JavaScript SDK makes).
-                await on_created(planned.key, put.native_version)
+                await on_created(planned.object_ref, put.native_version_ref)
+                # Recorded in the intent first, so a malformed version from a misbehaving provider
+                # still leaves the intent naming the object a sweep must remove.
+                _assert_native_version_ref(put.native_version_ref)
                 locators.append(
                     ReportingRowChunkLocatorV1(
-                        planned.key,
-                        put.native_version,
+                        planned.object_ref,
+                        put.native_version_ref,
                         planned.compression,
                         planned.physical_sha256,
                         len(planned.physical_bytes),
@@ -761,13 +831,14 @@ class ReportingRowStorageV1:
                     )
                 )
                 continue
+            _assert_native_version_ref(put.native_version_ref)
             budget = remaining()
             existing = await self._provider_call(
                 provider.get(
                     ReportingRowObjectGetInputV1(
                         location=binding.location,
-                        key=planned.key,
-                        native_version=put.native_version,
+                        object_ref=planned.object_ref,
+                        native_version_ref=put.native_version_ref,
                         max_bytes=_MAX_ADOPTED_OBJECT_BYTES,
                         credential_ref=binding.credential_ref,
                     ),
@@ -786,8 +857,8 @@ class ReportingRowStorageV1:
                 )
             locators.append(
                 ReportingRowChunkLocatorV1(
-                    planned.key,
-                    put.native_version,
+                    planned.object_ref,
+                    put.native_version_ref,
                     planned.compression,
                     _sha256_hex(existing),
                     len(existing),
@@ -817,20 +888,21 @@ class ReportingRowStorageV1:
             )
         cursor = await connection.execute(
             "INSERT INTO adcp_reporting_row_sets"
-            " (row_set_id, row_set_kind, account_id, obligation_id, encoding, digest_profile,"
-            "  content_sha256, canonical_byte_count, row_count, row_manifest_sha256,"
-            "  chunk_count, row_binding_id, rows_shared_from_row_set_id)"
-            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            " (row_set_id, row_set_kind, account_id, obligation_id, format, algorithm,"
+            "  digest_profile, content_sha256, content_size_bytes, row_count,"
+            "  row_manifest_sha256, chunk_count, row_binding_id, rows_shared_from_row_set_id)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
             " ON CONFLICT (row_set_id) DO NOTHING",
             (
                 prepared.row_set_id,
                 prepared.row_set_kind,
                 prepared.account_id,
                 prepared.obligation_id,
-                REPORTING_ROW_ENCODING_V1,
+                REPORTING_ROW_FORMAT_V1,
+                REPORTING_ROW_ALGORITHM_V1,
                 prepared.digest_profile,
                 prepared.content_sha256,
-                prepared.canonical_byte_count,
+                prepared.content_size_bytes,
                 encoded.row_count,
                 encoded.row_manifest_sha256,
                 len(encoded.chunks),
@@ -868,8 +940,9 @@ class ReportingRowStorageV1:
             await connection.execute(
                 "INSERT INTO adcp_reporting_row_chunks"
                 " (row_set_id, chunk_index, account_id, obligation_id, first_ordinal, row_count,"
-                "  byte_count, sha256, segments, object_key, native_version, compression,"
-                "  physical_sha256, physical_byte_count)"
+                "  canonical_size_bytes, sha256, segments, object_ref, native_version_ref,"
+                "  compression,"
+                "  physical_sha256, size_bytes)"
                 " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s)",
                 (
                     prepared.row_set_id,
@@ -881,11 +954,11 @@ class ReportingRowStorageV1:
                     manifest.byte_count,
                     manifest.sha256,
                     json.dumps([segment.to_wire() for segment in manifest.segments]),
-                    locator.object_key if locator else None,
-                    locator.native_version if locator else None,
+                    locator.object_ref if locator else None,
+                    locator.native_version_ref if locator else None,
                     locator.compression if locator else "none",
                     locator.physical_sha256 if locator else None,
-                    locator.physical_byte_count if locator else None,
+                    locator.size_bytes if locator else None,
                 ),
             )
 
@@ -921,8 +994,8 @@ class ReportingRowStorageV1:
             return None
         chunks = await (
             await connection.execute(
-                "SELECT object_key, native_version, compression, physical_sha256,"
-                " physical_byte_count FROM adcp_reporting_row_chunks"
+                "SELECT object_ref, native_version_ref, compression, physical_sha256,"
+                " size_bytes FROM adcp_reporting_row_chunks"
                 " WHERE row_set_id = %s ORDER BY chunk_index",
                 (found[0],),
             )
@@ -941,7 +1014,7 @@ class ReportingRowStorageV1:
         ]
 
     async def delete_objects(self, binding_id: str, objects: Sequence[tuple[str, str]]) -> None:
-        """Delete exact ``(object_key, native_version)`` pairs through the binding's provider.
+        """Delete exact ``(object_ref, native_version_ref)`` pairs through the binding's provider.
 
         ``absent`` counts as success. Only keys under the installation's owned
         prefix are accepted, so a corrupted locator cannot delete another
@@ -952,15 +1025,15 @@ class ReportingRowStorageV1:
         binding, provider = self._object_binding(binding_id)
         owned_prefix = f"{binding.prefix}/{self._installation[1]}/"
         context = ReportingRowObjectContextV1(self._options.write_deadline_seconds)
-        for object_key, native_version in objects:
-            if not object_key.startswith(owned_prefix):
+        for object_ref, native_version_ref in objects:
+            if not object_ref.startswith(owned_prefix):
                 raise ReportingRowStoreError(
                     "UNSAFE_BINDING", "refusing to delete an object outside the owned prefix"
                 )
             await self._provider_call(
                 provider.delete(
                     ReportingRowObjectDeleteInputV1(
-                        binding.location, object_key, native_version, binding.credential_ref
+                        binding.location, object_ref, native_version_ref, binding.credential_ref
                     ),
                     context,
                 ),
@@ -978,8 +1051,8 @@ class ReportingRowStorageV1:
     # both SDKs derive the same lock id in one database.
 
     @staticmethod
-    def _object_lock_text(binding_id: str, object_key: str) -> str:
-        return f"adcp-reporting-object:{binding_id}:{object_key}"
+    def _object_lock_text(binding_id: str, object_ref: str) -> str:
+        return f"adcp-reporting-object:{binding_id}:{object_ref}"
 
     async def lock_and_verify_adopted(
         self,
@@ -994,23 +1067,51 @@ class ReportingRowStorageV1:
         instead. (A writer's own just-created object is not locked: the window between its
         create and the intent record is the same one the JavaScript SDK leaves open.)
         """
-        adopted = sorted((x for x in locators if not x.created), key=lambda x: x.object_key)
+        adopted = sorted((x for x in locators if not x.created), key=lambda x: x.object_ref)
         if not adopted:
             return
         binding, provider = self._object_binding(binding_id)
         for locator in adopted:
             await connection.execute(
                 "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
-                (self._object_lock_text(binding_id, locator.object_key),),
+                (self._object_lock_text(binding_id, locator.object_ref),),
             )
+        stat = getattr(provider, "stat", None)
         for locator in adopted:
             budget = self._options.write_deadline_seconds
+            if stat is not None:
+                # Native versions are write-unique, so "this exact version exists at the recorded
+                # size" proves the object unchanged without downloading it while the commit holds
+                # its locks. Bytes were verified when the object was uploaded or adopted. The
+                # provider must echo the exact version it checked: one that ignores the pin and
+                # reports the current object would vouch for a version that is gone.
+                found = await self._provider_call(
+                    stat(
+                        ReportingRowObjectStatInputV1(
+                            location=binding.location,
+                            object_ref=locator.object_ref,
+                            native_version_ref=locator.native_version_ref,
+                            credential_ref=binding.credential_ref,
+                        ),
+                        ReportingRowObjectContextV1(budget),
+                    ),
+                    budget,
+                )
+                if (
+                    found is None
+                    or found.native_version_ref != locator.native_version_ref
+                    or type(found.size_bytes) is not int
+                    or found.size_bytes != locator.size_bytes
+                ):
+                    raise _adopted_object_changed()
+                continue
+            # A provider without ``stat`` falls back to reading the whole object.
             existing = await self._provider_call(
                 provider.get(
                     ReportingRowObjectGetInputV1(
                         location=binding.location,
-                        key=locator.object_key,
-                        native_version=locator.native_version,
+                        object_ref=locator.object_ref,
+                        native_version_ref=locator.native_version_ref,
                         max_bytes=_MAX_ADOPTED_OBJECT_BYTES,
                         credential_ref=binding.credential_ref,
                     ),
@@ -1019,10 +1120,7 @@ class ReportingRowStorageV1:
                 budget,
             )
             if existing is None or _sha256_hex(existing) != locator.physical_sha256:
-                raise ReportingRowStoreError(
-                    "STATE_UNAVAILABLE",
-                    "an adopted object was deleted before this commit; stage the rows again",
-                )
+                raise _adopted_object_changed()
 
     async def delete_unreferenced(
         self,
@@ -1044,11 +1142,11 @@ class ReportingRowStorageV1:
         fails closed. Returns the number of objects deleted.
         """
         deleted = 0
-        for object_key, native_version in objects:
+        for object_ref, native_version_ref in objects:
             async with pool.connection() as connection, connection.transaction():
                 await connection.execute(
                     "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
-                    (self._object_lock_text(binding_id, object_key),),
+                    (self._object_lock_text(binding_id, object_ref),),
                 )
                 referenced = await (
                     await connection.execute(
@@ -1056,7 +1154,8 @@ class ReportingRowStorageV1:
                         "   JOIN adcp_reporting_row_sets row_set"
                         "     ON row_set.row_set_id = chunk.row_set_id"
                         "  WHERE row_set.row_binding_id = %(binding)s"
-                        "    AND chunk.object_key = %(key)s AND chunk.native_version = %(version)s"
+                        "    AND chunk.object_ref = %(key)s"
+                        "    AND chunk.native_version_ref = %(version)s"
                         "    AND row_set.rows_state IN ('live', 'unavailable')"
                         "    AND (%(obligation)s::text IS NULL"
                         "         OR chunk.obligation_id <> %(obligation)s)"
@@ -1065,22 +1164,34 @@ class ReportingRowStorageV1:
                         " UNION ALL"
                         " (SELECT 1 FROM adcp_reporting_row_write_intents intent"
                         "  WHERE intent.row_binding_id = %(binding)s AND intent.state = 'open'"
-                        "    AND intent.created_objects @> %(created)s::jsonb LIMIT 1)",
+                        "    AND (intent.created_objects @> %(created)s::jsonb"
+                        "         OR intent.created_objects @> %(created_legacy)s::jsonb)"
+                        "  LIMIT 1)",
                         {
                             "binding": binding_id,
-                            "key": object_key,
-                            "version": native_version,
+                            "key": object_ref,
+                            "version": native_version_ref,
                             "obligation": obligation_id,
                             "row_set": row_set_id,
                             "created": json.dumps(
-                                [{"objectKey": object_key, "nativeVersion": native_version}]
+                                [
+                                    {
+                                        "object_ref": object_ref,
+                                        "native_version_ref": native_version_ref,
+                                    }
+                                ]
+                            ),
+                            # A writer from before the AdCP field alignment, still running during a
+                            # rolling upgrade, records the earlier keys.
+                            "created_legacy": json.dumps(
+                                [{"objectKey": object_ref, "nativeVersion": native_version_ref}]
                             ),
                         },
                     )
                 ).fetchone()
                 if referenced is not None:
                     continue
-                await self.delete_objects(binding_id, [(object_key, native_version)])
+                await self.delete_objects(binding_id, [(object_ref, native_version_ref)])
                 deleted += 1
         return deleted
 
@@ -1099,7 +1210,7 @@ class ReportingRowStorageV1:
         record = await (
             await connection.execute(
                 "SELECT s.row_set_id, s.row_set_kind, s.account_id, s.obligation_id,"
-                " s.digest_profile, s.content_sha256, s.canonical_byte_count, s.row_count,"
+                " s.digest_profile, s.content_sha256, s.content_size_bytes, s.row_count,"
                 " s.row_manifest_sha256, s.chunk_count, s.row_binding_id, s.row_location_version,"
                 " s.rows_state, b.kind, b.identity_sha256"
                 " FROM adcp_reporting_row_sets s"
@@ -1133,8 +1244,9 @@ class ReportingRowStorageV1:
             raise ReportingRowStoreError("ROWS_UNAVAILABLE")
         chunk_rows = await (
             await connection.execute(
-                "SELECT chunk_index, first_ordinal, row_count, byte_count, sha256, segments,"
-                " object_key, native_version, compression, physical_sha256, physical_byte_count"
+                "SELECT chunk_index, first_ordinal, row_count, canonical_size_bytes, sha256,"
+                " segments,"
+                " object_ref, native_version_ref, compression, physical_sha256, size_bytes"
                 " FROM adcp_reporting_row_chunks WHERE row_set_id = %s ORDER BY chunk_index",
                 (row_set_id,),
             )
@@ -1180,7 +1292,7 @@ class ReportingRowStorageV1:
             obligation_id=obligation_id,
             digest_profile=profile,
             content_sha256=content_sha256,
-            canonical_byte_count=int(byte_count),
+            content_size_bytes=int(byte_count),
             row_count=int(row_count),
             row_manifest_sha256=manifest_sha256,
             binding_id=binding_id,
@@ -1251,7 +1363,7 @@ class ReportingRowStorageV1:
         is how a retained pair-hashed revision is verified: its row set is
         ``rows_v1``, and its header binding hashes ``{name, value}`` pairs.
         """
-        if max_bytes is not None and handle.canonical_byte_count > max_bytes:
+        if max_bytes is not None and handle.content_size_bytes > max_bytes:
             raise ReportingRowStoreError(
                 "INVALID_INPUT", "row set exceeds the hydration byte limit"
             )
@@ -1282,10 +1394,7 @@ class ReportingRowStorageV1:
                 extra.update(data)
             rows.extend(_decode_segments(manifest, (0, len(manifest.segments) - 1), data))
         digest = _finish(hasher)
-        if (
-            digest.sha256 != handle.content_sha256
-            or digest.byte_count != handle.canonical_byte_count
-        ):
+        if digest.sha256 != handle.content_sha256 or digest.byte_count != handle.content_size_bytes:
             raise ReportingRowStoreError(
                 "ROWS_INTEGRITY_FAILED", "rows do not reproduce the committed binding"
             )
@@ -1335,8 +1444,8 @@ class ReportingRowStorageV1:
                 provider.get(
                     ReportingRowObjectGetInputV1(
                         location=binding.location,
-                        key=locator.object_key,
-                        native_version=locator.native_version,
+                        object_ref=locator.object_ref,
+                        native_version_ref=locator.native_version_ref,
                         max_bytes=byte_count,
                         byte_range=(byte_offset, byte_count),
                         credential_ref=binding.credential_ref,
@@ -1358,9 +1467,9 @@ class ReportingRowStorageV1:
             provider.get(
                 ReportingRowObjectGetInputV1(
                     location=binding.location,
-                    key=locator.object_key,
-                    native_version=locator.native_version,
-                    max_bytes=locator.physical_byte_count,
+                    object_ref=locator.object_ref,
+                    native_version_ref=locator.native_version_ref,
+                    max_bytes=locator.size_bytes,
                     credential_ref=binding.credential_ref,
                 ),
                 context,
@@ -1372,10 +1481,7 @@ class ReportingRowStorageV1:
                 "ROWS_UNAVAILABLE", f"chunk {manifest.chunk_index} object is missing"
             )
         physical = bytes(stored)
-        if (
-            len(physical) != locator.physical_byte_count
-            or _sha256_hex(physical) != locator.physical_sha256
-        ):
+        if len(physical) != locator.size_bytes or _sha256_hex(physical) != locator.physical_sha256:
             raise ReportingRowStoreError(
                 "ROWS_INTEGRITY_FAILED", f"chunk {manifest.chunk_index} stored bytes differ"
             )

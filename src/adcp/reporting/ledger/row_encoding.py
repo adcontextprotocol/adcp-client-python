@@ -40,7 +40,8 @@ __all__ = [
     "REPORTING_ROW_CHUNK_MAX_BYTES",
     "REPORTING_ROW_CHUNK_MAX_ROWS",
     "REPORTING_ROW_CHUNK_MAX_SEGMENTS",
-    "REPORTING_ROW_ENCODING_V1",
+    "REPORTING_ROW_ALGORITHM_V1",
+    "REPORTING_ROW_FORMAT_V1",
     "REPORTING_ROW_SEGMENT_MAX_ROWS",
     "ReportingEncodedRowsV1",
     "ReportingRevisionEnvelopeDigestV1",
@@ -62,7 +63,14 @@ __all__ = [
     "verify_reporting_row_manifests_v1",
 ]
 
-REPORTING_ROW_ENCODING_V1 = "adcp_canonical_jsonl_v1"
+#: Stored row format and canonicalization algorithm, as AdCP names them
+#: (``reporting-file-manifest.json`` ``format``, ``reporting-canonicalization-contract.json``
+#: ``algorithm``). Neither is an input to any digest: segment, chunk and manifest digests
+#: cover chunk bytes and manifest fields, and ``revision_content_sha256`` covers the envelope
+#: and rows. ``adcp_jcs_rows_v1`` names the per-row RFC 8785 canonicalization; a revision's
+#: ``content_sha256`` is still the envelope digest, not AdCP's array-shaped content digest.
+REPORTING_ROW_FORMAT_V1 = "jsonl"
+REPORTING_ROW_ALGORITHM_V1 = "adcp_jcs_rows_v1"
 REPORTING_ROW_SEGMENT_MAX_ROWS = 500
 REPORTING_ROW_CHUNK_MAX_SEGMENTS = 20
 REPORTING_ROW_CHUNK_MAX_ROWS = REPORTING_ROW_SEGMENT_MAX_ROWS * REPORTING_ROW_CHUNK_MAX_SEGMENTS
@@ -174,7 +182,8 @@ class ReportingRowChunkV1:
 
 @dataclass(frozen=True, slots=True)
 class ReportingEncodedRowsV1:
-    encoding: str
+    format: str
+    algorithm: str
     row_count: int
     #: Total canonical JSONL bytes across all chunks.
     byte_count: int
@@ -282,7 +291,8 @@ def encode_reporting_rows_v1(rows: Iterable[object]) -> ReportingEncodedRowsV1:
 
     manifests = tuple(chunk.manifest for chunk in chunks)
     return ReportingEncodedRowsV1(
-        encoding=REPORTING_ROW_ENCODING_V1,
+        format=REPORTING_ROW_FORMAT_V1,
+        algorithm=REPORTING_ROW_ALGORITHM_V1,
         row_count=total_rows,
         byte_count=sum(manifest.byte_count for manifest in manifests),
         chunks=tuple(chunks),
